@@ -43,9 +43,7 @@ describe('useDraggableFab', () => {
     });
 
     it('should initialize with custom position', () => {
-      const { result } = renderHook(() =>
-        useDraggableFab({ initialPosition: 'top-left' })
-      );
+      const { result } = renderHook(() => useDraggableFab({ initialPosition: 'top-left' }));
 
       expect(result.current.position).toBe('top-left');
     });
@@ -112,9 +110,7 @@ describe('useDraggableFab', () => {
         offset: { x: 50, y: 50 },
       });
 
-      const { result } = renderHook(() =>
-        useDraggableFab({ initialPosition: 'bottom-right' })
-      );
+      const { result } = renderHook(() => useDraggableFab({ initialPosition: 'bottom-right' }));
 
       expect(result.current.position).toBe('top-left');
 
@@ -141,9 +137,7 @@ describe('useDraggableFab', () => {
 
   describe('configuration', () => {
     it('should accept custom persistKey', () => {
-      const { result } = renderHook(() =>
-        useDraggableFab({ persistKey: 'custom-key' })
-      );
+      const { result } = renderHook(() => useDraggableFab({ persistKey: 'custom-key' }));
 
       act(() => {
         result.current.resetPosition();
@@ -153,17 +147,13 @@ describe('useDraggableFab', () => {
     });
 
     it('should accept snapToCorner option', () => {
-      const { result } = renderHook(() =>
-        useDraggableFab({ snapToCorner: false })
-      );
+      const { result } = renderHook(() => useDraggableFab({ snapToCorner: false }));
 
       expect(result.current).toBeDefined();
     });
 
     it('should accept custom edgeMargin', () => {
-      const { result } = renderHook(() =>
-        useDraggableFab({ edgeMargin: 50 })
-      );
+      const { result } = renderHook(() => useDraggableFab({ edgeMargin: 50 }));
 
       expect(result.current).toBeDefined();
     });
@@ -174,9 +164,7 @@ describe('useDraggableFab', () => {
 
     positions.forEach((position) => {
       it(`should handle ${position} position`, () => {
-        const { result } = renderHook(() =>
-          useDraggableFab({ initialPosition: position })
-        );
+        const { result } = renderHook(() => useDraggableFab({ initialPosition: position }));
 
         expect(result.current.position).toBe(position);
       });

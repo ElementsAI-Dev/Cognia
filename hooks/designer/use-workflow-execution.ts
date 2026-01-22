@@ -5,7 +5,11 @@
 
 import { useCallback, useEffect } from 'react';
 import { useWorkflowEditorStore } from '@/stores/workflow';
-import type { WorkflowExecutionState, ExecutionLog, NodeExecutionState } from '@/types/workflow/workflow-editor';
+import type {
+  WorkflowExecutionState,
+  ExecutionLog,
+  NodeExecutionState,
+} from '@/types/workflow/workflow-editor';
 
 // Execution result type
 export interface SandboxExecutionResult {
@@ -133,9 +137,10 @@ export function useWorkflowExecution(
     switch (executionState.status) {
       case 'completed':
         if (onSuccess) {
-          const duration = executionState.completedAt && executionState.startedAt
-            ? executionState.completedAt.getTime() - executionState.startedAt.getTime()
-            : 0;
+          const duration =
+            executionState.completedAt && executionState.startedAt
+              ? executionState.completedAt.getTime() - executionState.startedAt.getTime()
+              : 0;
 
           onSuccess({
             success: true,
@@ -166,7 +171,17 @@ export function useWorkflowExecution(
         onCancelled?.();
         break;
     }
-  }, [executionState, onProgress, onLog, onSuccess, onError, onPaused, onResumed, onCancelled, isPaused]);
+  }, [
+    executionState,
+    onProgress,
+    onLog,
+    onSuccess,
+    onError,
+    onPaused,
+    onResumed,
+    onCancelled,
+    isPaused,
+  ]);
 
   // Watch for node state changes
   useEffect(() => {
@@ -197,14 +212,7 @@ export function useWorkflowExecution(
         onError?.(errorMessage);
       }
     },
-    [
-      currentWorkflow,
-      showExecutionPanel,
-      startExecution,
-      initialInput,
-      updateShowPanel,
-      onError,
-    ]
+    [currentWorkflow, showExecutionPanel, startExecution, initialInput, updateShowPanel, onError]
   );
 
   // Pause execution
@@ -237,9 +245,7 @@ export function useWorkflowExecution(
   const getStepLogs = useCallback(
     (stepId: string) => {
       if (!executionState) return [];
-      return executionState.logs.filter((log) =>
-        log.message.includes(stepId)
-      );
+      return executionState.logs.filter((log) => log.message.includes(stepId));
     },
     [executionState]
   );
@@ -303,10 +309,7 @@ export function useWorkflowExecutionWithKeyboard(
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in an input
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
 

@@ -1,6 +1,6 @@
 /**
  * AI provider and model related hooks
- * 
+ *
  * Note: Agent-specific hooks have been moved to @/hooks/agent
  * Note: Skills-related hooks have been moved to @/hooks/skills
  */

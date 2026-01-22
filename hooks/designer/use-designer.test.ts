@@ -33,15 +33,23 @@ jest.mock('@/stores', () => ({
 
 jest.mock('@/lib/designer', () => ({
   executeDesignerAIEdit: jest.fn().mockResolvedValue({ success: true, code: '<div>Edited</div>' }),
-  generateDesignerComponent: jest.fn().mockResolvedValue({ success: true, code: '<div>Generated</div>' }),
+  generateDesignerComponent: jest
+    .fn()
+    .mockResolvedValue({ success: true, code: '<div>Generated</div>' }),
   getDesignerAIConfig: jest.fn().mockReturnValue({ model: 'gpt-4o' }),
-  getDefaultTemplate: jest.fn().mockReturnValue({ code: '<div>Default Template</div>', name: 'Blank' }),
+  getDefaultTemplate: jest
+    .fn()
+    .mockReturnValue({ code: '<div>Default Template</div>', name: 'Blank' }),
 }));
 
 import { executeDesignerAIEdit, generateDesignerComponent } from '@/lib/designer';
 
-const mockExecuteAIEdit = executeDesignerAIEdit as jest.MockedFunction<typeof executeDesignerAIEdit>;
-const mockGenerateComponent = generateDesignerComponent as jest.MockedFunction<typeof generateDesignerComponent>;
+const mockExecuteAIEdit = executeDesignerAIEdit as jest.MockedFunction<
+  typeof executeDesignerAIEdit
+>;
+const mockGenerateComponent = generateDesignerComponent as jest.MockedFunction<
+  typeof generateDesignerComponent
+>;
 
 describe('useDesigner', () => {
   beforeEach(() => {
@@ -56,18 +64,14 @@ describe('useDesigner', () => {
   });
 
   it('should initialize with provided code', () => {
-    const { result } = renderHook(() => 
-      useDesigner({ initialCode: '<div>Custom Code</div>' })
-    );
+    const { result } = renderHook(() => useDesigner({ initialCode: '<div>Custom Code</div>' }));
 
     expect(result.current.code).toBe('<div>Custom Code</div>');
   });
 
   it('should set code and mark as dirty', () => {
     const onCodeChange = jest.fn();
-    const { result } = renderHook(() => 
-      useDesigner({ onCodeChange })
-    );
+    const { result } = renderHook(() => useDesigner({ onCodeChange }));
 
     act(() => {
       result.current.setCode('<div>New Code</div>');
@@ -117,8 +121,8 @@ describe('useDesigner', () => {
   });
 
   it('should execute AI edit', async () => {
-    mockExecuteAIEdit.mockResolvedValueOnce({ 
-      success: true, 
+    mockExecuteAIEdit.mockResolvedValueOnce({
+      success: true,
       code: '<div>AI Edited</div>',
       error: undefined,
     });
@@ -138,8 +142,8 @@ describe('useDesigner', () => {
   });
 
   it('should generate component from prompt', async () => {
-    mockGenerateComponent.mockResolvedValueOnce({ 
-      success: true, 
+    mockGenerateComponent.mockResolvedValueOnce({
+      success: true,
       code: '<div>Generated Component</div>',
       error: undefined,
     });
@@ -155,8 +159,8 @@ describe('useDesigner', () => {
   });
 
   it('should handle AI edit errors', async () => {
-    mockExecuteAIEdit.mockResolvedValueOnce({ 
-      success: false, 
+    mockExecuteAIEdit.mockResolvedValueOnce({
+      success: false,
       error: 'AI edit failed',
       code: undefined,
     });

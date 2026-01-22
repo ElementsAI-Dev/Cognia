@@ -214,11 +214,25 @@ export function useWorkflow(options: UseWorkflowOptions = {}): UseWorkflowReturn
         const message = err instanceof Error ? err.message : 'Workflow execution failed';
         setError(message);
         return {
-          execution: executionRef.current || createWorkflowExecution(
-            { id: workflowId, name: workflowId, type: 'custom', steps: [], inputs: {}, outputs: {}, version: '1.0', icon: '', category: '', tags: [], description: '' },
-            sessionId,
-            input
-          ),
+          execution:
+            executionRef.current ||
+            createWorkflowExecution(
+              {
+                id: workflowId,
+                name: workflowId,
+                type: 'custom',
+                steps: [],
+                inputs: {},
+                outputs: {},
+                version: '1.0',
+                icon: '',
+                category: '',
+                tags: [],
+                description: '',
+              },
+              sessionId,
+              input
+            ),
           success: false,
           error: message,
         };

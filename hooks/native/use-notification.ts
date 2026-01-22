@@ -25,12 +25,8 @@ export interface UseNotificationReturn {
 }
 
 export function useNotification(): UseNotificationReturn {
-  const {
-    notificationsEnabled,
-    notificationPermission,
-    isDesktop,
-    setNotificationPermission,
-  } = useNativeStore();
+  const { notificationsEnabled, notificationPermission, isDesktop, setNotificationPermission } =
+    useNativeStore();
 
   const notify = useCallback(
     async (title: string, body?: string): Promise<boolean> => {

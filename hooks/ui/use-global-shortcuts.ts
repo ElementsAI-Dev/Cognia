@@ -2,7 +2,7 @@
 
 /**
  * useGlobalShortcuts - hook for system-wide keyboard shortcuts (Tauri only)
- * 
+ *
  * This is different from useKeyboardShortcuts which handles in-app shortcuts.
  * Global shortcuts work even when the app is not focused.
  */
@@ -18,7 +18,7 @@ import {
 } from '@/lib/native/shortcuts';
 import { toast } from 'sonner';
 
-export type GlobalShortcutAction = 
+export type GlobalShortcutAction =
   | 'NEW_CHAT'
   | 'TOGGLE_SIDEBAR'
   | 'OPEN_SETTINGS'
@@ -112,21 +112,17 @@ export function useGlobalShortcuts(
 
       // Use conflict detection based on resolution mode
       if (conflictResolutionMode === 'block' || conflictResolutionMode === 'warn') {
-        const result = await registerShortcutWithConflictCheck(
-          config.shortcut,
-          handler,
-          {
-            owner: 'global-shortcuts',
-            action: config.name,
-            forceOverride: false,
-          }
-        );
+        const result = await registerShortcutWithConflictCheck(config.shortcut, handler, {
+          owner: 'global-shortcuts',
+          action: config.name,
+          forceOverride: false,
+        });
 
         if (result.success) {
           registeredRef.current.add(config.shortcut);
         } else if (result.conflict) {
           const message = `Shortcut "${config.shortcut}" conflicts with ${result.conflict.existingOwner} (${result.conflict.existingAction})`;
-          
+
           if (conflictResolutionMode === 'warn') {
             toast.warning('Shortcut Conflict', {
               description: message,
@@ -183,15 +179,11 @@ export function useGlobalShortcuts(
         const handler = getHandler(config.action);
         if (handler) {
           // Use conflict detection
-          const result = await registerShortcutWithConflictCheck(
-            newShortcut,
-            handler,
-            {
-              owner: 'global-shortcuts',
-              action: config.name,
-              forceOverride: false,
-            }
-          );
+          const result = await registerShortcutWithConflictCheck(newShortcut, handler, {
+            owner: 'global-shortcuts',
+            action: config.name,
+            forceOverride: false,
+          });
 
           if (result.success) {
             registeredRef.current.add(newShortcut);
@@ -219,15 +211,11 @@ export function useGlobalShortcuts(
       if (newEnabled && !registeredRef.current.has(config.shortcut)) {
         const handler = getHandler(config.action);
         if (handler) {
-          const result = await registerShortcutWithConflictCheck(
-            config.shortcut,
-            handler,
-            {
-              owner: 'global-shortcuts',
-              action: config.name,
-              forceOverride: false,
-            }
-          );
+          const result = await registerShortcutWithConflictCheck(config.shortcut, handler, {
+            owner: 'global-shortcuts',
+            action: config.name,
+            forceOverride: false,
+          });
 
           if (result.success) {
             registeredRef.current.add(config.shortcut);

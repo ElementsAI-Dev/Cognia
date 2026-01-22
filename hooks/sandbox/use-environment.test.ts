@@ -42,8 +42,12 @@ jest.mock('@/lib/native/environment', () => ({
 import { useEnvironmentStore } from '@/stores/system';
 import { environmentService, isEnvironmentAvailable } from '@/lib/native/environment';
 
-const mockUseEnvironmentStore = useEnvironmentStore as jest.MockedFunction<typeof useEnvironmentStore>;
-const mockIsEnvironmentAvailable = isEnvironmentAvailable as jest.MockedFunction<typeof isEnvironmentAvailable>;
+const mockUseEnvironmentStore = useEnvironmentStore as jest.MockedFunction<
+  typeof useEnvironmentStore
+>;
+const mockIsEnvironmentAvailable = isEnvironmentAvailable as jest.MockedFunction<
+  typeof isEnvironmentAvailable
+>;
 const mockEnvironmentService = environmentService as jest.Mocked<typeof environmentService>;
 
 describe('useEnvironment', () => {
@@ -89,8 +93,24 @@ describe('useEnvironment', () => {
 
   it('should refresh tool statuses', async () => {
     const mockStatuses = [
-      { tool: 'uv' as const, status: 'installed' as const, installed: true, version: '18.0.0', path: '/usr/bin/uv', error: null, lastChecked: new Date().toISOString() },
-      { tool: 'nvm' as const, status: 'not_installed' as const, installed: false, version: null, path: null, error: null, lastChecked: new Date().toISOString() },
+      {
+        tool: 'uv' as const,
+        status: 'installed' as const,
+        installed: true,
+        version: '18.0.0',
+        path: '/usr/bin/uv',
+        error: null,
+        lastChecked: new Date().toISOString(),
+      },
+      {
+        tool: 'nvm' as const,
+        status: 'not_installed' as const,
+        installed: false,
+        version: null,
+        path: null,
+        error: null,
+        lastChecked: new Date().toISOString(),
+      },
     ];
     mockEnvironmentService.checkAllTools.mockResolvedValue(mockStatuses);
 
@@ -119,7 +139,15 @@ describe('useEnvironment', () => {
   });
 
   it('should check a specific tool', async () => {
-    const mockStatus = { tool: 'uv' as const, status: 'installed' as const, installed: true, version: '18.0.0', path: '/usr/bin/uv', error: null, lastChecked: new Date().toISOString() };
+    const mockStatus = {
+      tool: 'uv' as const,
+      status: 'installed' as const,
+      installed: true,
+      version: '18.0.0',
+      path: '/usr/bin/uv',
+      error: null,
+      lastChecked: new Date().toISOString(),
+    };
     mockEnvironmentService.checkTool.mockResolvedValue(mockStatus);
 
     const { result } = renderHook(() => useEnvironment());
@@ -151,7 +179,15 @@ describe('useEnvironment', () => {
   });
 
   it('should install a tool', async () => {
-    mockEnvironmentService.installTool.mockResolvedValue({ tool: 'uv' as const, status: 'installed' as const, installed: true, version: '0.5.0', path: '/usr/bin/uv', error: null, lastChecked: new Date().toISOString() });
+    mockEnvironmentService.installTool.mockResolvedValue({
+      tool: 'uv' as const,
+      status: 'installed' as const,
+      installed: true,
+      version: '0.5.0',
+      path: '/usr/bin/uv',
+      error: null,
+      lastChecked: new Date().toISOString(),
+    });
 
     const { result } = renderHook(() => useEnvironment());
 
@@ -176,7 +212,11 @@ describe('useEnvironment', () => {
     });
 
     expect(success).toBe(false);
-    expect(mockStoreFunctions.completeInstallation).toHaveBeenCalledWith('uv', false, 'Install failed');
+    expect(mockStoreFunctions.completeInstallation).toHaveBeenCalledWith(
+      'uv',
+      false,
+      'Install failed'
+    );
   });
 
   it('should uninstall a tool', async () => {

@@ -1,6 +1,6 @@
 /**
  * useProviderManager - React hook for unified provider management
- * 
+ *
  * Integrates the Provider Manager infrastructure with React components,
  * providing access to load balancing, failover, quota management,
  * and health monitoring.
@@ -150,7 +150,7 @@ export function useProviderManager(
     // Batch state updates to avoid cascading renders
     const initialStates = mgr.getAllProviderStates();
     const initialSummary = mgr.getSummary();
-    
+
     // Use queueMicrotask to defer state updates
     queueMicrotask(() => {
       setManagerInstance(mgr);
@@ -164,11 +164,14 @@ export function useProviderManager(
     // Subscribe to events
     if (enableQuotaAlerts) {
       const unsubQuota = mgr.onQuotaAlert((alert) => {
-        setQuotaAlerts((prev) => [...prev.slice(-9), {
-          providerId: alert.providerId,
-          type: alert.type,
-          message: alert.message,
-        }]);
+        setQuotaAlerts((prev) => [
+          ...prev.slice(-9),
+          {
+            providerId: alert.providerId,
+            type: alert.type,
+            message: alert.message,
+          },
+        ]);
       });
       unsubscribers.push(unsubQuota);
     }

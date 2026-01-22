@@ -2,7 +2,7 @@
 
 /**
  * useContextStats - Hook for monitoring context file usage
- * 
+ *
  * Provides real-time statistics about context files including
  * storage usage, token estimates, and file counts by category.
  */
@@ -49,9 +49,7 @@ export interface UseContextStatsReturn {
   formatTokens: (tokens: number) => string;
 }
 
-export function useContextStats(
-  options: UseContextStatsOptions = {}
-): UseContextStatsReturn {
+export function useContextStats(options: UseContextStatsOptions = {}): UseContextStatsReturn {
   const { refreshIntervalMs = 0, refreshOnMount = true } = options;
 
   const [stats, setStats] = useState<ContextStats | null>(null);
@@ -80,16 +78,19 @@ export function useContextStats(
   }, []);
 
   // Run garbage collection
-  const runGC = useCallback(async (maxAgeMs?: number): Promise<number> => {
-    try {
-      const result = await gcContextFiles(maxAgeMs ? { maxAge: maxAgeMs } : {});
-      await refresh(); // Refresh stats after GC
-      return result.filesRemoved;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'GC failed');
-      return 0;
-    }
-  }, [refresh]);
+  const runGC = useCallback(
+    async (maxAgeMs?: number): Promise<number> => {
+      try {
+        const result = await gcContextFiles(maxAgeMs ? { maxAge: maxAgeMs } : {});
+        await refresh(); // Refresh stats after GC
+        return result.filesRemoved;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'GC failed');
+        return 0;
+      }
+    },
+    [refresh]
+  );
 
   // Clear all context files
   const clearAll = useCallback(async () => {

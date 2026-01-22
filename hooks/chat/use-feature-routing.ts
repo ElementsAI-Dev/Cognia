@@ -2,7 +2,7 @@
 
 /**
  * Feature Routing Hook
- * 
+ *
  * Provides feature intent detection and navigation capabilities for chat input.
  * Integrates with the feature router to detect user intent and navigate to feature pages.
  */
@@ -60,22 +60,23 @@ export interface UseFeatureRoutingReturn {
 /**
  * Hook for feature intent detection and navigation
  */
-export function useFeatureRouting(
-  options: UseFeatureRoutingOptions = {}
-): UseFeatureRoutingReturn {
+export function useFeatureRouting(options: UseFeatureRoutingOptions = {}): UseFeatureRoutingReturn {
   const router = useRouter();
-  
+
   // Get settings from store
   const storeSettings = useSettingsStore((state) => state.featureRoutingSettings);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultProvider = useSettingsStore((state) => state.defaultProvider);
-  
+
   // Merge settings
-  const routingSettings = useMemo<FeatureRoutingSettings>(() => ({
-    ...DEFAULT_FEATURE_ROUTING_SETTINGS,
-    ...storeSettings,
-    ...options.settings,
-  }), [storeSettings, options.settings]);
+  const routingSettings = useMemo<FeatureRoutingSettings>(
+    () => ({
+      ...DEFAULT_FEATURE_ROUTING_SETTINGS,
+      ...storeSettings,
+      ...options.settings,
+    }),
+    [storeSettings, options.settings]
+  );
 
   // State
   const [detectionResult, setDetectionResult] = useState<FeatureRouteResult | null>(null);
@@ -90,13 +91,13 @@ export function useFeatureRouting(
     if (routingSettings.routingMode === 'rule-based') {
       return undefined;
     }
-    
+
     const provider = defaultProvider || 'openai';
     const settings = providerSettings[provider];
     const apiKey = settings?.apiKey;
-    
+
     if (!apiKey) return undefined;
-    
+
     return {
       apiKey,
       provider: provider as 'openai' | 'anthropic' | 'google',
@@ -105,67 +106,63 @@ export function useFeatureRouting(
   }, [routingSettings.routingMode, defaultProvider, providerSettings]);
 
   // Check message for feature intent
-  const checkFeatureIntent = useCallback(async (message: string): Promise<FeatureRouteResult> => {
-    // Quick check to avoid unnecessary processing
-    if (!routingSettings.enabled || !mightTriggerFeatureRouting(message)) {
-      const noResult: FeatureRouteResult = {
-        detected: false,
-        feature: null,
-        confidence: 0,
-        matchedPatterns: [],
-        reason: '',
-        reasonZh: '',
-        alternatives: [],
-      };
-      return noResult;
-    }
-
-    // Check if we've exceeded max suggestions
-    if (suggestionCount >= routingSettings.maxSuggestionsPerSession) {
-      return detectFeatureIntentRuleBased(message, { ...routingSettings, enabled: false });
-    }
-
-    // Detect intent
-    const llmConfig = getLLMConfig();
-    const result = await detectFeatureIntent(message, routingSettings, llmConfig);
-    
-    setDetectionResult(result);
-    
-    // Check if we should show suggestion
-    if (
-      result.detected &&
-      result.feature &&
-      result.confidence >= routingSettings.confidenceThreshold &&
-      !dismissedFeatures.has(result.feature.id)
-    ) {
-      // Auto-navigate if enabled and high confidence
-      if (
-        routingSettings.autoNavigateEnabled &&
-        result.confidence >= routingSettings.autoNavigateThreshold
-      ) {
-        const url = buildFeatureNavigationUrl(result.feature, { message });
-        options.onNavigate?.(result.feature, url);
-        router.push(url);
-        return result;
+  const checkFeatureIntent = useCallback(
+    async (message: string): Promise<FeatureRouteResult> => {
+      // Quick check to avoid unnecessary processing
+      if (!routingSettings.enabled || !mightTriggerFeatureRouting(message)) {
+        const noResult: FeatureRouteResult = {
+          detected: false,
+          feature: null,
+          confidence: 0,
+          matchedPatterns: [],
+          reason: '',
+          reasonZh: '',
+          alternatives: [],
+        };
+        return noResult;
       }
 
-      // Show suggestion
-      setPendingFeature(result.feature);
-      setPendingMessage(message);
-      setHasPendingSuggestion(true);
-      setSuggestionCount(prev => prev + 1);
-      options.onIntentDetected?.(result);
-    }
+      // Check if we've exceeded max suggestions
+      if (suggestionCount >= routingSettings.maxSuggestionsPerSession) {
+        return detectFeatureIntentRuleBased(message, { ...routingSettings, enabled: false });
+      }
 
-    return result;
-  }, [
-    routingSettings,
-    suggestionCount,
-    dismissedFeatures,
-    getLLMConfig,
-    options,
-    router,
-  ]);
+      // Detect intent
+      const llmConfig = getLLMConfig();
+      const result = await detectFeatureIntent(message, routingSettings, llmConfig);
+
+      setDetectionResult(result);
+
+      // Check if we should show suggestion
+      if (
+        result.detected &&
+        result.feature &&
+        result.confidence >= routingSettings.confidenceThreshold &&
+        !dismissedFeatures.has(result.feature.id)
+      ) {
+        // Auto-navigate if enabled and high confidence
+        if (
+          routingSettings.autoNavigateEnabled &&
+          result.confidence >= routingSettings.autoNavigateThreshold
+        ) {
+          const url = buildFeatureNavigationUrl(result.feature, { message });
+          options.onNavigate?.(result.feature, url);
+          router.push(url);
+          return result;
+        }
+
+        // Show suggestion
+        setPendingFeature(result.feature);
+        setPendingMessage(message);
+        setHasPendingSuggestion(true);
+        setSuggestionCount((prev) => prev + 1);
+        options.onIntentDetected?.(result);
+      }
+
+      return result;
+    },
+    [routingSettings, suggestionCount, dismissedFeatures, getLLMConfig, options, router]
+  );
 
   // Navigate to pending feature
   const confirmNavigation = useCallback(() => {
@@ -189,7 +186,7 @@ export function useFeatureRouting(
   // Dismiss suggestion for this feature
   const dismissSuggestion = useCallback(() => {
     if (pendingFeature) {
-      setDismissedFeatures(prev => new Set(prev).add(pendingFeature.id));
+      setDismissedFeatures((prev) => new Set(prev).add(pendingFeature.id));
     }
     setHasPendingSuggestion(false);
     setPendingFeature(null);

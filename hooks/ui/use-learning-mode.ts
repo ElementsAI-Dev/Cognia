@@ -2,7 +2,7 @@
 
 /**
  * useLearningMode - Hook for managing learning mode state and interactions
- * 
+ *
  * Provides easy access to learning mode functionality for React components.
  */
 
@@ -73,10 +73,16 @@ export interface UseLearningModeReturn {
   getSystemPrompt: (customContext?: string) => string;
 
   // Analysis
-  analyzeResponse: (response: string, expectedConcepts?: string[]) => ReturnType<typeof analyzeLearnerResponse>;
+  analyzeResponse: (
+    response: string,
+    expectedConcepts?: string[]
+  ) => ReturnType<typeof analyzeLearnerResponse>;
   checkPhaseTransition: () => ReturnType<typeof detectPhaseTransition>;
   extractQuestionsFromResponse: (response: string) => string[];
-  checkShouldHint: (subQuestionId: string) => { shouldHint: boolean; hintLevel: 'subtle' | 'moderate' | 'strong' };
+  checkShouldHint: (subQuestionId: string) => {
+    shouldHint: boolean;
+    hintLevel: 'subtle' | 'moderate' | 'strong';
+  };
 
   // Formatting
   getProgressReport: () => string;
@@ -94,7 +100,9 @@ export interface UseLearningModeReturn {
   }) => string;
 
   // Celebration and encouragement
-  getCelebrationMessage: (type: 'concept_mastered' | 'question_solved' | 'phase_complete' | 'session_complete') => string;
+  getCelebrationMessage: (
+    type: 'concept_mastered' | 'question_solved' | 'phase_complete' | 'session_complete'
+  ) => string;
   getEncouragement: (type: 'struggling' | 'goodProgress' | 'breakthrough' | 'completion') => string;
   getContextualHint: (attemptCount: number) => string;
 
@@ -328,7 +336,10 @@ export function useLearningMode(): UseLearningModeReturn {
   const getAdaptivePrompt = useCallback(
     (options?: { scenario?: string; understandingLevel?: string; customContext?: string }) => {
       if (!learningSession) return '';
-      return buildAdaptiveLearningPrompt(learningSession, options as Parameters<typeof buildAdaptiveLearningPrompt>[1]);
+      return buildAdaptiveLearningPrompt(
+        learningSession,
+        options as Parameters<typeof buildAdaptiveLearningPrompt>[1]
+      );
     },
     [learningSession]
   );

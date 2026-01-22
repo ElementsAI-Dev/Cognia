@@ -18,7 +18,13 @@ import {
   type SelfOptimizationResult,
   type OptimizationSuggestion,
 } from '@/lib/ai/prompts/prompt-self-optimizer';
-import type { PromptTemplate, PromptFeedback, PromptABTest, PromptOptimizationHistory, OptimizationRecommendation } from '@/types/content/prompt-template';
+import type {
+  PromptTemplate,
+  PromptFeedback,
+  PromptABTest,
+  PromptOptimizationHistory,
+  OptimizationRecommendation,
+} from '@/types/content/prompt-template';
 import type { ProviderName } from '@/lib/ai/core/client';
 
 export interface UsePromptOptimizerOptions {
@@ -33,32 +39,39 @@ export interface UsePromptOptimizerReturn {
   analysisResult: SelfOptimizationResult | null;
   suggestions: OptimizationSuggestion[];
   error: string | null;
-  
+
   // Template info
   template: PromptTemplate | undefined;
   feedback: PromptFeedback[];
   activeABTest: PromptABTest | null;
-  
+
   // Actions
   analyze: (template?: PromptTemplate) => Promise<SelfOptimizationResult | null>;
-  optimize: (selectedSuggestions?: OptimizationSuggestion[]) => Promise<SelfOptimizationResult | null>;
+  optimize: (
+    selectedSuggestions?: OptimizationSuggestion[]
+  ) => Promise<SelfOptimizationResult | null>;
   applyOptimization: (optimizedContent: string, style?: string) => void;
   runAutoOptimize: () => Promise<SelfOptimizationResult | null>;
-  
+
   // Feedback
   submitFeedback: (feedback: Omit<PromptFeedback, 'id' | 'templateId' | 'createdAt'>) => void;
-  
+
   // A/B Testing
   startABTest: (variantContent: string, hypothesis: string) => PromptABTest | null;
   recordABTestResult: (variant: 'A' | 'B', success: boolean, rating?: number) => void;
   completeABTest: () => PromptABTest | null;
-  
+
   // Optimization History & Recommendations
   optimizationHistory: PromptOptimizationHistory[];
-  optimizationStats: { totalOptimizations: number; averageImprovement: number; bestImprovement: number; successRate: number };
+  optimizationStats: {
+    totalOptimizations: number;
+    averageImprovement: number;
+    bestImprovement: number;
+    successRate: number;
+  };
   recommendations: OptimizationRecommendation[];
   topCandidates: Array<{ template: PromptTemplate; score: number; reasons: string[] }>;
-  
+
   // Utils
   reset: () => void;
   getConfig: () => SelfOptimizationConfig | null;
@@ -68,19 +81,19 @@ export function usePromptOptimizer(
   options: UsePromptOptimizerOptions = {}
 ): UsePromptOptimizerReturn {
   const { templateId } = options;
-  
+
   // State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<SelfOptimizationResult | null>(null);
   const [suggestions, setSuggestions] = useState<OptimizationSuggestion[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Store access
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const getActiveSession = useSessionStore((state) => state.getActiveSession);
   const session = getActiveSession();
-  
+
   const getTemplate = usePromptTemplateStore((state) => state.getTemplate);
   const getFeedback = usePromptTemplateStore((state) => state.getFeedback);
   const getActiveABTest = usePromptTemplateStore((state) => state.getActiveABTest);
@@ -93,55 +106,49 @@ export function usePromptOptimizer(
   const getOptimizationHistory = usePromptTemplateStore((state) => state.getOptimizationHistory);
   const getRecommendations = usePromptTemplateStore((state) => state.getRecommendations);
   const getTopCandidates = usePromptTemplateStore((state) => state.getTopCandidates);
-  
+
   // Derived state
-  const template = useMemo(() => 
-    templateId ? getTemplate(templateId) : undefined,
+  const template = useMemo(
+    () => (templateId ? getTemplate(templateId) : undefined),
     [templateId, getTemplate]
   );
-  
-  const feedback = useMemo(() => 
-    templateId ? getFeedback(templateId) : [],
+
+  const feedback = useMemo(
+    () => (templateId ? getFeedback(templateId) : []),
     [templateId, getFeedback]
   );
-  
-  const activeABTest = useMemo(() => 
-    templateId ? getActiveABTest(templateId) : null,
+
+  const activeABTest = useMemo(
+    () => (templateId ? getActiveABTest(templateId) : null),
     [templateId, getActiveABTest]
   );
-  
+
   // Optimization history and stats
-  const optimizationHistory = useMemo(() => 
-    templateId ? getOptimizationHistory(templateId) : [],
+  const optimizationHistory = useMemo(
+    () => (templateId ? getOptimizationHistory(templateId) : []),
     [templateId, getOptimizationHistory]
   );
-  
-  const optimizationStats = useMemo(() => 
-    calculateOptimizationImprovement(optimizationHistory),
+
+  const optimizationStats = useMemo(
+    () => calculateOptimizationImprovement(optimizationHistory),
     [optimizationHistory]
   );
-  
+
   // Recommendations (computed across all templates)
-  const recommendations = useMemo(() => 
-    getRecommendations(),
-    [getRecommendations]
-  );
-  
-  const topCandidates = useMemo(() => 
-    getTopCandidates(5),
-    [getTopCandidates]
-  );
-  
+  const recommendations = useMemo(() => getRecommendations(), [getRecommendations]);
+
+  const topCandidates = useMemo(() => getTopCandidates(5), [getTopCandidates]);
+
   // Get optimization config from current session/settings
   const getConfig = useCallback((): SelfOptimizationConfig | null => {
     const provider = (session?.provider || 'openai') as ProviderName;
     const model = session?.model || 'gpt-4o-mini';
     const settings = providerSettings[provider];
-    
+
     if (!settings?.apiKey) {
       return null;
     }
-    
+
     return {
       provider,
       model,
@@ -152,133 +159,147 @@ export function usePromptOptimizer(
       maxIterations: 3,
     };
   }, [session, providerSettings]);
-  
+
   // Analyze a prompt template
-  const analyze = useCallback(async (
-    targetTemplate?: PromptTemplate
-  ): Promise<SelfOptimizationResult | null> => {
-    const templateToAnalyze = targetTemplate || template;
-    if (!templateToAnalyze) {
-      setError('No template provided for analysis');
-      return null;
-    }
-    
-    const config = getConfig();
-    if (!config) {
-      setError('No API key configured for the current provider');
-      return null;
-    }
-    
-    setIsAnalyzing(true);
-    setError(null);
-    
-    try {
-      const result = await analyzePrompt(templateToAnalyze, config);
-      setAnalysisResult(result);
-      setSuggestions(result.suggestions);
-      
-      if (!result.success) {
-        setError(result.error || 'Analysis failed');
+  const analyze = useCallback(
+    async (targetTemplate?: PromptTemplate): Promise<SelfOptimizationResult | null> => {
+      const templateToAnalyze = targetTemplate || template;
+      if (!templateToAnalyze) {
+        setError('No template provided for analysis');
+        return null;
       }
-      
-      return result;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Analysis failed';
-      setError(message);
-      return null;
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [template, getConfig]);
-  
+
+      const config = getConfig();
+      if (!config) {
+        setError('No API key configured for the current provider');
+        return null;
+      }
+
+      setIsAnalyzing(true);
+      setError(null);
+
+      try {
+        const result = await analyzePrompt(templateToAnalyze, config);
+        setAnalysisResult(result);
+        setSuggestions(result.suggestions);
+
+        if (!result.success) {
+          setError(result.error || 'Analysis failed');
+        }
+
+        return result;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Analysis failed';
+        setError(message);
+        return null;
+      } finally {
+        setIsAnalyzing(false);
+      }
+    },
+    [template, getConfig]
+  );
+
   // Optimize based on suggestions
-  const optimize = useCallback(async (
-    selectedSuggestions?: OptimizationSuggestion[]
-  ): Promise<SelfOptimizationResult | null> => {
-    if (!template) {
-      setError('No template selected for optimization');
-      return null;
-    }
-    
-    const config = getConfig();
-    if (!config) {
-      setError('No API key configured for the current provider');
-      return null;
-    }
-    
-    const toApply = selectedSuggestions || suggestions;
-    if (toApply.length === 0) {
-      setError('No suggestions to apply');
-      return null;
-    }
-    
-    setIsOptimizing(true);
-    setError(null);
-    
-    try {
-      const result = await optimizePromptFromAnalysis(template, toApply, config);
-      setAnalysisResult(result);
-      
-      if (!result.success) {
-        setError(result.error || 'Optimization failed');
+  const optimize = useCallback(
+    async (
+      selectedSuggestions?: OptimizationSuggestion[]
+    ): Promise<SelfOptimizationResult | null> => {
+      if (!template) {
+        setError('No template selected for optimization');
+        return null;
       }
-      
-      return result;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Optimization failed';
-      setError(message);
-      return null;
-    } finally {
-      setIsOptimizing(false);
-    }
-  }, [template, suggestions, getConfig]);
-  
+
+      const config = getConfig();
+      if (!config) {
+        setError('No API key configured for the current provider');
+        return null;
+      }
+
+      const toApply = selectedSuggestions || suggestions;
+      if (toApply.length === 0) {
+        setError('No suggestions to apply');
+        return null;
+      }
+
+      setIsOptimizing(true);
+      setError(null);
+
+      try {
+        const result = await optimizePromptFromAnalysis(template, toApply, config);
+        setAnalysisResult(result);
+
+        if (!result.success) {
+          setError(result.error || 'Optimization failed');
+        }
+
+        return result;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Optimization failed';
+        setError(message);
+        return null;
+      } finally {
+        setIsOptimizing(false);
+      }
+    },
+    [template, suggestions, getConfig]
+  );
+
   // Apply optimization to the template
-  const applyOptimization = useCallback((optimizedContent: string, style?: string) => {
-    if (!templateId || !template) {
-      setError('No template ID to apply optimization');
-      return;
-    }
-    
-    const suggestionDescriptions = suggestions.map(s => s.description);
-    markAsOptimized(templateId, optimizedContent, suggestionDescriptions);
-    
-    // Record optimization history
-    recordOptimization(templateId, template.content, optimizedContent, suggestionDescriptions, style, 'user');
-  }, [templateId, template, suggestions, markAsOptimized, recordOptimization]);
-  
+  const applyOptimization = useCallback(
+    (optimizedContent: string, style?: string) => {
+      if (!templateId || !template) {
+        setError('No template ID to apply optimization');
+        return;
+      }
+
+      const suggestionDescriptions = suggestions.map((s) => s.description);
+      markAsOptimized(templateId, optimizedContent, suggestionDescriptions);
+
+      // Record optimization history
+      recordOptimization(
+        templateId,
+        template.content,
+        optimizedContent,
+        suggestionDescriptions,
+        style,
+        'user'
+      );
+    },
+    [templateId, template, suggestions, markAsOptimized, recordOptimization]
+  );
+
   // Run auto-optimization based on feedback
   const runAutoOptimize = useCallback(async (): Promise<SelfOptimizationResult | null> => {
     if (!template) {
       setError('No template selected for auto-optimization');
       return null;
     }
-    
+
     const config = getConfig();
     if (!config) {
       setError('No API key configured for the current provider');
       return null;
     }
-    
+
     setIsOptimizing(true);
     setError(null);
-    
+
     try {
       // Get feedback-based suggestions first
       const feedbackSuggestions = await analyzeUserFeedback(template, feedback, config);
-      
+
       // Run auto-optimize
       const result = await autoOptimize(template, feedback, config);
-      
+
       if (result) {
         setAnalysisResult(result);
         setSuggestions([...result.suggestions, ...feedbackSuggestions]);
-        
+
         if (!result.success) {
           setError(result.error || 'Auto-optimization failed');
         }
       }
-      
+
       return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Auto-optimization failed';
@@ -288,48 +309,48 @@ export function usePromptOptimizer(
       setIsOptimizing(false);
     }
   }, [template, feedback, getConfig]);
-  
+
   // Submit feedback for a template
-  const submitFeedback = useCallback((
-    feedbackData: Omit<PromptFeedback, 'id' | 'templateId' | 'createdAt'>
-  ) => {
-    if (!templateId) {
-      setError('No template ID to submit feedback');
-      return;
-    }
-    
-    recordFeedback(templateId, feedbackData);
-  }, [templateId, recordFeedback]);
-  
+  const submitFeedback = useCallback(
+    (feedbackData: Omit<PromptFeedback, 'id' | 'templateId' | 'createdAt'>) => {
+      if (!templateId) {
+        setError('No template ID to submit feedback');
+        return;
+      }
+
+      recordFeedback(templateId, feedbackData);
+    },
+    [templateId, recordFeedback]
+  );
+
   // Start an A/B test
-  const startABTest = useCallback((
-    variantContent: string,
-    hypothesis: string
-  ): PromptABTest | null => {
-    if (!templateId) {
-      setError('No template ID to start A/B test');
-      return null;
-    }
-    
-    return startABTestAction(templateId, variantContent, hypothesis);
-  }, [templateId, startABTestAction]);
-  
+  const startABTest = useCallback(
+    (variantContent: string, hypothesis: string): PromptABTest | null => {
+      if (!templateId) {
+        setError('No template ID to start A/B test');
+        return null;
+      }
+
+      return startABTestAction(templateId, variantContent, hypothesis);
+    },
+    [templateId, startABTestAction]
+  );
+
   // Record A/B test result
-  const recordABTestResult = useCallback((
-    variant: 'A' | 'B',
-    success: boolean,
-    rating?: number
-  ) => {
-    if (!templateId) return;
-    recordABTestResultAction(templateId, variant, success, rating);
-  }, [templateId, recordABTestResultAction]);
-  
+  const recordABTestResult = useCallback(
+    (variant: 'A' | 'B', success: boolean, rating?: number) => {
+      if (!templateId) return;
+      recordABTestResultAction(templateId, variant, success, rating);
+    },
+    [templateId, recordABTestResultAction]
+  );
+
   // Complete A/B test
   const completeABTest = useCallback((): PromptABTest | null => {
     if (!templateId) return null;
     return completeABTestAction(templateId);
   }, [templateId, completeABTestAction]);
-  
+
   // Reset state
   const reset = useCallback(() => {
     setIsAnalyzing(false);
@@ -338,7 +359,7 @@ export function usePromptOptimizer(
     setSuggestions([]);
     setError(null);
   }, []);
-  
+
   return {
     // State
     isAnalyzing,
@@ -346,32 +367,32 @@ export function usePromptOptimizer(
     analysisResult,
     suggestions,
     error,
-    
+
     // Template info
     template,
     feedback,
     activeABTest,
-    
+
     // Actions
     analyze,
     optimize,
     applyOptimization,
     runAutoOptimize,
-    
+
     // Feedback
     submitFeedback,
-    
+
     // A/B Testing
     startABTest,
     recordABTestResult,
     completeABTest,
-    
+
     // Optimization History & Recommendations
     optimizationHistory,
     optimizationStats,
     recommendations,
     topCandidates,
-    
+
     // Utils
     reset,
     getConfig,

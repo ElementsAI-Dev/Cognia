@@ -74,7 +74,7 @@ export function useA2UIDataModel(surfaceId: string): UseA2UIDataModelReturn {
 
   // Resolve array or path
   const resolveArray = useCallback(
-    <T,>(value: T[] | { path: string }, defaultValue: T[] = []): T[] => {
+    <T>(value: T[] | { path: string }, defaultValue: T[] = []): T[] => {
       return resolveArrayOrPath<T>(value, dataModel, defaultValue);
     },
     [dataModel]
@@ -121,10 +121,7 @@ export function useA2UIBoundValue<T>(
 /**
  * Hook for watching multiple paths
  */
-export function useA2UIWatchPaths(
-  surfaceId: string,
-  paths: string[]
-): Record<string, unknown> {
+export function useA2UIWatchPaths(surfaceId: string, paths: string[]): Record<string, unknown> {
   const surface = useA2UIStore((state) => state.surfaces[surfaceId]);
 
   return useMemo(() => {

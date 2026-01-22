@@ -23,7 +23,9 @@ export interface KeyboardShortcut {
 const isMac = typeof window !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 
 // Format shortcut for display
-export function formatShortcut(shortcut: Omit<KeyboardShortcut, 'description' | 'category' | 'action'>): string {
+export function formatShortcut(
+  shortcut: Omit<KeyboardShortcut, 'description' | 'category' | 'action'>
+): string {
   const parts: string[] = [];
 
   if (shortcut.ctrl) parts.push(isMac ? '⌃' : 'Ctrl');
@@ -86,9 +88,7 @@ export function useKeyboardShortcuts({
       // Don't trigger shortcuts when typing in input fields (unless it's a global shortcut)
       const target = e.target as HTMLElement;
       const isInputField =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable;
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
       // Ctrl/Cmd + K - Command palette
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -189,7 +189,24 @@ export function useKeyboardShortcuts({
 
       // Ctrl/Cmd + Enter - Submit (handled by individual components)
     },
-    [enabled, createSession, router, setCommandPaletteOpen, setKeyboardShortcutsOpen, onNewChat, onFocusInput, onToggleSidebar, onOpenSettings, onOpenProjects, onStopGeneration, onToggleCanvas, onToggleArtifact, panelOpen, openPanel, closePanel]
+    [
+      enabled,
+      createSession,
+      router,
+      setCommandPaletteOpen,
+      setKeyboardShortcutsOpen,
+      onNewChat,
+      onFocusInput,
+      onToggleSidebar,
+      onOpenSettings,
+      onOpenProjects,
+      onStopGeneration,
+      onToggleCanvas,
+      onToggleArtifact,
+      panelOpen,
+      openPanel,
+      closePanel,
+    ]
   );
 
   useEffect(() => {
@@ -267,14 +284,14 @@ export function useKeyboardShortcuts({
       ctrl: true,
       description: 'Toggle Canvas panel',
       category: 'navigation',
-      action: () => panelOpen ? closePanel() : openPanel('canvas'),
+      action: () => (panelOpen ? closePanel() : openPanel('canvas')),
     },
     {
       key: ';',
       ctrl: true,
       description: 'Toggle Artifact panel',
       category: 'navigation',
-      action: () => panelOpen ? closePanel() : openPanel('artifact'),
+      action: () => (panelOpen ? closePanel() : openPanel('artifact')),
     },
   ];
 

@@ -8,12 +8,7 @@
 import { useCallback, useState } from 'react';
 import { useSettingsStore } from '@/stores';
 import type { ProviderName } from '@/types/provider';
-import type {
-  PPTSlide,
-  PPTPresentation,
-  PPTSlideLayout,
-  PPTOutlineItem,
-} from '@/types/workflow';
+import type { PPTSlide, PPTPresentation, PPTSlideLayout, PPTOutlineItem } from '@/types/workflow';
 
 export interface RegenerateSlideOptions {
   slide: PPTSlide;
@@ -69,9 +64,17 @@ export interface UsePPTAIReturn {
   regenerateSlide: (options: RegenerateSlideOptions) => Promise<AISlideResult>;
   optimizeContent: (options: OptimizeContentOptions) => Promise<AIContentResult>;
   generateSuggestions: (options: GenerateSuggestionsOptions) => Promise<AISuggestionsResult>;
-  generateOutline: (topic: string, slideCount: number) => Promise<{ success: boolean; outline?: PPTOutlineItem[]; error?: string }>;
-  expandBullets: (bullets: string[], count: number) => Promise<{ success: boolean; bullets?: string[]; error?: string }>;
-  improveSlideNotes: (slide: PPTSlide) => Promise<{ success: boolean; notes?: string; error?: string }>;
+  generateOutline: (
+    topic: string,
+    slideCount: number
+  ) => Promise<{ success: boolean; outline?: PPTOutlineItem[]; error?: string }>;
+  expandBullets: (
+    bullets: string[],
+    count: number
+  ) => Promise<{ success: boolean; bullets?: string[]; error?: string }>;
+  improveSlideNotes: (
+    slide: PPTSlide
+  ) => Promise<{ success: boolean; notes?: string; error?: string }>;
 }
 
 /**
@@ -79,7 +82,7 @@ export interface UsePPTAIReturn {
  */
 function buildRegeneratePrompt(options: RegenerateSlideOptions): string {
   const { slide, context, instructions, keepLayout } = options;
-  
+
   let prompt = `Regenerate the content for this presentation slide.
 
 Current slide:
@@ -131,7 +134,7 @@ Respond in JSON format:
  */
 function buildOptimizePrompt(options: OptimizeContentOptions): string {
   const { content, type, style = 'professional', maxLength } = options;
-  
+
   const styleGuide = {
     concise: 'short, punchy, and to the point',
     detailed: 'comprehensive with supporting details',
@@ -161,7 +164,7 @@ Respond in JSON format:
  */
 function buildSuggestionsPrompt(options: GenerateSuggestionsOptions): string {
   const { slide, presentation, suggestionType } = options;
-  
+
   return `Analyze this presentation slide and provide improvement suggestions.
 
 Slide:
@@ -211,144 +214,160 @@ export function usePPTAI(): UsePPTAIReturn {
   /**
    * Call AI API with a prompt
    */
-  const callAI = useCallback(async (prompt: string): Promise<string> => {
-    const apiKey = getApiKey();
-    const baseURL = getBaseURL();
-    
-    if (!apiKey) {
-      throw new Error('API key not configured');
-    }
+  const callAI = useCallback(
+    async (prompt: string): Promise<string> => {
+      const apiKey = getApiKey();
+      const baseURL = getBaseURL();
 
-    const endpoint = baseURL 
-      ? `${baseURL}/chat/completions`
-      : defaultProvider === 'openai' 
-        ? 'https://api.openai.com/v1/chat/completions'
-        : 'https://api.openai.com/v1/chat/completions';
+      if (!apiKey) {
+        throw new Error('API key not configured');
+      }
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: defaultModel,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert presentation designer. Always respond with valid JSON.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-        response_format: { type: 'json_object' },
-      }),
-    });
+      const endpoint = baseURL
+        ? `${baseURL}/chat/completions`
+        : defaultProvider === 'openai'
+          ? 'https://api.openai.com/v1/chat/completions'
+          : 'https://api.openai.com/v1/chat/completions';
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `API error: ${response.status}`);
-    }
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: defaultModel,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert presentation designer. Always respond with valid JSON.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          response_format: { type: 'json_object' },
+        }),
+      });
 
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || '';
-  }, [getApiKey, getBaseURL, defaultProvider, defaultModel]);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || '';
+    },
+    [getApiKey, getBaseURL, defaultProvider, defaultModel]
+  );
 
   /**
    * Regenerate a slide with AI
    */
-  const regenerateSlide = useCallback(async (options: RegenerateSlideOptions): Promise<AISlideResult> => {
-    setIsProcessing(true);
-    setError(null);
+  const regenerateSlide = useCallback(
+    async (options: RegenerateSlideOptions): Promise<AISlideResult> => {
+      setIsProcessing(true);
+      setError(null);
 
-    try {
-      const prompt = buildRegeneratePrompt(options);
-      const response = await callAI(prompt);
-      const result = JSON.parse(response);
+      try {
+        const prompt = buildRegeneratePrompt(options);
+        const response = await callAI(prompt);
+        const result = JSON.parse(response);
 
-      return {
-        success: true,
-        slide: {
-          title: result.title,
-          subtitle: result.subtitle,
-          content: result.content,
-          bullets: result.bullets,
-          layout: result.layout as PPTSlideLayout,
-          notes: result.speakerNotes,
-        },
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to regenerate slide';
-      setError(message);
-      return { success: false, error: message };
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [callAI]);
+        return {
+          success: true,
+          slide: {
+            title: result.title,
+            subtitle: result.subtitle,
+            content: result.content,
+            bullets: result.bullets,
+            layout: result.layout as PPTSlideLayout,
+            notes: result.speakerNotes,
+          },
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to regenerate slide';
+        setError(message);
+        return { success: false, error: message };
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [callAI]
+  );
 
   /**
    * Optimize content with AI
    */
-  const optimizeContent = useCallback(async (options: OptimizeContentOptions): Promise<AIContentResult> => {
-    setIsProcessing(true);
-    setError(null);
+  const optimizeContent = useCallback(
+    async (options: OptimizeContentOptions): Promise<AIContentResult> => {
+      setIsProcessing(true);
+      setError(null);
 
-    try {
-      const prompt = buildOptimizePrompt(options);
-      const response = await callAI(prompt);
-      const result = JSON.parse(response);
+      try {
+        const prompt = buildOptimizePrompt(options);
+        const response = await callAI(prompt);
+        const result = JSON.parse(response);
 
-      return {
-        success: true,
-        content: result.optimized,
-        alternatives: result.alternatives,
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to optimize content';
-      setError(message);
-      return { success: false, error: message };
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [callAI]);
+        return {
+          success: true,
+          content: result.optimized,
+          alternatives: result.alternatives,
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to optimize content';
+        setError(message);
+        return { success: false, error: message };
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [callAI]
+  );
 
   /**
    * Generate suggestions for a slide
    */
-  const generateSuggestions = useCallback(async (options: GenerateSuggestionsOptions): Promise<AISuggestionsResult> => {
-    setIsProcessing(true);
-    setError(null);
+  const generateSuggestions = useCallback(
+    async (options: GenerateSuggestionsOptions): Promise<AISuggestionsResult> => {
+      setIsProcessing(true);
+      setError(null);
 
-    try {
-      const prompt = buildSuggestionsPrompt(options);
-      const response = await callAI(prompt);
-      const result = JSON.parse(response);
+      try {
+        const prompt = buildSuggestionsPrompt(options);
+        const response = await callAI(prompt);
+        const result = JSON.parse(response);
 
-      return {
-        success: true,
-        suggestions: result.suggestions,
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to generate suggestions';
-      setError(message);
-      return { success: false, error: message };
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [callAI]);
+        return {
+          success: true,
+          suggestions: result.suggestions,
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to generate suggestions';
+        setError(message);
+        return { success: false, error: message };
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [callAI]
+  );
 
   /**
    * Generate an outline for a presentation
    */
-  const generateOutline = useCallback(async (topic: string, slideCount: number): Promise<{ success: boolean; outline?: PPTOutlineItem[]; error?: string }> => {
-    setIsProcessing(true);
-    setError(null);
+  const generateOutline = useCallback(
+    async (
+      topic: string,
+      slideCount: number
+    ): Promise<{ success: boolean; outline?: PPTOutlineItem[]; error?: string }> => {
+      setIsProcessing(true);
+      setError(null);
 
-    try {
-      const prompt = `Create a presentation outline for the topic: "${topic}"
+      try {
+        const prompt = `Create a presentation outline for the topic: "${topic}"
 
 Requirements:
 - Generate exactly ${slideCount} slides
@@ -368,37 +387,48 @@ Respond in JSON format:
   ]
 }`;
 
-      const response = await callAI(prompt);
-      const result = JSON.parse(response);
+        const response = await callAI(prompt);
+        const result = JSON.parse(response);
 
-      const outline: PPTOutlineItem[] = result.outline.map((item: { title: string; description: string; keyPoints: string[]; type: string }, index: number) => ({
-        id: `outline-${index}`,
-        title: item.title,
-        description: item.description,
-        keyPoints: item.keyPoints || [],
-        order: index,
-        type: item.type,
-      }));
+        const outline: PPTOutlineItem[] = result.outline.map(
+          (
+            item: { title: string; description: string; keyPoints: string[]; type: string },
+            index: number
+          ) => ({
+            id: `outline-${index}`,
+            title: item.title,
+            description: item.description,
+            keyPoints: item.keyPoints || [],
+            order: index,
+            type: item.type,
+          })
+        );
 
-      return { success: true, outline };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to generate outline';
-      setError(message);
-      return { success: false, error: message };
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [callAI]);
+        return { success: true, outline };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to generate outline';
+        setError(message);
+        return { success: false, error: message };
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [callAI]
+  );
 
   /**
    * Expand bullet points
    */
-  const expandBullets = useCallback(async (bullets: string[], count: number): Promise<{ success: boolean; bullets?: string[]; error?: string }> => {
-    setIsProcessing(true);
-    setError(null);
+  const expandBullets = useCallback(
+    async (
+      bullets: string[],
+      count: number
+    ): Promise<{ success: boolean; bullets?: string[]; error?: string }> => {
+      setIsProcessing(true);
+      setError(null);
 
-    try {
-      const prompt = `Expand these bullet points to ${count} items while maintaining the same topic and style.
+      try {
+        const prompt = `Expand these bullet points to ${count} items while maintaining the same topic and style.
 
 Current bullets:
 ${bullets.map((b, i) => `${i + 1}. ${b}`).join('\n')}
@@ -413,28 +443,31 @@ Respond in JSON format:
   "bullets": ["bullet 1", "bullet 2", ...]
 }`;
 
-      const response = await callAI(prompt);
-      const result = JSON.parse(response);
+        const response = await callAI(prompt);
+        const result = JSON.parse(response);
 
-      return { success: true, bullets: result.bullets };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to expand bullets';
-      setError(message);
-      return { success: false, error: message };
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [callAI]);
+        return { success: true, bullets: result.bullets };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to expand bullets';
+        setError(message);
+        return { success: false, error: message };
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [callAI]
+  );
 
   /**
    * Improve speaker notes for a slide
    */
-  const improveSlideNotes = useCallback(async (slide: PPTSlide): Promise<{ success: boolean; notes?: string; error?: string }> => {
-    setIsProcessing(true);
-    setError(null);
+  const improveSlideNotes = useCallback(
+    async (slide: PPTSlide): Promise<{ success: boolean; notes?: string; error?: string }> => {
+      setIsProcessing(true);
+      setError(null);
 
-    try {
-      const prompt = `Generate comprehensive speaker notes for this presentation slide.
+      try {
+        const prompt = `Generate comprehensive speaker notes for this presentation slide.
 
 Slide:
 - Title: ${slide.title || 'Untitled'}
@@ -453,18 +486,20 @@ Respond in JSON format:
   "notes": "comprehensive speaker notes"
 }`;
 
-      const response = await callAI(prompt);
-      const result = JSON.parse(response);
+        const response = await callAI(prompt);
+        const result = JSON.parse(response);
 
-      return { success: true, notes: result.notes };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to improve notes';
-      setError(message);
-      return { success: false, error: message };
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [callAI]);
+        return { success: true, notes: result.notes };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to improve notes';
+        setError(message);
+        return { success: false, error: message };
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [callAI]
+  );
 
   return {
     isProcessing,

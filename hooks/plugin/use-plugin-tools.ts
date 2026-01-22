@@ -21,10 +21,7 @@ export function usePluginTools(): UsePluginToolsReturn {
 
   const tools = useMemo(() => getAllTools(), [getAllTools]);
 
-  const getToolByName = useCallback(
-    (name: string) => tools.find((t) => t.name === name),
-    [tools]
-  );
+  const getToolByName = useCallback((name: string) => tools.find((t) => t.name === name), [tools]);
 
   const getToolsByPlugin = useCallback(
     (pluginId: string) => {

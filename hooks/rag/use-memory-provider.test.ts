@@ -235,9 +235,7 @@ describe('useMemoryProvider', () => {
     });
 
     it('should use forceProvider option when provided', () => {
-      const { result } = renderHook(() =>
-        useMemoryProvider({ forceProvider: 'local' })
-      );
+      const { result } = renderHook(() => useMemoryProvider({ forceProvider: 'local' }));
 
       expect(result.current.provider).toBe('local');
     });
@@ -246,7 +244,7 @@ describe('useMemoryProvider', () => {
       useMemoryStore.setState({
         settings: { ...defaultSettings, provider: 'mem0' },
       });
-      
+
       const { result } = renderHook(() => useMemoryProvider());
 
       expect(result.current.provider).toBe('mem0');
@@ -255,14 +253,14 @@ describe('useMemoryProvider', () => {
 
     it('should be ready for mem0 with API key and user ID', () => {
       useMemoryStore.setState({
-        settings: { 
-          ...defaultSettings, 
+        settings: {
+          ...defaultSettings,
           provider: 'mem0',
           mem0ApiKey: 'm0-test-key',
           mem0UserId: 'test-user',
         },
       });
-      
+
       const { result } = renderHook(() => useMemoryProvider());
 
       expect(result.current.provider).toBe('mem0');
@@ -288,9 +286,7 @@ describe('useMemoryProvider', () => {
     });
 
     it('should include sessionId when provided', async () => {
-      const { result } = renderHook(() =>
-        useMemoryProvider({ sessionId: 'test-session' })
-      );
+      const { result } = renderHook(() => useMemoryProvider({ sessionId: 'test-session' }));
 
       await act(async () => {
         await result.current.addMemory({
@@ -385,16 +381,14 @@ describe('useMemoryProvider', () => {
         content: 'Global memory',
         scope: 'global',
       });
-      
+
       useMemoryStore.getState().createMemory({
         type: 'preference',
         content: 'Session memory',
         sessionId: 'other-session',
       });
 
-      const { result } = renderHook(() =>
-        useMemoryProvider({ sessionId: 'test-session' })
-      );
+      const { result } = renderHook(() => useMemoryProvider({ sessionId: 'test-session' }));
 
       let memories: unknown[] = [];
       await act(async () => {
@@ -448,9 +442,12 @@ describe('useMemoryProvider', () => {
       });
 
       // Verify updateMemory was called on the store
-      expect(mockMemoryStoreState.updateMemory).toHaveBeenCalledWith(memoryId, expect.objectContaining({
-        content: 'Updated',
-      }));
+      expect(mockMemoryStoreState.updateMemory).toHaveBeenCalledWith(
+        memoryId,
+        expect.objectContaining({
+          content: 'Updated',
+        })
+      );
     });
   });
 
@@ -545,10 +542,12 @@ describe('useMemoryProvider', () => {
       useMemoryStore.setState({
         settings: { ...defaultSettings, enablePipeline: false },
       });
-      
+
       const { result } = renderHook(() => useMemoryProvider());
 
-      let pipelineResult: { applied: { added: number; updated: number; deleted: number; skipped: number } } | undefined;
+      let pipelineResult:
+        | { applied: { added: number; updated: number; deleted: number; skipped: number } }
+        | undefined;
       await act(async () => {
         pipelineResult = await result.current.runPipeline([
           { role: 'user', content: 'Test message' },

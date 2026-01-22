@@ -102,54 +102,60 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
   const { insertElement, moveElement, elementTree, elementMap } = useDesignerStore();
 
   // Helper to find element's index in parent's children
-  const getElementIndex = useCallback((elementId: string): number => {
-    const element = elementMap[elementId];
-    if (!element) return -1;
+  const getElementIndex = useCallback(
+    (elementId: string): number => {
+      const element = elementMap[elementId];
+      if (!element) return -1;
 
-    const parentId = element.parentId;
-    let parent: DesignerElement | null = null;
+      const parentId = element.parentId;
+      let parent: DesignerElement | null = null;
 
-    if (parentId) {
-      parent = elementMap[parentId] || null;
-    } else {
-      parent = elementTree;
-    }
+      if (parentId) {
+        parent = elementMap[parentId] || null;
+      } else {
+        parent = elementTree;
+      }
 
-    if (!parent) return -1;
-    return parent.children.findIndex(child => child.id === elementId);
-  }, [elementMap, elementTree]);
+      if (!parent) return -1;
+      return parent.children.findIndex((child) => child.id === elementId);
+    },
+    [elementMap, elementTree]
+  );
 
   // Calculate insertion index based on drop position and target element
-  const calculateInsertIndex = useCallback((
-    targetId: string | null,
-    position: 'before' | 'after' | 'inside'
-  ): { parentId: string | null; index?: number } => {
-    if (!targetId) {
-      // Dropping on root
-      return { parentId: null };
-    }
+  const calculateInsertIndex = useCallback(
+    (
+      targetId: string | null,
+      position: 'before' | 'after' | 'inside'
+    ): { parentId: string | null; index?: number } => {
+      if (!targetId) {
+        // Dropping on root
+        return { parentId: null };
+      }
 
-    if (position === 'inside') {
-      // Insert as last child of target
-      return { parentId: targetId };
-    }
+      if (position === 'inside') {
+        // Insert as last child of target
+        return { parentId: targetId };
+      }
 
-    // For 'before' and 'after', get target's parent and calculate index
-    const targetElement = elementMap[targetId];
-    if (!targetElement) {
-      return { parentId: null };
-    }
+      // For 'before' and 'after', get target's parent and calculate index
+      const targetElement = elementMap[targetId];
+      if (!targetElement) {
+        return { parentId: null };
+      }
 
-    const parentId = targetElement.parentId;
-    const targetIndex = getElementIndex(targetId);
+      const parentId = targetElement.parentId;
+      const targetIndex = getElementIndex(targetId);
 
-    if (targetIndex === -1) {
-      return { parentId };
-    }
+      if (targetIndex === -1) {
+        return { parentId };
+      }
 
-    const index = position === 'before' ? targetIndex : targetIndex + 1;
-    return { parentId, index };
-  }, [elementMap, getElementIndex]);
+      const index = position === 'before' ? targetIndex : targetIndex + 1;
+      return { parentId, index };
+    },
+    [elementMap, getElementIndex]
+  );
 
   // Reset drag state
   const resetDragState = useCallback(() => {
@@ -161,54 +167,61 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
   }, []);
 
   // Create drag handlers for component library items
-  const createDragHandlers = useCallback((data: DragData) => {
-    return {
-      draggable: true,
-      onDragStart: (e: React.DragEvent) => {
-        e.dataTransfer.effectAllowed = 'copy';
-        e.dataTransfer.setData('application/json', JSON.stringify(data));
+  const createDragHandlers = useCallback(
+    (data: DragData) => {
+      return {
+        draggable: true,
+        onDragStart: (e: React.DragEvent) => {
+          e.dataTransfer.effectAllowed = 'copy';
+          e.dataTransfer.setData('application/json', JSON.stringify(data));
 
-        // Create a ghost image
-        const ghost = document.createElement('div');
-        ghost.className = 'bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium shadow-lg';
-        ghost.textContent = data.componentName || 'Component';
-        ghost.style.position = 'absolute';
-        ghost.style.top = '-1000px';
-        document.body.appendChild(ghost);
-        e.dataTransfer.setDragImage(ghost, 0, 0);
-        setTimeout(() => document.body.removeChild(ghost), 0);
+          // Create a ghost image
+          const ghost = document.createElement('div');
+          ghost.className =
+            'bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium shadow-lg';
+          ghost.textContent = data.componentName || 'Component';
+          ghost.style.position = 'absolute';
+          ghost.style.top = '-1000px';
+          document.body.appendChild(ghost);
+          e.dataTransfer.setDragImage(ghost, 0, 0);
+          setTimeout(() => document.body.removeChild(ghost), 0);
 
-        setIsDragging(true);
-        setDragData(data);
-      },
-      onDragEnd: (_e: React.DragEvent) => {
-        resetDragState();
-      },
-    };
-  }, [resetDragState]);
+          setIsDragging(true);
+          setDragData(data);
+        },
+        onDragEnd: (_e: React.DragEvent) => {
+          resetDragState();
+        },
+      };
+    },
+    [resetDragState]
+  );
 
   // Create drag handlers for existing elements
-  const createElementDragHandlers = useCallback((elementId: string) => {
-    return {
-      draggable: true,
-      onDragStart: (e: React.DragEvent) => {
-        e.stopPropagation();
-        e.dataTransfer.effectAllowed = 'move';
+  const createElementDragHandlers = useCallback(
+    (elementId: string) => {
+      return {
+        draggable: true,
+        onDragStart: (e: React.DragEvent) => {
+          e.stopPropagation();
+          e.dataTransfer.effectAllowed = 'move';
 
-        const data: DragData = {
-          type: 'element',
-          elementId,
-        };
-        e.dataTransfer.setData('application/json', JSON.stringify(data));
+          const data: DragData = {
+            type: 'element',
+            elementId,
+          };
+          e.dataTransfer.setData('application/json', JSON.stringify(data));
 
-        setIsDragging(true);
-        setDragData(data);
-      },
-      onDragEnd: (_e: React.DragEvent) => {
-        resetDragState();
-      },
-    };
-  }, [resetDragState]);
+          setIsDragging(true);
+          setDragData(data);
+        },
+        onDragEnd: (_e: React.DragEvent) => {
+          resetDragState();
+        },
+      };
+    },
+    [resetDragState]
+  );
 
   // Determine drop position based on mouse position
   const getDropPosition = useCallback(

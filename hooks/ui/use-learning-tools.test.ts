@@ -1,6 +1,6 @@
 /**
  * useLearningTools Hook Tests
- * 
+ *
  * Unit tests for the learning tools integration hook.
  */
 
@@ -99,9 +99,7 @@ describe('useLearningTools', () => {
     it('should exclude flashcard tools when disabled', () => {
       mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
 
-      const { result } = renderHook(() =>
-        useLearningTools({ enableFlashcards: false })
-      );
+      const { result } = renderHook(() => useLearningTools({ enableFlashcards: false }));
 
       expect(result.current.tools).not.toHaveProperty('displayFlashcard');
       expect(result.current.tools).not.toHaveProperty('displayFlashcardDeck');
@@ -111,9 +109,7 @@ describe('useLearningTools', () => {
     it('should exclude quiz tools when disabled', () => {
       mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
 
-      const { result } = renderHook(() =>
-        useLearningTools({ enableQuizzes: false })
-      );
+      const { result } = renderHook(() => useLearningTools({ enableQuizzes: false }));
 
       expect(result.current.tools).not.toHaveProperty('displayQuiz');
       expect(result.current.tools).not.toHaveProperty('displayQuizQuestion');
@@ -123,9 +119,7 @@ describe('useLearningTools', () => {
     it('should exclude review session tools when disabled', () => {
       mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
 
-      const { result } = renderHook(() =>
-        useLearningTools({ enableReviewSessions: false })
-      );
+      const { result } = renderHook(() => useLearningTools({ enableReviewSessions: false }));
 
       expect(result.current.tools).not.toHaveProperty('displayReviewSession');
     });
@@ -133,9 +127,7 @@ describe('useLearningTools', () => {
     it('should exclude progress summary tools when disabled', () => {
       mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
 
-      const { result } = renderHook(() =>
-        useLearningTools({ enableProgressSummary: false })
-      );
+      const { result } = renderHook(() => useLearningTools({ enableProgressSummary: false }));
 
       expect(result.current.tools).not.toHaveProperty('displayProgressSummary');
     });
@@ -143,9 +135,7 @@ describe('useLearningTools', () => {
     it('should exclude concept explanation tools when disabled', () => {
       mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
 
-      const { result } = renderHook(() =>
-        useLearningTools({ enableConceptExplanation: false })
-      );
+      const { result } = renderHook(() => useLearningTools({ enableConceptExplanation: false }));
 
       expect(result.current.tools).not.toHaveProperty('displayConceptExplanation');
     });
@@ -467,10 +457,9 @@ describe('useLearningTools', () => {
     it('should update tools reference when options change', () => {
       mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
 
-      const { result, rerender } = renderHook(
-        ({ options }) => useLearningTools(options),
-        { initialProps: { options: { enableFlashcards: true } } }
-      );
+      const { result, rerender } = renderHook(({ options }) => useLearningTools(options), {
+        initialProps: { options: { enableFlashcards: true } },
+      });
       const firstTools = result.current.tools;
 
       rerender({ options: { enableFlashcards: false } });

@@ -94,12 +94,12 @@ describe('useContext', () => {
     it('should initialize and fetch context on mount', async () => {
       mockInvoke.mockResolvedValue(mockFullContext);
       const { result } = renderHook(() => useContext());
-      
+
       // Initially loading
       await waitFor(() => {
         expect(mockInvoke).toHaveBeenCalledWith('context_get_full');
       });
-      
+
       // After loading completes
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -110,11 +110,11 @@ describe('useContext', () => {
     it('should handle null context response', async () => {
       mockInvoke.mockResolvedValue(null);
       const { result } = renderHook(() => useContext());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       expect(result.current.context).toBeNull();
       expect(result.current.error).toBeNull();
     });
@@ -191,10 +191,8 @@ describe('useContext', () => {
 
     it('should return null on error', async () => {
       // First call for initial fetch succeeds, second call fails
-      mockInvoke
-        .mockResolvedValueOnce(mockFullContext)
-        .mockRejectedValueOnce(new Error('Failed'));
-      
+      mockInvoke.mockResolvedValueOnce(mockFullContext).mockRejectedValueOnce(new Error('Failed'));
+
       const { result } = renderHook(() => useContext());
 
       await waitFor(() => {
@@ -282,7 +280,10 @@ describe('useContext', () => {
 
   describe('getAllWindows', () => {
     it('should get all windows', async () => {
-      const mockWindows = [mockWindowInfo, { ...mockWindowInfo, handle: 54321, title: 'Another Window' }];
+      const mockWindows = [
+        mockWindowInfo,
+        { ...mockWindowInfo, handle: 54321, title: 'Another Window' },
+      ];
       mockInvoke.mockResolvedValue(mockWindows);
       const { result } = renderHook(() => useContext());
 
@@ -299,9 +300,7 @@ describe('useContext', () => {
     });
 
     it('should return empty array on error', async () => {
-      mockInvoke
-        .mockResolvedValueOnce(mockFullContext)
-        .mockRejectedValueOnce(new Error('Failed'));
+      mockInvoke.mockResolvedValueOnce(mockFullContext).mockRejectedValueOnce(new Error('Failed'));
       const { result } = renderHook(() => useContext());
 
       await waitFor(() => {
@@ -349,7 +348,9 @@ describe('useContext', () => {
         expect(windows).toEqual(mockWindows);
       });
 
-      expect(mockInvoke).toHaveBeenCalledWith('context_find_windows_by_process', { processName: 'test.exe' });
+      expect(mockInvoke).toHaveBeenCalledWith('context_find_windows_by_process', {
+        processName: 'test.exe',
+      });
     });
   });
 

@@ -70,7 +70,7 @@ export function useStronghold(): UseStrongholdReturn {
       strongholdRef.current = stronghold;
 
       const success = await stronghold.initStronghold(password);
-      
+
       setState({
         isInitialized: success,
         isLoading: false,
@@ -108,138 +108,168 @@ export function useStronghold(): UseStrongholdReturn {
   }, []);
 
   // Provider API Key operations
-  const storeApiKey = useCallback(async (providerId: string, apiKey: string): Promise<boolean> => {
-    if (!strongholdRef.current || !state.isInitialized) {
-      console.warn('Stronghold not initialized');
-      return false;
-    }
+  const storeApiKey = useCallback(
+    async (providerId: string, apiKey: string): Promise<boolean> => {
+      if (!strongholdRef.current || !state.isInitialized) {
+        console.warn('Stronghold not initialized');
+        return false;
+      }
 
-    try {
-      return await strongholdRef.current.storeProviderApiKey(providerId, apiKey);
-    } catch (err) {
-      console.error('Failed to store API key:', err);
-      return false;
-    }
-  }, [state.isInitialized]);
+      try {
+        return await strongholdRef.current.storeProviderApiKey(providerId, apiKey);
+      } catch (err) {
+        console.error('Failed to store API key:', err);
+        return false;
+      }
+    },
+    [state.isInitialized]
+  );
 
-  const getApiKey = useCallback(async (providerId: string): Promise<string | null> => {
-    if (!strongholdRef.current || !state.isInitialized) {
-      return null;
-    }
+  const getApiKey = useCallback(
+    async (providerId: string): Promise<string | null> => {
+      if (!strongholdRef.current || !state.isInitialized) {
+        return null;
+      }
 
-    try {
-      return await strongholdRef.current.getProviderApiKey(providerId);
-    } catch (err) {
-      console.error('Failed to get API key:', err);
-      return null;
-    }
-  }, [state.isInitialized]);
+      try {
+        return await strongholdRef.current.getProviderApiKey(providerId);
+      } catch (err) {
+        console.error('Failed to get API key:', err);
+        return null;
+      }
+    },
+    [state.isInitialized]
+  );
 
-  const removeApiKey = useCallback(async (providerId: string): Promise<boolean> => {
-    if (!strongholdRef.current || !state.isInitialized) {
-      return false;
-    }
+  const removeApiKey = useCallback(
+    async (providerId: string): Promise<boolean> => {
+      if (!strongholdRef.current || !state.isInitialized) {
+        return false;
+      }
 
-    try {
-      return await strongholdRef.current.removeProviderApiKey(providerId);
-    } catch (err) {
-      console.error('Failed to remove API key:', err);
-      return false;
-    }
-  }, [state.isInitialized]);
+      try {
+        return await strongholdRef.current.removeProviderApiKey(providerId);
+      } catch (err) {
+        console.error('Failed to remove API key:', err);
+        return false;
+      }
+    },
+    [state.isInitialized]
+  );
 
-  const hasApiKey = useCallback(async (providerId: string): Promise<boolean> => {
-    if (!strongholdRef.current || !state.isInitialized) {
-      return false;
-    }
+  const hasApiKey = useCallback(
+    async (providerId: string): Promise<boolean> => {
+      if (!strongholdRef.current || !state.isInitialized) {
+        return false;
+      }
 
-    try {
-      return await strongholdRef.current.hasProviderApiKey(providerId);
-    } catch (err) {
-      console.error('Failed to check API key:', err);
-      return false;
-    }
-  }, [state.isInitialized]);
+      try {
+        return await strongholdRef.current.hasProviderApiKey(providerId);
+      } catch (err) {
+        console.error('Failed to check API key:', err);
+        return false;
+      }
+    },
+    [state.isInitialized]
+  );
 
   // Search API Key operations
-  const storeSearchKey = useCallback(async (providerId: string, apiKey: string): Promise<boolean> => {
-    if (!strongholdRef.current || !state.isInitialized) {
-      return false;
-    }
+  const storeSearchKey = useCallback(
+    async (providerId: string, apiKey: string): Promise<boolean> => {
+      if (!strongholdRef.current || !state.isInitialized) {
+        return false;
+      }
 
-    try {
-      return await strongholdRef.current.storeSearchApiKey(providerId, apiKey);
-    } catch (err) {
-      console.error('Failed to store search API key:', err);
-      return false;
-    }
-  }, [state.isInitialized]);
+      try {
+        return await strongholdRef.current.storeSearchApiKey(providerId, apiKey);
+      } catch (err) {
+        console.error('Failed to store search API key:', err);
+        return false;
+      }
+    },
+    [state.isInitialized]
+  );
 
-  const getSearchKey = useCallback(async (providerId: string): Promise<string | null> => {
-    if (!strongholdRef.current || !state.isInitialized) {
-      return null;
-    }
+  const getSearchKey = useCallback(
+    async (providerId: string): Promise<string | null> => {
+      if (!strongholdRef.current || !state.isInitialized) {
+        return null;
+      }
 
-    try {
-      return await strongholdRef.current.getSearchApiKey(providerId);
-    } catch (err) {
-      console.error('Failed to get search API key:', err);
-      return null;
-    }
-  }, [state.isInitialized]);
+      try {
+        return await strongholdRef.current.getSearchApiKey(providerId);
+      } catch (err) {
+        console.error('Failed to get search API key:', err);
+        return null;
+      }
+    },
+    [state.isInitialized]
+  );
 
-  const removeSearchKey = useCallback(async (providerId: string): Promise<boolean> => {
-    if (!strongholdRef.current || !state.isInitialized) {
-      return false;
-    }
+  const removeSearchKey = useCallback(
+    async (providerId: string): Promise<boolean> => {
+      if (!strongholdRef.current || !state.isInitialized) {
+        return false;
+      }
 
-    try {
-      return await strongholdRef.current.removeSearchApiKey(providerId);
-    } catch (err) {
-      console.error('Failed to remove search API key:', err);
-      return false;
-    }
-  }, [state.isInitialized]);
+      try {
+        return await strongholdRef.current.removeSearchApiKey(providerId);
+      } catch (err) {
+        console.error('Failed to remove search API key:', err);
+        return false;
+      }
+    },
+    [state.isInitialized]
+  );
 
   // Custom Provider API Key operations
-  const storeCustomKey = useCallback(async (providerId: string, apiKey: string): Promise<boolean> => {
-    if (!strongholdRef.current || !state.isInitialized) {
-      return false;
-    }
+  const storeCustomKey = useCallback(
+    async (providerId: string, apiKey: string): Promise<boolean> => {
+      if (!strongholdRef.current || !state.isInitialized) {
+        return false;
+      }
 
-    try {
-      return await strongholdRef.current.storeCustomProviderApiKey(providerId, apiKey);
-    } catch (err) {
-      console.error('Failed to store custom API key:', err);
-      return false;
-    }
-  }, [state.isInitialized]);
+      try {
+        return await strongholdRef.current.storeCustomProviderApiKey(providerId, apiKey);
+      } catch (err) {
+        console.error('Failed to store custom API key:', err);
+        return false;
+      }
+    },
+    [state.isInitialized]
+  );
 
-  const getCustomKey = useCallback(async (providerId: string): Promise<string | null> => {
-    if (!strongholdRef.current || !state.isInitialized) {
-      return null;
-    }
+  const getCustomKey = useCallback(
+    async (providerId: string): Promise<string | null> => {
+      if (!strongholdRef.current || !state.isInitialized) {
+        return null;
+      }
 
-    try {
-      return await strongholdRef.current.getCustomProviderApiKey(providerId);
-    } catch (err) {
-      console.error('Failed to get custom API key:', err);
-      return null;
-    }
-  }, [state.isInitialized]);
+      try {
+        return await strongholdRef.current.getCustomProviderApiKey(providerId);
+      } catch (err) {
+        console.error('Failed to get custom API key:', err);
+        return null;
+      }
+    },
+    [state.isInitialized]
+  );
 
-  const removeCustomKey = useCallback(async (providerId: string): Promise<boolean> => {
-    if (!strongholdRef.current || !state.isInitialized) {
-      return false;
-    }
+  const removeCustomKey = useCallback(
+    async (providerId: string): Promise<boolean> => {
+      if (!strongholdRef.current || !state.isInitialized) {
+        return false;
+      }
 
-    try {
-      return await strongholdRef.current.removeCustomProviderApiKey(providerId);
-    } catch (err) {
-      console.error('Failed to remove custom API key:', err);
-      return false;
-    }
-  }, [state.isInitialized]);
+      try {
+        return await strongholdRef.current.removeCustomProviderApiKey(providerId);
+      } catch (err) {
+        console.error('Failed to remove custom API key:', err);
+        return false;
+      }
+    },
+    [state.isInitialized]
+  );
 
   return {
     ...state,

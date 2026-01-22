@@ -1,6 +1,6 @@
 /**
  * useVideoTimeline - Hook for timeline-specific functionality
- * 
+ *
  * Handles:
  * - Playhead positioning
  * - Timeline zoom and pan
@@ -181,7 +181,10 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
   );
 
   const seekToStart = useCallback(() => setCurrentTime(0), [setCurrentTime]);
-  const seekToEnd = useCallback(() => setCurrentTime(state.duration), [setCurrentTime, state.duration]);
+  const seekToEnd = useCallback(
+    () => setCurrentTime(state.duration),
+    [setCurrentTime, state.duration]
+  );
 
   const seekForward = useCallback(
     (seconds = 1) => setCurrentTime(state.currentTime + seconds),
@@ -343,9 +346,7 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
 
   const getMarkerAtTime = useCallback(
     (time: number, tolerance = 0.1): TimelineMarker | null => {
-      return (
-        state.markers.find((m) => Math.abs(m.time - time) <= tolerance) || null
-      );
+      return state.markers.find((m) => Math.abs(m.time - time) <= tolerance) || null;
     },
     [state.markers]
   );
@@ -426,9 +427,7 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
       const snapPoints: number[] = [
         0, // Start
         state.duration, // End
-        ...state.markers
-          .filter((m) => !excludeMarkers.includes(m.id))
-          .map((m) => m.time),
+        ...state.markers.filter((m) => !excludeMarkers.includes(m.id)).map((m) => m.time),
       ];
 
       // Add in/out points if set
@@ -445,7 +444,15 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
 
       return time;
     },
-    [state.snapEnabled, state.duration, state.markers, state.inPoint, state.outPoint, state.snapThreshold, pixelsPerSecond]
+    [
+      state.snapEnabled,
+      state.duration,
+      state.markers,
+      state.inPoint,
+      state.outPoint,
+      state.snapThreshold,
+      pixelsPerSecond,
+    ]
   );
 
   // Coordinate Conversion

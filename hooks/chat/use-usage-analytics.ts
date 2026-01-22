@@ -2,7 +2,7 @@
 
 /**
  * useUsageAnalytics Hook
- * 
+ *
  * A hook for accessing and analyzing usage data with real-time updates
  */
 
@@ -54,36 +54,28 @@ export interface UseUsageAnalyticsReturn {
 /**
  * Hook for accessing usage analytics data
  */
-export function useUsageAnalytics(
-  options: UseUsageAnalyticsOptions = {}
-): UseUsageAnalyticsReturn {
+export function useUsageAnalytics(options: UseUsageAnalyticsOptions = {}): UseUsageAnalyticsReturn {
   const { period = 'week', sessionId, providerId } = options;
-  
+
   const records = useUsageStore((state) => state.records);
-  
+
   const filteredRecords = useMemo(() => {
     let filtered = filterRecordsByPeriod(records, period);
-    
+
     if (sessionId) {
-      filtered = filtered.filter(r => r.sessionId === sessionId);
+      filtered = filtered.filter((r) => r.sessionId === sessionId);
     }
-    
+
     if (providerId) {
-      filtered = filtered.filter(r => r.provider === providerId);
+      filtered = filtered.filter((r) => r.provider === providerId);
     }
-    
+
     return filtered;
   }, [records, period, sessionId, providerId]);
 
-  const statistics = useMemo(
-    () => calculateUsageStatistics(filteredRecords),
-    [filteredRecords]
-  );
+  const statistics = useMemo(() => calculateUsageStatistics(filteredRecords), [filteredRecords]);
 
-  const modelBreakdown = useMemo(
-    () => getModelUsageBreakdown(filteredRecords),
-    [filteredRecords]
-  );
+  const modelBreakdown = useMemo(() => getModelUsageBreakdown(filteredRecords), [filteredRecords]);
 
   const providerBreakdown = useMemo(
     () => getProviderUsageBreakdown(filteredRecords),
@@ -95,20 +87,11 @@ export function useUsageAnalytics(
     [filteredRecords, period]
   );
 
-  const efficiency = useMemo(
-    () => calculateCostEfficiency(filteredRecords),
-    [filteredRecords]
-  );
+  const efficiency = useMemo(() => calculateCostEfficiency(filteredRecords), [filteredRecords]);
 
-  const dailySummary = useMemo(
-    () => getDailyUsageSummary(records),
-    [records]
-  );
+  const dailySummary = useMemo(() => getDailyUsageSummary(records), [records]);
 
-  const topSessions = useMemo(
-    () => getTopSessionsByUsage(filteredRecords, 10),
-    [filteredRecords]
-  );
+  const topSessions = useMemo(() => getTopSessionsByUsage(filteredRecords, 10), [filteredRecords]);
 
   const recommendations = useMemo(
     () => getUsageRecommendations(filteredRecords),
@@ -140,7 +123,7 @@ export function useUsageAnalytics(
  */
 export function useUsageSummary() {
   const { statistics, trend, dailySummary } = useUsageAnalytics({ period: 'month' });
-  
+
   return {
     totalTokens: statistics.totalTokens,
     totalCost: statistics.totalCost,

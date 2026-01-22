@@ -20,11 +20,7 @@ export {
   type NativeSkill,
   type LocalSkill,
 } from './use-native-skills';
-export {
-  useSkillSync,
-  useSkillSyncAvailable,
-  type UseSkillSyncReturn,
-} from './use-skill-sync';
+export { useSkillSync, useSkillSyncAvailable, type UseSkillSyncReturn } from './use-skill-sync';
 export {
   useSkillSecurity,
   getSeverityColor,

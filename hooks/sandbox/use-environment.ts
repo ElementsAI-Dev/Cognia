@@ -9,10 +9,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useEnvironmentStore } from '@/stores/system';
-import {
-  environmentService,
-  isEnvironmentAvailable,
-} from '@/lib/native/environment';
+import { environmentService, isEnvironmentAvailable } from '@/lib/native/environment';
 import type { EnvironmentTool, ToolStatus, InstallProgress } from '@/types/system/environment';
 
 export interface UseEnvironmentReturn {
@@ -194,12 +191,9 @@ export function useEnvironment(): UseEnvironmentReturn {
   );
 
   // Open tool website
-  const openToolWebsite = useCallback(
-    async (tool: EnvironmentTool): Promise<void> => {
-      await environmentService.openToolWebsite(tool);
-    },
-    []
-  );
+  const openToolWebsite = useCallback(async (tool: EnvironmentTool): Promise<void> => {
+    await environmentService.openToolWebsite(tool);
+  }, []);
 
   return {
     platform,

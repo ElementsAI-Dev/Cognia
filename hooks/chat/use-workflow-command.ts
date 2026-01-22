@@ -59,9 +59,7 @@ export function useWorkflowCommand(
   // Check if input is a workflow command
   const isWorkflowCommand = useCallback((input: string): boolean => {
     const trimmed = input.trim().toLowerCase();
-    return WORKFLOW_COMMANDS.some(
-      (cmd) => trimmed === cmd || trimmed.startsWith(cmd + ' ')
-    );
+    return WORKFLOW_COMMANDS.some((cmd) => trimmed === cmd || trimmed.startsWith(cmd + ' '));
   }, []);
 
   // Parse command to extract workflow name and input
@@ -129,27 +127,24 @@ export function useWorkflowCommand(
   );
 
   // Get workflow suggestions based on query
-  const getSuggestions = useCallback(
-    async (query: string): Promise<VisualWorkflow[]> => {
-      if (!query.trim()) {
-        // Return recent workflows
-        const workflows = await workflowRepository.getAll();
-        return workflows.slice(0, 5);
-      }
-
-      // Search by name
-      const lowerQuery = query.toLowerCase();
+  const getSuggestions = useCallback(async (query: string): Promise<VisualWorkflow[]> => {
+    if (!query.trim()) {
+      // Return recent workflows
       const workflows = await workflowRepository.getAll();
-      return workflows
-        .filter(
-          (w) =>
-            w.name.toLowerCase().includes(lowerQuery) ||
-            w.description?.toLowerCase().includes(lowerQuery)
-        )
-        .slice(0, 5);
-    },
-    []
-  );
+      return workflows.slice(0, 5);
+    }
+
+    // Search by name
+    const lowerQuery = query.toLowerCase();
+    const workflows = await workflowRepository.getAll();
+    return workflows
+      .filter(
+        (w) =>
+          w.name.toLowerCase().includes(lowerQuery) ||
+          w.description?.toLowerCase().includes(lowerQuery)
+      )
+      .slice(0, 5);
+  }, []);
 
   // Handle workflow command
   const handleCommand = useCallback(

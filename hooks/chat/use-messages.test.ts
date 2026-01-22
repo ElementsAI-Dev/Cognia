@@ -21,10 +21,8 @@ const mockCopyMessagesForBranch = jest.fn();
 
 jest.mock('@/lib/db', () => ({
   messageRepository: {
-    getPageBySessionIdAndBranch: (...args: unknown[]) =>
-      mockGetPageBySessionIdAndBranch(...args),
-    getCountBySessionIdAndBranch: (...args: unknown[]) =>
-      mockGetCountBySessionIdAndBranch(...args),
+    getPageBySessionIdAndBranch: (...args: unknown[]) => mockGetPageBySessionIdAndBranch(...args),
+    getCountBySessionIdAndBranch: (...args: unknown[]) => mockGetCountBySessionIdAndBranch(...args),
     createWithBranch: (...args: unknown[]) => mockCreateWithBranch(...args),
     update: (...args: unknown[]) => mockUpdate(...args),
     delete: (...args: unknown[]) => mockDelete(...args),
@@ -87,10 +85,12 @@ describe('useMessages', () => {
       mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
       mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(mockMessages.length);
 
-      const { result } = renderHook(() => useMessages({ 
-        sessionId: 'session-1',
-        branchId: 'branch-1',
-      }));
+      const { result } = renderHook(() =>
+        useMessages({
+          sessionId: 'session-1',
+          branchId: 'branch-1',
+        })
+      );
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -105,10 +105,12 @@ describe('useMessages', () => {
       const onError = jest.fn();
       mockGetPageBySessionIdAndBranch.mockRejectedValueOnce(new Error('Load failed'));
 
-      const { result } = renderHook(() => useMessages({ 
-        sessionId: 'session-1',
-        onError,
-      }));
+      const { result } = renderHook(() =>
+        useMessages({
+          sessionId: 'session-1',
+          onError,
+        })
+      );
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -318,9 +320,7 @@ describe('useMessages', () => {
 
   describe('reloadMessages', () => {
     it('should reload messages from database', async () => {
-      mockGetPageBySessionIdAndBranch
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce(mockMessages);
+      mockGetPageBySessionIdAndBranch.mockResolvedValueOnce([]).mockResolvedValueOnce(mockMessages);
 
       mockGetCountBySessionIdAndBranch
         .mockResolvedValueOnce(0)

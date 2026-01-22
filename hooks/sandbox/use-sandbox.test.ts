@@ -55,9 +55,7 @@ describe('useSandbox Hook', () => {
 
     it('should load status when sandbox is available', async () => {
       const mockStatus: SandboxStatus = {
-        available_runtimes: [
-          { runtime_type: 'docker', available: true, version: '24.0.0' },
-        ],
+        available_runtimes: [{ runtime_type: 'docker', available: true, version: '24.0.0' }],
         supported_languages: [
           { id: 'python', name: 'Python', extension: 'py', category: 'interpreted' },
         ],

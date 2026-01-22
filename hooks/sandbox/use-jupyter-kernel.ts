@@ -6,11 +6,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { kernelService } from '@/lib/jupyter/kernel';
-import {
-  useJupyterStore,
-  useActiveSession,
-  useActiveKernel,
-} from '@/stores/tools';
+import { useJupyterStore, useActiveSession, useActiveKernel } from '@/stores/tools';
 import type {
   JupyterSession,
   KernelInfo,
@@ -56,10 +52,7 @@ export interface UseJupyterKernelReturn {
     code: string,
     sessionId?: string
   ) => Promise<KernelSandboxExecutionResult | null>;
-  quickExecute: (
-    envPath: string,
-    code: string
-  ) => Promise<KernelSandboxExecutionResult | null>;
+  quickExecute: (envPath: string, code: string) => Promise<KernelSandboxExecutionResult | null>;
 
   // Variables
   refreshVariables: (sessionId?: string) => Promise<void>;
@@ -77,11 +70,7 @@ export interface UseJupyterKernelReturn {
 
   // Chat integration
   getSessionForChat: (chatSessionId: string) => JupyterSession | null;
-  mapChatToSession: (
-    chatSessionId: string,
-    jupyterSessionId: string,
-    envPath: string
-  ) => void;
+  mapChatToSession: (chatSessionId: string, jupyterSessionId: string, envPath: string) => void;
   unmapChatSession: (chatSessionId: string) => void;
 }
 
@@ -172,9 +161,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
 
       const sessionCells = getCells(event.sessionId);
       const placeholderCount =
-        typeof event.total === 'number' && event.total > 0
-          ? event.total
-          : event.cellIndex + 1;
+        typeof event.total === 'number' && event.total > 0 ? event.total : event.cellIndex + 1;
 
       if (!sessionCells.length && placeholderCount > 0) {
         const placeholders: ExecutableCell[] = Array.from({ length: placeholderCount }).map(
@@ -205,11 +192,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
       updateCell(event.sessionId, event.cellIndex, {
         outputs: isClearEvent ? [] : toCellOutputs(event.result),
         executionCount: isClearEvent ? null : event.result.executionCount,
-        executionState: isClearEvent
-          ? 'idle'
-          : event.result.success
-            ? 'success'
-            : 'error',
+        executionState: isClearEvent ? 'idle' : event.result.success ? 'success' : 'error',
       });
     },
     [getCells, setCells, toCellOutputs, updateCell]
@@ -221,16 +204,14 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
 
     const setupListeners = async () => {
       // Listen for kernel status changes
-      const unlistenStatus = await kernelService.onKernelStatus(
-        (event: KernelProgressEvent) => {
-          if (event.kernelId) {
-            updateKernelStatus(event.kernelId, event.status);
-          }
-          if (event.status === 'error' && event.message) {
-            setError(event.message);
-          }
+      const unlistenStatus = await kernelService.onKernelStatus((event: KernelProgressEvent) => {
+        if (event.kernelId) {
+          updateKernelStatus(event.kernelId, event.status);
         }
-      );
+        if (event.status === 'error' && event.message) {
+          setError(event.message);
+        }
+      });
 
       // Listen for execution output
       const unlistenOutput = await kernelService.onKernelOutput(
@@ -240,13 +221,11 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
       );
 
       // Listen for cell output
-      const unlistenCellOutput = await kernelService.onCellOutput(
-        (event: CellOutputEvent) => {
-          // Update cell-specific state if needed
-          setLastSandboxExecutionResult(event.result);
-          applyCellOutputEvent(event);
-        }
-      );
+      const unlistenCellOutput = await kernelService.onCellOutput((event: CellOutputEvent) => {
+        // Update cell-specific state if needed
+        setLastSandboxExecutionResult(event.result);
+        applyCellOutputEvent(event);
+      });
 
       unlistenersRef.current = [unlistenStatus, unlistenOutput, unlistenCellOutput];
     };
@@ -375,10 +354,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
 
   // Execute code
   const execute = useCallback(
-    async (
-      code: string,
-      sessionId?: string
-    ): Promise<KernelSandboxExecutionResult | null> => {
+    async (code: string, sessionId?: string): Promise<KernelSandboxExecutionResult | null> => {
       const targetSessionId = sessionId || activeSessionId;
       if (!targetSessionId || !kernelService.isAvailable()) {
         setError('No active session');
@@ -409,7 +385,14 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
         setExecuting(false);
       }
     },
-    [activeSessionId, setExecuting, clearError, setLastSandboxExecutionResult, addExecutionHistory, setError]
+    [
+      activeSessionId,
+      setExecuting,
+      clearError,
+      setLastSandboxExecutionResult,
+      addExecutionHistory,
+      setError,
+    ]
   );
 
   // Execute a specific cell
@@ -429,11 +412,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
       clearError();
 
       try {
-        const result = await kernelService.executeCell(
-          targetSessionId,
-          cellIndex,
-          code
-        );
+        const result = await kernelService.executeCell(targetSessionId, cellIndex, code);
         setLastSandboxExecutionResult(result);
 
         // Add to history
@@ -453,15 +432,19 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
         setExecuting(false);
       }
     },
-    [activeSessionId, setExecuting, clearError, setLastSandboxExecutionResult, addExecutionHistory, setError]
+    [
+      activeSessionId,
+      setExecuting,
+      clearError,
+      setLastSandboxExecutionResult,
+      addExecutionHistory,
+      setError,
+    ]
   );
 
   // Quick execute without session
   const quickExecute = useCallback(
-    async (
-      envPath: string,
-      code: string
-    ): Promise<KernelSandboxExecutionResult | null> => {
+    async (envPath: string, code: string): Promise<KernelSandboxExecutionResult | null> => {
       if (!kernelService.isAvailable()) {
         setError('Jupyter kernel requires Tauri environment');
         return null;
@@ -543,12 +526,9 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
   );
 
   // Check kernel available
-  const checkKernelAvailable = useCallback(
-    async (envPath: string): Promise<boolean> => {
-      return kernelService.checkKernelAvailable(envPath);
-    },
-    []
-  );
+  const checkKernelAvailable = useCallback(async (envPath: string): Promise<boolean> => {
+    return kernelService.checkKernelAvailable(envPath);
+  }, []);
 
   // Ensure kernel installed
   const ensureKernel = useCallback(
@@ -578,9 +558,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
   // Get session for chat
   const getSessionForChat = useCallback(
     (chatSessionId: string): JupyterSession | null => {
-      const mapping = sessionEnvMappings.find(
-        (m) => m.chatSessionId === chatSessionId
-      );
+      const mapping = sessionEnvMappings.find((m) => m.chatSessionId === chatSessionId);
       if (!mapping) return null;
       return sessions.find((s) => s.id === mapping.jupyterSessionId) || null;
     },

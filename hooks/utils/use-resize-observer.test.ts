@@ -13,15 +13,15 @@ import {
 // Mock ResizeObserver
 class MockResizeObserver {
   callback: ResizeObserverCallback;
-  
+
   constructor(callback: ResizeObserverCallback) {
     this.callback = callback;
   }
-  
+
   observe = jest.fn();
   unobserve = jest.fn();
   disconnect = jest.fn();
-  
+
   trigger(entries: ResizeObserverEntry[]) {
     this.callback(entries, this);
   }
@@ -59,7 +59,7 @@ describe('useResizeObserver', () => {
   });
 
   it('should use custom initial size', () => {
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useResizeObserver({ initialSize: { width: 100, height: 200 } })
     );
 
@@ -160,10 +160,9 @@ describe('useLayoutRecalculation', () => {
     const trigger1 = jest.fn();
     const trigger2 = jest.fn();
 
-    const { result, rerender } = renderHook(
-      ({ trigger }) => useLayoutRecalculation(trigger, 100),
-      { initialProps: { trigger: trigger1 } }
-    );
+    const { result, rerender } = renderHook(({ trigger }) => useLayoutRecalculation(trigger, 100), {
+      initialProps: { trigger: trigger1 },
+    });
 
     rerender({ trigger: trigger2 });
 
@@ -213,7 +212,7 @@ describe('useMonacoLayoutSync', () => {
   it('should call editor layout when size changes', () => {
     const mockLayout = jest.fn();
     const editorRef = { current: { layout: mockLayout } };
-    
+
     renderHook(() => useMonacoLayoutSync(editorRef));
 
     // The hook uses requestAnimationFrame, which we need to advance

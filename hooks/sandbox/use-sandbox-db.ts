@@ -93,9 +93,7 @@ export function useExecutionHistory(
     if (!isTauri) return false;
     const api = await getSandboxApi();
     const isFavorite = await api.toggleExecutionFavorite(id);
-    setExecutions((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, is_favorite: isFavorite } : e))
-    );
+    setExecutions((prev) => prev.map((e) => (e.id === id ? { ...e, is_favorite: isFavorite } : e)));
     return isFavorite;
   }, []);
 
@@ -104,9 +102,7 @@ export function useExecutionHistory(
     const api = await getSandboxApi();
     await api.addExecutionTags(id, tags);
     setExecutions((prev) =>
-      prev.map((e) =>
-        e.id === id ? { ...e, tags: [...new Set([...e.tags, ...tags])] } : e
-      )
+      prev.map((e) => (e.id === id ? { ...e, tags: [...new Set([...e.tags, ...tags])] } : e))
     );
   }, []);
 
@@ -115,19 +111,20 @@ export function useExecutionHistory(
     const api = await getSandboxApi();
     await api.removeExecutionTags(id, tags);
     setExecutions((prev) =>
-      prev.map((e) =>
-        e.id === id ? { ...e, tags: e.tags.filter((t) => !tags.includes(t)) } : e
-      )
+      prev.map((e) => (e.id === id ? { ...e, tags: e.tags.filter((t) => !tags.includes(t)) } : e))
     );
   }, []);
 
-  const clearHistory = useCallback(async (beforeDate?: string) => {
-    if (!isTauri) return 0;
-    const api = await getSandboxApi();
-    const count = await api.clearExecutionHistory(beforeDate);
-    await refresh();
-    return count;
-  }, [refresh]);
+  const clearHistory = useCallback(
+    async (beforeDate?: string) => {
+      if (!isTauri) return 0;
+      const api = await getSandboxApi();
+      const count = await api.clearExecutionHistory(beforeDate);
+      await refresh();
+      return count;
+    },
+    [refresh]
+  );
 
   useEffect(() => {
     refresh();
@@ -548,10 +545,7 @@ export function useTagsCategories(): UseTagsCategoriesReturn {
     try {
       setLoading(true);
       const api = await getSandboxApi();
-      const [tagList, categoryList] = await Promise.all([
-        api.getAllTags(),
-        api.getAllCategories(),
-      ]);
+      const [tagList, categoryList] = await Promise.all([api.getAllTags(), api.getAllCategories()]);
       setTags(tagList);
       setCategories(categoryList);
     } catch {

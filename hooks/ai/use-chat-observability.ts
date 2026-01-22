@@ -1,6 +1,6 @@
 /**
  * Observability Integration Hook for AI Chat
- * 
+ *
  * Wraps useAIChat to add observability tracking via Langfuse and OpenTelemetry
  */
 
@@ -13,7 +13,7 @@ import type { CoreMessage } from 'ai';
 
 /**
  * Observability hook for AI chat
- * 
+ *
  * Use this hook to track chat sessions, generations, and streaming responses
  */
 export function useChatObservability(config: ChatObservabilityConfig) {
@@ -54,13 +54,7 @@ export function useChatObservability(config: ChatObservabilityConfig) {
       return fn();
     }
 
-    return managerRef.current.trackGeneration(
-      model,
-      provider,
-      messages,
-      fn,
-      options
-    );
+    return managerRef.current.trackGeneration(model, provider, messages, fn, options);
   };
 
   /**
@@ -80,12 +74,7 @@ export function useChatObservability(config: ChatObservabilityConfig) {
       return null;
     }
 
-    return managerRef.current.trackStreamingGeneration(
-      model,
-      provider,
-      messages,
-      options
-    );
+    return managerRef.current.trackStreamingGeneration(model, provider, messages, options);
   };
 
   /**

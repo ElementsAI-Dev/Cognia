@@ -26,7 +26,7 @@ export interface UseMcpInstallationReturn {
   isCheckingEnv: boolean;
   installConfig: McpInstallConfig | null;
   isCurrentlyInstalled: boolean;
-  
+
   // Actions
   setEnvValue: (key: string, value: string) => void;
   setEnvValues: (values: Record<string, string>) => void;
@@ -37,11 +37,7 @@ export interface UseMcpInstallationReturn {
 export function useMcpInstallation(options: UseMcpInstallationOptions): UseMcpInstallationReturn {
   const { item, isOpen, onSuccess, onError } = options;
 
-  const {
-    downloadDetails,
-    setInstallStatus,
-    getInstallStatus,
-  } = useMcpMarketplaceStore();
+  const { downloadDetails, setInstallStatus, getInstallStatus } = useMcpMarketplaceStore();
 
   const { addServer, servers } = useMcpStore();
 

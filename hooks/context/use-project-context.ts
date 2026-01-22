@@ -118,10 +118,7 @@ export function useKnowledgeStats(projectId: string | undefined) {
  */
 export function useBuildContext(project: Project | undefined) {
   return useCallback(
-    (
-      query: string,
-      options: UseProjectContextOptions = {}
-    ): ProjectContextResult | null => {
+    (query: string, options: UseProjectContextOptions = {}): ProjectContextResult | null => {
       if (!project) return null;
 
       const context = buildProjectContext(project, query, {

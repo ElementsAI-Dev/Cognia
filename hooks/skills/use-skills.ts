@@ -2,7 +2,7 @@
 
 /**
  * useSkills - Hook for working with Claude Skills
- * 
+ *
  * Provides easy access to skill functionality for React components
  */
 
@@ -14,11 +14,7 @@ import {
   findMatchingSkills,
   checkSkillTokenBudget,
 } from '@/lib/skills';
-import type {
-  Skill,
-  SkillCategory,
-  CreateSkillInput,
-} from '@/types/system/skill';
+import type { Skill, SkillCategory, CreateSkillInput } from '@/types/system/skill';
 
 export interface UseSkillsOptions {
   maxTokenBudget?: number;
@@ -60,70 +56,91 @@ export interface UseSkillsReturn {
 }
 
 export function useSkills(options: UseSkillsOptions = {}): UseSkillsReturn {
-  const {
-    maxTokenBudget = 8000,
-  } = options;
+  const { maxTokenBudget = 8000 } = options;
 
   const store = useSkillStore();
 
   // Derived state
   const skills = useMemo(() => Object.values(store.skills), [store.skills]);
-  
-  const activeSkills = useMemo(() => 
-    store.activeSkillIds
-      .map(id => store.skills[id])
-      .filter((s): s is Skill => s !== undefined),
+
+  const activeSkills = useMemo(
+    () =>
+      store.activeSkillIds.map((id) => store.skills[id]).filter((s): s is Skill => s !== undefined),
     [store.activeSkillIds, store.skills]
   );
 
-  const enabledSkills = useMemo(() => 
-    skills.filter(s => s.status === 'enabled'),
-    [skills]
-  );
+  const enabledSkills = useMemo(() => skills.filter((s) => s.status === 'enabled'), [skills]);
 
   // Skill management
-  const createSkill = useCallback((input: CreateSkillInput) => {
-    return store.createSkill(input);
-  }, [store]);
+  const createSkill = useCallback(
+    (input: CreateSkillInput) => {
+      return store.createSkill(input);
+    },
+    [store]
+  );
 
-  const updateSkill = useCallback((id: string, updates: Partial<Skill>) => {
-    store.updateSkill(id, updates);
-  }, [store]);
+  const updateSkill = useCallback(
+    (id: string, updates: Partial<Skill>) => {
+      store.updateSkill(id, updates);
+    },
+    [store]
+  );
 
-  const deleteSkill = useCallback((id: string) => {
-    store.deleteSkill(id);
-  }, [store]);
+  const deleteSkill = useCallback(
+    (id: string) => {
+      store.deleteSkill(id);
+    },
+    [store]
+  );
 
-  const enableSkill = useCallback((id: string) => {
-    store.enableSkill(id);
-  }, [store]);
+  const enableSkill = useCallback(
+    (id: string) => {
+      store.enableSkill(id);
+    },
+    [store]
+  );
 
-  const disableSkill = useCallback((id: string) => {
-    store.disableSkill(id);
-  }, [store]);
+  const disableSkill = useCallback(
+    (id: string) => {
+      store.disableSkill(id);
+    },
+    [store]
+  );
 
   // Active skills management
-  const activateSkill = useCallback((id: string) => {
-    store.activateSkill(id);
-  }, [store]);
+  const activateSkill = useCallback(
+    (id: string) => {
+      store.activateSkill(id);
+    },
+    [store]
+  );
 
-  const deactivateSkill = useCallback((id: string) => {
-    store.deactivateSkill(id);
-  }, [store]);
+  const deactivateSkill = useCallback(
+    (id: string) => {
+      store.deactivateSkill(id);
+    },
+    [store]
+  );
 
   const clearActiveSkills = useCallback(() => {
     store.clearActiveSkills();
   }, [store]);
 
   // Search
-  const searchSkills = useCallback((query: string) => {
-    const result = store.searchSkills(query);
-    return result.skills;
-  }, [store]);
+  const searchSkills = useCallback(
+    (query: string) => {
+      const result = store.searchSkills(query);
+      return result.skills;
+    },
+    [store]
+  );
 
-  const getSkillsByCategory = useCallback((category: SkillCategory) => {
-    return store.getSkillsByCategory(category);
-  }, [store]);
+  const getSkillsByCategory = useCallback(
+    (category: SkillCategory) => {
+      return store.getSkillsByCategory(category);
+    },
+    [store]
+  );
 
   // Execution
   const getSystemPrompt = useCallback(() => {
@@ -136,22 +153,31 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsReturn {
     return buildMultiSkillSystemPrompt(activeSkills);
   }, [activeSkills]);
 
-  const matchSkillsToQuery = useCallback((query: string, maxResults: number = 3) => {
-    return findMatchingSkills(enabledSkills, query, maxResults);
-  }, [enabledSkills]);
+  const matchSkillsToQuery = useCallback(
+    (query: string, maxResults: number = 3) => {
+      return findMatchingSkills(enabledSkills, query, maxResults);
+    },
+    [enabledSkills]
+  );
 
   const getTokenEstimate = useCallback(() => {
     return checkSkillTokenBudget(activeSkills, maxTokenBudget);
   }, [activeSkills, maxTokenBudget]);
 
   // Utilities
-  const getSkillById = useCallback((id: string) => {
-    return store.getSkill(id);
-  }, [store]);
+  const getSkillById = useCallback(
+    (id: string) => {
+      return store.getSkill(id);
+    },
+    [store]
+  );
 
-  const recordUsage = useCallback((skillId: string, success: boolean, duration: number) => {
-    store.recordSkillUsage(skillId, success, duration);
-  }, [store]);
+  const recordUsage = useCallback(
+    (skillId: string, success: boolean, duration: number) => {
+      store.recordSkillUsage(skillId, success, duration);
+    },
+    [store]
+  );
 
   return {
     // State
@@ -193,7 +219,7 @@ export function useSkills(options: UseSkillsOptions = {}): UseSkillsReturn {
  */
 export function useSkillSystemPrompt(): string {
   const { activeSkills } = useSkills();
-  
+
   return useMemo(() => {
     if (activeSkills.length === 0) return '';
     if (activeSkills.length === 1) {
@@ -208,7 +234,7 @@ export function useSkillSystemPrompt(): string {
  */
 export function useAutoMatchSkills(query: string, maxResults: number = 3): Skill[] {
   const { enabledSkills } = useSkills();
-  
+
   return useMemo(() => {
     if (!query || query.length < 5) return [];
     return findMatchingSkills(enabledSkills, query, maxResults);
@@ -220,7 +246,7 @@ export function useAutoMatchSkills(query: string, maxResults: number = 3): Skill
  */
 export function useSkillTokenBudget(budget: number = 8000) {
   const { activeSkills } = useSkills();
-  
+
   return useMemo(() => {
     return checkSkillTokenBudget(activeSkills, budget);
   }, [activeSkills, budget]);

@@ -7,8 +7,8 @@ export { useCodeExecution as useCanvasCodeExecution } from './use-code-execution
 export { useCanvasDocuments } from './use-canvas-documents';
 
 export type { CodeSandboxExecutionResult, ExecutionOptions } from './use-code-execution';
-export type { 
-  SuggestionContext as CanvasSuggestionContext, 
-  GenerateSuggestionsOptions as CanvasGenerateSuggestionsOptions 
+export type {
+  SuggestionContext as CanvasSuggestionContext,
+  GenerateSuggestionsOptions as CanvasGenerateSuggestionsOptions,
 } from './use-canvas-suggestions';
 export type { CreateDocumentOptions as CanvasCreateDocumentOptions } from './use-canvas-documents';

@@ -56,7 +56,7 @@ export function useSelectionHistory() {
 
   const fetchHistory = useCallback(async (count?: number) => {
     if (!isTauri()) return;
-    
+
     setIsLoading(true);
     setError(null);
     try {
@@ -71,7 +71,7 @@ export function useSelectionHistory() {
 
   const fetchStats = useCallback(async () => {
     if (!isTauri()) return;
-    
+
     try {
       const result = await invoke<SelectionHistoryStats>('selection_get_history_stats');
       setStats(result);
@@ -82,7 +82,7 @@ export function useSelectionHistory() {
 
   const searchHistory = useCallback(async (query: string) => {
     if (!isTauri()) return [];
-    
+
     try {
       return await invoke<SelectionHistoryEntry[]>('selection_search_history', { query });
     } catch (err) {
@@ -93,7 +93,7 @@ export function useSelectionHistory() {
 
   const searchByApp = useCallback(async (appName: string) => {
     if (!isTauri()) return [];
-    
+
     try {
       return await invoke<SelectionHistoryEntry[]>('selection_search_history_by_app', { appName });
     } catch (err) {
@@ -104,9 +104,11 @@ export function useSelectionHistory() {
 
   const searchByType = useCallback(async (textType: string) => {
     if (!isTauri()) return [];
-    
+
     try {
-      return await invoke<SelectionHistoryEntry[]>('selection_search_history_by_type', { textType });
+      return await invoke<SelectionHistoryEntry[]>('selection_search_history_by_type', {
+        textType,
+      });
     } catch (err) {
       console.error('Failed to search by type:', err);
       return [];
@@ -115,7 +117,7 @@ export function useSelectionHistory() {
 
   const clearHistory = useCallback(async () => {
     if (!isTauri()) return;
-    
+
     try {
       await invoke('selection_clear_history');
       setHistory([]);
@@ -127,7 +129,7 @@ export function useSelectionHistory() {
 
   const exportHistory = useCallback(async () => {
     if (!isTauri()) return '';
-    
+
     try {
       return await invoke<string>('selection_export_history');
     } catch (err) {
@@ -136,18 +138,21 @@ export function useSelectionHistory() {
     }
   }, []);
 
-  const importHistory = useCallback(async (json: string) => {
-    if (!isTauri()) return 0;
-    
-    try {
-      const count = await invoke<number>('selection_import_history', { json });
-      await fetchHistory();
-      return count;
-    } catch (err) {
-      console.error('Failed to import history:', err);
-      return 0;
-    }
-  }, [fetchHistory]);
+  const importHistory = useCallback(
+    async (json: string) => {
+      if (!isTauri()) return 0;
+
+      try {
+        const count = await invoke<number>('selection_import_history', { json });
+        await fetchHistory();
+        return count;
+      } catch (err) {
+        console.error('Failed to import history:', err);
+        return 0;
+      }
+    },
+    [fetchHistory]
+  );
 
   useEffect(() => {
     fetchHistory(50);
@@ -177,7 +182,7 @@ export function useClipboardHistory() {
 
   const fetchHistory = useCallback(async (count?: number) => {
     if (!isTauri()) return;
-    
+
     setIsLoading(true);
     try {
       const result = await invoke<ClipboardEntry[]>('clipboard_get_history', { count });
@@ -191,7 +196,7 @@ export function useClipboardHistory() {
 
   const fetchPinned = useCallback(async () => {
     if (!isTauri()) return;
-    
+
     try {
       const result = await invoke<ClipboardEntry[]>('clipboard_get_pinned');
       setPinnedItems(result);
@@ -202,7 +207,7 @@ export function useClipboardHistory() {
 
   const searchHistory = useCallback(async (query: string) => {
     if (!isTauri()) return [];
-    
+
     try {
       return await invoke<ClipboardEntry[]>('clipboard_search_history', { query });
     } catch (err) {
@@ -211,57 +216,66 @@ export function useClipboardHistory() {
     }
   }, []);
 
-  const pinEntry = useCallback(async (id: string) => {
-    if (!isTauri()) return false;
-    
-    try {
-      const result = await invoke<boolean>('clipboard_pin_entry', { id });
-      if (result) {
-        await fetchHistory();
-        await fetchPinned();
-      }
-      return result;
-    } catch (err) {
-      console.error('Failed to pin entry:', err);
-      return false;
-    }
-  }, [fetchHistory, fetchPinned]);
+  const pinEntry = useCallback(
+    async (id: string) => {
+      if (!isTauri()) return false;
 
-  const unpinEntry = useCallback(async (id: string) => {
-    if (!isTauri()) return false;
-    
-    try {
-      const result = await invoke<boolean>('clipboard_unpin_entry', { id });
-      if (result) {
-        await fetchHistory();
-        await fetchPinned();
+      try {
+        const result = await invoke<boolean>('clipboard_pin_entry', { id });
+        if (result) {
+          await fetchHistory();
+          await fetchPinned();
+        }
+        return result;
+      } catch (err) {
+        console.error('Failed to pin entry:', err);
+        return false;
       }
-      return result;
-    } catch (err) {
-      console.error('Failed to unpin entry:', err);
-      return false;
-    }
-  }, [fetchHistory, fetchPinned]);
+    },
+    [fetchHistory, fetchPinned]
+  );
 
-  const deleteEntry = useCallback(async (id: string) => {
-    if (!isTauri()) return false;
-    
-    try {
-      const result = await invoke<boolean>('clipboard_delete_entry', { id });
-      if (result) {
-        await fetchHistory();
-        await fetchPinned();
+  const unpinEntry = useCallback(
+    async (id: string) => {
+      if (!isTauri()) return false;
+
+      try {
+        const result = await invoke<boolean>('clipboard_unpin_entry', { id });
+        if (result) {
+          await fetchHistory();
+          await fetchPinned();
+        }
+        return result;
+      } catch (err) {
+        console.error('Failed to unpin entry:', err);
+        return false;
       }
-      return result;
-    } catch (err) {
-      console.error('Failed to delete entry:', err);
-      return false;
-    }
-  }, [fetchHistory, fetchPinned]);
+    },
+    [fetchHistory, fetchPinned]
+  );
+
+  const deleteEntry = useCallback(
+    async (id: string) => {
+      if (!isTauri()) return false;
+
+      try {
+        const result = await invoke<boolean>('clipboard_delete_entry', { id });
+        if (result) {
+          await fetchHistory();
+          await fetchPinned();
+        }
+        return result;
+      } catch (err) {
+        console.error('Failed to delete entry:', err);
+        return false;
+      }
+    },
+    [fetchHistory, fetchPinned]
+  );
 
   const copyEntry = useCallback(async (id: string) => {
     if (!isTauri()) return;
-    
+
     try {
       await invoke('clipboard_copy_entry', { id });
     } catch (err) {
@@ -271,7 +285,7 @@ export function useClipboardHistory() {
 
   const clearUnpinned = useCallback(async () => {
     if (!isTauri()) return;
-    
+
     try {
       await invoke('clipboard_clear_unpinned');
       await fetchHistory();
@@ -282,7 +296,7 @@ export function useClipboardHistory() {
 
   const clearAll = useCallback(async () => {
     if (!isTauri()) return;
-    
+
     try {
       await invoke('clipboard_clear_all');
       setHistory([]);
@@ -294,7 +308,7 @@ export function useClipboardHistory() {
 
   const checkAndUpdate = useCallback(async () => {
     if (!isTauri()) return false;
-    
+
     try {
       const updated = await invoke<boolean>('clipboard_check_update');
       if (updated) {

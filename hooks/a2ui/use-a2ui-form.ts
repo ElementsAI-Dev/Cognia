@@ -55,9 +55,7 @@ export function useA2UIForm(options: UseA2UIFormOptions = {}) {
       if (rules.required) {
         const isEmpty = value === undefined || value === null || value === '';
         if (isEmpty) {
-          return typeof rules.required === 'string'
-            ? rules.required
-            : 'This field is required';
+          return typeof rules.required === 'string' ? rules.required : 'This field is required';
         }
       }
 
@@ -100,7 +98,7 @@ export function useA2UIForm(options: UseA2UIFormOptions = {}) {
   const setValue = useCallback(
     (name: string, value: unknown) => {
       setValues((prev) => ({ ...prev, [name]: value }));
-      
+
       // Validate on change if already touched
       if (touched[name]) {
         const error = validateField(name, value);
@@ -120,7 +118,7 @@ export function useA2UIForm(options: UseA2UIFormOptions = {}) {
   const setFieldTouched = useCallback(
     (name: string) => {
       setTouched((prev) => ({ ...prev, [name]: true }));
-      
+
       // Validate on blur
       const error = validateField(name, values[name]);
       setErrors((prev) => {
@@ -186,9 +184,7 @@ export function useA2UIForm(options: UseA2UIFormOptions = {}) {
 
   // Check if form is dirty (any value changed from initial)
   const isDirty = useMemo(() => {
-    return Object.keys(values).some(
-      (key) => values[key] !== initialValues[key]
-    );
+    return Object.keys(values).some((key) => values[key] !== initialValues[key]);
   }, [values, initialValues]);
 
   // Get field props helper

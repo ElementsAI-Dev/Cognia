@@ -54,7 +54,7 @@ export interface UseOllamaReturn {
   refreshStatus: () => Promise<void>;
   refreshModels: () => Promise<void>;
   refreshRunning: () => Promise<void>;
-  
+
   pullModel: (modelName: string) => Promise<boolean>;
   cancelPull: (modelName: string) => void;
   deleteModel: (modelName: string) => Promise<boolean>;
@@ -63,11 +63,7 @@ export interface UseOllamaReturn {
 }
 
 export function useOllama(options: UseOllamaOptions = {}): UseOllamaReturn {
-  const {
-    baseUrl = DEFAULT_OLLAMA_URL,
-    autoRefresh = false,
-    refreshInterval = 30000,
-  } = options;
+  const { baseUrl = DEFAULT_OLLAMA_URL, autoRefresh = false, refreshInterval = 30000 } = options;
 
   // State
   const [status, setStatus] = useState<OllamaServerStatus | null>(null);
@@ -83,7 +79,7 @@ export function useOllama(options: UseOllamaOptions = {}): UseOllamaReturn {
 
   // Computed
   const isConnected = status?.connected ?? false;
-  const isPulling = Array.from(pullStates.values()).some(s => s.isActive);
+  const isPulling = Array.from(pullStates.values()).some((s) => s.isActive);
 
   // Refresh status
   const refreshStatus = useCallback(async () => {
@@ -104,7 +100,7 @@ export function useOllama(options: UseOllamaOptions = {}): UseOllamaReturn {
   // Refresh models list
   const refreshModels = useCallback(async () => {
     if (!isConnected) return;
-    
+
     try {
       const newModels = await listOllamaModels(baseUrl);
       if (isMounted.current) {
@@ -120,7 +116,7 @@ export function useOllama(options: UseOllamaOptions = {}): UseOllamaReturn {
   // Refresh running models
   const refreshRunning = useCallback(async () => {
     if (!isConnected) return;
-    
+
     try {
       const running = await listRunningModels(baseUrl);
       if (isMounted.current) {
@@ -135,7 +131,7 @@ export function useOllama(options: UseOllamaOptions = {}): UseOllamaReturn {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       await refreshStatus();
       await Promise.all([refreshModels(), refreshRunning()]);
@@ -147,25 +143,23 @@ export function useOllama(options: UseOllamaOptions = {}): UseOllamaReturn {
   }, [refreshStatus, refreshModels, refreshRunning]);
 
   // Pull model
-  const pullModel = useCallback(async (modelName: string): Promise<boolean> => {
-    // Initialize pull state
-    setPullStates(prev => {
-      const next = new Map(prev);
-      next.set(modelName, {
-        model: modelName,
-        progress: null,
-        isActive: true,
+  const pullModel = useCallback(
+    async (modelName: string): Promise<boolean> => {
+      // Initialize pull state
+      setPullStates((prev) => {
+        const next = new Map(prev);
+        next.set(modelName, {
+          model: modelName,
+          progress: null,
+          isActive: true,
+        });
+        return next;
       });
-      return next;
-    });
 
-    try {
-      const { success, unsubscribe } = await pullOllamaModel(
-        baseUrl,
-        modelName,
-        (progress) => {
+      try {
+        const { success, unsubscribe } = await pullOllamaModel(baseUrl, modelName, (progress) => {
           if (isMounted.current) {
-            setPullStates(prev => {
+            setPullStates((prev) => {
               const next = new Map(prev);
               const current = next.get(modelName);
               if (current) {
@@ -178,46 +172,47 @@ export function useOllama(options: UseOllamaOptions = {}): UseOllamaReturn {
               return next;
             });
           }
-        }
-      );
-
-      // Store unsubscribe function
-      pullUnsubscribers.current.set(modelName, unsubscribe);
-
-      if (success && isMounted.current) {
-        // Refresh models after successful pull
-        await refreshModels();
-        
-        // Update state to complete
-        setPullStates(prev => {
-          const next = new Map(prev);
-          const current = next.get(modelName);
-          if (current) {
-            next.set(modelName, { ...current, isActive: false });
-          }
-          return next;
         });
-      }
 
-      return success;
-    } catch (err) {
-      if (isMounted.current) {
-        const errorMsg = err instanceof Error ? err.message : 'Pull failed';
-        setPullStates(prev => {
-          const next = new Map(prev);
-          next.set(modelName, {
-            model: modelName,
-            progress: null,
-            isActive: false,
-            error: errorMsg,
+        // Store unsubscribe function
+        pullUnsubscribers.current.set(modelName, unsubscribe);
+
+        if (success && isMounted.current) {
+          // Refresh models after successful pull
+          await refreshModels();
+
+          // Update state to complete
+          setPullStates((prev) => {
+            const next = new Map(prev);
+            const current = next.get(modelName);
+            if (current) {
+              next.set(modelName, { ...current, isActive: false });
+            }
+            return next;
           });
-          return next;
-        });
-        setError(errorMsg);
+        }
+
+        return success;
+      } catch (err) {
+        if (isMounted.current) {
+          const errorMsg = err instanceof Error ? err.message : 'Pull failed';
+          setPullStates((prev) => {
+            const next = new Map(prev);
+            next.set(modelName, {
+              model: modelName,
+              progress: null,
+              isActive: false,
+              error: errorMsg,
+            });
+            return next;
+          });
+          setError(errorMsg);
+        }
+        return false;
       }
-      return false;
-    }
-  }, [baseUrl, refreshModels]);
+    },
+    [baseUrl, refreshModels]
+  );
 
   // Cancel pull
   const cancelPull = useCallback((modelName: string) => {
@@ -226,8 +221,8 @@ export function useOllama(options: UseOllamaOptions = {}): UseOllamaReturn {
       unsub();
       pullUnsubscribers.current.delete(modelName);
     }
-    
-    setPullStates(prev => {
+
+    setPullStates((prev) => {
       const next = new Map(prev);
       next.delete(modelName);
       return next;
@@ -235,48 +230,57 @@ export function useOllama(options: UseOllamaOptions = {}): UseOllamaReturn {
   }, []);
 
   // Delete model
-  const deleteModel = useCallback(async (modelName: string): Promise<boolean> => {
-    try {
-      const success = await deleteOllamaModel(baseUrl, modelName);
-      if (success && isMounted.current) {
-        await refreshModels();
+  const deleteModel = useCallback(
+    async (modelName: string): Promise<boolean> => {
+      try {
+        const success = await deleteOllamaModel(baseUrl, modelName);
+        if (success && isMounted.current) {
+          await refreshModels();
+        }
+        return success;
+      } catch (err) {
+        if (isMounted.current) {
+          setError(err instanceof Error ? err.message : 'Delete failed');
+        }
+        return false;
       }
-      return success;
-    } catch (err) {
-      if (isMounted.current) {
-        setError(err instanceof Error ? err.message : 'Delete failed');
-      }
-      return false;
-    }
-  }, [baseUrl, refreshModels]);
+    },
+    [baseUrl, refreshModels]
+  );
 
   // Stop model
-  const stopModel = useCallback(async (modelName: string): Promise<boolean> => {
-    try {
-      const success = await stopOllamaModel(baseUrl, modelName);
-      if (success && isMounted.current) {
-        await refreshRunning();
+  const stopModel = useCallback(
+    async (modelName: string): Promise<boolean> => {
+      try {
+        const success = await stopOllamaModel(baseUrl, modelName);
+        if (success && isMounted.current) {
+          await refreshRunning();
+        }
+        return success;
+      } catch (err) {
+        if (isMounted.current) {
+          setError(err instanceof Error ? err.message : 'Stop failed');
+        }
+        return false;
       }
-      return success;
-    } catch (err) {
-      if (isMounted.current) {
-        setError(err instanceof Error ? err.message : 'Stop failed');
-      }
-      return false;
-    }
-  }, [baseUrl, refreshRunning]);
+    },
+    [baseUrl, refreshRunning]
+  );
 
   // Get model info
-  const getModelInfo = useCallback(async (modelName: string): Promise<OllamaModelInfo | null> => {
-    try {
-      return await showOllamaModel(baseUrl, modelName);
-    } catch (err) {
-      if (isMounted.current) {
-        setError(err instanceof Error ? err.message : 'Failed to get model info');
+  const getModelInfo = useCallback(
+    async (modelName: string): Promise<OllamaModelInfo | null> => {
+      try {
+        return await showOllamaModel(baseUrl, modelName);
+      } catch (err) {
+        if (isMounted.current) {
+          setError(err instanceof Error ? err.message : 'Failed to get model info');
+        }
+        return null;
       }
-      return null;
-    }
-  }, [baseUrl]);
+    },
+    [baseUrl]
+  );
 
   // Initial load
   useEffect(() => {
@@ -285,11 +289,11 @@ export function useOllama(options: UseOllamaOptions = {}): UseOllamaReturn {
 
     // Copy ref to variable for cleanup
     const unsubscribers = pullUnsubscribers.current;
-    
+
     return () => {
       isMounted.current = false;
       // Cleanup all pull subscriptions
-      unsubscribers.forEach(unsub => unsub());
+      unsubscribers.forEach((unsub) => unsub());
       unsubscribers.clear();
     };
   }, [refresh]);

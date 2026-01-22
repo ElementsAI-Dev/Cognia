@@ -2,8 +2,8 @@
 
 /**
  * useLearningTools - Hook for integrating learning tools into chat
- * 
- * Provides the learning tools (flashcards, quizzes, review sessions) 
+ *
+ * Provides the learning tools (flashcards, quizzes, review sessions)
  * for use in the AI chat system's generative UI.
  */
 
@@ -47,13 +47,13 @@ export interface UseLearningToolsOptions {
 export interface UseLearningToolsReturn {
   /** Learning tools ready for use with agent executor */
   tools: Record<string, AgentTool>;
-  
+
   /** Generate flashcards from learning session review items */
   generateFlashcardsFromSession: () => FlashcardData[];
-  
+
   /** Generate quiz questions from learning session concepts */
   generateQuizFromSession: () => QuizQuestionData[];
-  
+
   /** Get current learning progress stats */
   getProgressStats: () => {
     totalConcepts: number;
@@ -62,7 +62,7 @@ export interface UseLearningToolsReturn {
     accuracy: number;
     streakDays?: number;
   };
-  
+
   /** Check if learning mode is active */
   isLearningActive: boolean;
 }
@@ -70,9 +70,7 @@ export interface UseLearningToolsReturn {
 /**
  * Hook to provide learning tools for AI chat integration
  */
-export function useLearningTools(
-  options: UseLearningToolsOptions = {}
-): UseLearningToolsReturn {
+export function useLearningTools(options: UseLearningToolsOptions = {}): UseLearningToolsReturn {
   const {
     enableFlashcards = true,
     enableQuizzes = true,
@@ -235,11 +233,12 @@ export function useLearningTools(
     const totalConcepts = concepts.length;
     const masteredConcepts = concepts.filter((c) => c.masteryStatus === 'mastered').length;
     const learningConcepts = concepts.filter((c) => c.masteryStatus === 'learning').length;
-    
+
     const stats = currentSession.statistics;
-    const accuracy = stats.questionsAnswered > 0
-      ? Math.round((stats.correctAnswers / stats.questionsAnswered) * 100)
-      : 0;
+    const accuracy =
+      stats.questionsAnswered > 0
+        ? Math.round((stats.correctAnswers / stats.questionsAnswered) * 100)
+        : 0;
 
     return {
       totalConcepts,

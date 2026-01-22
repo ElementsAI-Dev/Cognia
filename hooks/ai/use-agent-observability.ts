@@ -1,6 +1,6 @@
 /**
  * Observability Integration Hook for Agents
- * 
+ *
  * Wraps agent execution to add observability tracking via Langfuse and OpenTelemetry
  */
 
@@ -13,7 +13,7 @@ import type { ToolCall } from '@/lib/ai/agent/agent-executor';
 
 /**
  * Observability hook for agents
- * 
+ *
  * Use this hook to track agent executions, tool calls, and planning phases
  */
 export function useAgentObservability(config: AgentObservabilityConfig) {

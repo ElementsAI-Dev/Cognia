@@ -1,6 +1,6 @@
 /**
  * useVideoEditor - Main hook for video editing operations
- * 
+ *
  * Provides comprehensive video editing functionality:
  * - Multi-track timeline management
  * - Clip manipulation (trim, split, move)
@@ -202,11 +202,11 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
       setState((prev) => {
         const newTracks = updater(prev.tracks);
         const newDuration = calculateDuration(newTracks);
-        
+
         // Notify about clip changes
         const allClips = newTracks.flatMap((t) => t.clips);
         onClipChange?.(allClips);
-        
+
         return { ...prev, tracks: newTracks, duration: newDuration };
       });
     },
@@ -222,7 +222,8 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
       }
 
       const id = generateId();
-      const trackName = name || `${type.charAt(0).toUpperCase() + type.slice(1)} ${state.tracks.length + 1}`;
+      const trackName =
+        name || `${type.charAt(0).toUpperCase() + type.slice(1)} ${state.tracks.length + 1}`;
 
       const newTrack: VideoTrack = {
         id,
@@ -254,9 +255,7 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
 
   const updateTrack = useCallback(
     (trackId: string, updates: Partial<VideoTrack>) => {
-      updateTracks((tracks) =>
-        tracks.map((t) => (t.id === trackId ? { ...t, ...updates } : t))
-      );
+      updateTracks((tracks) => tracks.map((t) => (t.id === trackId ? { ...t, ...updates } : t)));
     },
     [updateTracks]
   );
@@ -311,9 +310,7 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
         };
 
         updateTracks((tracks) =>
-          tracks.map((t) =>
-            t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t
-          )
+          tracks.map((t) => (t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t))
         );
 
         setState((prev) => ({ ...prev, isLoading: false }));
@@ -377,9 +374,7 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
         // Add clip to target track
         if (clipToMove) {
           return newTracks.map((t) =>
-            t.id === targetTrackId
-              ? { ...t, clips: [...t.clips, clipToMove!] }
-              : t
+            t.id === targetTrackId ? { ...t, clips: [...t.clips, clipToMove!] } : t
           );
         }
         return newTracks;
@@ -521,16 +516,20 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
     [state.duration, state.isPlaying, onPlaybackChange]
   );
 
-  const setPlaybackSpeed = useCallback((speed: number) => {
-    // Apply to all selected clips or all clips if none selected
-    const clipsToUpdate = state.selectedClipIds.length > 0
-      ? state.selectedClipIds
-      : state.tracks.flatMap((t) => t.clips.map((c) => c.id));
+  const setPlaybackSpeed = useCallback(
+    (speed: number) => {
+      // Apply to all selected clips or all clips if none selected
+      const clipsToUpdate =
+        state.selectedClipIds.length > 0
+          ? state.selectedClipIds
+          : state.tracks.flatMap((t) => t.clips.map((c) => c.id));
 
-    for (const clipId of clipsToUpdate) {
-      updateClip(clipId, { playbackSpeed: speed });
-    }
-  }, [state.selectedClipIds, state.tracks, updateClip]);
+      for (const clipId of clipsToUpdate) {
+        updateClip(clipId, { playbackSpeed: speed });
+      }
+    },
+    [state.selectedClipIds, state.tracks, updateClip]
+  );
 
   // Effects & Transitions
   const addEffect = useCallback(
@@ -555,9 +554,7 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
         tracks.map((t) => ({
           ...t,
           clips: t.clips.map((c) =>
-            c.id === clipId
-              ? { ...c, effects: c.effects.filter((e) => e !== effectId) }
-              : c
+            c.id === clipId ? { ...c, effects: c.effects.filter((e) => e !== effectId) } : c
           ),
         }))
       );
@@ -676,9 +673,7 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
       if (!track) return null;
 
       return (
-        track.clips.find(
-          (c) => time >= c.startTime && time < c.startTime + c.duration
-        ) || null
+        track.clips.find((c) => time >= c.startTime && time < c.startTime + c.duration) || null
       );
     },
     [state.tracks]

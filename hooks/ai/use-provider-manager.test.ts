@@ -98,9 +98,7 @@ describe('useProviderManager', () => {
   });
 
   it('skips initialization when autoInitialize is false', () => {
-    const { result } = renderHook(() =>
-      useProviderManager({ autoInitialize: false })
-    );
+    const { result } = renderHook(() => useProviderManager({ autoInitialize: false }));
 
     expect(result.current.isInitialized).toBe(false);
     expect(mockManager.initialize).not.toHaveBeenCalled();
@@ -173,7 +171,7 @@ describe('useProviderManager', () => {
     });
 
     const testFn = jest.fn().mockResolvedValue('test-result');
-    
+
     await act(async () => {
       const execResult = await result.current.execute(testFn, {
         preferredProvider: 'openai',
@@ -186,9 +184,7 @@ describe('useProviderManager', () => {
   });
 
   it('throws error when executing without initialization', async () => {
-    const { result } = renderHook(() =>
-      useProviderManager({ autoInitialize: false })
-    );
+    const { result } = renderHook(() => useProviderManager({ autoInitialize: false }));
 
     const testFn = jest.fn();
 

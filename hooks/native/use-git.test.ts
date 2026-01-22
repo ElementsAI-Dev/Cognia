@@ -240,7 +240,10 @@ describe('useGit', () => {
         await result.current.commit('fix: bug fix', { description: 'Details', amend: true });
       });
 
-      expect(mockCommitStore).toHaveBeenCalledWith('fix: bug fix', { description: 'Details', amend: true });
+      expect(mockCommitStore).toHaveBeenCalledWith('fix: bug fix', {
+        description: 'Details',
+        amend: true,
+      });
     });
   });
 

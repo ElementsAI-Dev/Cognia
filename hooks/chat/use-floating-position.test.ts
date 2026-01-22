@@ -33,14 +33,30 @@ describe('useFloatingPosition', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Use defineProperty to set innerWidth/innerHeight
-    Object.defineProperty(window, 'innerWidth', { value: 1280, writable: true, configurable: true });
-    Object.defineProperty(window, 'innerHeight', { value: 720, writable: true, configurable: true });
+    Object.defineProperty(window, 'innerWidth', {
+      value: 1280,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      value: 720,
+      writable: true,
+      configurable: true,
+    });
   });
 
   afterAll(() => {
     // Restore original values
-    Object.defineProperty(window, 'innerWidth', { value: originalInnerWidth, writable: true, configurable: true });
-    Object.defineProperty(window, 'innerHeight', { value: originalInnerHeight, writable: true, configurable: true });
+    Object.defineProperty(window, 'innerWidth', {
+      value: originalInnerWidth,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      value: originalInnerHeight,
+      writable: true,
+      configurable: true,
+    });
   });
 
   describe('initialization', () => {
@@ -98,7 +114,11 @@ describe('useFloatingPosition', () => {
 
     it('should switch direction when not enough space', () => {
       // Small viewport
-      Object.defineProperty(window, 'innerHeight', { value: 400, writable: true, configurable: true });
+      Object.defineProperty(window, 'innerHeight', {
+        value: 400,
+        writable: true,
+        configurable: true,
+      });
 
       const { result } = renderHook(() =>
         useFloatingPosition({
@@ -130,8 +150,16 @@ describe('useFloatingPosition', () => {
     });
 
     it('should report false for directions without enough space', () => {
-      Object.defineProperty(window, 'innerWidth', { value: 300, writable: true, configurable: true });
-      Object.defineProperty(window, 'innerHeight', { value: 300, writable: true, configurable: true });
+      Object.defineProperty(window, 'innerWidth', {
+        value: 300,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(window, 'innerHeight', {
+        value: 300,
+        writable: true,
+        configurable: true,
+      });
 
       const { result } = renderHook(() =>
         useFloatingPosition({

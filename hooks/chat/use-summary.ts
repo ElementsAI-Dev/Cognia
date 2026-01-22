@@ -1,6 +1,6 @@
 /**
  * useSummary Hook - Manages summary and diagram generation for chat and agents
- * 
+ *
  * Provides functions to:
  * - Generate chat summaries (with or without AI)
  * - Generate agent summaries
@@ -70,33 +70,61 @@ export interface UseSummaryReturn {
   agentSummary: AgentSummaryResult | null;
   diagram: DiagramResult | null;
   error: string | null;
-  
+
   // Stored summaries
   storedSummaries: StoredSummary[];
   latestStoredSummary: StoredSummary | undefined;
 
   // Actions
-  generateChatSummary: (messages: UIMessage[], options?: Partial<ChatSummaryOptions>, sessionTitle?: string) => Promise<ChatSummaryResult>;
-  generateAgentSummary: (agent: BackgroundAgent, options?: Partial<AgentSummaryOptions>) => Promise<AgentSummaryResult>;
+  generateChatSummary: (
+    messages: UIMessage[],
+    options?: Partial<ChatSummaryOptions>,
+    sessionTitle?: string
+  ) => Promise<ChatSummaryResult>;
+  generateAgentSummary: (
+    agent: BackgroundAgent,
+    options?: Partial<AgentSummaryOptions>
+  ) => Promise<AgentSummaryResult>;
   generateChatDiagram: (messages: UIMessage[], options?: Partial<DiagramOptions>) => DiagramResult;
-  generateAgentDiagram: (agent: BackgroundAgent, options?: Partial<DiagramOptions>) => DiagramResult;
-  generateChatSummaryWithDiagram: (messages: UIMessage[], summaryOptions?: Partial<ChatSummaryOptions>, diagramOptions?: Partial<DiagramOptions>, sessionTitle?: string) => Promise<SummaryWithDiagram>;
-  generateAgentSummaryWithDiagram: (agent: BackgroundAgent, summaryOptions?: Partial<AgentSummaryOptions>, diagramOptions?: Partial<DiagramOptions>) => Promise<SummaryWithDiagram>;
-  
+  generateAgentDiagram: (
+    agent: BackgroundAgent,
+    options?: Partial<DiagramOptions>
+  ) => DiagramResult;
+  generateChatSummaryWithDiagram: (
+    messages: UIMessage[],
+    summaryOptions?: Partial<ChatSummaryOptions>,
+    diagramOptions?: Partial<DiagramOptions>,
+    sessionTitle?: string
+  ) => Promise<SummaryWithDiagram>;
+  generateAgentSummaryWithDiagram: (
+    agent: BackgroundAgent,
+    summaryOptions?: Partial<AgentSummaryOptions>,
+    diagramOptions?: Partial<DiagramOptions>
+  ) => Promise<SummaryWithDiagram>;
+
   // Enhanced features
-  generateEnhancedSummary: (messages: UIMessage[], options?: Partial<ChatSummaryOptions>, sessionTitle?: string) => Promise<ChatSummaryResult>;
-  generateIncrementalSummary: (newMessages: UIMessage[], options?: Partial<ChatSummaryOptions>) => Promise<ChatSummaryResult>;
+  generateEnhancedSummary: (
+    messages: UIMessage[],
+    options?: Partial<ChatSummaryOptions>,
+    sessionTitle?: string
+  ) => Promise<ChatSummaryResult>;
+  generateIncrementalSummary: (
+    newMessages: UIMessage[],
+    options?: Partial<ChatSummaryOptions>
+  ) => Promise<ChatSummaryResult>;
   analyzeConversation: (messages: UIMessage[]) => Promise<ConversationAnalysis>;
-  
+
   // Persistence
   saveSummary: (sessionId: string) => Promise<StoredSummary | null>;
   loadSummaries: (sessionId: string) => Promise<void>;
   deleteSummary: (summaryId: string) => Promise<void>;
-  
+
   // Utilities
-  getTemplate: (name: SummaryTemplate) => { name: string; description: string; prompt: string } | undefined;
+  getTemplate: (
+    name: SummaryTemplate
+  ) => { name: string; description: string; prompt: string } | undefined;
   getAvailableTemplates: () => SummaryTemplate[];
-  
+
   exportSummary: (options: SummaryExportOptions) => void;
   reset: () => void;
 }
@@ -106,7 +134,7 @@ export interface UseSummaryReturn {
  */
 export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryReturn {
   const { useAI = false, aiConfig, sessionId, autoPersist = false } = hookOptions;
-  
+
   // Summary store for persistence
   const summaryStore = useSummaryStore();
   const storedSummaries = sessionId ? summaryStore.getSummariesForSession(sessionId) : [];
@@ -269,7 +297,11 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
         const summary = await handleGenerateChatSummary(messages, summaryOptions, sessionTitle);
 
         // Generate diagram
-        setProgress({ stage: 'generating-diagram', progress: 80, message: 'Generating diagram...' });
+        setProgress({
+          stage: 'generating-diagram',
+          progress: 80,
+          message: 'Generating diagram...',
+        });
         const diagramResult = handleGenerateChatDiagram(messages, diagramOptions);
 
         setProgress({ stage: 'complete', progress: 100, message: 'Complete!' });
@@ -280,7 +312,8 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
           diagram: diagramResult,
         };
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Failed to generate summary with diagram';
+        const errorMsg =
+          err instanceof Error ? err.message : 'Failed to generate summary with diagram';
         setError(errorMsg);
         setIsGenerating(false);
         throw err;
@@ -304,7 +337,11 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
         const summary = await handleGenerateAgentSummary(agent, summaryOptions);
 
         // Generate diagram
-        setProgress({ stage: 'generating-diagram', progress: 80, message: 'Generating diagram...' });
+        setProgress({
+          stage: 'generating-diagram',
+          progress: 80,
+          message: 'Generating diagram...',
+        });
         const diagramResult = handleGenerateAgentDiagram(agent, diagramOptions);
 
         setProgress({ stage: 'complete', progress: 100, message: 'Complete!' });
@@ -315,7 +352,8 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
           diagram: diagramResult,
         };
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Failed to generate agent summary with diagram';
+        const errorMsg =
+          err instanceof Error ? err.message : 'Failed to generate agent summary with diagram';
         setError(errorMsg);
         setIsGenerating(false);
         throw err;
@@ -355,11 +393,15 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
           break;
 
         case 'json':
-          content = JSON.stringify({
-            summary,
-            diagram: includeDiagram ? diagram : undefined,
-            exportedAt: new Date().toISOString(),
-          }, null, 2);
+          content = JSON.stringify(
+            {
+              summary,
+              diagram: includeDiagram ? diagram : undefined,
+              exportedAt: new Date().toISOString(),
+            },
+            null,
+            2
+          );
           mimeType = 'application/json';
           extension = 'json';
           break;
@@ -385,7 +427,7 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
       if (!aiConfig) {
         throw new Error('AI config required for enhanced summary');
       }
-      
+
       setIsGenerating(true);
       setError(null);
 
@@ -407,7 +449,7 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
         );
         setChatSummary(result);
         setIsGenerating(false);
-        
+
         // Auto-persist if enabled
         if (autoPersist && sessionId && result.success) {
           await summaryStore.createSummary({
@@ -426,7 +468,7 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
             usedAI: true,
           });
         }
-        
+
         return result;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to generate enhanced summary';
@@ -450,7 +492,7 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
       if (!latestStoredSummary) {
         throw new Error('No previous summary to build upon');
       }
-      
+
       setIsGenerating(true);
       setError(null);
 
@@ -466,14 +508,20 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
 
       try {
         const result = await generateIncrementalSummary(
-          { previousSummary: latestStoredSummary, newMessages, options: mergedOptions, onProgress: setProgress },
+          {
+            previousSummary: latestStoredSummary,
+            newMessages,
+            options: mergedOptions,
+            onProgress: setProgress,
+          },
           aiConfig
         );
         setChatSummary(result);
         setIsGenerating(false);
         return result;
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Failed to generate incremental summary';
+        const errorMsg =
+          err instanceof Error ? err.message : 'Failed to generate incremental summary';
         setError(errorMsg);
         setIsGenerating(false);
         throw err;
@@ -488,7 +536,7 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
       if (!aiConfig) {
         throw new Error('AI config required for conversation analysis');
       }
-      
+
       try {
         return await analyzeConversation(messages, aiConfig);
       } catch (err) {
@@ -507,7 +555,7 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
         setError('No summary to save');
         return null;
       }
-      
+
       try {
         const stored = await summaryStore.createSummary({
           sessionId: targetSessionId,
@@ -553,7 +601,10 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
 
   // Template utilities
   const handleGetTemplate = useCallback(
-    (name: SummaryTemplate) => getSummaryTemplate(name as keyof typeof import('@/lib/ai/prompts/summary-prompts').SUMMARY_TEMPLATES),
+    (name: SummaryTemplate) =>
+      getSummaryTemplate(
+        name as keyof typeof import('@/lib/ai/prompts/summary-prompts').SUMMARY_TEMPLATES
+      ),
     []
   );
 
@@ -599,12 +650,12 @@ function buildMarkdownExport(
   summary: ChatSummaryResult | AgentSummaryResult
 ): string {
   const lines: string[] = [];
-  
+
   lines.push('# Summary Report');
   lines.push('');
   lines.push(`Generated: ${new Date().toLocaleString()}`);
   lines.push('');
-  
+
   lines.push('## Summary');
   lines.push('');
   lines.push(summaryText);
@@ -614,7 +665,7 @@ function buildMarkdownExport(
   if ('keyPoints' in summary && summary.keyPoints.length > 0) {
     lines.push('## Key Points');
     lines.push('');
-    summary.keyPoints.forEach(kp => {
+    summary.keyPoints.forEach((kp) => {
       lines.push(`- ${kp.content}`);
     });
     lines.push('');
@@ -624,7 +675,7 @@ function buildMarkdownExport(
   if ('topics' in summary && summary.topics.length > 0) {
     lines.push('## Topics Discussed');
     lines.push('');
-    summary.topics.forEach(topic => {
+    summary.topics.forEach((topic) => {
       lines.push(`- **${topic.name}**: ${topic.description || ''}`);
     });
     lines.push('');
@@ -634,7 +685,7 @@ function buildMarkdownExport(
   if ('steps' in summary && summary.steps.length > 0) {
     lines.push('## Execution Steps');
     lines.push('');
-    summary.steps.forEach(step => {
+    summary.steps.forEach((step) => {
       lines.push(`${step.stepNumber}. [${step.status}] ${step.description}`);
     });
     lines.push('');
@@ -690,23 +741,35 @@ function buildHTMLExport(
   <h2>Summary</h2>
   <div class="summary">${escapedSummary}</div>
   
-  ${'keyPoints' in summary && summary.keyPoints.length > 0 ? `
+  ${
+    'keyPoints' in summary && summary.keyPoints.length > 0
+      ? `
   <h2>Key Points</h2>
-  ${summary.keyPoints.map(kp => `<div class="key-point">${kp.content}</div>`).join('')}
-  ` : ''}
+  ${summary.keyPoints.map((kp) => `<div class="key-point">${kp.content}</div>`).join('')}
+  `
+      : ''
+  }
   
-  ${'topics' in summary && summary.topics.length > 0 ? `
+  ${
+    'topics' in summary && summary.topics.length > 0
+      ? `
   <h2>Topics</h2>
-  <div>${summary.topics.map(t => `<span class="topic">${t.name}</span>`).join('')}</div>
-  ` : ''}
+  <div>${summary.topics.map((t) => `<span class="topic">${t.name}</span>`).join('')}</div>
+  `
+      : ''
+  }
   
-  ${diagramCode ? `
+  ${
+    diagramCode
+      ? `
   <h2>Visualization</h2>
   <div class="diagram">
     <pre class="mermaid">${diagramCode}</pre>
   </div>
   <script>mermaid.initialize({ startOnLoad: true });</script>
-  ` : ''}
+  `
+      : ''
+  }
 </body>
 </html>`;
 }

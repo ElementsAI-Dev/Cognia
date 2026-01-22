@@ -1,6 +1,6 @@
 /**
  * useKnowledgeMap - Hook for knowledge map functionality
- * 
+ *
  * Provides access to knowledge map management, PDF conversion, and mind map features
  */
 
@@ -30,28 +30,31 @@ export interface UseKnowledgeMapReturn {
   isGenerating: boolean;
   generationProgress: number;
   error: string | null;
-  
+
   // Navigation
   canNavigateBack: boolean;
   canNavigateForward: boolean;
-  
+
   // Knowledge Map CRUD
   createKnowledgeMap: (request: KnowledgeMapGenerationRequest) => Promise<KnowledgeMap>;
   updateKnowledgeMap: (id: string, updates: Partial<KnowledgeMap>) => void;
   deleteKnowledgeMap: (id: string) => void;
   setActiveKnowledgeMap: (id: string | null) => void;
   getKnowledgeMap: (id: string) => KnowledgeMap | null;
-  
+
   // PDF Conversion
-  convertPDFToKnowledgeMap: (pdfPath: string, options?: Partial<PDFConversionOptions>) => Promise<PDFConversionResult>;
-  
+  convertPDFToKnowledgeMap: (
+    pdfPath: string,
+    options?: Partial<PDFConversionOptions>
+  ) => Promise<PDFConversionResult>;
+
   // Content-based Generation
   generateFromContent: (content: string, title?: string) => Promise<KnowledgeMap>;
-  
+
   // Mind Map
   generateMindMap: (request: MindMapGenerationRequest) => Promise<MindMapData | null>;
   updateMindMap: (knowledgeMapId: string, mindMap: MindMapData) => void;
-  
+
   // Annotations
   addAnnotation: (annotation: {
     knowledgeMapId: string;
@@ -63,30 +66,34 @@ export interface UseKnowledgeMapReturn {
   }) => KnowledgeAnnotation;
   updateAnnotation: (id: string, updates: Partial<KnowledgeAnnotation>) => void;
   deleteAnnotation: (id: string) => void;
-  
+
   // Navigation
   navigateTo: (target: KnowledgeMapNavigationTarget) => void;
   navigateBack: () => void;
   navigateForward: () => void;
   navigateToLocation: (knowledgeMapId: string, traceId: string, locationId: string) => void;
   navigateToPage: (knowledgeMapId: string, pageNumber: number) => void;
-  
+
   // Trace Management
   addTrace: (trace: Omit<KnowledgeMapTrace, 'id'>) => void;
   updateTrace: (traceId: string, updates: Partial<KnowledgeMapTrace>) => void;
   deleteTrace: (traceId: string) => void;
-  
+
   // Location Management
   addLocation: (traceId: string, location: Omit<KnowledgeMapLocation, 'id'>) => void;
-  updateLocation: (traceId: string, locationId: string, updates: Partial<KnowledgeMapLocation>) => void;
+  updateLocation: (
+    traceId: string,
+    locationId: string,
+    updates: Partial<KnowledgeMapLocation>
+  ) => void;
   deleteLocation: (traceId: string, locationId: string) => void;
-  
+
   // Import/Export
   importFromCodemap: (data: string) => Promise<KnowledgeMap | null>;
   exportToCodemap: () => string | null;
   importFromFile: (file: File) => Promise<KnowledgeMap | null>;
   exportToFile: (filename?: string) => void;
-  
+
   // Utility
   clearError: () => void;
   reset: () => void;
@@ -123,20 +130,14 @@ export function useKnowledgeMap(): UseKnowledgeMapReturn {
     [store]
   );
 
-  const deleteKnowledgeMap = useCallback(
-    (id: string) => store.deleteKnowledgeMap(id),
-    [store]
-  );
+  const deleteKnowledgeMap = useCallback((id: string) => store.deleteKnowledgeMap(id), [store]);
 
   const setActiveKnowledgeMap = useCallback(
     (id: string | null) => store.setActiveKnowledgeMap(id),
     [store]
   );
 
-  const getKnowledgeMap = useCallback(
-    (id: string) => store.getKnowledgeMap(id),
-    [store]
-  );
+  const getKnowledgeMap = useCallback((id: string) => store.getKnowledgeMap(id), [store]);
 
   // PDF Conversion
   const convertPDFToKnowledgeMap = useCallback(
@@ -158,8 +159,7 @@ export function useKnowledgeMap(): UseKnowledgeMapReturn {
   );
 
   const updateMindMap = useCallback(
-    (knowledgeMapId: string, mindMap: MindMapData) =>
-      store.updateMindMap(knowledgeMapId, mindMap),
+    (knowledgeMapId: string, mindMap: MindMapData) => store.updateMindMap(knowledgeMapId, mindMap),
     [store]
   );
 
@@ -177,15 +177,11 @@ export function useKnowledgeMap(): UseKnowledgeMapReturn {
   );
 
   const updateAnnotation = useCallback(
-    (id: string, updates: Partial<KnowledgeAnnotation>) =>
-      store.updateAnnotation(id, updates),
+    (id: string, updates: Partial<KnowledgeAnnotation>) => store.updateAnnotation(id, updates),
     [store]
   );
 
-  const deleteAnnotation = useCallback(
-    (id: string) => store.deleteAnnotation(id),
-    [store]
-  );
+  const deleteAnnotation = useCallback((id: string) => store.deleteAnnotation(id), [store]);
 
   // Navigation
   const navigateTo = useCallback(
@@ -269,20 +265,14 @@ export function useKnowledgeMap(): UseKnowledgeMapReturn {
   );
 
   // Import/Export
-  const importFromCodemap = useCallback(
-    (data: string) => store.importFromCodemap(data),
-    [store]
-  );
+  const importFromCodemap = useCallback((data: string) => store.importFromCodemap(data), [store]);
 
   const exportToCodemap = useCallback(() => {
     if (!store.activeKnowledgeMapId) return null;
     return store.exportToCodemap(store.activeKnowledgeMapId);
   }, [store]);
 
-  const importFromFile = useCallback(
-    (file: File) => store.importFromFile(file),
-    [store]
-  );
+  const importFromFile = useCallback((file: File) => store.importFromFile(file), [store]);
 
   const exportToFile = useCallback(
     (filename?: string) => {
@@ -304,56 +294,56 @@ export function useKnowledgeMap(): UseKnowledgeMapReturn {
     isGenerating: store.isGenerating,
     generationProgress: store.generationProgress,
     error: store.error,
-    
+
     // Navigation state
     canNavigateBack,
     canNavigateForward,
-    
+
     // Knowledge Map CRUD
     createKnowledgeMap,
     updateKnowledgeMap,
     deleteKnowledgeMap,
     setActiveKnowledgeMap,
     getKnowledgeMap,
-    
+
     // PDF Conversion
     convertPDFToKnowledgeMap,
-    
+
     // Content-based Generation
     generateFromContent,
-    
+
     // Mind Map
     generateMindMap,
     updateMindMap,
-    
+
     // Annotations
     addAnnotation,
     updateAnnotation,
     deleteAnnotation,
-    
+
     // Navigation
     navigateTo,
     navigateBack,
     navigateForward,
     navigateToLocation,
     navigateToPage,
-    
+
     // Trace Management
     addTrace,
     updateTrace,
     deleteTrace,
-    
+
     // Location Management
     addLocation,
     updateLocation,
     deleteLocation,
-    
+
     // Import/Export
     importFromCodemap,
     exportToCodemap,
     importFromFile,
     exportToFile,
-    
+
     // Utility
     clearError,
     reset,

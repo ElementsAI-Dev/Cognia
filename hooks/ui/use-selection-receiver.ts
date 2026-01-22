@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
 /**
  * useSelectionReceiver - Hook for receiving selected text from the selection toolbar
  * and integrating it with the main chat interface.
  */
 
-import { useEffect, useCallback, useState } from "react";
-import { isTauri } from "@/lib/native/utils";
+import { useEffect, useCallback, useState } from 'react';
+import { isTauri } from '@/lib/native/utils';
 
 export interface UseSelectionReceiverOptions {
   onTextReceived?: (text: string, action?: string) => void;
@@ -30,19 +30,16 @@ export function useSelectionReceiver(
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   // Format text based on action
-  const formatPrompt = useCallback(
-    (text: string, action?: string): string => {
-      switch (action) {
-        case "translate":
-          return `请将以下文本翻译成中文：\n\n"${text}"`;
-        case "explain":
-          return `请解释以下内容：\n\n"${text}"`;
-        default:
-          return text;
-      }
-    },
-    []
-  );
+  const formatPrompt = useCallback((text: string, action?: string): string => {
+    switch (action) {
+      case 'translate':
+        return `请将以下文本翻译成中文：\n\n"${text}"`;
+      case 'explain':
+        return `请解释以下内容：\n\n"${text}"`;
+      default:
+        return text;
+    }
+  }, []);
 
   // Clear pending text
   const clearPending = useCallback(() => {
@@ -75,33 +72,24 @@ export function useSelectionReceiver(
     let unlistenExplain: (() => void) | undefined;
 
     const setupListeners = async () => {
-      const { listen } = await import("@tauri-apps/api/event");
+      const { listen } = await import('@tauri-apps/api/event');
 
       // Listen for "send to chat" events
-      unlistenSendToChat = await listen<{ text: string }>(
-        "selection-send-to-chat",
-        (event) => {
-          handleTextReceived(event.payload.text);
-        }
-      );
+      unlistenSendToChat = await listen<{ text: string }>('selection-send-to-chat', (event) => {
+        handleTextReceived(event.payload.text);
+      });
 
       // Listen for quick translate events
-      unlistenTranslate = await listen<{ text: string }>(
-        "selection-quick-translate",
-        (event) => {
-          handleTextReceived(event.payload.text, "translate");
-          onTranslateRequest?.(event.payload.text);
-        }
-      );
+      unlistenTranslate = await listen<{ text: string }>('selection-quick-translate', (event) => {
+        handleTextReceived(event.payload.text, 'translate');
+        onTranslateRequest?.(event.payload.text);
+      });
 
       // Listen for quick explain events
-      unlistenExplain = await listen<{ text: string }>(
-        "selection-quick-explain",
-        (event) => {
-          handleTextReceived(event.payload.text, "explain");
-          onExplainRequest?.(event.payload.text);
-        }
-      );
+      unlistenExplain = await listen<{ text: string }>('selection-quick-explain', (event) => {
+        handleTextReceived(event.payload.text, 'explain');
+        onExplainRequest?.(event.payload.text);
+      });
     };
 
     setupListeners();
@@ -126,12 +114,12 @@ async function focusMainWindow() {
   if (!isTauri()) return;
 
   try {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
     const mainWindow = getCurrentWindow();
     await mainWindow.setFocus();
     await mainWindow.unminimize();
   } catch (e) {
-    console.error("Failed to focus main window:", e);
+    console.error('Failed to focus main window:', e);
   }
 }
 

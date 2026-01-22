@@ -1,14 +1,14 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useWindowControls } from './use-window-controls';
 
-export type SnapPosition = 
-  | 'left-half' 
-  | 'right-half' 
-  | 'top-half' 
+export type SnapPosition =
+  | 'left-half'
+  | 'right-half'
+  | 'top-half'
   | 'bottom-half'
-  | 'top-left' 
-  | 'top-right' 
-  | 'bottom-left' 
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
   | 'bottom-right'
   | 'center'
   | 'maximize';
@@ -36,47 +36,50 @@ export function useSnapLayouts() {
   const { isTauri, snapToEdge, snapToCorner, center, toggleMaximize } = useWindowControls();
   const [currentSnap, setCurrentSnap] = useState<SnapPosition | null>(null);
 
-  const snapTo = useCallback(async (position: SnapPosition) => {
-    if (!isTauri) return;
+  const snapTo = useCallback(
+    async (position: SnapPosition) => {
+      if (!isTauri) return;
 
-    try {
-      switch (position) {
-        case 'left-half':
-          await snapToEdge('left');
-          break;
-        case 'right-half':
-          await snapToEdge('right');
-          break;
-        case 'top-half':
-          await snapToEdge('top');
-          break;
-        case 'bottom-half':
-          await snapToEdge('bottom');
-          break;
-        case 'top-left':
-          await snapToCorner('topLeft');
-          break;
-        case 'top-right':
-          await snapToCorner('topRight');
-          break;
-        case 'bottom-left':
-          await snapToCorner('bottomLeft');
-          break;
-        case 'bottom-right':
-          await snapToCorner('bottomRight');
-          break;
-        case 'center':
-          await center();
-          break;
-        case 'maximize':
-          await toggleMaximize();
-          break;
+      try {
+        switch (position) {
+          case 'left-half':
+            await snapToEdge('left');
+            break;
+          case 'right-half':
+            await snapToEdge('right');
+            break;
+          case 'top-half':
+            await snapToEdge('top');
+            break;
+          case 'bottom-half':
+            await snapToEdge('bottom');
+            break;
+          case 'top-left':
+            await snapToCorner('topLeft');
+            break;
+          case 'top-right':
+            await snapToCorner('topRight');
+            break;
+          case 'bottom-left':
+            await snapToCorner('bottomLeft');
+            break;
+          case 'bottom-right':
+            await snapToCorner('bottomRight');
+            break;
+          case 'center':
+            await center();
+            break;
+          case 'maximize':
+            await toggleMaximize();
+            break;
+        }
+        setCurrentSnap(position);
+      } catch (error) {
+        console.error('Failed to snap window:', error);
       }
-      setCurrentSnap(position);
-    } catch (error) {
-      console.error('Failed to snap window:', error);
-    }
-  }, [isTauri, snapToEdge, snapToCorner, center, toggleMaximize]);
+    },
+    [isTauri, snapToEdge, snapToCorner, center, toggleMaximize]
+  );
 
   // Keyboard shortcuts for snap layouts
   useEffect(() => {

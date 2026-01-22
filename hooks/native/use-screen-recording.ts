@@ -34,7 +34,7 @@ export interface UseScreenRecordingReturn {
   isAvailable: boolean;
   duration: number;
   error: string | null;
-  
+
   // Recording controls
   startFullscreen: (monitorIndex?: number) => Promise<string | null>;
   startWindow: (windowTitle?: string) => Promise<string | null>;
@@ -43,12 +43,12 @@ export interface UseScreenRecordingReturn {
   resume: () => Promise<void>;
   stop: () => Promise<string | null>;
   cancel: () => Promise<void>;
-  
+
   // Configuration
   monitors: MonitorInfo[];
   selectedMonitor: number | null;
   setSelectedMonitor: (index: number | null) => void;
-  
+
   // Utilities
   clearError: () => void;
   initialize: () => Promise<void>;
@@ -71,23 +71,20 @@ function formatDuration(ms: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  
+
   if (hours > 0) {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export function useScreenRecording(options: UseScreenRecordingOptions = {}): UseScreenRecordingReturn {
-  const {
-    autoInitialize = true,
-    onRecordingStart,
-    onRecordingStop,
-    onError,
-  } = options;
+export function useScreenRecording(
+  options: UseScreenRecordingOptions = {}
+): UseScreenRecordingReturn {
+  const { autoInitialize = true, onRecordingStart, onRecordingStop, onError } = options;
 
   const callbacksRef = useRef({ onRecordingStart, onRecordingStop, onError });
-  
+
   // Update callback refs in an effect to avoid accessing refs during render
   useEffect(() => {
     callbacksRef.current = { onRecordingStart, onRecordingStop, onError };
@@ -132,29 +129,38 @@ export function useScreenRecording(options: UseScreenRecordingOptions = {}): Use
     }
   }, [error]);
 
-  const startFullscreen = useCallback(async (monitorIndex?: number) => {
-    const recordingId = await startRecording('fullscreen', { monitorIndex });
-    if (recordingId && callbacksRef.current.onRecordingStart) {
-      callbacksRef.current.onRecordingStart(recordingId);
-    }
-    return recordingId;
-  }, [startRecording]);
+  const startFullscreen = useCallback(
+    async (monitorIndex?: number) => {
+      const recordingId = await startRecording('fullscreen', { monitorIndex });
+      if (recordingId && callbacksRef.current.onRecordingStart) {
+        callbacksRef.current.onRecordingStart(recordingId);
+      }
+      return recordingId;
+    },
+    [startRecording]
+  );
 
-  const startWindow = useCallback(async (windowTitle?: string) => {
-    const recordingId = await startRecording('window', { windowTitle });
-    if (recordingId && callbacksRef.current.onRecordingStart) {
-      callbacksRef.current.onRecordingStart(recordingId);
-    }
-    return recordingId;
-  }, [startRecording]);
+  const startWindow = useCallback(
+    async (windowTitle?: string) => {
+      const recordingId = await startRecording('window', { windowTitle });
+      if (recordingId && callbacksRef.current.onRecordingStart) {
+        callbacksRef.current.onRecordingStart(recordingId);
+      }
+      return recordingId;
+    },
+    [startRecording]
+  );
 
-  const startRegion = useCallback(async (region: RecordingRegion) => {
-    const recordingId = await startRecording('region', { region });
-    if (recordingId && callbacksRef.current.onRecordingStart) {
-      callbacksRef.current.onRecordingStart(recordingId);
-    }
-    return recordingId;
-  }, [startRecording]);
+  const startRegion = useCallback(
+    async (region: RecordingRegion) => {
+      const recordingId = await startRecording('region', { region });
+      if (recordingId && callbacksRef.current.onRecordingStart) {
+        callbacksRef.current.onRecordingStart(recordingId);
+      }
+      return recordingId;
+    },
+    [startRecording]
+  );
 
   const pause = useCallback(async () => {
     await storePause();
@@ -188,7 +194,7 @@ export function useScreenRecording(options: UseScreenRecordingOptions = {}): Use
     isAvailable,
     duration,
     error,
-    
+
     // Recording controls
     startFullscreen,
     startWindow,
@@ -197,12 +203,12 @@ export function useScreenRecording(options: UseScreenRecordingOptions = {}): Use
     resume,
     stop,
     cancel,
-    
+
     // Configuration
     monitors,
     selectedMonitor,
     setSelectedMonitor,
-    
+
     // Utilities
     clearError,
     initialize,

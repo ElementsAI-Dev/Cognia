@@ -122,7 +122,17 @@ export function useSwipeGesture(
       element.removeEventListener('touchmove', handleTouchMove);
       element.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [ref, threshold, minVelocity, onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, onSwipe, preventDefaultOnSwipe]);
+  }, [
+    ref,
+    threshold,
+    minVelocity,
+    onSwipeLeft,
+    onSwipeRight,
+    onSwipeUp,
+    onSwipeDown,
+    onSwipe,
+    preventDefaultOnSwipe,
+  ]);
 
   return state;
 }

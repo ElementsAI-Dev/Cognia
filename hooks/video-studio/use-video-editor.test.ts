@@ -153,21 +153,23 @@ describe('useVideoEditor', () => {
       // Manually add a clip to the track for testing
       act(() => {
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test Clip',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test Clip',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -187,21 +189,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test Clip',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test Clip',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -244,21 +248,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test Clip',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test Clip',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -320,21 +326,23 @@ describe('useVideoEditor', () => {
       act(() => {
         const trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 30,
-            sourceStartTime: 0,
-            sourceEndTime: 30,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 30,
+              sourceStartTime: 0,
+              sourceEndTime: 30,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -354,21 +362,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -386,21 +396,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: ['brightness-contrast'],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: ['brightness-contrast'],
+            },
+          ],
         });
       });
 
@@ -418,21 +430,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -452,22 +466,24 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-            transition: { type: 'fade', duration: 1 },
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+              transition: { type: 'fade', duration: 1 },
+            },
+          ],
         });
       });
 
@@ -503,21 +519,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -535,21 +553,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -573,21 +593,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -693,21 +715,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 5,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 5,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -724,21 +748,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 5,
-            duration: 10,
-            sourceStartTime: 0,
-            sourceEndTime: 10,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 5,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 
@@ -754,21 +780,23 @@ describe('useVideoEditor', () => {
       act(() => {
         trackId = result.current.addTrack('video');
         result.current.updateTrack(trackId!, {
-          clips: [{
-            id: 'clip-1',
-            name: 'Test',
-            sourceUrl: 'test.mp4',
-            trackIndex: 0,
-            startTime: 0,
-            duration: 20,
-            sourceStartTime: 0,
-            sourceEndTime: 20,
-            volume: 1,
-            playbackSpeed: 1,
-            muted: false,
-            locked: false,
-            effects: [],
-          }]
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 20,
+              sourceStartTime: 0,
+              sourceEndTime: 20,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
         });
       });
 

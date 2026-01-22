@@ -32,10 +32,7 @@ export interface UseTranslateReturn {
   detectedLanguage: LanguageDetectionResult | null;
 
   // Translation methods
-  translate: (
-    text: string,
-    targetLanguage: LanguageCode
-  ) => Promise<TranslationResult | null>;
+  translate: (text: string, targetLanguage: LanguageCode) => Promise<TranslationResult | null>;
 
   detect: (text: string) => Promise<LanguageDetectionResult | null>;
 
@@ -70,18 +67,18 @@ export function useTranslate(options: UseTranslateOptions = {}): UseTranslateRet
   }, [defaultProvider, providerSettings]);
 
   // Build translation config
-  const buildConfig = useCallback((): TranslationConfig => ({
-    provider: defaultProvider,
-    model: defaultModel,
-    apiKey: getApiKey(),
-  }), [defaultProvider, defaultModel, getApiKey]);
+  const buildConfig = useCallback(
+    (): TranslationConfig => ({
+      provider: defaultProvider,
+      model: defaultModel,
+      apiKey: getApiKey(),
+    }),
+    [defaultProvider, defaultModel, getApiKey]
+  );
 
   // Translate text
   const translate = useCallback(
-    async (
-      text: string,
-      targetLanguage: LanguageCode
-    ): Promise<TranslationResult | null> => {
+    async (text: string, targetLanguage: LanguageCode): Promise<TranslationResult | null> => {
       setIsLoading(true);
       setError(null);
       try {
@@ -126,10 +123,7 @@ export function useTranslate(options: UseTranslateOptions = {}): UseTranslateRet
 
   // Batch translate
   const translateBatch = useCallback(
-    async (
-      texts: string[],
-      targetLanguage: LanguageCode
-    ): Promise<TranslationResult[] | null> => {
+    async (texts: string[], targetLanguage: LanguageCode): Promise<TranslationResult[] | null> => {
       setIsLoading(true);
       setError(null);
       try {

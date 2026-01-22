@@ -21,10 +21,7 @@ export type {
 } from './use-mcp-marketplace-filters';
 
 export { useMcpInstallation } from './use-mcp-installation';
-export type {
-  UseMcpInstallationOptions,
-  UseMcpInstallationReturn,
-} from './use-mcp-installation';
+export type { UseMcpInstallationOptions, UseMcpInstallationReturn } from './use-mcp-installation';
 
 export { useMcpRecentlyViewed } from './use-mcp-recently-viewed';
 export type {

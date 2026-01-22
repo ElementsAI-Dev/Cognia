@@ -22,8 +22,20 @@ jest.mock('@/stores/plugin/plugin-store', () => ({
 
 jest.mock('@/types/agent/agent-mode', () => ({
   BUILT_IN_AGENT_MODES: [
-    { id: 'general', name: 'General', type: 'general', description: 'General assistant', icon: 'Bot' },
-    { id: 'code-gen', name: 'Code Gen', type: 'code-gen', description: 'Code generation', icon: 'Code2' },
+    {
+      id: 'general',
+      name: 'General',
+      type: 'general',
+      description: 'General assistant',
+      icon: 'Bot',
+    },
+    {
+      id: 'code-gen',
+      name: 'Code Gen',
+      type: 'code-gen',
+      description: 'Code generation',
+      icon: 'Code2',
+    },
   ],
 }));
 
@@ -58,7 +70,13 @@ describe('useAgentMode', () => {
   };
 
   const mockPluginModes = [
-    { id: 'plugin-1', name: 'Plugin Mode', type: 'plugin', description: 'From plugin', icon: 'Puzzle' },
+    {
+      id: 'plugin-1',
+      name: 'Plugin Mode',
+      type: 'plugin',
+      description: 'From plugin',
+      icon: 'Puzzle',
+    },
   ];
 
   const mockCreateMode = jest.fn();
@@ -70,7 +88,7 @@ describe('useAgentMode', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     (useCustomModeStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
         customModes: mockCustomModes,

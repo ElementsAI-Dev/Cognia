@@ -1,5 +1,10 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { usePPTAI, type AISlideResult, type AIContentResult, type AISuggestionsResult } from './use-ppt-ai';
+import {
+  usePPTAI,
+  type AISlideResult,
+  type AIContentResult,
+  type AISuggestionsResult,
+} from './use-ppt-ai';
 import type { PPTSlide, PPTPresentation } from '@/types/workflow';
 
 // Mock fetch
@@ -101,9 +106,10 @@ describe('usePPTAI', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -140,9 +146,10 @@ describe('usePPTAI', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -196,9 +203,10 @@ describe('usePPTAI', () => {
     it('should handle JSON parse errors', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: 'invalid json' } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: 'invalid json' } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -222,9 +230,10 @@ describe('usePPTAI', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -252,9 +261,10 @@ describe('usePPTAI', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -286,9 +296,12 @@ describe('usePPTAI', () => {
       for (const style of styles) {
         mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({
-            choices: [{ message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } }],
-          }),
+          json: () =>
+            Promise.resolve({
+              choices: [
+                { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
+              ],
+            }),
         });
 
         const { result } = renderHook(() => usePPTAI());
@@ -336,9 +349,10 @@ describe('usePPTAI', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -364,9 +378,10 @@ describe('usePPTAI', () => {
       for (const suggestionType of suggestionTypes) {
         mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({
-            choices: [{ message: { content: JSON.stringify({ suggestions: [] }) } }],
-          }),
+          json: () =>
+            Promise.resolve({
+              choices: [{ message: { content: JSON.stringify({ suggestions: [] }) } }],
+            }),
         });
 
         const { result } = renderHook(() => usePPTAI());
@@ -411,17 +426,33 @@ describe('usePPTAI', () => {
     it('should successfully generate an outline', async () => {
       const mockResponse = {
         outline: [
-          { title: 'Introduction', description: 'Opening slide', type: 'title', keyPoints: ['Welcome', 'Overview'] },
-          { title: 'Main Topic', description: 'Core content', type: 'content', keyPoints: ['Point A', 'Point B'] },
-          { title: 'Conclusion', description: 'Closing slide', type: 'closing', keyPoints: ['Summary', 'Call to action'] },
+          {
+            title: 'Introduction',
+            description: 'Opening slide',
+            type: 'title',
+            keyPoints: ['Welcome', 'Overview'],
+          },
+          {
+            title: 'Main Topic',
+            description: 'Core content',
+            type: 'content',
+            keyPoints: ['Point A', 'Point B'],
+          },
+          {
+            title: 'Conclusion',
+            description: 'Closing slide',
+            type: 'closing',
+            keyPoints: ['Summary', 'Call to action'],
+          },
         ],
       };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -446,9 +477,10 @@ describe('usePPTAI', () => {
     it('should include slide count in prompt', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify({ outline: [] }) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify({ outline: [] }) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -464,16 +496,15 @@ describe('usePPTAI', () => {
 
     it('should handle outline items without keyPoints', async () => {
       const mockResponse = {
-        outline: [
-          { title: 'No Key Points', description: 'Test', type: 'content' },
-        ],
+        outline: [{ title: 'No Key Points', description: 'Test', type: 'content' }],
       };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -510,9 +541,10 @@ describe('usePPTAI', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -531,9 +563,10 @@ describe('usePPTAI', () => {
     it('should include correct count in prompt', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify({ bullets: [] }) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify({ bullets: [] }) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -574,9 +607,10 @@ describe('usePPTAI', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -602,9 +636,10 @@ describe('usePPTAI', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify({ notes: 'Generated notes' }) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: JSON.stringify({ notes: 'Generated notes' }) } }],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -660,9 +695,12 @@ describe('usePPTAI', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [
+              { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
+            ],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -685,9 +723,12 @@ describe('usePPTAI', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [
+              { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
+            ],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -705,9 +746,12 @@ describe('usePPTAI', () => {
     it('should include correct headers in API request', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [
+              { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
+            ],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -719,16 +763,19 @@ describe('usePPTAI', () => {
       const callOptions = mockFetch.mock.calls[0][1];
       expect(callOptions.headers).toEqual({
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer test-api-key',
+        Authorization: 'Bearer test-api-key',
       });
     });
 
     it('should use correct model in API request', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [{ message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } }],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [
+              { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
+            ],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -770,9 +817,12 @@ describe('usePPTAI', () => {
       act(() => {
         resolvePromise!({
           ok: true,
-          json: () => Promise.resolve({
-            choices: [{ message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } }],
-          }),
+          json: () =>
+            Promise.resolve({
+              choices: [
+                { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
+              ],
+            }),
         });
       });
 
@@ -819,9 +869,10 @@ describe('usePPTAI', () => {
     it('should handle empty API response', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          choices: [],
-        }),
+        json: () =>
+          Promise.resolve({
+            choices: [],
+          }),
       });
 
       const { result } = renderHook(() => usePPTAI());

@@ -28,9 +28,11 @@ describe('useIsMobile', () => {
         addEventListener: jest.fn((_event: string, listener: (e: MediaQueryListEvent) => void) => {
           listeners.add(listener);
         }),
-        removeEventListener: jest.fn((_event: string, listener: (e: MediaQueryListEvent) => void) => {
-          listeners.delete(listener);
-        }),
+        removeEventListener: jest.fn(
+          (_event: string, listener: (e: MediaQueryListEvent) => void) => {
+            listeners.delete(listener);
+          }
+        ),
         dispatchEvent: jest.fn(),
       };
     });
@@ -115,7 +117,7 @@ describe('useIsMobile', () => {
       const query = '(max-width: 767px)';
       const listeners = mediaQueryListeners.get(query);
       if (listeners) {
-        listeners.forEach(listener => {
+        listeners.forEach((listener) => {
           listener({ matches: true } as MediaQueryListEvent);
         });
       }
@@ -128,7 +130,7 @@ describe('useIsMobile', () => {
     const { unmount } = renderHook(() => useIsMobile());
 
     const mockMql = (window.matchMedia as jest.Mock).mock.results[0]?.value;
-    
+
     unmount();
 
     // Verify removeEventListener was called

@@ -44,7 +44,9 @@ export function useDevice(): DeviceInfo {
     updateDeviceInfo();
 
     const mediaQueryMobile = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const mediaQueryTablet = window.matchMedia(`(min-width: ${MOBILE_BREAKPOINT}px) and (max-width: ${TABLET_BREAKPOINT - 1}px)`);
+    const mediaQueryTablet = window.matchMedia(
+      `(min-width: ${MOBILE_BREAKPOINT}px) and (max-width: ${TABLET_BREAKPOINT - 1}px)`
+    );
     const mediaQueryOrientation = window.matchMedia('(orientation: landscape)');
 
     const handleChange = () => updateDeviceInfo();

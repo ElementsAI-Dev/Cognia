@@ -41,7 +41,10 @@ describe('useSelectionHistory', () => {
     by_app: { VSCode: 50, Chrome: 30 },
     by_type: { Code: 60, PlainText: 40 },
     avg_text_length: 50,
-    common_words: [['function', 10], ['const', 8]] as [string, number][],
+    common_words: [
+      ['function', 10],
+      ['const', 8],
+    ] as [string, number][],
     earliest_timestamp: Date.now() - 86400000,
     latest_timestamp: Date.now(),
   };
@@ -50,11 +53,11 @@ describe('useSelectionHistory', () => {
     it('should initialize and fetch history on mount', async () => {
       mockInvoke.mockResolvedValue([mockHistoryEntry]);
       const { result } = renderHook(() => useSelectionHistory());
-      
+
       await waitFor(() => {
         expect(mockInvoke).toHaveBeenCalledWith('selection_get_history', { count: 50 });
       });
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
         expect(result.current.history).toEqual([mockHistoryEntry]);
@@ -66,11 +69,11 @@ describe('useSelectionHistory', () => {
     it('should fetch and update history', async () => {
       mockInvoke.mockResolvedValue([mockHistoryEntry]);
       const { result } = renderHook(() => useSelectionHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         await result.current.fetchHistory(10);
       });
@@ -83,11 +86,11 @@ describe('useSelectionHistory', () => {
         .mockResolvedValueOnce(null) // stats fetch
         .mockRejectedValueOnce(new Error('Failed')); // manual fetch
       const { result } = renderHook(() => useSelectionHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         await result.current.fetchHistory();
       });
@@ -99,11 +102,11 @@ describe('useSelectionHistory', () => {
     it('should search history with query', async () => {
       mockInvoke.mockResolvedValue([mockHistoryEntry]);
       const { result } = renderHook(() => useSelectionHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         const results = await result.current.searchHistory('function');
         expect(results).toEqual([mockHistoryEntry]);
@@ -116,16 +119,18 @@ describe('useSelectionHistory', () => {
     it('should search by app name', async () => {
       mockInvoke.mockResolvedValue([mockHistoryEntry]);
       const { result } = renderHook(() => useSelectionHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         const results = await result.current.searchByApp('VSCode');
         expect(results).toEqual([mockHistoryEntry]);
       });
-      expect(mockInvoke).toHaveBeenCalledWith('selection_search_history_by_app', { appName: 'VSCode' });
+      expect(mockInvoke).toHaveBeenCalledWith('selection_search_history_by_app', {
+        appName: 'VSCode',
+      });
     });
   });
 
@@ -133,16 +138,18 @@ describe('useSelectionHistory', () => {
     it('should search by text type', async () => {
       mockInvoke.mockResolvedValue([mockHistoryEntry]);
       const { result } = renderHook(() => useSelectionHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         const results = await result.current.searchByType('Code');
         expect(results).toEqual([mockHistoryEntry]);
       });
-      expect(mockInvoke).toHaveBeenCalledWith('selection_search_history_by_type', { textType: 'Code' });
+      expect(mockInvoke).toHaveBeenCalledWith('selection_search_history_by_type', {
+        textType: 'Code',
+      });
     });
   });
 
@@ -150,11 +157,11 @@ describe('useSelectionHistory', () => {
     it('should clear history and reset state', async () => {
       mockInvoke.mockResolvedValue(undefined);
       const { result } = renderHook(() => useSelectionHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         await result.current.clearHistory();
       });
@@ -169,11 +176,11 @@ describe('useSelectionHistory', () => {
       const mockJson = JSON.stringify([mockHistoryEntry]);
       mockInvoke.mockResolvedValue(mockJson);
       const { result } = renderHook(() => useSelectionHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         const json = await result.current.exportHistory();
         expect(json).toBe(mockJson);
@@ -190,11 +197,11 @@ describe('useSelectionHistory', () => {
         .mockResolvedValueOnce(5) // import
         .mockResolvedValueOnce([]); // refresh after import
       const { result } = renderHook(() => useSelectionHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         const count = await result.current.importHistory('[]');
         expect(count).toBe(5);
@@ -207,11 +214,11 @@ describe('useSelectionHistory', () => {
     it('should fetch and update stats', async () => {
       mockInvoke.mockResolvedValue(mockStats);
       const { result } = renderHook(() => useSelectionHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         await result.current.fetchStats();
       });
@@ -241,11 +248,11 @@ describe('useClipboardHistory', () => {
     it('should initialize and fetch on mount', async () => {
       mockInvoke.mockResolvedValue([]);
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       expect(result.current.history).toEqual([]);
       expect(result.current.pinnedItems).toEqual([]);
     });
@@ -255,11 +262,11 @@ describe('useClipboardHistory', () => {
     it('should fetch and update history', async () => {
       mockInvoke.mockResolvedValue([mockClipboardEntry]);
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         await result.current.fetchHistory(10);
       });
@@ -272,11 +279,11 @@ describe('useClipboardHistory', () => {
       const pinnedEntry = { ...mockClipboardEntry, is_pinned: true };
       mockInvoke.mockResolvedValue([pinnedEntry]);
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         await result.current.fetchPinned();
       });
@@ -288,11 +295,11 @@ describe('useClipboardHistory', () => {
     it('should search clipboard history', async () => {
       mockInvoke.mockResolvedValue([mockClipboardEntry]);
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         const results = await result.current.searchHistory('clipboard');
         expect(results).toEqual([mockClipboardEntry]);
@@ -309,11 +316,11 @@ describe('useClipboardHistory', () => {
         .mockResolvedValueOnce(true) // pin
         .mockResolvedValue([]); // refresh
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         const success = await result.current.pinEntry('entry-1');
         expect(success).toBe(true);
@@ -330,11 +337,11 @@ describe('useClipboardHistory', () => {
         .mockResolvedValueOnce(true) // unpin
         .mockResolvedValue([]); // refresh
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         const success = await result.current.unpinEntry('entry-1');
         expect(success).toBe(true);
@@ -351,11 +358,11 @@ describe('useClipboardHistory', () => {
         .mockResolvedValueOnce(true) // delete
         .mockResolvedValue([]); // refresh
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         const success = await result.current.deleteEntry('entry-1');
         expect(success).toBe(true);
@@ -368,11 +375,11 @@ describe('useClipboardHistory', () => {
     it('should copy entry to clipboard', async () => {
       mockInvoke.mockResolvedValue(undefined);
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         await result.current.copyEntry('entry-1');
       });
@@ -384,11 +391,11 @@ describe('useClipboardHistory', () => {
     it('should clear unpinned entries', async () => {
       mockInvoke.mockResolvedValue(undefined);
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         await result.current.clearUnpinned();
       });
@@ -400,11 +407,11 @@ describe('useClipboardHistory', () => {
     it('should clear all entries', async () => {
       mockInvoke.mockResolvedValue(undefined);
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         await result.current.clearAll();
       });
@@ -422,11 +429,11 @@ describe('useClipboardHistory', () => {
         .mockResolvedValueOnce(true) // check update
         .mockResolvedValue([]); // refresh
       const { result } = renderHook(() => useClipboardHistory());
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
-      
+
       await act(async () => {
         const updated = await result.current.checkAndUpdate();
         expect(updated).toBe(true);

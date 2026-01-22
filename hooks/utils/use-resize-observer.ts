@@ -83,10 +83,7 @@ export function useResizeObserver<T extends HTMLElement = HTMLDivElement>(
  * Hook to force layout recalculation on panel resize
  * Useful for Monaco editor and other components that need explicit layout updates
  */
-export function useLayoutRecalculation(
-  triggerRecalculation: () => void,
-  debounceMs: number = 150
-) {
+export function useLayoutRecalculation(triggerRecalculation: () => void, debounceMs: number = 150) {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const triggerRef = useRef(triggerRecalculation);
 
@@ -120,9 +117,7 @@ export function useLayoutRecalculation(
 /**
  * Hook to sync Monaco editor layout with container size
  */
-export function useMonacoLayoutSync(
-  editorRef: React.RefObject<{ layout: () => void } | null>
-) {
+export function useMonacoLayoutSync(editorRef: React.RefObject<{ layout: () => void } | null>) {
   const { ref: containerRef, size } = useResizeObserver<HTMLDivElement>({
     debounceMs: 100,
   });

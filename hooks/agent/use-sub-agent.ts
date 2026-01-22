@@ -48,13 +48,16 @@ export interface UseSubAgentReturn {
   createFromTemplate: (templateId: string, variables?: Record<string, string>) => SubAgent | null;
   updateSubAgent: (id: string, updates: Partial<SubAgent>) => void;
   deleteSubAgent: (id: string) => void;
-  
+
   // Execution
   executeOne: (subAgentId: string, options?: SubAgentExecutionOptions) => Promise<SubAgentResult>;
-  executeAll: (mode?: SubAgentExecutionMode, options?: SubAgentExecutionOptions) => Promise<SubAgentOrchestrationResult>;
+  executeAll: (
+    mode?: SubAgentExecutionMode,
+    options?: SubAgentExecutionOptions
+  ) => Promise<SubAgentOrchestrationResult>;
   cancelOne: (subAgentId: string) => void;
   cancelAll: () => void;
-  
+
   // Utilities
   reorder: (orderedIds: string[]) => void;
   clearCompleted: () => void;
@@ -71,7 +74,12 @@ function createWrappedOptions(
     setSubAgentProgress: (id: string, progress: number) => void;
     setSubAgentResult: (id: string, result: SubAgentResult) => void;
     setSubAgentError: (id: string, error: string) => void;
-    addSubAgentLog: (id: string, level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: unknown) => void;
+    addSubAgentLog: (
+      id: string,
+      level: 'debug' | 'info' | 'warn' | 'error',
+      message: string,
+      data?: unknown
+    ) => void;
     updateMetrics: (subAgentId: string, result: SubAgentResult) => void;
   }
 ): SubAgentExecutionOptions {
@@ -103,7 +111,7 @@ function createWrappedOptions(
 
 export function useSubAgent(options: UseSubAgentOptions): UseSubAgentReturn {
   const { parentAgentId, maxConcurrency = 3 } = options;
-  
+
   // Store cancellation tokens for active executions
   const cancellationTokensRef = useRef<Map<string, CancellationToken>>(new Map());
 
@@ -151,22 +159,20 @@ export function useSubAgent(options: UseSubAgentOptions): UseSubAgentReturn {
 
   // Get sub-agents for this parent with stable reference
   const subAgentIds = useMemo(
-    () => Object.keys(allSubAgents).filter(id => allSubAgents[id].parentAgentId === parentAgentId),
+    () =>
+      Object.keys(allSubAgents).filter((id) => allSubAgents[id].parentAgentId === parentAgentId),
     [allSubAgents, parentAgentId]
   );
-  
+
   const subAgents = useMemo(() => {
     return subAgentIds
-      .map(id => allSubAgents[id])
+      .map((id) => allSubAgents[id])
       .filter((sa): sa is SubAgent => sa !== undefined)
       .sort((a, b) => a.order - b.order);
   }, [subAgentIds, allSubAgents]);
-  
+
   // Get templates as array
-  const templates = useMemo(
-    () => Object.values(allTemplates),
-    [allTemplates]
-  );
+  const templates = useMemo(() => Object.values(allTemplates), [allTemplates]);
 
   const activeSubAgents = useMemo(() => {
     return subAgents.filter((sa) => sa.status === 'running' || sa.status === 'queued');
@@ -211,7 +217,14 @@ export function useSubAgent(options: UseSubAgentOptions): UseSubAgentReturn {
       addSubAgentLog,
       updateMetrics,
     }),
-    [setSubAgentStatus, setSubAgentProgress, setSubAgentResult, setSubAgentError, addSubAgentLog, updateMetrics]
+    [
+      setSubAgentStatus,
+      setSubAgentProgress,
+      setSubAgentResult,
+      setSubAgentError,
+      addSubAgentLog,
+      updateMetrics,
+    ]
   );
 
   // Create sub-agent
@@ -224,7 +237,7 @@ export function useSubAgent(options: UseSubAgentOptions): UseSubAgentReturn {
     },
     [parentAgentId, storeCreateSubAgent]
   );
-  
+
   // Create from template
   const createFromTemplate = useCallback(
     (templateId: string, variables?: Record<string, string>): SubAgent | null => {
@@ -251,7 +264,10 @@ export function useSubAgent(options: UseSubAgentOptions): UseSubAgentReturn {
 
   // Execute single sub-agent
   const executeOne = useCallback(
-    async (subAgentId: string, executionOptions?: SubAgentExecutionOptions): Promise<SubAgentResult> => {
+    async (
+      subAgentId: string,
+      executionOptions?: SubAgentExecutionOptions
+    ): Promise<SubAgentResult> => {
       const subAgent = allSubAgents[subAgentId];
       if (!subAgent) {
         throw new Error('Sub-agent not found');
@@ -288,7 +304,7 @@ export function useSubAgent(options: UseSubAgentOptions): UseSubAgentReturn {
     ): Promise<SubAgentOrchestrationResult> => {
       // Create a shared cancellation token for all
       const cancellationToken = createCancellationToken();
-      subAgents.forEach(sa => {
+      subAgents.forEach((sa) => {
         cancellationTokensRef.current.set(sa.id, cancellationToken);
       });
 
@@ -308,23 +324,26 @@ export function useSubAgent(options: UseSubAgentOptions): UseSubAgentReturn {
         }
       } finally {
         // Clean up all cancellation tokens
-        subAgents.forEach(sa => {
+        subAgents.forEach((sa) => {
           cancellationTokensRef.current.delete(sa.id);
         });
       }
     },
     [subAgents, getExecutorConfig, maxConcurrency, storeCallbacks]
   );
-  
+
   // Cancel single sub-agent
-  const cancelOne = useCallback((subAgentId: string) => {
-    const token = cancellationTokensRef.current.get(subAgentId);
-    if (token) {
-      token.cancel();
-      cancellationTokensRef.current.delete(subAgentId);
-    }
-    setSubAgentStatus(subAgentId, 'cancelled');
-  }, [setSubAgentStatus]);
+  const cancelOne = useCallback(
+    (subAgentId: string) => {
+      const token = cancellationTokensRef.current.get(subAgentId);
+      if (token) {
+        token.cancel();
+        cancellationTokensRef.current.delete(subAgentId);
+      }
+      setSubAgentStatus(subAgentId, 'cancelled');
+    },
+    [setSubAgentStatus]
+  );
 
   // Cancel all
   const cancelAll = useCallback(() => {

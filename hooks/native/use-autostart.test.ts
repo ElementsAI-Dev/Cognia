@@ -55,9 +55,7 @@ describe('useAutostart', () => {
         await result.current.enable();
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Autostart is only available in Tauri environment'
-      );
+      expect(consoleSpy).toHaveBeenCalledWith('Autostart is only available in Tauri environment');
       consoleSpy.mockRestore();
     });
 
@@ -73,9 +71,7 @@ describe('useAutostart', () => {
         await result.current.disable();
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Autostart is only available in Tauri environment'
-      );
+      expect(consoleSpy).toHaveBeenCalledWith('Autostart is only available in Tauri environment');
       consoleSpy.mockRestore();
     });
 

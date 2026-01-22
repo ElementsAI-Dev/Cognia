@@ -101,7 +101,14 @@ export function useProxy(): UseProxyReturn {
     } finally {
       setDetecting(false);
     }
-  }, [isAvailable, config.selectedProxy, setDetecting, setDetectedProxies, setSelectedProxy, setError]);
+  }, [
+    isAvailable,
+    config.selectedProxy,
+    setDetecting,
+    setDetectedProxies,
+    setSelectedProxy,
+    setError,
+  ]);
 
   // Auto-detect proxies on mount and periodically
   useEffect(() => {
@@ -113,10 +120,7 @@ export function useProxy(): UseProxyReturn {
 
     // Set up periodic detection if enabled
     if (config.autoDetectInterval > 0) {
-      detectIntervalRef.current = setInterval(
-        detectProxies,
-        config.autoDetectInterval * 1000
-      );
+      detectIntervalRef.current = setInterval(detectProxies, config.autoDetectInterval * 1000);
     }
 
     return () => {

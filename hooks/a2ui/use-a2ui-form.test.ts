@@ -39,9 +39,7 @@ describe('useA2UIForm', () => {
     });
 
     it('should mark form as dirty when value changes from initial', () => {
-      const { result } = renderHook(() =>
-        useA2UIForm({ initialValues: { name: 'Initial' } })
-      );
+      const { result } = renderHook(() => useA2UIForm({ initialValues: { name: 'Initial' } }));
 
       expect(result.current.isDirty).toBe(false);
 

@@ -71,7 +71,8 @@ class MockSpeechSynthesisUtterance {
   }
 }
 
-global.SpeechSynthesisUtterance = MockSpeechSynthesisUtterance as unknown as typeof SpeechSynthesisUtterance;
+global.SpeechSynthesisUtterance =
+  MockSpeechSynthesisUtterance as unknown as typeof SpeechSynthesisUtterance;
 
 describe('useTTS', () => {
   beforeEach(() => {

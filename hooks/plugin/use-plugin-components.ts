@@ -35,8 +35,7 @@ export function usePluginComponents(): UsePluginComponentsReturn {
   );
 
   const getComponentsByCategory = useCallback(
-    (category: string) =>
-      components.filter((c) => c.metadata.category === category),
+    (category: string) => components.filter((c) => c.metadata.category === category),
     [components]
   );
 
@@ -77,7 +76,7 @@ export function usePluginComponent(type: string) {
   const component = useMemo(() => {
     const components = getAllComponents();
     const found = components.find((c) => c.type === type);
-    
+
     if (!found) {
       return null;
     }

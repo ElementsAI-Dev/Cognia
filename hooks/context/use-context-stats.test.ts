@@ -20,11 +20,11 @@ const mockedContext = contextModule as jest.Mocked<typeof contextModule>;
 const mockStats = {
   filesByCategory: {
     'tool-output': 5,
-    'history': 3,
-    'mcp': 10,
-    'skills': 2,
-    'terminal': 1,
-    'temp': 0,
+    history: 3,
+    mcp: 10,
+    skills: 2,
+    terminal: 1,
+    temp: 0,
   },
   totalSizeBytes: 1024 * 50, // 50 KB
   estimatedTotalTokens: 12500,
@@ -52,9 +52,7 @@ describe('useContextStats', () => {
 
   describe('initialization', () => {
     it('should initialize with null stats', () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       expect(result.current.stats).toBeNull();
       expect(result.current.isLoading).toBe(false);
@@ -62,9 +60,7 @@ describe('useContextStats', () => {
     });
 
     it('should refresh on mount when enabled', async () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: true })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: true }));
 
       await waitFor(() => {
         expect(result.current.stats).not.toBeNull();
@@ -83,9 +79,7 @@ describe('useContextStats', () => {
 
   describe('refresh', () => {
     it('should refresh stats manually', async () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       await act(async () => {
         await result.current.refresh();
@@ -104,9 +98,7 @@ describe('useContextStats', () => {
           })
       );
 
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       act(() => {
         result.current.refresh();
@@ -124,9 +116,7 @@ describe('useContextStats', () => {
     it('should handle refresh error', async () => {
       mockedContext.getContextStats.mockRejectedValue(new Error('Failed'));
 
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       await act(async () => {
         await result.current.refresh();
@@ -139,9 +129,7 @@ describe('useContextStats', () => {
 
   describe('auto-refresh interval', () => {
     it('should auto-refresh at specified interval', async () => {
-      renderHook(() =>
-        useContextStats({ refreshOnMount: true, refreshIntervalMs: 5000 })
-      );
+      renderHook(() => useContextStats({ refreshOnMount: true, refreshIntervalMs: 5000 }));
 
       // Initial call on mount
       await waitFor(() => {
@@ -210,9 +198,7 @@ describe('useContextStats', () => {
 
   describe('runGC', () => {
     it('should run garbage collection', async () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       let deleted: number = 0;
       await act(async () => {
@@ -226,9 +212,7 @@ describe('useContextStats', () => {
     });
 
     it('should refresh stats after GC', async () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       await act(async () => {
         await result.current.runGC();
@@ -240,9 +224,7 @@ describe('useContextStats', () => {
     it('should handle GC error', async () => {
       mockedContext.gcContextFiles.mockRejectedValue(new Error('GC failed'));
 
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       let deleted: number = 0;
       await act(async () => {
@@ -256,9 +238,7 @@ describe('useContextStats', () => {
 
   describe('clearAll', () => {
     it('should clear all context files', async () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       await act(async () => {
         await result.current.clearAll();
@@ -268,9 +248,7 @@ describe('useContextStats', () => {
     });
 
     it('should refresh stats after clear', async () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       await act(async () => {
         await result.current.clearAll();
@@ -280,13 +258,9 @@ describe('useContextStats', () => {
     });
 
     it('should handle clear error', async () => {
-      mockedContext.clearAllContextFiles.mockRejectedValue(
-        new Error('Clear failed')
-      );
+      mockedContext.clearAllContextFiles.mockRejectedValue(new Error('Clear failed'));
 
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       await act(async () => {
         await result.current.clearAll();
@@ -298,25 +272,19 @@ describe('useContextStats', () => {
 
   describe('formatSize', () => {
     it('should format bytes', () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       expect(result.current.formatSize(500)).toBe('500 B');
     });
 
     it('should format kilobytes', () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       expect(result.current.formatSize(2048)).toBe('2.0 KB');
     });
 
     it('should format megabytes', () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       expect(result.current.formatSize(1024 * 1024 * 2.5)).toBe('2.50 MB');
     });
@@ -324,25 +292,19 @@ describe('useContextStats', () => {
 
   describe('formatTokens', () => {
     it('should format small numbers', () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       expect(result.current.formatTokens(500)).toBe('500');
     });
 
     it('should format thousands', () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       expect(result.current.formatTokens(2500)).toBe('2.5K');
     });
 
     it('should format millions', () => {
-      const { result } = renderHook(() =>
-        useContextStats({ refreshOnMount: false })
-      );
+      const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
       expect(result.current.formatTokens(1500000)).toBe('1.50M');
     });

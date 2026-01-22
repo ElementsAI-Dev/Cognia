@@ -167,9 +167,7 @@ describe('useRAGPipeline', () => {
     it('should retrieve relevant documents', async () => {
       mockRetrieve.mockResolvedValue({
         query: 'test query',
-        results: [
-          { id: 'doc-1', content: 'Relevant content', score: 0.9 },
-        ],
+        results: [{ id: 'doc-1', content: 'Relevant content', score: 0.9 }],
         context: 'Relevant content',
         totalTokens: 100,
       });

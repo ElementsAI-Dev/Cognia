@@ -40,7 +40,15 @@ jest.mock('./use-a2ui', () => ({
 
 // Mock store
 const mockDeleteSurface = jest.fn();
-let mockSurfaces: Record<string, { components: Record<string, unknown>; dataModel: Record<string, unknown>; type?: string; title?: string }> = {};
+let mockSurfaces: Record<
+  string,
+  {
+    components: Record<string, unknown>;
+    dataModel: Record<string, unknown>;
+    type?: string;
+    title?: string;
+  }
+> = {};
 
 jest.mock('@/stores/a2ui', () => ({
   useA2UIStore: jest.fn((selector) => {
@@ -191,7 +199,11 @@ describe('useA2UIAppBuilder', () => {
 
       let appId: string | null;
       act(() => {
-        appId = result.current.createCustomApp('My App', components as unknown as import('@/types/artifact/a2ui').A2UIComponent[], dataModel);
+        appId = result.current.createCustomApp(
+          'My App',
+          components as unknown as import('@/types/artifact/a2ui').A2UIComponent[],
+          dataModel
+        );
       });
 
       expect(appId!).toBe('custom-app-123');
@@ -244,7 +256,7 @@ describe('useA2UIAppBuilder', () => {
       const { result } = renderHook(() => useA2UIAppBuilder());
 
       expect(typeof result.current.renameApp).toBe('function');
-      
+
       // Calling rename on non-existent app should not throw
       act(() => {
         result.current.renameApp('non-existent-app', 'New Name');
@@ -435,7 +447,12 @@ describe('useA2UIAppBuilder', () => {
           dataModel: {
             newHabit: 'Exercise',
             habits: [],
-            stats: { streak: 0, streakText: '0 day streak', todayCompleted: 0, todayText: '0 completed today' },
+            stats: {
+              streak: 0,
+              streakText: '0 day streak',
+              todayCompleted: 0,
+              todayText: '0 completed today',
+            },
           },
         },
       };

@@ -347,10 +347,7 @@ describe('usePlanExecutor', () => {
         await result.current.executePlan('plan-1', { onStepError });
       });
 
-      expect(onStepError).toHaveBeenCalledWith(
-        expect.anything(),
-        'Step execution failed'
-      );
+      expect(onStepError).toHaveBeenCalledWith(expect.anything(), 'Step execution failed');
     });
 
     it('should skip completed steps', async () => {
@@ -494,9 +491,7 @@ describe('usePlanExecutor', () => {
 
     it('should handle step without description', async () => {
       const mockPlan = createMockPlan({
-        steps: [
-          { id: 'step-1', title: 'Step 1', status: 'pending', output: null },
-        ],
+        steps: [{ id: 'step-1', title: 'Step 1', status: 'pending', output: null }],
       });
       mockGetPlan.mockReturnValue(mockPlan);
       mockGenerateText.mockResolvedValue({ text: 'Step done' });

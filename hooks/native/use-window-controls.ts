@@ -4,8 +4,17 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getCurrentWindow, currentMonitor, primaryMonitor, availableMonitors } from '@tauri-apps/api/window';
-import type { PhysicalPosition, ProgressBarStatus, CursorIcon as TauriCursorIcon } from '@tauri-apps/api/window';
+import {
+  getCurrentWindow,
+  currentMonitor,
+  primaryMonitor,
+  availableMonitors,
+} from '@tauri-apps/api/window';
+import type {
+  PhysicalPosition,
+  ProgressBarStatus,
+  CursorIcon as TauriCursorIcon,
+} from '@tauri-apps/api/window';
 import { LogicalSize, LogicalPosition } from '@tauri-apps/api/dpi';
 import { useWindowStore, type UserAttentionType } from '@/stores';
 
@@ -95,15 +104,16 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
 
         // Get initial state
-        const [maximized, minimized, fullscreen, focused, visible, scaleFactor] =
-          await Promise.all([
+        const [maximized, minimized, fullscreen, focused, visible, scaleFactor] = await Promise.all(
+          [
             appWindow.isMaximized(),
             appWindow.isMinimized(),
             appWindow.isFullscreen(),
             appWindow.isFocused(),
             appWindow.isVisible(),
             appWindow.scaleFactor(),
-          ]);
+          ]
+        );
 
         updateWindowState({
           isMaximized: maximized,
@@ -155,7 +165,16 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       unlistenersRef.current.forEach((unlisten) => unlisten());
       unlistenersRef.current = [];
     };
-  }, [isTauri, syncState, updateWindowState, setIsMaximized, setSize, setPosition, setIsFocused, setScaleFactor]);
+  }, [
+    isTauri,
+    syncState,
+    updateWindowState,
+    setIsMaximized,
+    setSize,
+    setPosition,
+    setIsFocused,
+    setScaleFactor,
+  ]);
 
   // Toggle fullscreen helper - defined early for keyboard shortcut use
   const toggleFullscreenFn = useCallback(async () => {
@@ -264,30 +283,36 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
     }
   }, [isTauri, setIsVisible]);
 
-  const setFullscreen = useCallback(async (fullscreen: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setFullscreen(fullscreen);
-      setIsFullscreen(fullscreen);
-    } catch (error) {
-      console.error('Failed to set fullscreen:', error);
-    }
-  }, [isTauri, setIsFullscreen]);
+  const setFullscreen = useCallback(
+    async (fullscreen: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setFullscreen(fullscreen);
+        setIsFullscreen(fullscreen);
+      } catch (error) {
+        console.error('Failed to set fullscreen:', error);
+      }
+    },
+    [isTauri, setIsFullscreen]
+  );
 
   // Use the already defined toggleFullscreenFn
   const toggleFullscreen = toggleFullscreenFn;
 
-  const setAlwaysOnTop = useCallback(async (alwaysOnTop: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setAlwaysOnTop(alwaysOnTop);
-      setIsAlwaysOnTop(alwaysOnTop);
-    } catch (error) {
-      console.error('Failed to set always on top:', error);
-    }
-  }, [isTauri, setIsAlwaysOnTop]);
+  const setAlwaysOnTop = useCallback(
+    async (alwaysOnTop: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setAlwaysOnTop(alwaysOnTop);
+        setIsAlwaysOnTop(alwaysOnTop);
+      } catch (error) {
+        console.error('Failed to set always on top:', error);
+      }
+    },
+    [isTauri, setIsAlwaysOnTop]
+  );
 
   const toggleAlwaysOnTop = useCallback(async () => {
     if (!isTauri) return;
@@ -322,195 +347,249 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
     }
   }, [isTauri, setIsFocused]);
 
-  const setTitle = useCallback(async (title: string) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setTitle(title);
-    } catch (error) {
-      console.error('Failed to set title:', error);
-    }
-  }, [isTauri]);
-
-  const setWindowSize = useCallback(async (width: number, height: number) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      // Use LogicalSize for consistency - store values are in logical pixels
-      await appWindow.setSize(new LogicalSize(width, height));
-      setSize({ width, height });
-    } catch (error) {
-      console.error('Failed to set size:', error);
-    }
-  }, [isTauri, setSize]);
-
-  const setWindowPosition = useCallback(async (x: number, y: number) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setPosition({ type: 'Physical', x, y } as PhysicalPosition);
-      setPosition({ x, y });
-    } catch (error) {
-      console.error('Failed to set position:', error);
-    }
-  }, [isTauri, setPosition]);
-
-  const setMinSize = useCallback(async (width: number, height: number) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      // Use LogicalSize for consistency - all size values are in logical pixels
-      await appWindow.setMinSize(new LogicalSize(width, height));
-    } catch (error) {
-      console.error('Failed to set min size:', error);
-    }
-  }, [isTauri]);
-
-  const setMaxSize = useCallback(async (width: number, height: number) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      // Use LogicalSize for consistency - all size values are in logical pixels
-      await appWindow.setMaxSize(new LogicalSize(width, height));
-    } catch (error) {
-      console.error('Failed to set max size:', error);
-    }
-  }, [isTauri]);
-
-  const setResizable = useCallback(async (resizable: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setResizable(resizable);
-    } catch (error) {
-      console.error('Failed to set resizable:', error);
-    }
-  }, [isTauri]);
-
-  const setDecorations = useCallback(async (decorations: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setDecorations(decorations);
-    } catch (error) {
-      console.error('Failed to set decorations:', error);
-    }
-  }, [isTauri]);
-
-  const setShadow = useCallback(async (shadow: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setShadow(shadow);
-    } catch (error) {
-      console.error('Failed to set shadow:', error);
-    }
-  }, [isTauri]);
-
-  const setSkipTaskbar = useCallback(async (skip: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setSkipTaskbar(skip);
-    } catch (error) {
-      console.error('Failed to set skip taskbar:', error);
-    }
-  }, [isTauri]);
-
-  const setContentProtected = useCallback(async (protect: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setContentProtected(protect);
-    } catch (error) {
-      console.error('Failed to set content protected:', error);
-    }
-  }, [isTauri]);
-
-  const setCursorGrab = useCallback(async (grab: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setCursorGrab(grab);
-    } catch (error) {
-      console.error('Failed to set cursor grab:', error);
-    }
-  }, [isTauri]);
-
-  const setCursorVisible = useCallback(async (visible: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setCursorVisible(visible);
-    } catch (error) {
-      console.error('Failed to set cursor visible:', error);
-    }
-  }, [isTauri]);
-
-  const setCursorIcon = useCallback(async (icon: TauriCursorIcon) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setCursorIcon(icon);
-    } catch (error) {
-      console.error('Failed to set cursor icon:', error);
-    }
-  }, [isTauri]);
-
-  const setCursorPosition = useCallback(async (x: number, y: number) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setCursorPosition({ type: 'Physical', x, y } as PhysicalPosition);
-    } catch (error) {
-      console.error('Failed to set cursor position:', error);
-    }
-  }, [isTauri]);
-
-  const setIgnoreCursorEvents = useCallback(async (ignore: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setIgnoreCursorEvents(ignore);
-    } catch (error) {
-      console.error('Failed to set ignore cursor events:', error);
-    }
-  }, [isTauri]);
-
-  const requestUserAttention = useCallback(async (type: UserAttentionType | null) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      const attentionType = type === 'critical' ? 1 : type === 'informational' ? 2 : null;
-      await appWindow.requestUserAttention(attentionType);
-    } catch (error) {
-      console.error('Failed to request user attention:', error);
-    }
-  }, [isTauri]);
-
-  const setProgressBar = useCallback(async (progress: number | null) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      if (progress === null) {
-        await appWindow.setProgressBar({ status: 'None' as ProgressBarStatus });
-      } else {
-        await appWindow.setProgressBar({ progress: Math.max(0, Math.min(100, progress)) / 100 });
+  const setTitle = useCallback(
+    async (title: string) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setTitle(title);
+      } catch (error) {
+        console.error('Failed to set title:', error);
       }
-    } catch (error) {
-      console.error('Failed to set progress bar:', error);
-    }
-  }, [isTauri]);
+    },
+    [isTauri]
+  );
 
-  const setVisibleOnAllWorkspaces = useCallback(async (visible: boolean) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setVisibleOnAllWorkspaces(visible);
-    } catch (error) {
-      console.error('Failed to set visible on all workspaces:', error);
-    }
-  }, [isTauri]);
+  const setWindowSize = useCallback(
+    async (width: number, height: number) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        // Use LogicalSize for consistency - store values are in logical pixels
+        await appWindow.setSize(new LogicalSize(width, height));
+        setSize({ width, height });
+      } catch (error) {
+        console.error('Failed to set size:', error);
+      }
+    },
+    [isTauri, setSize]
+  );
+
+  const setWindowPosition = useCallback(
+    async (x: number, y: number) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setPosition({ type: 'Physical', x, y } as PhysicalPosition);
+        setPosition({ x, y });
+      } catch (error) {
+        console.error('Failed to set position:', error);
+      }
+    },
+    [isTauri, setPosition]
+  );
+
+  const setMinSize = useCallback(
+    async (width: number, height: number) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        // Use LogicalSize for consistency - all size values are in logical pixels
+        await appWindow.setMinSize(new LogicalSize(width, height));
+      } catch (error) {
+        console.error('Failed to set min size:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setMaxSize = useCallback(
+    async (width: number, height: number) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        // Use LogicalSize for consistency - all size values are in logical pixels
+        await appWindow.setMaxSize(new LogicalSize(width, height));
+      } catch (error) {
+        console.error('Failed to set max size:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setResizable = useCallback(
+    async (resizable: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setResizable(resizable);
+      } catch (error) {
+        console.error('Failed to set resizable:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setDecorations = useCallback(
+    async (decorations: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setDecorations(decorations);
+      } catch (error) {
+        console.error('Failed to set decorations:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setShadow = useCallback(
+    async (shadow: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setShadow(shadow);
+      } catch (error) {
+        console.error('Failed to set shadow:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setSkipTaskbar = useCallback(
+    async (skip: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setSkipTaskbar(skip);
+      } catch (error) {
+        console.error('Failed to set skip taskbar:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setContentProtected = useCallback(
+    async (protect: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setContentProtected(protect);
+      } catch (error) {
+        console.error('Failed to set content protected:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setCursorGrab = useCallback(
+    async (grab: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setCursorGrab(grab);
+      } catch (error) {
+        console.error('Failed to set cursor grab:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setCursorVisible = useCallback(
+    async (visible: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setCursorVisible(visible);
+      } catch (error) {
+        console.error('Failed to set cursor visible:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setCursorIcon = useCallback(
+    async (icon: TauriCursorIcon) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setCursorIcon(icon);
+      } catch (error) {
+        console.error('Failed to set cursor icon:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setCursorPosition = useCallback(
+    async (x: number, y: number) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setCursorPosition({ type: 'Physical', x, y } as PhysicalPosition);
+      } catch (error) {
+        console.error('Failed to set cursor position:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setIgnoreCursorEvents = useCallback(
+    async (ignore: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setIgnoreCursorEvents(ignore);
+      } catch (error) {
+        console.error('Failed to set ignore cursor events:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const requestUserAttention = useCallback(
+    async (type: UserAttentionType | null) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        const attentionType = type === 'critical' ? 1 : type === 'informational' ? 2 : null;
+        await appWindow.requestUserAttention(attentionType);
+      } catch (error) {
+        console.error('Failed to request user attention:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setProgressBar = useCallback(
+    async (progress: number | null) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        if (progress === null) {
+          await appWindow.setProgressBar({ status: 'None' as ProgressBarStatus });
+        } else {
+          await appWindow.setProgressBar({ progress: Math.max(0, Math.min(100, progress)) / 100 });
+        }
+      } catch (error) {
+        console.error('Failed to set progress bar:', error);
+      }
+    },
+    [isTauri]
+  );
+
+  const setVisibleOnAllWorkspaces = useCallback(
+    async (visible: boolean) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setVisibleOnAllWorkspaces(visible);
+      } catch (error) {
+        console.error('Failed to set visible on all workspaces:', error);
+      }
+    },
+    [isTauri]
+  );
 
   const startDragging = useCallback(async () => {
     if (!isTauri) return;
@@ -523,25 +602,36 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
   }, [isTauri]);
 
   // Manual drag handler with double-click maximize/fullscreen
-  const handleDragMouseDown = useCallback(async (e: React.MouseEvent) => {
-    if (!isTauri || !preferences.enableDragToMove) return;
-    if (e.buttons !== 1) return; // Only primary button
+  const handleDragMouseDown = useCallback(
+    async (e: React.MouseEvent) => {
+      if (!isTauri || !preferences.enableDragToMove) return;
+      if (e.buttons !== 1) return; // Only primary button
 
-    const target = e.target as HTMLElement;
-    if (target.closest('[data-no-drag],button,a,input,select,textarea,[role="button"]')) {
-      return;
-    }
-
-    if (e.detail === 2 && preferences.enableDoubleClickMaximize) {
-      if (platform === 'macos') {
-        await toggleFullscreen();
-      } else {
-        await toggleMaximize();
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-no-drag],button,a,input,select,textarea,[role="button"]')) {
+        return;
       }
-    } else {
-      await startDragging();
-    }
-  }, [isTauri, platform, preferences.enableDragToMove, preferences.enableDoubleClickMaximize, toggleFullscreen, toggleMaximize, startDragging]);
+
+      if (e.detail === 2 && preferences.enableDoubleClickMaximize) {
+        if (platform === 'macos') {
+          await toggleFullscreen();
+        } else {
+          await toggleMaximize();
+        }
+      } else {
+        await startDragging();
+      }
+    },
+    [
+      isTauri,
+      platform,
+      preferences.enableDragToMove,
+      preferences.enableDoubleClickMaximize,
+      toggleFullscreen,
+      toggleMaximize,
+      startDragging,
+    ]
+  );
 
   // Get window info
   const getWindowInfo = useCallback(async () => {
@@ -625,19 +715,19 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
     if (!isTauri) return null;
     try {
       const monitor = await currentMonitor();
-      const targetMonitor = monitor || await primaryMonitor();
+      const targetMonitor = monitor || (await primaryMonitor());
       if (!targetMonitor) return null;
-      
+
       // Try to get work area from backend for accurate multi-monitor support
       let workAreaWidth = targetMonitor.size.width;
       let workAreaHeight = targetMonitor.size.height;
       let actualScaleFactor = targetMonitor.scaleFactor;
-      
+
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         const appWindow = getCurrentWindow();
         const position = await appWindow.outerPosition();
-        
+
         // Get work area at current window position for accurate multi-monitor DPI
         const workArea = await invoke<{
           width: number;
@@ -646,7 +736,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
           y: number;
           scaleFactor: number;
         }>('get_work_area_at_position', { x: position.x, y: position.y });
-        
+
         // Work area from backend is in physical pixels
         workAreaWidth = workArea.width;
         workAreaHeight = workArea.height;
@@ -671,7 +761,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
           workAreaHeight = Math.floor(targetMonitor.size.height * 0.95);
         }
       }
-      
+
       return {
         width: targetMonitor.size.width,
         height: targetMonitor.size.height,
@@ -687,12 +777,15 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
   }, [isTauri]);
 
   // Calculate optimal window size based on screen
-  const calculateOptimalSize = useCallback(async (): Promise<{ width: number; height: number } | null> => {
+  const calculateOptimalSize = useCallback(async (): Promise<{
+    width: number;
+    height: number;
+  } | null> => {
     const screenInfo = await getScreenInfo();
     if (!screenInfo) return null;
 
     const { workAreaWidth, workAreaHeight, scaleFactor } = screenInfo;
-    
+
     // Calculate logical pixels
     const logicalWidth = workAreaWidth / scaleFactor;
     const logicalHeight = workAreaHeight / scaleFactor;
@@ -775,115 +868,124 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
   }, [getScreenInfo]);
 
   // Apply a size preset
-  const applySizePreset = useCallback(async (preset: WindowSizePreset) => {
-    if (!isTauri) return;
-    try {
-      const appWindow = getCurrentWindow();
-      await appWindow.setSize(new LogicalSize(preset.width, preset.height));
-      await appWindow.center();
-      setSize({ width: preset.width, height: preset.height });
-    } catch (error) {
-      console.error('Failed to apply size preset:', error);
-    }
-  }, [isTauri, setSize]);
+  const applySizePreset = useCallback(
+    async (preset: WindowSizePreset) => {
+      if (!isTauri) return;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.setSize(new LogicalSize(preset.width, preset.height));
+        await appWindow.center();
+        setSize({ width: preset.width, height: preset.height });
+      } catch (error) {
+        console.error('Failed to apply size preset:', error);
+      }
+    },
+    [isTauri, setSize]
+  );
 
   // Snap window to screen edge
-  const snapToEdge = useCallback(async (edge: 'left' | 'right' | 'top' | 'bottom') => {
-    if (!isTauri) return;
-    try {
-      const screenInfo = await getScreenInfo();
-      if (!screenInfo) return;
+  const snapToEdge = useCallback(
+    async (edge: 'left' | 'right' | 'top' | 'bottom') => {
+      if (!isTauri) return;
+      try {
+        const screenInfo = await getScreenInfo();
+        if (!screenInfo) return;
 
-      const appWindow = getCurrentWindow();
-      const { workAreaWidth, workAreaHeight, scaleFactor } = screenInfo;
-      const logicalWidth = workAreaWidth / scaleFactor;
-      const logicalHeight = workAreaHeight / scaleFactor;
+        const appWindow = getCurrentWindow();
+        const { workAreaWidth, workAreaHeight, scaleFactor } = screenInfo;
+        const logicalWidth = workAreaWidth / scaleFactor;
+        const logicalHeight = workAreaHeight / scaleFactor;
 
-      let width: number;
-      let height: number;
-      let x: number;
-      let y: number;
+        let width: number;
+        let height: number;
+        let x: number;
+        let y: number;
 
-      switch (edge) {
-        case 'left':
-          width = Math.floor(logicalWidth / 2);
-          height = Math.floor(logicalHeight);
-          x = 0;
-          y = 0;
-          break;
-        case 'right':
-          width = Math.floor(logicalWidth / 2);
-          height = Math.floor(logicalHeight);
-          x = Math.floor(logicalWidth / 2);
-          y = 0;
-          break;
-        case 'top':
-          width = Math.floor(logicalWidth);
-          height = Math.floor(logicalHeight / 2);
-          x = 0;
-          y = 0;
-          break;
-        case 'bottom':
-          width = Math.floor(logicalWidth);
-          height = Math.floor(logicalHeight / 2);
-          x = 0;
-          y = Math.floor(logicalHeight / 2);
-          break;
+        switch (edge) {
+          case 'left':
+            width = Math.floor(logicalWidth / 2);
+            height = Math.floor(logicalHeight);
+            x = 0;
+            y = 0;
+            break;
+          case 'right':
+            width = Math.floor(logicalWidth / 2);
+            height = Math.floor(logicalHeight);
+            x = Math.floor(logicalWidth / 2);
+            y = 0;
+            break;
+          case 'top':
+            width = Math.floor(logicalWidth);
+            height = Math.floor(logicalHeight / 2);
+            x = 0;
+            y = 0;
+            break;
+          case 'bottom':
+            width = Math.floor(logicalWidth);
+            height = Math.floor(logicalHeight / 2);
+            x = 0;
+            y = Math.floor(logicalHeight / 2);
+            break;
+        }
+
+        await appWindow.setSize(new LogicalSize(width, height));
+        await appWindow.setPosition(new LogicalPosition(x, y));
+        setSize({ width, height });
+        setPosition({ x, y });
+      } catch (error) {
+        console.error('Failed to snap to edge:', error);
       }
-
-      await appWindow.setSize(new LogicalSize(width, height));
-      await appWindow.setPosition(new LogicalPosition(x, y));
-      setSize({ width, height });
-      setPosition({ x, y });
-    } catch (error) {
-      console.error('Failed to snap to edge:', error);
-    }
-  }, [isTauri, getScreenInfo, setSize, setPosition]);
+    },
+    [isTauri, getScreenInfo, setSize, setPosition]
+  );
 
   // Snap to corner
-  const snapToCorner = useCallback(async (corner: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight') => {
-    if (!isTauri) return;
-    try {
-      const screenInfo = await getScreenInfo();
-      if (!screenInfo) return;
+  const snapToCorner = useCallback(
+    async (corner: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight') => {
+      if (!isTauri) return;
+      try {
+        const screenInfo = await getScreenInfo();
+        if (!screenInfo) return;
 
-      const appWindow = getCurrentWindow();
-      const { workAreaWidth, workAreaHeight, scaleFactor } = screenInfo;
-      const logicalWidth = workAreaWidth / scaleFactor;
-      const logicalHeight = workAreaHeight / scaleFactor;
+        const appWindow = getCurrentWindow();
+        const { workAreaWidth, workAreaHeight, scaleFactor } = screenInfo;
+        const logicalWidth = workAreaWidth / scaleFactor;
+        const logicalHeight = workAreaHeight / scaleFactor;
 
-      const width = Math.floor(logicalWidth / 2);
-      const height = Math.floor(logicalHeight / 2);
-      let x: number;
-      let y: number;
+        const width = Math.floor(logicalWidth / 2);
+        const height = Math.floor(logicalHeight / 2);
+        let x: number;
+        let y: number;
 
-      switch (corner) {
-        case 'topLeft':
-          x = 0;
-          y = 0;
-          break;
-        case 'topRight':
-          x = Math.floor(logicalWidth / 2);
-          y = 0;
-          break;
-        case 'bottomLeft':
-          x = 0;
-          y = Math.floor(logicalHeight / 2);
-          break;
-        case 'bottomRight':
-          x = Math.floor(logicalWidth / 2);
-          y = Math.floor(logicalHeight / 2);
-          break;
+        switch (corner) {
+          case 'topLeft':
+            x = 0;
+            y = 0;
+            break;
+          case 'topRight':
+            x = Math.floor(logicalWidth / 2);
+            y = 0;
+            break;
+          case 'bottomLeft':
+            x = 0;
+            y = Math.floor(logicalHeight / 2);
+            break;
+          case 'bottomRight':
+            x = Math.floor(logicalWidth / 2);
+            y = Math.floor(logicalHeight / 2);
+            break;
+        }
+
+        await appWindow.setSize(new LogicalSize(width, height));
+        await appWindow.setPosition(new LogicalPosition(x, y));
+        setSize({ width, height });
+        setPosition({ x, y });
+      } catch (error) {
+        console.error('Failed to snap to corner:', error);
       }
-
-      await appWindow.setSize(new LogicalSize(width, height));
-      await appWindow.setPosition(new LogicalPosition(x, y));
-      setSize({ width, height });
-      setPosition({ x, y });
-    } catch (error) {
-      console.error('Failed to snap to corner:', error);
-    }
-  }, [isTauri, getScreenInfo, setSize, setPosition]);
+    },
+    [isTauri, getScreenInfo, setSize, setPosition]
+  );
 
   return {
     // State

@@ -3,10 +3,7 @@
  */
 
 export { useNetworkStatus, useApiHealth, type NetworkStatus } from './use-network-status';
-export {
-  useProxy,
-  type UseProxyReturn,
-} from './use-proxy';
+export { useProxy, type UseProxyReturn } from './use-proxy';
 export {
   useGeolocation,
   useLocaleDetection,

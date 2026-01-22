@@ -206,9 +206,7 @@ function getAppInstancesCache(): Map<string, A2UIAppInstance> {
 /**
  * useA2UIAppBuilder Hook
  */
-export function useA2UIAppBuilder(
-  options: UseA2UIAppBuilderOptions = {}
-): UseA2UIAppBuilderReturn {
+export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2UIAppBuilderReturn {
   const { onAction, onDataChange, onAppCreated, onAppDeleted } = options;
 
   const a2ui = useA2UI({ onAction, onDataChange });
@@ -389,7 +387,7 @@ export function useA2UIAppBuilder(
   );
 
   // ========== Helper Functions (defined before callbacks that use them) ==========
-  
+
   // Timer interval management - using module-level Map to persist across renders
   const timerIntervalsRef = useRef(new Map<string, NodeJS.Timeout>());
 
@@ -401,40 +399,49 @@ export function useA2UIAppBuilder(
 
   const performCalculation = useCallback((a: number, b: number, operator: string): number => {
     switch (operator) {
-      case '+': return a + b;
-      case '-': return a - b;
-      case '*': return a * b;
-      case '/': return b !== 0 ? a / b : 0;
-      case '%': return a % b;
-      default: return b;
+      case '+':
+        return a + b;
+      case '-':
+        return a - b;
+      case '*':
+        return a * b;
+      case '/':
+        return b !== 0 ? a / b : 0;
+      case '%':
+        return a % b;
+      default:
+        return b;
     }
   }, []);
 
-  const performUnitConversion = useCallback((value: number, fromUnit: string, toUnit: string, type: string): number => {
-    if (fromUnit === toUnit) return value;
-    
-    const conversionRates: Record<string, Record<string, number>> = {
-      length: { m: 1, cm: 0.01, ft: 0.3048, in: 0.0254 },
-      weight: { kg: 1, g: 0.001, lb: 0.453592, oz: 0.0283495 },
-      temperature: {},
-      currency: { usd: 1, cny: 0.14, eur: 1.08, jpy: 0.0067 },
-    };
-    
-    if (type === 'temperature') {
-      let celsius: number;
-      if (fromUnit === 'celsius') celsius = value;
-      else if (fromUnit === 'fahrenheit') celsius = (value - 32) * 5 / 9;
-      else celsius = value - 273.15;
-      
-      if (toUnit === 'celsius') return celsius;
-      if (toUnit === 'fahrenheit') return celsius * 9 / 5 + 32;
-      return celsius + 273.15;
-    }
-    
-    const rates = conversionRates[type] || conversionRates.length;
-    const baseValue = value * (rates[fromUnit] || 1);
-    return baseValue / (rates[toUnit] || 1);
-  }, []);
+  const performUnitConversion = useCallback(
+    (value: number, fromUnit: string, toUnit: string, type: string): number => {
+      if (fromUnit === toUnit) return value;
+
+      const conversionRates: Record<string, Record<string, number>> = {
+        length: { m: 1, cm: 0.01, ft: 0.3048, in: 0.0254 },
+        weight: { kg: 1, g: 0.001, lb: 0.453592, oz: 0.0283495 },
+        temperature: {},
+        currency: { usd: 1, cny: 0.14, eur: 1.08, jpy: 0.0067 },
+      };
+
+      if (type === 'temperature') {
+        let celsius: number;
+        if (fromUnit === 'celsius') celsius = value;
+        else if (fromUnit === 'fahrenheit') celsius = ((value - 32) * 5) / 9;
+        else celsius = value - 273.15;
+
+        if (toUnit === 'celsius') return celsius;
+        if (toUnit === 'fahrenheit') return (celsius * 9) / 5 + 32;
+        return celsius + 273.15;
+      }
+
+      const rates = conversionRates[type] || conversionRates.length;
+      const baseValue = value * (rates[fromUnit] || 1);
+      return baseValue / (rates[toUnit] || 1);
+    },
+    []
+  );
 
   const stopTimerInterval = useCallback((surfaceId: string): void => {
     const interval = timerIntervalsRef.current.get(surfaceId);
@@ -444,47 +451,57 @@ export function useA2UIAppBuilder(
     }
   }, []);
 
-  const setTimerPreset = useCallback((surfaceId: string, seconds: number): void => {
-    a2ui.setDataValue(surfaceId, '/totalSeconds', seconds);
-    a2ui.setDataValue(surfaceId, '/seconds', 0);
-    a2ui.setDataValue(surfaceId, '/display', formatTime(seconds));
-    a2ui.setDataValue(surfaceId, '/progress', 0);
-    a2ui.setDataValue(surfaceId, '/isRunning', false);
-    stopTimerInterval(surfaceId);
-  }, [a2ui, formatTime, stopTimerInterval]);
+  const setTimerPreset = useCallback(
+    (surfaceId: string, seconds: number): void => {
+      a2ui.setDataValue(surfaceId, '/totalSeconds', seconds);
+      a2ui.setDataValue(surfaceId, '/seconds', 0);
+      a2ui.setDataValue(surfaceId, '/display', formatTime(seconds));
+      a2ui.setDataValue(surfaceId, '/progress', 0);
+      a2ui.setDataValue(surfaceId, '/isRunning', false);
+      stopTimerInterval(surfaceId);
+    },
+    [a2ui, formatTime, stopTimerInterval]
+  );
 
-  const startTimerInterval = useCallback((surfaceId: string): void => {
-    stopTimerInterval(surfaceId);
-    const interval = setInterval(() => {
-      const surface = surfaces[surfaceId];
-      if (!surface || !surface.dataModel.isRunning) {
-        stopTimerInterval(surfaceId);
-        return;
-      }
-      
-      const seconds = (surface.dataModel.seconds as number) || 0;
-      const totalSeconds = (surface.dataModel.totalSeconds as number) || 0;
-      const mode = surface.dataModel.mode as string;
-      
-      if (mode === 'countdown' || mode === 'pomodoro' || mode === 'timer') {
-        const remaining = totalSeconds - seconds;
-        if (remaining <= 0) {
-          a2ui.setDataValue(surfaceId, '/isRunning', false);
-          a2ui.setDataValue(surfaceId, '/display', '00:00');
-          a2ui.setDataValue(surfaceId, '/progress', 100);
+  const startTimerInterval = useCallback(
+    (surfaceId: string): void => {
+      stopTimerInterval(surfaceId);
+      const interval = setInterval(() => {
+        const surface = surfaces[surfaceId];
+        if (!surface || !surface.dataModel.isRunning) {
           stopTimerInterval(surfaceId);
           return;
         }
-        a2ui.setDataValue(surfaceId, '/seconds', seconds + 1);
-        a2ui.setDataValue(surfaceId, '/display', formatTime(remaining - 1));
-        a2ui.setDataValue(surfaceId, '/progress', Math.round(((seconds + 1) / totalSeconds) * 100));
-      } else {
-        a2ui.setDataValue(surfaceId, '/seconds', seconds + 1);
-        a2ui.setDataValue(surfaceId, '/display', formatTime(seconds + 1));
-      }
-    }, 1000);
-    timerIntervalsRef.current.set(surfaceId, interval);
-  }, [a2ui, surfaces, formatTime, stopTimerInterval]);
+
+        const seconds = (surface.dataModel.seconds as number) || 0;
+        const totalSeconds = (surface.dataModel.totalSeconds as number) || 0;
+        const mode = surface.dataModel.mode as string;
+
+        if (mode === 'countdown' || mode === 'pomodoro' || mode === 'timer') {
+          const remaining = totalSeconds - seconds;
+          if (remaining <= 0) {
+            a2ui.setDataValue(surfaceId, '/isRunning', false);
+            a2ui.setDataValue(surfaceId, '/display', '00:00');
+            a2ui.setDataValue(surfaceId, '/progress', 100);
+            stopTimerInterval(surfaceId);
+            return;
+          }
+          a2ui.setDataValue(surfaceId, '/seconds', seconds + 1);
+          a2ui.setDataValue(surfaceId, '/display', formatTime(remaining - 1));
+          a2ui.setDataValue(
+            surfaceId,
+            '/progress',
+            Math.round(((seconds + 1) / totalSeconds) * 100)
+          );
+        } else {
+          a2ui.setDataValue(surfaceId, '/seconds', seconds + 1);
+          a2ui.setDataValue(surfaceId, '/display', formatTime(seconds + 1));
+        }
+      }, 1000);
+      timerIntervalsRef.current.set(surfaceId, interval);
+    },
+    [a2ui, surfaces, formatTime, stopTimerInterval]
+  );
 
   // Helper to update task stats
   const updateTaskStats = useCallback(
@@ -522,7 +539,7 @@ export function useA2UIAppBuilder(
       const today = new Date().toDateString();
       let total = 0;
       let todayTotal = 0;
-      
+
       for (const expense of expenses) {
         const exp = expense as { amount: number; date: string };
         total += exp.amount || 0;
@@ -530,7 +547,7 @@ export function useA2UIAppBuilder(
           todayTotal += exp.amount || 0;
         }
       }
-      
+
       a2ui.setDataValue(surfaceId, '/stats', {
         total,
         totalText: `$${total.toFixed(2)}`,
@@ -623,16 +640,19 @@ export function useA2UIAppBuilder(
         case 'num_9': {
           const currentData = getAppData(surfaceId);
           if (currentData) {
-            const digit = actionType.includes('decimal') ? '.' : actionType.replace(/input_|num_/, '');
+            const digit = actionType.includes('decimal')
+              ? '.'
+              : actionType.replace(/input_|num_/, '');
             const currentDisplay = (currentData.display as string) || '0';
             const waitingForOperand = currentData.waitingForOperand as boolean;
-            
+
             if (waitingForOperand) {
               setAppData(surfaceId, '/display', digit === '.' ? '0.' : digit);
               setAppData(surfaceId, '/waitingForOperand', false);
             } else {
               if (digit === '.' && currentDisplay.includes('.')) break;
-              const newDisplay = currentDisplay === '0' && digit !== '.' ? digit : currentDisplay + digit;
+              const newDisplay =
+                currentDisplay === '0' && digit !== '.' ? digit : currentDisplay + digit;
               setAppData(surfaceId, '/display', newDisplay);
             }
           }
@@ -650,14 +670,20 @@ export function useA2UIAppBuilder(
           const currentData = getAppData(surfaceId);
           if (currentData) {
             const opMap: Record<string, string> = {
-              op_add: '+', op_sub: '-', op_mul: '*', op_div: '/',
-              op_subtract: '-', op_multiply: '*', op_divide: '/', op_percent: '%',
+              op_add: '+',
+              op_sub: '-',
+              op_mul: '*',
+              op_div: '/',
+              op_subtract: '-',
+              op_multiply: '*',
+              op_divide: '/',
+              op_percent: '%',
             };
             const operator = opMap[actionType];
             const currentDisplay = parseFloat((currentData.display as string) || '0');
             const previousValue = currentData.previousValue as number | null;
             const prevOperator = currentData.operator as string | null;
-            
+
             if (previousValue !== null && prevOperator && !currentData.waitingForOperand) {
               const result = performCalculation(previousValue, currentDisplay, prevOperator);
               setAppData(surfaceId, '/display', String(result));
@@ -677,7 +703,7 @@ export function useA2UIAppBuilder(
             const currentDisplay = parseFloat((currentData.display as string) || '0');
             const previousValue = currentData.previousValue as number | null;
             const operator = currentData.operator as string | null;
-            
+
             if (previousValue !== null && operator) {
               const result = performCalculation(previousValue, currentDisplay, operator);
               setAppData(surfaceId, '/display', String(result));
@@ -732,7 +758,11 @@ export function useA2UIAppBuilder(
           if (currentData) {
             setAppData(surfaceId, '/isRunning', false);
             setAppData(surfaceId, '/seconds', 0);
-            setAppData(surfaceId, '/display', formatTime(currentData.totalSeconds as number || 0));
+            setAppData(
+              surfaceId,
+              '/display',
+              formatTime((currentData.totalSeconds as number) || 0)
+            );
             setAppData(surfaceId, '/progress', 0);
             stopTimerInterval(surfaceId);
           }
@@ -796,7 +826,7 @@ export function useA2UIAppBuilder(
             const fromUnit = currentData.fromUnit as string;
             const toUnit = currentData.toUnit as string;
             const converterType = currentData.converterType as string;
-            
+
             const result = performUnitConversion(inputValue, fromUnit, toUnit, converterType);
             setAppData(surfaceId, '/result', result.toFixed(4));
           }
@@ -891,7 +921,11 @@ export function useA2UIAppBuilder(
         case 'add_expense': {
           const currentData = getAppData(surfaceId);
           if (currentData) {
-            const newExpense = currentData.newExpense as { description: string; amount: string; category: string };
+            const newExpense = currentData.newExpense as {
+              description: string;
+              amount: string;
+              category: string;
+            };
             const amount = parseFloat(newExpense?.amount) || 0;
             if (newExpense?.description?.trim() && amount > 0) {
               const expenses = (currentData.expenses as unknown[]) || [];
@@ -905,7 +939,11 @@ export function useA2UIAppBuilder(
               };
               const updatedExpenses = [...expenses, expenseObj];
               setAppData(surfaceId, '/expenses', updatedExpenses);
-              setAppData(surfaceId, '/newExpense', { description: '', amount: '', category: 'food' });
+              setAppData(surfaceId, '/newExpense', {
+                description: '',
+                amount: '',
+                category: 'food',
+              });
               updateExpenseStats(surfaceId, updatedExpenses);
             }
           }
@@ -928,7 +966,21 @@ export function useA2UIAppBuilder(
           onAction?.(action);
       }
     },
-    [getAppData, setAppData, resetAppData, onAction, updateTaskStats, updateHabitStats, updateExpenseStats, performCalculation, startTimerInterval, stopTimerInterval, formatTime, setTimerPreset, performUnitConversion]
+    [
+      getAppData,
+      setAppData,
+      resetAppData,
+      onAction,
+      updateTaskStats,
+      updateHabitStats,
+      updateExpenseStats,
+      performCalculation,
+      startTimerInterval,
+      stopTimerInterval,
+      formatTime,
+      setTimerPreset,
+      performUnitConversion,
+    ]
   );
 
   // Memoized templates
@@ -943,7 +995,7 @@ export function useA2UIAppBuilder(
     (appId: string): string | null => {
       const surface = surfaces[appId];
       const instance = getAppInstancesCache().get(appId);
-      
+
       if (!surface || !instance) {
         console.error(`[A2UI AppBuilder] Cannot export - app not found: ${appId}`);
         return null;
@@ -1002,7 +1054,7 @@ export function useA2UIAppBuilder(
     (jsonData: string, customName?: string): string | null => {
       try {
         const parsed = JSON.parse(jsonData);
-        
+
         // Validate structure
         if (!parsed.app || !parsed.app.components || !Array.isArray(parsed.app.components)) {
           console.error('[A2UI AppBuilder] Invalid import format: missing app or components');
@@ -1014,15 +1066,10 @@ export function useA2UIAppBuilder(
         const name = customName || app.name || 'Imported App';
 
         // Create the surface
-        a2ui.createQuickSurface(
-          newId,
-          app.components,
-          app.dataModel || {},
-          {
-            type: app.surfaceType || 'inline',
-            title: app.title || name,
-          }
-        );
+        a2ui.createQuickSurface(newId, app.components, app.dataModel || {}, {
+          type: app.surfaceType || 'inline',
+          title: app.title || name,
+        });
 
         // Store app instance
         const instance: A2UIAppInstance = {
@@ -1110,7 +1157,7 @@ export function useA2UIAppBuilder(
     (jsonData: string): number => {
       try {
         const parsed = JSON.parse(jsonData);
-        
+
         if (!parsed.apps || !Array.isArray(parsed.apps)) {
           console.error('[A2UI AppBuilder] Invalid backup format');
           return 0;
@@ -1142,7 +1189,7 @@ export function useA2UIAppBuilder(
     (appId: string): string | null => {
       const jsonData = exportApp(appId);
       if (!jsonData) return null;
-      
+
       try {
         // Compress the data by removing unnecessary whitespace
         const compressed = JSON.stringify(JSON.parse(jsonData));
@@ -1181,7 +1228,7 @@ export function useA2UIAppBuilder(
     (appId: string, baseUrl?: string): string | null => {
       const shareCode = generateShareCode(appId);
       if (!shareCode) return null;
-      
+
       const base = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
       return `${base}/share/app?code=${encodeURIComponent(shareCode)}`;
     },
@@ -1194,7 +1241,7 @@ export function useA2UIAppBuilder(
   const copyAppToClipboard = useCallback(
     async (appId: string, format: 'json' | 'code' | 'url' = 'code'): Promise<boolean> => {
       let content: string | null = null;
-      
+
       switch (format) {
         case 'json':
           content = exportApp(appId);
@@ -1206,9 +1253,9 @@ export function useA2UIAppBuilder(
           content = generateShareUrl(appId);
           break;
       }
-      
+
       if (!content) return false;
-      
+
       try {
         await navigator.clipboard.writeText(content);
         return true;
@@ -1227,10 +1274,10 @@ export function useA2UIAppBuilder(
     (appId: string): { title: string; text: string; url: string } | null => {
       const instance = getAppInstance(appId);
       if (!instance) return null;
-      
+
       const shareUrl = generateShareUrl(appId);
       if (!shareUrl) return null;
-      
+
       return {
         title: instance.name,
         text: `Check out my "${instance.name}" app built with A2UI!`,
@@ -1247,7 +1294,7 @@ export function useA2UIAppBuilder(
     async (appId: string): Promise<boolean> => {
       const shareData = getShareData(appId);
       if (!shareData) return false;
-      
+
       // Check if Web Share API is supported
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {
@@ -1261,7 +1308,7 @@ export function useA2UIAppBuilder(
           return false;
         }
       }
-      
+
       // Fallback: copy URL to clipboard
       return copyAppToClipboard(appId, 'url');
     },
@@ -1275,11 +1322,11 @@ export function useA2UIAppBuilder(
     (appId: string): Record<string, string> | null => {
       const shareData = getShareData(appId);
       if (!shareData) return null;
-      
+
       const encodedUrl = encodeURIComponent(shareData.url);
       const encodedTitle = encodeURIComponent(shareData.title);
       const encodedText = encodeURIComponent(shareData.text);
-      
+
       return {
         twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
         facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
@@ -1326,20 +1373,17 @@ export function useA2UIAppBuilder(
   /**
    * Set app thumbnail
    */
-  const setAppThumbnail = useCallback(
-    (appId: string, thumbnail: string): void => {
-      const instances = getAppInstancesCache();
-      const instance = instances.get(appId);
+  const setAppThumbnail = useCallback((appId: string, thumbnail: string): void => {
+    const instances = getAppInstancesCache();
+    const instance = instances.get(appId);
 
-      if (instance) {
-        instance.thumbnail = thumbnail;
-        instance.thumbnailUpdatedAt = Date.now();
-        instance.lastModified = Date.now();
-        saveAppInstances(instances);
-      }
-    },
-    []
-  );
+    if (instance) {
+      instance.thumbnail = thumbnail;
+      instance.thumbnailUpdatedAt = Date.now();
+      instance.lastModified = Date.now();
+      saveAppInstances(instances);
+    }
+  }, []);
 
   /**
    * Clear app thumbnail
@@ -1395,39 +1439,36 @@ export function useA2UIAppBuilder(
   /**
    * Check if app is ready for publishing and list missing fields
    */
-  const prepareForPublish = useCallback(
-    (appId: string): { valid: boolean; missing: string[] } => {
-      const instance = getAppInstancesCache().get(appId);
-      const missing: string[] = [];
+  const prepareForPublish = useCallback((appId: string): { valid: boolean; missing: string[] } => {
+    const instance = getAppInstancesCache().get(appId);
+    const missing: string[] = [];
 
-      if (!instance) {
-        return { valid: false, missing: ['App not found'] };
-      }
+    if (!instance) {
+      return { valid: false, missing: ['App not found'] };
+    }
 
-      // Required fields for publishing
-      if (!instance.name || instance.name.trim().length < 2) {
-        missing.push('name (at least 2 characters)');
-      }
-      if (!instance.description || instance.description.trim().length < 10) {
-        missing.push('description (at least 10 characters)');
-      }
-      if (!instance.thumbnail) {
-        missing.push('thumbnail');
-      }
-      if (!instance.category) {
-        missing.push('category');
-      }
-      if (!instance.version) {
-        missing.push('version');
-      }
+    // Required fields for publishing
+    if (!instance.name || instance.name.trim().length < 2) {
+      missing.push('name (at least 2 characters)');
+    }
+    if (!instance.description || instance.description.trim().length < 10) {
+      missing.push('description (at least 10 characters)');
+    }
+    if (!instance.thumbnail) {
+      missing.push('thumbnail');
+    }
+    if (!instance.category) {
+      missing.push('category');
+    }
+    if (!instance.version) {
+      missing.push('version');
+    }
 
-      return {
-        valid: missing.length === 0,
-        missing,
-      };
-    },
-    []
-  );
+    return {
+      valid: missing.length === 0,
+      missing,
+    };
+  }, []);
 
   return {
     // Template management

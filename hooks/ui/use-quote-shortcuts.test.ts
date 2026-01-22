@@ -45,7 +45,10 @@ describe('useQuoteShortcuts', () => {
     jest.clearAllMocks();
 
     // Reset mock store state
-    mockQuoteStore.quotedTexts = [{ id: '1', text: 'quote 1' }, { id: '2', text: 'quote 2' }];
+    mockQuoteStore.quotedTexts = [
+      { id: '1', text: 'quote 1' },
+      { id: '2', text: 'quote 2' },
+    ];
     mockQuoteStore.isSelectionMode = false;
     mockQuoteStore.selectedIds = new Set();
 
@@ -63,7 +66,10 @@ describe('useQuoteShortcuts', () => {
     keydownHandler = null;
   });
 
-  const createKeyboardEvent = (key: string, options: Partial<KeyboardEvent> = {}): KeyboardEvent => {
+  const createKeyboardEvent = (
+    key: string,
+    options: Partial<KeyboardEvent> = {}
+  ): KeyboardEvent => {
     return {
       key,
       ctrlKey: false,
@@ -279,10 +285,12 @@ describe('useQuoteShortcuts', () => {
 
       const inputElement = document.createElement('input');
       act(() => {
-        keydownHandler?.(createKeyboardEvent('s', { 
-          ctrlKey: true, 
-          target: inputElement 
-        } as unknown as Partial<KeyboardEvent>));
+        keydownHandler?.(
+          createKeyboardEvent('s', {
+            ctrlKey: true,
+            target: inputElement,
+          } as unknown as Partial<KeyboardEvent>)
+        );
       });
 
       expect(mockQuoteStore.toggleSelectionMode).not.toHaveBeenCalled();
@@ -293,10 +301,12 @@ describe('useQuoteShortcuts', () => {
 
       const textareaElement = document.createElement('textarea');
       act(() => {
-        keydownHandler?.(createKeyboardEvent('a', { 
-          ctrlKey: true, 
-          target: textareaElement 
-        } as unknown as Partial<KeyboardEvent>));
+        keydownHandler?.(
+          createKeyboardEvent('a', {
+            ctrlKey: true,
+            target: textareaElement,
+          } as unknown as Partial<KeyboardEvent>)
+        );
       });
 
       expect(mockQuoteStore.selectAll).not.toHaveBeenCalled();

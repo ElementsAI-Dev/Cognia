@@ -43,7 +43,7 @@ jest.mock('@/lib/a2ui/data-model', () => ({
   resolveStringOrPath: jest.fn((value, dataModel, defaultValue) => {
     if (typeof value === 'string') return value;
     if (value && typeof value === 'object' && 'path' in value) {
-      return dataModel[value.path.replace(/^\//, '')] as string ?? defaultValue;
+      return (dataModel[value.path.replace(/^\//, '')] as string) ?? defaultValue;
     }
     return defaultValue;
   }),
@@ -175,9 +175,7 @@ describe('useA2UIBoundValue', () => {
   });
 
   it('should return current value and setter', () => {
-    const { result } = renderHook(() =>
-      useA2UIBoundValue('test-surface', '/count', 0)
-    );
+    const { result } = renderHook(() => useA2UIBoundValue('test-surface', '/count', 0));
 
     const [value, setValue] = result.current;
 
@@ -186,9 +184,7 @@ describe('useA2UIBoundValue', () => {
   });
 
   it('should return default value when path not found', () => {
-    const { result } = renderHook(() =>
-      useA2UIBoundValue('test-surface', '/nonexistent', 100)
-    );
+    const { result } = renderHook(() => useA2UIBoundValue('test-surface', '/nonexistent', 100));
 
     const [value] = result.current;
 
@@ -196,9 +192,7 @@ describe('useA2UIBoundValue', () => {
   });
 
   it('should update value via setter', () => {
-    const { result } = renderHook(() =>
-      useA2UIBoundValue('test-surface', '/count', 0)
-    );
+    const { result } = renderHook(() => useA2UIBoundValue('test-surface', '/count', 0));
 
     act(() => {
       result.current[1](10);
@@ -223,18 +217,14 @@ describe('useA2UIWatchPaths', () => {
   });
 
   it('should return values for all watched paths', () => {
-    const { result } = renderHook(() =>
-      useA2UIWatchPaths('test-surface', ['/a', '/b'])
-    );
+    const { result } = renderHook(() => useA2UIWatchPaths('test-surface', ['/a', '/b']));
 
     expect(result.current['/a']).toBe(1);
     expect(result.current['/b']).toBe(2);
   });
 
   it('should return empty object for non-existent surface', () => {
-    const { result } = renderHook(() =>
-      useA2UIWatchPaths('non-existent', ['/a', '/b'])
-    );
+    const { result } = renderHook(() => useA2UIWatchPaths('non-existent', ['/a', '/b']));
 
     expect(result.current).toEqual({});
   });
@@ -254,9 +244,7 @@ describe('useA2UIFormField', () => {
   });
 
   it('should return field value and handlers', () => {
-    const { result } = renderHook(() =>
-      useA2UIFormField('test-surface', '/username')
-    );
+    const { result } = renderHook(() => useA2UIFormField('test-surface', '/username'));
 
     expect(result.current.value).toBe('john_doe');
     expect(typeof result.current.onChange).toBe('function');
@@ -272,9 +260,7 @@ describe('useA2UIFormField', () => {
   });
 
   it('should call setDataValue on change', () => {
-    const { result } = renderHook(() =>
-      useA2UIFormField('test-surface', '/username')
-    );
+    const { result } = renderHook(() => useA2UIFormField('test-surface', '/username'));
 
     act(() => {
       result.current.onChange('new_username');
@@ -298,9 +284,7 @@ describe('useA2UIFormField', () => {
   });
 
   it('should emit data change on blur', () => {
-    const { result } = renderHook(() =>
-      useA2UIFormField('test-surface', '/username')
-    );
+    const { result } = renderHook(() => useA2UIFormField('test-surface', '/username'));
 
     act(() => {
       result.current.onBlur();

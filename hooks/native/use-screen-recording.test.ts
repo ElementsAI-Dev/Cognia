@@ -22,9 +22,7 @@ describe('useScreenRecording', () => {
   const mockStore = {
     status: 'Idle',
     duration: 0,
-    monitors: [
-      { index: 0, name: 'Primary Monitor', width: 1920, height: 1080, is_primary: true },
-    ],
+    monitors: [{ index: 0, name: 'Primary Monitor', width: 1920, height: 1080, is_primary: true }],
     selectedMonitor: 0,
     ffmpegAvailable: true,
     isLoading: false,
@@ -88,7 +86,7 @@ describe('useScreenRecording', () => {
   describe('recording controls', () => {
     it('should start fullscreen recording', async () => {
       const onRecordingStart = jest.fn();
-      const { result } = renderHook(() => 
+      const { result } = renderHook(() =>
         useScreenRecording({ autoInitialize: false, onRecordingStart })
       );
 
@@ -109,7 +107,9 @@ describe('useScreenRecording', () => {
         expect(recordingId).toBe('test-recording-id');
       });
 
-      expect(mockStore.startRecording).toHaveBeenCalledWith('window', { windowTitle: 'Test Window' });
+      expect(mockStore.startRecording).toHaveBeenCalledWith('window', {
+        windowTitle: 'Test Window',
+      });
     });
 
     it('should start region recording', async () => {
@@ -146,7 +146,7 @@ describe('useScreenRecording', () => {
 
     it('should stop recording and call callback', async () => {
       const onRecordingStop = jest.fn();
-      const { result } = renderHook(() => 
+      const { result } = renderHook(() =>
         useScreenRecording({ autoInitialize: false, onRecordingStop })
       );
 
@@ -225,7 +225,7 @@ describe('useScreenRecording', () => {
   describe('error handling', () => {
     it('should call onError callback when error occurs', async () => {
       const onError = jest.fn();
-      
+
       (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue({
         ...mockStore,
         error: 'Test error',

@@ -40,22 +40,97 @@ export interface TransformActionInfo {
 
 /** Available transform actions */
 export const TRANSFORM_ACTIONS: TransformActionInfo[] = [
-  { id: 'format_json', label: 'Format JSON', description: 'Pretty print JSON', icon: 'braces', category: 'format' },
-  { id: 'minify_json', label: 'Minify JSON', description: 'Compress JSON', icon: 'minimize', category: 'format' },
-  { id: 'extract_urls', label: 'Extract URLs', description: 'Get all URLs', icon: 'link', category: 'extract' },
-  { id: 'extract_emails', label: 'Extract Emails', description: 'Get all emails', icon: 'mail', category: 'extract' },
-  { id: 'trim_whitespace', label: 'Trim Whitespace', description: 'Remove leading/trailing spaces', icon: 'text-cursor-input', category: 'format' },
-  { id: 'to_uppercase', label: 'To Uppercase', description: 'Convert to uppercase', icon: 'arrow-up', category: 'case' },
-  { id: 'to_lowercase', label: 'To Lowercase', description: 'Convert to lowercase', icon: 'arrow-down', category: 'case' },
-  { id: 'remove_empty_lines', label: 'Remove Empty Lines', description: 'Remove blank lines', icon: 'minus', category: 'lines' },
-  { id: 'sort_lines', label: 'Sort Lines', description: 'Alphabetically sort lines', icon: 'arrow-up-down', category: 'lines' },
-  { id: 'unique_lines', label: 'Unique Lines', description: 'Remove duplicate lines', icon: 'filter', category: 'lines' },
-  { id: 'escape_html', label: 'Escape HTML', description: 'Encode HTML entities', icon: 'code', category: 'encode' },
-  { id: 'unescape_html', label: 'Unescape HTML', description: 'Decode HTML entities', icon: 'file-code', category: 'encode' },
+  {
+    id: 'format_json',
+    label: 'Format JSON',
+    description: 'Pretty print JSON',
+    icon: 'braces',
+    category: 'format',
+  },
+  {
+    id: 'minify_json',
+    label: 'Minify JSON',
+    description: 'Compress JSON',
+    icon: 'minimize',
+    category: 'format',
+  },
+  {
+    id: 'extract_urls',
+    label: 'Extract URLs',
+    description: 'Get all URLs',
+    icon: 'link',
+    category: 'extract',
+  },
+  {
+    id: 'extract_emails',
+    label: 'Extract Emails',
+    description: 'Get all emails',
+    icon: 'mail',
+    category: 'extract',
+  },
+  {
+    id: 'trim_whitespace',
+    label: 'Trim Whitespace',
+    description: 'Remove leading/trailing spaces',
+    icon: 'text-cursor-input',
+    category: 'format',
+  },
+  {
+    id: 'to_uppercase',
+    label: 'To Uppercase',
+    description: 'Convert to uppercase',
+    icon: 'arrow-up',
+    category: 'case',
+  },
+  {
+    id: 'to_lowercase',
+    label: 'To Lowercase',
+    description: 'Convert to lowercase',
+    icon: 'arrow-down',
+    category: 'case',
+  },
+  {
+    id: 'remove_empty_lines',
+    label: 'Remove Empty Lines',
+    description: 'Remove blank lines',
+    icon: 'minus',
+    category: 'lines',
+  },
+  {
+    id: 'sort_lines',
+    label: 'Sort Lines',
+    description: 'Alphabetically sort lines',
+    icon: 'arrow-up-down',
+    category: 'lines',
+  },
+  {
+    id: 'unique_lines',
+    label: 'Unique Lines',
+    description: 'Remove duplicate lines',
+    icon: 'filter',
+    category: 'lines',
+  },
+  {
+    id: 'escape_html',
+    label: 'Escape HTML',
+    description: 'Encode HTML entities',
+    icon: 'code',
+    category: 'encode',
+  },
+  {
+    id: 'unescape_html',
+    label: 'Unescape HTML',
+    description: 'Decode HTML entities',
+    icon: 'file-code',
+    category: 'encode',
+  },
 ];
 
 /** Category display information */
-export const CATEGORY_INFO: Record<ContentCategory, { label: string; icon: string; color: string }> = {
+export const CATEGORY_INFO: Record<
+  ContentCategory,
+  { label: string; icon: string; color: string }
+> = {
   PlainText: { label: 'Plain Text', icon: 'file-text', color: 'gray' },
   Url: { label: 'URL', icon: 'link', color: 'blue' },
   Email: { label: 'Email', icon: 'mail', color: 'green' },
@@ -142,142 +217,163 @@ export function useClipboardContext(options: UseClipboardContextOptions = {}) {
   }, [store]);
 
   // Smart paste - analyze and potentially transform content before pasting
-  const smartPaste = useCallback(async (targetContext?: 'code' | 'text' | 'json' | 'markdown') => {
-    const result = await store.getCurrentWithAnalysis();
-    if (!result) return null;
+  const smartPaste = useCallback(
+    async (targetContext?: 'code' | 'text' | 'json' | 'markdown') => {
+      const result = await store.getCurrentWithAnalysis();
+      if (!result) return null;
 
-    const { content, analysis } = result;
+      const { content, analysis } = result;
 
-    // Apply automatic transformations based on target context
-    if (targetContext) {
-      switch (targetContext) {
-        case 'json':
-          if (analysis.category === 'Json') {
-            const formatted = await store.transformContent(content, 'format_json');
-            return formatted || content;
-          }
-          break;
-        case 'code':
-          // Escape if pasting into code strings
-          if (analysis.category === 'Markup') {
-            const escaped = await store.transformContent(content, 'escape_html');
-            return escaped || content;
-          }
-          break;
-        case 'markdown':
-          // Convert HTML to escaped version for markdown
-          if (analysis.category === 'Markup') {
-            const escaped = await store.transformContent(content, 'escape_html');
-            return escaped || content;
-          }
-          break;
+      // Apply automatic transformations based on target context
+      if (targetContext) {
+        switch (targetContext) {
+          case 'json':
+            if (analysis.category === 'Json') {
+              const formatted = await store.transformContent(content, 'format_json');
+              return formatted || content;
+            }
+            break;
+          case 'code':
+            // Escape if pasting into code strings
+            if (analysis.category === 'Markup') {
+              const escaped = await store.transformContent(content, 'escape_html');
+              return escaped || content;
+            }
+            break;
+          case 'markdown':
+            // Convert HTML to escaped version for markdown
+            if (analysis.category === 'Markup') {
+              const escaped = await store.transformContent(content, 'escape_html');
+              return escaped || content;
+            }
+            break;
+        }
       }
-    }
 
-    return content;
-  }, [store]);
+      return content;
+    },
+    [store]
+  );
 
   // Quick transform and copy
-  const quickTransform = useCallback(async (action: TransformAction) => {
-    const content = store.currentContent;
-    if (!content) return null;
+  const quickTransform = useCallback(
+    async (action: TransformAction) => {
+      const content = store.currentContent;
+      if (!content) return null;
 
-    await store.transformAndWrite(content, action);
-    return store.currentContent;
-  }, [store]);
+      await store.transformAndWrite(content, action);
+      return store.currentContent;
+    },
+    [store]
+  );
 
   // Get applicable transform actions based on content category
-  const getApplicableTransforms = useCallback((category?: ContentCategory): TransformActionInfo[] => {
-    const cat = category || store.currentAnalysis?.category;
-    if (!cat) return TRANSFORM_ACTIONS;
+  const getApplicableTransforms = useCallback(
+    (category?: ContentCategory): TransformActionInfo[] => {
+      const cat = category || store.currentAnalysis?.category;
+      if (!cat) return TRANSFORM_ACTIONS;
 
-    switch (cat) {
-      case 'Json':
-        return TRANSFORM_ACTIONS.filter(a => 
-          ['format_json', 'minify_json', 'to_lowercase', 'to_uppercase'].includes(a.id)
-        );
-      case 'Code':
-      case 'Sql':
-        return TRANSFORM_ACTIONS.filter(a => 
-          ['trim_whitespace', 'remove_empty_lines', 'sort_lines'].includes(a.id)
-        );
-      case 'Url':
-        return TRANSFORM_ACTIONS.filter(a => 
-          ['extract_urls', 'to_lowercase'].includes(a.id)
-        );
-      case 'Email':
-        return TRANSFORM_ACTIONS.filter(a => 
-          ['extract_emails', 'to_lowercase'].includes(a.id)
-        );
-      case 'Markup':
-        return TRANSFORM_ACTIONS.filter(a => 
-          ['escape_html', 'unescape_html', 'trim_whitespace'].includes(a.id)
-        );
-      case 'NaturalText':
-      case 'PlainText':
-        return TRANSFORM_ACTIONS.filter(a => 
-          ['to_uppercase', 'to_lowercase', 'trim_whitespace', 'remove_empty_lines', 'sort_lines', 'unique_lines'].includes(a.id)
-        );
-      default:
-        return TRANSFORM_ACTIONS;
-    }
-  }, [store.currentAnalysis?.category]);
+      switch (cat) {
+        case 'Json':
+          return TRANSFORM_ACTIONS.filter((a) =>
+            ['format_json', 'minify_json', 'to_lowercase', 'to_uppercase'].includes(a.id)
+          );
+        case 'Code':
+        case 'Sql':
+          return TRANSFORM_ACTIONS.filter((a) =>
+            ['trim_whitespace', 'remove_empty_lines', 'sort_lines'].includes(a.id)
+          );
+        case 'Url':
+          return TRANSFORM_ACTIONS.filter((a) => ['extract_urls', 'to_lowercase'].includes(a.id));
+        case 'Email':
+          return TRANSFORM_ACTIONS.filter((a) => ['extract_emails', 'to_lowercase'].includes(a.id));
+        case 'Markup':
+          return TRANSFORM_ACTIONS.filter((a) =>
+            ['escape_html', 'unescape_html', 'trim_whitespace'].includes(a.id)
+          );
+        case 'NaturalText':
+        case 'PlainText':
+          return TRANSFORM_ACTIONS.filter((a) =>
+            [
+              'to_uppercase',
+              'to_lowercase',
+              'trim_whitespace',
+              'remove_empty_lines',
+              'sort_lines',
+              'unique_lines',
+            ].includes(a.id)
+          );
+        default:
+          return TRANSFORM_ACTIONS;
+      }
+    },
+    [store.currentAnalysis?.category]
+  );
 
   // Get category display info
-  const getCategoryInfo = useCallback((category?: ContentCategory) => {
-    const cat = category || store.currentAnalysis?.category;
-    return cat ? CATEGORY_INFO[cat] : null;
-  }, [store.currentAnalysis?.category]);
+  const getCategoryInfo = useCallback(
+    (category?: ContentCategory) => {
+      const cat = category || store.currentAnalysis?.category;
+      return cat ? CATEGORY_INFO[cat] : null;
+    },
+    [store.currentAnalysis?.category]
+  );
 
   // Get language display info
-  const getLanguageInfo = useCallback((language?: DetectedLanguage) => {
-    const lang = language || store.currentAnalysis?.language;
-    return lang ? LANGUAGE_INFO[lang] : null;
-  }, [store.currentAnalysis?.language]);
+  const getLanguageInfo = useCallback(
+    (language?: DetectedLanguage) => {
+      const lang = language || store.currentAnalysis?.language;
+      return lang ? LANGUAGE_INFO[lang] : null;
+    },
+    [store.currentAnalysis?.language]
+  );
 
   // Execute suggested action
-  const executeAction = useCallback(async (actionId: string) => {
-    const content = store.currentContent;
-    if (!content) return;
+  const executeAction = useCallback(
+    async (actionId: string) => {
+      const content = store.currentContent;
+      if (!content) return;
 
-    switch (actionId) {
-      case 'copy':
-        await store.writeText(content);
-        break;
-      case 'format_json':
-      case 'minify_json':
-      case 'extract_urls':
-      case 'extract_emails':
-      case 'trim_whitespace':
-      case 'to_uppercase':
-      case 'to_lowercase':
-      case 'remove_empty_lines':
-      case 'sort_lines':
-      case 'unique_lines':
-      case 'escape_html':
-      case 'unescape_html':
-        await quickTransform(actionId as TransformAction);
-        break;
-      case 'open_url':
-        const urls = store.currentAnalysis?.entities.filter(e => e.entity_type === 'url');
-        if (urls && urls.length > 0) {
-          window.open(urls[0].value, '_blank');
-        }
-        break;
-      case 'compose_email':
-        const emails = store.currentAnalysis?.entities.filter(e => e.entity_type === 'email');
-        if (emails && emails.length > 0) {
-          window.open(`mailto:${emails[0].value}`, '_blank');
-        }
-        break;
-      default:
-        console.log('Action not implemented:', actionId);
-    }
-  }, [store, quickTransform]);
+      switch (actionId) {
+        case 'copy':
+          await store.writeText(content);
+          break;
+        case 'format_json':
+        case 'minify_json':
+        case 'extract_urls':
+        case 'extract_emails':
+        case 'trim_whitespace':
+        case 'to_uppercase':
+        case 'to_lowercase':
+        case 'remove_empty_lines':
+        case 'sort_lines':
+        case 'unique_lines':
+        case 'escape_html':
+        case 'unescape_html':
+          await quickTransform(actionId as TransformAction);
+          break;
+        case 'open_url':
+          const urls = store.currentAnalysis?.entities.filter((e) => e.entity_type === 'url');
+          if (urls && urls.length > 0) {
+            window.open(urls[0].value, '_blank');
+          }
+          break;
+        case 'compose_email':
+          const emails = store.currentAnalysis?.entities.filter((e) => e.entity_type === 'email');
+          if (emails && emails.length > 0) {
+            window.open(`mailto:${emails[0].value}`, '_blank');
+          }
+          break;
+        default:
+          console.log('Action not implemented:', actionId);
+      }
+    },
+    [store, quickTransform]
+  );
 
   // Computed properties
-  const hasSensitiveContent = useMemo(() => 
-    store.currentAnalysis?.is_sensitive ?? false,
+  const hasSensitiveContent = useMemo(
+    () => store.currentAnalysis?.is_sensitive ?? false,
     [store.currentAnalysis?.is_sensitive]
   );
 

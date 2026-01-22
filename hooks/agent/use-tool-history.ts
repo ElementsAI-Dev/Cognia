@@ -1,6 +1,6 @@
 /**
  * useToolHistory - React hook for tool call history management
- * 
+ *
  * Provides convenient access to tool history store with computed values,
  * memoized callbacks, and integration with the history optimizer.
  */
@@ -69,7 +69,7 @@ export interface UseToolHistoryReturn {
       chatId?: string;
     }
   ) => ToolCallRecord;
-  
+
   /** Update a call's result */
   updateCallResult: (
     callId: string,
@@ -113,14 +113,20 @@ export interface UseToolHistoryReturn {
   getRecommendations: (currentInput: string) => ToolRecommendation[];
 
   /** Score a prompt's quality for a tool */
-  scorePrompt: (prompt: string, toolId: string) => {
+  scorePrompt: (
+    prompt: string,
+    toolId: string
+  ) => {
     score: number;
     factors: Record<string, number>;
     suggestions: string[];
   };
 
   /** Find similar successful calls */
-  findSimilar: (prompt: string, limit?: number) => Array<{
+  findSimilar: (
+    prompt: string,
+    limit?: number
+  ) => Array<{
     record: ToolCallRecord;
     similarity: number;
   }>;
@@ -145,9 +151,7 @@ export interface UseToolHistoryReturn {
   getSuccessRate: (toolId: string) => number;
 }
 
-export function useToolHistory(
-  options: UseToolHistoryOptions = {}
-): UseToolHistoryReturn {
+export function useToolHistory(options: UseToolHistoryOptions = {}): UseToolHistoryReturn {
   const { recentLimit = 10, frequentLimit = 10 } = options;
 
   // Store selectors
@@ -180,15 +184,9 @@ export function useToolHistory(
     [storeGetFrequentTools, frequentLimit]
   );
 
-  const favorites = useMemo(
-    () => storeGetFavorites(),
-    [storeGetFavorites]
-  );
+  const favorites = useMemo(() => storeGetFavorites(), [storeGetFavorites]);
 
-  const pinnedTools = useMemo(
-    () => storeGetPinnedTools(),
-    [storeGetPinnedTools]
-  );
+  const pinnedTools = useMemo(() => storeGetPinnedTools(), [storeGetPinnedTools]);
 
   // Actions
   const recordCall = useCallback(
@@ -205,9 +203,10 @@ export function useToolHistory(
         chatId?: string;
       }
     ): ToolCallRecord => {
-      const toolId = toolType === 'mcp' && callOptions?.serverId
-        ? createToolId('mcp', toolName, callOptions.serverId)
-        : createToolId(toolType, toolName);
+      const toolId =
+        toolType === 'mcp' && callOptions?.serverId
+          ? createToolId('mcp', toolName, callOptions.serverId)
+          : createToolId(toolType, toolName);
 
       return storeRecordCall({
         toolId,

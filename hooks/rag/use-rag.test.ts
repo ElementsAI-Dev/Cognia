@@ -50,10 +50,18 @@ jest.mock('@/stores', () => ({
 }));
 
 const mockIndexDocument = ragLib.indexDocument as jest.MockedFunction<typeof ragLib.indexDocument>;
-const mockIndexDocuments = ragLib.indexDocuments as jest.MockedFunction<typeof ragLib.indexDocuments>;
-const mockRetrieveContext = ragLib.retrieveContext as jest.MockedFunction<typeof ragLib.retrieveContext>;
-const mockCreateRAGPrompt = ragLib.createRAGPrompt as jest.MockedFunction<typeof ragLib.createRAGPrompt>;
-const mockChunkDocument = chunkingLib.chunkDocument as jest.MockedFunction<typeof chunkingLib.chunkDocument>;
+const mockIndexDocuments = ragLib.indexDocuments as jest.MockedFunction<
+  typeof ragLib.indexDocuments
+>;
+const mockRetrieveContext = ragLib.retrieveContext as jest.MockedFunction<
+  typeof ragLib.retrieveContext
+>;
+const mockCreateRAGPrompt = ragLib.createRAGPrompt as jest.MockedFunction<
+  typeof ragLib.createRAGPrompt
+>;
+const mockChunkDocument = chunkingLib.chunkDocument as jest.MockedFunction<
+  typeof chunkingLib.chunkDocument
+>;
 
 describe('useRAG', () => {
   beforeEach(() => {
@@ -209,7 +217,9 @@ describe('useRAG', () => {
   describe('retrieve', () => {
     it('should retrieve context successfully', async () => {
       const mockContext = {
-        documents: [{ id: 'doc1', content: 'Relevant content', score: 0.9, distance: 0.1, similarity: 0.9 }],
+        documents: [
+          { id: 'doc1', content: 'Relevant content', score: 0.9, distance: 0.1, similarity: 0.9 },
+        ],
         query: 'test query',
         formattedContext: 'Formatted context',
         totalTokensEstimate: 100,
@@ -341,10 +351,12 @@ describe('useRAG', () => {
     });
 
     it('should estimate chunk count for long text', () => {
-      const { result } = renderHook(() => useRAG({
-        chunkSize: 1000,
-        chunkOverlap: 200,
-      }));
+      const { result } = renderHook(() =>
+        useRAG({
+          chunkSize: 1000,
+          chunkOverlap: 200,
+        })
+      );
 
       // With chunkSize=1000 and overlap=200, effective chunk = 800
       // For 2500 chars: (2500 - 200) / 800 = 2.875 -> ceil = 3

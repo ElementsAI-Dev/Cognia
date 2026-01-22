@@ -47,15 +47,8 @@ export {
   type ClipboardTemplate,
   type TransformActionInfo,
 } from './use-clipboard-context';
-export {
-  useProject,
-  type UseProjectReturn,
-} from './use-project';
-export {
-  useAutoSync,
-  type UseAutoSyncOptions,
-  type UseAutoSyncReturn,
-} from './use-auto-sync';
+export { useProject, type UseProjectReturn } from './use-project';
+export { useAutoSync, type UseAutoSyncOptions, type UseAutoSyncReturn } from './use-auto-sync';
 export {
   useContextStats,
   type ContextStats,

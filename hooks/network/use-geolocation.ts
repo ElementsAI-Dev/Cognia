@@ -43,9 +43,7 @@ const DEFAULT_OPTIONS: UseGeolocationOptions = {
   immediate: false,
 };
 
-export function useGeolocation(
-  options: UseGeolocationOptions = {}
-): UseGeolocationReturn {
+export function useGeolocation(options: UseGeolocationOptions = {}): UseGeolocationReturn {
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
   const [state, setState] = useState<UseGeolocationState>(() => ({
     position: null,
@@ -123,7 +121,12 @@ export function useGeolocation(
       updateState({ error, loading: false });
       return null;
     }
-  }, [mergedOptions.enableHighAccuracy, mergedOptions.timeout, mergedOptions.maximumAge, updateState]);
+  }, [
+    mergedOptions.enableHighAccuracy,
+    mergedOptions.timeout,
+    mergedOptions.maximumAge,
+    updateState,
+  ]);
 
   const startWatch = useCallback(async () => {
     if (!geolocationService.isSupported() || isWatching.current) {
@@ -152,7 +155,12 @@ export function useGeolocation(
       updateState({ error, loading: false });
       isWatching.current = false;
     }
-  }, [mergedOptions.enableHighAccuracy, mergedOptions.timeout, mergedOptions.maximumAge, updateState]);
+  }, [
+    mergedOptions.enableHighAccuracy,
+    mergedOptions.timeout,
+    mergedOptions.maximumAge,
+    updateState,
+  ]);
 
   const clearWatch = useCallback(async () => {
     if (isWatching.current) {
@@ -194,7 +202,13 @@ export function useGeolocation(
         isWatching.current = false;
       }
     };
-  }, [checkPermissions, getCurrentPosition, mergedOptions.immediate, mergedOptions.watch, startWatch]);
+  }, [
+    checkPermissions,
+    getCurrentPosition,
+    mergedOptions.immediate,
+    mergedOptions.watch,
+    startWatch,
+  ]);
 
   return {
     ...state,

@@ -187,11 +187,13 @@ describe('useSpeech', () => {
     });
 
     it('should configure recognition with options', () => {
-      renderHook(() => useSpeech({
-        language: 'en-US',
-        continuous: false,
-        interimResults: false,
-      }));
+      renderHook(() =>
+        useSpeech({
+          language: 'en-US',
+          continuous: false,
+          interimResults: false,
+        })
+      );
 
       expect(MockSpeechRecognition).toHaveBeenCalled();
       expect(mockRecognition.lang).toBe('en-US');
@@ -207,9 +209,7 @@ describe('useSpeech', () => {
       act(() => {
         mockRecognition.onresult?.({
           resultIndex: 0,
-          results: [
-            { 0: { transcript: 'hello' }, isFinal: true, length: 1 },
-          ],
+          results: [{ 0: { transcript: 'hello' }, isFinal: true, length: 1 }],
         });
       });
 
@@ -290,5 +290,4 @@ describe('useSpeech', () => {
       expect(MockSpeechSynthesisUtterance).toHaveBeenCalledWith('Test');
     });
   });
-
 });

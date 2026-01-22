@@ -34,9 +34,15 @@ import { isTauri } from '@/lib/native/utils';
 import * as shortcutsLib from '@/lib/native/shortcuts';
 
 const mockIsTauri = isTauri as jest.MockedFunction<typeof isTauri>;
-const mockRegisterShortcut = shortcutsLib.registerShortcut as jest.MockedFunction<typeof shortcutsLib.registerShortcut>;
-const mockUnregisterShortcut = shortcutsLib.unregisterShortcut as jest.MockedFunction<typeof shortcutsLib.unregisterShortcut>;
-const mockUnregisterAll = shortcutsLib.unregisterAllShortcuts as jest.MockedFunction<typeof shortcutsLib.unregisterAllShortcuts>;
+const mockRegisterShortcut = shortcutsLib.registerShortcut as jest.MockedFunction<
+  typeof shortcutsLib.registerShortcut
+>;
+const mockUnregisterShortcut = shortcutsLib.unregisterShortcut as jest.MockedFunction<
+  typeof shortcutsLib.unregisterShortcut
+>;
+const mockUnregisterAll = shortcutsLib.unregisterAllShortcuts as jest.MockedFunction<
+  typeof shortcutsLib.unregisterAllShortcuts
+>;
 
 describe('useGlobalShortcuts', () => {
   beforeEach(() => {
@@ -67,10 +73,12 @@ describe('useGlobalShortcuts', () => {
       const onNewChat = jest.fn();
       const onToggleSidebar = jest.fn();
 
-      const { result } = renderHook(() => useGlobalShortcuts({
-        onNewChat,
-        onToggleSidebar,
-      }));
+      const { result } = renderHook(() =>
+        useGlobalShortcuts({
+          onNewChat,
+          onToggleSidebar,
+        })
+      );
 
       await act(async () => {
         await result.current.registerAll();
@@ -83,9 +91,11 @@ describe('useGlobalShortcuts', () => {
     it('should not register disabled shortcuts', async () => {
       const onOpenSettings = jest.fn();
 
-      const { result } = renderHook(() => useGlobalShortcuts({
-        onOpenSettings,
-      }));
+      const { result } = renderHook(() =>
+        useGlobalShortcuts({
+          onOpenSettings,
+        })
+      );
 
       await act(async () => {
         await result.current.registerAll();
@@ -98,9 +108,11 @@ describe('useGlobalShortcuts', () => {
     it('should not register when not in Tauri', async () => {
       mockIsTauri.mockReturnValue(false);
 
-      const { result } = renderHook(() => useGlobalShortcuts({
-        onNewChat: jest.fn(),
-      }));
+      const { result } = renderHook(() =>
+        useGlobalShortcuts({
+          onNewChat: jest.fn(),
+        })
+      );
 
       await act(async () => {
         await result.current.registerAll();
@@ -110,10 +122,12 @@ describe('useGlobalShortcuts', () => {
     });
 
     it('should not register when disabled', async () => {
-      const { result } = renderHook(() => useGlobalShortcuts({
-        enabled: false,
-        onNewChat: jest.fn(),
-      }));
+      const { result } = renderHook(() =>
+        useGlobalShortcuts({
+          enabled: false,
+          onNewChat: jest.fn(),
+        })
+      );
 
       await act(async () => {
         await result.current.registerAll();
@@ -215,9 +229,11 @@ describe('useGlobalShortcuts', () => {
 
   describe('cleanup', () => {
     it('should unregister all on unmount', async () => {
-      const { unmount } = renderHook(() => useGlobalShortcuts({
-        onNewChat: jest.fn(),
-      }));
+      const { unmount } = renderHook(() =>
+        useGlobalShortcuts({
+          onNewChat: jest.fn(),
+        })
+      );
 
       unmount();
 

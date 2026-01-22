@@ -43,11 +43,7 @@ export function useImageEditorShortcuts({
 
       // Don't handle shortcuts when typing in inputs
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
 
@@ -175,7 +171,8 @@ export function useImageEditorShortcuts({
  * Get shortcut display string for tooltips
  */
 export function getShortcutDisplay(action: string): string {
-  const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const isMac =
+    typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   const mod = isMac ? '⌘' : 'Ctrl';
 
   const shortcuts: Record<string, string> = {

@@ -24,27 +24,33 @@ export function useMcpServerActions(): UseMcpServerActionsReturn {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
 
-  const handleConnect = useCallback(async (id: string) => {
-    setActionLoading(id);
-    try {
-      await connectServer(id);
-    } catch (err) {
-      console.error('Failed to connect:', err);
-    } finally {
-      setActionLoading(null);
-    }
-  }, [connectServer]);
+  const handleConnect = useCallback(
+    async (id: string) => {
+      setActionLoading(id);
+      try {
+        await connectServer(id);
+      } catch (err) {
+        console.error('Failed to connect:', err);
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [connectServer]
+  );
 
-  const handleDisconnect = useCallback(async (id: string) => {
-    setActionLoading(id);
-    try {
-      await disconnectServer(id);
-    } catch (err) {
-      console.error('Failed to disconnect:', err);
-    } finally {
-      setActionLoading(null);
-    }
-  }, [disconnectServer]);
+  const handleDisconnect = useCallback(
+    async (id: string) => {
+      setActionLoading(id);
+      try {
+        await disconnectServer(id);
+      } catch (err) {
+        console.error('Failed to disconnect:', err);
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [disconnectServer]
+  );
 
   const handleRemove = useCallback((id: string) => {
     setRemoveConfirmId(id);
@@ -65,16 +71,19 @@ export function useMcpServerActions(): UseMcpServerActionsReturn {
     setRemoveConfirmId(null);
   }, []);
 
-  const handleToggleEnabled = useCallback(async (server: McpServerState) => {
-    try {
-      await updateServer(server.id, {
-        ...server.config,
-        enabled: !server.config.enabled,
-      });
-    } catch (err) {
-      console.error('Failed to toggle enabled:', err);
-    }
-  }, [updateServer]);
+  const handleToggleEnabled = useCallback(
+    async (server: McpServerState) => {
+      try {
+        await updateServer(server.id, {
+          ...server.config,
+          enabled: !server.config.enabled,
+        });
+      } catch (err) {
+        console.error('Failed to toggle enabled:', err);
+      }
+    },
+    [updateServer]
+  );
 
   return {
     actionLoading,

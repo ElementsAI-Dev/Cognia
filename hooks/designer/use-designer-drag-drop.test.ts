@@ -74,5 +74,4 @@ describe('useDesignerDragDrop', () => {
     expect(typeof handlers.onDragLeave).toBe('function');
     expect(typeof handlers.onDrop).toBe('function');
   });
-
 });

@@ -45,36 +45,37 @@ export function usePlanExecutor(): UsePlanExecutorReturn {
     cancelPlanExecution,
   } = useAgentStore();
 
-  const executeStep = useCallback(async (planId: string, stepId: string): Promise<string> => {
-    const plan = getPlan(planId);
-    if (!plan) throw new Error('Plan not found');
+  const executeStep = useCallback(
+    async (planId: string, stepId: string): Promise<string> => {
+      const plan = getPlan(planId);
+      if (!plan) throw new Error('Plan not found');
 
-    const step = plan.steps.find((s) => s.id === stepId);
-    if (!step) throw new Error('Step not found');
+      const step = plan.steps.find((s) => s.id === stepId);
+      if (!step) throw new Error('Step not found');
 
-    const session = getActiveSession();
-    const provider = (session?.provider || 'openai') as ProviderName;
-    const model = session?.model || 'gpt-4o-mini';
-    const settings = providerSettings[provider];
+      const session = getActiveSession();
+      const provider = (session?.provider || 'openai') as ProviderName;
+      const model = session?.model || 'gpt-4o-mini';
+      const settings = providerSettings[provider];
 
-    if (!settings?.apiKey && provider !== 'ollama') {
-      throw new Error(`API key not configured for ${provider}`);
-    }
+      if (!settings?.apiKey && provider !== 'ollama') {
+        throw new Error(`API key not configured for ${provider}`);
+      }
 
-    const modelInstance = getProviderModel(
-      provider,
-      model,
-      settings?.apiKey || '',
-      settings?.baseURL
-    );
+      const modelInstance = getProviderModel(
+        provider,
+        model,
+        settings?.apiKey || '',
+        settings?.baseURL
+      );
 
-    // Build context from previous steps
-    const previousSteps = plan.steps
-      .filter((s) => s.status === 'completed' && s.output)
-      .map((s, i) => `Step ${i + 1}: ${s.title}\nResult: ${s.output}`)
-      .join('\n\n');
+      // Build context from previous steps
+      const previousSteps = plan.steps
+        .filter((s) => s.status === 'completed' && s.output)
+        .map((s, i) => `Step ${i + 1}: ${s.title}\nResult: ${s.output}`)
+        .join('\n\n');
 
-    const systemPrompt = `You are an AI assistant executing a plan step by step.
+      const systemPrompt = `You are an AI assistant executing a plan step by step.
 
 Plan: ${plan.title}
 ${plan.description ? `Description: ${plan.description}` : ''}
@@ -86,77 +87,83 @@ ${step.description ? `Step description: ${step.description}` : ''}
 
 Execute this step and provide a clear, actionable result. Be specific about what was accomplished.`;
 
-    const result = await generateText({
-      model: modelInstance,
-      system: systemPrompt,
-      prompt: `Execute step: "${step.title}"${step.description ? `\n\nDetails: ${step.description}` : ''}`,
-      temperature: 0.7,
-    });
+      const result = await generateText({
+        model: modelInstance,
+        system: systemPrompt,
+        prompt: `Execute step: "${step.title}"${step.description ? `\n\nDetails: ${step.description}` : ''}`,
+        temperature: 0.7,
+      });
 
-    return result.text;
-  }, [getPlan, getActiveSession, providerSettings]);
+      return result.text;
+    },
+    [getPlan, getActiveSession, providerSettings]
+  );
 
-  const executePlan = useCallback(async (planId: string, options?: PlanExecutionOptions) => {
-    const plan = getPlan(planId);
-    if (!plan) {
-      setError('Plan not found');
-      return;
-    }
-
-    setIsExecuting(true);
-    setError(null);
-    abortRef.current = false;
-
-    const pendingSteps = plan.steps.filter((s) => s.status === 'pending');
-
-    try {
-      for (const step of pendingSteps) {
-        if (abortRef.current) {
-          cancelPlanExecution(planId);
-          break;
-        }
-
-        setCurrentStepId(step.id);
-        startPlanStep(planId, step.id);
-        options?.onStepStart?.(step);
-
-        try {
-          const result = await executeStep(planId, step.id);
-          completePlanStep(planId, step.id, result);
-          options?.onStepComplete?.(step, result);
-        } catch (stepError) {
-          const errorMessage = stepError instanceof Error ? stepError.message : 'Step execution failed';
-          failPlanStep(planId, step.id, errorMessage);
-          options?.onStepError?.(step, errorMessage);
-          
-          // Stop execution on error
-          setError(errorMessage);
-          cancelPlanExecution(planId);
-          options?.onPlanError?.(plan, errorMessage);
-          return;
-        }
+  const executePlan = useCallback(
+    async (planId: string, options?: PlanExecutionOptions) => {
+      const plan = getPlan(planId);
+      if (!plan) {
+        setError('Plan not found');
+        return;
       }
 
-      if (!abortRef.current) {
-        completePlanExecution(planId);
-        const updatedPlan = getPlan(planId);
-        if (updatedPlan) {
-          options?.onPlanComplete?.(updatedPlan);
+      setIsExecuting(true);
+      setError(null);
+      abortRef.current = false;
+
+      const pendingSteps = plan.steps.filter((s) => s.status === 'pending');
+
+      try {
+        for (const step of pendingSteps) {
+          if (abortRef.current) {
+            cancelPlanExecution(planId);
+            break;
+          }
+
+          setCurrentStepId(step.id);
+          startPlanStep(planId, step.id);
+          options?.onStepStart?.(step);
+
+          try {
+            const result = await executeStep(planId, step.id);
+            completePlanStep(planId, step.id, result);
+            options?.onStepComplete?.(step, result);
+          } catch (stepError) {
+            const errorMessage =
+              stepError instanceof Error ? stepError.message : 'Step execution failed';
+            failPlanStep(planId, step.id, errorMessage);
+            options?.onStepError?.(step, errorMessage);
+
+            // Stop execution on error
+            setError(errorMessage);
+            cancelPlanExecution(planId);
+            options?.onPlanError?.(plan, errorMessage);
+            return;
+          }
         }
+
+        if (!abortRef.current) {
+          completePlanExecution(planId);
+          const updatedPlan = getPlan(planId);
+          if (updatedPlan) {
+            options?.onPlanComplete?.(updatedPlan);
+          }
+        }
+      } finally {
+        setIsExecuting(false);
+        setCurrentStepId(null);
       }
-    } finally {
-      setIsExecuting(false);
-      setCurrentStepId(null);
-    }
-  }, [
-    getPlan,
-    executeStep,
-    startPlanStep,
-    completePlanStep,
-    failPlanStep,
-    completePlanExecution,
-    cancelPlanExecution,
-  ]);
+    },
+    [
+      getPlan,
+      executeStep,
+      startPlanStep,
+      completePlanStep,
+      failPlanStep,
+      completePlanExecution,
+      cancelPlanExecution,
+    ]
+  );
 
   const stopExecution = useCallback(() => {
     abortRef.current = true;

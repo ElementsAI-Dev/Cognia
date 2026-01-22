@@ -1,18 +1,26 @@
 /**
  * useLocalProvider Hook - Unified state management for local AI providers
- * 
+ *
  * Provides reactive state for connection status, model listing, and model operations
  * across all local inference engines (LM Studio, llama.cpp, vLLM, etc.)
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { LocalProviderName, LocalServerStatus, LocalModelInfo, LocalModelPullProgress } from '@/types/provider/local-provider';
-import { 
-  LocalProviderService, 
+import type {
+  LocalProviderName,
+  LocalServerStatus,
+  LocalModelInfo,
+  LocalModelPullProgress,
+} from '@/types/provider/local-provider';
+import {
+  LocalProviderService,
   createLocalProviderService,
   type LocalProviderCapabilities,
 } from '@/lib/ai/providers/local-provider-service';
-import { LOCAL_PROVIDER_CONFIGS, type LocalProviderConfig } from '@/lib/ai/providers/local-providers';
+import {
+  LOCAL_PROVIDER_CONFIGS,
+  type LocalProviderConfig,
+} from '@/lib/ai/providers/local-providers';
 
 /**
  * Pull state for a model
@@ -185,57 +193,60 @@ export function useLocalProvider(options: UseLocalProviderOptions): UseLocalProv
   }, []);
 
   // Pull/download a model
-  const pullModel = useCallback(async (modelName: string) => {
-    if (!serviceRef.current || !capabilities.canPullModels) return;
+  const pullModel = useCallback(
+    async (modelName: string) => {
+      if (!serviceRef.current || !capabilities.canPullModels) return;
 
-    // Set initial state
-    setPullStates(prev => {
-      const next = new Map(prev);
-      next.set(modelName, { isActive: true });
-      return next;
-    });
-
-    try {
-      const { unsubscribe } = await serviceRef.current.pullModel(modelName, {
-        onProgress: (progress) => {
-          setPullStates(prev => {
-            const next = new Map(prev);
-            next.set(modelName, { isActive: true, progress });
-            return next;
-          });
-        },
-      });
-
-      pullUnsubscribersRef.current.set(modelName, unsubscribe);
-
-      // Refresh models after pull completes
-      await refresh();
-
-      // Clear pull state
-      setPullStates(prev => {
+      // Set initial state
+      setPullStates((prev) => {
         const next = new Map(prev);
-        next.delete(modelName);
+        next.set(modelName, { isActive: true });
         return next;
       });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Pull failed';
-      setPullStates(prev => {
-        const next = new Map(prev);
-        next.set(modelName, { isActive: false, error: errorMessage });
-        return next;
-      });
-    } finally {
-      pullUnsubscribersRef.current.get(modelName)?.();
-      pullUnsubscribersRef.current.delete(modelName);
-    }
-  }, [capabilities.canPullModels, refresh]);
+
+      try {
+        const { unsubscribe } = await serviceRef.current.pullModel(modelName, {
+          onProgress: (progress) => {
+            setPullStates((prev) => {
+              const next = new Map(prev);
+              next.set(modelName, { isActive: true, progress });
+              return next;
+            });
+          },
+        });
+
+        pullUnsubscribersRef.current.set(modelName, unsubscribe);
+
+        // Refresh models after pull completes
+        await refresh();
+
+        // Clear pull state
+        setPullStates((prev) => {
+          const next = new Map(prev);
+          next.delete(modelName);
+          return next;
+        });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Pull failed';
+        setPullStates((prev) => {
+          const next = new Map(prev);
+          next.set(modelName, { isActive: false, error: errorMessage });
+          return next;
+        });
+      } finally {
+        pullUnsubscribersRef.current.get(modelName)?.();
+        pullUnsubscribersRef.current.delete(modelName);
+      }
+    },
+    [capabilities.canPullModels, refresh]
+  );
 
   // Cancel a model pull
   const cancelPull = useCallback((modelName: string) => {
     pullUnsubscribersRef.current.get(modelName)?.();
     pullUnsubscribersRef.current.delete(modelName);
-    
-    setPullStates(prev => {
+
+    setPullStates((prev) => {
       const next = new Map(prev);
       next.delete(modelName);
       return next;
@@ -243,32 +254,38 @@ export function useLocalProvider(options: UseLocalProviderOptions): UseLocalProv
   }, []);
 
   // Delete a model
-  const deleteModel = useCallback(async (modelName: string): Promise<boolean> => {
-    if (!serviceRef.current || !capabilities.canDeleteModels) return false;
+  const deleteModel = useCallback(
+    async (modelName: string): Promise<boolean> => {
+      if (!serviceRef.current || !capabilities.canDeleteModels) return false;
 
-    try {
-      const success = await serviceRef.current.deleteModel(modelName);
-      if (success) {
-        setModels(prev => prev.filter(m => m.id !== modelName));
+      try {
+        const success = await serviceRef.current.deleteModel(modelName);
+        if (success) {
+          setModels((prev) => prev.filter((m) => m.id !== modelName));
+        }
+        return success;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Delete failed');
+        return false;
       }
-      return success;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed');
-      return false;
-    }
-  }, [capabilities.canDeleteModels]);
+    },
+    [capabilities.canDeleteModels]
+  );
 
   // Stop/unload a model
-  const stopModel = useCallback(async (modelName: string): Promise<boolean> => {
-    if (!serviceRef.current || !capabilities.canStopModels) return false;
+  const stopModel = useCallback(
+    async (modelName: string): Promise<boolean> => {
+      if (!serviceRef.current || !capabilities.canStopModels) return false;
 
-    try {
-      return await serviceRef.current.stopModel(modelName);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Stop failed');
-      return false;
-    }
-  }, [capabilities.canStopModels]);
+      try {
+        return await serviceRef.current.stopModel(modelName);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Stop failed');
+        return false;
+      }
+    },
+    [capabilities.canStopModels]
+  );
 
   // Auto-connect on mount
   useEffect(() => {
@@ -297,7 +314,7 @@ export function useLocalProvider(options: UseLocalProviderOptions): UseLocalProv
       if (timer) {
         clearInterval(timer);
       }
-      unsubscribers.forEach(unsub => unsub());
+      unsubscribers.forEach((unsub) => unsub());
       unsubscribers.clear();
     };
   }, []);
@@ -312,7 +329,7 @@ export function useLocalProvider(options: UseLocalProviderOptions): UseLocalProv
     error,
     models,
     pullStates,
-    isPulling: Array.from(pullStates.values()).some(s => s.isActive),
+    isPulling: Array.from(pullStates.values()).some((s) => s.isActive),
     refresh,
     testConnection,
     pullModel,
@@ -333,8 +350,16 @@ export function useLocalProvidersScan() {
   const scan = useCallback(async () => {
     setIsScanning(true);
     const providerIds: LocalProviderName[] = [
-      'ollama', 'lmstudio', 'llamacpp', 'llamafile', 'vllm',
-      'localai', 'jan', 'textgenwebui', 'koboldcpp', 'tabbyapi',
+      'ollama',
+      'lmstudio',
+      'llamacpp',
+      'llamafile',
+      'vllm',
+      'localai',
+      'jan',
+      'textgenwebui',
+      'koboldcpp',
+      'tabbyapi',
     ];
 
     const newResults = new Map<LocalProviderName, LocalServerStatus>();

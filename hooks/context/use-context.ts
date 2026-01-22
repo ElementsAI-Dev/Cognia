@@ -105,7 +105,7 @@ export function useContext() {
 
   const fetchContext = useCallback(async () => {
     if (!isTauri()) return null;
-    
+
     setIsLoading(true);
     setError(null);
     try {
@@ -122,7 +122,7 @@ export function useContext() {
 
   const getWindowInfo = useCallback(async () => {
     if (!isTauri()) return null;
-    
+
     try {
       return await invoke<WindowInfo>('context_get_window');
     } catch (err) {
@@ -133,7 +133,7 @@ export function useContext() {
 
   const getAppContext = useCallback(async () => {
     if (!isTauri()) return null;
-    
+
     try {
       return await invoke<AppContext>('context_get_app');
     } catch (err) {
@@ -144,7 +144,7 @@ export function useContext() {
 
   const getFileContext = useCallback(async () => {
     if (!isTauri()) return null;
-    
+
     try {
       return await invoke<FileContext>('context_get_file');
     } catch (err) {
@@ -155,7 +155,7 @@ export function useContext() {
 
   const getBrowserContext = useCallback(async () => {
     if (!isTauri()) return null;
-    
+
     try {
       return await invoke<BrowserContext>('context_get_browser');
     } catch (err) {
@@ -166,7 +166,7 @@ export function useContext() {
 
   const getEditorContext = useCallback(async () => {
     if (!isTauri()) return null;
-    
+
     try {
       return await invoke<EditorContext>('context_get_editor');
     } catch (err) {
@@ -177,7 +177,7 @@ export function useContext() {
 
   const getAllWindows = useCallback(async () => {
     if (!isTauri()) return [];
-    
+
     try {
       return await invoke<WindowInfo[]>('context_get_all_windows');
     } catch (err) {
@@ -188,7 +188,7 @@ export function useContext() {
 
   const findWindowsByTitle = useCallback(async (pattern: string) => {
     if (!isTauri()) return [];
-    
+
     try {
       return await invoke<WindowInfo[]>('context_find_windows_by_title', { pattern });
     } catch (err) {
@@ -199,7 +199,7 @@ export function useContext() {
 
   const findWindowsByProcess = useCallback(async (processName: string) => {
     if (!isTauri()) return [];
-    
+
     try {
       return await invoke<WindowInfo[]>('context_find_windows_by_process', { processName });
     } catch (err) {
@@ -210,7 +210,7 @@ export function useContext() {
 
   const clearCache = useCallback(async () => {
     if (!isTauri()) return;
-    
+
     try {
       await invoke('context_clear_cache');
     } catch (err) {
@@ -221,11 +221,11 @@ export function useContext() {
   // Auto-refresh context periodically
   useEffect(() => {
     fetchContext();
-    
+
     const interval = setInterval(() => {
       fetchContext();
     }, 5000); // Refresh every 5 seconds
-    
+
     return () => clearInterval(interval);
   }, [fetchContext]);
 

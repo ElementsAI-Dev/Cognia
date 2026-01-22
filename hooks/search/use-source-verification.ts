@@ -77,18 +77,21 @@ export function useSourceVerification(
           const verification = verifySource(result.url);
           const domain = extractDomain(result.url);
           const rootDomain = getRootDomain(domain);
-          
-          const isBlocked = settings.blockedDomains.some((d) =>
-            rootDomain.includes(d) || d.includes(rootDomain)
+
+          const isBlocked = settings.blockedDomains.some(
+            (d) => rootDomain.includes(d) || d.includes(rootDomain)
           );
-          const isTrusted = settings.trustedDomains.some((d) =>
-            rootDomain.includes(d) || d.includes(rootDomain)
+          const isTrusted = settings.trustedDomains.some(
+            (d) => rootDomain.includes(d) || d.includes(rootDomain)
           );
 
           let isEnabled = true;
           if (isBlocked) {
             isEnabled = false;
-          } else if (settings.autoFilterLowCredibility && verification.credibilityScore < settings.minimumCredibilityScore * 100) {
+          } else if (
+            settings.autoFilterLowCredibility &&
+            verification.credibilityScore < settings.minimumCredibilityScore * 100
+          ) {
             isEnabled = false;
           }
 
@@ -98,7 +101,17 @@ export function useSourceVerification(
               url: verification.url,
               domain: verification.domain,
               rootDomain,
-              sourceType: verification.sourceType as 'government' | 'academic' | 'news' | 'reference' | 'organization' | 'corporate' | 'blog' | 'social' | 'forum' | 'unknown',
+              sourceType: verification.sourceType as
+                | 'government'
+                | 'academic'
+                | 'news'
+                | 'reference'
+                | 'organization'
+                | 'corporate'
+                | 'blog'
+                | 'social'
+                | 'forum'
+                | 'unknown',
               credibilityScore: verification.credibilityScore / 100,
               credibilityLevel: verification.credibilityLevel,
               isHttps: verification.isHttps,
@@ -113,22 +126,33 @@ export function useSourceVerification(
         const report = generateVerificationReport(searchResponse);
 
         // Only include cross-validation if enabled in settings
-        const crossValidationData = settings.enableCrossValidation && report.crossValidation ? [{
-          claim: report.crossValidation.claim,
-          supportingSources: report.crossValidation.supportingResults.map((r) => r.url),
-          contradictingSources: report.crossValidation.contradictingResults.map((r) => r.url),
-          neutralSources: report.crossValidation.neutralResults.map((r) => r.url),
-          consensusScore: report.crossValidation.confidenceScore / 100,
-        }] : undefined;
+        const crossValidationData =
+          settings.enableCrossValidation && report.crossValidation
+            ? [
+                {
+                  claim: report.crossValidation.claim,
+                  supportingSources: report.crossValidation.supportingResults.map((r) => r.url),
+                  contradictingSources: report.crossValidation.contradictingResults.map(
+                    (r) => r.url
+                  ),
+                  neutralSources: report.crossValidation.neutralResults.map((r) => r.url),
+                  consensusScore: report.crossValidation.confidenceScore / 100,
+                },
+              ]
+            : undefined;
 
         const response: VerifiedSearchResponse = {
           ...searchResponse,
           results: enhancedResults,
           verificationReport: {
             totalSources: report.totalResults,
-            highCredibility: report.sourceVerifications.filter((v) => v.credibilityLevel === 'high').length,
-            mediumCredibility: report.sourceVerifications.filter((v) => v.credibilityLevel === 'medium').length,
-            lowCredibility: report.sourceVerifications.filter((v) => v.credibilityLevel === 'low').length,
+            highCredibility: report.sourceVerifications.filter((v) => v.credibilityLevel === 'high')
+              .length,
+            mediumCredibility: report.sourceVerifications.filter(
+              (v) => v.credibilityLevel === 'medium'
+            ).length,
+            lowCredibility: report.sourceVerifications.filter((v) => v.credibilityLevel === 'low')
+              .length,
             averageCredibility: report.overallCredibilityScore / 100,
             crossValidation: crossValidationData,
             recommendations: report.recommendations,

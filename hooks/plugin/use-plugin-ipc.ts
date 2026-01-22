@@ -3,16 +3,8 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import {
-  getPluginIPC,
-  type IPCMessage,
-  type PluginIPCAPI,
-} from '@/lib/plugin/ipc';
-import {
-  getMessageBus,
-  type BusEvent,
-  type EventFilter,
-} from '@/lib/plugin/message-bus';
+import { getPluginIPC, type IPCMessage, type PluginIPCAPI } from '@/lib/plugin/ipc';
+import { getMessageBus, type BusEvent, type EventFilter } from '@/lib/plugin/message-bus';
 
 // =============================================================================
 // usePluginIPC
@@ -25,7 +17,12 @@ export interface UsePluginIPCOptions {
 
 export interface UsePluginIPCResult {
   send: (targetPluginId: string, channel: string, data: unknown) => Promise<void>;
-  sendAndWait: <T>(targetPluginId: string, channel: string, data: unknown, timeout?: number) => Promise<T>;
+  sendAndWait: <T>(
+    targetPluginId: string,
+    channel: string,
+    data: unknown,
+    timeout?: number
+  ) => Promise<T>;
   broadcast: (channel: string, data: unknown) => void;
   subscribe: (channel: string, handler: (data: unknown, senderId: string) => void) => () => void;
   expose: (methods: Record<string, (...args: unknown[]) => unknown | Promise<unknown>>) => void;
@@ -65,7 +62,7 @@ export function usePluginIPC(options: UsePluginIPCOptions): UsePluginIPCResult {
   );
 
   const sendAndWait = useCallback(
-    <T,>(targetPluginId: string, channel: string, data: unknown, timeout?: number) => {
+    <T>(targetPluginId: string, channel: string, data: unknown, timeout?: number) => {
       return ipc.sendAndWait<T>(pluginId, targetPluginId, channel, data, timeout);
     },
     [pluginId, ipc]
@@ -93,7 +90,7 @@ export function usePluginIPC(options: UsePluginIPCOptions): UsePluginIPCResult {
   );
 
   const call = useCallback(
-    <T,>(targetPluginId: string, method: string, ...args: unknown[]) => {
+    <T>(targetPluginId: string, method: string, ...args: unknown[]) => {
       return ipc.call<T>(pluginId, targetPluginId, method, ...args);
     },
     [pluginId, ipc]
@@ -120,8 +117,16 @@ export interface UsePluginEventsOptions {
 
 export interface UsePluginEventsResult {
   emit: <T>(eventType: string, payload: T, metadata?: Record<string, unknown>) => string;
-  on: <T>(eventType: string | RegExp, handler: (event: BusEvent<T>) => void, filter?: EventFilter) => () => void;
-  once: <T>(eventType: string | RegExp, handler: (event: BusEvent<T>) => void, filter?: EventFilter) => () => void;
+  on: <T>(
+    eventType: string | RegExp,
+    handler: (event: BusEvent<T>) => void,
+    filter?: EventFilter
+  ) => () => void;
+  once: <T>(
+    eventType: string | RegExp,
+    handler: (event: BusEvent<T>) => void,
+    filter?: EventFilter
+  ) => () => void;
   off: (subscriptionId: string) => void;
   offAll: () => void;
   recentEvents: BusEvent[];
@@ -150,14 +155,18 @@ export function usePluginEvents(options: UsePluginEventsOptions): UsePluginEvent
   }, [pluginId, bus]);
 
   const emit = useCallback(
-    <T,>(eventType: string, payload: T, metadata?: Record<string, unknown>) => {
+    <T>(eventType: string, payload: T, metadata?: Record<string, unknown>) => {
       return bus.emit(eventType, payload, { type: 'plugin', id: pluginId }, metadata);
     },
     [pluginId, bus]
   );
 
   const on = useCallback(
-    <T,>(eventType: string | RegExp, handler: (event: BusEvent<T>) => void, filter?: EventFilter) => {
+    <T>(
+      eventType: string | RegExp,
+      handler: (event: BusEvent<T>) => void,
+      filter?: EventFilter
+    ) => {
       return bus.on(eventType, handler as (event: BusEvent) => void, {
         source: { type: 'plugin', id: pluginId },
         filter,
@@ -167,7 +176,11 @@ export function usePluginEvents(options: UsePluginEventsOptions): UsePluginEvent
   );
 
   const once = useCallback(
-    <T,>(eventType: string | RegExp, handler: (event: BusEvent<T>) => void, filter?: EventFilter) => {
+    <T>(
+      eventType: string | RegExp,
+      handler: (event: BusEvent<T>) => void,
+      filter?: EventFilter
+    ) => {
       return bus.once(eventType, handler as (event: BusEvent) => void, {
         source: { type: 'plugin', id: pluginId },
         filter,

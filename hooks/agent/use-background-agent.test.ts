@@ -152,7 +152,7 @@ describe('useBackgroundAgent', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    Object.keys(mockAgents).forEach(key => delete mockAgents[key]);
+    Object.keys(mockAgents).forEach((key) => delete mockAgents[key]);
 
     (useBackgroundAgentStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {

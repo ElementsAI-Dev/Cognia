@@ -1,6 +1,6 @@
 /**
  * useVideoAnalysis - Hook for video subtitle extraction and analysis
- * 
+ *
  * Provides functionality to:
  * - Extract subtitles from video files
  * - Transcribe videos using Whisper when no subtitles
@@ -38,20 +38,23 @@ export interface UseVideoAnalysisReturn {
   isTranscribing: boolean;
   isAnalyzing: boolean;
   error: string | null;
-  
+
   // Data
   subtitleInfo: VideoSubtitleInfo | null;
   subtitleTrack: SubtitleTrack | null;
   transcript: string | null;
   analysisResult: VideoAnalysisResult | null;
-  
+
   // Actions
   getSubtitleInfo: (videoPath: string) => Promise<VideoSubtitleInfo | null>;
   extractSubtitles: (videoPath: string) => Promise<SubtitleTrack | null>;
   transcribeVideo: (videoPath: string) => Promise<TranscriptionResult | null>;
-  analyzeVideo: (videoPath: string, type?: 'summary' | 'transcript' | 'key-moments' | 'qa' | 'full') => Promise<VideoAnalysisResult | null>;
+  analyzeVideo: (
+    videoPath: string,
+    type?: 'summary' | 'transcript' | 'key-moments' | 'qa' | 'full'
+  ) => Promise<VideoAnalysisResult | null>;
   parseSubtitleContent: (content: string, format?: string) => Promise<SubtitleTrack | null>;
-  
+
   // Utilities
   searchCues: (query: string) => SubtitleCue[];
   getCueAtTime: (timeMs: number) => SubtitleCue | null;
@@ -92,185 +95,211 @@ export function useVideoAnalysis(options: UseVideoAnalysisOptions = {}): UseVide
   }, []);
 
   // Get subtitle info from video
-  const getSubtitleInfo = useCallback(async (videoPath: string): Promise<VideoSubtitleInfo | null> => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const { getVideoSubtitleInfo } = await getVideoSubtitleModule();
-      const info = await getVideoSubtitleInfo(videoPath);
-      setSubtitleInfo(info);
-      return info;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to get subtitle info';
-      setError(message);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getVideoSubtitleModule]);
+  const getSubtitleInfo = useCallback(
+    async (videoPath: string): Promise<VideoSubtitleInfo | null> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const { getVideoSubtitleInfo } = await getVideoSubtitleModule();
+        const info = await getVideoSubtitleInfo(videoPath);
+        setSubtitleInfo(info);
+        return info;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to get subtitle info';
+        setError(message);
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [getVideoSubtitleModule]
+  );
 
   // Extract subtitles from video
-  const extractSubtitles = useCallback(async (videoPath: string): Promise<SubtitleTrack | null> => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const apiKey = getApiKey();
-      const { getVideoSubtitles } = await getVideoSubtitleModule();
-      
-      const result = await getVideoSubtitles(videoPath, apiKey, {
-        preferredLanguage: language,
-        transcribeIfMissing,
-      });
-      
-      if (result.success && result.track) {
-        setSubtitleTrack(result.track);
-        setTranscript(result.track.cues.map(c => c.text).join(' '));
-        onSubtitlesExtracted?.(result.track);
-        return result.track;
+  const extractSubtitles = useCallback(
+    async (videoPath: string): Promise<SubtitleTrack | null> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const apiKey = getApiKey();
+        const { getVideoSubtitles } = await getVideoSubtitleModule();
+
+        const result = await getVideoSubtitles(videoPath, apiKey, {
+          preferredLanguage: language,
+          transcribeIfMissing,
+        });
+
+        if (result.success && result.track) {
+          setSubtitleTrack(result.track);
+          setTranscript(result.track.cues.map((c) => c.text).join(' '));
+          onSubtitlesExtracted?.(result.track);
+          return result.track;
+        }
+
+        setError(result.error || 'Failed to extract subtitles');
+        return null;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to extract subtitles';
+        setError(message);
+        return null;
+      } finally {
+        setIsLoading(false);
       }
-      
-      setError(result.error || 'Failed to extract subtitles');
-      return null;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to extract subtitles';
-      setError(message);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getVideoSubtitleModule, getApiKey, language, transcribeIfMissing, onSubtitlesExtracted]);
+    },
+    [getVideoSubtitleModule, getApiKey, language, transcribeIfMissing, onSubtitlesExtracted]
+  );
 
   // Transcribe video using Whisper
-  const transcribeVideo = useCallback(async (videoPath: string): Promise<TranscriptionResult | null> => {
-    const apiKey = getApiKey();
-    
-    if (!apiKey) {
-      setError('OpenAI API key required for transcription');
-      return null;
-    }
-    
-    setIsTranscribing(true);
-    setError(null);
-    
-    try {
-      const { transcribeVideo: transcribe } = await getVideoSubtitleModule();
-      
-      const result = await transcribe(videoPath, apiKey, {
-        language,
-        includeTimestamps: true,
-      });
-      
-      if (result.success) {
-        if (result.subtitleTrack) {
-          setSubtitleTrack(result.subtitleTrack);
-        }
-        if (result.text) {
-          setTranscript(result.text);
-        }
-        onTranscriptionComplete?.(result);
-        return result;
+  const transcribeVideo = useCallback(
+    async (videoPath: string): Promise<TranscriptionResult | null> => {
+      const apiKey = getApiKey();
+
+      if (!apiKey) {
+        setError('OpenAI API key required for transcription');
+        return null;
       }
-      
-      setError(result.error || 'Transcription failed');
-      return null;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Transcription failed';
-      setError(message);
-      return null;
-    } finally {
-      setIsTranscribing(false);
-    }
-  }, [getVideoSubtitleModule, getApiKey, language, onTranscriptionComplete]);
+
+      setIsTranscribing(true);
+      setError(null);
+
+      try {
+        const { transcribeVideo: transcribe } = await getVideoSubtitleModule();
+
+        const result = await transcribe(videoPath, apiKey, {
+          language,
+          includeTimestamps: true,
+        });
+
+        if (result.success) {
+          if (result.subtitleTrack) {
+            setSubtitleTrack(result.subtitleTrack);
+          }
+          if (result.text) {
+            setTranscript(result.text);
+          }
+          onTranscriptionComplete?.(result);
+          return result;
+        }
+
+        setError(result.error || 'Transcription failed');
+        return null;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Transcription failed';
+        setError(message);
+        return null;
+      } finally {
+        setIsTranscribing(false);
+      }
+    },
+    [getVideoSubtitleModule, getApiKey, language, onTranscriptionComplete]
+  );
 
   // Analyze video content
-  const analyzeVideo = useCallback(async (
-    videoPath: string,
-    type: 'summary' | 'transcript' | 'key-moments' | 'qa' | 'full' = 'summary'
-  ): Promise<VideoAnalysisResult | null> => {
-    const apiKey = getApiKey();
-    
-    setIsAnalyzing(true);
-    setError(null);
-    
-    try {
-      const { analyzeVideoContent } = await getVideoSubtitleModule();
-      
-      const result = await analyzeVideoContent(
-        {
-          videoPath,
-          analysisType: type,
-          language,
-          customPrompt,
-          useSubtitles: true,
-          transcribeIfNeeded: transcribeIfMissing,
-        },
-        apiKey
-      );
-      
-      if (result.success) {
-        setAnalysisResult(result);
-        if (result.transcript) {
-          setTranscript(result.transcript);
+  const analyzeVideo = useCallback(
+    async (
+      videoPath: string,
+      type: 'summary' | 'transcript' | 'key-moments' | 'qa' | 'full' = 'summary'
+    ): Promise<VideoAnalysisResult | null> => {
+      const apiKey = getApiKey();
+
+      setIsAnalyzing(true);
+      setError(null);
+
+      try {
+        const { analyzeVideoContent } = await getVideoSubtitleModule();
+
+        const result = await analyzeVideoContent(
+          {
+            videoPath,
+            analysisType: type,
+            language,
+            customPrompt,
+            useSubtitles: true,
+            transcribeIfNeeded: transcribeIfMissing,
+          },
+          apiKey
+        );
+
+        if (result.success) {
+          setAnalysisResult(result);
+          if (result.transcript) {
+            setTranscript(result.transcript);
+          }
+          onAnalysisComplete?.(result);
+          return result;
         }
-        onAnalysisComplete?.(result);
-        return result;
+
+        setError(result.error || 'Analysis failed');
+        return null;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Analysis failed';
+        setError(message);
+        return null;
+      } finally {
+        setIsAnalyzing(false);
       }
-      
-      setError(result.error || 'Analysis failed');
-      return null;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Analysis failed';
-      setError(message);
-      return null;
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [getVideoSubtitleModule, getApiKey, language, customPrompt, transcribeIfMissing, onAnalysisComplete]);
+    },
+    [
+      getVideoSubtitleModule,
+      getApiKey,
+      language,
+      customPrompt,
+      transcribeIfMissing,
+      onAnalysisComplete,
+    ]
+  );
 
   // Parse subtitle content directly
-  const parseSubtitleContent = useCallback(async (content: string, _format?: string): Promise<SubtitleTrack | null> => {
-    try {
-      const { parseSubtitle } = await import('@/lib/media/subtitle-parser');
-      const result = parseSubtitle(content, language);
-      
-      if (result.tracks.length > 0) {
-        const track = result.tracks[0];
-        setSubtitleTrack(track);
-        setTranscript(track.cues.map((c: SubtitleCue) => c.text).join(' '));
-        return track;
+  const parseSubtitleContent = useCallback(
+    async (content: string, _format?: string): Promise<SubtitleTrack | null> => {
+      try {
+        const { parseSubtitle } = await import('@/lib/media/subtitle-parser');
+        const result = parseSubtitle(content, language);
+
+        if (result.tracks.length > 0) {
+          const track = result.tracks[0];
+          setSubtitleTrack(track);
+          setTranscript(track.cues.map((c: SubtitleCue) => c.text).join(' '));
+          return track;
+        }
+
+        return null;
+      } catch {
+        return null;
       }
-      
-      return null;
-    } catch {
-      return null;
-    }
-  }, [language]);
+    },
+    [language]
+  );
 
   // Search cues by text
-  const searchCues = useCallback((query: string): SubtitleCue[] => {
-    if (!subtitleTrack) return [];
-    
-    const lowerQuery = query.toLowerCase();
-    return subtitleTrack.cues.filter(cue => 
-      cue.text.toLowerCase().includes(lowerQuery)
-    );
-  }, [subtitleTrack]);
+  const searchCues = useCallback(
+    (query: string): SubtitleCue[] => {
+      if (!subtitleTrack) return [];
+
+      const lowerQuery = query.toLowerCase();
+      return subtitleTrack.cues.filter((cue) => cue.text.toLowerCase().includes(lowerQuery));
+    },
+    [subtitleTrack]
+  );
 
   // Get cue at specific time
-  const getCueAtTime = useCallback((timeMs: number): SubtitleCue | null => {
-    if (!subtitleTrack) return null;
-    
-    return subtitleTrack.cues.find(cue => 
-      timeMs >= cue.startTime && timeMs <= cue.endTime
-    ) || null;
-  }, [subtitleTrack]);
+  const getCueAtTime = useCallback(
+    (timeMs: number): SubtitleCue | null => {
+      if (!subtitleTrack) return null;
+
+      return (
+        subtitleTrack.cues.find((cue) => timeMs >= cue.startTime && timeMs <= cue.endTime) || null
+      );
+    },
+    [subtitleTrack]
+  );
 
   // Get plain text from all cues
   const getPlainText = useCallback((): string => {
     if (!subtitleTrack) return transcript || '';
-    return subtitleTrack.cues.map(c => c.text).join(' ');
+    return subtitleTrack.cues.map((c) => c.text).join(' ');
   }, [subtitleTrack, transcript]);
 
   // Reset state
@@ -291,20 +320,20 @@ export function useVideoAnalysis(options: UseVideoAnalysisOptions = {}): UseVide
     isTranscribing,
     isAnalyzing,
     error,
-    
+
     // Data
     subtitleInfo,
     subtitleTrack,
     transcript,
     analysisResult,
-    
+
     // Actions
     getSubtitleInfo,
     extractSubtitles,
     transcribeVideo,
     analyzeVideo,
     parseSubtitleContent,
-    
+
     // Utilities
     searchCues,
     getCueAtTime,

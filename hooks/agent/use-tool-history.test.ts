@@ -20,19 +20,22 @@ let mockState = {
     serverName?: string;
     skillId?: string;
   }>,
-  usageStats: {} as Record<string, {
-    toolId: string;
-    toolType: string;
-    toolName: string;
-    totalCalls: number;
-    successfulCalls: number;
-    failedCalls: number;
-    lastUsed: Date;
-    isFavorite: boolean;
-    isPinned: boolean;
-    serverId?: string;
-    serverName?: string;
-  }>,
+  usageStats: {} as Record<
+    string,
+    {
+      toolId: string;
+      toolType: string;
+      toolName: string;
+      totalCalls: number;
+      successfulCalls: number;
+      failedCalls: number;
+      lastUsed: Date;
+      isFavorite: boolean;
+      isPinned: boolean;
+      serverId?: string;
+      serverName?: string;
+    }
+  >,
   settings: {
     enabled: true,
     maxRecords: 1000,
@@ -81,7 +84,7 @@ jest.mock('@/stores', () => {
         subscribe: jest.fn(() => jest.fn()),
       }
     ),
-    createToolId: jest.fn((type: string, name: string, serverId?: string) => 
+    createToolId: jest.fn((type: string, name: string, serverId?: string) =>
       serverId ? `${type}:${serverId}:${name}` : `${type}:${name}`
     ),
   };
@@ -106,9 +109,15 @@ const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
   };
 })();
 
@@ -132,9 +141,7 @@ describe('useToolHistory', () => {
     });
 
     it('should accept options', () => {
-      const { result } = renderHook(() => 
-        useToolHistory({ recentLimit: 3, frequentLimit: 3 })
-      );
+      const { result } = renderHook(() => useToolHistory({ recentLimit: 3, frequentLimit: 3 }));
 
       expect(result.current.recentTools).toHaveLength(0);
       expect(result.current.frequentTools).toHaveLength(0);
@@ -231,26 +238,14 @@ describe('useToolHistory', () => {
       const { result } = renderHook(() => useToolHistory());
 
       act(() => {
-        result.current.toggleFavorite(
-          'mcp:server1:tool1',
-          'mcp',
-          'tool1',
-          'server1',
-          'Server 1'
-        );
+        result.current.toggleFavorite('mcp:server1:tool1', 'mcp', 'tool1', 'server1', 'Server 1');
       });
 
       expect(result.current.isFavorite('mcp:server1:tool1')).toBe(true);
       expect(result.current.favorites).toHaveLength(1);
 
       act(() => {
-        result.current.toggleFavorite(
-          'mcp:server1:tool1',
-          'mcp',
-          'tool1',
-          'server1',
-          'Server 1'
-        );
+        result.current.toggleFavorite('mcp:server1:tool1', 'mcp', 'tool1', 'server1', 'Server 1');
       });
 
       expect(result.current.isFavorite('mcp:server1:tool1')).toBe(false);
@@ -436,9 +431,14 @@ describe('useToolHistory', () => {
       const { result } = renderHook(() => useToolHistory());
 
       act(() => {
-        const r = result.current.recordCall('mcp', 'search', 'Find documents about artificial intelligence', {
-          serverId: 's1',
-        });
+        const r = result.current.recordCall(
+          'mcp',
+          'search',
+          'Find documents about artificial intelligence',
+          {
+            serverId: 's1',
+          }
+        );
         result.current.updateCallResult(r.id, 'success');
       });
 

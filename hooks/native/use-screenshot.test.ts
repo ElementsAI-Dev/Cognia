@@ -78,7 +78,9 @@ describe('useScreenshot', () => {
       });
 
       expect(result.current.lastScreenshot).toEqual(mockScreenshotResult);
-      expect(mockInvoke).toHaveBeenCalledWith('screenshot_capture_fullscreen_with_history', { monitorIndex: undefined });
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_capture_fullscreen_with_history', {
+        monitorIndex: undefined,
+      });
     });
 
     it('should capture specific monitor', async () => {
@@ -89,7 +91,9 @@ describe('useScreenshot', () => {
         await result.current.captureFullscreen(1);
       });
 
-      expect(mockInvoke).toHaveBeenCalledWith('screenshot_capture_fullscreen_with_history', { monitorIndex: 1 });
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_capture_fullscreen_with_history', {
+        monitorIndex: 1,
+      });
     });
 
     it('should handle capture errors', async () => {
@@ -226,7 +230,9 @@ describe('useScreenshot', () => {
         expect(ocrResult).toEqual(mockOcrResult);
       });
 
-      expect(mockInvoke).toHaveBeenCalledWith('screenshot_ocr_windows', { imageBase64: 'base64image' });
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_ocr_windows', {
+        imageBase64: 'base64image',
+      });
     });
   });
 

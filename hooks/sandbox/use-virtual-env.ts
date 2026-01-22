@@ -10,10 +10,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useVirtualEnvStore, selectActiveEnv } from '@/stores/system';
-import {
-  virtualEnvService,
-  isEnvironmentAvailable,
-} from '@/lib/native/environment';
+import { virtualEnvService, isEnvironmentAvailable } from '@/lib/native/environment';
 import type {
   VirtualEnvInfo,
   CreateVirtualEnvOptions,
@@ -418,11 +415,11 @@ export function useVirtualEnv(): UseVirtualEnvReturn {
         // Get current packages
         const packages = await virtualEnvService.listPackages(envPath);
         const packageNames = packages.map((p) => p.name);
-        
+
         if (packageNames.length > 0) {
           await virtualEnvService.installPackages(envPath, packageNames, true);
         }
-        
+
         // Refresh packages list
         clearPackageCache(envPath);
         await loadPackages(envPath);
@@ -472,7 +469,7 @@ export function useVirtualEnv(): UseVirtualEnvReturn {
         const entries = parseRequirements(content);
         const packages = entries
           .filter((e) => !e.isEditable)
-          .map((e) => e.version ? `${e.name}${e.version}` : e.name);
+          .map((e) => (e.version ? `${e.name}${e.version}` : e.name));
 
         if (packages.length > 0) {
           await virtualEnvService.installPackages(envPath, packages, false);

@@ -10,9 +10,7 @@ interface UseWorkflowKeyboardShortcutsOptions {
   onSave?: () => void;
 }
 
-export function useWorkflowKeyboardShortcuts(
-  options: UseWorkflowKeyboardShortcutsOptions = {}
-) {
+export function useWorkflowKeyboardShortcuts(options: UseWorkflowKeyboardShortcutsOptions = {}) {
   const { enabled = true, onSave } = options;
 
   const {
@@ -32,9 +30,7 @@ export function useWorkflowKeyboardShortcuts(
       // Don't handle shortcuts if typing in an input
       const target = event.target as HTMLElement;
       const isInputElement =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable;
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
       if (isInputElement) return;
 
@@ -49,10 +45,7 @@ export function useWorkflowKeyboardShortcuts(
       }
 
       // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y - Redo
-      if (
-        (ctrlOrCmd && event.key === 'z' && event.shiftKey) ||
-        (ctrlOrCmd && event.key === 'y')
-      ) {
+      if ((ctrlOrCmd && event.key === 'z' && event.shiftKey) || (ctrlOrCmd && event.key === 'y')) {
         event.preventDefault();
         redo();
         return;

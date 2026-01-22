@@ -82,7 +82,7 @@ describe('useSubAgent', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    Object.keys(mockSubAgents).forEach(key => delete mockSubAgents[key]);
+    Object.keys(mockSubAgents).forEach((key) => delete mockSubAgents[key]);
 
     (useSubAgentStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {

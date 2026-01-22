@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /**
  * useFloatingPosition Hook
@@ -6,10 +6,10 @@
  * Supports multi-screen setups and adapts to available screen space
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
-export type FabPosition = "bottom-right" | "bottom-left" | "top-right" | "top-left";
-export type PanelExpandDirection = "up" | "down" | "left" | "right";
+export type FabPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+export type PanelExpandDirection = 'up' | 'down' | 'left' | 'right';
 
 interface ScreenInfo {
   width: number;
@@ -50,7 +50,7 @@ const DEFAULT_CONFIG: Partial<FloatingPositionConfig> = {
  * Handles multi-monitor setups by using window.screen
  */
 function getScreenInfo(): ScreenInfo {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return {
       width: 1920,
       height: 1080,
@@ -77,7 +77,7 @@ function getScreenInfo(): ScreenInfo {
  * Get viewport dimensions
  */
 function getViewportInfo() {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return { width: 1920, height: 1080 };
   }
 
@@ -96,8 +96,8 @@ function calculateAvailableSpace(
   fabSize: number = 56,
   fabOffset: number = 24
 ) {
-  const isRight = fabPosition.includes("right");
-  const isBottom = fabPosition.includes("bottom");
+  const isRight = fabPosition.includes('right');
+  const isBottom = fabPosition.includes('bottom');
 
   // FAB position in viewport
   const fabX = isRight ? viewport.width - fabOffset - fabSize : fabOffset + fabSize;
@@ -120,8 +120,8 @@ function determineExpandDirection(
   panelHeight: number,
   availableSpace: ReturnType<typeof calculateAvailableSpace>
 ): PanelExpandDirection {
-  const _isRight = fabPosition.includes("right");
-  const isBottom = fabPosition.includes("bottom");
+  const _isRight = fabPosition.includes('right');
+  const isBottom = fabPosition.includes('bottom');
 
   // Check if we have enough space in preferred direction
   const canExpandUp = availableSpace.up >= panelHeight;
@@ -129,28 +129,23 @@ function determineExpandDirection(
 
   // For bottom FAB positions, prefer expanding up
   if (isBottom) {
-    if (canExpandUp) return "up";
-    if (canExpandDown) return "down";
+    if (canExpandUp) return 'up';
+    if (canExpandDown) return 'down';
   } else {
     // For top FAB positions, prefer expanding down
-    if (canExpandDown) return "down";
-    if (canExpandUp) return "up";
+    if (canExpandDown) return 'down';
+    if (canExpandUp) return 'up';
   }
 
   // Fallback: use the direction with more space
-  return availableSpace.up >= availableSpace.down ? "up" : "down";
+  return availableSpace.up >= availableSpace.down ? 'up' : 'down';
 }
 
 /**
  * Hook to manage floating position with adaptive behavior
  */
-export function useFloatingPosition(
-  config: FloatingPositionConfig
-): FloatingPositionResult {
-  const mergedConfig = useMemo(
-    () => ({ ...DEFAULT_CONFIG, ...config }),
-    [config]
-  );
+export function useFloatingPosition(config: FloatingPositionConfig): FloatingPositionResult {
+  const mergedConfig = useMemo(() => ({ ...DEFAULT_CONFIG, ...config }), [config]);
 
   const [screenInfo, setScreenInfo] = useState<ScreenInfo>(getScreenInfo);
   const [viewport, setViewport] = useState(getViewportInfo);
@@ -163,7 +158,7 @@ export function useFloatingPosition(
 
   // Listen for window resize and move
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
 
     // Update on resize
     const handleResize = () => updatePosition();
@@ -182,11 +177,11 @@ export function useFloatingPosition(
       animationFrameId = requestAnimationFrame(checkWindowMove);
     };
 
-    window.addEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
     animationFrameId = requestAnimationFrame(checkWindowMove);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
     };
   }, [updatePosition]);
@@ -205,12 +200,7 @@ export function useFloatingPosition(
         mergedConfig.panelHeight,
         availableSpace
       ),
-    [
-      mergedConfig.fabPosition,
-      mergedConfig.panelWidth,
-      mergedConfig.panelHeight,
-      availableSpace,
-    ]
+    [mergedConfig.fabPosition, mergedConfig.panelWidth, mergedConfig.panelHeight, availableSpace]
   );
 
   // Check what directions are possible

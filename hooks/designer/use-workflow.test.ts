@@ -58,9 +58,7 @@ describe('useWorkflow', () => {
         { id: 'workflow1', name: 'Workflow 1', type: 'custom' },
         { id: 'workflow2', name: 'Workflow 2', type: 'ppt' },
       ]),
-      getByType: jest.fn((type: string) => [
-        { id: 'workflow1', name: 'Workflow 1', type },
-      ]),
+      getByType: jest.fn((type: string) => [{ id: 'workflow1', name: 'Workflow 1', type }]),
     });
   });
 
@@ -200,7 +198,7 @@ describe('useWorkflow', () => {
       mockExecuteWorkflow.mockImplementation(async (_id, _session, _input, _config, callbacks) => {
         callbacks.onStart(mockExecution);
         // Simulate long running workflow
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         return { execution: mockExecution, success: true };
       });
 
@@ -227,7 +225,7 @@ describe('useWorkflow', () => {
 
       mockExecuteWorkflow.mockImplementation(async (_id, _session, _input, _config, callbacks) => {
         callbacks.onStart(mockExecution);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         return { execution: mockExecution, success: true };
       });
 

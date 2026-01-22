@@ -1,6 +1,6 @@
 /**
  * useImageEditor - Main hook for image editing operations
- * 
+ *
  * Provides comprehensive image editing functionality:
  * - Image loading and state management
  * - Transform operations (crop, rotate, flip)
@@ -124,12 +124,7 @@ function generateId(): string {
 }
 
 export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEditorReturn {
-  const {
-    initialImageUrl,
-    maxHistorySize = 50,
-    onImageChange,
-    onError,
-  } = options;
+  const { initialImageUrl, maxHistorySize = 50, onImageChange, onError } = options;
 
   // State
   const [state, setState] = useState<ImageEditorState>({
@@ -162,11 +157,7 @@ export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEdi
 
   // Add to history
   const addToHistory = useCallback(
-    (
-      type: ImageHistoryEntry['type'],
-      description: string,
-      imageData: ImageData
-    ) => {
+    (type: ImageHistoryEntry['type'], description: string, imageData: ImageData) => {
       const entry: ImageHistoryEntry = {
         id: generateId(),
         type,
@@ -203,7 +194,12 @@ export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEdi
 
   // Update image data
   const updateImageData = useCallback(
-    (imageData: ImageData, addHistory = true, historyType?: ImageHistoryEntry['type'], description?: string) => {
+    (
+      imageData: ImageData,
+      addHistory = true,
+      historyType?: ImageHistoryEntry['type'],
+      description?: string
+    ) => {
       setState((prev) => ({
         ...prev,
         imageData,

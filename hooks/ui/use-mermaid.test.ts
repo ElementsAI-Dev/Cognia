@@ -36,9 +36,7 @@ describe('useMermaid', () => {
   });
 
   it('should auto-render initial code when autoRender is true', async () => {
-    const { result } = renderHook(() =>
-      useMermaid('graph TD\nA-->B', { autoRender: true })
-    );
+    const { result } = renderHook(() => useMermaid('graph TD\nA-->B', { autoRender: true }));
 
     await waitFor(() => {
       expect(result.current.svg).toBe('<svg>test</svg>');
@@ -49,9 +47,7 @@ describe('useMermaid', () => {
   });
 
   it('should not auto-render when autoRender is false', async () => {
-    const { result } = renderHook(() =>
-      useMermaid('graph TD\nA-->B', { autoRender: false })
-    );
+    const { result } = renderHook(() => useMermaid('graph TD\nA-->B', { autoRender: false }));
 
     // Wait a bit to ensure no auto-render
     await new Promise((r) => setTimeout(r, 100));
@@ -89,9 +85,7 @@ describe('useMermaid', () => {
   it('should handle render errors', async () => {
     (mockedMermaid.render as jest.Mock).mockRejectedValueOnce(new Error('Parse error'));
 
-    const { result } = renderHook(() =>
-      useMermaid('invalid code', { autoRender: true })
-    );
+    const { result } = renderHook(() => useMermaid('invalid code', { autoRender: true }));
 
     await waitFor(() => {
       expect(result.current.error).toBe('Parse error');
@@ -102,9 +96,7 @@ describe('useMermaid', () => {
   });
 
   it('should reset state', async () => {
-    const { result } = renderHook(() =>
-      useMermaid('graph TD\nA-->B', { autoRender: true })
-    );
+    const { result } = renderHook(() => useMermaid('graph TD\nA-->B', { autoRender: true }));
 
     await waitFor(() => {
       expect(result.current.svg).toBe('<svg>test</svg>');
@@ -153,10 +145,7 @@ describe('useMermaid', () => {
     await waitFor(() => {
       // Should only render the last one
       expect(mockedMermaid.render).toHaveBeenCalledTimes(1);
-      expect(mockedMermaid.render).toHaveBeenCalledWith(
-        expect.any(String),
-        'graph 3'
-      );
+      expect(mockedMermaid.render).toHaveBeenCalledWith(expect.any(String), 'graph 3');
     });
 
     jest.useRealTimers();

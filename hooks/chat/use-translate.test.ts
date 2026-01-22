@@ -35,8 +35,12 @@ jest.mock('@/stores', () => ({
   }),
 }));
 
-const mockTranslateText = translateLib.translateText as jest.MockedFunction<typeof translateLib.translateText>;
-const mockDetectLanguage = translateLib.detectLanguage as jest.MockedFunction<typeof translateLib.detectLanguage>;
+const mockTranslateText = translateLib.translateText as jest.MockedFunction<
+  typeof translateLib.translateText
+>;
+const mockDetectLanguage = translateLib.detectLanguage as jest.MockedFunction<
+  typeof translateLib.detectLanguage
+>;
 
 describe('useTranslate', () => {
   beforeEach(() => {
@@ -173,8 +177,18 @@ describe('useTranslate', () => {
   describe('translateBatch', () => {
     it('should translate multiple texts', async () => {
       mockTranslateText
-        .mockResolvedValueOnce({ success: true, translatedText: 'Hola', sourceLanguage: 'en', targetLanguage: 'es' })
-        .mockResolvedValueOnce({ success: true, translatedText: 'Mundo', sourceLanguage: 'en', targetLanguage: 'es' });
+        .mockResolvedValueOnce({
+          success: true,
+          translatedText: 'Hola',
+          sourceLanguage: 'en',
+          targetLanguage: 'es',
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          translatedText: 'Mundo',
+          sourceLanguage: 'en',
+          targetLanguage: 'es',
+        });
 
       const { result } = renderHook(() => useTranslate());
 
@@ -252,10 +266,12 @@ describe('useTranslate', () => {
         targetLanguage: 'es',
       });
 
-      const { result } = renderHook(() => useTranslate({
-        provider: 'anthropic',
-        model: 'claude-3',
-      }));
+      const { result } = renderHook(() =>
+        useTranslate({
+          provider: 'anthropic',
+          model: 'claude-3',
+        })
+      );
 
       await act(async () => {
         await result.current.translate('Hello', 'es');

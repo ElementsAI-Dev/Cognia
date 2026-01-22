@@ -121,8 +121,8 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   // Get active skills from store
   const activeSkillIds = useSkillStore((state) => state.activeSkillIds);
   const skills = useSkillStore((state) => state.skills);
-  const activeSkills = useMemo(() => 
-    activeSkillIds.map(id => skills[id]).filter((s): s is Skill => s !== undefined),
+  const activeSkills = useMemo(
+    () => activeSkillIds.map((id) => skills[id]).filter((s): s is Skill => s !== undefined),
     [activeSkillIds, skills]
   );
 
@@ -172,7 +172,9 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     if (systemContext.editor) {
       parts.push(`Editor: ${systemContext.editor.editor_name}`);
       if (systemContext.editor.line_number) {
-        parts.push(`Cursor Position: Line ${systemContext.editor.line_number}, Column ${systemContext.editor.column_number || 1}`);
+        parts.push(
+          `Cursor Position: Line ${systemContext.editor.line_number}, Column ${systemContext.editor.column_number || 1}`
+        );
       }
     }
 
@@ -199,18 +201,18 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   // Create MCP tools for agent to use with intelligent selection
   const mcpTools = useMemo(() => {
     if (!enableMcpTools || mcpServers.length === 0) return {};
-    
+
     // First, create all MCP tools
     const allMcpTools = createMcpToolsFromStore(mcpServers, mcpCallTool, {
       requireApproval: mcpRequireApproval,
     });
-    
+
     // Merge with default config
     const selectionConfig: McpToolSelectionConfig = {
       ...DEFAULT_TOOL_SELECTION_CONFIG,
       ...mcpToolSelectionConfig,
     };
-    
+
     // If selection is enabled and we have a query, apply intelligent selection
     const totalToolCount = Object.keys(allMcpTools).length;
     if (selectionConfig.strategy !== 'manual' && totalToolCount > selectionConfig.maxTools) {
@@ -220,7 +222,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
         selectionConfig,
         mcpToolUsageHistory
       );
-      
+
       // Notify about selection
       if (onToolSelection && selection.wasLimited) {
         onToolSelection(
@@ -229,10 +231,10 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
           selection.selectionReason
         );
       }
-      
+
       return selectedTools;
     }
-    
+
     return allMcpTools;
   }, [
     enableMcpTools,
@@ -249,7 +251,9 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   const ragConfig = useMemo(() => {
     if (!enableRAG) return undefined;
     // Get API key for embedding provider
-    const embeddingApiKey = providerSettings[vectorSettings.embeddingProvider as keyof typeof providerSettings]?.apiKey || '';
+    const embeddingApiKey =
+      providerSettings[vectorSettings.embeddingProvider as keyof typeof providerSettings]?.apiKey ||
+      '';
     if (!embeddingApiKey) return undefined;
     return buildRAGConfigFromSettings(vectorSettings, embeddingApiKey);
   }, [enableRAG, vectorSettings, providerSettings]);
@@ -294,7 +298,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   // Create RAG search tool if config is available
   const ragTools = useMemo((): Record<string, AgentTool> => {
     if (!ragConfig) return {};
-    
+
     const collectionNames = getCollectionNames();
     const tools: Record<string, AgentTool> = {
       rag_search: createRAGSearchTool(ragConfig, {
@@ -302,31 +306,36 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
         defaultCollectionName: vectorSettings.defaultCollectionName,
       }),
     };
-    
+
     // Add collection listing tool for discovery
     if (vectorCollections.length > 0) {
       tools.list_rag_collections = createListRAGCollectionsTool(() =>
-        vectorCollections.map(c => ({
+        vectorCollections.map((c) => ({
           name: c.name,
           description: c.description,
           documentCount: c.documentCount,
         }))
       );
     }
-    
+
     return tools;
   }, [ragConfig, getCollectionNames, vectorSettings.defaultCollectionName, vectorCollections]);
 
   // Merge skill tools, MCP tools, RAG tools, and registered tools
-  const allTools = useMemo(() => ({
-    ...skillTools,
-    ...mcpTools,
-    ...ragTools,
-    ...registeredTools,
-  }), [skillTools, mcpTools, ragTools, registeredTools]);
+  const allTools = useMemo(
+    () => ({
+      ...skillTools,
+      ...mcpTools,
+      ...ragTools,
+      ...registeredTools,
+    }),
+    [skillTools, mcpTools, ragTools, registeredTools]
+  );
 
   // Build agent config
-  const buildConfig = useCallback((): Omit<AgentConfig, 'provider' | 'model' | 'apiKey'> & { systemPrompt?: string } => {
+  const buildConfig = useCallback((): Omit<AgentConfig, 'provider' | 'model' | 'apiKey'> & {
+    systemPrompt?: string;
+  } => {
     return {
       systemPrompt: effectiveSystemPrompt,
       temperature,
@@ -348,9 +357,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
         onToolCall?.(call);
       },
       onToolResult: (call) => {
-        setToolCalls((prev) =>
-          prev.map((c) => (c.id === call.id ? call : c))
-        );
+        setToolCalls((prev) => prev.map((c) => (c.id === call.id ? call : c)));
         onToolResult?.(call);
       },
     };
@@ -367,161 +374,181 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   ]);
 
   // Run agent
-  const run = useCallback(async (prompt: string): Promise<AgentResult> => {
-    setIsRunning(true);
-    setCurrentStep(0);
-    setError(null);
-    setResult(null);
-    setToolCalls([]);
-    abortRef.current = false;
+  const run = useCallback(
+    async (prompt: string): Promise<AgentResult> => {
+      setIsRunning(true);
+      setCurrentStep(0);
+      setError(null);
+      setResult(null);
+      setToolCalls([]);
+      abortRef.current = false;
 
-    try {
-      const config = buildConfig();
-      
-      // Use context-aware executor if enabled
-      const enableContextAware = options.enableContextFiles ?? true;
-      const enableCtxTools = options.injectContextTools ?? true;
-      
-      let agentResult: AgentResult;
-      
-      if (enableContextAware || enableCtxTools) {
-        const ctxResult = await executeContextAwareAgent(prompt, {
-          ...config,
-          provider: defaultProvider,
-          model: defaultModel,
-          apiKey: getApiKey(),
-          enableContextFiles: enableContextAware,
-          injectContextTools: enableCtxTools,
-          maxInlineOutputSize: options.maxInlineOutputSize ?? 4000,
-          onToolOutputPersisted: (ref) => {
-            console.log('[Context] Tool output persisted:', ref.path, ref.sizeSummary);
-          },
-        } as ContextAwareAgentConfig);
-        
-        agentResult = ctxResult as AgentResult;
-        
-        // Log context stats if available
-        const ctxTypedResult = ctxResult as ContextAwareAgentResult;
-        if (ctxTypedResult.persistedOutputs && ctxTypedResult.persistedOutputs.length > 0) {
-          console.log(`[Context] Persisted ${ctxTypedResult.persistedOutputs.length} outputs, saved ~${ctxTypedResult.tokensSaved || 0} tokens`);
+      try {
+        const config = buildConfig();
+
+        // Use context-aware executor if enabled
+        const enableContextAware = options.enableContextFiles ?? true;
+        const enableCtxTools = options.injectContextTools ?? true;
+
+        let agentResult: AgentResult;
+
+        if (enableContextAware || enableCtxTools) {
+          const ctxResult = await executeContextAwareAgent(prompt, {
+            ...config,
+            provider: defaultProvider,
+            model: defaultModel,
+            apiKey: getApiKey(),
+            enableContextFiles: enableContextAware,
+            injectContextTools: enableCtxTools,
+            maxInlineOutputSize: options.maxInlineOutputSize ?? 4000,
+            onToolOutputPersisted: (ref) => {
+              console.log('[Context] Tool output persisted:', ref.path, ref.sizeSummary);
+            },
+          } as ContextAwareAgentConfig);
+
+          agentResult = ctxResult as AgentResult;
+
+          // Log context stats if available
+          const ctxTypedResult = ctxResult as ContextAwareAgentResult;
+          if (ctxTypedResult.persistedOutputs && ctxTypedResult.persistedOutputs.length > 0) {
+            console.log(
+              `[Context] Persisted ${ctxTypedResult.persistedOutputs.length} outputs, saved ~${ctxTypedResult.tokensSaved || 0} tokens`
+            );
+          }
+        } else {
+          agentResult = await executeAgent(prompt, {
+            ...config,
+            provider: defaultProvider,
+            model: defaultModel,
+            apiKey: getApiKey(),
+          });
         }
-      } else {
-        agentResult = await executeAgent(prompt, {
-          ...config,
-          provider: defaultProvider,
-          model: defaultModel,
-          apiKey: getApiKey(),
-        });
-      }
 
-      setResult(agentResult);
-      if (!agentResult.success) {
-        setError(agentResult.error || 'Agent execution failed');
+        setResult(agentResult);
+        if (!agentResult.success) {
+          setError(agentResult.error || 'Agent execution failed');
+        }
+        return agentResult;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Agent execution failed';
+        setError(message);
+        return {
+          success: false,
+          finalResponse: '',
+          steps: [],
+          totalSteps: currentStep,
+          duration: 0,
+          error: message,
+        };
+      } finally {
+        setIsRunning(false);
       }
-      return agentResult;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Agent execution failed';
-      setError(message);
-      return {
-        success: false,
-        finalResponse: '',
-        steps: [],
-        totalSteps: currentStep,
-        duration: 0,
-        error: message,
-      };
-    } finally {
-      setIsRunning(false);
-    }
-  }, [buildConfig, defaultProvider, defaultModel, getApiKey, currentStep, options.enableContextFiles, options.injectContextTools, options.maxInlineOutputSize]);
+    },
+    [
+      buildConfig,
+      defaultProvider,
+      defaultModel,
+      getApiKey,
+      currentStep,
+      options.enableContextFiles,
+      options.injectContextTools,
+      options.maxInlineOutputSize,
+    ]
+  );
 
   // Run with planning
-  const runWithPlanning = useCallback(async (task: string): Promise<AgentLoopResult> => {
-    setIsRunning(true);
-    setCurrentStep(0);
-    setError(null);
-    setResult(null);
-    setToolCalls([]);
-    abortRef.current = false;
+  const runWithPlanning = useCallback(
+    async (task: string): Promise<AgentLoopResult> => {
+      setIsRunning(true);
+      setCurrentStep(0);
+      setError(null);
+      setResult(null);
+      setToolCalls([]);
+      abortRef.current = false;
 
-    try {
-      const loopResult = await executeAgentLoop(task, {
-        provider: defaultProvider,
-        model: defaultModel,
-        apiKey: getApiKey(),
-        tools: registeredTools,
-        maxStepsPerTask: Math.ceil(maxSteps / 3),
-        maxTotalSteps: maxSteps,
-        planningEnabled: enablePlanning,
-        onTaskStart: (_agentTask) => {
-          setCurrentStep((prev) => prev + 1);
-        },
-        onTaskComplete: () => {
-          // Task completed
-        },
-        onProgress: (progress) => {
-          setCurrentStep(progress.completed);
-        },
-      });
+      try {
+        const loopResult = await executeAgentLoop(task, {
+          provider: defaultProvider,
+          model: defaultModel,
+          apiKey: getApiKey(),
+          tools: registeredTools,
+          maxStepsPerTask: Math.ceil(maxSteps / 3),
+          maxTotalSteps: maxSteps,
+          planningEnabled: enablePlanning,
+          onTaskStart: (_agentTask) => {
+            setCurrentStep((prev) => prev + 1);
+          },
+          onTaskComplete: () => {
+            // Task completed
+          },
+          onProgress: (progress) => {
+            setCurrentStep(progress.completed);
+          },
+        });
 
-      setResult(loopResult);
-      if (!loopResult.success) {
-        setError(loopResult.error || 'Agent loop failed');
+        setResult(loopResult);
+        if (!loopResult.success) {
+          setError(loopResult.error || 'Agent loop failed');
+        }
+        return loopResult;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Agent loop failed';
+        setError(message);
+        return {
+          success: false,
+          tasks: [],
+          totalSteps: currentStep,
+          duration: 0,
+          error: message,
+        };
+      } finally {
+        setIsRunning(false);
       }
-      return loopResult;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Agent loop failed';
-      setError(message);
-      return {
-        success: false,
-        tasks: [],
-        totalSteps: currentStep,
-        duration: 0,
-        error: message,
-      };
-    } finally {
-      setIsRunning(false);
-    }
-  }, [
-    defaultProvider,
-    defaultModel,
-    getApiKey,
-    registeredTools,
-    maxSteps,
-    enablePlanning,
-    currentStep,
-  ]);
+    },
+    [
+      defaultProvider,
+      defaultModel,
+      getApiKey,
+      registeredTools,
+      maxSteps,
+      enablePlanning,
+      currentStep,
+    ]
+  );
 
   // Background agent store
   const createBackgroundAgent = useBackgroundAgentStore((state) => state.createAgent);
   const openBackgroundPanel = useBackgroundAgentStore((state) => state.openPanel);
 
   // Run in background
-  const runInBackground = useCallback((name: string, task: string): BackgroundAgent => {
-    const agent = createBackgroundAgent({
-      sessionId: '', // Will be set by the caller or use current session
-      name,
-      task,
-      config: {
-        provider: defaultProvider,
-        model: defaultModel,
-        maxSteps: maxSteps,
-        timeout: 300000, // 5 minutes default
-        notifyOnComplete: true,
-        notifyOnError: true,
-        autoRetry: true,
-        maxRetries: 2,
-        persistState: true,
-        runInBackground: true,
-      },
-      priority: 5,
-    });
+  const runInBackground = useCallback(
+    (name: string, task: string): BackgroundAgent => {
+      const agent = createBackgroundAgent({
+        sessionId: '', // Will be set by the caller or use current session
+        name,
+        task,
+        config: {
+          provider: defaultProvider,
+          model: defaultModel,
+          maxSteps: maxSteps,
+          timeout: 300000, // 5 minutes default
+          notifyOnComplete: true,
+          notifyOnError: true,
+          autoRetry: true,
+          maxRetries: 2,
+          persistState: true,
+          runInBackground: true,
+        },
+        priority: 5,
+      });
 
-    // Open the background panel to show the new agent
-    openBackgroundPanel();
+      // Open the background panel to show the new agent
+      openBackgroundPanel();
 
-    return agent;
-  }, [createBackgroundAgent, openBackgroundPanel, defaultProvider, defaultModel, maxSteps]);
+      return agent;
+    },
+    [createBackgroundAgent, openBackgroundPanel, defaultProvider, defaultModel, maxSteps]
+  );
 
   // Stop execution
   const stop = useCallback(() => {
@@ -602,13 +629,16 @@ export function useConfiguredAgent(tools: Record<string, AgentTool>) {
     return settings?.apiKey || '';
   }, [defaultProvider, providerSettings]);
 
-  const run = useCallback(async (prompt: string) => {
-    return agent.run(prompt, {
-      provider: defaultProvider,
-      model: defaultModel,
-      apiKey: getApiKey(),
-    });
-  }, [agent, defaultProvider, defaultModel, getApiKey]);
+  const run = useCallback(
+    async (prompt: string) => {
+      return agent.run(prompt, {
+        provider: defaultProvider,
+        model: defaultModel,
+        apiKey: getApiKey(),
+      });
+    },
+    [agent, defaultProvider, defaultModel, getApiKey]
+  );
 
   return { run, addTool: agent.addTool, removeTool: agent.removeTool };
 }

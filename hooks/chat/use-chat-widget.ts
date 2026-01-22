@@ -147,7 +147,8 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
         bubbleNewSession: unlistenBubbleNewSession,
         bubbleOpenSettings: unlistenBubbleOpenSettings,
       };
-      (window as unknown as { __chatWidgetCleanup?: typeof cleanupFns }).__chatWidgetCleanup = cleanupFns;
+      (window as unknown as { __chatWidgetCleanup?: typeof cleanupFns }).__chatWidgetCleanup =
+        cleanupFns;
     };
 
     setupListeners();
@@ -159,7 +160,13 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
       unlistenFocusInput?.();
       unlistenConfigChanged?.();
       // Cleanup all bubble and selection listeners
-      const win = window as unknown as { __chatWidgetCleanup?: { selection: () => void; bubbleNewSession: () => void; bubbleOpenSettings: () => void } };
+      const win = window as unknown as {
+        __chatWidgetCleanup?: {
+          selection: () => void;
+          bubbleNewSession: () => void;
+          bubbleOpenSettings: () => void;
+        };
+      };
       win.__chatWidgetCleanup?.selection?.();
       win.__chatWidgetCleanup?.bubbleNewSession?.();
       win.__chatWidgetCleanup?.bubbleOpenSettings?.();
@@ -180,10 +187,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
       const appWindow = getCurrentWindow();
 
       const syncSize = async () => {
-        const [size, scale] = await Promise.all([
-          appWindow.innerSize(),
-          appWindow.scaleFactor(),
-        ]);
+        const [size, scale] = await Promise.all([appWindow.innerSize(), appWindow.scaleFactor()]);
         updateConfig({
           width: size.width / scale,
           height: size.height / scale,
@@ -254,7 +258,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
         // Build messages array for API
         const apiMessages = [
           { role: 'system' as const, content: config.systemPrompt },
-          ...messages.map(m => ({ role: m.role, content: m.content })),
+          ...messages.map((m) => ({ role: m.role, content: m.content })),
           { role: 'user' as const, content: text },
         ];
 
@@ -278,7 +282,11 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
         const reader = response.body?.getReader();
         if (!reader) throw new Error('No response body');
 
-        const assistantMessageId = addMessage({ role: 'assistant', content: '', isStreaming: true });
+        const assistantMessageId = addMessage({
+          role: 'assistant',
+          content: '',
+          isStreaming: true,
+        });
         const decoder = new TextDecoder();
         let fullContent = '';
 
@@ -304,16 +312,18 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
         }
 
         recordActivity();
-        
+
         // If chat widget is not visible, increment unread count and play notification sound
         if (!useChatWidgetStore.getState().isVisible) {
           emitUnreadCount(1);
           // Play notification sound for new message when widget is hidden
-          import('@/lib/native/sound').then(({ playNotificationSound }) => {
-            playNotificationSound();
-          }).catch(() => {
-            // Ignore sound errors
-          });
+          import('@/lib/native/sound')
+            .then(({ playNotificationSound }) => {
+              playNotificationSound();
+            })
+            .catch(() => {
+              // Ignore sound errors
+            });
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
@@ -328,7 +338,18 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
         abortControllerRef.current = null;
       }
     },
-    [isLoading, messages, config, addMessage, setLoading, clearInput, setError, recordActivity, emitLoadingState, emitUnreadCount]
+    [
+      isLoading,
+      messages,
+      config,
+      addMessage,
+      setLoading,
+      clearInput,
+      setError,
+      recordActivity,
+      emitLoadingState,
+      emitUnreadCount,
+    ]
   );
 
   // Handle submit
@@ -363,15 +384,15 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
       if (e.key === 'ArrowUp' && userMessages.length > 0) {
         const textarea = e.target as HTMLTextAreaElement;
         const cursorAtStart = textarea.selectionStart === 0 && textarea.selectionEnd === 0;
-        
+
         if (cursorAtStart || !inputValue) {
           e.preventDefault();
-          
+
           // Save current input if starting navigation
           if (historyIndexRef.current === -1) {
             tempInputRef.current = inputValue;
           }
-          
+
           // Navigate to previous message
           const newIndex = Math.min(historyIndexRef.current + 1, userMessages.length - 1);
           if (newIndex !== historyIndexRef.current) {
@@ -385,10 +406,10 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
       if (e.key === 'ArrowDown' && historyIndexRef.current >= 0) {
         const textarea = e.target as HTMLTextAreaElement;
         const cursorAtEnd = textarea.selectionStart === inputValue.length;
-        
+
         if (cursorAtEnd) {
           e.preventDefault();
-          
+
           const newIndex = historyIndexRef.current - 1;
           if (newIndex >= 0) {
             historyIndexRef.current = newIndex;
@@ -469,14 +490,17 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
     await invoke('chat_widget_toggle');
   }, [toggle]);
 
-  const setPinned = useCallback(async (pinned: boolean) => {
-    updateConfig({ pinned });
-    if (typeof window === 'undefined' || !isTauri()) {
-      return;
-    }
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('chat_widget_set_pinned', { pinned });
-  }, [updateConfig]);
+  const setPinned = useCallback(
+    async (pinned: boolean) => {
+      updateConfig({ pinned });
+      if (typeof window === 'undefined' || !isTauri()) {
+        return;
+      }
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('chat_widget_set_pinned', { pinned });
+    },
+    [updateConfig]
+  );
 
   return {
     // State

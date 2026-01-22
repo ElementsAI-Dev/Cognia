@@ -323,13 +323,7 @@ describe('getSessionEnvContext', () => {
       },
     ];
 
-    const result = getSessionEnvContext(
-      'session-1',
-      sessions,
-      mockEnvs,
-      [],
-      null
-    );
+    const result = getSessionEnvContext('session-1', sessions, mockEnvs, [], null);
 
     expect(result.envId).toBe('env-1');
     expect(result.envPath).toBe('/envs/data-science');
@@ -337,13 +331,7 @@ describe('getSessionEnvContext', () => {
   });
 
   it('should return none when session not found', () => {
-    const result = getSessionEnvContext(
-      'non-existent',
-      [],
-      mockEnvs,
-      [],
-      null
-    );
+    const result = getSessionEnvContext('non-existent', [], mockEnvs, [], null);
 
     expect(result.envId).toBeNull();
     expect(result.source).toBe('none');

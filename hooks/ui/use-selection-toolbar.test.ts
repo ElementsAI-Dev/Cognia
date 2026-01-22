@@ -108,7 +108,7 @@ jest.mock('@/types', () => ({
   getLanguageName: jest.fn((code: string) => {
     const names: Record<string, string> = {
       'zh-CN': 'Chinese',
-      'en': 'English',
+      en: 'English',
     };
     return names[code] || code;
   }),
@@ -330,7 +330,9 @@ describe('useSelectionToolbar', () => {
       target_language: mockStore.config.targetLanguage,
       excluded_apps: mockStore.config.excludedApps,
     });
-    expect(mockInvoke).toHaveBeenCalledWith('selection_set_auto_hide_timeout', { timeout_ms: mockStore.config.autoHideDelay });
+    expect(mockInvoke).toHaveBeenCalledWith('selection_set_auto_hide_timeout', {
+      timeout_ms: mockStore.config.autoHideDelay,
+    });
     expect(mockStartSelectionService).toHaveBeenCalled();
     expect(result.current.state.isVisible).toBe(false);
   });

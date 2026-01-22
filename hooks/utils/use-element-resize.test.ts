@@ -60,7 +60,7 @@ describe('useElementResize', () => {
   });
 
   it('should respect min/max dimensions', () => {
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useElementResize({
         minWidth: 50,
         minHeight: 50,
@@ -74,9 +74,7 @@ describe('useElementResize', () => {
 
   it('should call onResizeStart callback', () => {
     const onResizeStart = jest.fn();
-    const { result } = renderHook(() => 
-      useElementResize({ onResizeStart })
-    );
+    const { result } = renderHook(() => useElementResize({ onResizeStart }));
 
     // Create mock element
     const mockElement = document.createElement('div');
@@ -151,26 +149,20 @@ describe('useElementResize', () => {
   });
 
   it('should support grid snapping', () => {
-    const { result } = renderHook(() => 
-      useElementResize({ snapToGrid: 10 })
-    );
+    const { result } = renderHook(() => useElementResize({ snapToGrid: 10 }));
 
     expect(result.current.resizeState.isResizing).toBe(false);
   });
 
   it('should support aspect ratio preservation', () => {
-    const { result } = renderHook(() => 
-      useElementResize({ preserveAspectRatio: true })
-    );
+    const { result } = renderHook(() => useElementResize({ preserveAspectRatio: true }));
 
     expect(result.current.resizeState.isResizing).toBe(false);
   });
 
   it('should call onResize callback during resize', () => {
     const onResize = jest.fn();
-    const { result } = renderHook(() => 
-      useElementResize({ onResize })
-    );
+    const { result } = renderHook(() => useElementResize({ onResize }));
 
     // Create mock element
     const mockElement = document.createElement('div');

@@ -4,4 +4,8 @@
  */
 
 export { usePPTGeneration, type UsePPTGenerationReturn } from './use-ppt-generation';
-export type { PPTGenerationConfig, PPTGenerationProgress, PPTOutlineData } from './use-ppt-generation';
+export type {
+  PPTGenerationConfig,
+  PPTGenerationProgress,
+  PPTOutlineData,
+} from './use-ppt-generation';

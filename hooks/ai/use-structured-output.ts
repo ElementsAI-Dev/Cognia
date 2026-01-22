@@ -62,9 +62,15 @@ export interface UseStructuredOutputReturn<T> {
   // Preset methods for common use cases
   extractEntities: (text: string) => Promise<z.infer<typeof EntityExtractionSchema> | null>;
   analyzeSentiment: (text: string) => Promise<z.infer<typeof SentimentAnalysisSchema> | null>;
-  classifyText: (text: string, categories: string[]) => Promise<z.infer<typeof TextClassificationSchema> | null>;
+  classifyText: (
+    text: string,
+    categories: string[]
+  ) => Promise<z.infer<typeof TextClassificationSchema> | null>;
   summarize: (text: string, maxLength?: number) => Promise<z.infer<typeof SummarySchema> | null>;
-  analyzeCode: (code: string, language?: string) => Promise<z.infer<typeof CodeAnalysisSchema> | null>;
+  analyzeCode: (
+    code: string,
+    language?: string
+  ) => Promise<z.infer<typeof CodeAnalysisSchema> | null>;
 
   // Utilities
   reset: () => void;

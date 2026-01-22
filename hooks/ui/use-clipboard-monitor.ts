@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { isTauri } from '@/lib/native/utils';
 
 export interface ClipboardContent {
   text: string;
   timestamp: number;
-  type: "text" | "html" | "image" | "unknown";
+  type: 'text' | 'html' | 'image' | 'unknown';
   preview?: string;
   analysis?: ClipboardAnalysis;
 }
@@ -30,25 +30,20 @@ export interface UseClipboardMonitorOptions {
 }
 
 export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
-  const {
-    enabled = true,
-    pollInterval = 1000,
-    maxHistorySize = 50,
-    onClipboardChange,
-  } = options;
+  const { enabled = true, pollInterval = 1000, maxHistorySize = 50, onClipboardChange } = options;
 
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [currentContent, setCurrentContent] = useState<ClipboardContent | null>(null);
   const [history, setHistory] = useState<ClipboardContent[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const lastContentRef = useRef<string>("");
+  const lastContentRef = useRef<string>('');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Analyze clipboard content
   const analyzeContent = useCallback((text: string): ClipboardAnalysis => {
-    const isUrl = /^https?:\/\/[^\s]+$/.test(text) || text.startsWith("www.");
+    const isUrl = /^https?:\/\/[^\s]+$/.test(text) || text.startsWith('www.');
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
-    
+
     // Code detection heuristics
     const codeIndicators = [
       /^(import|export|const|let|var|function|class|interface|type)\s/m,
@@ -64,36 +59,36 @@ export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
     let language: string | undefined;
     if (isCode) {
       if (/^(import|export|const|let|var|function|class)\s/m.test(text) || /=>/m.test(text)) {
-        language = text.includes("interface ") || text.includes(": ") ? "typescript" : "javascript";
+        language = text.includes('interface ') || text.includes(': ') ? 'typescript' : 'javascript';
       } else if (/^(def |async def |class |import )/m.test(text)) {
-        language = "python";
+        language = 'python';
       } else if (/^(fn |pub fn |struct |impl |use )/m.test(text)) {
-        language = "rust";
+        language = 'rust';
       } else if (/^(func |package |import )/m.test(text)) {
-        language = "go";
+        language = 'go';
       }
     }
 
     // Determine category
-    let category = "text";
-    if (isUrl) category = "url";
-    else if (isEmail) category = "email";
-    else if (isCode) category = "code";
-    else if (text.length < 50 && !text.includes("\n")) category = "short-text";
-    else if (text.split("\n").length > 5) category = "long-text";
+    let category = 'text';
+    if (isUrl) category = 'url';
+    else if (isEmail) category = 'email';
+    else if (isCode) category = 'code';
+    else if (text.length < 50 && !text.includes('\n')) category = 'short-text';
+    else if (text.split('\n').length > 5) category = 'long-text';
 
     // Suggested actions based on content
     const suggestedActions: string[] = [];
     if (isUrl) {
-      suggestedActions.push("open", "summarize-page", "extract-content");
+      suggestedActions.push('open', 'summarize-page', 'extract-content');
     } else if (isEmail) {
-      suggestedActions.push("compose", "search-contact");
+      suggestedActions.push('compose', 'search-contact');
     } else if (isCode) {
-      suggestedActions.push("explain-code", "optimize", "convert");
+      suggestedActions.push('explain-code', 'optimize', 'convert');
     } else {
-      suggestedActions.push("translate", "summarize", "explain");
+      suggestedActions.push('translate', 'summarize', 'explain');
       if (text.length > 100) {
-        suggestedActions.push("extract-key-points");
+        suggestedActions.push('extract-key-points');
       }
     }
 
@@ -115,21 +110,21 @@ export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
 
     try {
       // Check if we're in Tauri environment
-      if (typeof window !== "undefined" && isTauri()) {
-        const { invoke } = await import("@tauri-apps/api/core");
-        
+      if (typeof window !== 'undefined' && isTauri()) {
+        const { invoke } = await import('@tauri-apps/api/core');
+
         try {
-          const text = await invoke<string>("clipboard_read_text");
-          
+          const text = await invoke<string>('clipboard_read_text');
+
           if (text && text !== lastContentRef.current) {
             lastContentRef.current = text;
-            
+
             const analysis = analyzeContent(text);
             const content: ClipboardContent = {
               text,
               timestamp: Date.now(),
-              type: "text",
-              preview: text.length > 100 ? text.slice(0, 100) + "..." : text,
+              type: 'text',
+              preview: text.length > 100 ? text.slice(0, 100) + '...' : text,
               analysis,
             };
 
@@ -148,16 +143,16 @@ export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
         // Web fallback using Clipboard API
         try {
           const text = await navigator.clipboard.readText();
-          
+
           if (text && text !== lastContentRef.current) {
             lastContentRef.current = text;
-            
+
             const analysis = analyzeContent(text);
             const content: ClipboardContent = {
               text,
               timestamp: Date.now(),
-              type: "text",
-              preview: text.length > 100 ? text.slice(0, 100) + "..." : text,
+              type: 'text',
+              preview: text.length > 100 ? text.slice(0, 100) + '...' : text,
               analysis,
             };
 
@@ -174,14 +169,14 @@ export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to read clipboard");
+      setError(err instanceof Error ? err.message : 'Failed to read clipboard');
     }
   }, [enabled, maxHistorySize, analyzeContent, onClipboardChange]);
 
   // Start monitoring
   const startMonitoring = useCallback(() => {
     if (intervalRef.current) return;
-    
+
     setIsMonitoring(true);
     checkClipboard(); // Check immediately
     intervalRef.current = setInterval(checkClipboard, pollInterval);
@@ -204,15 +199,15 @@ export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
   // Copy to clipboard
   const copyToClipboard = useCallback(async (text: string) => {
     try {
-      if (typeof window !== "undefined" && isTauri()) {
-        const { invoke } = await import("@tauri-apps/api/core");
-        await invoke("clipboard_write_text", { text });
+      if (typeof window !== 'undefined' && isTauri()) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('clipboard_write_text', { text });
       } else {
         await navigator.clipboard.writeText(text);
       }
       lastContentRef.current = text; // Prevent re-triggering
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to write to clipboard");
+      setError(err instanceof Error ? err.message : 'Failed to write to clipboard');
     }
   }, []);
 

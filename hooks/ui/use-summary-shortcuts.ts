@@ -1,6 +1,6 @@
 /**
  * useSummaryShortcuts - Keyboard shortcuts for summary functionality
- * 
+ *
  * Shortcuts:
  * - Ctrl/Cmd + Shift + S: Open summary dialog
  * - Ctrl/Cmd + Shift + D: Generate diagram

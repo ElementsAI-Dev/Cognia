@@ -15,12 +15,8 @@ const mockServers = [
       { name: 'search', description: 'Search tool' },
       { name: 'fetch', description: 'Fetch tool' },
     ],
-    resources: [
-      { name: 'docs', description: 'Documentation' },
-    ],
-    prompts: [
-      { name: 'greeting', description: 'Greeting prompt' },
-    ],
+    resources: [{ name: 'docs', description: 'Documentation' }],
+    prompts: [{ name: 'greeting', description: 'Greeting prompt' }],
   },
 ];
 
@@ -37,21 +33,33 @@ jest.mock('@/stores/mcp', () => ({
 
 // Mock MCP types
 jest.mock('@/types/mcp', () => ({
-  createToolMention: (serverId: string, serverName: string, tool: { name: string; description: string }) => ({
+  createToolMention: (
+    serverId: string,
+    serverName: string,
+    tool: { name: string; description: string }
+  ) => ({
     type: 'tool',
     serverId,
     serverName,
     label: tool.name,
     description: tool.description,
   }),
-  createResourceMention: (serverId: string, serverName: string, resource: { name: string; description: string }) => ({
+  createResourceMention: (
+    serverId: string,
+    serverName: string,
+    resource: { name: string; description: string }
+  ) => ({
     type: 'resource',
     serverId,
     serverName,
     label: resource.name,
     description: resource.description,
   }),
-  createPromptMention: (serverId: string, serverName: string, prompt: { name: string; description: string }) => ({
+  createPromptMention: (
+    serverId: string,
+    serverName: string,
+    prompt: { name: string; description: string }
+  ) => ({
     type: 'prompt',
     serverId,
     serverName,
@@ -65,7 +73,8 @@ jest.mock('@/types/mcp', () => ({
     label: serverName,
     description: `${toolCount} tools`,
   }),
-  formatMentionDisplay: (item: { serverId: string; label: string }) => `@${item.serverId}:${item.label}`,
+  formatMentionDisplay: (item: { serverId: string; label: string }) =>
+    `@${item.serverId}:${item.label}`,
   isServerConnected: (status: string) => status === 'connected',
 }));
 
@@ -172,7 +181,7 @@ describe('useMention', () => {
       });
 
       expect(result.current.filteredMentions.length).toBeGreaterThan(0);
-      expect(result.current.filteredMentions.some(m => m.label.includes('search'))).toBe(true);
+      expect(result.current.filteredMentions.some((m) => m.label.includes('search'))).toBe(true);
     });
   });
 

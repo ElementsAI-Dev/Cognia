@@ -3,7 +3,11 @@
  */
 
 import { renderHook } from '@testing-library/react';
-import { useArtifactDetection, detectArtifactType, mapToArtifactLanguage } from './use-artifact-detection';
+import {
+  useArtifactDetection,
+  detectArtifactType,
+  mapToArtifactLanguage,
+} from './use-artifact-detection';
 
 describe('useArtifactDetection', () => {
   describe('basic detection', () => {
@@ -19,7 +23,8 @@ describe('useArtifactDetection', () => {
     });
 
     it('should detect JavaScript code block', () => {
-      const content = '```javascript\nfunction hello() {\n  console.log("Hello World");\n  return true;\n}\n```';
+      const content =
+        '```javascript\nfunction hello() {\n  console.log("Hello World");\n  return true;\n}\n```';
       const { result } = renderHook(() => useArtifactDetection(content, { minCodeLength: 10 }));
       expect(result.current.length).toBe(1);
       expect(result.current[0].type).toBe('code');
@@ -27,7 +32,8 @@ describe('useArtifactDetection', () => {
     });
 
     it('should detect TypeScript code block', () => {
-      const content = '```typescript\ninterface User {\n  name: string;\n  age: number;\n}\nconst user: User = { name: "John", age: 30 };\n```';
+      const content =
+        '```typescript\ninterface User {\n  name: string;\n  age: number;\n}\nconst user: User = { name: "John", age: 30 };\n```';
       const { result } = renderHook(() => useArtifactDetection(content, { minCodeLength: 10 }));
       expect(result.current.length).toBe(1);
       expect(result.current[0].type).toBe('code');
@@ -45,7 +51,8 @@ describe('useArtifactDetection', () => {
 
   describe('React component detection', () => {
     it('should detect JSX code block', () => {
-      const content = '```jsx\nexport default function Button() {\n  return (\n    <button className="btn">Click me</button>\n  );\n}\n```';
+      const content =
+        '```jsx\nexport default function Button() {\n  return (\n    <button className="btn">Click me</button>\n  );\n}\n```';
       const { result } = renderHook(() => useArtifactDetection(content, { minCodeLength: 10 }));
       expect(result.current.length).toBe(1);
       expect(result.current[0].type).toBe('react');
@@ -53,7 +60,8 @@ describe('useArtifactDetection', () => {
     });
 
     it('should detect TSX code block', () => {
-      const content = '```tsx\nexport default function Button(): JSX.Element {\n  return (\n    <button className="btn">Click me</button>\n  );\n}\n```';
+      const content =
+        '```tsx\nexport default function Button(): JSX.Element {\n  return (\n    <button className="btn">Click me</button>\n  );\n}\n```';
       const { result } = renderHook(() => useArtifactDetection(content, { minCodeLength: 10 }));
       expect(result.current.length).toBe(1);
       expect(result.current[0].type).toBe('react');
@@ -61,7 +69,8 @@ describe('useArtifactDetection', () => {
     });
 
     it('should detect React component in JavaScript block', () => {
-      const content = '```javascript\nexport default function MyComponent() {\n  return (\n    <div className="container">\n      <h1>Hello</h1>\n    </div>\n  );\n}\n```';
+      const content =
+        '```javascript\nexport default function MyComponent() {\n  return (\n    <div className="container">\n      <h1>Hello</h1>\n    </div>\n  );\n}\n```';
       const { result } = renderHook(() => useArtifactDetection(content, { minCodeLength: 10 }));
       expect(result.current.length).toBe(1);
       // May be detected as 'code' or 'react' depending on detection logic
@@ -79,7 +88,8 @@ describe('useArtifactDetection', () => {
     });
 
     it('should detect HTML code block', () => {
-      const content = '```html\n<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body><h1>Hello</h1></body>\n</html>\n```';
+      const content =
+        '```html\n<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body><h1>Hello</h1></body>\n</html>\n```';
       const { result } = renderHook(() => useArtifactDetection(content, { minCodeLength: 10 }));
       expect(result.current.length).toBe(1);
       expect(result.current[0].type).toBe('html');
@@ -87,7 +97,8 @@ describe('useArtifactDetection', () => {
     });
 
     it('should detect SVG code block', () => {
-      const content = '```svg\n<svg width="100" height="100">\n  <circle cx="50" cy="50" r="40" fill="red"/>\n</svg>\n```';
+      const content =
+        '```svg\n<svg width="100" height="100">\n  <circle cx="50" cy="50" r="40" fill="red"/>\n</svg>\n```';
       const { result } = renderHook(() => useArtifactDetection(content, { minCodeLength: 10 }));
       expect(result.current.length).toBe(1);
       expect(result.current[0].type).toBe('svg');
@@ -189,7 +200,10 @@ describe('detectArtifactType', () => {
   });
 
   it('should return chart for JSON with chart data', () => {
-    const chartData = JSON.stringify([{ name: 'A', value: 10 }, { name: 'B', value: 20 }]);
+    const chartData = JSON.stringify([
+      { name: 'A', value: 10 },
+      { name: 'B', value: 20 },
+    ]);
     expect(detectArtifactType('json', chartData)).toBe('chart');
   });
 });

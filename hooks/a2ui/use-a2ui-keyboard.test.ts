@@ -141,10 +141,9 @@ describe('useA2UIKeyboard', () => {
 
     it('should remove event listener when disabled changes to false', () => {
       const onEnter = jest.fn();
-      const { rerender } = renderHook(
-        ({ enabled }) => useA2UIKeyboard({ onEnter, enabled }),
-        { initialProps: { enabled: true } }
-      );
+      const { rerender } = renderHook(({ enabled }) => useA2UIKeyboard({ onEnter, enabled }), {
+        initialProps: { enabled: true },
+      });
 
       // Initially enabled
       const event1 = new KeyboardEvent('keydown', { key: 'Enter' });
@@ -370,9 +369,7 @@ describe('useA2UIListNavigation', () => {
     });
 
     it('should clamp when loop is false and index exceeds length', () => {
-      const { result } = renderHook(() =>
-        useA2UIListNavigation(items, { loop: false })
-      );
+      const { result } = renderHook(() => useA2UIListNavigation(items, { loop: false }));
 
       act(() => {
         result.current.setActiveIndex(10);
@@ -382,9 +379,7 @@ describe('useA2UIListNavigation', () => {
     });
 
     it('should clamp when loop is false and index is negative', () => {
-      const { result } = renderHook(() =>
-        useA2UIListNavigation(items, { loop: false })
-      );
+      const { result } = renderHook(() => useA2UIListNavigation(items, { loop: false }));
 
       act(() => {
         result.current.setActiveIndex(-5);
@@ -455,9 +450,7 @@ describe('useA2UIListNavigation', () => {
   describe('selectCurrent', () => {
     it('should call onSelect with current item and index', () => {
       const onSelect = jest.fn();
-      const { result } = renderHook(() =>
-        useA2UIListNavigation(items, { onSelect })
-      );
+      const { result } = renderHook(() => useA2UIListNavigation(items, { onSelect }));
 
       act(() => {
         result.current.setActiveIndex(2);
@@ -472,9 +465,7 @@ describe('useA2UIListNavigation', () => {
 
     it('should not call onSelect if items array is empty', () => {
       const onSelect = jest.fn();
-      const { result } = renderHook(() =>
-        useA2UIListNavigation([], { onSelect })
-      );
+      const { result } = renderHook(() => useA2UIListNavigation([], { onSelect }));
 
       act(() => {
         result.current.selectCurrent();
@@ -509,9 +500,7 @@ describe('useA2UIListNavigation', () => {
 
     it('should handle single item array', () => {
       const onSelect = jest.fn();
-      const { result } = renderHook(() =>
-        useA2UIListNavigation(['only'], { onSelect })
-      );
+      const { result } = renderHook(() => useA2UIListNavigation(['only'], { onSelect }));
 
       act(() => {
         result.current.moveDown();

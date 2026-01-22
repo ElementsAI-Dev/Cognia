@@ -53,7 +53,7 @@ describe('useWorkflowKeyboardShortcuts', () => {
   it('should include undo shortcut', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    const undoShortcut = result.current.shortcuts.find(s => s.action === 'Undo');
+    const undoShortcut = result.current.shortcuts.find((s) => s.action === 'Undo');
     expect(undoShortcut).toBeDefined();
     expect(undoShortcut?.key).toContain('Z');
   });
@@ -61,14 +61,14 @@ describe('useWorkflowKeyboardShortcuts', () => {
   it('should include redo shortcut', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    const redoShortcut = result.current.shortcuts.find(s => s.action === 'Redo');
+    const redoShortcut = result.current.shortcuts.find((s) => s.action === 'Redo');
     expect(redoShortcut).toBeDefined();
   });
 
   it('should include copy shortcut', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    const copyShortcut = result.current.shortcuts.find(s => s.action === 'Copy');
+    const copyShortcut = result.current.shortcuts.find((s) => s.action === 'Copy');
     expect(copyShortcut).toBeDefined();
     expect(copyShortcut?.key).toContain('C');
   });
@@ -76,7 +76,7 @@ describe('useWorkflowKeyboardShortcuts', () => {
   it('should include paste shortcut', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    const pasteShortcut = result.current.shortcuts.find(s => s.action === 'Paste');
+    const pasteShortcut = result.current.shortcuts.find((s) => s.action === 'Paste');
     expect(pasteShortcut).toBeDefined();
     expect(pasteShortcut?.key).toContain('V');
   });
@@ -84,7 +84,7 @@ describe('useWorkflowKeyboardShortcuts', () => {
   it('should include cut shortcut', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    const cutShortcut = result.current.shortcuts.find(s => s.action === 'Cut');
+    const cutShortcut = result.current.shortcuts.find((s) => s.action === 'Cut');
     expect(cutShortcut).toBeDefined();
     expect(cutShortcut?.key).toContain('X');
   });
@@ -92,7 +92,7 @@ describe('useWorkflowKeyboardShortcuts', () => {
   it('should include select all shortcut', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    const selectAllShortcut = result.current.shortcuts.find(s => s.action === 'Select All');
+    const selectAllShortcut = result.current.shortcuts.find((s) => s.action === 'Select All');
     expect(selectAllShortcut).toBeDefined();
     expect(selectAllShortcut?.key).toContain('A');
   });
@@ -100,7 +100,7 @@ describe('useWorkflowKeyboardShortcuts', () => {
   it('should include save shortcut', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    const saveShortcut = result.current.shortcuts.find(s => s.action === 'Save');
+    const saveShortcut = result.current.shortcuts.find((s) => s.action === 'Save');
     expect(saveShortcut).toBeDefined();
     expect(saveShortcut?.key).toContain('S');
   });
@@ -108,7 +108,7 @@ describe('useWorkflowKeyboardShortcuts', () => {
   it('should include duplicate shortcut', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    const dupShortcut = result.current.shortcuts.find(s => s.action === 'Duplicate');
+    const dupShortcut = result.current.shortcuts.find((s) => s.action === 'Duplicate');
     expect(dupShortcut).toBeDefined();
     expect(dupShortcut?.key).toContain('D');
   });
@@ -116,31 +116,27 @@ describe('useWorkflowKeyboardShortcuts', () => {
   it('should include delete shortcut', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    const deleteShortcut = result.current.shortcuts.find(s => s.action === 'Delete');
+    const deleteShortcut = result.current.shortcuts.find((s) => s.action === 'Delete');
     expect(deleteShortcut).toBeDefined();
   });
 
   it('should include clear selection shortcut', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    const clearShortcut = result.current.shortcuts.find(s => s.action === 'Clear Selection');
+    const clearShortcut = result.current.shortcuts.find((s) => s.action === 'Clear Selection');
     expect(clearShortcut).toBeDefined();
     expect(clearShortcut?.key).toContain('Escape');
   });
 
   it('should accept enabled option', () => {
-    const { result } = renderHook(() => 
-      useWorkflowKeyboardShortcuts({ enabled: false })
-    );
+    const { result } = renderHook(() => useWorkflowKeyboardShortcuts({ enabled: false }));
 
     expect(result.current.shortcuts).toBeDefined();
   });
 
   it('should accept onSave callback', () => {
     const onSave = jest.fn();
-    const { result } = renderHook(() => 
-      useWorkflowKeyboardShortcuts({ onSave })
-    );
+    const { result } = renderHook(() => useWorkflowKeyboardShortcuts({ onSave }));
 
     expect(result.current.shortcuts).toBeDefined();
   });

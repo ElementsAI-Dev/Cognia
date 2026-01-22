@@ -95,12 +95,14 @@ describe('useAgent', () => {
 
     it('should accept custom options', () => {
       const onStepStart = jest.fn();
-      const { result } = renderHook(() => useAgent({
-        systemPrompt: 'Custom prompt',
-        maxSteps: 5,
-        temperature: 0.5,
-        onStepStart,
-      }));
+      const { result } = renderHook(() =>
+        useAgent({
+          systemPrompt: 'Custom prompt',
+          maxSteps: 5,
+          temperature: 0.5,
+          onStepStart,
+        })
+      );
 
       expect(result.current.isRunning).toBe(false);
     });
@@ -291,16 +293,18 @@ describe('useAgent', () => {
     });
 
     it('should unregister a tool', () => {
-      const { result } = renderHook(() => useAgent({
-        tools: {
-          existing_tool: {
-            name: 'existing_tool',
-            description: 'Existing tool',
-            parameters: z.object({}),
-            execute: async () => 'result',
+      const { result } = renderHook(() =>
+        useAgent({
+          tools: {
+            existing_tool: {
+              name: 'existing_tool',
+              description: 'Existing tool',
+              parameters: z.object({}),
+              execute: async () => 'result',
+            },
           },
-        },
-      }));
+        })
+      );
 
       expect(result.current.getRegisteredTools()).toContain('existing_tool');
 
@@ -559,9 +563,12 @@ describe('useConfiguredAgent', () => {
       await result.current.run('Hello');
     });
 
-    expect(mockRun).toHaveBeenCalledWith('Hello', expect.objectContaining({
-      provider: 'openai',
-      model: 'gpt-4o',
-    }));
+    expect(mockRun).toHaveBeenCalledWith(
+      'Hello',
+      expect.objectContaining({
+        provider: 'openai',
+        model: 'gpt-4o',
+      })
+    );
   });
 });

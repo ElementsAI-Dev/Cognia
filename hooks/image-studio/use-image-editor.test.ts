@@ -24,9 +24,9 @@ function createTestImageData(width = 100, height = 100): ImageData {
   const data = new Uint8ClampedArray(width * height * 4);
   // Fill with red pixels
   for (let i = 0; i < data.length; i += 4) {
-    data[i] = 255;     // R
-    data[i + 1] = 0;   // G
-    data[i + 2] = 0;   // B
+    data[i] = 255; // R
+    data[i + 1] = 0; // G
+    data[i + 2] = 0; // B
     data[i + 3] = 255; // A
   }
   return new ImageData(data, width, height);

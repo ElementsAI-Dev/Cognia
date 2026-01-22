@@ -84,7 +84,6 @@ export interface WindowInfo {
   thumbnail_base64?: string;
 }
 
-
 export interface SnapResult {
   x: number | null;
   y: number | null;
@@ -100,11 +99,13 @@ export function useScreenshot() {
 
   const captureFullscreen = useCallback(async (monitorIndex?: number) => {
     if (!isTauri()) return null;
-    
+
     setIsCapturing(true);
     setError(null);
     try {
-      const result = await invoke<ScreenshotResult>('screenshot_capture_fullscreen_with_history', { monitorIndex });
+      const result = await invoke<ScreenshotResult>('screenshot_capture_fullscreen_with_history', {
+        monitorIndex,
+      });
       setLastScreenshot(result);
       return result;
     } catch (err) {
@@ -129,30 +130,28 @@ export function useScreenshot() {
     }
   }, []);
 
-  const validateSelection = useCallback(async (
-    startX: number,
-    startY: number,
-    currentX: number,
-    currentY: number,
-  ) => {
-    if (!isTauri()) return null;
+  const validateSelection = useCallback(
+    async (startX: number, startY: number, currentX: number, currentY: number) => {
+      if (!isTauri()) return null;
 
-    try {
-      return await invoke<SelectionValidationResult>('screenshot_validate_selection', {
-        startX,
-        startY,
-        currentX,
-        currentY,
-      });
-    } catch (err) {
-      console.error('Failed to validate selection:', err);
-      return null;
-    }
-  }, []);
+      try {
+        return await invoke<SelectionValidationResult>('screenshot_validate_selection', {
+          startX,
+          startY,
+          currentX,
+          currentY,
+        });
+      } catch (err) {
+        console.error('Failed to validate selection:', err);
+        return null;
+      }
+    },
+    []
+  );
 
   const captureWindow = useCallback(async () => {
     if (!isTauri()) return null;
-    
+
     setIsCapturing(true);
     setError(null);
     try {
@@ -169,11 +168,16 @@ export function useScreenshot() {
 
   const captureRegion = useCallback(async (x: number, y: number, width: number, height: number) => {
     if (!isTauri()) return null;
-    
+
     setIsCapturing(true);
     setError(null);
     try {
-      const result = await invoke<ScreenshotResult>('screenshot_capture_region_with_history', { x, y, width, height });
+      const result = await invoke<ScreenshotResult>('screenshot_capture_region_with_history', {
+        x,
+        y,
+        width,
+        height,
+      });
       setLastScreenshot(result);
       return result;
     } catch (err) {
@@ -186,9 +190,11 @@ export function useScreenshot() {
 
   const startRegionSelection = useCallback(async () => {
     if (!isTauri()) return null;
-    
+
     try {
-      const region = await invoke<{ x: number; y: number; width: number; height: number }>('screenshot_start_region_selection');
+      const region = await invoke<{ x: number; y: number; width: number; height: number }>(
+        'screenshot_start_region_selection'
+      );
       return region;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -198,7 +204,7 @@ export function useScreenshot() {
 
   const extractText = useCallback(async (imageBase64: string) => {
     if (!isTauri()) return '';
-    
+
     try {
       return await invoke<string>('screenshot_ocr', { imageBase64 });
     } catch (err) {
@@ -209,7 +215,7 @@ export function useScreenshot() {
 
   const extractTextWindows = useCallback(async (imageBase64: string) => {
     if (!isTauri()) return null;
-    
+
     try {
       return await invoke<WinOcrResult>('screenshot_ocr_windows', { imageBase64 });
     } catch (err) {
@@ -220,7 +226,7 @@ export function useScreenshot() {
 
   const getMonitors = useCallback(async () => {
     if (!isTauri()) return [];
-    
+
     try {
       return await invoke<MonitorInfo[]>('screenshot_get_monitors');
     } catch (err) {
@@ -231,7 +237,7 @@ export function useScreenshot() {
 
   const saveToFile = useCallback(async (imageBase64: string, path: string) => {
     if (!isTauri()) return '';
-    
+
     try {
       return await invoke<string>('screenshot_save', { imageBase64, path });
     } catch (err) {
@@ -242,7 +248,7 @@ export function useScreenshot() {
 
   const getWindows = useCallback(async () => {
     if (!isTauri()) return [];
-    
+
     try {
       return await invoke<WindowInfo[]>('screenshot_get_windows');
     } catch (err) {
@@ -253,9 +259,11 @@ export function useScreenshot() {
 
   const getWindowsWithThumbnails = useCallback(async (thumbnailSize?: number) => {
     if (!isTauri()) return [];
-    
+
     try {
-      return await invoke<WindowInfo[]>('screenshot_get_windows_with_thumbnails', { thumbnailSize });
+      return await invoke<WindowInfo[]>('screenshot_get_windows_with_thumbnails', {
+        thumbnailSize,
+      });
     } catch (err) {
       console.error('Failed to get windows with thumbnails:', err);
       return [];
@@ -264,11 +272,14 @@ export function useScreenshot() {
 
   const captureWindowByHwnd = useCallback(async (hwnd: number) => {
     if (!isTauri()) return null;
-    
+
     setIsCapturing(true);
     setError(null);
     try {
-      const result = await invoke<ScreenshotResult>('screenshot_capture_window_by_hwnd_with_history', { hwnd });
+      const result = await invoke<ScreenshotResult>(
+        'screenshot_capture_window_by_hwnd_with_history',
+        { hwnd }
+      );
       setLastScreenshot(result);
       return result;
     } catch (err) {
@@ -279,32 +290,35 @@ export function useScreenshot() {
     }
   }, []);
 
-  const calculateSnap = useCallback(async (
-    windowHwnd: number,
-    proposedX: number,
-    proposedY: number,
-    windowWidth: number,
-    windowHeight: number,
-  ) => {
-    if (!isTauri()) return null;
-    
-    try {
-      return await invoke<SnapResult>('screenshot_calculate_snap', {
-        windowHwnd,
-        proposedX,
-        proposedY,
-        windowWidth,
-        windowHeight,
-      });
-    } catch (err) {
-      console.error('Failed to calculate snap:', err);
-      return null;
-    }
-  }, []);
+  const calculateSnap = useCallback(
+    async (
+      windowHwnd: number,
+      proposedX: number,
+      proposedY: number,
+      windowWidth: number,
+      windowHeight: number
+    ) => {
+      if (!isTauri()) return null;
+
+      try {
+        return await invoke<SnapResult>('screenshot_calculate_snap', {
+          windowHwnd,
+          proposedX,
+          proposedY,
+          windowWidth,
+          windowHeight,
+        });
+      } catch (err) {
+        console.error('Failed to calculate snap:', err);
+        return null;
+      }
+    },
+    []
+  );
 
   const getSnapConfig = useCallback(async () => {
     if (!isTauri()) return null;
-    
+
     try {
       return await invoke<SnapConfig>('screenshot_get_snap_config');
     } catch (err) {
@@ -366,7 +380,7 @@ export function useScreenshotHistory() {
   /* ---------- History helpers ---------- */
   const fetchHistory = useCallback(async (count?: number) => {
     if (!isTauri()) return;
-    
+
     setIsLoading(true);
     try {
       const result = await invoke<ScreenshotHistoryEntry[]>('screenshot_get_history', { count });
@@ -400,7 +414,7 @@ export function useScreenshotHistory() {
 
   const searchHistory = useCallback(async (query: string) => {
     if (!isTauri()) return [];
-    
+
     try {
       return await invoke<ScreenshotHistoryEntry[]>('screenshot_search_history', { query });
     } catch (err) {
@@ -411,7 +425,7 @@ export function useScreenshotHistory() {
 
   const getById = useCallback(async (id: string) => {
     if (!isTauri()) return null;
-    
+
     try {
       return await invoke<ScreenshotHistoryEntry | null>('screenshot_get_by_id', { id });
     } catch (err) {
@@ -420,58 +434,69 @@ export function useScreenshotHistory() {
     }
   }, []);
 
-  const pinScreenshot = useCallback(async (id: string) => {
-    if (!isTauri()) return false;
-    
-    try {
-      const result = await invoke<boolean>('screenshot_pin', { id });
-      if (result) await fetchHistory();
-      return result;
-    } catch (err) {
-      console.error('Failed to pin screenshot:', err);
-      return false;
-    }
-  }, [fetchHistory]);
+  const pinScreenshot = useCallback(
+    async (id: string) => {
+      if (!isTauri()) return false;
+
+      try {
+        const result = await invoke<boolean>('screenshot_pin', { id });
+        if (result) await fetchHistory();
+        return result;
+      } catch (err) {
+        console.error('Failed to pin screenshot:', err);
+        return false;
+      }
+    },
+    [fetchHistory]
+  );
 
   const searchHistoryByLabel = useCallback(async (label: string) => {
     if (!isTauri()) return [] as ScreenshotHistoryEntry[];
     try {
-      return await invoke<ScreenshotHistoryEntry[]>('screenshot_search_history_by_label', { label });
+      return await invoke<ScreenshotHistoryEntry[]>('screenshot_search_history_by_label', {
+        label,
+      });
     } catch (err) {
       console.error('Failed to search history by label:', err);
       return [];
     }
   }, []);
 
-  const unpinScreenshot = useCallback(async (id: string) => {
-    if (!isTauri()) return false;
-    
-    try {
-      const result = await invoke<boolean>('screenshot_unpin', { id });
-      if (result) await fetchHistory();
-      return result;
-    } catch (err) {
-      console.error('Failed to unpin screenshot:', err);
-      return false;
-    }
-  }, [fetchHistory]);
+  const unpinScreenshot = useCallback(
+    async (id: string) => {
+      if (!isTauri()) return false;
 
-  const deleteScreenshot = useCallback(async (id: string) => {
-    if (!isTauri()) return false;
-    
-    try {
-      const result = await invoke<boolean>('screenshot_delete', { id });
-      if (result) await fetchHistory();
-      return result;
-    } catch (err) {
-      console.error('Failed to delete screenshot:', err);
-      return false;
-    }
-  }, [fetchHistory]);
+      try {
+        const result = await invoke<boolean>('screenshot_unpin', { id });
+        if (result) await fetchHistory();
+        return result;
+      } catch (err) {
+        console.error('Failed to unpin screenshot:', err);
+        return false;
+      }
+    },
+    [fetchHistory]
+  );
+
+  const deleteScreenshot = useCallback(
+    async (id: string) => {
+      if (!isTauri()) return false;
+
+      try {
+        const result = await invoke<boolean>('screenshot_delete', { id });
+        if (result) await fetchHistory();
+        return result;
+      } catch (err) {
+        console.error('Failed to delete screenshot:', err);
+        return false;
+      }
+    },
+    [fetchHistory]
+  );
 
   const clearHistory = useCallback(async () => {
     if (!isTauri()) return;
-    
+
     try {
       await invoke('screenshot_clear_history');
       setHistory([]);

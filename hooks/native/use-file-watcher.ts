@@ -32,14 +32,14 @@ export function useFileWatcher(
   options: UseFileWatcherOptions = {}
 ): UseFileWatcherResult {
   const { enabled = true, immediate = false, ...watchOptions } = options;
-  
+
   const [isWatching, setIsWatching] = useState(false);
   const [lastEvent, setLastEvent] = useState<WatchEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const unwatchRef = useRef<(() => Promise<void>) | null>(null);
   const onEventRef = useRef(onEvent);
-  
+
   // Keep callback ref updated
   useEffect(() => {
     onEventRef.current = onEvent;
@@ -67,7 +67,7 @@ export function useFileWatcher(
     try {
       const watchFn = immediate ? watchPathImmediate : watchPath;
       const unwatch = await watchFn(path, handleEvent, watchOptions);
-      
+
       if (unwatch) {
         unwatchRef.current = unwatch;
         setIsWatching(true);
@@ -102,7 +102,7 @@ export function useFileWatcher(
       try {
         const watchFn = immediate ? watchPathImmediate : watchPath;
         const unwatch = await watchFn(path, handleEvent, watchOptions);
-        
+
         if (cancelled) {
           unwatch?.();
           return;
@@ -157,10 +157,10 @@ export function useMultiFileWatcher(
   stopAll: () => Promise<void>;
 } {
   const { enabled = true, ...watchOptions } = options;
-  
+
   const [isWatching, setIsWatching] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   const unwatchersRef = useRef<Map<string, () => Promise<void>>>(new Map());
   const onEventRef = useRef(onEvent);
 
@@ -189,7 +189,7 @@ export function useMultiFileWatcher(
           (event) => onEventRef.current?.(path, event),
           watchOptions
         );
-        
+
         if (unwatch) {
           unwatchersRef.current.set(path, unwatch);
         } else {
@@ -225,14 +225,14 @@ export function useMultiFileWatcher(
 
       for (const path of paths) {
         if (cancelled) break;
-        
+
         try {
           const unwatch = await watchPath(
             path,
             (event) => onEventRef.current?.(path, event),
             watchOptions
           );
-          
+
           if (!cancelled && unwatch) {
             currentUnwatchers.set(path, unwatch);
             unwatchersRef.current.set(path, unwatch);

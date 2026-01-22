@@ -23,7 +23,7 @@ interface UseWorkflowEditorReturn {
   isExecuting: boolean;
   isDirty: boolean;
   validationErrors: ValidationError[];
-  
+
   // Actions
   createWorkflow: (name?: string) => void;
   loadWorkflow: (workflow: VisualWorkflow) => void;
@@ -33,15 +33,13 @@ interface UseWorkflowEditorReturn {
   resumeExecution: () => void;
   cancelExecution: () => void;
   validate: () => boolean;
-  
+
   // Utilities
   exportWorkflow: () => string | null;
   importWorkflow: (json: string) => boolean;
 }
 
-export function useWorkflowEditor(
-  options: UseWorkflowEditorOptions = {}
-): UseWorkflowEditorReturn {
+export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWorkflowEditorReturn {
   const {
     autoSave = true,
     autoSaveInterval = 30000,

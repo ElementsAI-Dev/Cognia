@@ -5,11 +5,7 @@
 
 import { useCallback, useEffect } from 'react';
 import { useA2UIStore } from '@/stores/a2ui';
-import {
-  parseA2UIMessages,
-  extractA2UIFromResponse,
-  createA2UISurface,
-} from '@/lib/a2ui/parser';
+import { parseA2UIMessages, extractA2UIFromResponse, createA2UISurface } from '@/lib/a2ui/parser';
 import { globalEventEmitter } from '@/lib/a2ui/events';
 import type {
   A2UIServerMessage,
@@ -33,7 +29,9 @@ interface UseA2UIReturn {
     options?: { title?: string; catalogId?: string }
   ) => void;
   deleteSurface: (surfaceId: string) => void;
-  getSurface: (surfaceId: string) => ReturnType<typeof useA2UIStore.getState>['surfaces'][string] | undefined;
+  getSurface: (
+    surfaceId: string
+  ) => ReturnType<typeof useA2UIStore.getState>['surfaces'][string] | undefined;
 
   // Message processing
   processMessage: (message: A2UIServerMessage) => void;
@@ -80,9 +78,7 @@ export function useA2UI(options: UseA2UIOptions = {}): UseA2UIReturn {
 
   // Subscribe to events
   useEffect(() => {
-    const unsubscribeAction = onAction
-      ? globalEventEmitter.onAction(onAction)
-      : undefined;
+    const unsubscribeAction = onAction ? globalEventEmitter.onAction(onAction) : undefined;
 
     const unsubscribeDataChange = onDataChange
       ? globalEventEmitter.onDataChange(onDataChange)

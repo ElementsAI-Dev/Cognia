@@ -59,10 +59,16 @@ jest.mock('@tauri-apps/api/window', () => ({
 
 jest.mock('@tauri-apps/api/dpi', () => ({
   LogicalSize: class LogicalSize {
-    constructor(public width: number, public height: number) {}
+    constructor(
+      public width: number,
+      public height: number
+    ) {}
   },
   LogicalPosition: class LogicalPosition {
-    constructor(public x: number, public y: number) {}
+    constructor(
+      public x: number,
+      public y: number
+    ) {}
   },
 }));
 

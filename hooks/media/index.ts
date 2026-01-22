@@ -13,7 +13,12 @@ export {
   type UseVideoGenerationReturn,
   type VideoGenerationJob,
 } from './use-video-generation';
-export { useSpeech, type UseSpeechOptions, type UseSpeechReturn, type SpeakOptions } from './use-speech';
+export {
+  useSpeech,
+  type UseSpeechOptions,
+  type UseSpeechReturn,
+  type SpeakOptions,
+} from './use-speech';
 export { useTTS, type UseTTSOptions, type UseTTSReturn, type TTSPlaybackState } from './use-tts';
 export {
   useVideoAnalysis,

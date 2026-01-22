@@ -108,32 +108,32 @@ describe('useUnifiedTools', () => {
   describe('initialization', () => {
     it('should return tools object', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       expect(result.current).toHaveProperty('tools');
       expect(typeof result.current.tools).toBe('object');
     });
 
     it('should return registry', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       expect(result.current).toHaveProperty('registry');
     });
 
     it('should return getToolsByCategory function', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       expect(typeof result.current.getToolsByCategory).toBe('function');
     });
 
     it('should return filter function', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       expect(typeof result.current.filter).toBe('function');
     });
 
     it('should return searchTools function', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       expect(typeof result.current.searchTools).toBe('function');
     });
   });
@@ -141,7 +141,7 @@ describe('useUnifiedTools', () => {
   describe('getToolsByCategory', () => {
     it('should return array for category', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       const tools = result.current.getToolsByCategory('utility' as never);
       expect(Array.isArray(tools)).toBe(true);
     });
@@ -150,7 +150,7 @@ describe('useUnifiedTools', () => {
   describe('getToolsBySource', () => {
     it('should return array for source', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       const tools = result.current.getToolsBySource('builtin' as never);
       expect(Array.isArray(tools)).toBe(true);
     });
@@ -159,7 +159,7 @@ describe('useUnifiedTools', () => {
   describe('searchTools', () => {
     it('should return array for search query', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       const tools = result.current.searchTools('test');
       expect(Array.isArray(tools)).toBe(true);
     });
@@ -168,19 +168,19 @@ describe('useUnifiedTools', () => {
   describe('tool management', () => {
     it('should have enableTool function', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       expect(typeof result.current.enableTool).toBe('function');
     });
 
     it('should have disableTool function', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       expect(typeof result.current.disableTool).toBe('function');
     });
 
     it('should have toggleTool function', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       expect(typeof result.current.toggleTool).toBe('function');
     });
   });
@@ -188,7 +188,7 @@ describe('useUnifiedTools', () => {
   describe('sync functions', () => {
     it('should have syncAll function', () => {
       const { result } = renderHook(() => useUnifiedTools());
-      
+
       expect(typeof result.current.syncAll).toBe('function');
     });
   });

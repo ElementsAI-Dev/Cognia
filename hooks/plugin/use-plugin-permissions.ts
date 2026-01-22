@@ -38,9 +38,7 @@ export function usePluginPermissions(
     guard.getPluginPermissions(pluginId)
   );
 
-  const [grants, setGrants] = useState<PermissionGrant[]>(() =>
-    guard.getPluginGrants(pluginId)
-  );
+  const [grants, setGrants] = useState<PermissionGrant[]>(() => guard.getPluginGrants(pluginId));
 
   const [auditLog, setAuditLog] = useState<PermissionAuditEntry[]>(() =>
     guard.getAuditLog({ pluginId, limit: 50 })
@@ -107,14 +105,9 @@ export function usePluginPermissions(
 // usePermissionCheck
 // =============================================================================
 
-export function usePermissionCheck(
-  pluginId: string,
-  permission: PluginPermission
-): boolean {
+export function usePermissionCheck(pluginId: string, permission: PluginPermission): boolean {
   const guard = useMemo(() => getPermissionGuard(), []);
-  const [hasPermission, setHasPermission] = useState(() =>
-    guard.check(pluginId, permission)
-  );
+  const [hasPermission, setHasPermission] = useState(() => guard.check(pluginId, permission));
 
   useEffect(() => {
     setHasPermission(guard.check(pluginId, permission));

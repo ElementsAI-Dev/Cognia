@@ -123,9 +123,7 @@ describe('useVideoTimeline', () => {
 
     it('should call onTimeChange callback', () => {
       const onTimeChange = jest.fn();
-      const { result } = renderHook(() =>
-        useVideoTimeline({ duration: 60, onTimeChange })
-      );
+      const { result } = renderHook(() => useVideoTimeline({ duration: 60, onTimeChange }));
 
       act(() => {
         result.current.setCurrentTime(25);
@@ -391,9 +389,7 @@ describe('useVideoTimeline', () => {
 
     it('should call onMarkerAdd callback', () => {
       const onMarkerAdd = jest.fn();
-      const { result } = renderHook(() =>
-        useVideoTimeline({ duration: 60, onMarkerAdd })
-      );
+      const { result } = renderHook(() => useVideoTimeline({ duration: 60, onMarkerAdd }));
 
       act(() => {
         result.current.addMarker({ time: 10, label: 'Test', type: 'marker' });

@@ -85,21 +85,25 @@ jest.mock('@/lib/native/environment', () => ({
 }));
 
 jest.mock('@/types/system/environment', () => ({
-  createDefaultProjectEnvConfig: jest.fn((path, name) => ({ 
-    id: 'config-1', 
-    projectPath: path, 
+  createDefaultProjectEnvConfig: jest.fn((path, name) => ({
+    id: 'config-1',
+    projectPath: path,
     projectName: name,
     envId: null,
   })),
   parseRequirements: jest.fn((content) => content.split('\n').map((l: string) => ({ name: l }))),
-  generateRequirements: jest.fn((packages) => packages.map((p: { name: string }) => p.name).join('\n')),
+  generateRequirements: jest.fn((packages) =>
+    packages.map((p: { name: string }) => p.name).join('\n')
+  ),
   filterEnvironments: jest.fn((envs) => envs),
 }));
 
 import { virtualEnvService, isEnvironmentAvailable } from '@/lib/native/environment';
 
 const mockVirtualEnvService = virtualEnvService as jest.Mocked<typeof virtualEnvService>;
-const mockIsAvailable = isEnvironmentAvailable as jest.MockedFunction<typeof isEnvironmentAvailable>;
+const mockIsAvailable = isEnvironmentAvailable as jest.MockedFunction<
+  typeof isEnvironmentAvailable
+>;
 
 describe('useVirtualEnv', () => {
   beforeEach(() => {
@@ -248,7 +252,11 @@ describe('useVirtualEnv', () => {
   });
 
   it('should refresh python versions', async () => {
-    mockVirtualEnvService.getAvailablePythonVersions.mockResolvedValueOnce(['3.10', '3.11', '3.12']);
+    mockVirtualEnvService.getAvailablePythonVersions.mockResolvedValueOnce([
+      '3.10',
+      '3.11',
+      '3.12',
+    ]);
 
     const { result } = renderHook(() => useVirtualEnv());
 
@@ -359,8 +367,13 @@ describe('useVirtualEnv', () => {
   describe('clone environment', () => {
     it('should clone environment with packages', async () => {
       const sourcePackages = [{ name: 'numpy', version: '1.24.0' }];
-      const clonedEnv = { id: 'cloned-env', name: 'cloned', path: '/path/cloned', pythonVersion: '3.11' };
-      
+      const clonedEnv = {
+        id: 'cloned-env',
+        name: 'cloned',
+        path: '/path/cloned',
+        pythonVersion: '3.11',
+      };
+
       mockVirtualEnvService.listPackages.mockResolvedValueOnce(sourcePackages as never);
       mockVirtualEnvService.create.mockResolvedValueOnce(clonedEnv as never);
 
@@ -410,7 +423,11 @@ describe('useVirtualEnv', () => {
   describe('python version management', () => {
     it('should install python version', async () => {
       mockVirtualEnvService.installPythonVersion.mockResolvedValueOnce(undefined as never);
-      mockVirtualEnvService.getAvailablePythonVersions.mockResolvedValueOnce(['3.10', '3.11', '3.12']);
+      mockVirtualEnvService.getAvailablePythonVersions.mockResolvedValueOnce([
+        '3.10',
+        '3.11',
+        '3.12',
+      ]);
 
       const { result } = renderHook(() => useVirtualEnv());
 
@@ -458,7 +475,9 @@ describe('useVirtualEnv', () => {
         result.current.updateProjectConfig('config-1', { projectName: 'Updated' });
       });
 
-      expect(mockStoreState.updateProjectConfig).toHaveBeenCalledWith('config-1', { projectName: 'Updated' });
+      expect(mockStoreState.updateProjectConfig).toHaveBeenCalledWith('config-1', {
+        projectName: 'Updated',
+      });
     });
 
     it('should remove project config', () => {

@@ -47,7 +47,9 @@ jest.mock('@/lib/workflow-editor/converter', () => ({
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useWorkflow } from '@/hooks/designer';
 
-const mockUseWorkflowEditorStore = useWorkflowEditorStore as jest.MockedFunction<typeof useWorkflowEditorStore>;
+const mockUseWorkflowEditorStore = useWorkflowEditorStore as jest.MockedFunction<
+  typeof useWorkflowEditorStore
+>;
 const mockUseWorkflow = useWorkflow as jest.MockedFunction<typeof useWorkflow>;
 
 describe('useWorkflowEditor', () => {
@@ -80,7 +82,9 @@ describe('useWorkflowEditor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseWorkflowEditorStore.mockReturnValue(mockStoreFunctions);
-    mockUseWorkflow.mockReturnValue(mockWorkflowFunctions as unknown as ReturnType<typeof useWorkflow>);
+    mockUseWorkflow.mockReturnValue(
+      mockWorkflowFunctions as unknown as ReturnType<typeof useWorkflow>
+    );
   });
 
   it('should return initial state', () => {
@@ -235,7 +239,7 @@ describe('useWorkflowEditor', () => {
     const onComplete = jest.fn();
     const onError = jest.fn();
 
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useWorkflowEditor({
         autoSave: false,
         autoSaveInterval: 60000,

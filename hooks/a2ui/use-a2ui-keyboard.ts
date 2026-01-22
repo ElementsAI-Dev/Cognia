@@ -137,8 +137,7 @@ export function useA2UIFocusTrap(containerRef: React.RefObject<HTMLElement>) {
     const elements = focusableElementsRef.current;
     if (elements.length === 0) return;
 
-    currentFocusIndexRef.current =
-      (currentFocusIndexRef.current + 1) % elements.length;
+    currentFocusIndexRef.current = (currentFocusIndexRef.current + 1) % elements.length;
     elements[currentFocusIndexRef.current].focus();
   }, [updateFocusableElements]);
 

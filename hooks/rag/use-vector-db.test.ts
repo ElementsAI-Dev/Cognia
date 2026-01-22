@@ -80,7 +80,9 @@ describe('useVectorDB (native provider)', () => {
   it('creates collection with basic options', async () => {
     mockCreateCollection.mockResolvedValueOnce(undefined);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     await act(async () => {
       await result.current.createCollection('c1');
     });
@@ -97,7 +99,9 @@ describe('useVectorDB (native provider)', () => {
   it('creates collection with full options', async () => {
     mockCreateCollection.mockResolvedValueOnce(undefined);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     await act(async () => {
       await result.current.createCollection('c1', {
         description: 'Test collection',
@@ -117,7 +121,9 @@ describe('useVectorDB (native provider)', () => {
   it('adds documents and routes via vector store', async () => {
     mockAddDocuments.mockResolvedValueOnce(undefined);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     await act(async () => {
       await result.current.addDocument('hello', { type: 'doc' });
     });
@@ -130,10 +136,16 @@ describe('useVectorDB (native provider)', () => {
       { id: '1', content: 'x', score: 0.9, metadata: { type: 'doc' } },
     ]);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     let res: VectorSearchResult[] = [];
     await act(async () => {
-      res = await result.current.searchWithOptions('q', { topK: 3, threshold: 0.5, filter: { type: 'doc' } });
+      res = await result.current.searchWithOptions('q', {
+        topK: 3,
+        threshold: 0.5,
+        filter: { type: 'doc' },
+      });
     });
 
     expect(mockSearchDocuments).toHaveBeenCalledWith('c1', 'q', {
@@ -149,15 +161,20 @@ describe('useVectorDB (native provider)', () => {
       { id: '1', content: 'filtered result', score: 0.95, metadata: { category: 'science' } },
     ]);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     const filters = [
       { key: 'category', value: 'science', operation: 'equals' as const },
       { key: 'score', value: 90, operation: 'greater_than' as const },
     ];
-    
+
     let res: VectorSearchResult[] = [];
     await act(async () => {
-      res = await result.current.searchWithFilters('search query', filters, { topK: 5, threshold: 0.8 });
+      res = await result.current.searchWithFilters('search query', filters, {
+        topK: 5,
+        threshold: 0.8,
+      });
     });
 
     expect(mockSearchDocuments).toHaveBeenCalledWith('c1', 'search query', {
@@ -172,7 +189,9 @@ describe('useVectorDB (native provider)', () => {
   it('renames collection', async () => {
     mockRenameCollection.mockResolvedValueOnce(undefined);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     await act(async () => {
       await result.current.renameCollection('old-name', 'new-name');
     });
@@ -183,7 +202,9 @@ describe('useVectorDB (native provider)', () => {
   it('truncates collection', async () => {
     mockTruncateCollection.mockResolvedValueOnce(undefined);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     await act(async () => {
       await result.current.truncateCollection('test-collection');
     });
@@ -198,13 +219,13 @@ describe('useVectorDB (native provider)', () => {
         documentCount: 2,
         dimension: 1536,
       },
-      points: [
-        { id: 'point1', vector: [0.1, 0.2, 0.3], payload: { content: 'test' } },
-      ],
+      points: [{ id: 'point1', vector: [0.1, 0.2, 0.3], payload: { content: 'test' } }],
     };
     mockExportCollection.mockResolvedValueOnce(mockExportData);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     let exportResult;
     await act(async () => {
       exportResult = await result.current.exportCollection('test-collection');
@@ -221,13 +242,13 @@ describe('useVectorDB (native provider)', () => {
         documentCount: 1,
         dimension: 768,
       },
-      points: [
-        { id: 'imported1', vector: [0.7, 0.8], payload: { imported: true } },
-      ],
+      points: [{ id: 'imported1', vector: [0.7, 0.8], payload: { imported: true } }],
     };
     mockImportCollection.mockResolvedValueOnce(undefined);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     await act(async () => {
       await result.current.importCollection(mockImportData, true);
     });
@@ -257,7 +278,9 @@ describe('useVectorDB (native provider)', () => {
     ];
     mockListCollections.mockResolvedValueOnce(mockCollections);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     let collections;
     await act(async () => {
       collections = await result.current.listAllCollections();
@@ -280,7 +303,9 @@ describe('useVectorDB (native provider)', () => {
     };
     mockGetCollectionInfo.mockResolvedValueOnce(mockInfo);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     let info;
     await act(async () => {
       info = await result.current.getCollectionInfo('test-collection');
@@ -293,10 +318,12 @@ describe('useVectorDB (native provider)', () => {
   it('handles search with advanced options (offset/limit)', async () => {
     mockSearchDocuments.mockResolvedValueOnce([
       { id: 'doc2', content: 'second result', score: 0.85, metadata: {} },
-      { id: 'doc3', content: 'third result', score: 0.80, metadata: {} },
+      { id: 'doc3', content: 'third result', score: 0.8, metadata: {} },
     ]);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     let res: VectorSearchResult[] = [];
     await act(async () => {
       res = await result.current.searchWithOptions('query', {
@@ -319,11 +346,14 @@ describe('useVectorDB (native provider)', () => {
   it('handles errors gracefully', async () => {
     mockCreateCollection.mockRejectedValueOnce(new Error('Collection creation failed'));
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
-    
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
+
     await act(async () => {
-      await expect(result.current.createCollection('failing-collection'))
-        .rejects.toThrow('Collection creation failed');
+      await expect(result.current.createCollection('failing-collection')).rejects.toThrow(
+        'Collection creation failed'
+      );
     });
 
     expect(result.current.error).toBe('Collection creation failed');
@@ -334,18 +364,23 @@ describe('useVectorDB (native provider)', () => {
     // Mock the createCollection to simulate vector store unavailable error
     mockCreateCollection.mockRejectedValueOnce(new Error('Vector store not available'));
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'test', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'test', autoInitialize: false })
+    );
 
     await act(async () => {
-      await expect(result.current.createCollection('test'))
-        .rejects.toThrow('Vector store not available');
+      await expect(result.current.createCollection('test')).rejects.toThrow(
+        'Vector store not available'
+      );
     });
   });
 
   it('removes all documents from collection', async () => {
     mockDeleteAllDocuments.mockResolvedValueOnce(5);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     let count: number = 0;
     await act(async () => {
       count = await result.current.removeAllDocuments();
@@ -364,7 +399,9 @@ describe('useVectorDB (native provider)', () => {
     };
     mockGetStats.mockResolvedValueOnce(mockStats);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     let stats;
     await act(async () => {
       stats = await result.current.getStats();
@@ -378,7 +415,7 @@ describe('useVectorDB (native provider)', () => {
     const mockResponse: SearchResponse = {
       results: [
         { id: 'doc1', content: 'first result', score: 0.95, metadata: {} },
-        { id: 'doc2', content: 'second result', score: 0.90, metadata: {} },
+        { id: 'doc2', content: 'second result', score: 0.9, metadata: {} },
       ],
       total: 10,
       offset: 0,
@@ -386,7 +423,9 @@ describe('useVectorDB (native provider)', () => {
     };
     mockSearchDocumentsWithTotal.mockResolvedValueOnce(mockResponse);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     let response: SearchResponse | undefined;
     await act(async () => {
       response = await result.current.searchWithTotal('query', { topK: 10, offset: 0, limit: 2 });
@@ -414,7 +453,9 @@ describe('useVectorDB (native provider)', () => {
     };
     mockScrollDocuments.mockResolvedValueOnce(mockResponse);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     let response: ScrollResponse | undefined;
     await act(async () => {
       response = await result.current.scrollDocuments({ offset: 0, limit: 2 });
@@ -428,9 +469,7 @@ describe('useVectorDB (native provider)', () => {
 
   it('scrolls documents with filters', async () => {
     const mockResponse: ScrollResponse = {
-      documents: [
-        { id: 'filtered1', content: 'filtered doc', metadata: { category: 'science' } },
-      ],
+      documents: [{ id: 'filtered1', content: 'filtered doc', metadata: { category: 'science' } }],
       total: 5,
       offset: 0,
       limit: 10,
@@ -438,22 +477,24 @@ describe('useVectorDB (native provider)', () => {
     };
     mockScrollDocuments.mockResolvedValueOnce(mockResponse);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     const filters = [{ key: 'category', value: 'science', operation: 'equals' as const }];
-    
+
     let response: ScrollResponse | undefined;
     await act(async () => {
-      response = await result.current.scrollDocuments({ 
-        offset: 0, 
-        limit: 10, 
+      response = await result.current.scrollDocuments({
+        offset: 0,
+        limit: 10,
         filters,
         filterMode: 'and',
       });
     });
 
-    expect(mockScrollDocuments).toHaveBeenCalledWith('c1', { 
-      offset: 0, 
-      limit: 10, 
+    expect(mockScrollDocuments).toHaveBeenCalledWith('c1', {
+      offset: 0,
+      limit: 10,
       filters,
       filterMode: 'and',
     });
@@ -467,11 +508,14 @@ describe('useVectorDB (native provider)', () => {
       throw new Error('Vector store does not support deleteAllDocuments');
     });
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
-    
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
+
     await act(async () => {
-      await expect(result.current.removeAllDocuments())
-        .rejects.toThrow('Vector store does not support deleteAllDocuments');
+      await expect(result.current.removeAllDocuments()).rejects.toThrow(
+        'Vector store does not support deleteAllDocuments'
+      );
     });
 
     expect(result.current.error).toBe('Vector store does not support deleteAllDocuments');
@@ -480,7 +524,9 @@ describe('useVectorDB (native provider)', () => {
   it('returns null for stats when store does not support it', async () => {
     mockGetStats.mockResolvedValueOnce(null);
 
-    const { result } = renderHook(() => useVectorDB({ collectionName: 'c1', autoInitialize: false }));
+    const { result } = renderHook(() =>
+      useVectorDB({ collectionName: 'c1', autoInitialize: false })
+    );
     let stats;
     await act(async () => {
       stats = await result.current.getStats();

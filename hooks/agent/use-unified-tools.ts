@@ -2,13 +2,13 @@
 
 /**
  * useUnifiedTools - Hook for unified tool management
- * 
+ *
  * Provides a centralized interface for managing all agent tools:
  * - Built-in tools
  * - Skill-based tools
  * - MCP server tools
  * - Custom tools
- * 
+ *
  * Features:
  * - Automatic synchronization with stores
  * - Dynamic tool updates
@@ -61,28 +61,28 @@ export interface UseUnifiedToolsOptions {
 export interface UseUnifiedToolsReturn {
   // Registry
   registry: UnifiedToolRegistry;
-  
+
   // Tools
   tools: Record<string, AgentTool>;
   registeredTools: RegisteredTool[];
-  
+
   // Filtering
   filter: (options: ToolFilterOptions) => RegisteredTool[];
   getToolsBySource: (source: ToolSource) => RegisteredTool[];
   getToolsByCategory: (category: ToolCategory) => RegisteredTool[];
   searchTools: (query: string) => RegisteredTool[];
-  
+
   // Management
   enableTool: (name: string) => void;
   disableTool: (name: string) => void;
   toggleTool: (name: string) => void;
-  
+
   // Sync
   syncAll: () => void;
   syncBuiltinTools: () => void;
   syncSkillTools: () => void;
   syncMcpTools: () => void;
-  
+
   // Stats
   stats: {
     total: number;
@@ -90,7 +90,7 @@ export interface UseUnifiedToolsReturn {
     disabled: number;
     bySource: Record<ToolSource, number>;
   };
-  
+
   // Loading state
   isLoading: boolean;
 }
@@ -124,7 +124,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
   // Get active skills
   const activeSkills = useMemo(() => {
     const ids = Array.isArray(activeSkillIds) ? activeSkillIds : [];
-    return ids.map(id => skills[id]).filter((s): s is Skill => s !== undefined);
+    return ids.map((id) => skills[id]).filter((s): s is Skill => s !== undefined);
   }, [activeSkillIds, skills]);
 
   // Sync built-in tools
@@ -142,7 +142,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
 
     // Clear existing builtin tools
     registry.unregisterBySource('builtin');
-    
+
     // Register new builtin tools
     registerBuiltinTools(registry, builtinTools);
   }, [enableBuiltinTools, enableWebScraper, providerSettings.tavily?.apiKey, registry]);
@@ -167,7 +167,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
     // Clear existing MCP tools
     registry.unregisterBySource('mcp');
 
-    const connectedServers = mcpServers.filter(s => s.status.type === 'connected');
+    const connectedServers = mcpServers.filter((s) => s.status.type === 'connected');
     if (connectedServers.length > 0) {
       try {
         // Use the Rust backend API for efficient tool fetching
@@ -193,7 +193,8 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
     registry.unregister('rag_search');
 
     // Get API key for embedding provider
-    const embeddingApiKey = providerSettings[vectorSettings.embeddingProvider as keyof typeof providerSettings]?.apiKey;
+    const embeddingApiKey =
+      providerSettings[vectorSettings.embeddingProvider as keyof typeof providerSettings]?.apiKey;
     if (embeddingApiKey) {
       const ragConfig = buildRAGConfigFromSettings(vectorSettings, embeddingApiKey);
       const ragTool = createRAGSearchTool(ragConfig);
@@ -284,37 +285,58 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
   }, [registry, registeredTools]);
 
   // Filter functions
-  const filter = useCallback((filterOptions: ToolFilterOptions) => {
-    return registry.filter(filterOptions);
-  }, [registry]);
+  const filter = useCallback(
+    (filterOptions: ToolFilterOptions) => {
+      return registry.filter(filterOptions);
+    },
+    [registry]
+  );
 
-  const getToolsBySource = useCallback((source: ToolSource) => {
-    return registry.filter({ sources: [source] });
-  }, [registry]);
+  const getToolsBySource = useCallback(
+    (source: ToolSource) => {
+      return registry.filter({ sources: [source] });
+    },
+    [registry]
+  );
 
-  const getToolsByCategory = useCallback((category: ToolCategory) => {
-    return registry.filter({ categories: [category] });
-  }, [registry]);
+  const getToolsByCategory = useCallback(
+    (category: ToolCategory) => {
+      return registry.filter({ categories: [category] });
+    },
+    [registry]
+  );
 
-  const searchTools = useCallback((query: string) => {
-    return registry.filter({ searchQuery: query });
-  }, [registry]);
+  const searchTools = useCallback(
+    (query: string) => {
+      return registry.filter({ searchQuery: query });
+    },
+    [registry]
+  );
 
   // Management functions
-  const enableTool = useCallback((name: string) => {
-    registry.setEnabled(name, true);
-  }, [registry]);
+  const enableTool = useCallback(
+    (name: string) => {
+      registry.setEnabled(name, true);
+    },
+    [registry]
+  );
 
-  const disableTool = useCallback((name: string) => {
-    registry.setEnabled(name, false);
-  }, [registry]);
+  const disableTool = useCallback(
+    (name: string) => {
+      registry.setEnabled(name, false);
+    },
+    [registry]
+  );
 
-  const toggleTool = useCallback((name: string) => {
-    const tool = registry.get(name);
-    if (tool) {
-      registry.setEnabled(name, !tool.metadata.isEnabled);
-    }
-  }, [registry]);
+  const toggleTool = useCallback(
+    (name: string) => {
+      const tool = registry.get(name);
+      if (tool) {
+        registry.setEnabled(name, !tool.metadata.isEnabled);
+      }
+    },
+    [registry]
+  );
 
   // Stats
   // Note: registeredTools is intentionally included to trigger re-computation when tools change

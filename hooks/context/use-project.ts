@@ -12,7 +12,7 @@ export interface UseProjectReturn {
   projects: Project[];
   activeProject: Project | undefined;
   activeProjectId: string | null;
-  
+
   // Selectors
   getProject: (id: string) => Project | undefined;
   getProjectForSession: (sessionId: string) => Project | undefined;
@@ -20,7 +20,7 @@ export interface UseProjectReturn {
   getArchivedProjects: () => Project[];
   getProjectsByTag: (tag: string) => Project[];
   getAllTags: () => string[];
-  
+
   // Actions
   createProject: (input: CreateProjectInput) => Project;
   updateProject: (id: string, updates: UpdateProjectInput) => void;
@@ -29,13 +29,13 @@ export interface UseProjectReturn {
   duplicateProject: (id: string) => Project | null;
   archiveProject: (id: string) => void;
   unarchiveProject: (id: string) => void;
-  
+
   // Session management
   addSessionToProject: (projectId: string, sessionId: string) => void;
   removeSessionFromProject: (projectId: string, sessionId: string) => void;
   linkCurrentSessionToProject: (projectId: string) => void;
   unlinkCurrentSession: () => void;
-  
+
   // Computed
   hasProjects: boolean;
   projectCount: number;
@@ -56,7 +56,7 @@ export function useProject(): UseProjectReturn {
   const getArchivedProjects = useProjectStore((state) => state.getArchivedProjects);
   const getProjectsByTag = useProjectStore((state) => state.getProjectsByTag);
   const getAllTags = useProjectStore((state) => state.getAllTags);
-  
+
   const createProject = useProjectStore((state) => state.createProject);
   const updateProject = useProjectStore((state) => state.updateProject);
   const deleteProject = useProjectStore((state) => state.deleteProject);
@@ -66,54 +66,57 @@ export function useProject(): UseProjectReturn {
   const unarchiveProject = useProjectStore((state) => state.unarchiveProject);
   const addSessionToProject = useProjectStore((state) => state.addSessionToProject);
   const removeSessionFromProject = useProjectStore((state) => state.removeSessionFromProject);
-  
+
   // Session store
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const sessions = useSessionStore((state) => state.sessions);
   const updateSession = useSessionStore((state) => state.updateSession);
-  
+
   // Computed values
   const activeProject = useMemo(() => getActiveProject(), [getActiveProject]);
-  
+
   const currentSession = useMemo(() => {
-    return activeSessionId ? sessions.find(s => s.id === activeSessionId) : undefined;
+    return activeSessionId ? sessions.find((s) => s.id === activeSessionId) : undefined;
   }, [activeSessionId, sessions]);
-  
-  const currentSessionProject = currentSession?.projectId 
-    ? getProject(currentSession.projectId) 
+
+  const currentSessionProject = currentSession?.projectId
+    ? getProject(currentSession.projectId)
     : undefined;
-  
+
   const hasProjects = projects.length > 0;
   const projectCount = projects.length;
-  
+
   // Link current session to project
-  const linkCurrentSessionToProject = useCallback((projectId: string) => {
-    if (!activeSessionId) return;
-    
-    // Remove from old project if exists
-    if (currentSession?.projectId) {
-      removeSessionFromProject(currentSession.projectId, activeSessionId);
-    }
-    
-    // Add to new project
-    addSessionToProject(projectId, activeSessionId);
-    updateSession(activeSessionId, { projectId });
-  }, [activeSessionId, currentSession, addSessionToProject, removeSessionFromProject, updateSession]);
-  
+  const linkCurrentSessionToProject = useCallback(
+    (projectId: string) => {
+      if (!activeSessionId) return;
+
+      // Remove from old project if exists
+      if (currentSession?.projectId) {
+        removeSessionFromProject(currentSession.projectId, activeSessionId);
+      }
+
+      // Add to new project
+      addSessionToProject(projectId, activeSessionId);
+      updateSession(activeSessionId, { projectId });
+    },
+    [activeSessionId, currentSession, addSessionToProject, removeSessionFromProject, updateSession]
+  );
+
   // Unlink current session from project
   const unlinkCurrentSession = useCallback(() => {
     if (!activeSessionId || !currentSession?.projectId) return;
-    
+
     removeSessionFromProject(currentSession.projectId, activeSessionId);
     updateSession(activeSessionId, { projectId: undefined });
   }, [activeSessionId, currentSession, removeSessionFromProject, updateSession]);
-  
+
   return {
     // State
     projects,
     activeProject,
     activeProjectId,
-    
+
     // Selectors
     getProject,
     getProjectForSession,
@@ -121,7 +124,7 @@ export function useProject(): UseProjectReturn {
     getArchivedProjects,
     getProjectsByTag,
     getAllTags,
-    
+
     // Actions
     createProject,
     updateProject,
@@ -130,13 +133,13 @@ export function useProject(): UseProjectReturn {
     duplicateProject,
     archiveProject,
     unarchiveProject,
-    
+
     // Session management
     addSessionToProject,
     removeSessionFromProject,
     linkCurrentSessionToProject,
     unlinkCurrentSession,
-    
+
     // Computed
     hasProjects,
     projectCount,

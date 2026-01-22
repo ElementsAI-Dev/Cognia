@@ -115,9 +115,7 @@ describe('useSelectionReceiver', () => {
     it('should accept onTextReceived callback', () => {
       const onTextReceived = jest.fn();
 
-      const { result } = renderHook(() =>
-        useSelectionReceiver({ onTextReceived })
-      );
+      const { result } = renderHook(() => useSelectionReceiver({ onTextReceived }));
 
       expect(result.current).toBeDefined();
     });
@@ -125,9 +123,7 @@ describe('useSelectionReceiver', () => {
     it('should accept onTranslateRequest callback', () => {
       const onTranslateRequest = jest.fn();
 
-      const { result } = renderHook(() =>
-        useSelectionReceiver({ onTranslateRequest })
-      );
+      const { result } = renderHook(() => useSelectionReceiver({ onTranslateRequest }));
 
       expect(result.current).toBeDefined();
     });
@@ -135,9 +131,7 @@ describe('useSelectionReceiver', () => {
     it('should accept onExplainRequest callback', () => {
       const onExplainRequest = jest.fn();
 
-      const { result } = renderHook(() =>
-        useSelectionReceiver({ onExplainRequest })
-      );
+      const { result } = renderHook(() => useSelectionReceiver({ onExplainRequest }));
 
       expect(result.current).toBeDefined();
     });
@@ -145,9 +139,7 @@ describe('useSelectionReceiver', () => {
 
   describe('options', () => {
     it('should accept autoFocus option', () => {
-      const { result } = renderHook(() =>
-        useSelectionReceiver({ autoFocus: false })
-      );
+      const { result } = renderHook(() => useSelectionReceiver({ autoFocus: false }));
 
       expect(result.current).toBeDefined();
     });

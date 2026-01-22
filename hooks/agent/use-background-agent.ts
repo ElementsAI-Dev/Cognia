@@ -2,7 +2,7 @@
 
 /**
  * useBackgroundAgent - Hook for managing background agents
- * 
+ *
  * Enhanced with event-driven state synchronization between
  * BackgroundAgentManager and Zustand store.
  */
@@ -82,7 +82,9 @@ export interface UseBackgroundAgentReturn {
   clearCompleted: () => void;
 }
 
-export function useBackgroundAgent(options: UseBackgroundAgentOptions = {}): UseBackgroundAgentReturn {
+export function useBackgroundAgent(
+  options: UseBackgroundAgentOptions = {}
+): UseBackgroundAgentReturn {
   const activeSession = useSessionStore((state) => state.getActiveSession());
   const sessionId = options.sessionId || activeSession?.id || '';
 
@@ -207,15 +209,18 @@ export function useBackgroundAgent(options: UseBackgroundAgentOptions = {}): Use
       }
     });
 
-    const unsubSubAgentCompleted = eventEmitter.on('subagent:completed', ({ agent, subAgent, result }) => {
-      if (isMountedRef.current) {
-        updateSubAgent(agent.id, subAgent.id, {
-          status: 'completed',
-          result,
-          completedAt: new Date(),
-        });
+    const unsubSubAgentCompleted = eventEmitter.on(
+      'subagent:completed',
+      ({ agent, subAgent, result }) => {
+        if (isMountedRef.current) {
+          updateSubAgent(agent.id, subAgent.id, {
+            status: 'completed',
+            result,
+            completedAt: new Date(),
+          });
+        }
       }
-    });
+    );
 
     const unsubSubAgentStarted = eventEmitter.on('subagent:started', ({ agent, subAgent }) => {
       if (isMountedRef.current) {
@@ -272,7 +277,16 @@ export function useBackgroundAgent(options: UseBackgroundAgentOptions = {}): Use
       unsubLog();
       unsubNotification();
     };
-  }, [setAgentStatus, setAgentProgress, setAgentResult, setAgentError, addSubAgent, updateSubAgent, addLog, addNotification]);
+  }, [
+    setAgentStatus,
+    setAgentProgress,
+    setAgentResult,
+    setAgentError,
+    addSubAgent,
+    updateSubAgent,
+    addLog,
+    addNotification,
+  ]);
 
   // Get agents for current session
   const agents = useMemo(() => {
@@ -289,8 +303,8 @@ export function useBackgroundAgent(options: UseBackgroundAgentOptions = {}): Use
   }, [agents]);
 
   const completedAgents = useMemo(() => {
-    return agents.filter((a) => 
-      a.status === 'completed' || a.status === 'failed' || a.status === 'cancelled'
+    return agents.filter(
+      (a) => a.status === 'completed' || a.status === 'failed' || a.status === 'cancelled'
     );
   }, [agents]);
 
@@ -301,12 +315,15 @@ export function useBackgroundAgent(options: UseBackgroundAgentOptions = {}): Use
 
   const unreadNotificationCount = getUnreadNotificationCount();
 
-  const queueState = useMemo(() => ({
-    items: queue.items.length,
-    maxConcurrent: queue.maxConcurrent,
-    currentlyRunning: queue.currentlyRunning,
-    isPaused: queue.isPaused,
-  }), [queue]);
+  const queueState = useMemo(
+    () => ({
+      items: queue.items.length,
+      maxConcurrent: queue.maxConcurrent,
+      currentlyRunning: queue.currentlyRunning,
+      isPaused: queue.isPaused,
+    }),
+    [queue]
+  );
 
   // Create agent
   const createAgent = useCallback(
@@ -370,7 +387,7 @@ export function useBackgroundAgent(options: UseBackgroundAgentOptions = {}): Use
 
       // Use the manager for actual execution
       const manager = getManager();
-      
+
       // Check if agent already exists in manager, otherwise create it
       let managedAgent = manager.getAgent(agentId);
       if (!managedAgent) {

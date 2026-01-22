@@ -31,11 +31,7 @@ jest.mock('@/lib/native/skill', () => ({
 
 import * as nativeSkill from '@/lib/native/skill';
 import { useNativeSkills, useNativeSkillAvailable } from './use-native-skills';
-import type {
-  SkillRepo,
-  DiscoverableSkill,
-  InstalledSkill,
-} from './use-native-skills';
+import type { SkillRepo, DiscoverableSkill, InstalledSkill } from './use-native-skills';
 
 const mockNativeSkill = jest.mocked(nativeSkill);
 
@@ -142,11 +138,7 @@ describe('useNativeSkills', () => {
         await result.current.addRepo('new-owner', 'new-repo', 'develop');
       });
 
-      expect(mockNativeSkill.addSkillRepo).toHaveBeenCalledWith(
-        'new-owner',
-        'new-repo',
-        'develop'
-      );
+      expect(mockNativeSkill.addSkillRepo).toHaveBeenCalledWith('new-owner', 'new-repo', 'develop');
     });
 
     it('should remove a repo', async () => {
@@ -158,10 +150,7 @@ describe('useNativeSkills', () => {
         await result.current.removeRepo('anthropics', 'skills');
       });
 
-      expect(mockNativeSkill.removeSkillRepo).toHaveBeenCalledWith(
-        'anthropics',
-        'skills'
-      );
+      expect(mockNativeSkill.removeSkillRepo).toHaveBeenCalledWith('anthropics', 'skills');
     });
 
     it('should toggle a repo', async () => {
@@ -173,11 +162,7 @@ describe('useNativeSkills', () => {
         await result.current.toggleRepo('anthropics', 'skills', false);
       });
 
-      expect(mockNativeSkill.toggleSkillRepo).toHaveBeenCalledWith(
-        'anthropics',
-        'skills',
-        false
-      );
+      expect(mockNativeSkill.toggleSkillRepo).toHaveBeenCalledWith('anthropics', 'skills', false);
     });
   });
 
@@ -383,11 +368,9 @@ describe('useNativeSkills', () => {
         await result.current.update('local:test', 'development', ['tag1']);
       });
 
-      expect(mockNativeSkill.updateSkill).toHaveBeenCalledWith(
-        'local:test',
-        'development',
-        ['tag1']
-      );
+      expect(mockNativeSkill.updateSkill).toHaveBeenCalledWith('local:test', 'development', [
+        'tag1',
+      ]);
     });
   });
 
@@ -477,9 +460,7 @@ describe('useNativeSkills', () => {
     });
 
     it('should set error on install failure', async () => {
-      mockNativeSkill.installSkill.mockRejectedValue(
-        new Error('Already installed')
-      );
+      mockNativeSkill.installSkill.mockRejectedValue(new Error('Already installed'));
 
       const { result } = renderHook(() => useNativeSkills());
 

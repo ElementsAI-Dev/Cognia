@@ -147,12 +147,9 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
     [refreshStatus]
   );
 
-  const prepareLanguage = useCallback(
-    async (language: string): Promise<void> => {
-      await sandboxService.prepareLanguage(language);
-    },
-    []
-  );
+  const prepareLanguage = useCallback(async (language: string): Promise<void> => {
+    await sandboxService.prepareLanguage(language);
+  }, []);
 
   const refreshAllLanguages = useCallback(async () => {
     if (!state.isAvailable) {
@@ -193,30 +190,26 @@ export function useQuickCodeExecution() {
   const [result, setResult] = useState<SandboxExecutionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const execute = useCallback(
-    async (language: string, code: string, stdin?: string) => {
-      setIsExecuting(true);
-      setError(null);
-      setResult(null);
+  const execute = useCallback(async (language: string, code: string, stdin?: string) => {
+    setIsExecuting(true);
+    setError(null);
+    setResult(null);
 
-      try {
-        const SandboxExecutionResult = stdin
-          ? await sandboxService.executeWithStdin(language, code, stdin)
-          : await sandboxService.quickExecute(language, code);
+    try {
+      const SandboxExecutionResult = stdin
+        ? await sandboxService.executeWithStdin(language, code, stdin)
+        : await sandboxService.quickExecute(language, code);
 
-        setResult(SandboxExecutionResult);
-        return SandboxExecutionResult;
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Execution failed';
-        setError(errorMessage);
-        throw err;
-      } finally {
-        setIsExecuting(false);
-      }
-    },
-    []
-  );
+      setResult(SandboxExecutionResult);
+      return SandboxExecutionResult;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Execution failed';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsExecuting(false);
+    }
+  }, []);
 
   const reset = useCallback(() => {
     setResult(null);

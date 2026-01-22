@@ -282,7 +282,9 @@ describe('useMemory', () => {
         });
       });
 
-      expect(results!.every((r: { memory: { type: string } }) => r.memory.type === 'preference')).toBe(true);
+      expect(
+        results!.every((r: { memory: { type: string } }) => r.memory.type === 'preference')
+      ).toBe(true);
     });
   });
 
@@ -342,16 +344,16 @@ describe('useMemory', () => {
       });
 
       // Pinned memory should have higher relevance
-      const pinnedResult = relevant!.find((r: { memory: { id: string }; matchReasons?: string[] }) => r.memory.id === pinnedId);
+      const pinnedResult = relevant!.find(
+        (r: { memory: { id: string }; matchReasons?: string[] }) => r.memory.id === pinnedId
+      );
       expect(pinnedResult?.matchReasons).toContain('pinned');
     });
   });
 
   describe('decay and expiration', () => {
     it('should calculate decay factor', () => {
-      const { result } = renderHook(() =>
-        useMemory({ autoDecay: true, decayDays: 30 })
-      );
+      const { result } = renderHook(() => useMemory({ autoDecay: true, decayDays: 30 }));
 
       // Fresh memory should have decay factor close to 1
       const freshDecay = result.current.calculateDecayFactor({
@@ -368,9 +370,7 @@ describe('useMemory', () => {
     });
 
     it('should not decay pinned memories', () => {
-      const { result } = renderHook(() =>
-        useMemory({ autoDecay: true, decayDays: 30 })
-      );
+      const { result } = renderHook(() => useMemory({ autoDecay: true, decayDays: 30 }));
 
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 60);
@@ -476,9 +476,7 @@ describe('useMemory', () => {
     it('should detect instruction patterns', () => {
       const { result } = renderHook(() => useMemory());
 
-      const detected = result.current.detectMemoryPatterns(
-        'Remember to always use dark mode'
-      );
+      const detected = result.current.detectMemoryPatterns('Remember to always use dark mode');
 
       expect(detected.length).toBeGreaterThan(0);
       expect(detected.some((d) => d.type === 'instruction')).toBe(true);

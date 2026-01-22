@@ -33,9 +33,15 @@ jest.mock('@/stores', () => ({
   }),
 }));
 
-const mockGenerateObject = structuredOutputLib.generateStructuredObject as jest.MockedFunction<typeof structuredOutputLib.generateStructuredObject>;
-const mockStreamObject = structuredOutputLib.streamStructuredObject as jest.MockedFunction<typeof structuredOutputLib.streamStructuredObject>;
-const mockGenerateArray = structuredOutputLib.generateStructuredArray as jest.MockedFunction<typeof structuredOutputLib.generateStructuredArray>;
+const mockGenerateObject = structuredOutputLib.generateStructuredObject as jest.MockedFunction<
+  typeof structuredOutputLib.generateStructuredObject
+>;
+const mockStreamObject = structuredOutputLib.streamStructuredObject as jest.MockedFunction<
+  typeof structuredOutputLib.streamStructuredObject
+>;
+const mockGenerateArray = structuredOutputLib.generateStructuredArray as jest.MockedFunction<
+  typeof structuredOutputLib.generateStructuredArray
+>;
 
 describe('useStructuredOutput', () => {
   beforeEach(() => {
@@ -185,7 +191,11 @@ describe('useStructuredOutput', () => {
 
       let streamResult;
       await act(async () => {
-        streamResult = await result.current.streamGenerate('Generate content', TestSchema, onPartial);
+        streamResult = await result.current.streamGenerate(
+          'Generate content',
+          TestSchema,
+          onPartial
+        );
       });
 
       expect(streamResult).toEqual(mockResult);
@@ -248,7 +258,11 @@ describe('useStructuredOutput', () => {
       const { result } = renderHook(() => useStructuredOutput());
 
       await act(async () => {
-        await result.current.classifyText('Breaking news about tech', ['sports', 'tech', 'politics']);
+        await result.current.classifyText('Breaking news about tech', [
+          'sports',
+          'tech',
+          'politics',
+        ]);
       });
 
       expect(mockGenerateObject).toHaveBeenCalledWith(
@@ -313,11 +327,13 @@ describe('useStructuredOutput', () => {
     it('should use custom provider and model', async () => {
       mockGenerateObject.mockResolvedValue({ object: {} });
 
-      const { result } = renderHook(() => useStructuredOutput({
-        provider: 'anthropic',
-        model: 'claude-3',
-        temperature: 0.5,
-      }));
+      const { result } = renderHook(() =>
+        useStructuredOutput({
+          provider: 'anthropic',
+          model: 'claude-3',
+          temperature: 0.5,
+        })
+      );
 
       await act(async () => {
         await result.current.generate('test', z.object({ x: z.string() }));

@@ -22,18 +22,18 @@ export interface UseMarketplaceFiltersReturn {
   localSearch: string;
   setLocalSearch: (value: string) => void;
   debouncedSearch: string;
-  
+
   // Filter state
   showFilters: boolean;
   setShowFilters: (show: boolean) => void;
   hasActiveFilters: boolean;
-  
+
   // View state
   showInstalledOnly: boolean;
   setShowInstalledOnly: (show: boolean) => void;
   focusedIndex: number;
   setFocusedIndex: (index: number) => void;
-  
+
   // Computed data
   filteredItems: McpMarketplaceItem[];
   displayItems: McpMarketplaceItem[];
@@ -42,7 +42,7 @@ export interface UseMarketplaceFiltersReturn {
   availableTags: string[];
   installedCount: number;
   favoritesCount: number;
-  
+
   // Actions
   handleTagToggle: (tag: string) => void;
   handleSourceChange: (source: McpMarketplaceSource) => void;
@@ -155,18 +155,18 @@ export function useMarketplaceFilters(
     localSearch,
     setLocalSearch,
     debouncedSearch,
-    
+
     // Filter state
     showFilters,
     setShowFilters,
     hasActiveFilters,
-    
+
     // View state
     showInstalledOnly,
     setShowInstalledOnly,
     focusedIndex,
     setFocusedIndex,
-    
+
     // Computed data
     filteredItems,
     displayItems,
@@ -175,7 +175,7 @@ export function useMarketplaceFilters(
     availableTags,
     installedCount,
     favoritesCount,
-    
+
     // Actions
     handleTagToggle,
     handleSourceChange,

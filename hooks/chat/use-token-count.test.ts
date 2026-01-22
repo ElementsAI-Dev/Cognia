@@ -122,10 +122,10 @@ describe('useTokenCount', () => {
     it('should adjust for code blocks', () => {
       const plainText = 'Hello world';
       const codeText = '```javascript\nconst x = 1;\n```';
-      
+
       const plainTokens = estimateTokens(plainText);
       const codeTokens = estimateTokens(codeText);
-      
+
       // Code should have different token estimation
       expect(codeTokens).not.toBe(plainTokens);
     });
@@ -325,10 +325,9 @@ describe('useTokenCount', () => {
     });
 
     it('should update when messages change', () => {
-      const { result, rerender } = renderHook(
-        ({ messages }) => useTokenCount(messages),
-        { initialProps: { messages: mockMessages } }
-      );
+      const { result, rerender } = renderHook(({ messages }) => useTokenCount(messages), {
+        initialProps: { messages: mockMessages },
+      });
 
       const initialTokens = result.current.totalTokens;
 
@@ -436,7 +435,7 @@ describe('useTokenCount', () => {
   describe('useTokenCost hook', () => {
     it('should calculate cost for tokens', () => {
       const { result } = renderHook(() => useTokenCost('gpt-4o', 1000, 500));
-      
+
       expect(result.current.inputCost).toBeGreaterThan(0);
       expect(result.current.outputCost).toBeGreaterThan(0);
       expect(result.current.formattedCost).toMatch(/^\$|^</);
@@ -478,11 +477,9 @@ describe('useTokenCount', () => {
     });
 
     it('should include system prompt in token count', () => {
-      const { result: withoutSystem } = renderHook(() => 
-        useTokenBudget(mockMessages, 'gpt-4o')
-      );
-      
-      const { result: withSystem } = renderHook(() => 
+      const { result: withoutSystem } = renderHook(() => useTokenBudget(mockMessages, 'gpt-4o'));
+
+      const { result: withSystem } = renderHook(() =>
         useTokenBudget(mockMessages, 'gpt-4o', { systemPrompt: 'You are a helpful assistant.' })
       );
 
@@ -490,7 +487,7 @@ describe('useTokenCount', () => {
     });
 
     it('should respect custom limit', () => {
-      const { result } = renderHook(() => 
+      const { result } = renderHook(() =>
         useTokenBudget(mockMessages, 'gpt-4o', { customLimit: 100 })
       );
 

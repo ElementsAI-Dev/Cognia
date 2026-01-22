@@ -101,7 +101,11 @@ describe('usePlugin', () => {
   it('should return isEnabled false for disabled plugins', () => {
     usePluginStore.setState({
       plugins: {
-        'disabled-plugin': { ...mockPlugin, status: 'disabled', manifest: { ...mockManifest, id: 'disabled-plugin' } },
+        'disabled-plugin': {
+          ...mockPlugin,
+          status: 'disabled',
+          manifest: { ...mockManifest, id: 'disabled-plugin' },
+        },
       },
     });
 
@@ -116,8 +120,16 @@ describe('usePlugins', () => {
     usePluginStore.setState({
       plugins: {
         'plugin-a': { ...mockPlugin, manifest: { ...mockManifest, id: 'plugin-a' } },
-        'plugin-b': { ...mockPlugin, status: 'disabled', manifest: { ...mockManifest, id: 'plugin-b' } },
-        'plugin-c': { ...mockPlugin, status: 'error', manifest: { ...mockManifest, id: 'plugin-c' } },
+        'plugin-b': {
+          ...mockPlugin,
+          status: 'disabled',
+          manifest: { ...mockManifest, id: 'plugin-b' },
+        },
+        'plugin-c': {
+          ...mockPlugin,
+          status: 'error',
+          manifest: { ...mockManifest, id: 'plugin-c' },
+        },
       },
       initialized: true,
       loading: new Set<string>(),

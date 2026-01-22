@@ -175,9 +175,7 @@ describe('useVideoSubtitles', () => {
           isDefault: true,
           isVisible: true,
           isLocked: false,
-          cues: [
-            { id: 'cue-1', index: 1, startTime: 0, endTime: 1000, text: 'Hello' },
-          ],
+          cues: [{ id: 'cue-1', index: 1, startTime: 0, endTime: 1000, text: 'Hello' }],
         });
       });
 
@@ -384,9 +382,7 @@ describe('useVideoSubtitles', () => {
           isDefault: true,
           isVisible: true,
           isLocked: false,
-          cues: [
-            { id: 'cue-1', index: 1, startTime: 0, endTime: 1000, text: 'First' },
-          ],
+          cues: [{ id: 'cue-1', index: 1, startTime: 0, endTime: 1000, text: 'First' }],
         });
       });
 
@@ -432,9 +428,7 @@ describe('useVideoSubtitles', () => {
           isDefault: true,
           isVisible: true,
           isLocked: false,
-          cues: [
-            { id: 'cue-1', index: 1, startTime: 1000, endTime: 2000, text: 'First' },
-          ],
+          cues: [{ id: 'cue-1', index: 1, startTime: 1000, endTime: 2000, text: 'First' }],
         });
       });
 
@@ -460,9 +454,7 @@ describe('useVideoSubtitles', () => {
           isDefault: true,
           isVisible: true,
           isLocked: false,
-          cues: [
-            { id: 'cue-1', index: 1, startTime: 0, endTime: 1000, text: 'Hello' },
-          ],
+          cues: [{ id: 'cue-1', index: 1, startTime: 0, endTime: 1000, text: 'Hello' }],
         });
       });
 
@@ -485,9 +477,7 @@ describe('useVideoSubtitles', () => {
           isDefault: true,
           isVisible: true,
           isLocked: false,
-          cues: [
-            { id: 'cue-1', index: 1, startTime: 0, endTime: 1000, text: 'Hello' },
-          ],
+          cues: [{ id: 'cue-1', index: 1, startTime: 0, endTime: 1000, text: 'Hello' }],
         });
       });
 
@@ -559,9 +549,7 @@ describe('useVideoSubtitles', () => {
           isDefault: true,
           isVisible: true,
           isLocked: false,
-          cues: [
-            { id: 'cue-1', index: 1, startTime: 0, endTime: 1000, text: 'Valid' },
-          ],
+          cues: [{ id: 'cue-1', index: 1, startTime: 0, endTime: 1000, text: 'Valid' }],
         });
       });
 
@@ -593,7 +581,7 @@ describe('useVideoSubtitles', () => {
       const validation = result.current.validateTrack(trackId!);
 
       expect(validation.isValid).toBe(false);
-      expect(validation.errors.some(e => e.includes('overlap'))).toBe(true);
+      expect(validation.errors.some((e) => e.includes('overlap'))).toBe(true);
     });
 
     it('should reset state', () => {

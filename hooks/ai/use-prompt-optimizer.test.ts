@@ -78,13 +78,12 @@ jest.mock('@/lib/ai/prompts/prompt-self-optimizer', () => ({
   }),
 }));
 
-import {
-  analyzePrompt,
-  optimizePromptFromAnalysis,
-} from '@/lib/ai/prompts/prompt-self-optimizer';
+import { analyzePrompt, optimizePromptFromAnalysis } from '@/lib/ai/prompts/prompt-self-optimizer';
 
 const mockAnalyzePrompt = analyzePrompt as jest.MockedFunction<typeof analyzePrompt>;
-const mockOptimizePromptFromAnalysis = optimizePromptFromAnalysis as jest.MockedFunction<typeof optimizePromptFromAnalysis>;
+const mockOptimizePromptFromAnalysis = optimizePromptFromAnalysis as jest.MockedFunction<
+  typeof optimizePromptFromAnalysis
+>;
 
 describe('usePromptOptimizer', () => {
   const mockTemplate = {
@@ -119,22 +118,24 @@ describe('usePromptOptimizer', () => {
     });
 
     it('should get template when templateId is provided', () => {
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       expect(result.current.template).toEqual(mockTemplate);
     });
 
     it('should get feedback when templateId is provided', () => {
       const mockFeedback = [
-        { id: '1', templateId: 'test', rating: 5, effectiveness: 'excellent', createdAt: new Date() },
+        {
+          id: '1',
+          templateId: 'test',
+          rating: 5,
+          effectiveness: 'excellent',
+          createdAt: new Date(),
+        },
       ];
       mockGetFeedback.mockReturnValue(mockFeedback);
 
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       expect(result.current.feedback).toEqual(mockFeedback);
     });
@@ -177,9 +178,7 @@ describe('usePromptOptimizer', () => {
 
       mockAnalyzePrompt.mockResolvedValue(mockResult);
 
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       await act(async () => {
         await result.current.analyze();
@@ -203,9 +202,7 @@ describe('usePromptOptimizer', () => {
 
       mockAnalyzePrompt.mockResolvedValue(mockResult);
 
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       await act(async () => {
         await result.current.analyze();
@@ -251,9 +248,7 @@ describe('usePromptOptimizer', () => {
 
       mockOptimizePromptFromAnalysis.mockResolvedValue(mockResult);
 
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       // Set suggestions first
       await act(async () => {
@@ -292,9 +287,7 @@ describe('usePromptOptimizer', () => {
 
   describe('applyOptimization', () => {
     it('should call markAsOptimized with content', () => {
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       act(() => {
         result.current.applyOptimization('New optimized content');
@@ -320,9 +313,7 @@ describe('usePromptOptimizer', () => {
 
   describe('submitFeedback', () => {
     it('should call recordFeedback with data', () => {
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       const feedbackData = {
         rating: 5 as const,
@@ -352,9 +343,7 @@ describe('usePromptOptimizer', () => {
 
       mockStartABTest.mockReturnValue(mockABTest);
 
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       let abTest;
       act(() => {
@@ -370,9 +359,7 @@ describe('usePromptOptimizer', () => {
     });
 
     it('should record A/B test result', () => {
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       act(() => {
         result.current.recordABTestResult('A', true, 5);
@@ -396,9 +383,7 @@ describe('usePromptOptimizer', () => {
 
       mockCompleteABTest.mockReturnValue(completedTest);
 
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       let testResult;
       act(() => {
@@ -415,15 +400,21 @@ describe('usePromptOptimizer', () => {
       const mockResult = {
         success: true,
         originalContent: 'Test',
-        suggestions: [{ id: '1', type: 'clarity' as const, priority: 'high' as const, description: 'Test', confidence: 0.9 }],
+        suggestions: [
+          {
+            id: '1',
+            type: 'clarity' as const,
+            priority: 'high' as const,
+            description: 'Test',
+            confidence: 0.9,
+          },
+        ],
         analysis: { clarity: 75, specificity: 80, structureQuality: 70, overallScore: 75 },
       };
 
       mockAnalyzePrompt.mockResolvedValue(mockResult);
 
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       // First analyze to set some state
       await act(async () => {
@@ -462,9 +453,7 @@ describe('usePromptOptimizer', () => {
       ];
       mockGetOptimizationHistory.mockReturnValue(mockHistory);
 
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       expect(result.current.optimizationHistory).toEqual(mockHistory);
     });
@@ -476,9 +465,7 @@ describe('usePromptOptimizer', () => {
     });
 
     it('should return optimization stats', () => {
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       expect(result.current.optimizationStats).toEqual({
         totalOptimizations: 0,
@@ -522,9 +509,7 @@ describe('usePromptOptimizer', () => {
     });
 
     it('should call recordOptimization when applying optimization', () => {
-      const { result } = renderHook(() => 
-        usePromptOptimizer({ templateId: 'test-template-id' })
-      );
+      const { result } = renderHook(() => usePromptOptimizer({ templateId: 'test-template-id' }));
 
       act(() => {
         result.current.applyOptimization('New optimized content', 'concise');

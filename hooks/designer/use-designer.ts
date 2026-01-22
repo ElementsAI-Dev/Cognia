@@ -23,7 +23,7 @@ export interface UseDesignerReturn {
   code: string;
   setCode: (code: string) => void;
   isDirty: boolean;
-  
+
   // History
   history: string[];
   historyIndex: number;
@@ -32,7 +32,7 @@ export interface UseDesignerReturn {
   undo: () => void;
   redo: () => void;
   addToHistory: (code: string) => void;
-  
+
   // AI editing
   isAIProcessing: boolean;
   aiError: string | null;
@@ -41,7 +41,7 @@ export interface UseDesignerReturn {
   executeAIEdit: () => Promise<DesignerAIResult>;
   generateFromPrompt: (description: string) => Promise<DesignerAIResult>;
   clearAIError: () => void;
-  
+
   // Store state (from useDesignerStore)
   mode: 'preview' | 'code' | 'design';
   setMode: (mode: 'preview' | 'code' | 'design') => void;
@@ -57,22 +57,22 @@ export interface UseDesignerReturn {
 
 export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn {
   const { initialCode, onCodeChange } = options;
-  
+
   // Local state for code and history
   const [code, setCodeState] = useState(initialCode || getDefaultTemplate().code);
   const [history, setHistory] = useState<string[]>([initialCode || getDefaultTemplate().code]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isDirty, setIsDirty] = useState(false);
-  
+
   // AI state
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [aiError, setAIError] = useState<string | null>(null);
   const [aiPrompt, setAIPrompt] = useState('');
-  
+
   // Settings for AI
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultProvider = useSettingsStore((state) => state.defaultProvider);
-  
+
   // Designer store state
   const mode = useDesignerStore((state) => state.mode);
   const setMode = useDesignerStore((state) => state.setMode);
@@ -84,33 +84,39 @@ export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn
   const toggleElementTree = useDesignerStore((state) => state.toggleElementTree);
   const showStylePanel = useDesignerStore((state) => state.showStylePanel);
   const toggleStylePanel = useDesignerStore((state) => state.toggleStylePanel);
-  
+
   // Set code with optional history tracking
-  const setCode = useCallback((newCode: string, addHistory = true) => {
-    setCodeState(newCode);
-    setIsDirty(true);
-    onCodeChange?.(newCode);
-    
-    if (addHistory) {
+  const setCode = useCallback(
+    (newCode: string, addHistory = true) => {
+      setCodeState(newCode);
+      setIsDirty(true);
+      onCodeChange?.(newCode);
+
+      if (addHistory) {
+        setHistory((prev) => {
+          const newHistory = prev.slice(0, historyIndex + 1);
+          newHistory.push(newCode);
+          return newHistory.slice(-50); // Keep last 50 entries
+        });
+        setHistoryIndex((prev) => Math.min(prev + 1, 49));
+      }
+    },
+    [historyIndex, onCodeChange]
+  );
+
+  // Add to history explicitly
+  const addToHistory = useCallback(
+    (newCode: string) => {
       setHistory((prev) => {
         const newHistory = prev.slice(0, historyIndex + 1);
         newHistory.push(newCode);
-        return newHistory.slice(-50); // Keep last 50 entries
+        return newHistory.slice(-50);
       });
       setHistoryIndex((prev) => Math.min(prev + 1, 49));
-    }
-  }, [historyIndex, onCodeChange]);
-  
-  // Add to history explicitly
-  const addToHistory = useCallback((newCode: string) => {
-    setHistory((prev) => {
-      const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push(newCode);
-      return newHistory.slice(-50);
-    });
-    setHistoryIndex((prev) => Math.min(prev + 1, 49));
-  }, [historyIndex]);
-  
+    },
+    [historyIndex]
+  );
+
   // Undo
   const undo = useCallback(() => {
     if (historyIndex > 0) {
@@ -120,7 +126,7 @@ export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn
       onCodeChange?.(history[newIndex]);
     }
   }, [history, historyIndex, onCodeChange]);
-  
+
   // Redo
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
@@ -130,32 +136,32 @@ export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn
       onCodeChange?.(history[newIndex]);
     }
   }, [history, historyIndex, onCodeChange]);
-  
+
   // Clear AI error
   const clearAIError = useCallback(() => {
     setAIError(null);
   }, []);
-  
+
   // Execute AI edit
   const executeAIEdit = useCallback(async (): Promise<DesignerAIResult> => {
     if (!aiPrompt.trim()) {
       return { success: false, error: 'No prompt provided' };
     }
-    
+
     setIsAIProcessing(true);
     setAIError(null);
-    
+
     try {
       const config = getDesignerAIConfig(defaultProvider, providerSettings);
       const result = await executeDesignerAIEdit(aiPrompt, code, config);
-      
+
       if (result.success && result.code) {
         setCode(result.code);
         setAIPrompt('');
       } else if (result.error) {
         setAIError(result.error);
       }
-      
+
       return result;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'AI edit failed';
@@ -165,38 +171,41 @@ export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn
       setIsAIProcessing(false);
     }
   }, [aiPrompt, code, defaultProvider, providerSettings, setCode]);
-  
+
   // Generate component from description
-  const generateFromPrompt = useCallback(async (description: string): Promise<DesignerAIResult> => {
-    setIsAIProcessing(true);
-    setAIError(null);
-    
-    try {
-      const config = getDesignerAIConfig(defaultProvider, providerSettings);
-      const result = await generateDesignerComponent(description, config);
-      
-      if (result.success && result.code) {
-        setCode(result.code);
-      } else if (result.error) {
-        setAIError(result.error);
+  const generateFromPrompt = useCallback(
+    async (description: string): Promise<DesignerAIResult> => {
+      setIsAIProcessing(true);
+      setAIError(null);
+
+      try {
+        const config = getDesignerAIConfig(defaultProvider, providerSettings);
+        const result = await generateDesignerComponent(description, config);
+
+        if (result.success && result.code) {
+          setCode(result.code);
+        } else if (result.error) {
+          setAIError(result.error);
+        }
+
+        return result;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Generation failed';
+        setAIError(errorMsg);
+        return { success: false, error: errorMsg };
+      } finally {
+        setIsAIProcessing(false);
       }
-      
-      return result;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Generation failed';
-      setAIError(errorMsg);
-      return { success: false, error: errorMsg };
-    } finally {
-      setIsAIProcessing(false);
-    }
-  }, [defaultProvider, providerSettings, setCode]);
-  
+    },
+    [defaultProvider, providerSettings, setCode]
+  );
+
   return {
     // Code state
     code,
     setCode,
     isDirty,
-    
+
     // History
     history,
     historyIndex,
@@ -205,7 +214,7 @@ export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn
     undo,
     redo,
     addToHistory,
-    
+
     // AI editing
     isAIProcessing,
     aiError,
@@ -214,7 +223,7 @@ export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn
     executeAIEdit,
     generateFromPrompt,
     clearAIError,
-    
+
     // Store state
     mode,
     setMode,

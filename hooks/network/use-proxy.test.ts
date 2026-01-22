@@ -184,14 +184,15 @@ describe('useProxy', () => {
     });
 
     expect(mockStoreFunctions.setTesting).toHaveBeenCalledWith(true);
-    expect(mockProxyService.test).toHaveBeenCalledWith('http://127.0.0.1:8080', 'https://www.google.com');
+    expect(mockProxyService.test).toHaveBeenCalledWith(
+      'http://127.0.0.1:8080',
+      'https://www.google.com'
+    );
     expect(success).toBe(true);
   });
 
   it('should test current proxy in auto mode', async () => {
-    const mockProxies = [
-      { software: 'clash', running: true, host: '127.0.0.1', port: 7890 },
-    ];
+    const mockProxies = [{ software: 'clash', running: true, host: '127.0.0.1', port: 7890 }];
     mockUseProxyStore.mockReturnValue({
       ...mockStoreFunctions,
       config: {

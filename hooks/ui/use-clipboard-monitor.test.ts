@@ -140,9 +140,7 @@ describe('useClipboardMonitor', () => {
 
   describe('history management', () => {
     it('should add to history on content change', async () => {
-      mockReadText
-        .mockResolvedValueOnce('first content')
-        .mockResolvedValueOnce('second content');
+      mockReadText.mockResolvedValueOnce('first content').mockResolvedValueOnce('second content');
 
       const { result } = renderHook(() => useClipboardMonitor({ enabled: true }));
 
@@ -199,9 +197,7 @@ describe('useClipboardMonitor', () => {
       const onClipboardChange = jest.fn();
       mockReadText.mockResolvedValue('new content');
 
-      renderHook(() =>
-        useClipboardMonitor({ enabled: true, onClipboardChange })
-      );
+      renderHook(() => useClipboardMonitor({ enabled: true, onClipboardChange }));
 
       await act(async () => {
         jest.advanceTimersByTime(1100);

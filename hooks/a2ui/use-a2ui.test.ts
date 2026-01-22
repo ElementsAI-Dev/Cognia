@@ -125,7 +125,9 @@ describe('useA2UI', () => {
       const message = { type: 'createSurface', surfaceId: 'test' };
 
       act(() => {
-        result.current.processMessage(message as unknown as import('@/types/artifact/a2ui').A2UIServerMessage);
+        result.current.processMessage(
+          message as unknown as import('@/types/artifact/a2ui').A2UIServerMessage
+        );
       });
 
       expect(mockProcessMessage).toHaveBeenCalledWith(message);
@@ -139,7 +141,9 @@ describe('useA2UI', () => {
       ];
 
       act(() => {
-        result.current.processMessages(messages as unknown as import('@/types/artifact/a2ui').A2UIServerMessage[]);
+        result.current.processMessages(
+          messages as unknown as import('@/types/artifact/a2ui').A2UIServerMessage[]
+        );
       });
 
       expect(mockProcessMessages).toHaveBeenCalledWith(messages);
@@ -212,10 +216,15 @@ describe('useA2UI', () => {
       const dataModel = { message: 'Hello' };
 
       act(() => {
-        result.current.createQuickSurface('quick-surface', components as unknown as import('@/types/artifact/a2ui').A2UIComponent[], dataModel, {
-          type: 'inline',
-          title: 'Quick App',
-        });
+        result.current.createQuickSurface(
+          'quick-surface',
+          components as unknown as import('@/types/artifact/a2ui').A2UIComponent[],
+          dataModel,
+          {
+            type: 'inline',
+            title: 'Quick App',
+          }
+        );
       });
 
       expect(mockProcessMessages).toHaveBeenCalled();

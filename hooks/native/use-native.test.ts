@@ -15,19 +15,23 @@ jest.mock('@/lib/native/utils', () => ({
 }));
 
 jest.mock('@/lib/native/system', () => ({
-  getSystemInfo: jest.fn(() => Promise.resolve({
-    platform: 'windows',
-    appVersion: '1.0.0',
-  })),
+  getSystemInfo: jest.fn(() =>
+    Promise.resolve({
+      platform: 'windows',
+      appVersion: '1.0.0',
+    })
+  ),
 }));
 
 jest.mock('@/lib/native/updater', () => ({
-  checkForUpdates: jest.fn(() => Promise.resolve({
-    available: false,
-    version: null,
-    notes: null,
-    date: null,
-  })),
+  checkForUpdates: jest.fn(() =>
+    Promise.resolve({
+      available: false,
+      version: null,
+      notes: null,
+      date: null,
+    })
+  ),
   downloadAndInstallUpdate: jest.fn(() => Promise.resolve(true)),
 }));
 
@@ -59,11 +63,23 @@ jest.mock('@/stores/system', () => ({
 }));
 
 const mockIsTauri = nativeUtils.isTauri as jest.MockedFunction<typeof nativeUtils.isTauri>;
-const mockGetSystemInfo = systemModule.getSystemInfo as jest.MockedFunction<typeof systemModule.getSystemInfo>;
-const mockCheckForUpdates = updaterModule.checkForUpdates as jest.MockedFunction<typeof updaterModule.checkForUpdates>;
-const mockDownloadAndInstallUpdate = updaterModule.downloadAndInstallUpdate as jest.MockedFunction<typeof updaterModule.downloadAndInstallUpdate>;
-const mockRequestNotificationPermission = notificationModule.requestNotificationPermission as jest.MockedFunction<typeof notificationModule.requestNotificationPermission>;
-const mockIsNotificationPermissionGranted = notificationModule.isNotificationPermissionGranted as jest.MockedFunction<typeof notificationModule.isNotificationPermissionGranted>;
+const mockGetSystemInfo = systemModule.getSystemInfo as jest.MockedFunction<
+  typeof systemModule.getSystemInfo
+>;
+const mockCheckForUpdates = updaterModule.checkForUpdates as jest.MockedFunction<
+  typeof updaterModule.checkForUpdates
+>;
+const mockDownloadAndInstallUpdate = updaterModule.downloadAndInstallUpdate as jest.MockedFunction<
+  typeof updaterModule.downloadAndInstallUpdate
+>;
+const mockRequestNotificationPermission =
+  notificationModule.requestNotificationPermission as jest.MockedFunction<
+    typeof notificationModule.requestNotificationPermission
+  >;
+const mockIsNotificationPermissionGranted =
+  notificationModule.isNotificationPermissionGranted as jest.MockedFunction<
+    typeof notificationModule.isNotificationPermissionGranted
+  >;
 
 describe('useNative', () => {
   beforeEach(() => {
@@ -123,7 +139,7 @@ describe('useNative', () => {
         notes: 'New features',
         date: '2024-01-15',
       };
-      
+
       mockCheckForUpdates.mockResolvedValueOnce(mockUpdateInfo);
 
       const { result } = renderHook(() => useNative());

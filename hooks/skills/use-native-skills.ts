@@ -15,13 +15,7 @@ import type {
   LocalSkill,
 } from '@/lib/native/skill';
 
-export type {
-  SkillRepo,
-  DiscoverableSkill,
-  InstalledSkill,
-  NativeSkill,
-  LocalSkill,
-};
+export type { SkillRepo, DiscoverableSkill, InstalledSkill, NativeSkill, LocalSkill };
 
 interface UseNativeSkillsState {
   repos: SkillRepo[];
@@ -89,7 +83,7 @@ export function useNativeSkills(): UseNativeSkillsReturn {
   // Initialize on mount
   useEffect(() => {
     if (!isAvailable) return;
-    
+
     const init = async () => {
       try {
         const [repos, installed] = await Promise.all([
@@ -101,7 +95,7 @@ export function useNativeSkills(): UseNativeSkillsReturn {
         setState((s) => ({ ...s, error: String(error) }));
       }
     };
-    
+
     init();
   }, [isAvailable]);
 

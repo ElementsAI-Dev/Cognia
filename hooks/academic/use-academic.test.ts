@@ -236,7 +236,9 @@ describe('useAcademic', () => {
         await result.current.updatePaperStatus('paper-1', 'reading');
       });
 
-      expect(mockStoreState.updatePaper).toHaveBeenCalledWith('paper-1', { readingStatus: 'reading' });
+      expect(mockStoreState.updatePaper).toHaveBeenCalledWith('paper-1', {
+        readingStatus: 'reading',
+      });
     });
 
     it('should update paper rating', async () => {
@@ -256,7 +258,9 @@ describe('useAcademic', () => {
         await result.current.addPaperNote('paper-1', 'Great paper!');
       });
 
-      expect(mockStoreState.updatePaper).toHaveBeenCalledWith('paper-1', { userNotes: 'Great paper!' });
+      expect(mockStoreState.updatePaper).toHaveBeenCalledWith('paper-1', {
+        userNotes: 'Great paper!',
+      });
     });
   });
 
@@ -268,7 +272,11 @@ describe('useAcademic', () => {
         await result.current.createCollection('My Research', 'Description', '#3b82f6');
       });
 
-      expect(mockStoreState.createCollection).toHaveBeenCalledWith('My Research', 'Description', '#3b82f6');
+      expect(mockStoreState.createCollection).toHaveBeenCalledWith(
+        'My Research',
+        'Description',
+        '#3b82f6'
+      );
     });
 
     it('should add paper to collection', async () => {
@@ -324,8 +332,20 @@ describe('useAcademic', () => {
 
     it('should compute collections array from object', () => {
       const collections = {
-        '1': { id: '1', name: 'Research', paperIds: [], createdAt: new Date(), updatedAt: new Date() },
-        '2': { id: '2', name: 'To Read', paperIds: [], createdAt: new Date(), updatedAt: new Date() },
+        '1': {
+          id: '1',
+          name: 'Research',
+          paperIds: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        '2': {
+          id: '2',
+          name: 'To Read',
+          paperIds: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       };
       mockUseAcademicStore.mockReturnValue({
         ...mockStoreState,

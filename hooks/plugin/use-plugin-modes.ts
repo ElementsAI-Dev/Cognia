@@ -20,10 +20,7 @@ export function usePluginModes(): UsePluginModesReturn {
 
   const modes = useMemo(() => getAllModes(), [getAllModes]);
 
-  const getModeById = useMemo(
-    () => (id: string) => modes.find((m) => m.id === id),
-    [modes]
-  );
+  const getModeById = useMemo(() => (id: string) => modes.find((m) => m.id === id), [modes]);
 
   const getModesByPlugin = useMemo(
     () => (pluginId: string) => {

@@ -2,7 +2,7 @@
 
 /**
  * useAutoSync - Hook for automatic context synchronization
- * 
+ *
  * Automatically syncs MCP tools and skills to context files
  * when stores change, enabling dynamic discovery by the agent.
  */
@@ -62,7 +62,7 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
   const [lastResult, setLastResult] = useState<AutoSyncResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
-  
+
   // Refs to track previous data for change detection
   const prevMcpServersRef = useRef<string>('');
   const prevSkillsRef = useRef<string>('');
@@ -92,7 +92,7 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
         else if (statusType === 'error') syncStatus = 'error';
         else syncStatus = 'disconnected';
       }
-      
+
       return {
         id: server.id,
         name: server.name,
@@ -130,23 +130,26 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
   }, [isSyncing, syncMcpTools, syncSkillsEnabled, getMcpServersForSync, activeSkills]);
 
   // Start auto-sync
-  const start = useCallback((intervalMs: number = syncIntervalMs) => {
-    startAutoSync(
-      {
-        syncMcpTools,
-        syncSkills: syncSkillsEnabled,
-        syncIntervalMs: intervalMs,
-        onSyncComplete: (result) => {
-          setLastResult(result);
+  const start = useCallback(
+    (intervalMs: number = syncIntervalMs) => {
+      startAutoSync(
+        {
+          syncMcpTools,
+          syncSkills: syncSkillsEnabled,
+          syncIntervalMs: intervalMs,
+          onSyncComplete: (result) => {
+            setLastResult(result);
+          },
         },
-      },
-      () => ({
-        mcpServers: getMcpServersForSync(),
-        skills: activeSkills,
-      })
-    );
-    setIsRunning(true);
-  }, [syncMcpTools, syncSkillsEnabled, syncIntervalMs, getMcpServersForSync, activeSkills]);
+        () => ({
+          mcpServers: getMcpServersForSync(),
+          skills: activeSkills,
+        })
+      );
+      setIsRunning(true);
+    },
+    [syncMcpTools, syncSkillsEnabled, syncIntervalMs, getMcpServersForSync, activeSkills]
+  );
 
   // Stop auto-sync
   const stop = useCallback(() => {
@@ -159,7 +162,7 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
     if (syncOnMount) {
       sync();
     }
-    
+
     // Check if auto-sync should start
     if (syncIntervalMs > 0) {
       start(syncIntervalMs);

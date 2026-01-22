@@ -122,19 +122,9 @@ export function useVideoGeneration(
   );
 
   // Update job status
-  const updateJobStatus = useCallback(
-    (
-      jobId: string,
-      updates: Partial<VideoGenerationJob>
-    ) => {
-      setJobs((prev) =>
-        prev.map((job) =>
-          job.id === jobId ? { ...job, ...updates } : job
-        )
-      );
-    },
-    []
-  );
+  const updateJobStatus = useCallback((jobId: string, updates: Partial<VideoGenerationJob>) => {
+    setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, ...updates } : job)));
+  }, []);
 
   // Check status of a specific job
   const checkStatus = useCallback(
@@ -191,9 +181,7 @@ export function useVideoGeneration(
       return;
     }
 
-    await Promise.all(
-      activeJobs.map((job) => checkStatus(job.id))
-    );
+    await Promise.all(activeJobs.map((job) => checkStatus(job.id)));
   }, [jobs, checkStatus]);
 
   // Start polling
@@ -329,31 +317,28 @@ export function useVideoGeneration(
   }, []);
 
   // Download video
-  const downloadVideo = useCallback(
-    async (video: GeneratedVideo, filename?: string) => {
-      try {
-        if (video.url) {
-          const blob = await downloadVideoAsBlob(video.url);
-          const name = filename || `video-${video.id || Date.now()}.mp4`;
-          saveVideoToFile(blob, name);
-        } else if (video.base64) {
-          const byteCharacters = atob(video.base64);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: video.mimeType || 'video/mp4' });
-          const name = filename || `video-${video.id || Date.now()}.mp4`;
-          saveVideoToFile(blob, name);
+  const downloadVideo = useCallback(async (video: GeneratedVideo, filename?: string) => {
+    try {
+      if (video.url) {
+        const blob = await downloadVideoAsBlob(video.url);
+        const name = filename || `video-${video.id || Date.now()}.mp4`;
+        saveVideoToFile(blob, name);
+      } else if (video.base64) {
+        const byteCharacters = atob(video.base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
-      } catch (err) {
-        console.error('Download error:', err);
-        setError('Failed to download video');
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: video.mimeType || 'video/mp4' });
+        const name = filename || `video-${video.id || Date.now()}.mp4`;
+        saveVideoToFile(blob, name);
       }
-    },
-    []
-  );
+    } catch (err) {
+      console.error('Download error:', err);
+      setError('Failed to download video');
+    }
+  }, []);
 
   // Clear completed videos
   const clearCompletedVideos = useCallback(() => {

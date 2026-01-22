@@ -141,7 +141,7 @@ describe('useGeolocation', () => {
   describe('watch mode', () => {
     it('should have watch option available', () => {
       const { result } = renderHook(() => useGeolocation({ watch: true }));
-      
+
       // The hook should be callable with watch option
       expect(result.current).toBeDefined();
       expect(typeof result.current.clearWatch).toBe('function');
@@ -170,7 +170,7 @@ describe('useGeolocation', () => {
   describe('clearWatch', () => {
     it('should have clearWatch method available', () => {
       const { result } = renderHook(() => useGeolocation());
-      
+
       expect(typeof result.current.clearWatch).toBe('function');
     });
   });

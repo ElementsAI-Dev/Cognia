@@ -27,9 +27,13 @@ jest.mock('@/stores', () => ({
   }),
 }));
 
-const mockGenerateImage = imageGenLib.generateImage as jest.MockedFunction<typeof imageGenLib.generateImage>;
+const mockGenerateImage = imageGenLib.generateImage as jest.MockedFunction<
+  typeof imageGenLib.generateImage
+>;
 const mockEditImage = imageGenLib.editImage as jest.MockedFunction<typeof imageGenLib.editImage>;
-const mockCreateVariation = imageGenLib.createImageVariation as jest.MockedFunction<typeof imageGenLib.createImageVariation>;
+const mockCreateVariation = imageGenLib.createImageVariation as jest.MockedFunction<
+  typeof imageGenLib.createImageVariation
+>;
 
 describe('useImageGeneration', () => {
   beforeEach(() => {
@@ -58,10 +62,12 @@ describe('useImageGeneration', () => {
 
   describe('generate', () => {
     it('should generate images successfully', async () => {
-      const mockImages = [
-        { url: 'https://example.com/image1.png', revisedPrompt: 'A cat' },
-      ];
-      mockGenerateImage.mockResolvedValue({ images: mockImages, model: 'dall-e-3', provider: 'openai' });
+      const mockImages = [{ url: 'https://example.com/image1.png', revisedPrompt: 'A cat' }];
+      mockGenerateImage.mockResolvedValue({
+        images: mockImages,
+        model: 'dall-e-3',
+        provider: 'openai',
+      });
 
       const { result } = renderHook(() => useImageGeneration());
 
@@ -85,11 +91,13 @@ describe('useImageGeneration', () => {
     it('should use default options', async () => {
       mockGenerateImage.mockResolvedValue({ images: [], model: 'dall-e-3', provider: 'openai' });
 
-      const { result } = renderHook(() => useImageGeneration({
-        defaultSize: '512x512',
-        defaultQuality: 'hd',
-        defaultStyle: 'natural',
-      }));
+      const { result } = renderHook(() =>
+        useImageGeneration({
+          defaultSize: '512x512',
+          defaultQuality: 'hd',
+          defaultStyle: 'natural',
+        })
+      );
 
       await act(async () => {
         await result.current.generate('Test prompt');
@@ -144,7 +152,11 @@ describe('useImageGeneration', () => {
   describe('edit', () => {
     it('should edit image successfully', async () => {
       const mockImages = [{ url: 'edited-url', revisedPrompt: 'edited' }];
-      mockEditImage.mockResolvedValue({ images: mockImages, model: 'dall-e-2', provider: 'openai' });
+      mockEditImage.mockResolvedValue({
+        images: mockImages,
+        model: 'dall-e-2',
+        provider: 'openai',
+      });
 
       const { result } = renderHook(() => useImageGeneration());
       const mockFile = new File([''], 'test.png', { type: 'image/png' });
@@ -205,7 +217,11 @@ describe('useImageGeneration', () => {
         { url: 'variation1', revisedPrompt: '' },
         { url: 'variation2', revisedPrompt: '' },
       ];
-      mockCreateVariation.mockResolvedValue({ images: mockImages, model: 'dall-e-2', provider: 'openai' });
+      mockCreateVariation.mockResolvedValue({
+        images: mockImages,
+        model: 'dall-e-2',
+        provider: 'openai',
+      });
 
       const { result } = renderHook(() => useImageGeneration());
       const mockFile = new File([''], 'test.png', { type: 'image/png' });
@@ -243,7 +259,11 @@ describe('useImageGeneration', () => {
 
   describe('clearImages', () => {
     it('should clear all images', async () => {
-      mockGenerateImage.mockResolvedValue({ images: [{ url: 'test', revisedPrompt: '' }], model: 'dall-e-3', provider: 'openai' });
+      mockGenerateImage.mockResolvedValue({
+        images: [{ url: 'test', revisedPrompt: '' }],
+        model: 'dall-e-3',
+        provider: 'openai',
+      });
 
       const { result } = renderHook(() => useImageGeneration());
 

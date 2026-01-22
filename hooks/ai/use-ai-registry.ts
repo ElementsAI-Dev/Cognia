@@ -2,10 +2,10 @@
 
 /**
  * useAIRegistry - Hook for unified AI provider management
- * 
+ *
  * Integrates the AI registry with the settings store for easy access
  * to language models, image models, and embeddings across the app.
- * 
+ *
  * Features:
  * - Auto-initialization from settings store
  * - Model alias support (fast, balanced, reasoning, creative)
@@ -21,13 +21,8 @@ import {
   type AIRegistryConfig,
   MODEL_ALIASES,
 } from '@/lib/ai/core/ai-registry';
-import {
-  createSimpleCacheMiddleware,
-} from '@/lib/ai/infrastructure/cache-middleware';
-import {
-  checkRateLimit,
-  type RateLimitResult,
-} from '@/lib/ai/infrastructure/rate-limit';
+import { createSimpleCacheMiddleware } from '@/lib/ai/infrastructure/cache-middleware';
+import { checkRateLimit, type RateLimitResult } from '@/lib/ai/infrastructure/rate-limit';
 import {
   withDefaultSettings,
   withMiddlewares,
@@ -133,7 +128,7 @@ export function useAIRegistry(options: UseAIRegistryOptions = {}): UseAIRegistry
   const getModel = useCallback(
     (provider: ProviderName, modelIdOrAlias: string): LanguageModel | null => {
       if (!registry) return null;
-      
+
       let model = registry.languageModel(provider, modelIdOrAlias);
       if (!model) return null;
 
@@ -155,14 +150,12 @@ export function useAIRegistry(options: UseAIRegistryOptions = {}): UseAIRegistry
       middlewares: LanguageModelMiddleware[]
     ): LanguageModel | null => {
       if (!registry) return null;
-      
+
       const baseModel = registry.languageModel(provider, modelIdOrAlias);
       if (!baseModel) return null;
 
       // Combine with caching middleware if enabled
-      const allMiddlewares = cachingMiddleware 
-        ? [cachingMiddleware, ...middlewares]
-        : middlewares;
+      const allMiddlewares = cachingMiddleware ? [cachingMiddleware, ...middlewares] : middlewares;
 
       return withMiddlewares(baseModel, allMiddlewares);
     },
@@ -177,7 +170,7 @@ export function useAIRegistry(options: UseAIRegistryOptions = {}): UseAIRegistry
       settings: DefaultModelSettings
     ): LanguageModel | null => {
       if (!registry) return null;
-      
+
       let model = registry.languageModel(provider, modelIdOrAlias);
       if (!model) return null;
 
@@ -211,9 +204,12 @@ export function useAIRegistry(options: UseAIRegistryOptions = {}): UseAIRegistry
   }, [registry]);
 
   // Get model aliases for a provider
-  const getModelAliases = useCallback((provider: ProviderName): string[] => {
-    return registry?.getModelAliases(provider) ?? [];
-  }, [registry]);
+  const getModelAliases = useCallback(
+    (provider: ProviderName): string[] => {
+      return registry?.getModelAliases(provider) ?? [];
+    },
+    [registry]
+  );
 
   // Resolve a model alias
   const resolveAlias = useCallback(

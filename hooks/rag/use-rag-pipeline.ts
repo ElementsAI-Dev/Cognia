@@ -2,7 +2,7 @@
 
 /**
  * useRAGPipeline - Hook for RAG Pipeline with advanced features
- * 
+ *
  * Features:
  * - Hybrid search (BM25 + Vector)
  * - Query expansion
@@ -18,20 +18,25 @@ import {
   type RAGPipelineConfig,
   type RAGPipelineContext,
 } from '@/lib/ai/rag/index';
-import { chunkDocument, chunkDocumentSmart, chunkDocumentRecursive, type ChunkingResult } from '@/lib/ai/embedding/chunking';
+import {
+  chunkDocument,
+  chunkDocumentSmart,
+  chunkDocumentRecursive,
+  type ChunkingResult,
+} from '@/lib/ai/embedding/chunking';
 
 export interface UseRAGPipelineOptions {
   collectionName?: string;
   topK?: number;
   similarityThreshold?: number;
   maxContextLength?: number;
-  
+
   // Advanced features
   enableHybridSearch?: boolean;
   enableQueryExpansion?: boolean;
   enableReranking?: boolean;
   enableContextualRetrieval?: boolean;
-  
+
   // Weights
   vectorWeight?: number;
   keywordWeight?: number;
@@ -60,7 +65,7 @@ export interface UseRAGPipelineReturn {
       metadata?: Record<string, unknown>;
     }
   ) => Promise<IndexingResult>;
-  
+
   indexDocuments: (
     documents: Array<{
       id: string;
@@ -72,16 +77,16 @@ export interface UseRAGPipelineReturn {
 
   // Retrieval
   retrieve: (query: string) => Promise<RAGPipelineContext>;
-  
+
   // Collection management
   clearCollection: () => void;
   getCollectionStats: () => { documentCount: number; exists: boolean };
-  
+
   // Chunking utilities
   chunkText: (text: string) => ChunkingResult;
   chunkTextSmart: (text: string) => ChunkingResult;
   chunkTextRecursive: (text: string) => ChunkingResult;
-  
+
   // Configuration
   updateConfig: (config: Partial<UseRAGPipelineOptions>) => void;
 }
@@ -127,50 +132,53 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
   }, [vectorSettings.embeddingProvider, providerSettings]);
 
   // Build pipeline config
-  const pipelineConfig = useMemo((): RAGPipelineConfig => ({
-    embeddingConfig: {
-      provider: vectorSettings.embeddingProvider,
-      model: vectorSettings.embeddingModel,
-    },
-    embeddingApiKey: getApiKey(),
-    hybridSearch: {
-      enabled: enableHybridSearch,
+  const pipelineConfig = useMemo(
+    (): RAGPipelineConfig => ({
+      embeddingConfig: {
+        provider: vectorSettings.embeddingProvider,
+        model: vectorSettings.embeddingModel,
+      },
+      embeddingApiKey: getApiKey(),
+      hybridSearch: {
+        enabled: enableHybridSearch,
+        vectorWeight,
+        keywordWeight,
+      },
+      queryExpansion: {
+        enabled: enableQueryExpansion,
+        maxVariants: 3,
+      },
+      reranking: {
+        enabled: enableReranking,
+        useLLM: false,
+      },
+      contextualRetrieval: {
+        enabled: enableContextualRetrieval,
+        useLLM: false,
+      },
+      topK,
+      similarityThreshold,
+      maxContextLength,
+      chunkingOptions: {
+        strategy: 'sentence',
+        chunkSize: vectorSettings.chunkSize,
+        chunkOverlap: vectorSettings.chunkOverlap,
+      },
+    }),
+    [
+      vectorSettings,
+      getApiKey,
+      enableHybridSearch,
+      enableQueryExpansion,
+      enableReranking,
+      enableContextualRetrieval,
       vectorWeight,
       keywordWeight,
-    },
-    queryExpansion: {
-      enabled: enableQueryExpansion,
-      maxVariants: 3,
-    },
-    reranking: {
-      enabled: enableReranking,
-      useLLM: false,
-    },
-    contextualRetrieval: {
-      enabled: enableContextualRetrieval,
-      useLLM: false,
-    },
-    topK,
-    similarityThreshold,
-    maxContextLength,
-    chunkingOptions: {
-      strategy: 'sentence',
-      chunkSize: vectorSettings.chunkSize,
-      chunkOverlap: vectorSettings.chunkOverlap,
-    },
-  }), [
-    vectorSettings,
-    getApiKey,
-    enableHybridSearch,
-    enableQueryExpansion,
-    enableReranking,
-    enableContextualRetrieval,
-    vectorWeight,
-    keywordWeight,
-    topK,
-    similarityThreshold,
-    maxContextLength,
-  ]);
+      topK,
+      similarityThreshold,
+      maxContextLength,
+    ]
+  );
 
   // Pipeline instance
   const pipelineRef = useRef<RAGPipeline | null>(null);
@@ -184,127 +192,136 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
   }, [pipelineConfig]);
 
   // Index a single document
-  const indexDocument = useCallback(async (
-    content: string,
-    opts: {
-      documentId: string;
-      documentTitle?: string;
-      metadata?: Record<string, unknown>;
-    }
-  ): Promise<IndexingResult> => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const pipeline = getPipeline();
-      const result = await pipeline.indexDocument(content, {
-        collectionName,
-        documentId: opts.documentId,
-        documentTitle: opts.documentTitle,
-        metadata: opts.metadata,
-        useContextualRetrieval: enableContextualRetrieval,
-      });
-
-      if (!result.success) {
-        setError(result.error || 'Indexing failed');
+  const indexDocument = useCallback(
+    async (
+      content: string,
+      opts: {
+        documentId: string;
+        documentTitle?: string;
+        metadata?: Record<string, unknown>;
       }
+    ): Promise<IndexingResult> => {
+      setIsLoading(true);
+      setError(null);
 
-      return {
-        documentId: opts.documentId,
-        chunksCreated: result.chunksCreated,
-        success: result.success,
-        error: result.error,
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Indexing failed';
-      setError(message);
-      return {
-        documentId: opts.documentId,
-        chunksCreated: 0,
-        success: false,
-        error: message,
-      };
-    } finally {
-      setIsLoading(false);
-    }
-  }, [collectionName, enableContextualRetrieval, getPipeline]);
+      try {
+        const pipeline = getPipeline();
+        const result = await pipeline.indexDocument(content, {
+          collectionName,
+          documentId: opts.documentId,
+          documentTitle: opts.documentTitle,
+          metadata: opts.metadata,
+          useContextualRetrieval: enableContextualRetrieval,
+        });
+
+        if (!result.success) {
+          setError(result.error || 'Indexing failed');
+        }
+
+        return {
+          documentId: opts.documentId,
+          chunksCreated: result.chunksCreated,
+          success: result.success,
+          error: result.error,
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Indexing failed';
+        setError(message);
+        return {
+          documentId: opts.documentId,
+          chunksCreated: 0,
+          success: false,
+          error: message,
+        };
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [collectionName, enableContextualRetrieval, getPipeline]
+  );
 
   // Index multiple documents
-  const indexDocuments = useCallback(async (
-    documents: Array<{
-      id: string;
-      content: string;
-      title?: string;
-      metadata?: Record<string, unknown>;
-    }>
-  ): Promise<IndexingResult[]> => {
-    setIsLoading(true);
-    setError(null);
+  const indexDocuments = useCallback(
+    async (
+      documents: Array<{
+        id: string;
+        content: string;
+        title?: string;
+        metadata?: Record<string, unknown>;
+      }>
+    ): Promise<IndexingResult[]> => {
+      setIsLoading(true);
+      setError(null);
 
-    const results: IndexingResult[] = [];
+      const results: IndexingResult[] = [];
 
-    try {
-      for (const doc of documents) {
-        const result = await indexDocument(doc.content, {
+      try {
+        for (const doc of documents) {
+          const result = await indexDocument(doc.content, {
+            documentId: doc.id,
+            documentTitle: doc.title,
+            metadata: doc.metadata,
+          });
+          results.push(result);
+        }
+
+        const failures = results.filter((r) => !r.success);
+        if (failures.length > 0) {
+          setError(`${failures.length} documents failed to index`);
+        }
+
+        return results;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Batch indexing failed';
+        setError(message);
+        return documents.map((doc) => ({
           documentId: doc.id,
-          documentTitle: doc.title,
-          metadata: doc.metadata,
-        });
-        results.push(result);
+          chunksCreated: 0,
+          success: false,
+          error: message,
+        }));
+      } finally {
+        setIsLoading(false);
       }
-
-      const failures = results.filter(r => !r.success);
-      if (failures.length > 0) {
-        setError(`${failures.length} documents failed to index`);
-      }
-
-      return results;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Batch indexing failed';
-      setError(message);
-      return documents.map(doc => ({
-        documentId: doc.id,
-        chunksCreated: 0,
-        success: false,
-        error: message,
-      }));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [indexDocument]);
+    },
+    [indexDocument]
+  );
 
   // Retrieve context
-  const retrieve = useCallback(async (query: string): Promise<RAGPipelineContext> => {
-    setIsLoading(true);
-    setError(null);
+  const retrieve = useCallback(
+    async (query: string): Promise<RAGPipelineContext> => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const pipeline = getPipeline();
-      const context = await pipeline.retrieve(collectionName, query);
-      setLastContext(context);
-      return context;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Retrieval failed';
-      setError(message);
-      const emptyContext: RAGPipelineContext = {
-        documents: [],
-        query,
-        formattedContext: '',
-        totalTokensEstimate: 0,
-        searchMetadata: {
-          hybridSearchUsed: false,
-          queryExpansionUsed: false,
-          rerankingUsed: false,
-          originalResultCount: 0,
-          finalResultCount: 0,
-        },
-      };
-      setLastContext(emptyContext);
-      return emptyContext;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [collectionName, getPipeline]);
+      try {
+        const pipeline = getPipeline();
+        const context = await pipeline.retrieve(collectionName, query);
+        setLastContext(context);
+        return context;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Retrieval failed';
+        setError(message);
+        const emptyContext: RAGPipelineContext = {
+          documents: [],
+          query,
+          formattedContext: '',
+          totalTokensEstimate: 0,
+          searchMetadata: {
+            hybridSearchUsed: false,
+            queryExpansionUsed: false,
+            rerankingUsed: false,
+            originalResultCount: 0,
+            finalResultCount: 0,
+          },
+        };
+        setLastContext(emptyContext);
+        return emptyContext;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [collectionName, getPipeline]
+  );
 
   // Clear collection
   const clearCollection = useCallback(() => {
@@ -319,51 +336,75 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
   }, [collectionName, getPipeline]);
 
   // Chunking utilities
-  const chunkText = useCallback((text: string): ChunkingResult => {
-    return chunkDocument(text, {
-      strategy: 'sentence',
-      chunkSize: vectorSettings.chunkSize,
-      chunkOverlap: vectorSettings.chunkOverlap,
-    });
-  }, [vectorSettings.chunkSize, vectorSettings.chunkOverlap]);
+  const chunkText = useCallback(
+    (text: string): ChunkingResult => {
+      return chunkDocument(text, {
+        strategy: 'sentence',
+        chunkSize: vectorSettings.chunkSize,
+        chunkOverlap: vectorSettings.chunkOverlap,
+      });
+    },
+    [vectorSettings.chunkSize, vectorSettings.chunkOverlap]
+  );
 
-  const chunkTextSmart = useCallback((text: string): ChunkingResult => {
-    return chunkDocumentSmart(text, {
-      chunkSize: vectorSettings.chunkSize,
-      chunkOverlap: vectorSettings.chunkOverlap,
-    });
-  }, [vectorSettings.chunkSize, vectorSettings.chunkOverlap]);
+  const chunkTextSmart = useCallback(
+    (text: string): ChunkingResult => {
+      return chunkDocumentSmart(text, {
+        chunkSize: vectorSettings.chunkSize,
+        chunkOverlap: vectorSettings.chunkOverlap,
+      });
+    },
+    [vectorSettings.chunkSize, vectorSettings.chunkOverlap]
+  );
 
-  const chunkTextRecursive = useCallback((text: string): ChunkingResult => {
-    return chunkDocumentRecursive(text, {
-      maxChunkSize: vectorSettings.chunkSize,
-      overlap: vectorSettings.chunkOverlap,
-    });
-  }, [vectorSettings.chunkSize, vectorSettings.chunkOverlap]);
+  const chunkTextRecursive = useCallback(
+    (text: string): ChunkingResult => {
+      return chunkDocumentRecursive(text, {
+        maxChunkSize: vectorSettings.chunkSize,
+        overlap: vectorSettings.chunkOverlap,
+      });
+    },
+    [vectorSettings.chunkSize, vectorSettings.chunkOverlap]
+  );
 
   // Update configuration
-  const updateConfig = useCallback((config: Partial<UseRAGPipelineOptions>) => {
-    const pipeline = getPipeline();
-    pipeline.updateConfig({
-      hybridSearch: config.enableHybridSearch !== undefined ? {
-        enabled: config.enableHybridSearch,
-        vectorWeight: config.vectorWeight,
-        keywordWeight: config.keywordWeight,
-      } : undefined,
-      queryExpansion: config.enableQueryExpansion !== undefined ? {
-        enabled: config.enableQueryExpansion,
-      } : undefined,
-      reranking: config.enableReranking !== undefined ? {
-        enabled: config.enableReranking,
-      } : undefined,
-      contextualRetrieval: config.enableContextualRetrieval !== undefined ? {
-        enabled: config.enableContextualRetrieval,
-      } : undefined,
-      topK: config.topK,
-      similarityThreshold: config.similarityThreshold,
-      maxContextLength: config.maxContextLength,
-    });
-  }, [getPipeline]);
+  const updateConfig = useCallback(
+    (config: Partial<UseRAGPipelineOptions>) => {
+      const pipeline = getPipeline();
+      pipeline.updateConfig({
+        hybridSearch:
+          config.enableHybridSearch !== undefined
+            ? {
+                enabled: config.enableHybridSearch,
+                vectorWeight: config.vectorWeight,
+                keywordWeight: config.keywordWeight,
+              }
+            : undefined,
+        queryExpansion:
+          config.enableQueryExpansion !== undefined
+            ? {
+                enabled: config.enableQueryExpansion,
+              }
+            : undefined,
+        reranking:
+          config.enableReranking !== undefined
+            ? {
+                enabled: config.enableReranking,
+              }
+            : undefined,
+        contextualRetrieval:
+          config.enableContextualRetrieval !== undefined
+            ? {
+                enabled: config.enableContextualRetrieval,
+              }
+            : undefined,
+        topK: config.topK,
+        similarityThreshold: config.similarityThreshold,
+        maxContextLength: config.maxContextLength,
+      });
+    },
+    [getPipeline]
+  );
 
   return {
     isLoading,

@@ -280,7 +280,9 @@ describe('useVideoGeneration', () => {
         await result.current.downloadVideo(mockVideo, 'test-video.mp4');
       });
 
-      expect(videoGeneration.downloadVideoAsBlob).toHaveBeenCalledWith('https://example.com/video.mp4');
+      expect(videoGeneration.downloadVideoAsBlob).toHaveBeenCalledWith(
+        'https://example.com/video.mp4'
+      );
       expect(videoGeneration.saveVideoToFile).toHaveBeenCalledWith(mockBlob, 'test-video.mp4');
     });
   });

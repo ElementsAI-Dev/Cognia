@@ -20,10 +20,9 @@ describe('useDebounce', () => {
   });
 
   it('should debounce value changes', async () => {
-    const { result, rerender } = renderHook(
-      ({ value }) => useDebounce(value, 300),
-      { initialProps: { value: 'initial' } }
-    );
+    const { result, rerender } = renderHook(({ value }) => useDebounce(value, 300), {
+      initialProps: { value: 'initial' },
+    });
 
     expect(result.current).toBe('initial');
 
@@ -45,10 +44,9 @@ describe('useDebounce', () => {
   });
 
   it('should reset timer on rapid changes', async () => {
-    const { result, rerender } = renderHook(
-      ({ value }) => useDebounce(value, 300),
-      { initialProps: { value: 'a' } }
-    );
+    const { result, rerender } = renderHook(({ value }) => useDebounce(value, 300), {
+      initialProps: { value: 'a' },
+    });
 
     expect(result.current).toBe('a');
 
@@ -57,12 +55,12 @@ describe('useDebounce', () => {
     act(() => {
       jest.advanceTimersByTime(100);
     });
-    
+
     rerender({ value: 'c' });
     act(() => {
       jest.advanceTimersByTime(100);
     });
-    
+
     rerender({ value: 'd' });
 
     // Should still be 'a' because timer keeps resetting
@@ -79,10 +77,9 @@ describe('useDebounce', () => {
   });
 
   it('should use custom delay', async () => {
-    const { result, rerender } = renderHook(
-      ({ value }) => useDebounce(value, 500),
-      { initialProps: { value: 'initial' } }
-    );
+    const { result, rerender } = renderHook(({ value }) => useDebounce(value, 500), {
+      initialProps: { value: 'initial' },
+    });
 
     rerender({ value: 'updated' });
 
@@ -103,10 +100,9 @@ describe('useDebounce', () => {
   });
 
   it('should handle empty string', async () => {
-    const { result, rerender } = renderHook(
-      ({ value }) => useDebounce(value, 300),
-      { initialProps: { value: 'test' } }
-    );
+    const { result, rerender } = renderHook(({ value }) => useDebounce(value, 300), {
+      initialProps: { value: 'test' },
+    });
 
     rerender({ value: '' });
 

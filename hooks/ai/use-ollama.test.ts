@@ -70,7 +70,7 @@ describe('useOllama', () => {
   afterEach(async () => {
     // Allow pending promises to settle
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
   });
 
@@ -134,9 +134,7 @@ describe('useOllama', () => {
     });
 
     it('should handle connection errors', async () => {
-      mockOllamaApi.getOllamaStatus.mockRejectedValue(
-        new Error('Connection refused')
-      );
+      mockOllamaApi.getOllamaStatus.mockRejectedValue(new Error('Connection refused'));
 
       const { result } = renderHook(() => useOllama());
 
@@ -219,12 +217,10 @@ describe('useOllama', () => {
     it('should track pull progress', async () => {
       let progressCallback: ((progress: OllamaPullProgress) => void) | undefined;
 
-      mockOllamaApi.pullOllamaModel.mockImplementation(
-        async (_baseUrl, _model, onProgress) => {
-          progressCallback = onProgress;
-          return { success: true, unsubscribe: jest.fn() };
-        }
-      );
+      mockOllamaApi.pullOllamaModel.mockImplementation(async (_baseUrl, _model, onProgress) => {
+        progressCallback = onProgress;
+        return { success: true, unsubscribe: jest.fn() };
+      });
 
       const { result } = renderHook(() => useOllama());
 
@@ -259,10 +255,7 @@ describe('useOllama', () => {
       mockOllamaApi.pullOllamaModel.mockImplementation(
         async () =>
           new Promise((resolve) => {
-            setTimeout(
-              () => resolve({ success: true, unsubscribe: jest.fn() }),
-              100
-            );
+            setTimeout(() => resolve({ success: true, unsubscribe: jest.fn() }), 100);
           })
       );
 
@@ -280,9 +273,7 @@ describe('useOllama', () => {
     });
 
     it('should handle pull errors', async () => {
-      mockOllamaApi.pullOllamaModel.mockRejectedValue(
-        new Error('Pull failed: model not found')
-      );
+      mockOllamaApi.pullOllamaModel.mockRejectedValue(new Error('Pull failed: model not found'));
 
       const { result } = renderHook(() => useOllama());
 
@@ -354,9 +345,7 @@ describe('useOllama', () => {
     });
 
     it('should handle delete errors', async () => {
-      mockOllamaApi.deleteOllamaModel.mockRejectedValue(
-        new Error('Delete failed')
-      );
+      mockOllamaApi.deleteOllamaModel.mockRejectedValue(new Error('Delete failed'));
 
       const { result } = renderHook(() => useOllama());
 
@@ -427,9 +416,7 @@ describe('useOllama', () => {
     });
 
     it('should return null on error', async () => {
-      mockOllamaApi.showOllamaModel.mockRejectedValue(
-        new Error('Model not found')
-      );
+      mockOllamaApi.showOllamaModel.mockRejectedValue(new Error('Model not found'));
 
       const { result } = renderHook(() => useOllama());
 
@@ -456,9 +443,7 @@ describe('useOllama', () => {
     });
 
     it('should auto refresh when enabled', async () => {
-      const { result } = renderHook(() =>
-        useOllama({ autoRefresh: true, refreshInterval: 5000 })
-      );
+      const { result } = renderHook(() => useOllama({ autoRefresh: true, refreshInterval: 5000 }));
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -475,9 +460,7 @@ describe('useOllama', () => {
     });
 
     it('should not auto refresh when disabled', async () => {
-      const { result } = renderHook(() =>
-        useOllama({ autoRefresh: false, refreshInterval: 5000 })
-      );
+      const { result } = renderHook(() => useOllama({ autoRefresh: false, refreshInterval: 5000 }));
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -499,9 +482,7 @@ describe('useOllama', () => {
         models_count: 0,
       });
 
-      const { result } = renderHook(() =>
-        useOllama({ autoRefresh: true, refreshInterval: 5000 })
-      );
+      const { result } = renderHook(() => useOllama({ autoRefresh: true, refreshInterval: 5000 }));
 
       await waitFor(() => {
         expect(result.current.isConnected).toBe(false);
@@ -726,13 +707,11 @@ describe('useOllama', () => {
 
   describe('multiple concurrent pulls', () => {
     it('should track multiple pulls simultaneously', async () => {
-      mockOllamaApi.pullOllamaModel.mockImplementation(
-        async (_baseUrl, _model) => {
-          return new Promise((resolve) => {
-            setTimeout(() => resolve({ success: true, unsubscribe: jest.fn() }), 100);
-          });
-        }
-      );
+      mockOllamaApi.pullOllamaModel.mockImplementation(async (_baseUrl, _model) => {
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({ success: true, unsubscribe: jest.fn() }), 100);
+        });
+      });
 
       const { result } = renderHook(() => useOllama());
 
@@ -757,13 +736,11 @@ describe('useOllama', () => {
     it('should handle individual pull cancellation', async () => {
       const unsubscribeFns = new Map<string, jest.Mock>();
 
-      mockOllamaApi.pullOllamaModel.mockImplementation(
-        async (_baseUrl, model) => {
-          const unsub = jest.fn();
-          unsubscribeFns.set(model, unsub);
-          return { success: true, unsubscribe: unsub };
-        }
-      );
+      mockOllamaApi.pullOllamaModel.mockImplementation(async (_baseUrl, model) => {
+        const unsub = jest.fn();
+        unsubscribeFns.set(model, unsub);
+        return { success: true, unsubscribe: unsub };
+      });
 
       const { result } = renderHook(() => useOllama());
 
@@ -790,12 +767,10 @@ describe('useOllama', () => {
     it('should update state when pull completes with success status', async () => {
       let progressCallback: ((progress: OllamaPullProgress) => void) | undefined;
 
-      mockOllamaApi.pullOllamaModel.mockImplementation(
-        async (_baseUrl, _model, onProgress) => {
-          progressCallback = onProgress;
-          return { success: true, unsubscribe: jest.fn() };
-        }
-      );
+      mockOllamaApi.pullOllamaModel.mockImplementation(async (_baseUrl, _model, onProgress) => {
+        progressCallback = onProgress;
+        return { success: true, unsubscribe: jest.fn() };
+      });
 
       const { result } = renderHook(() => useOllama());
 
@@ -888,10 +863,7 @@ describe('useOllama', () => {
       mockOllamaApi.pullOllamaModel.mockImplementation(
         async () =>
           new Promise((resolve) => {
-            setTimeout(
-              () => resolve({ success: true, unsubscribe: mockUnsubscribe }),
-              1000
-            );
+            setTimeout(() => resolve({ success: true, unsubscribe: mockUnsubscribe }), 1000);
           })
       );
 
@@ -933,9 +905,7 @@ describe('useOllama', () => {
       renderHook(() => useOllama());
 
       await waitFor(() => {
-        expect(mockOllamaApi.getOllamaStatus).toHaveBeenCalledWith(
-          'http://localhost:11434'
-        );
+        expect(mockOllamaApi.getOllamaStatus).toHaveBeenCalledWith('http://localhost:11434');
       });
     });
 
@@ -1070,12 +1040,10 @@ describe('useOllama', () => {
     it('should handle different pull status types', async () => {
       let progressCallback: ((progress: OllamaPullProgress) => void) | undefined;
 
-      mockOllamaApi.pullOllamaModel.mockImplementation(
-        async (_baseUrl, _model, onProgress) => {
-          progressCallback = onProgress;
-          return { success: true, unsubscribe: jest.fn() };
-        }
-      );
+      mockOllamaApi.pullOllamaModel.mockImplementation(async (_baseUrl, _model, onProgress) => {
+        progressCallback = onProgress;
+        return { success: true, unsubscribe: jest.fn() };
+      });
 
       const { result } = renderHook(() => useOllama());
 
@@ -1097,9 +1065,7 @@ describe('useOllama', () => {
         });
       });
 
-      expect(result.current.pullStates.get('new-model')?.progress?.status).toBe(
-        'pulling manifest'
-      );
+      expect(result.current.pullStates.get('new-model')?.progress?.status).toBe('pulling manifest');
 
       // Test 'verifying' status
       act(() => {

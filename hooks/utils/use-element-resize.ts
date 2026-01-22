@@ -9,8 +9,14 @@ import { useCallback, useState, useRef, useEffect } from 'react';
 import { useDesignerStore } from '@/stores/designer';
 
 export type ResizeHandle =
-  | 'n' | 's' | 'e' | 'w'  // Cardinal directions
-  | 'ne' | 'nw' | 'se' | 'sw';  // Corners
+  | 'n'
+  | 's'
+  | 'e'
+  | 'w' // Cardinal directions
+  | 'ne'
+  | 'nw'
+  | 'se'
+  | 'sw'; // Corners
 
 export interface ResizeState {
   isResizing: boolean;
@@ -65,9 +71,7 @@ const HANDLE_CURSORS: Record<ResizeHandle, string> = {
   se: 'nwse-resize',
 };
 
-export function useElementResize(
-  options: UseElementResizeOptions = {}
-): UseElementResizeReturn {
+export function useElementResize(options: UseElementResizeOptions = {}): UseElementResizeReturn {
   const {
     minWidth = 20,
     minHeight = 20,
@@ -94,90 +98,99 @@ export function useElementResize(
   const updateElementStyle = useDesignerStore((state) => state.updateElementStyle);
 
   // Snap value to grid if enabled
-  const snapValue = useCallback((value: number): number => {
-    if (snapToGrid <= 0) return value;
-    return Math.round(value / snapToGrid) * snapToGrid;
-  }, [snapToGrid]);
+  const snapValue = useCallback(
+    (value: number): number => {
+      if (snapToGrid <= 0) return value;
+      return Math.round(value / snapToGrid) * snapToGrid;
+    },
+    [snapToGrid]
+  );
 
   // Calculate new dimensions based on handle and mouse movement
-  const calculateDimensions = useCallback((
-    handle: ResizeHandle,
-    startWidth: number,
-    startHeight: number,
-    deltaX: number,
-    deltaY: number
-  ): { width: number; height: number } => {
-    let width = startWidth;
-    let height = startHeight;
+  const calculateDimensions = useCallback(
+    (
+      handle: ResizeHandle,
+      startWidth: number,
+      startHeight: number,
+      deltaX: number,
+      deltaY: number
+    ): { width: number; height: number } => {
+      let width = startWidth;
+      let height = startHeight;
 
-    // Apply deltas based on handle direction
-    if (handle.includes('e')) {
-      width = Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX));
-    }
-    if (handle.includes('w')) {
-      width = Math.max(minWidth, Math.min(maxWidth, startWidth - deltaX));
-    }
-    if (handle.includes('s')) {
-      height = Math.max(minHeight, Math.min(maxHeight, startHeight + deltaY));
-    }
-    if (handle.includes('n')) {
-      height = Math.max(minHeight, Math.min(maxHeight, startHeight - deltaY));
-    }
+      // Apply deltas based on handle direction
+      if (handle.includes('e')) {
+        width = Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX));
+      }
+      if (handle.includes('w')) {
+        width = Math.max(minWidth, Math.min(maxWidth, startWidth - deltaX));
+      }
+      if (handle.includes('s')) {
+        height = Math.max(minHeight, Math.min(maxHeight, startHeight + deltaY));
+      }
+      if (handle.includes('n')) {
+        height = Math.max(minHeight, Math.min(maxHeight, startHeight - deltaY));
+      }
 
-    // Preserve aspect ratio if enabled
-    if (preserveAspectRatio && aspectRatioRef.current > 0) {
-      const aspectRatio = aspectRatioRef.current;
-      if (handle === 'e' || handle === 'w') {
-        height = width / aspectRatio;
-      } else if (handle === 'n' || handle === 's') {
-        width = height * aspectRatio;
-      } else {
-        // Corner handles - use the larger change
-        const widthChange = Math.abs(width - startWidth);
-        const heightChange = Math.abs(height - startHeight);
-        if (widthChange > heightChange) {
+      // Preserve aspect ratio if enabled
+      if (preserveAspectRatio && aspectRatioRef.current > 0) {
+        const aspectRatio = aspectRatioRef.current;
+        if (handle === 'e' || handle === 'w') {
           height = width / aspectRatio;
-        } else {
+        } else if (handle === 'n' || handle === 's') {
           width = height * aspectRatio;
+        } else {
+          // Corner handles - use the larger change
+          const widthChange = Math.abs(width - startWidth);
+          const heightChange = Math.abs(height - startHeight);
+          if (widthChange > heightChange) {
+            height = width / aspectRatio;
+          } else {
+            width = height * aspectRatio;
+          }
         }
       }
-    }
 
-    // Apply grid snapping
-    width = snapValue(width);
-    height = snapValue(height);
+      // Apply grid snapping
+      width = snapValue(width);
+      height = snapValue(height);
 
-    return { width, height };
-  }, [minWidth, minHeight, maxWidth, maxHeight, preserveAspectRatio, snapValue]);
+      return { width, height };
+    },
+    [minWidth, minHeight, maxWidth, maxHeight, preserveAspectRatio, snapValue]
+  );
 
   // Handle mouse/touch move during resize
-  const handleMove = useCallback((clientX: number, clientY: number) => {
-    if (!resizeState.isResizing || !resizeState.handle || !resizeState.elementId) {
-      return;
-    }
+  const handleMove = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!resizeState.isResizing || !resizeState.handle || !resizeState.elementId) {
+        return;
+      }
 
-    const deltaX = clientX - resizeState.startX;
-    const deltaY = clientY - resizeState.startY;
+      const deltaX = clientX - resizeState.startX;
+      const deltaY = clientY - resizeState.startY;
 
-    const { width, height } = calculateDimensions(
-      resizeState.handle,
-      resizeState.startWidth,
-      resizeState.startHeight,
-      deltaX,
-      deltaY
-    );
+      const { width, height } = calculateDimensions(
+        resizeState.handle,
+        resizeState.startWidth,
+        resizeState.startHeight,
+        deltaX,
+        deltaY
+      );
 
-    // Update element styles in store
-    updateElementStyle(resizeState.elementId, {
-      width: `${width}px`,
-      height: `${height}px`,
-    });
+      // Update element styles in store
+      updateElementStyle(resizeState.elementId, {
+        width: `${width}px`,
+        height: `${height}px`,
+      });
 
-    // Call resize callback
-    if (onResize) {
-      onResize(resizeState.elementId, { width, height });
-    }
-  }, [resizeState, calculateDimensions, updateElementStyle, onResize]);
+      // Call resize callback
+      if (onResize) {
+        onResize(resizeState.elementId, { width, height });
+      }
+    },
+    [resizeState, calculateDimensions, updateElementStyle, onResize]
+  );
 
   // Handle mouse up to end resize
   const handleEnd = useCallback(() => {
@@ -245,47 +258,46 @@ export function useElementResize(
   }, [resizeState.isResizing, resizeState.handle, handleMove, handleEnd]);
 
   // Start resize operation
-  const startResize = useCallback((
-    handle: ResizeHandle,
-    elementId: string,
-    event: React.MouseEvent | React.TouchEvent
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const startResize = useCallback(
+    (handle: ResizeHandle, elementId: string, event: React.MouseEvent | React.TouchEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
 
-    // Get initial position
-    let clientX: number;
-    let clientY: number;
+      // Get initial position
+      let clientX: number;
+      let clientY: number;
 
-    if ('touches' in event) {
-      clientX = event.touches[0].clientX;
-      clientY = event.touches[0].clientY;
-    } else {
-      clientX = event.clientX;
-      clientY = event.clientY;
-    }
+      if ('touches' in event) {
+        clientX = event.touches[0].clientX;
+        clientY = event.touches[0].clientY;
+      } else {
+        clientX = event.clientX;
+        clientY = event.clientY;
+      }
 
-    // Get current element dimensions
-    const element = document.querySelector(`[data-designer-id="${elementId}"]`);
-    if (!element) return;
+      // Get current element dimensions
+      const element = document.querySelector(`[data-designer-id="${elementId}"]`);
+      if (!element) return;
 
-    const rect = element.getBoundingClientRect();
-    aspectRatioRef.current = rect.width / rect.height;
+      const rect = element.getBoundingClientRect();
+      aspectRatioRef.current = rect.width / rect.height;
 
-    setResizeState({
-      isResizing: true,
-      handle,
-      startX: clientX,
-      startY: clientY,
-      startWidth: rect.width,
-      startHeight: rect.height,
-      elementId,
-    });
+      setResizeState({
+        isResizing: true,
+        handle,
+        startX: clientX,
+        startY: clientY,
+        startWidth: rect.width,
+        startHeight: rect.height,
+        elementId,
+      });
 
-    if (onResizeStart) {
-      onResizeStart(elementId);
-    }
-  }, [onResizeStart]);
+      if (onResizeStart) {
+        onResizeStart(elementId);
+      }
+    },
+    [onResizeStart]
+  );
 
   // Cancel resize operation
   const cancelResize = useCallback(() => {

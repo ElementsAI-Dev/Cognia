@@ -2,11 +2,11 @@
 
 /**
  * useMemoryProvider - Unified hook for memory provider management
- * 
+ *
  * Supports multiple backends:
  * - Local storage (default)
  * - Mem0 via MCP or direct API
- * 
+ *
  * Features:
  * - Automatic provider switching based on settings
  * - Two-phase memory pipeline integration
@@ -95,9 +95,7 @@ export interface UseMemoryProviderReturn {
   updateSettings: (updates: Partial<MemorySettings>) => void;
 }
 
-export function useMemoryProvider(
-  options: UseMemoryProviderOptions = {}
-): UseMemoryProviderReturn {
+export function useMemoryProvider(options: UseMemoryProviderOptions = {}): UseMemoryProviderReturn {
   const { sessionId, forceProvider } = options;
 
   // Store access
@@ -125,9 +123,10 @@ export function useMemoryProvider(
 
   // Initialize new modules
   useEffect(() => {
-    const embeddingConfig = providerSettings.openai?.enabled && providerSettings.openai?.apiKey
-      ? { provider: 'openai' as const, apiKey: providerSettings.openai.apiKey }
-      : undefined;
+    const embeddingConfig =
+      providerSettings.openai?.enabled && providerSettings.openai?.apiKey
+        ? { provider: 'openai' as const, apiKey: providerSettings.openai.apiKey }
+        : undefined;
 
     // Create activator
     activatorRef.current = createMemoryActivator({
@@ -164,10 +163,11 @@ export function useMemoryProvider(
       memoryStore.settings;
 
     // Create mem0 provider
-    const callTool = mem0UseMcp && mem0McpServerId
-      ? (serverId: string, toolName: string, args: Record<string, unknown>) =>
-          mcpStore.callTool(serverId, toolName, args)
-      : undefined;
+    const callTool =
+      mem0UseMcp && mem0McpServerId
+        ? (serverId: string, toolName: string, args: Record<string, unknown>) =>
+            mcpStore.callTool(serverId, toolName, args)
+        : undefined;
 
     mem0ProviderRef.current = createMem0Provider(
       {
@@ -184,7 +184,11 @@ export function useMemoryProvider(
   // Get embedding config for pipeline
   const getEmbeddingConfig = useCallback((): EmbeddingConfig | null => {
     const providers: Array<'openai' | 'google' | 'cohere' | 'mistral' | 'ollama'> = [
-      'openai', 'google', 'cohere', 'mistral', 'ollama',
+      'openai',
+      'google',
+      'cohere',
+      'mistral',
+      'ollama',
     ];
 
     for (const provider of providers) {
@@ -201,46 +205,55 @@ export function useMemoryProvider(
   }, [providerSettings]);
 
   // Pipeline config from settings
-  const pipelineConfig = useMemo((): MemoryPipelineConfig => ({
-    enablePipeline: memoryStore.settings.enablePipeline,
-    recentMessageCount: memoryStore.settings.pipelineRecentMessages,
-    enableSummary: memoryStore.settings.enableRollingSummary,
-    maxCandidates: DEFAULT_PIPELINE_CONFIG.maxCandidates,
-    similarityThreshold: memoryStore.settings.conflictThreshold,
-    topKSimilar: DEFAULT_PIPELINE_CONFIG.topKSimilar,
-  }), [memoryStore.settings]);
+  const pipelineConfig = useMemo(
+    (): MemoryPipelineConfig => ({
+      enablePipeline: memoryStore.settings.enablePipeline,
+      recentMessageCount: memoryStore.settings.pipelineRecentMessages,
+      enableSummary: memoryStore.settings.enableRollingSummary,
+      maxCandidates: DEFAULT_PIPELINE_CONFIG.maxCandidates,
+      similarityThreshold: memoryStore.settings.conflictThreshold,
+      topKSimilar: DEFAULT_PIPELINE_CONFIG.topKSimilar,
+    }),
+    [memoryStore.settings]
+  );
 
   // === Unified Operations ===
 
-  const addMemory = useCallback(async (input: CreateMemoryInput): Promise<Memory> => {
-    setIsLoading(true);
-    setError(null);
+  const addMemory = useCallback(
+    async (input: CreateMemoryInput): Promise<Memory> => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      if (activeProvider === 'mem0' && mem0ProviderRef.current) {
-        return await mem0ProviderRef.current.addMemory(input, memoryStore.settings.mem0UserId);
+      try {
+        if (activeProvider === 'mem0' && mem0ProviderRef.current) {
+          return await mem0ProviderRef.current.addMemory(input, memoryStore.settings.mem0UserId);
+        }
+
+        // Local provider
+        return memoryStore.createMemory({
+          ...input,
+          sessionId: input.sessionId || sessionId,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to add memory';
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
       }
+    },
+    [activeProvider, memoryStore, sessionId]
+  );
 
-      // Local provider
-      return memoryStore.createMemory({
-        ...input,
-        sessionId: input.sessionId || sessionId,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to add memory';
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeProvider, memoryStore, sessionId]);
-
-  const getMemory = useCallback(async (id: string): Promise<Memory | null> => {
-    if (activeProvider === 'mem0' && mem0ProviderRef.current) {
-      return mem0ProviderRef.current.getMemory(id);
-    }
-    return memoryStore.getMemory(id) || null;
-  }, [activeProvider, memoryStore]);
+  const getMemory = useCallback(
+    async (id: string): Promise<Memory | null> => {
+      if (activeProvider === 'mem0' && mem0ProviderRef.current) {
+        return mem0ProviderRef.current.getMemory(id);
+      }
+      return memoryStore.getMemory(id) || null;
+    },
+    [activeProvider, memoryStore]
+  );
 
   const getMemories = useCallback(async (): Promise<Memory[]> => {
     setIsLoading(true);
@@ -256,7 +269,7 @@ export function useMemoryProvider(
       const memories = memoryStore.memories;
       if (sessionId) {
         return memories.filter(
-          m => !m.sessionId || m.sessionId === sessionId || m.scope === 'global'
+          (m) => !m.sessionId || m.sessionId === sessionId || m.scope === 'global'
         );
       }
       return memories;
@@ -265,164 +278,179 @@ export function useMemoryProvider(
     }
   }, [activeProvider, memoryStore, sessionId]);
 
-  const updateMemory = useCallback(async (
-    id: string,
-    updates: UpdateMemoryInput
-  ): Promise<Memory | null> => {
-    setIsLoading(true);
-    setError(null);
+  const updateMemory = useCallback(
+    async (id: string, updates: UpdateMemoryInput): Promise<Memory | null> => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      if (activeProvider === 'mem0' && mem0ProviderRef.current) {
-        return await mem0ProviderRef.current.updateMemory(id, updates);
+      try {
+        if (activeProvider === 'mem0' && mem0ProviderRef.current) {
+          return await mem0ProviderRef.current.updateMemory(id, updates);
+        }
+
+        memoryStore.updateMemory(id, updates);
+        return memoryStore.getMemory(id) || null;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to update memory';
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
       }
+    },
+    [activeProvider, memoryStore]
+  );
 
-      memoryStore.updateMemory(id, updates);
-      return memoryStore.getMemory(id) || null;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update memory';
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeProvider, memoryStore]);
+  const deleteMemory = useCallback(
+    async (id: string): Promise<boolean> => {
+      setIsLoading(true);
+      setError(null);
 
-  const deleteMemory = useCallback(async (id: string): Promise<boolean> => {
-    setIsLoading(true);
-    setError(null);
+      try {
+        if (activeProvider === 'mem0' && mem0ProviderRef.current) {
+          return await mem0ProviderRef.current.deleteMemory(id);
+        }
 
-    try {
-      if (activeProvider === 'mem0' && mem0ProviderRef.current) {
-        return await mem0ProviderRef.current.deleteMemory(id);
+        memoryStore.deleteMemory(id);
+        return true;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to delete memory';
+        setError(message);
+        return false;
+      } finally {
+        setIsLoading(false);
       }
+    },
+    [activeProvider, memoryStore]
+  );
 
-      memoryStore.deleteMemory(id);
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete memory';
-      setError(message);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeProvider, memoryStore]);
+  const searchMemories = useCallback(
+    async (query: string, limit: number = 10): Promise<Memory[]> => {
+      setIsLoading(true);
+      try {
+        if (activeProvider === 'mem0' && mem0ProviderRef.current) {
+          const results = await mem0ProviderRef.current.searchMemories(query, { limit });
+          return results.map((r) => r.memory);
+        }
 
-  const searchMemories = useCallback(async (
-    query: string,
-    limit: number = 10
-  ): Promise<Memory[]> => {
-    setIsLoading(true);
-    try {
-      if (activeProvider === 'mem0' && mem0ProviderRef.current) {
-        const results = await mem0ProviderRef.current.searchMemories(query, { limit });
-        return results.map(r => r.memory);
+        // Local search
+        return memoryStore.searchMemories(query).slice(0, limit);
+      } finally {
+        setIsLoading(false);
       }
-
-      // Local search
-      return memoryStore.searchMemories(query).slice(0, limit);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeProvider, memoryStore]);
+    },
+    [activeProvider, memoryStore]
+  );
 
   // === Pipeline Operations ===
 
-  const extractCandidates = useCallback((
-    messages: ConversationMessage[]
-  ): ExtractedMemory[] => {
-    if (!pipelineConfig.enablePipeline) return [];
-    return extractMemoryCandidates({ messages, sessionId }, pipelineConfig);
-  }, [pipelineConfig, sessionId]);
+  const extractCandidates = useCallback(
+    (messages: ConversationMessage[]): ExtractedMemory[] => {
+      if (!pipelineConfig.enablePipeline) return [];
+      return extractMemoryCandidates({ messages, sessionId }, pipelineConfig);
+    },
+    [pipelineConfig, sessionId]
+  );
 
-  const runPipeline = useCallback(async (
-    messages: ConversationMessage[]
-  ): Promise<PipelineResult> => {
-    if (!pipelineConfig.enablePipeline) {
-      return { candidates: [], decisions: [], applied: { added: 0, updated: 0, deleted: 0, skipped: 0 } };
-    }
+  const runPipeline = useCallback(
+    async (messages: ConversationMessage[]): Promise<PipelineResult> => {
+      if (!pipelineConfig.enablePipeline) {
+        return {
+          candidates: [],
+          decisions: [],
+          applied: { added: 0, updated: 0, deleted: 0, skipped: 0 },
+        };
+      }
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      // Get existing memories
-      const existingMemories = await getMemories();
-      const embeddingConfig = getEmbeddingConfig();
+      try {
+        // Get existing memories
+        const existingMemories = await getMemories();
+        const embeddingConfig = getEmbeddingConfig();
 
-      // Run two-phase pipeline
-      const { candidates, decisions } = await runMemoryPipeline(
-        messages,
-        existingMemories,
-        pipelineConfig,
-        {
-          sessionId,
-          embeddingConfig: embeddingConfig || undefined,
-        }
-      );
+        // Run two-phase pipeline
+        const { candidates, decisions } = await runMemoryPipeline(
+          messages,
+          existingMemories,
+          pipelineConfig,
+          {
+            sessionId,
+            embeddingConfig: embeddingConfig || undefined,
+          }
+        );
 
-      // Apply decisions
-      const applied = applyDecisions(
-        decisions,
-        (input) => {
-          // Use local store for immediate creation
-          return memoryStore.createMemory({
-            ...input,
-            sessionId: sessionId || input.sessionId,
-          });
-        },
-        (id, updates) => memoryStore.updateMemory(id, updates),
-        (id) => memoryStore.deleteMemory(id)
-      );
+        // Apply decisions
+        const applied = applyDecisions(
+          decisions,
+          (input) => {
+            // Use local store for immediate creation
+            return memoryStore.createMemory({
+              ...input,
+              sessionId: sessionId || input.sessionId,
+            });
+          },
+          (id, updates) => memoryStore.updateMemory(id, updates),
+          (id) => memoryStore.deleteMemory(id)
+        );
 
-      return { candidates, decisions, applied };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Pipeline failed';
-      setError(message);
-      return { candidates: [], decisions: [], applied: { added: 0, updated: 0, deleted: 0, skipped: 0 } };
-    } finally {
-      setIsLoading(false);
-    }
-  }, [pipelineConfig, getMemories, getEmbeddingConfig, memoryStore, sessionId]);
+        return { candidates, decisions, applied };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Pipeline failed';
+        setError(message);
+        return {
+          candidates: [],
+          decisions: [],
+          applied: { added: 0, updated: 0, deleted: 0, skipped: 0 },
+        };
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [pipelineConfig, getMemories, getEmbeddingConfig, memoryStore, sessionId]
+  );
 
   // === Enhanced Retrieval Operations (New) ===
 
-  const activateMemories = useCallback(async (
-    context: MemoryActivationContext
-  ): Promise<ActivatedMemory[]> => {
-    if (!activatorRef.current) return [];
+  const activateMemories = useCallback(
+    async (context: MemoryActivationContext): Promise<ActivatedMemory[]> => {
+      if (!activatorRef.current) return [];
 
-    try {
-      const memories = await getMemories();
-      return activatorRef.current.activate(memories, {
-        ...context,
-        sessionId: context.sessionId || sessionId,
-      });
-    } catch (err) {
-      console.warn('Memory activation failed:', err);
-      return [];
-    }
-  }, [getMemories, sessionId]);
+      try {
+        const memories = await getMemories();
+        return activatorRef.current.activate(memories, {
+          ...context,
+          sessionId: context.sessionId || sessionId,
+        });
+      } catch (err) {
+        console.warn('Memory activation failed:', err);
+        return [];
+      }
+    },
+    [getMemories, sessionId]
+  );
 
-  const hybridSearch = useCallback(async (
-    options: HybridSearchOptions
-  ): Promise<ScoredMemory[]> => {
-    if (!retrieverRef.current) return [];
+  const hybridSearch = useCallback(
+    async (options: HybridSearchOptions): Promise<ScoredMemory[]> => {
+      if (!retrieverRef.current) return [];
 
-    try {
-      const memories = await getMemories();
-      return retrieverRef.current.search(memories, {
-        ...options,
-        filters: {
-          ...options.filters,
-          sessionId: options.filters?.sessionId || sessionId,
-        },
-      });
-    } catch (err) {
-      console.warn('Hybrid search failed:', err);
-      return [];
-    }
-  }, [getMemories, sessionId]);
+      try {
+        const memories = await getMemories();
+        return retrieverRef.current.search(memories, {
+          ...options,
+          filters: {
+            ...options.filters,
+            sessionId: options.filters?.sessionId || sessionId,
+          },
+        });
+      } catch (err) {
+        console.warn('Hybrid search failed:', err);
+        return [];
+      }
+    },
+    [getMemories, sessionId]
+  );
 
   const getWorkingMemoryPrompt = useCallback((): string => {
     if (!workingMemoryRef.current) return '';

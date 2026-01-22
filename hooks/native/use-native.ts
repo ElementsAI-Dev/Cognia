@@ -8,11 +8,7 @@ import { useEffect, useCallback, useState } from 'react';
 import { useNativeStore } from '@/stores/system';
 import { isTauri } from '@/lib/native/utils';
 import { getSystemInfo } from '@/lib/native/system';
-import {
-  checkForUpdates,
-  downloadAndInstallUpdate,
-  type UpdateInfo,
-} from '@/lib/native/updater';
+import { checkForUpdates, downloadAndInstallUpdate, type UpdateInfo } from '@/lib/native/updater';
 import {
   requestNotificationPermission,
   isNotificationPermissionGranted,
@@ -36,10 +32,8 @@ export interface UseNativeReturn {
 }
 
 export function useNative(options: UseNativeOptions = {}): UseNativeReturn {
-  const {
-    checkUpdatesOnMount = false,
-    requestNotificationPermission: requestNotifPerm = false,
-  } = options;
+  const { checkUpdatesOnMount = false, requestNotificationPermission: requestNotifPerm = false } =
+    options;
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);

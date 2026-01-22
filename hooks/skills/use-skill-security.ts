@@ -13,12 +13,7 @@ import type {
   SecuritySeverity,
 } from '@/lib/native/skill';
 
-export type {
-  SecurityScanReport,
-  SecurityScanOptions,
-  SecurityFinding,
-  SecuritySeverity,
-};
+export type { SecurityScanReport, SecurityScanOptions, SecurityFinding, SecuritySeverity };
 
 interface UseSkillSecurityState {
   isScanning: boolean;
@@ -28,7 +23,10 @@ interface UseSkillSecurityState {
 }
 
 interface UseSkillSecurityActions {
-  scanInstalled: (directory: string, options?: SecurityScanOptions) => Promise<SecurityScanReport | null>;
+  scanInstalled: (
+    directory: string,
+    options?: SecurityScanOptions
+  ) => Promise<SecurityScanReport | null>;
   scanPath: (path: string, options?: SecurityScanOptions) => Promise<SecurityScanReport | null>;
   clearReport: () => void;
   clearError: () => void;
@@ -118,7 +116,10 @@ export function useSkillSecurity(): UseSkillSecurityReturn {
   const isAvailable = nativeSkill.isNativeSkillAvailable();
 
   const scanInstalled = useCallback(
-    async (directory: string, options?: SecurityScanOptions): Promise<SecurityScanReport | null> => {
+    async (
+      directory: string,
+      options?: SecurityScanOptions
+    ): Promise<SecurityScanReport | null> => {
       if (!isAvailable) {
         setState((s) => ({ ...s, error: 'Native skill service not available' }));
         return null;

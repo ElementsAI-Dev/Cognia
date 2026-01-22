@@ -21,14 +21,8 @@ interface UsePluginReturn {
  * Hook to access and control a specific plugin
  */
 export function usePlugin(pluginId: string): UsePluginReturn {
-  const {
-    plugins,
-    loading,
-    errors,
-    enablePlugin,
-    disablePlugin,
-    setPluginConfig,
-  } = usePluginStore();
+  const { plugins, loading, errors, enablePlugin, disablePlugin, setPluginConfig } =
+    usePluginStore();
 
   const plugin = plugins[pluginId];
   const manifest = plugin?.manifest;
@@ -81,10 +75,7 @@ export function usePlugins() {
     () => pluginList.filter((p) => p.status === 'disabled' || p.status === 'loaded'),
     [pluginList]
   );
-  const errorPlugins = useMemo(
-    () => pluginList.filter((p) => p.status === 'error'),
-    [pluginList]
-  );
+  const errorPlugins = useMemo(() => pluginList.filter((p) => p.status === 'error'), [pluginList]);
 
   return {
     plugins: pluginList,

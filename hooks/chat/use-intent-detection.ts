@@ -6,9 +6,9 @@
  */
 
 import { useState, useCallback } from 'react';
-import { 
+import {
   getEnhancedModeSuggestion,
-  type IntentDetectionResult 
+  type IntentDetectionResult,
 } from '@/lib/ai/tools/intent-detection';
 import type { ChatMode } from '@/types/core/session';
 
@@ -64,52 +64,59 @@ export function useIntentDetection({
     setDetectionResult(null);
   }
 
-  const checkIntent = useCallback((message: string): EnhancedDetectionResult => {
-    if (!enabled) {
-      return {
-        hasIntent: false,
-        intentType: null,
-        suggestedMode: null,
-        confidence: 0,
-        reason: '',
+  const checkIntent = useCallback(
+    (message: string): EnhancedDetectionResult => {
+      if (!enabled) {
+        return {
+          hasIntent: false,
+          intentType: null,
+          suggestedMode: null,
+          confidence: 0,
+          reason: '',
+          matchedKeywords: [],
+          direction: null,
+        };
+      }
+
+      // Use enhanced suggestion that works for all modes
+      const enhancedResult = getEnhancedModeSuggestion(message, currentMode, suggestionCount);
+
+      // Convert to IntentDetectionResult format
+      const result: EnhancedDetectionResult = {
+        hasIntent: enhancedResult.shouldSuggest,
+        intentType:
+          enhancedResult.suggestedMode === 'learning'
+            ? 'learning'
+            : enhancedResult.suggestedMode === 'research'
+              ? 'research'
+              : enhancedResult.suggestedMode === 'agent'
+                ? 'agent'
+                : null,
+        suggestedMode: enhancedResult.suggestedMode,
+        confidence: enhancedResult.confidence,
+        reason: enhancedResult.reason,
         matchedKeywords: [],
-        direction: null,
+        direction: enhancedResult.direction,
       };
-    }
 
-    // Use enhanced suggestion that works for all modes
-    const enhancedResult = getEnhancedModeSuggestion(message, currentMode, suggestionCount);
-    
-    // Convert to IntentDetectionResult format
-    const result: EnhancedDetectionResult = {
-      hasIntent: enhancedResult.shouldSuggest,
-      intentType: enhancedResult.suggestedMode === 'learning' ? 'learning' 
-        : enhancedResult.suggestedMode === 'research' ? 'research'
-        : enhancedResult.suggestedMode === 'agent' ? 'agent'
-        : null,
-      suggestedMode: enhancedResult.suggestedMode,
-      confidence: enhancedResult.confidence,
-      reason: enhancedResult.reason,
-      matchedKeywords: [],
-      direction: enhancedResult.direction,
-    };
-    
-    // Check if we should show the suggestion
-    const shouldShow = 
-      enhancedResult.shouldSuggest &&
-      enhancedResult.suggestedMode !== null &&
-      !dismissedModes.has(enhancedResult.suggestedMode) &&
-      !keepCurrent &&
-      suggestionCount < maxSuggestionsPerSession;
+      // Check if we should show the suggestion
+      const shouldShow =
+        enhancedResult.shouldSuggest &&
+        enhancedResult.suggestedMode !== null &&
+        !dismissedModes.has(enhancedResult.suggestedMode) &&
+        !keepCurrent &&
+        suggestionCount < maxSuggestionsPerSession;
 
-    if (shouldShow) {
-      setDetectionResult(result);
-      setShowSuggestion(true);
-      setSuggestionCount(prev => prev + 1);
-    }
+      if (shouldShow) {
+        setDetectionResult(result);
+        setShowSuggestion(true);
+        setSuggestionCount((prev) => prev + 1);
+      }
 
-    return result;
-  }, [enabled, currentMode, suggestionCount, maxSuggestionsPerSession, dismissedModes, keepCurrent]);
+      return result;
+    },
+    [enabled, currentMode, suggestionCount, maxSuggestionsPerSession, dismissedModes, keepCurrent]
+  );
 
   const acceptSuggestion = useCallback(() => {
     if (detectionResult?.suggestedMode && onModeSwitch) {
@@ -121,7 +128,7 @@ export function useIntentDetection({
 
   const dismissSuggestion = useCallback(() => {
     if (detectionResult?.suggestedMode) {
-      setDismissedModes(prev => new Set(prev).add(detectionResult.suggestedMode!));
+      setDismissedModes((prev) => new Set(prev).add(detectionResult.suggestedMode!));
     }
     setShowSuggestion(false);
     setDetectionResult(null);

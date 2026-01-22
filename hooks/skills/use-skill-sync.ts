@@ -69,12 +69,7 @@ export function useSkillSync(): UseSkillSyncReturn {
     error: nativeError,
   } = useNativeSkills();
 
-  const {
-    skills: frontendSkills,
-    createSkill,
-    deleteSkill,
-    getAllSkills,
-  } = useSkillStore();
+  const { skills: frontendSkills, createSkill, deleteSkill, getAllSkills } = useSkillStore();
 
   const isNativeAvailable = nativeSkill.isNativeSkillAvailable();
 
@@ -165,15 +160,15 @@ export function useSkillSync(): UseSkillSyncReturn {
       // Find custom frontend skills not in native
       for (const skill of frontendList) {
         if (skill.source === 'custom') {
-          const existsInNative = nativeInstalled.some(
-            (n) => n.name === skill.metadata.name
-          );
+          const existsInNative = nativeInstalled.some((n) => n.name === skill.metadata.name);
 
           if (!existsInNative) {
             // Would need to create in native - but we can't easily do this
             // since native expects a directory with SKILL.md
             // This is a TODO for future implementation
-            console.log(`Custom skill ${skill.metadata.name} not synced to native (not implemented)`);
+            console.log(
+              `Custom skill ${skill.metadata.name} not synced to native (not implemented)`
+            );
           }
         }
       }

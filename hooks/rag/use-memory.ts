@@ -74,12 +74,7 @@ export interface UseMemoryOptions {
 }
 
 export function useMemory(options: UseMemoryOptions = {}) {
-  const {
-    sessionId,
-    enableSemanticSearch = false,
-    autoDecay = false,
-    decayDays = 30,
-  } = options;
+  const { sessionId, enableSemanticSearch = false, autoDecay = false, decayDays = 30 } = options;
 
   // Store access
   const {
@@ -186,12 +181,7 @@ export function useMemory(options: UseMemoryOptions = {}) {
               existing: mostSimilar,
               incoming: input,
               similarity,
-              suggestedAction:
-                similarity > 0.9
-                  ? 'skip'
-                  : similarity > 0.7
-                    ? 'merge'
-                    : 'keep_both',
+              suggestedAction: similarity > 0.9 ? 'skip' : similarity > 0.7 ? 'merge' : 'keep_both',
             };
           }
         }
@@ -322,13 +312,7 @@ export function useMemory(options: UseMemoryOptions = {}) {
         .sort((a, b) => b.score - a.score)
         .slice(0, limit);
     },
-    [
-      storeSearchMemories,
-      semanticSearch,
-      sessionId,
-      enableSemanticSearch,
-      calculateDecayFactor,
-    ]
+    [storeSearchMemories, semanticSearch, sessionId, enableSemanticSearch, calculateDecayFactor]
   );
 
   // Get memories relevant to current context
@@ -341,7 +325,12 @@ export function useMemory(options: UseMemoryOptions = {}) {
 
       for (const memory of enabledMemories) {
         // Check session scope
-        if (sessionId && memory.sessionId && memory.sessionId !== sessionId && memory.sessionId !== 'global') {
+        if (
+          sessionId &&
+          memory.sessionId &&
+          memory.sessionId !== sessionId &&
+          memory.sessionId !== 'global'
+        ) {
           continue;
         }
 
@@ -370,10 +359,16 @@ export function useMemory(options: UseMemoryOptions = {}) {
         // Content matching with current message
         if (currentMessage) {
           const messageWords = new Set(
-            currentMessage.toLowerCase().split(/\s+/).filter((w) => w.length > 3)
+            currentMessage
+              .toLowerCase()
+              .split(/\s+/)
+              .filter((w) => w.length > 3)
           );
           const memoryWords = new Set(
-            memory.content.toLowerCase().split(/\s+/).filter((w) => w.length > 3)
+            memory.content
+              .toLowerCase()
+              .split(/\s+/)
+              .filter((w) => w.length > 3)
           );
           const overlap = [...messageWords].filter((w) => memoryWords.has(w));
 
@@ -564,66 +559,60 @@ export function useMemory(options: UseMemoryOptions = {}) {
   );
 
   // Enhanced pattern detection for auto-inference
-  const detectMemoryPatterns = useCallback(
-    (text: string): CreateMemoryInput[] => {
-      const detected: CreateMemoryInput[] = [];
+  const detectMemoryPatterns = useCallback((text: string): CreateMemoryInput[] => {
+    const detected: CreateMemoryInput[] = [];
 
-      // Extended patterns
-      const patterns = {
-        preference: [
-          /(?:i prefer|i like|i always|i usually|my favorite|i enjoy)\s+(.+)/gi,
-          /(?:i don't like|i hate|i avoid|i never)\s+(.+)/gi,
-          /(?:please always|always use|never use|don't ever)\s+(.+)/gi,
-        ],
-        fact: [
-          /(?:my name is|i am|i'm a|i work at|i work as|i live in|i'm from)\s+(.+)/gi,
-          /(?:my email is|my phone is|my address is)\s+(.+)/gi,
-          /(?:i have|i own|i use)\s+(a |an )?(.+)/gi,
-          /(?:i speak|i know)\s+(.+)/gi,
-        ],
-        instruction: [
-          /(?:remember to|don't forget to|make sure to|when you|if i ask)\s+(.+)/gi,
-          /(?:call me|address me as|refer to me as)\s+(.+)/gi,
-          /(?:always|never)\s+(?:respond|reply|answer)\s+(.+)/gi,
-        ],
-        context: [
-          /(?:we are working on|the project is|currently|right now)\s+(.+)/gi,
-          /(?:the goal is|we need to|our objective is)\s+(.+)/gi,
-        ],
-      };
+    // Extended patterns
+    const patterns = {
+      preference: [
+        /(?:i prefer|i like|i always|i usually|my favorite|i enjoy)\s+(.+)/gi,
+        /(?:i don't like|i hate|i avoid|i never)\s+(.+)/gi,
+        /(?:please always|always use|never use|don't ever)\s+(.+)/gi,
+      ],
+      fact: [
+        /(?:my name is|i am|i'm a|i work at|i work as|i live in|i'm from)\s+(.+)/gi,
+        /(?:my email is|my phone is|my address is)\s+(.+)/gi,
+        /(?:i have|i own|i use)\s+(a |an )?(.+)/gi,
+        /(?:i speak|i know)\s+(.+)/gi,
+      ],
+      instruction: [
+        /(?:remember to|don't forget to|make sure to|when you|if i ask)\s+(.+)/gi,
+        /(?:call me|address me as|refer to me as)\s+(.+)/gi,
+        /(?:always|never)\s+(?:respond|reply|answer)\s+(.+)/gi,
+      ],
+      context: [
+        /(?:we are working on|the project is|currently|right now)\s+(.+)/gi,
+        /(?:the goal is|we need to|our objective is)\s+(.+)/gi,
+      ],
+    };
 
-      for (const [type, typePatterns] of Object.entries(patterns)) {
-        for (const pattern of typePatterns) {
-          const matches = text.matchAll(pattern);
-          for (const match of matches) {
-            detected.push({
-              type: type as MemoryType,
-              content: match[0].trim(),
-              source: 'inferred' as MemorySource,
-            });
-          }
-        }
-      }
-
-      // Check for explicit remember commands
-      if (
-        text.toLowerCase().includes('remember') ||
-        text.toLowerCase().includes("don't forget")
-      ) {
-        const existing = detected.find((d) => d.type === 'instruction');
-        if (!existing) {
+    for (const [type, typePatterns] of Object.entries(patterns)) {
+      for (const pattern of typePatterns) {
+        const matches = text.matchAll(pattern);
+        for (const match of matches) {
           detected.push({
-            type: 'instruction',
-            content: text,
-            source: 'explicit',
+            type: type as MemoryType,
+            content: match[0].trim(),
+            source: 'inferred' as MemorySource,
           });
         }
       }
+    }
 
-      return detected;
-    },
-    []
-  );
+    // Check for explicit remember commands
+    if (text.toLowerCase().includes('remember') || text.toLowerCase().includes("don't forget")) {
+      const existing = detected.find((d) => d.type === 'instruction');
+      if (!existing) {
+        detected.push({
+          type: 'instruction',
+          content: text,
+          source: 'explicit',
+        });
+      }
+    }
+
+    return detected;
+  }, []);
 
   return {
     // State

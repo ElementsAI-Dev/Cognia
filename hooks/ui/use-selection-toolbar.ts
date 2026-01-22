@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   SelectionAction,
   ToolbarState,
@@ -9,18 +9,18 @@ import {
   TextType,
   getLanguageName,
   SelectionConfig as ToolbarConfig,
-} from "@/types";
-import { useSelectionStore } from "@/stores/context";
-import { useSettingsStore } from "@/stores/settings";
-import { useAIChat } from "@/lib/ai/generation/use-ai-chat";
-import { detectLanguage } from "@/lib/ai/generation/translate";
-import type { ProviderName } from "@/lib/ai/core/client";
-import type { SelectionConfig as NativeSelectionConfig } from "@/lib/native/selection";
+} from '@/types';
+import { useSelectionStore } from '@/stores/context';
+import { useSettingsStore } from '@/stores/settings';
+import { useAIChat } from '@/lib/ai/generation/use-ai-chat';
+import { detectLanguage } from '@/lib/ai/generation/translate';
+import type { ProviderName } from '@/lib/ai/core/client';
+import type { SelectionConfig as NativeSelectionConfig } from '@/lib/native/selection';
 import { isTauri } from '@/lib/native/utils';
 
 const initialState: ToolbarState = {
   isVisible: false,
-  selectedText: "",
+  selectedText: '',
   position: { x: 0, y: 0 },
   isLoading: false,
   activeAction: null,
@@ -29,7 +29,7 @@ const initialState: ToolbarState = {
   streamingResult: null,
   isStreaming: false,
   showMoreMenu: false,
-  selectionMode: "auto",
+  selectionMode: 'auto',
   textType: null,
   selections: [],
   isMultiSelectMode: false,
@@ -41,36 +41,31 @@ const SELECTION_SYSTEM_PROMPT = `You are a helpful assistant that processes sele
 
 // Prompts for different actions
 const ACTION_PROMPTS: Record<SelectionAction, (text: string, targetLang?: string) => string> = {
-  explain: (text) => 
-    `Please explain the following text in a clear and concise way:\n\n"${text}"`,
-  translate: (text, targetLang = "zh-CN") => 
+  explain: (text) => `Please explain the following text in a clear and concise way:\n\n"${text}"`,
+  translate: (text, targetLang = 'zh-CN') =>
     `Translate the following text to ${getLanguageName(targetLang)}. Only provide the translation, no explanations:\n\n"${text}"`,
-  summarize: (text) => 
-    `Summarize the following text in 1-2 sentences:\n\n"${text}"`,
-  extract: (text) => 
+  summarize: (text) => `Summarize the following text in 1-2 sentences:\n\n"${text}"`,
+  extract: (text) =>
     `Extract the key points from the following text as a bullet list:\n\n"${text}"`,
-  define: (text) => 
-    `Provide a clear definition for the following term or phrase:\n\n"${text}"`,
-  rewrite: (text) => 
+  define: (text) => `Provide a clear definition for the following term or phrase:\n\n"${text}"`,
+  rewrite: (text) =>
     `Rewrite the following text to improve clarity and flow while maintaining the original meaning:\n\n"${text}"`,
-  grammar: (text) => 
+  grammar: (text) =>
     `Check the following text for grammar and spelling errors. List any issues found and provide the corrected version:\n\n"${text}"`,
-  copy: () => "",
-  "send-to-chat": () => "",
-  search: () => "",
-  "code-explain": (text) => 
+  copy: () => '',
+  'send-to-chat': () => '',
+  search: () => '',
+  'code-explain': (text) =>
     `Explain the following code in detail, including what it does and how it works:\n\n\`\`\`\n${text}\n\`\`\``,
-  "code-optimize": (text) => 
+  'code-optimize': (text) =>
     `Optimize the following code for better performance and readability. Provide the improved version with explanations:\n\n\`\`\`\n${text}\n\`\`\``,
-  "tone-formal": (text) => 
+  'tone-formal': (text) =>
     `Rewrite the following text in a more formal, professional tone:\n\n"${text}"`,
-  "tone-casual": (text) => 
+  'tone-casual': (text) =>
     `Rewrite the following text in a more casual, conversational tone:\n\n"${text}"`,
-  expand: (text) => 
-    `Expand on the following text with more details and context:\n\n"${text}"`,
-  shorten: (text) => 
-    `Shorten the following text while keeping the essential meaning:\n\n"${text}"`,
-  "knowledge-map": (text) =>
+  expand: (text) => `Expand on the following text with more details and context:\n\n"${text}"`,
+  shorten: (text) => `Shorten the following text while keeping the essential meaning:\n\n"${text}"`,
+  'knowledge-map': (text) =>
     `Analyze the following text and generate a knowledge map with key concepts and their relationships:\n\n"${text}"`,
 };
 
@@ -84,24 +79,23 @@ const toNativeConfig = (config: ToolbarConfig): NativeSelectionConfig => ({
   excluded_apps: config.excludedApps,
 });
 
-
 // Cooldown period after hiding to prevent immediate re-show (prevents flashing)
 const HIDE_COOLDOWN_MS = 300;
 
 export function useSelectionToolbar() {
   const [state, setState] = useState<ToolbarState>(initialState);
   const store = useSelectionStore();
-  
+
   // Track when toolbar was last hidden to prevent immediate re-show (flashing)
   const lastHideTimeRef = useRef<number>(0);
-  
+
   // Get config from store
   const config = store.config;
 
   // Get AI settings from settings store
   const defaultProvider = useSettingsStore((s) => s.defaultProvider);
   const providerSettings = useSettingsStore((s) => s.providerSettings);
-  
+
   // Resolve provider and model (handle 'auto')
   const provider = useMemo(() => {
     if (defaultProvider === 'auto') {
@@ -162,49 +156,47 @@ export function useSelectionToolbar() {
     },
   });
 
-    // Sync selection config to the native side and keep the service running
-    useEffect(() => {
-      if (typeof window === "undefined" || !isTauri()) {
-        return;
-      }
+  // Sync selection config to the native side and keep the service running
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isTauri()) {
+      return;
+    }
 
-      const syncConfig = async () => {
-        try {
-          const [{ updateConfig, startSelectionService, stopSelectionService }, { invoke }] = await Promise.all([
-            import("@/lib/native/selection"),
-            import("@tauri-apps/api/core"),
-          ]);
+    const syncConfig = async () => {
+      try {
+        const [{ updateConfig, startSelectionService, stopSelectionService }, { invoke }] =
+          await Promise.all([import('@/lib/native/selection'), import('@tauri-apps/api/core')]);
 
-          await updateConfig(toNativeConfig({ ...config, enabled: store.isEnabled }));
-          await invoke("selection_set_auto_hide_timeout", { timeout_ms: config.autoHideDelay ?? 0 });
+        await updateConfig(toNativeConfig({ ...config, enabled: store.isEnabled }));
+        await invoke('selection_set_auto_hide_timeout', { timeout_ms: config.autoHideDelay ?? 0 });
 
-          if (store.isEnabled) {
-            await startSelectionService();
-          } else {
-            await stopSelectionService();
-          }
-        } catch (error) {
-          console.error("Failed to sync selection config", error);
+        if (store.isEnabled) {
+          await startSelectionService();
+        } else {
+          await stopSelectionService();
         }
-      };
+      } catch (error) {
+        console.error('Failed to sync selection config', error);
+      }
+    };
 
-      syncConfig();
+    syncConfig();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- config object is destructured into individual deps
-    }, [
-      store.isEnabled,
-      config.enabled,
-      config.triggerMode,
-      config.minTextLength,
-      config.maxTextLength,
-      config.delayMs,
-      config.targetLanguage,
-      config.excludedApps,
-      config.autoHideDelay,
-    ]);
+  }, [
+    store.isEnabled,
+    config.enabled,
+    config.triggerMode,
+    config.minTextLength,
+    config.maxTextLength,
+    config.delayMs,
+    config.targetLanguage,
+    config.excludedApps,
+    config.autoHideDelay,
+  ]);
 
   // Listen for selection events from Tauri
   useEffect(() => {
-    if (typeof window === "undefined" || !isTauri()) {
+    if (typeof window === 'undefined' || !isTauri()) {
       return;
     }
 
@@ -212,17 +204,19 @@ export function useSelectionToolbar() {
     let unlistenHide: (() => void) | undefined;
 
     const setupListeners = async () => {
-      const { listen } = await import("@tauri-apps/api/event");
-      
-      unlistenShow = await listen<SelectionPayload>("selection-toolbar-show", (event) => {
+      const { listen } = await import('@tauri-apps/api/event');
+
+      unlistenShow = await listen<SelectionPayload>('selection-toolbar-show', (event) => {
         // Check if we're in cooldown period after a recent hide
         // This prevents the "flash" issue where toolbar hides then immediately re-shows
         const timeSinceHide = Date.now() - lastHideTimeRef.current;
         if (timeSinceHide < HIDE_COOLDOWN_MS) {
-          console.debug(`[SelectionToolbar] Ignoring show event during cooldown (${timeSinceHide}ms since hide)`);
+          console.debug(
+            `[SelectionToolbar] Ignoring show event during cooldown (${timeSinceHide}ms since hide)`
+          );
           return;
         }
-        
+
         setState((prev) => ({
           ...prev,
           isVisible: true,
@@ -238,7 +232,7 @@ export function useSelectionToolbar() {
         }));
       });
 
-      unlistenHide = await listen("selection-toolbar-hide", () => {
+      unlistenHide = await listen('selection-toolbar-hide', () => {
         setState(initialState);
       });
     };
@@ -283,7 +277,7 @@ export function useSelectionToolbar() {
         isStreaming: config.enableStreaming,
         activeAction: action,
         result: null,
-        streamingResult: config.enableStreaming ? "" : null,
+        streamingResult: config.enableStreaming ? '' : null,
         error: null,
       }));
 
@@ -291,7 +285,7 @@ export function useSelectionToolbar() {
         // Use the shared AI chat infrastructure
         const result = await sendMessage(
           {
-            messages: [{ role: "user", content: prompt }],
+            messages: [{ role: 'user', content: prompt }],
             systemPrompt: SELECTION_SYSTEM_PROMPT,
             temperature: 0.7,
             maxTokens: 2000,
@@ -300,7 +294,7 @@ export function useSelectionToolbar() {
             ? (chunk) => {
                 setState((prev) => ({
                   ...prev,
-                  streamingResult: (prev.streamingResult || "") + chunk,
+                  streamingResult: (prev.streamingResult || '') + chunk,
                 }));
               }
             : undefined
@@ -317,19 +311,27 @@ export function useSelectionToolbar() {
           });
         }
       } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") {
+        if (error instanceof Error && error.name === 'AbortError') {
           return;
         }
-        
+
         setState((prev) => ({
           ...prev,
           isLoading: false,
           isStreaming: false,
-          error: error instanceof Error ? error.message : "An error occurred",
+          error: error instanceof Error ? error.message : 'An error occurred',
         }));
       }
     },
-    [state.selectedText, state.textType, config.targetLanguage, config.enableStreaming, store, sendMessage, stop]
+    [
+      state.selectedText,
+      state.textType,
+      config.targetLanguage,
+      config.enableStreaming,
+      store,
+      sendMessage,
+      stop,
+    ]
   );
 
   // Retry the last action
@@ -374,11 +376,11 @@ export function useSelectionToolbar() {
     setState(initialState);
 
     if (isTauri()) {
-      const { invoke } = await import("@tauri-apps/api/core");
+      const { invoke } = await import('@tauri-apps/api/core');
       try {
-        await invoke("selection_hide_toolbar");
+        await invoke('selection_hide_toolbar');
       } catch (e) {
-        console.error("Failed to hide toolbar:", e);
+        console.error('Failed to hide toolbar:', e);
       }
     }
   }, [stop]);
@@ -401,11 +403,11 @@ export function useSelectionToolbar() {
       }));
 
       if (isTauri()) {
-        const { invoke } = await import("@tauri-apps/api/core");
+        const { invoke } = await import('@tauri-apps/api/core');
         try {
-          await invoke("selection_show_toolbar", { x, y, text });
+          await invoke('selection_show_toolbar', { x, y, text });
         } catch (e) {
-          console.error("Failed to show toolbar:", e);
+          console.error('Failed to show toolbar:', e);
         }
       }
     },
@@ -413,20 +415,26 @@ export function useSelectionToolbar() {
   );
 
   // Set selection mode
-  const setSelectionMode = useCallback((mode: SelectionMode) => {
-    setState((prev) => ({
-      ...prev,
-      selectionMode: mode,
-    }));
-    store.setSelectionMode(mode);
-  }, [store]);
+  const setSelectionMode = useCallback(
+    (mode: SelectionMode) => {
+      setState((prev) => ({
+        ...prev,
+        selectionMode: mode,
+      }));
+      store.setSelectionMode(mode);
+    },
+    [store]
+  );
 
   // Provide feedback
-  const provideFeedback = useCallback((positive: boolean) => {
-    if (state.activeAction) {
-      store.setFeedback(`${state.activeAction}-${Date.now()}`, positive);
-    }
-  }, [state.activeAction, store]);
+  const provideFeedback = useCallback(
+    (positive: boolean) => {
+      if (state.activeAction) {
+        store.setFeedback(`${state.activeAction}-${Date.now()}`, positive);
+      }
+    },
+    [state.activeAction, store]
+  );
 
   // Send result to chat
   const sendResultToChat = useCallback(async () => {
@@ -434,8 +442,8 @@ export function useSelectionToolbar() {
     if (!textToSend) return;
 
     if (isTauri()) {
-      const { emit } = await import("@tauri-apps/api/event");
-      await emit("selection-send-to-chat", { 
+      const { emit } = await import('@tauri-apps/api/event');
+      await emit('selection-send-to-chat', {
         text: state.selectedText,
         result: textToSend,
         action: state.activeAction,
@@ -445,30 +453,36 @@ export function useSelectionToolbar() {
   }, [state.result, state.streamingResult, state.selectedText, state.activeAction, hideToolbar]);
 
   // Detect source language of selected text
-  const detectSourceLanguage = useCallback(async (text: string) => {
-    if (!text || text.length < 3) return null;
-    
-    try {
-      const apiKey = providerSettings[provider]?.apiKey || '';
-      const modelName = model;
-      
-      const result = await detectLanguage(text, {
-        provider,
-        model: modelName,
-        apiKey,
-      });
-      
-      return result?.code || null;
-    } catch (error) {
-      console.error("Failed to detect language:", error);
-      return null;
-    }
-  }, [provider, model, providerSettings]);
+  const detectSourceLanguage = useCallback(
+    async (text: string) => {
+      if (!text || text.length < 3) return null;
+
+      try {
+        const apiKey = providerSettings[provider]?.apiKey || '';
+        const modelName = model;
+
+        const result = await detectLanguage(text, {
+          provider,
+          model: modelName,
+          apiKey,
+        });
+
+        return result?.code || null;
+      } catch (error) {
+        console.error('Failed to detect language:', error);
+        return null;
+      }
+    },
+    [provider, model, providerSettings]
+  );
 
   // Update target language in config
-  const updateTargetLanguage = useCallback((lang: string) => {
-    store.updateConfig({ targetLanguage: lang });
-  }, [store]);
+  const updateTargetLanguage = useCallback(
+    (lang: string) => {
+      store.updateConfig({ targetLanguage: lang });
+    },
+    [store]
+  );
 
   return {
     state,

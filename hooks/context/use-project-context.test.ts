@@ -39,10 +39,10 @@ jest.mock('@/lib/document/knowledge-rag', () => ({
     knowledgeContext: 'Knowledge context',
     filesUsed: ['doc1.md'],
   })),
-  getRelevantKnowledge: jest.fn((knowledgeBase, query, maxFiles) => 
+  getRelevantKnowledge: jest.fn((knowledgeBase, query, maxFiles) =>
     knowledgeBase.slice(0, maxFiles)
   ),
-  searchKnowledgeFiles: jest.fn((knowledgeBase, query, _options) => 
+  searchKnowledgeFiles: jest.fn((knowledgeBase, query, _options) =>
     knowledgeBase.filter((f: { name: string }) => f.name.includes(query.slice(0, 3)))
   ),
   getKnowledgeBaseStats: jest.fn((knowledgeBase) => ({
@@ -73,15 +73,13 @@ describe('useProjectContext', () => {
   });
 
   it('should pass query to context builder', () => {
-    const { result } = renderHook(() => 
-      useProjectContext('test-project', 'search query')
-    );
+    const { result } = renderHook(() => useProjectContext('test-project', 'search query'));
 
     expect(result.current).not.toBeNull();
   });
 
   it('should respect options', () => {
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useProjectContext('test-project', undefined, {
         maxContextLength: 3000,
         useRelevanceFiltering: false,
@@ -160,9 +158,7 @@ describe('useBuildContext', () => {
     const mockProject = {
       id: 'test-project',
       name: 'Test Project',
-      knowledgeBase: [
-        { name: 'doc1.md', type: 'markdown', content: 'Test', size: 100 },
-      ],
+      knowledgeBase: [{ name: 'doc1.md', type: 'markdown', content: 'Test', size: 100 }],
     };
 
     const { result } = renderHook(() => useBuildContext(mockProject as never));
@@ -204,9 +200,7 @@ describe('formatKnowledgeForDisplay', () => {
   });
 
   it('should respect custom preview length', () => {
-    const files = [
-      { name: 'doc.md', type: 'markdown', content: 'A'.repeat(100), size: 100 },
-    ];
+    const files = [{ name: 'doc.md', type: 'markdown', content: 'A'.repeat(100), size: 100 }];
 
     const formatted = formatKnowledgeForDisplay(files as never[], 50);
 

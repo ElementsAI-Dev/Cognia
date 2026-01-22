@@ -3,7 +3,12 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import { useSkills, useSkillSystemPrompt, useAutoMatchSkills, useSkillTokenBudget } from './use-skills';
+import {
+  useSkills,
+  useSkillSystemPrompt,
+  useAutoMatchSkills,
+  useSkillTokenBudget,
+} from './use-skills';
 import type { Skill } from '@/types/system/skill';
 
 // Mock skill store
@@ -62,8 +67,12 @@ jest.mock('@/stores/skills', () => ({
 // Mock skills library
 jest.mock('@/lib/skills', () => ({
   buildSkillSystemPrompt: jest.fn((skill: Skill) => `System prompt for ${skill.metadata.name}`),
-  buildMultiSkillSystemPrompt: jest.fn((skills: Skill[]) => `Multi-skill prompt for ${skills.length} skills`),
-  findMatchingSkills: jest.fn((skills: Skill[], _query: string, maxResults: number) => skills.slice(0, maxResults)),
+  buildMultiSkillSystemPrompt: jest.fn(
+    (skills: Skill[]) => `Multi-skill prompt for ${skills.length} skills`
+  ),
+  findMatchingSkills: jest.fn((skills: Skill[], _query: string, maxResults: number) =>
+    skills.slice(0, maxResults)
+  ),
   checkSkillTokenBudget: jest.fn(() => ({ totalTokens: 100, fits: true, excess: 0 })),
 }));
 

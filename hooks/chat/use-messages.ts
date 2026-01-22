@@ -38,7 +38,10 @@ interface UseMessagesReturn {
   reloadMessages: () => Promise<void>;
 
   // Branch operations
-  copyMessagesForBranch: (branchPointMessageId: string, newBranchId: string) => Promise<UIMessage[]>;
+  copyMessagesForBranch: (
+    branchPointMessageId: string,
+    newBranchId: string
+  ) => Promise<UIMessage[]>;
 }
 
 const INITIAL_PAGE_SIZE = 100;
@@ -135,10 +138,7 @@ export function useMessages({
         { limit: INITIAL_PAGE_SIZE }
       );
 
-      const totalCount = await messageRepository.getCountBySessionIdAndBranch(
-        sessionId,
-        branchId
-      );
+      const totalCount = await messageRepository.getCountBySessionIdAndBranch(sessionId, branchId);
 
       setMessages(loadedMessages);
       const oldest = loadedMessages[0]?.createdAt;
@@ -162,11 +162,10 @@ export function useMessages({
 
     setIsLoadingOlder(true);
     try {
-      const older = await messageRepository.getPageBySessionIdAndBranch(
-        sessionId,
-        branchId,
-        { limit: OLDER_PAGE_SIZE, before: oldestCreatedAt }
-      );
+      const older = await messageRepository.getPageBySessionIdAndBranch(sessionId, branchId, {
+        limit: OLDER_PAGE_SIZE,
+        before: oldestCreatedAt,
+      });
 
       if (older.length === 0) {
         setHasOlderMessages(false);
@@ -181,12 +180,9 @@ export function useMessages({
 
       oldestMessageCreatedAtRef.current = older[0]?.createdAt ?? oldestCreatedAt;
 
-      const totalCount = await messageRepository.getCountBySessionIdAndBranch(
-        sessionId,
-        branchId
-      );
+      const totalCount = await messageRepository.getCountBySessionIdAndBranch(sessionId, branchId);
 
-      setHasOlderMessages(totalCount > (messages.length + older.length));
+      setHasOlderMessages(totalCount > messages.length + older.length);
     } catch (err) {
       console.error('Failed to load older messages:', err);
       onErrorRef.current?.(err instanceof Error ? err : new Error('Failed to load older messages'));
@@ -214,11 +210,7 @@ export function useMessages({
 
       // Persist to database with branch support
       try {
-        await messageRepository.createWithBranch(
-          sessionId,
-          branchId ?? undefined,
-          newMessage
-        );
+        await messageRepository.createWithBranch(sessionId, branchId ?? undefined, newMessage);
       } catch (err) {
         console.error('Failed to save message:', err);
         // Revert on error
@@ -235,9 +227,7 @@ export function useMessages({
   const updateMessage = useCallback(
     async (id: string, updates: Partial<UIMessage>): Promise<void> => {
       // Update local state immediately
-      setMessages((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, ...updates } : m))
-      );
+      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
 
       // Persist to database
       try {
@@ -251,21 +241,18 @@ export function useMessages({
   );
 
   // Delete a message
-  const deleteMessage = useCallback(
-    async (id: string): Promise<void> => {
-      // Update local state immediately
-      setMessages((prev) => prev.filter((m) => m.id !== id));
+  const deleteMessage = useCallback(async (id: string): Promise<void> => {
+    // Update local state immediately
+    setMessages((prev) => prev.filter((m) => m.id !== id));
 
-      // Persist to database
-      try {
-        await messageRepository.delete(id);
-      } catch (err) {
-        console.error('Failed to delete message:', err);
-        throw err;
-      }
-    },
-    []
-  );
+    // Persist to database
+    try {
+      await messageRepository.delete(id);
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+      throw err;
+    }
+  }, []);
 
   // Delete all messages after a specific message (for edit/retry)
   const deleteMessagesAfter = useCallback(
@@ -280,9 +267,7 @@ export function useMessages({
 
       // Delete from database
       try {
-        await Promise.all(
-          messagesToDelete.map((m) => messageRepository.delete(m.id))
-        );
+        await Promise.all(messagesToDelete.map((m) => messageRepository.delete(m.id)));
       } catch (err) {
         console.error('Failed to delete messages:', err);
         throw err;
@@ -341,7 +326,6 @@ export function useMessages({
 
     const messageToSave = pendingSaves.current.get(id);
     if (messageToSave) {
-
       // Debounce save to database
       const existingTimeout = saveTimeouts.current.get(id);
       if (existingTimeout) {

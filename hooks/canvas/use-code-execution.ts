@@ -19,7 +19,11 @@ interface UseCodeExecutionReturn {
   isExecuting: boolean;
   result: CodeSandboxExecutionResult | null;
   error: string | null;
-  execute: (code: string, language: string, options?: ExecutionOptions) => Promise<CodeSandboxExecutionResult>;
+  execute: (
+    code: string,
+    language: string,
+    options?: ExecutionOptions
+  ) => Promise<CodeSandboxExecutionResult>;
   cancel: () => void;
   clear: () => void;
 }
@@ -51,7 +55,8 @@ async function simulateExecution(
 
   const lineCount = code.split('\n').length;
   const hasMain = code.includes('main') || code.includes('def ') || code.includes('function');
-  const hasPrint = code.includes('print') || code.includes('console.log') || code.includes('fmt.Print');
+  const hasPrint =
+    code.includes('print') || code.includes('console.log') || code.includes('fmt.Print');
 
   let simulatedOutput = `[Simulated execution for ${language}]\n`;
   simulatedOutput += `Code analysis:\n`;
@@ -73,10 +78,7 @@ async function simulateExecution(
 /**
  * Execute JavaScript/TypeScript in browser sandbox
  */
-async function executeBrowser(
-  code: string,
-  language: string
-): Promise<CodeSandboxExecutionResult> {
+async function executeBrowser(code: string, language: string): Promise<CodeSandboxExecutionResult> {
   const startTime = performance.now();
   const logs: string[] = [];
   const errors: string[] = [];
@@ -110,10 +112,10 @@ async function executeBrowser(
         ${executableCode}
       })();
     `;
-    
+
     const fn = new Function(asyncWrapper);
     const result = await fn();
-    
+
     if (result !== undefined) {
       logs.push(String(result));
     }
@@ -155,11 +157,7 @@ async function executeTauri(
   options: ExecutionOptions = {}
 ): Promise<CodeSandboxExecutionResult> {
   try {
-    const result = await sandboxService.executeWithStdin(
-      language,
-      code,
-      options.stdin || ''
-    );
+    const result = await sandboxService.executeWithStdin(language, code, options.stdin || '');
 
     return {
       success: result.status === 'completed' && result.exit_code === 0,

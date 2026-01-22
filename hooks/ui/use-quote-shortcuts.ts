@@ -1,6 +1,6 @@
 /**
  * useQuoteShortcuts - Keyboard shortcuts for quote operations
- * 
+ *
  * Shortcuts:
  * - Escape: Exit selection mode / Clear all quotes (when not in selection mode)
  * - Ctrl/Cmd + A: Select all quotes (in selection mode)
@@ -41,11 +41,7 @@ export function useQuoteShortcuts(options: UseQuoteShortcutsOptions = {}) {
 
       // Skip if focused on input elements
       const target = event.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
 
@@ -119,9 +115,8 @@ export function useQuoteShortcuts(options: UseQuoteShortcutsOptions = {}) {
       // Ctrl/Cmd + E: Export as text
       if (isMod && event.key.toLowerCase() === 'e' && !isShift) {
         event.preventDefault();
-        const content = isSelectionMode && selectedIds.size > 0
-          ? exportSelected('text')
-          : exportQuotes('text');
+        const content =
+          isSelectionMode && selectedIds.size > 0 ? exportSelected('text') : exportQuotes('text');
         if (content) {
           navigator.clipboard.writeText(content);
           toast.success('Exported as text');
@@ -132,9 +127,10 @@ export function useQuoteShortcuts(options: UseQuoteShortcutsOptions = {}) {
       // Ctrl/Cmd + Shift + E: Export as markdown
       if (isMod && event.key.toLowerCase() === 'e' && isShift) {
         event.preventDefault();
-        const content = isSelectionMode && selectedIds.size > 0
-          ? exportSelected('markdown')
-          : exportQuotes('markdown');
+        const content =
+          isSelectionMode && selectedIds.size > 0
+            ? exportSelected('markdown')
+            : exportQuotes('markdown');
         if (content) {
           navigator.clipboard.writeText(content);
           toast.success('Exported as Markdown');

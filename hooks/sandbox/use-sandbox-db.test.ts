@@ -1,6 +1,6 @@
 /**
  * Tests for use-sandbox-db hooks
- * 
+ *
  * These tests verify hook structure and behavior without Tauri.
  * The hooks gracefully handle non-Tauri environments by returning empty data.
  */

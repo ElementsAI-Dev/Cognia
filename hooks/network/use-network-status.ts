@@ -41,9 +41,7 @@ export function useNetworkStatus(): NetworkStatus {
 
   const updateNetworkStatus = useCallback(() => {
     const connection =
-      navigator.connection ||
-      navigator.mozConnection ||
-      navigator.webkitConnection;
+      navigator.connection || navigator.mozConnection || navigator.webkitConnection;
 
     const isSlowConnection =
       connection?.effectiveType === 'slow-2g' ||
@@ -73,9 +71,7 @@ export function useNetworkStatus(): NetworkStatus {
 
     // Listen for connection changes
     const connection =
-      navigator.connection ||
-      navigator.mozConnection ||
-      navigator.webkitConnection;
+      navigator.connection || navigator.mozConnection || navigator.webkitConnection;
 
     if (connection) {
       connection.addEventListener('change', updateNetworkStatus);

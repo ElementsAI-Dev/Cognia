@@ -27,9 +27,15 @@ const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: jest.fn((key: string) => store[key] || null),
-    setItem: jest.fn((key: string, value: string) => { store[key] = value; }),
-    removeItem: jest.fn((key: string) => { delete store[key]; }),
-    clear: jest.fn(() => { store = {}; }),
+    setItem: jest.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: jest.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: jest.fn(() => {
+      store = {};
+    }),
   };
 })();
 
@@ -130,9 +136,12 @@ describe('useCopy', () => {
 
     it('should set isCopying during copy operation', async () => {
       let resolveCopy: () => void;
-      mockWriteClipboard.mockImplementation(() => new Promise(resolve => {
-        resolveCopy = resolve;
-      }));
+      mockWriteClipboard.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveCopy = resolve;
+          })
+      );
 
       const { result } = renderHook(() => useCopy());
 
@@ -183,7 +192,9 @@ describe('useCopy', () => {
         await result.current.copyFormatted(data, 'html');
       });
 
-      expect(mockWriteClipboard).toHaveBeenCalledWith(`<pre>${JSON.stringify(data, null, 2)}</pre>`);
+      expect(mockWriteClipboard).toHaveBeenCalledWith(
+        `<pre>${JSON.stringify(data, null, 2)}</pre>`
+      );
     });
 
     it('should pass through string content', async () => {
@@ -311,7 +322,13 @@ describe('copy history functions', () => {
 
     it('should remove duplicates', () => {
       const existingHistory = [
-        { id: '1', content: 'duplicate', format: 'text', timestamp: new Date().toISOString(), preview: 'duplicate' },
+        {
+          id: '1',
+          content: 'duplicate',
+          format: 'text',
+          timestamp: new Date().toISOString(),
+          preview: 'duplicate',
+        },
       ];
       localStorageMock.getItem.mockReturnValue(JSON.stringify(existingHistory));
 

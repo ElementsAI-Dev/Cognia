@@ -1,6 +1,6 @@
 /**
  * useLearningMode Hook Tests
- * 
+ *
  * Unit tests for the learning mode React hook.
  */
 
@@ -136,10 +136,10 @@ describe('useLearningMode', () => {
         });
       });
 
-      expect(mockLearningStore.startLearningSession).toHaveBeenCalledWith(
-        'session-1',
-        { topic: 'Test Topic', learningGoals: ['Goal 1'] }
-      );
+      expect(mockLearningStore.startLearningSession).toHaveBeenCalledWith('session-1', {
+        topic: 'Test Topic',
+        learningGoals: ['Goal 1'],
+      });
     });
 
     it('should throw error if no active session when starting learning', () => {
@@ -274,7 +274,15 @@ describe('useLearningMode', () => {
         topic: 'Test Topic',
         currentPhase: 'questioning' as const,
         progress: 50,
-        subQuestions: [{ id: 'sq-1', question: 'Test?', status: 'in_progress' as const, hints: [], userAttempts: 0 }],
+        subQuestions: [
+          {
+            id: 'sq-1',
+            question: 'Test?',
+            status: 'in_progress' as const,
+            hints: [],
+            userAttempts: 0,
+          },
+        ],
         learningGoals: [],
         totalHintsProvided: 0,
         startedAt: new Date(),
@@ -288,11 +296,9 @@ describe('useLearningMode', () => {
         result.current.resolveSubQuestion('sq-1', ['Insight 1']);
       });
 
-      expect(mockLearningStore.markSubQuestionResolved).toHaveBeenCalledWith(
-        'learning-1',
-        'sq-1',
-        ['Insight 1']
-      );
+      expect(mockLearningStore.markSubQuestionResolved).toHaveBeenCalledWith('learning-1', 'sq-1', [
+        'Insight 1',
+      ]);
     });
   });
 

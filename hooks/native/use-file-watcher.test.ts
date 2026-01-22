@@ -55,7 +55,7 @@ describe('useFileWatcher', () => {
     const mockUnwatch = jest.fn().mockResolvedValue(undefined);
     mockWatchPath.mockResolvedValue(mockUnwatch);
 
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useFileWatcher('/test/path', undefined, { enabled: false })
     );
 
@@ -71,7 +71,7 @@ describe('useFileWatcher', () => {
     const mockUnwatch = jest.fn().mockResolvedValue(undefined);
     mockWatchPathImmediate.mockResolvedValue(mockUnwatch);
 
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useFileWatcher('/test/path', undefined, { enabled: false, immediate: true })
     );
 
@@ -86,7 +86,7 @@ describe('useFileWatcher', () => {
     const mockUnwatch = jest.fn().mockResolvedValue(undefined);
     mockWatchPath.mockResolvedValue(mockUnwatch);
 
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useFileWatcher('/test/path', undefined, { enabled: false })
     );
 
@@ -107,22 +107,20 @@ describe('useFileWatcher', () => {
   it('should call onEvent callback when event occurs', async () => {
     const onEvent = jest.fn();
     let capturedCallback: WatchCallback | null = null;
-    
+
     mockWatchPath.mockImplementation(async (_path, callback) => {
       capturedCallback = callback;
       return jest.fn().mockResolvedValue(undefined);
     });
 
-    const { result } = renderHook(() => 
-      useFileWatcher('/test/path', onEvent, { enabled: false })
-    );
+    const { result } = renderHook(() => useFileWatcher('/test/path', onEvent, { enabled: false }));
 
     await act(async () => {
       await result.current.startWatching();
     });
 
     const mockEvent = { type: 'modify', paths: ['/test/path/file.txt'] } as WatchEvent;
-    
+
     await act(async () => {
       capturedCallback?.(mockEvent);
     });
@@ -134,7 +132,7 @@ describe('useFileWatcher', () => {
   it('should handle watch errors', async () => {
     mockWatchPath.mockRejectedValue(new Error('Watch failed'));
 
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useFileWatcher('/test/path', undefined, { enabled: false })
     );
 
@@ -166,7 +164,7 @@ describe('useFileWatcher', () => {
   it('should handle null unwatch return', async () => {
     mockWatchPath.mockResolvedValue(null as unknown as () => Promise<void>);
 
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useFileWatcher('/test/path', undefined, { enabled: false })
     );
 
@@ -197,9 +195,7 @@ describe('useMultiFileWatcher', () => {
 
     const paths = ['/path/1', '/path/2', '/path/3'];
 
-    const { result } = renderHook(() => 
-      useMultiFileWatcher(paths, undefined, { enabled: false })
-    );
+    const { result } = renderHook(() => useMultiFileWatcher(paths, undefined, { enabled: false }));
 
     await act(async () => {
       await result.current.startAll();
@@ -215,9 +211,7 @@ describe('useMultiFileWatcher', () => {
 
     const paths = ['/path/1', '/path/2'];
 
-    const { result } = renderHook(() => 
-      useMultiFileWatcher(paths, undefined, { enabled: false })
-    );
+    const { result } = renderHook(() => useMultiFileWatcher(paths, undefined, { enabled: false }));
 
     await act(async () => {
       await result.current.startAll();
@@ -238,9 +232,7 @@ describe('useMultiFileWatcher', () => {
 
     const paths = ['/path/1', '/path/2'];
 
-    const { result } = renderHook(() => 
-      useMultiFileWatcher(paths, undefined, { enabled: false })
-    );
+    const { result } = renderHook(() => useMultiFileWatcher(paths, undefined, { enabled: false }));
 
     await act(async () => {
       await result.current.startAll();
@@ -253,7 +245,7 @@ describe('useMultiFileWatcher', () => {
   it('should set global error when not in Tauri', async () => {
     mockIsTauri.mockReturnValue(false);
 
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useMultiFileWatcher(['/path/1'], undefined, { enabled: false })
     );
 
@@ -267,13 +259,13 @@ describe('useMultiFileWatcher', () => {
   it('should call onEvent with path when event occurs', async () => {
     const onEvent = jest.fn();
     let capturedCallback: WatchCallback | null = null;
-    
+
     mockWatchPath.mockImplementation(async (_path, callback) => {
       capturedCallback = callback;
       return jest.fn().mockResolvedValue(undefined);
     });
 
-    const { result } = renderHook(() => 
+    const { result } = renderHook(() =>
       useMultiFileWatcher(['/path/1'], onEvent, { enabled: false })
     );
 
@@ -282,7 +274,7 @@ describe('useMultiFileWatcher', () => {
     });
 
     const mockEvent = { type: 'create', paths: ['/path/1/new.txt'] } as WatchEvent;
-    
+
     await act(async () => {
       capturedCallback?.(mockEvent);
     });

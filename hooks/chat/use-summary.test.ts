@@ -128,7 +128,7 @@ describe('useSummary', () => {
   describe('initial state', () => {
     it('should have correct initial state', () => {
       const { result } = renderHook(() => useSummary());
-      
+
       expect(result.current.isGenerating).toBe(false);
       expect(result.current.progress).toBeNull();
       expect(result.current.chatSummary).toBeNull();
@@ -139,7 +139,7 @@ describe('useSummary', () => {
 
     it('should provide all action functions', () => {
       const { result } = renderHook(() => useSummary());
-      
+
       expect(typeof result.current.generateChatSummary).toBe('function');
       expect(typeof result.current.generateAgentSummary).toBe('function');
       expect(typeof result.current.generateChatDiagram).toBe('function');
@@ -154,11 +154,11 @@ describe('useSummary', () => {
   describe('generateChatSummary', () => {
     it('should generate chat summary successfully', async () => {
       const { result } = renderHook(() => useSummary());
-      
+
       await act(async () => {
         await result.current.generateChatSummary(mockMessages);
       });
-      
+
       expect(result.current.chatSummary).not.toBeNull();
       expect(result.current.chatSummary?.success).toBe(true);
       expect(result.current.chatSummary?.summary).toBe('Test summary');
@@ -167,9 +167,9 @@ describe('useSummary', () => {
 
     it('should update progress during generation', async () => {
       const { result } = renderHook(() => useSummary());
-      
+
       const progressValues: number[] = [];
-      
+
       await act(async () => {
         const promise = result.current.generateChatSummary(mockMessages);
         // Capture progress values
@@ -178,20 +178,20 @@ describe('useSummary', () => {
         }
         await promise;
       });
-      
+
       expect(result.current.progress?.progress).toBe(100);
     });
 
     it('should accept custom options', async () => {
       const { result } = renderHook(() => useSummary());
-      
+
       await act(async () => {
         await result.current.generateChatSummary(mockMessages, {
           format: 'brief',
           includeCode: false,
         });
       });
-      
+
       expect(result.current.chatSummary).not.toBeNull();
     });
   });
@@ -199,11 +199,11 @@ describe('useSummary', () => {
   describe('generateAgentSummary', () => {
     it('should generate agent summary successfully', async () => {
       const { result } = renderHook(() => useSummary());
-      
+
       await act(async () => {
         await result.current.generateAgentSummary(mockAgent);
       });
-      
+
       expect(result.current.agentSummary).not.toBeNull();
       expect(result.current.agentSummary?.success).toBe(true);
       expect(result.current.agentSummary?.agentName).toBe('Test Agent');
@@ -211,14 +211,14 @@ describe('useSummary', () => {
 
     it('should accept custom options', async () => {
       const { result } = renderHook(() => useSummary());
-      
+
       await act(async () => {
         await result.current.generateAgentSummary(mockAgent, {
           includeSubAgents: false,
           includeTiming: true,
         });
       });
-      
+
       expect(result.current.agentSummary).not.toBeNull();
     });
   });
@@ -226,11 +226,11 @@ describe('useSummary', () => {
   describe('generateChatDiagram', () => {
     it('should generate chat diagram successfully', () => {
       const { result } = renderHook(() => useSummary());
-      
+
       act(() => {
         result.current.generateChatDiagram(mockMessages);
       });
-      
+
       expect(result.current.diagram).not.toBeNull();
       expect(result.current.diagram?.success).toBe(true);
       expect(result.current.diagram?.type).toBe('flowchart');
@@ -239,11 +239,11 @@ describe('useSummary', () => {
 
     it('should accept diagram type option', () => {
       const { result } = renderHook(() => useSummary());
-      
+
       act(() => {
         result.current.generateChatDiagram(mockMessages, { type: 'sequence' });
       });
-      
+
       expect(result.current.diagram?.type).toBe('sequence');
     });
   });
@@ -251,11 +251,11 @@ describe('useSummary', () => {
   describe('generateAgentDiagram', () => {
     it('should generate agent diagram successfully', () => {
       const { result } = renderHook(() => useSummary());
-      
+
       act(() => {
         result.current.generateAgentDiagram(mockAgent);
       });
-      
+
       expect(result.current.diagram).not.toBeNull();
       expect(result.current.diagram?.success).toBe(true);
     });
@@ -264,12 +264,12 @@ describe('useSummary', () => {
   describe('generateChatSummaryWithDiagram', () => {
     it('should generate both summary and diagram', async () => {
       const { result } = renderHook(() => useSummary());
-      
+
       let response;
       await act(async () => {
         response = await result.current.generateChatSummaryWithDiagram(mockMessages);
       });
-      
+
       expect(response).toBeDefined();
       expect(result.current.chatSummary).not.toBeNull();
       expect(result.current.diagram).not.toBeNull();
@@ -279,12 +279,12 @@ describe('useSummary', () => {
   describe('generateAgentSummaryWithDiagram', () => {
     it('should generate both agent summary and diagram', async () => {
       const { result } = renderHook(() => useSummary());
-      
+
       let response;
       await act(async () => {
         response = await result.current.generateAgentSummaryWithDiagram(mockAgent);
       });
-      
+
       expect(response).toBeDefined();
       expect(result.current.agentSummary).not.toBeNull();
       expect(result.current.diagram).not.toBeNull();
@@ -296,12 +296,12 @@ describe('useSummary', () => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { downloadFile } = require('@/lib/export');
       const { result } = renderHook(() => useSummary());
-      
+
       // First generate a summary
       await act(async () => {
         await result.current.generateChatSummary(mockMessages);
       });
-      
+
       // Then export
       act(() => {
         result.current.exportSummary({
@@ -309,20 +309,20 @@ describe('useSummary', () => {
           includeDiagram: false,
         });
       });
-      
+
       expect(downloadFile).toHaveBeenCalled();
     });
 
     it('should set error when no summary to export', () => {
       const { result } = renderHook(() => useSummary());
-      
+
       act(() => {
         result.current.exportSummary({
           format: 'markdown',
           includeDiagram: false,
         });
       });
-      
+
       expect(result.current.error).toBe('No summary to export');
     });
   });
@@ -330,21 +330,21 @@ describe('useSummary', () => {
   describe('reset', () => {
     it('should reset all state', async () => {
       const { result } = renderHook(() => useSummary());
-      
+
       // Generate some data
       await act(async () => {
         await result.current.generateChatSummary(mockMessages);
         result.current.generateChatDiagram(mockMessages);
       });
-      
+
       expect(result.current.chatSummary).not.toBeNull();
       expect(result.current.diagram).not.toBeNull();
-      
+
       // Reset
       act(() => {
         result.current.reset();
       });
-      
+
       expect(result.current.chatSummary).toBeNull();
       expect(result.current.agentSummary).toBeNull();
       expect(result.current.diagram).toBeNull();
@@ -358,20 +358,22 @@ describe('useSummary', () => {
     it('should use AI summarization when enabled', async () => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { generateChatSummaryWithAI } = require('@/lib/ai/generation/summarizer');
-      
-      const { result } = renderHook(() => useSummary({
-        useAI: true,
-        aiConfig: {
-          provider: 'openai',
-          model: 'gpt-4',
-          apiKey: 'test-key',
-        },
-      }));
-      
+
+      const { result } = renderHook(() =>
+        useSummary({
+          useAI: true,
+          aiConfig: {
+            provider: 'openai',
+            model: 'gpt-4',
+            apiKey: 'test-key',
+          },
+        })
+      );
+
       await act(async () => {
         await result.current.generateChatSummary(mockMessages);
       });
-      
+
       expect(generateChatSummaryWithAI).toHaveBeenCalled();
       expect(result.current.chatSummary?.summary).toBe('AI generated summary');
     });
@@ -384,9 +386,9 @@ describe('useSummary', () => {
       generateChatSummary.mockImplementationOnce(() => {
         throw new Error('Test error');
       });
-      
+
       const { result } = renderHook(() => useSummary());
-      
+
       // The hook should catch and handle errors internally
       try {
         await act(async () => {
@@ -395,7 +397,7 @@ describe('useSummary', () => {
       } catch {
         // Error might be thrown or handled internally
       }
-      
+
       // Hook should not be in generating state after error
       expect(result.current.isGenerating).toBe(false);
     });

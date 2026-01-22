@@ -40,9 +40,7 @@ jest.mock('@/components/ppt/utils/generation-prompts', () => ({
 
 // Mock workflow types
 jest.mock('@/types/workflow', () => ({
-  DEFAULT_PPT_THEMES: [
-    { id: 'default', name: 'Default', colors: {} },
-  ],
+  DEFAULT_PPT_THEMES: [{ id: 'default', name: 'Default', colors: {} }],
 }));
 
 // Mock fetch
@@ -147,7 +145,9 @@ describe('usePPTGeneration', () => {
       };
 
       await act(async () => {
-        await result.current.generateOutline(config as unknown as Parameters<typeof result.current.generateOutline>[0]);
+        await result.current.generateOutline(
+          config as unknown as Parameters<typeof result.current.generateOutline>[0]
+        );
       });
 
       // Check if fetch was called or error was set
@@ -167,7 +167,9 @@ describe('usePPTGeneration', () => {
 
       await act(async () => {
         try {
-          await result.current.generateOutline(config as unknown as Parameters<typeof result.current.generateOutline>[0]);
+          await result.current.generateOutline(
+            config as unknown as Parameters<typeof result.current.generateOutline>[0]
+          );
         } catch {
           // Expected
         }

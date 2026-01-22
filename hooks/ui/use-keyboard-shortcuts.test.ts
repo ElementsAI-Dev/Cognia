@@ -117,7 +117,10 @@ describe('useKeyboardShortcuts', () => {
     keydownHandler = null;
   });
 
-  const createKeyboardEvent = (key: string, options: Partial<KeyboardEvent> = {}): KeyboardEvent => {
+  const createKeyboardEvent = (
+    key: string,
+    options: Partial<KeyboardEvent> = {}
+  ): KeyboardEvent => {
     return {
       key,
       ctrlKey: false,
@@ -156,7 +159,7 @@ describe('useKeyboardShortcuts', () => {
     expect(result.current.shortcuts).toBeInstanceOf(Array);
     expect(result.current.shortcuts.length).toBeGreaterThan(0);
 
-    const commandPaletteShortcut = result.current.shortcuts.find(s => s.key === 'k' && s.ctrl);
+    const commandPaletteShortcut = result.current.shortcuts.find((s) => s.key === 'k' && s.ctrl);
     expect(commandPaletteShortcut).toBeDefined();
     expect(commandPaletteShortcut?.description).toBe('Open command palette');
   });
@@ -212,7 +215,9 @@ describe('useKeyboardShortcuts', () => {
 
       const inputElement = document.createElement('input');
       act(() => {
-        keydownHandler?.(createKeyboardEvent('/', { target: inputElement } as unknown as Partial<KeyboardEvent>));
+        keydownHandler?.(
+          createKeyboardEvent('/', { target: inputElement } as unknown as Partial<KeyboardEvent>)
+        );
       });
 
       expect(onFocusInput).not.toHaveBeenCalled();
@@ -222,8 +227,10 @@ describe('useKeyboardShortcuts', () => {
       renderHook(() => useKeyboardShortcuts());
 
       const textareaElement = document.createElement('textarea');
-      const event = createKeyboardEvent('?', { target: textareaElement } as unknown as Partial<KeyboardEvent>);
-      
+      const event = createKeyboardEvent('?', {
+        target: textareaElement,
+      } as unknown as Partial<KeyboardEvent>);
+
       act(() => {
         keydownHandler?.(event);
       });
@@ -237,7 +244,7 @@ describe('useKeyboardShortcuts', () => {
       renderHook(() => useKeyboardShortcuts({ onNewChat }));
 
       const event = createKeyboardEvent('n', { ctrlKey: true });
-      
+
       act(() => {
         keydownHandler?.(event);
       });
@@ -250,21 +257,21 @@ describe('useKeyboardShortcuts', () => {
     it('should have navigation shortcuts', () => {
       const { result } = renderHook(() => useKeyboardShortcuts());
 
-      const navShortcuts = result.current.shortcuts.filter(s => s.category === 'navigation');
+      const navShortcuts = result.current.shortcuts.filter((s) => s.category === 'navigation');
       expect(navShortcuts.length).toBeGreaterThan(0);
     });
 
     it('should have chat shortcuts', () => {
       const { result } = renderHook(() => useKeyboardShortcuts());
 
-      const chatShortcuts = result.current.shortcuts.filter(s => s.category === 'chat');
+      const chatShortcuts = result.current.shortcuts.filter((s) => s.category === 'chat');
       expect(chatShortcuts.length).toBeGreaterThan(0);
     });
 
     it('should have system shortcuts', () => {
       const { result } = renderHook(() => useKeyboardShortcuts());
 
-      const systemShortcuts = result.current.shortcuts.filter(s => s.category === 'system');
+      const systemShortcuts = result.current.shortcuts.filter((s) => s.category === 'system');
       expect(systemShortcuts.length).toBeGreaterThan(0);
     });
   });

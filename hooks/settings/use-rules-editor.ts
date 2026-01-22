@@ -7,7 +7,11 @@ import { useSettingsStore } from '@/stores';
 import { optimizeRules } from '@/lib/ai/generation/rules-optimizer';
 import type { ProviderName } from '@/types';
 import type { EditorTheme, RulesEditorProps, UseRulesEditorReturn } from '@/types/settings/rules';
-import { RULE_TARGETS, RULE_TEMPLATES, MAX_HISTORY_SIZE } from '@/components/settings/rules/constants';
+import {
+  RULE_TARGETS,
+  RULE_TEMPLATES,
+  MAX_HISTORY_SIZE,
+} from '@/components/settings/rules/constants';
 
 export function useRulesEditor({
   onSave,
@@ -265,7 +269,6 @@ export function useRulesEditor({
       setIsOptimizing(false);
     }
   }, [activeTab, activeContent, pushToHistory, settings]);
-
 
   // Keyboard shortcuts
   useEffect(() => {

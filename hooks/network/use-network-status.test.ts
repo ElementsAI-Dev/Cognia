@@ -83,7 +83,7 @@ describe('useNetworkStatus', () => {
       // Simulate going offline
       act(() => {
         Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-        offlineListeners.forEach(listener => listener());
+        offlineListeners.forEach((listener) => listener());
       });
 
       expect(result.current.isOnline).toBe(false);
@@ -101,7 +101,7 @@ describe('useNetworkStatus', () => {
       // Simulate coming online
       act(() => {
         Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-        onlineListeners.forEach(listener => listener());
+        onlineListeners.forEach((listener) => listener());
       });
 
       expect(result.current.isOnline).toBe(true);

@@ -43,7 +43,10 @@ export interface UseVectorDBReturn {
   isInitialized: boolean;
 
   // Collection operations
-  createCollection: (name: string, options?: { description?: string; embeddingModel?: string; embeddingProvider?: string }) => Promise<void>;
+  createCollection: (
+    name: string,
+    options?: { description?: string; embeddingModel?: string; embeddingProvider?: string }
+  ) => Promise<void>;
   deleteCollection: (name: string) => Promise<void>;
   renameCollection: (oldName: string, newName: string) => Promise<void>;
   truncateCollection: (name: string) => Promise<void>;
@@ -54,17 +57,30 @@ export interface UseVectorDBReturn {
   getStats: () => Promise<VectorStats | null>;
 
   // Document operations
-  addDocument: (content: string, metadata?: Record<string, string | number | boolean>) => Promise<string>;
-  addDocumentBatch: (documents: { content: string; metadata?: Record<string, string | number | boolean> }[]) => Promise<string[]>;
+  addDocument: (
+    content: string,
+    metadata?: Record<string, string | number | boolean>
+  ) => Promise<string>;
+  addDocumentBatch: (
+    documents: { content: string; metadata?: Record<string, string | number | boolean> }[]
+  ) => Promise<string[]>;
   removeDocuments: (ids: string[]) => Promise<void>;
   removeAllDocuments: () => Promise<number>;
 
   // Search
   search: (query: string, topK?: number) => Promise<VectorSearchResult[]>;
-  searchWithThreshold: (query: string, threshold: number, topK?: number) => Promise<VectorSearchResult[]>;
+  searchWithThreshold: (
+    query: string,
+    threshold: number,
+    topK?: number
+  ) => Promise<VectorSearchResult[]>;
   searchWithOptions: (query: string, options?: SearchOptions) => Promise<VectorSearchResult[]>;
   searchWithTotal: (query: string, options?: SearchOptions) => Promise<SearchResponse>;
-  searchWithFilters: (query: string, filters: PayloadFilter[], options?: Omit<SearchOptions, 'filters'>) => Promise<VectorSearchResult[]>;
+  searchWithFilters: (
+    query: string,
+    filters: PayloadFilter[],
+    options?: Omit<SearchOptions, 'filters'>
+  ) => Promise<VectorSearchResult[]>;
   scrollDocuments: (options?: ScrollOptions) => Promise<ScrollResponse>;
   peek: (topK?: number) => Promise<VectorSearchResult[]>;
 
@@ -124,124 +140,153 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
   }, [getVectorStoreConfig]);
 
   // Create collection
-  const createCollection = useCallback(async (name: string, options?: { description?: string; embeddingModel?: string; embeddingProvider?: string }) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store) throw new Error('Vector store not available');
-      await store.createCollection(name, {
-        description: options?.description,
-        embeddingModel: options?.embeddingModel || getEmbeddingConfig().model,
-        embeddingProvider: options?.embeddingProvider || getEmbeddingConfig().provider,
-      });
-      vectorStore.addCollection({
-        name,
-        description: options?.description,
-        embeddingModel: options?.embeddingModel || getEmbeddingConfig().model,
-        embeddingProvider: (options?.embeddingProvider || getEmbeddingConfig().provider) as EmbeddingProvider,
-      });
-      setIsInitialized(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create collection');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getEmbeddingConfig, store, vectorStore]);
+  const createCollection = useCallback(
+    async (
+      name: string,
+      options?: { description?: string; embeddingModel?: string; embeddingProvider?: string }
+    ) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store) throw new Error('Vector store not available');
+        await store.createCollection(name, {
+          description: options?.description,
+          embeddingModel: options?.embeddingModel || getEmbeddingConfig().model,
+          embeddingProvider: options?.embeddingProvider || getEmbeddingConfig().provider,
+        });
+        vectorStore.addCollection({
+          name,
+          description: options?.description,
+          embeddingModel: options?.embeddingModel || getEmbeddingConfig().model,
+          embeddingProvider: (options?.embeddingProvider ||
+            getEmbeddingConfig().provider) as EmbeddingProvider,
+        });
+        setIsInitialized(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to create collection');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [getEmbeddingConfig, store, vectorStore]
+  );
 
   // Delete collection
-  const deleteCollectionFn = useCallback(async (name: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store) throw new Error('Vector store not available');
-      await store.deleteCollection(name);
-      const collection = vectorStore.collections.find(c => c.name === name);
-      if (collection) {
-        vectorStore.deleteCollection(collection.id);
+  const deleteCollectionFn = useCallback(
+    async (name: string) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store) throw new Error('Vector store not available');
+        await store.deleteCollection(name);
+        const collection = vectorStore.collections.find((c) => c.name === name);
+        if (collection) {
+          vectorStore.deleteCollection(collection.id);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete collection');
+        throw err;
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete collection');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [store, vectorStore]);
+    },
+    [store, vectorStore]
+  );
 
   // Rename collection
-  const renameCollection = useCallback(async (oldName: string, newName: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store || !store.renameCollection) throw new Error('Vector store does not support renaming');
-      await store.renameCollection(oldName, newName);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to rename collection');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [store]);
+  const renameCollection = useCallback(
+    async (oldName: string, newName: string) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store || !store.renameCollection)
+          throw new Error('Vector store does not support renaming');
+        await store.renameCollection(oldName, newName);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to rename collection');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [store]
+  );
 
   // Truncate collection
-  const truncateCollection = useCallback(async (name: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store || !store.truncateCollection) throw new Error('Vector store does not support truncating');
-      await store.truncateCollection(name);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to truncate collection');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [store]);
+  const truncateCollection = useCallback(
+    async (name: string) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store || !store.truncateCollection)
+          throw new Error('Vector store does not support truncating');
+        await store.truncateCollection(name);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to truncate collection');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [store]
+  );
 
   // Export collection
-  const exportCollection = useCallback(async (name: string): Promise<CollectionExport> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store || !store.exportCollection) throw new Error('Vector store does not support exporting');
-      return await store.exportCollection(name);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to export collection');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [store]);
+  const exportCollection = useCallback(
+    async (name: string): Promise<CollectionExport> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store || !store.exportCollection)
+          throw new Error('Vector store does not support exporting');
+        return await store.exportCollection(name);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to export collection');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [store]
+  );
 
   // Import collection
-  const importCollection = useCallback(async (data: CollectionImport, overwrite?: boolean) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store || !store.importCollection) throw new Error('Vector store does not support importing');
-      await store.importCollection(data, overwrite);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import collection');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [store]);
+  const importCollection = useCallback(
+    async (data: CollectionImport, overwrite?: boolean) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store || !store.importCollection)
+          throw new Error('Vector store does not support importing');
+        await store.importCollection(data, overwrite);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to import collection');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [store]
+  );
 
   // Get collection info
-  const getCollectionInfo = useCallback(async (name: string): Promise<VectorCollectionInfo> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store) throw new Error('Vector store not available');
-      return await store.getCollectionInfo(name);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to get collection info');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [store]);
+  const getCollectionInfo = useCallback(
+    async (name: string): Promise<VectorCollectionInfo> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store) throw new Error('Vector store not available');
+        return await store.getCollectionInfo(name);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to get collection info');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [store]
+  );
 
   // List all collections
   const listAllCollections = useCallback(async (): Promise<VectorCollectionInfo[]> => {
@@ -259,169 +304,200 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
   }, [store]);
 
   // Add single document
-  const addDocument = useCallback(async (
-    content: string,
-    metadata?: Record<string, string | number | boolean>
-  ): Promise<string> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const docId = `doc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const doc: VectorDocument = {
-        id: docId,
-        content,
-        metadata,
-      };
+  const addDocument = useCallback(
+    async (
+      content: string,
+      metadata?: Record<string, string | number | boolean>
+    ): Promise<string> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const docId = `doc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const doc: VectorDocument = {
+          id: docId,
+          content,
+          metadata,
+        };
 
-      if (!store) throw new Error('Vector store not available');
-      await store.createCollection(collectionName);
-      await store.addDocuments(collectionName, [doc]);
+        if (!store) throw new Error('Vector store not available');
+        await store.createCollection(collectionName);
+        await store.addDocuments(collectionName, [doc]);
 
-      vectorStore.addDocuments(collectionName, [{
-        content,
-        metadata,
-      }]);
+        vectorStore.addDocuments(collectionName, [
+          {
+            content,
+            metadata,
+          },
+        ]);
 
-      return docId;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add document');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [collectionName, store, vectorStore]);
+        return docId;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to add document');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [collectionName, store, vectorStore]
+  );
 
   // Add batch of documents
-  const addDocumentBatch = useCallback(async (
-    documents: { content: string; metadata?: Record<string, string | number | boolean> }[]
-  ): Promise<string[]> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const docs: VectorDocument[] = documents.map((doc, index) => ({
-        id: `doc-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
-        content: doc.content,
-        metadata: doc.metadata,
-      }));
+  const addDocumentBatch = useCallback(
+    async (
+      documents: { content: string; metadata?: Record<string, string | number | boolean> }[]
+    ): Promise<string[]> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const docs: VectorDocument[] = documents.map((doc, index) => ({
+          id: `doc-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
+          content: doc.content,
+          metadata: doc.metadata,
+        }));
 
-      if (!store) throw new Error('Vector store not available');
-      await store.createCollection(collectionName);
-      await store.addDocuments(collectionName, docs);
+        if (!store) throw new Error('Vector store not available');
+        await store.createCollection(collectionName);
+        await store.addDocuments(collectionName, docs);
 
-      vectorStore.addDocuments(collectionName, documents.map(d => ({
-        content: d.content,
-        metadata: d.metadata,
-      })));
+        vectorStore.addDocuments(
+          collectionName,
+          documents.map((d) => ({
+            content: d.content,
+            metadata: d.metadata,
+          }))
+        );
 
-      return docs.map(d => d.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add documents');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [collectionName, store, vectorStore]);
+        return docs.map((d) => d.id);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to add documents');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [collectionName, store, vectorStore]
+  );
 
   // Remove documents
-  const removeDocuments = useCallback(async (ids: string[]) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store) throw new Error('Vector store not available');
-      await store.deleteDocuments(collectionName, ids);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove documents');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [collectionName, store]);
+  const removeDocuments = useCallback(
+    async (ids: string[]) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store) throw new Error('Vector store not available');
+        await store.deleteDocuments(collectionName, ids);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to remove documents');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [collectionName, store]
+  );
 
   // Search
-  const search = useCallback(async (query: string, topK: number = 5): Promise<VectorSearchResult[]> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store) throw new Error('Vector store not available');
-      await store.createCollection(collectionName);
-      const opts: SearchOptions = { topK };
-      return await store.searchDocuments(collectionName, query, opts);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Search failed');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [collectionName, store]);
+  const search = useCallback(
+    async (query: string, topK: number = 5): Promise<VectorSearchResult[]> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store) throw new Error('Vector store not available');
+        await store.createCollection(collectionName);
+        const opts: SearchOptions = { topK };
+        return await store.searchDocuments(collectionName, query, opts);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Search failed');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [collectionName, store]
+  );
 
-  const searchWithOptions = useCallback(async (query: string, options: SearchOptions = {}): Promise<VectorSearchResult[]> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store) throw new Error('Vector store not available');
-      await store.createCollection(collectionName);
-      return await store.searchDocuments(collectionName, query, options);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Search failed');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [collectionName, store]);
+  const searchWithOptions = useCallback(
+    async (query: string, options: SearchOptions = {}): Promise<VectorSearchResult[]> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store) throw new Error('Vector store not available');
+        await store.createCollection(collectionName);
+        return await store.searchDocuments(collectionName, query, options);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Search failed');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [collectionName, store]
+  );
 
   // Search with threshold
-  const searchWithThreshold = useCallback(async (
-    query: string,
-    threshold: number,
-    topK: number = 10
-  ): Promise<VectorSearchResult[]> => {
-    const results = await search(query, topK);
-    return results.filter(r => r.score >= threshold);
-  }, [search]);
+  const searchWithThreshold = useCallback(
+    async (query: string, threshold: number, topK: number = 10): Promise<VectorSearchResult[]> => {
+      const results = await search(query, topK);
+      return results.filter((r) => r.score >= threshold);
+    },
+    [search]
+  );
 
   // Search with filters
-  const searchWithFilters = useCallback(async (
-    query: string, 
-    filters: PayloadFilter[], 
-    options: Omit<SearchOptions, 'filters'> = {}
-  ): Promise<VectorSearchResult[]> => {
-    const combinedOptions: SearchOptions = { ...options, filters };
-    return searchWithOptions(query, combinedOptions);
-  }, [searchWithOptions]);
+  const searchWithFilters = useCallback(
+    async (
+      query: string,
+      filters: PayloadFilter[],
+      options: Omit<SearchOptions, 'filters'> = {}
+    ): Promise<VectorSearchResult[]> => {
+      const combinedOptions: SearchOptions = { ...options, filters };
+      return searchWithOptions(query, combinedOptions);
+    },
+    [searchWithOptions]
+  );
 
-  const peek = useCallback(async (topK: number = 10): Promise<VectorSearchResult[]> => {
-    return searchWithOptions('', { topK });
-  }, [searchWithOptions]);
+  const peek = useCallback(
+    async (topK: number = 10): Promise<VectorSearchResult[]> => {
+      return searchWithOptions('', { topK });
+    },
+    [searchWithOptions]
+  );
 
   // Embed single text
-  const embed = useCallback(async (text: string): Promise<number[]> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await generateEmbedding(text, getEmbeddingConfig(), getApiKey());
-      return result.embedding;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Embedding failed');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getEmbeddingConfig, getApiKey]);
+  const embed = useCallback(
+    async (text: string): Promise<number[]> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await generateEmbedding(text, getEmbeddingConfig(), getApiKey());
+        return result.embedding;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Embedding failed');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [getEmbeddingConfig, getApiKey]
+  );
 
   // Embed batch
-  const embedBatch = useCallback(async (texts: string[]): Promise<number[][]> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await generateEmbeddings(texts, getEmbeddingConfig(), getApiKey());
-      return result.embeddings;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Batch embedding failed');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getEmbeddingConfig, getApiKey]);
+  const embedBatch = useCallback(
+    async (texts: string[]): Promise<number[][]> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await generateEmbeddings(texts, getEmbeddingConfig(), getApiKey());
+        return result.embeddings;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Batch embedding failed');
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [getEmbeddingConfig, getApiKey]
+  );
 
   // Get document count
   const getDocumentCount = useCallback(async (): Promise<number> => {
@@ -442,7 +518,7 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
       if (!store) throw new Error('Vector store not available');
       await store.deleteCollection(collectionName);
       await store.createCollection(collectionName);
-      const collection = vectorStore.collections.find(c => c.name === collectionName);
+      const collection = vectorStore.collections.find((c) => c.name === collectionName);
       if (collection) {
         vectorStore.clearDocuments(collection.id);
       }
@@ -464,7 +540,7 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
         throw new Error('Vector store does not support deleteAllDocuments');
       }
       const count = await store.deleteAllDocuments(collectionName);
-      const collection = vectorStore.collections.find(c => c.name === collectionName);
+      const collection = vectorStore.collections.find((c) => c.name === collectionName);
       if (collection) {
         vectorStore.clearDocuments(collection.id);
       }
@@ -496,48 +572,54 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
   }, [store]);
 
   // Search with total count
-  const searchWithTotal = useCallback(async (query: string, options: SearchOptions = {}): Promise<SearchResponse> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store) throw new Error('Vector store not available');
-      await store.createCollection(collectionName);
-      if (!store.searchDocumentsWithTotal) {
-        // Fallback: use regular search
-        const results = await store.searchDocuments(collectionName, query, options);
-        return {
-          results,
-          total: results.length,
-          offset: options.offset || 0,
-          limit: options.limit || options.topK || 5,
-        };
+  const searchWithTotal = useCallback(
+    async (query: string, options: SearchOptions = {}): Promise<SearchResponse> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store) throw new Error('Vector store not available');
+        await store.createCollection(collectionName);
+        if (!store.searchDocumentsWithTotal) {
+          // Fallback: use regular search
+          const results = await store.searchDocuments(collectionName, query, options);
+          return {
+            results,
+            total: results.length,
+            offset: options.offset || 0,
+            limit: options.limit || options.topK || 5,
+          };
+        }
+        return await store.searchDocumentsWithTotal(collectionName, query, options);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Search failed');
+        throw err;
+      } finally {
+        setIsLoading(false);
       }
-      return await store.searchDocumentsWithTotal(collectionName, query, options);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Search failed');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [collectionName, store]);
+    },
+    [collectionName, store]
+  );
 
   // Scroll documents
-  const scrollDocuments = useCallback(async (options: ScrollOptions = {}): Promise<ScrollResponse> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!store) throw new Error('Vector store not available');
-      if (!store.scrollDocuments) {
-        throw new Error('Vector store does not support scrollDocuments');
+  const scrollDocuments = useCallback(
+    async (options: ScrollOptions = {}): Promise<ScrollResponse> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!store) throw new Error('Vector store not available');
+        if (!store.scrollDocuments) {
+          throw new Error('Vector store does not support scrollDocuments');
+        }
+        return await store.scrollDocuments(collectionName, options);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Scroll failed');
+        throw err;
+      } finally {
+        setIsLoading(false);
       }
-      return await store.scrollDocuments(collectionName, options);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Scroll failed');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [collectionName, store]);
+    },
+    [collectionName, store]
+  );
 
   // Auto-initialize if needed
   if (autoInitialize && !isInitialized && !isLoading && !error) {
