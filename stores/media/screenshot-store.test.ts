@@ -17,6 +17,9 @@ jest.mock('@/lib/native/utils', () => ({
   isTauri: jest.fn().mockReturnValue(true),
 }));
 
+// Mock console.error to suppress error output in tests
+const _mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
 const mockIsTauri = utilsModule.isTauri as jest.Mock;
 
 describe('useScreenshotStore', () => {
@@ -38,6 +41,11 @@ describe('useScreenshotStore', () => {
     });
     jest.clearAllMocks();
     mockIsTauri.mockReturnValue(true);
+  });
+
+  afterAll(() => {
+    // Restore console.error mock
+    _mockConsoleError.mockRestore();
   });
 
   describe('initial state', () => {

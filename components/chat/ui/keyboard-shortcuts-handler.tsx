@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback } from 'react';
-import { useUIStore, useSessionStore } from '@/stores';
+import { useUIStore, useSessionStore, useSettingsStore } from '@/stores';
 import { useRouter } from 'next/navigation';
 
 type ModifierKey = 'ctrl' | 'alt' | 'shift' | 'meta';
@@ -46,6 +46,7 @@ export function useKeyboardShortcuts({
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
+  const toggleSimplifiedMode = useSettingsStore((state) => state.toggleSimplifiedMode);
 
   // Navigate to adjacent session
   const navigateSession = useCallback((direction: 'prev' | 'next') => {
@@ -185,6 +186,13 @@ export function useKeyboardShortcuts({
       description: 'Toggle artifact panel',
       category: 'general',
       enabled: !!onToggleArtifactPanel,
+    },
+    {
+      key: 's',
+      modifiers: mods('ctrl', 'shift'),
+      action: toggleSimplifiedMode,
+      description: 'Toggle simplified mode',
+      category: 'general',
     },
 
     // Add custom shortcuts

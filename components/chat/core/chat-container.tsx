@@ -204,6 +204,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const defaultFrequencyPenalty = useSettingsStore((state) => state.defaultFrequencyPenalty);
   const defaultPresencePenalty = useSettingsStore((state) => state.defaultPresencePenalty);
   const addAlwaysAllowedTool = useSettingsStore((state) => state.addAlwaysAllowedTool);
+  const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
+  const isSimplifiedMode = simplifiedModeSettings.enabled;
 
   // Local state
   const [inputValue, setInputValue] = useState('');
@@ -1812,6 +1814,7 @@ Be thorough in your thinking but concise in your final answer.`;
                 loadOlderMessages={loadOlderMessages}
                 workflowResults={workflowResults}
                 onWorkflowRerun={(_input) => setShowWorkflowPicker(true)}
+                hideMessageActions={isSimplifiedMode && simplifiedModeSettings.hideMessageActions}
               />
             </ConversationContent>
           )}
@@ -2302,6 +2305,7 @@ interface ChatMessageItemProps {
   onTranslate?: (messageId: string, content: string) => void;
   workflowResult?: WorkflowResultData;
   onWorkflowRerun?: (input: Record<string, unknown>) => void;
+  hideMessageActions?: boolean;
 }
 
 function ChatMessageItem({
@@ -2319,6 +2323,7 @@ function ChatMessageItem({
   onTranslate,
   workflowResult,
   onWorkflowRerun,
+  hideMessageActions = false,
 }: ChatMessageItemProps) {
   const t = useTranslations('chat');
   const tCommon = useTranslations('common');
@@ -2527,7 +2532,7 @@ function ChatMessageItem({
         )}
       </MessageContent>
 
-      {!isEditing && !isStreaming && (
+      {!isEditing && !isStreaming && !hideMessageActions && (
         <MessageActions>
           {message.role === 'user' && (
             <MessageAction
@@ -2611,6 +2616,7 @@ interface VirtualizedChatMessageListProps {
   loadOlderMessages: () => Promise<void>;
   workflowResults?: Map<string, WorkflowResultData>;
   onWorkflowRerun?: (input: Record<string, unknown>) => void;
+  hideMessageActions?: boolean;
 }
 
 function VirtualizedChatMessageList({
@@ -2632,6 +2638,7 @@ function VirtualizedChatMessageList({
   loadOlderMessages,
   workflowResults,
   onWorkflowRerun,
+  hideMessageActions = false,
 }: VirtualizedChatMessageListProps) {
   const { scrollRef } = useStickToBottomContext();
 
@@ -2701,6 +2708,7 @@ function VirtualizedChatMessageList({
             onTranslate={onTranslate}
             workflowResult={workflowResults?.get(message.id)}
             onWorkflowRerun={onWorkflowRerun}
+            hideMessageActions={hideMessageActions}
           />
         ))}
       </>
@@ -2767,6 +2775,7 @@ function VirtualizedChatMessageList({
             onTranslate={onTranslate}
             workflowResult={workflowResults?.get(message.id)}
             onWorkflowRerun={onWorkflowRerun}
+            hideMessageActions={hideMessageActions}
           />
         );
       }}

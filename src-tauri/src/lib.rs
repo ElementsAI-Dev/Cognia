@@ -8,6 +8,7 @@ mod assistant_bubble;
 mod commands;
 mod context;
 mod http;
+mod input_completion;
 mod jupyter;
 mod mcp;
 mod plugin;
@@ -18,6 +19,7 @@ mod screen_recording;
 mod screenshot;
 mod selection;
 mod skill;
+mod skill_seekers;
 mod tray;
 
 use awareness::AwarenessManager;
@@ -270,6 +272,11 @@ pub fn run() {
             let awareness_manager = AwarenessManager::new();
             app.manage(awareness_manager);
 
+            // Initialize Input Completion Manager
+            let input_completion_manager = input_completion::InputCompletionManager::new(app.handle().clone());
+            app.manage(input_completion_manager);
+            log::info!("Input completion manager initialized");
+
             // Initialize Plugin Manager
             let plugin_manager_state = commands::extensions::plugin::create_plugin_manager(app_data_dir.clone());
             app.manage(plugin_manager_state);
@@ -279,6 +286,14 @@ pub fn run() {
             let skill_service_state = commands::extensions::skill::create_skill_service(app_data_dir.clone());
             app.manage(skill_service_state);
             log::info!("Skill service initialized");
+
+            // Initialize Skill Seekers Service
+            let skill_seekers_state = commands::extensions::skill_seekers::create_skill_seekers_service(
+                app_data_dir.clone(),
+                app.handle().clone(),
+            );
+            app.manage(skill_seekers_state);
+            log::info!("Skill Seekers service initialized");
 
             // Initialize Chat Widget Window
             let chat_widget_window = ChatWidgetWindow::new(app.handle().clone());
@@ -770,6 +785,11 @@ pub fn run() {
             commands::context::context::context_clear_cache,
             commands::context::context::context_find_windows_by_title,
             commands::context::context::context_find_windows_by_process,
+            commands::context::context::context_set_cache_duration,
+            commands::context::context::context_get_cache_duration,
+            commands::context::context::context_analyze_ui_automation,
+            commands::context::context::context_get_text_at,
+            commands::context::context::context_get_element_at,
             // Awareness commands
             commands::context::awareness::awareness_get_state,
             commands::context::awareness::awareness_get_system_state,
@@ -1139,6 +1159,48 @@ pub fn run() {
             commands::extensions::skill::skill_scan_installed,
             commands::extensions::skill::skill_scan_path,
             commands::extensions::skill::skill_security_rule_count,
+            // Skill Seekers commands
+            commands::extensions::skill_seekers::skill_seekers_is_installed,
+            commands::extensions::skill_seekers::skill_seekers_get_version,
+            commands::extensions::skill_seekers::skill_seekers_install,
+            commands::extensions::skill_seekers::skill_seekers_get_config,
+            commands::extensions::skill_seekers::skill_seekers_update_config,
+            commands::extensions::skill_seekers::skill_seekers_list_presets,
+            commands::extensions::skill_seekers::skill_seekers_scrape_website,
+            commands::extensions::skill_seekers::skill_seekers_scrape_github,
+            commands::extensions::skill_seekers::skill_seekers_scrape_pdf,
+            commands::extensions::skill_seekers::skill_seekers_enhance,
+            commands::extensions::skill_seekers::skill_seekers_package,
+            commands::extensions::skill_seekers::skill_seekers_estimate_pages,
+            commands::extensions::skill_seekers::skill_seekers_validate_config,
+            commands::extensions::skill_seekers::skill_seekers_list_jobs,
+            commands::extensions::skill_seekers::skill_seekers_get_job,
+            commands::extensions::skill_seekers::skill_seekers_cancel_job,
+            commands::extensions::skill_seekers::skill_seekers_resume_job,
+            commands::extensions::skill_seekers::skill_seekers_cleanup_jobs,
+            commands::extensions::skill_seekers::skill_seekers_list_generated,
+            commands::extensions::skill_seekers::skill_seekers_get_generated,
+            commands::extensions::skill_seekers::skill_seekers_get_output_dir,
+            commands::extensions::skill_seekers::skill_seekers_get_venv_path,
+            commands::extensions::skill_seekers::skill_seekers_quick_generate_website,
+            commands::extensions::skill_seekers::skill_seekers_quick_generate_github,
+            commands::extensions::skill_seekers::skill_seekers_quick_generate_preset,
+            // Input completion commands
+            commands::input_completion::input_completion_start,
+            commands::input_completion::input_completion_stop,
+            commands::input_completion::input_completion_get_ime_state,
+            commands::input_completion::input_completion_get_suggestion,
+            commands::input_completion::input_completion_accept,
+            commands::input_completion::input_completion_dismiss,
+            commands::input_completion::input_completion_get_status,
+            commands::input_completion::input_completion_update_config,
+            commands::input_completion::input_completion_get_config,
+            commands::input_completion::input_completion_trigger,
+            commands::input_completion::input_completion_is_running,
+            commands::input_completion::input_completion_get_stats,
+            commands::input_completion::input_completion_reset_stats,
+            commands::input_completion::input_completion_clear_cache,
+            commands::input_completion::input_completion_test_connection,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

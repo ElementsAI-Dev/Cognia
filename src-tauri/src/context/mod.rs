@@ -4,9 +4,6 @@
 //! active window, application type, file context, and browser context,
 //! editor context, and screen content analysis.
 
-#![allow(dead_code)]
-#![allow(unused_imports)]
-
 mod app_context;
 mod browser_context;
 mod editor_context;
@@ -23,7 +20,7 @@ pub use screen_content::{
 };
 pub use window_info::{WindowInfo, WindowManager};
 
-use log::{debug, trace, warn};
+use log::{debug, trace};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -48,8 +45,9 @@ pub struct FullContext {
 /// Context manager for gathering and caching context information
 pub struct ContextManager {
     window_manager: WindowManager,
+    screen_analyzer: ScreenContentAnalyzer,
     last_context: Arc<RwLock<Option<FullContext>>>,
-    cache_duration_ms: u64,
+    cache_duration_ms: Arc<RwLock<u64>>,
 }
 
 impl ContextManager {
@@ -57,9 +55,20 @@ impl ContextManager {
         debug!("Creating new ContextManager with 500ms cache duration");
         Self {
             window_manager: WindowManager::new(),
+            screen_analyzer: ScreenContentAnalyzer::new(),
             last_context: Arc::new(RwLock::new(None)),
-            cache_duration_ms: 500, // Cache for 500ms
+            cache_duration_ms: Arc::new(RwLock::new(500)), // Cache for 500ms
         }
+    }
+
+    /// Get the screen content analyzer
+    pub fn get_screen_analyzer(&self) -> &ScreenContentAnalyzer {
+        &self.screen_analyzer
+    }
+
+    /// Get current cache duration in milliseconds
+    pub fn get_cache_duration(&self) -> u64 {
+        *self.cache_duration_ms.read()
     }
 
     /// Get current full context
@@ -72,14 +81,15 @@ impl ContextManager {
             if let Some(ctx) = cached.as_ref() {
                 let now = chrono::Utc::now().timestamp_millis();
                 let age_ms = now - ctx.timestamp;
-                if age_ms < self.cache_duration_ms as i64 {
+                let cache_duration = *self.cache_duration_ms.read();
+                if age_ms < cache_duration as i64 {
                     trace!("Returning cached context (age: {}ms)", age_ms);
                     return Ok(ctx.clone());
                 }
                 trace!(
                     "Cache expired (age: {}ms, max: {}ms)",
                     age_ms,
-                    self.cache_duration_ms
+                    cache_duration
                 );
             }
         }
@@ -247,12 +257,13 @@ impl ContextManager {
     }
 
     /// Set cache duration
-    pub fn set_cache_duration(&mut self, ms: u64) {
+    pub fn set_cache_duration(&self, ms: u64) {
+        let old_duration = *self.cache_duration_ms.read();
         debug!(
             "Cache duration changed: {}ms -> {}ms",
-            self.cache_duration_ms, ms
+            old_duration, ms
         );
-        self.cache_duration_ms = ms;
+        *self.cache_duration_ms.write() = ms;
     }
 
     /// Clear context cache
@@ -313,20 +324,20 @@ mod tests {
     #[test]
     fn test_new_manager() {
         let manager = ContextManager::new();
-        assert_eq!(manager.cache_duration_ms, 500);
+        assert_eq!(manager.get_cache_duration(), 500);
     }
 
     #[test]
     fn test_default_trait() {
         let manager = ContextManager::default();
-        assert_eq!(manager.cache_duration_ms, 500);
+        assert_eq!(manager.get_cache_duration(), 500);
     }
 
     #[test]
     fn test_set_cache_duration() {
-        let mut manager = ContextManager::new();
+        let manager = ContextManager::new();
         manager.set_cache_duration(1000);
-        assert_eq!(manager.cache_duration_ms, 1000);
+        assert_eq!(manager.get_cache_duration(), 1000);
     }
 
     #[test]

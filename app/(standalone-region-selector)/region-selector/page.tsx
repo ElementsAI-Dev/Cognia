@@ -4,13 +4,13 @@
  * Region Selector Page
  * 
  * Full-screen overlay for selecting a screen region to capture.
- * Used by the screenshot region selection feature.
+ * Enhanced with 8-point resize handles, magnifier, and keyboard controls.
  * Communicates with the Tauri backend via events.
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
-import { X, Check, Move } from "lucide-react";
+import { X, Check, Move, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -28,17 +28,35 @@ interface ScreenInfo {
   screenHeight: number;
 }
 
+type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+
+const RESIZE_HANDLES: { id: ResizeHandle; position: string; cursor: string }[] = [
+  { id: 'nw', position: '-top-1.5 -left-1.5', cursor: 'nwse-resize' },
+  { id: 'n', position: '-top-1.5 left-1/2 -translate-x-1/2', cursor: 'ns-resize' },
+  { id: 'ne', position: '-top-1.5 -right-1.5', cursor: 'nesw-resize' },
+  { id: 'e', position: 'top-1/2 -right-1.5 -translate-y-1/2', cursor: 'ew-resize' },
+  { id: 'se', position: '-bottom-1.5 -right-1.5', cursor: 'nwse-resize' },
+  { id: 's', position: '-bottom-1.5 left-1/2 -translate-x-1/2', cursor: 'ns-resize' },
+  { id: 'sw', position: '-bottom-1.5 -left-1.5', cursor: 'nesw-resize' },
+  { id: 'w', position: 'top-1/2 -left-1.5 -translate-y-1/2', cursor: 'ew-resize' },
+];
+
 export default function RegionSelectorPage() {
   const [screenInfo, setScreenInfo] = useState<ScreenInfo | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<ResizeHandle | null>(null);
   const [startPoint, setStartPoint] = useState({ x: 0, y: 0 });
   const [selection, setSelection] = useState<CaptureRegion | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const [showMagnifier, setShowMagnifier] = useState(true);
+  const [originalSelection, setOriginalSelection] = useState<CaptureRegion | null>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
-  const minWidth = 50;
-  const minHeight = 50;
+  const minWidth = 10;
+  const minHeight = 10;
 
   const handleCancel = useCallback(() => {
     emit("region-selection-cancelled", {});
@@ -76,7 +94,7 @@ export default function RegionSelectorPage() {
     };
   }, []);
 
-  // Handle keyboard shortcuts
+  // Handle keyboard shortcuts including arrow key micro-adjustments
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -88,16 +106,82 @@ export default function RegionSelectorPage() {
         selection.height >= minHeight
       ) {
         handleConfirm();
+      } else if (e.key === "m" || e.key === "M") {
+        setShowMagnifier((prev) => !prev);
+      } else if (selection && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const rect = overlayRef.current?.getBoundingClientRect();
+        if (!rect) return;
+
+        let { x, y, width, height } = selection;
+
+        if (e.ctrlKey || e.metaKey) {
+          // Resize with Ctrl/Cmd + Arrow
+          switch (e.key) {
+            case "ArrowUp":
+              height = Math.max(minHeight, height - step);
+              break;
+            case "ArrowDown":
+              height = Math.min(rect.height - y, height + step);
+              break;
+            case "ArrowLeft":
+              width = Math.max(minWidth, width - step);
+              break;
+            case "ArrowRight":
+              width = Math.min(rect.width - x, width + step);
+              break;
+          }
+        } else {
+          // Move with Arrow keys
+          switch (e.key) {
+            case "ArrowUp":
+              y = Math.max(0, y - step);
+              break;
+            case "ArrowDown":
+              y = Math.min(rect.height - height, y + step);
+              break;
+            case "ArrowLeft":
+              x = Math.max(0, x - step);
+              break;
+            case "ArrowRight":
+              x = Math.min(rect.width - width, x + step);
+              break;
+          }
+        }
+
+        setSelection({ x, y, width, height });
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selection, handleCancel, handleConfirm]);
+  }, [selection, handleCancel, handleConfirm, setShowMagnifier]);
+
+  // Handle resize from a specific handle
+  const handleResizeStart = useCallback(
+    (handle: ResizeHandle, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!selection) return;
+
+      const rect = overlayRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      setIsResizing(true);
+      setResizeHandle(handle);
+      setOriginalSelection({ ...selection });
+      setStartPoint({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    },
+    [selection]
+  );
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (e.button !== 0) return;
+      if (isResizing) return;
 
       const rect = overlayRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -127,7 +211,7 @@ export default function RegionSelectorPage() {
       setStartPoint({ x, y });
       setSelection({ x, y, width: 0, height: 0 });
     },
-    [selection, isDragging]
+    [selection, isDragging, isResizing]
   );
 
   const handleMouseMove = useCallback(
@@ -138,7 +222,54 @@ export default function RegionSelectorPage() {
       const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
       const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
 
-      if (isSelecting && !isDragging) {
+      // Update cursor position for magnifier
+      setCursorPos({ x, y });
+
+      if (isResizing && resizeHandle && originalSelection) {
+        // Handle resize
+        const dx = x - startPoint.x;
+        const dy = y - startPoint.y;
+        const newSelection = { ...originalSelection };
+
+        switch (resizeHandle) {
+          case 'nw':
+            newSelection.x = Math.min(originalSelection.x + dx, originalSelection.x + originalSelection.width - minWidth);
+            newSelection.y = Math.min(originalSelection.y + dy, originalSelection.y + originalSelection.height - minHeight);
+            newSelection.width = originalSelection.width - (newSelection.x - originalSelection.x);
+            newSelection.height = originalSelection.height - (newSelection.y - originalSelection.y);
+            break;
+          case 'n':
+            newSelection.y = Math.min(originalSelection.y + dy, originalSelection.y + originalSelection.height - minHeight);
+            newSelection.height = originalSelection.height - (newSelection.y - originalSelection.y);
+            break;
+          case 'ne':
+            newSelection.y = Math.min(originalSelection.y + dy, originalSelection.y + originalSelection.height - minHeight);
+            newSelection.width = Math.max(minWidth, originalSelection.width + dx);
+            newSelection.height = originalSelection.height - (newSelection.y - originalSelection.y);
+            break;
+          case 'e':
+            newSelection.width = Math.max(minWidth, originalSelection.width + dx);
+            break;
+          case 'se':
+            newSelection.width = Math.max(minWidth, originalSelection.width + dx);
+            newSelection.height = Math.max(minHeight, originalSelection.height + dy);
+            break;
+          case 's':
+            newSelection.height = Math.max(minHeight, originalSelection.height + dy);
+            break;
+          case 'sw':
+            newSelection.x = Math.min(originalSelection.x + dx, originalSelection.x + originalSelection.width - minWidth);
+            newSelection.width = originalSelection.width - (newSelection.x - originalSelection.x);
+            newSelection.height = Math.max(minHeight, originalSelection.height + dy);
+            break;
+          case 'w':
+            newSelection.x = Math.min(originalSelection.x + dx, originalSelection.x + originalSelection.width - minWidth);
+            newSelection.width = originalSelection.width - (newSelection.x - originalSelection.x);
+            break;
+        }
+
+        setSelection(newSelection);
+      } else if (isSelecting && !isDragging) {
         const newSelection: CaptureRegion = {
           x: Math.min(startPoint.x, x),
           y: Math.min(startPoint.y, y),
@@ -162,12 +293,15 @@ export default function RegionSelectorPage() {
         });
       }
     },
-    [isSelecting, isDragging, startPoint, selection, dragOffset]
+    [isSelecting, isDragging, isResizing, resizeHandle, originalSelection, startPoint, selection, dragOffset]
   );
 
   const handleMouseUp = useCallback(() => {
     setIsSelecting(false);
     setIsDragging(false);
+    setIsResizing(false);
+    setResizeHandle(null);
+    setOriginalSelection(null);
   }, []);
 
   const isValidSelection =
@@ -187,11 +321,11 @@ export default function RegionSelectorPage() {
       <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur rounded-lg px-4 py-2 shadow-lg border pointer-events-none">
         <p className="text-sm text-center">
           {selection && selection.width > 0
-            ? "拖拽调整选区位置"
+            ? "拖拽移动 • 拖动手柄调整大小"
             : "点击并拖拽以选择区域"}
         </p>
         <p className="text-xs text-muted-foreground text-center mt-1">
-          按 ESC 取消 • 按 Enter 确认
+          ESC 取消 • Enter 确认 • 方向键微调 • Shift+方向键 10px • Ctrl+方向键 调整大小
         </p>
       </div>
 
@@ -257,14 +391,20 @@ export default function RegionSelectorPage() {
               {Math.round(selection.width)} × {Math.round(selection.height)}
             </div>
 
-            {/* Resize handles */}
+            {/* Resize handles - 8 point */}
             {!isSelecting && (
               <>
-                {/* Corner handles */}
-                <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-primary rounded-sm cursor-nw-resize" />
-                <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-primary rounded-sm cursor-ne-resize" />
-                <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-primary rounded-sm cursor-sw-resize" />
-                <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-primary rounded-sm cursor-se-resize" />
+                {RESIZE_HANDLES.map(({ id, position, cursor }) => (
+                  <div
+                    key={id}
+                    className={cn(
+                      "absolute w-3 h-3 bg-primary rounded-sm border border-primary-foreground hover:bg-primary/80 transition-colors",
+                      position
+                    )}
+                    style={{ cursor }}
+                    onMouseDown={(e) => handleResizeStart(id, e)}
+                  />
+                ))}
 
                 {/* Move indicator in center */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
@@ -274,6 +414,22 @@ export default function RegionSelectorPage() {
             )}
           </div>
         </>
+      )}
+
+      {/* Magnifier - shows cursor position with zoom */}
+      {showMagnifier && !selection && (
+        <div
+          className="absolute pointer-events-none bg-background/95 backdrop-blur rounded-lg border shadow-lg p-2"
+          style={{
+            left: Math.min(cursorPos.x + 20, window.innerWidth - 140),
+            top: Math.min(cursorPos.y + 20, window.innerHeight - 60),
+          }}
+        >
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <ZoomIn className="h-3 w-3 text-muted-foreground" />
+            <span>{Math.round(cursorPos.x)}, {Math.round(cursorPos.y)}</span>
+          </div>
+        </div>
       )}
 
       {/* Action buttons */}
@@ -286,6 +442,16 @@ export default function RegionSelectorPage() {
         >
           <X className="h-4 w-4 mr-2" />
           取消
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowMagnifier((prev) => !prev)}
+          className={cn("bg-background/95 backdrop-blur", showMagnifier && "bg-primary/20")}
+        >
+          <ZoomIn className="h-4 w-4 mr-2" />
+          放大镜 (M)
         </Button>
 
         {isValidSelection && (

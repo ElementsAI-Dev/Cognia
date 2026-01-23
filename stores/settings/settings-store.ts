@@ -208,6 +208,102 @@ export interface CustomProviderSettings extends UserProviderSettings {
   customModels: string[];
 }
 
+// Simplified Mode settings - clean, minimal interface like OpenAI/Claude
+export type SimplifiedModePreset = 'off' | 'minimal' | 'focused' | 'zen';
+
+export interface SimplifiedModeSettings {
+  enabled: boolean;
+  preset: SimplifiedModePreset;
+  // Header customization
+  hideModelSelector: boolean;
+  hideModeSelector: boolean;
+  hideSessionActions: boolean;
+  // Input customization
+  hideAdvancedInputControls: boolean;
+  hideAttachmentButton: boolean;
+  hideWebSearchToggle: boolean;
+  hideThinkingToggle: boolean;
+  hidePresetSelector: boolean;
+  hideContextIndicator: boolean;
+  // Welcome screen customization
+  hideFeatureBadges: boolean;
+  hideSuggestionDescriptions: boolean;
+  hideQuickAccessLinks: boolean;
+  // Sidebar behavior
+  autoHideSidebar: boolean;
+  // Message display
+  hideMessageActions: boolean;
+  hideMessageTimestamps: boolean;
+  hideTokenCount: boolean;
+  // Keyboard shortcut to toggle
+  toggleShortcut: string;
+}
+
+export const DEFAULT_SIMPLIFIED_MODE_SETTINGS: SimplifiedModeSettings = {
+  enabled: false,
+  preset: 'off',
+  hideModelSelector: false,
+  hideModeSelector: false,
+  hideSessionActions: false,
+  hideAdvancedInputControls: false,
+  hideAttachmentButton: false,
+  hideWebSearchToggle: false,
+  hideThinkingToggle: false,
+  hidePresetSelector: false,
+  hideContextIndicator: false,
+  hideFeatureBadges: false,
+  hideSuggestionDescriptions: false,
+  hideQuickAccessLinks: false,
+  autoHideSidebar: false,
+  hideMessageActions: false,
+  hideMessageTimestamps: false,
+  hideTokenCount: false,
+  toggleShortcut: 'CommandOrControl+Shift+S',
+};
+
+// Preset configurations for simplified mode
+export const SIMPLIFIED_MODE_PRESETS: Record<SimplifiedModePreset, Partial<SimplifiedModeSettings>> = {
+  off: {
+    enabled: false,
+  },
+  minimal: {
+    enabled: true,
+    hideAdvancedInputControls: true,
+    hidePresetSelector: true,
+    hideContextIndicator: true,
+    hideFeatureBadges: true,
+  },
+  focused: {
+    enabled: true,
+    hideAdvancedInputControls: true,
+    hidePresetSelector: true,
+    hideContextIndicator: true,
+    hideFeatureBadges: true,
+    hideSuggestionDescriptions: true,
+    hideQuickAccessLinks: true,
+    autoHideSidebar: true,
+  },
+  zen: {
+    enabled: true,
+    hideModelSelector: true,
+    hideModeSelector: true,
+    hideSessionActions: true,
+    hideAdvancedInputControls: true,
+    hideAttachmentButton: true,
+    hideWebSearchToggle: true,
+    hideThinkingToggle: true,
+    hidePresetSelector: true,
+    hideContextIndicator: true,
+    hideFeatureBadges: true,
+    hideSuggestionDescriptions: true,
+    hideQuickAccessLinks: true,
+    autoHideSidebar: true,
+    hideMessageActions: true,
+    hideMessageTimestamps: true,
+    hideTokenCount: true,
+  },
+};
+
 interface SettingsState {
   // Theme (light/dark/system mode)
   theme: Theme;
@@ -602,6 +698,14 @@ interface SettingsState {
   setWelcomeMaxSuggestions: (max: number) => void;
   resetWelcomeSettings: () => void;
 
+  // Simplified Mode settings
+  simplifiedModeSettings: SimplifiedModeSettings;
+  setSimplifiedModeSettings: (settings: Partial<SimplifiedModeSettings>) => void;
+  setSimplifiedModeEnabled: (enabled: boolean) => void;
+  setSimplifiedModePreset: (preset: SimplifiedModePreset) => void;
+  toggleSimplifiedMode: () => void;
+  resetSimplifiedModeSettings: () => void;
+
   // Reset
   resetSettings: () => void;
 }
@@ -882,6 +986,9 @@ const initialState = {
 
   // Welcome Settings
   welcomeSettings: { ...DEFAULT_WELCOME_SETTINGS },
+
+  // Simplified Mode settings
+  simplifiedModeSettings: { ...DEFAULT_SIMPLIFIED_MODE_SETTINGS },
 
   // Onboarding
   hasCompletedOnboarding: false,
@@ -2157,6 +2264,36 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       resetWelcomeSettings: () =>
         set({ welcomeSettings: { ...DEFAULT_WELCOME_SETTINGS } }),
+
+      // Simplified Mode actions
+      setSimplifiedModeSettings: (settings) =>
+        set((state) => ({
+          simplifiedModeSettings: { ...state.simplifiedModeSettings, ...settings },
+        })),
+      setSimplifiedModeEnabled: (enabled) =>
+        set((state) => ({
+          simplifiedModeSettings: { ...state.simplifiedModeSettings, enabled },
+        })),
+      setSimplifiedModePreset: (preset) =>
+        set((state) => {
+          const presetConfig = SIMPLIFIED_MODE_PRESETS[preset];
+          return {
+            simplifiedModeSettings: {
+              ...state.simplifiedModeSettings,
+              ...presetConfig,
+              preset,
+            },
+          };
+        }),
+      toggleSimplifiedMode: () =>
+        set((state) => ({
+          simplifiedModeSettings: {
+            ...state.simplifiedModeSettings,
+            enabled: !state.simplifiedModeSettings.enabled,
+          },
+        })),
+      resetSimplifiedModeSettings: () =>
+        set({ simplifiedModeSettings: { ...DEFAULT_SIMPLIFIED_MODE_SETTINGS } }),
 
       // Onboarding actions
       setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),

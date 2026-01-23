@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-01-22T00:00:00.000Z",
+  "timestamp": "2025-01-23T00:00:00.000Z",
   "project": {
     "name": "Cognia",
     "description": "AI-native chat and creation application with multi-provider support",
@@ -116,7 +116,7 @@
       "hasTests": true,
       "coverage": "good",
       "fileCount": 300,
-      "subdirectories": 43
+      "subdirectories": 50
     },
     {
       "name": "lib",

@@ -89,6 +89,7 @@ import type { ChatMode, Preset, ChatViewMode, CreateGoalInput } from '@/types';
 import { ChatGoalDialog } from '../goal';
 import { useSummary } from '@/hooks/chat';
 import { useSettingsStore } from '@/stores';
+import { SimplifiedModeQuickToggle } from '../ui/simplified-mode-toggle';
 
 interface ChatHeaderProps {
   sessionId?: string;
@@ -162,6 +163,10 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
   // Settings for AI summary
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const openaiSettings = providerSettings?.openai;
+  
+  // Simplified mode settings
+  const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
+  const isSimplifiedMode = simplifiedModeSettings.enabled;
   const { generateChatSummary } = useSummary({
     useAI: !!openaiSettings?.apiKey,
     aiConfig: openaiSettings?.apiKey
@@ -522,47 +527,56 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
           {/* Background Agent Indicator */}
           <BackgroundAgentIndicator />
 
-          {/* Designer button - hidden on small screens */}
-          <div className="hidden sm:block">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                  <Link href="/designer">
-                    <Wand2 className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('designer')}</TooltipContent>
-            </Tooltip>
-          </div>
+          {/* Designer button - hidden on small screens and in simplified mode */}
+          {!isSimplifiedMode && (
+            <div className="hidden sm:block">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                    <Link href="/designer">
+                      <Wand2 className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('designer')}</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
 
-          {/* Image Studio button - hidden on small screens */}
-          <div className="hidden sm:block">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                  <Link href="/image-studio">
-                    <ImageIcon className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('imageStudio')}</TooltipContent>
-            </Tooltip>
-          </div>
+          {/* Image Studio button - hidden on small screens and in simplified mode */}
+          {!isSimplifiedMode && (
+            <div className="hidden sm:block">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                    <Link href="/image-studio">
+                      <ImageIcon className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('imageStudio')}</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
 
-          {/* Video Editor button - hidden on small screens */}
-          <div className="hidden sm:block">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                  <Link href="/video-studio?mode=recording">
-                    <Film className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('videoEditor')}</TooltipContent>
-            </Tooltip>
-          </div>
+          {/* Video Editor button - hidden on small screens and in simplified mode */}
+          {!isSimplifiedMode && (
+            <div className="hidden sm:block">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                    <Link href="/video-studio?mode=recording">
+                      <Film className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('videoEditor')}</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+
+          {/* Simplified Mode Quick Toggle */}
+          <SimplifiedModeQuickToggle />
 
           {/* Search button */}
           {session && messages.length > 0 && (

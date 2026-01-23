@@ -91,10 +91,28 @@ describe('PaperLibrary', () => {
     reset: jest.fn(),
     searchWithProvider: jest.fn(),
     clearSearch: jest.fn(),
-    // New tag actions
+    // Enhanced search
+    searchPapers: jest.fn(),
+    lastSearchResult: null,
+    // A2UI integration
+    createSearchResultsUI: jest.fn(),
+    createPaperCardUI: jest.fn(),
+    createAnalysisUI: jest.fn(),
+    createComparisonUI: jest.fn(),
+    // Enhanced analysis
+    analyzePaperWithAI: jest.fn(),
+    lastAnalysisResult: null,
+    isAnalyzing: false,
+    // Web search integration
+    searchWebForPaper: jest.fn(),
+    findRelatedPapers: jest.fn(),
+    // Combined actions
+    searchAndDisplay: jest.fn(),
+    analyzeAndDisplay: jest.fn(),
+    // Tag actions
     addTag: jest.fn(),
     removeTag: jest.fn(),
-    // New batch actions
+    // Batch actions
     selectedPaperIds: [] as string[],
     togglePaperSelection: jest.fn(),
     selectAllPapers: jest.fn(),
@@ -102,11 +120,11 @@ describe('PaperLibrary', () => {
     batchUpdateStatus: jest.fn(),
     batchAddToCollection: jest.fn(),
     batchRemove: jest.fn(),
-    // New search history actions
+    // Search history actions
     searchHistory: [] as string[],
     addSearchHistory: jest.fn(),
     clearSearchHistory: jest.fn(),
-    // New analysis history actions
+    // Analysis history actions
     saveAnalysisResult: jest.fn(),
     getAnalysisHistory: jest.fn().mockReturnValue([]),
     // Additional methods

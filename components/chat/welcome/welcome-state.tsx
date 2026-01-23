@@ -206,6 +206,8 @@ export function WelcomeState({
 
   // Get welcome settings from store
   const welcomeSettings = useSettingsStore((state) => state.welcomeSettings);
+  const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
+  const isSimplifiedMode = simplifiedModeSettings.enabled;
   const {
     sectionsVisibility,
     customSuggestions,
@@ -216,6 +218,16 @@ export function WelcomeState({
     customGreeting,
     customDescription,
   } = welcomeSettings;
+
+  // Adjust visibility based on simplified mode
+  const effectiveSectionsVisibility = useMemo(() => {
+    if (!isSimplifiedMode) return sectionsVisibility;
+    return {
+      ...sectionsVisibility,
+      featureBadges: sectionsVisibility.featureBadges && !simplifiedModeSettings.hideFeatureBadges,
+      quickAccess: sectionsVisibility.quickAccess && !simplifiedModeSettings.hideQuickAccessLinks,
+    };
+  }, [sectionsVisibility, isSimplifiedMode, simplifiedModeSettings]);
 
   const features = featureKeys[mode].map((key) => t(`modes.${mode}.features.${key}`));
 
@@ -264,7 +276,7 @@ export function WelcomeState({
     <div className="flex h-full flex-col items-center justify-center px-3 py-2 sm:px-4 sm:py-3 overflow-y-auto">
       <div className="w-full max-w-3xl space-y-3 sm:space-y-4">
         {/* Header with gradient background - optimized for all screens */}
-        {sectionsVisibility.header && (
+        {effectiveSectionsVisibility.header && (
           <div
             className={cn(
               'flex flex-col items-center rounded-xl sm:rounded-2xl bg-linear-to-br p-3 sm:p-5 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
@@ -282,7 +294,7 @@ export function WelcomeState({
             <p className="max-w-lg text-center text-xs sm:text-sm text-muted-foreground leading-relaxed mt-1.5 sm:mt-2 line-clamp-2 sm:line-clamp-none">
               {displayDescription}
             </p>
-            {sectionsVisibility.featureBadges && (
+            {effectiveSectionsVisibility.featureBadges && (
               <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mt-2">
                 {features.slice(0, 3).map((feature, index) => (
                   <FeatureBadge key={index} feature={feature} index={index} />
@@ -298,10 +310,10 @@ export function WelcomeState({
         )}
 
         {/* Mode switcher and Template button */}
-        {(sectionsVisibility.templateSelector || sectionsVisibility.modeSwitcher) && (
+        {(effectiveSectionsVisibility.templateSelector || effectiveSectionsVisibility.modeSwitcher) && (
           <div className="flex justify-center items-center gap-1.5 sm:gap-2 flex-wrap">
             {/* Template Selector */}
-            {sectionsVisibility.templateSelector && (
+            {effectiveSectionsVisibility.templateSelector && (
               <TemplateSelector
                 trigger={
                   <Tooltip>
@@ -329,11 +341,11 @@ export function WelcomeState({
               />
             )}
 
-            {sectionsVisibility.templateSelector && sectionsVisibility.modeSwitcher && (
+            {effectiveSectionsVisibility.templateSelector && effectiveSectionsVisibility.modeSwitcher && (
               <div className="h-4 w-px bg-border/50" />
             )}
 
-            {sectionsVisibility.modeSwitcher && (
+            {effectiveSectionsVisibility.modeSwitcher && (
               <Tabs
                 value={mode}
                 onValueChange={(value) => onModeChange?.(value as ChatMode)}
@@ -391,7 +403,7 @@ export function WelcomeState({
         )}
 
         {/* Quick Access Links */}
-        {sectionsVisibility.quickAccess && activeQuickAccessLinks.length > 0 && (
+        {effectiveSectionsVisibility.quickAccess && activeQuickAccessLinks.length > 0 && (
           <div
             className={cn(
               'grid gap-2',
@@ -451,14 +463,14 @@ export function WelcomeState({
         )}
 
         {/* A2UI Interactive Demo - Desktop only, shown as button on first visit */}
-        {sectionsVisibility.a2uiDemo && (
+        {effectiveSectionsVisibility.a2uiDemo && (
           <div className="hidden sm:block">
             <WelcomeA2UIDemo onSuggestionClick={onSuggestionClick} showSettings={false} />
           </div>
         )}
 
         {/* Suggestions - responsive grid on all screens */}
-        {sectionsVisibility.suggestions && (
+        {effectiveSectionsVisibility.suggestions && (
           <div>
             <h2 className="mb-1.5 sm:mb-2 text-center text-xs sm:text-sm font-medium text-muted-foreground">
               {t('tryPrompts')}

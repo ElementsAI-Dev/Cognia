@@ -4,3 +4,4 @@
 
 pub mod plugin;
 pub mod skill;
+pub mod skill_seekers;

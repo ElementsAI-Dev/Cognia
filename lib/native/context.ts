@@ -14,14 +14,15 @@ export interface WindowInfo {
   class_name: string;
   process_id: number;
   process_name: string;
-  executable_path?: string;
-  is_visible: boolean;
-  is_minimized: boolean;
-  is_maximized: boolean;
+  exe_path?: string;
   x: number;
   y: number;
   width: number;
   height: number;
+  is_minimized: boolean;
+  is_maximized: boolean;
+  is_focused: boolean;
+  is_visible: boolean;
 }
 
 export type AppType =
@@ -56,23 +57,61 @@ export interface AppContext {
   metadata: Record<string, string>;
 }
 
+export type FileType =
+  | "SourceCode"
+  | "Markup"
+  | "Config"
+  | "Data"
+  | "Document"
+  | "Image"
+  | "Video"
+  | "Audio"
+  | "Archive"
+  | "Executable"
+  | "Unknown";
+
 export interface FileContext {
-  file_path?: string;
-  file_name?: string;
-  file_extension?: string;
-  directory?: string;
-  is_modified: boolean;
+  path?: string;
+  name?: string;
+  extension?: string;
   language?: string;
+  is_modified: boolean;
   project_root?: string;
+  git_branch?: string;
+  file_type: FileType;
+}
+
+export type PageType =
+  | "SearchResults"
+  | "Documentation"
+  | "CodeRepository"
+  | "SocialMedia"
+  | "VideoStreaming"
+  | "NewsArticle"
+  | "WebEmail"
+  | "Ecommerce"
+  | "Chat"
+  | "CloudStorage"
+  | "AiInterface"
+  | "DevTools"
+  | "General"
+  | "BrowserInternal";
+
+export interface TabInfo {
+  is_new_tab: boolean;
+  is_settings: boolean;
+  is_dev_tools: boolean;
+  is_extension: boolean;
 }
 
 export interface BrowserContext {
-  browser_name: string;
+  browser: string;
   url?: string;
-  domain?: string;
   page_title?: string;
-  is_secure: boolean;
-  tab_count?: number;
+  domain?: string;
+  is_secure?: boolean;
+  tab_info?: TabInfo;
+  page_type: PageType;
 }
 
 export interface EditorContext {
@@ -96,6 +135,56 @@ export interface FullContext {
   browser?: BrowserContext;
   editor?: EditorContext;
   timestamp: number;
+}
+
+// ============== Screen Content Types ==============
+
+export type UiElementType =
+  | "Button"
+  | "TextInput"
+  | "Checkbox"
+  | "RadioButton"
+  | "Dropdown"
+  | "Link"
+  | "Menu"
+  | "MenuItem"
+  | "Tab"
+  | "Window"
+  | "Dialog"
+  | "Tooltip"
+  | "Icon"
+  | "Image"
+  | "Text"
+  | "Unknown";
+
+export interface TextBlock {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence: number;
+  language?: string;
+}
+
+export interface UiElement {
+  element_type: UiElementType;
+  text?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  is_interactive: boolean;
+}
+
+export interface ScreenContent {
+  text: string;
+  text_blocks: TextBlock[];
+  ui_elements: UiElement[];
+  width: number;
+  height: number;
+  timestamp: number;
+  confidence: number;
 }
 
 // ============== Context Functions ==============
@@ -170,4 +259,39 @@ export async function findWindowsByProcess(
  */
 export async function clearCache(): Promise<void> {
   return invoke("context_clear_cache");
+}
+
+/**
+ * Set cache duration in milliseconds
+ */
+export async function setCacheDuration(ms: number): Promise<void> {
+  return invoke("context_set_cache_duration", { ms });
+}
+
+/**
+ * Get current cache duration in milliseconds
+ */
+export async function getCacheDuration(): Promise<number> {
+  return invoke("context_get_cache_duration");
+}
+
+/**
+ * Analyze UI using Windows UI Automation
+ */
+export async function analyzeUiAutomation(): Promise<UiElement[]> {
+  return invoke("context_analyze_ui_automation");
+}
+
+/**
+ * Get text at specific screen coordinates
+ */
+export async function getTextAt(x: number, y: number): Promise<string | null> {
+  return invoke("context_get_text_at", { x, y });
+}
+
+/**
+ * Get UI element at specific screen coordinates
+ */
+export async function getElementAt(x: number, y: number): Promise<UiElement | null> {
+  return invoke("context_get_element_at", { x, y });
 }

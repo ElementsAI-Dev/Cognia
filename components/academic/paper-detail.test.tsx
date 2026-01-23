@@ -87,6 +87,45 @@ describe('PaperDetail', () => {
     reset: jest.fn(),
     searchWithProvider: jest.fn(),
     clearSearch: jest.fn(),
+    // Enhanced search
+    searchPapers: jest.fn(),
+    lastSearchResult: null,
+    // A2UI integration
+    createSearchResultsUI: jest.fn(),
+    createPaperCardUI: jest.fn(),
+    createAnalysisUI: jest.fn(),
+    createComparisonUI: jest.fn(),
+    // Enhanced analysis
+    analyzePaperWithAI: jest.fn(),
+    lastAnalysisResult: null,
+    isAnalyzing: false,
+    // Web search integration
+    searchWebForPaper: jest.fn(),
+    findRelatedPapers: jest.fn(),
+    // Combined actions
+    searchAndDisplay: jest.fn(),
+    analyzeAndDisplay: jest.fn(),
+    // Tag actions
+    addTag: jest.fn(),
+    removeTag: jest.fn(),
+    // Batch actions
+    selectedPaperIds: [],
+    togglePaperSelection: jest.fn(),
+    selectAllPapers: jest.fn(),
+    clearPaperSelection: jest.fn(),
+    batchUpdateStatus: jest.fn(),
+    batchAddToCollection: jest.fn(),
+    batchRemove: jest.fn(),
+    // Search history
+    searchHistory: [],
+    addSearchHistory: jest.fn(),
+    clearSearchHistory: jest.fn(),
+    // Analysis history
+    saveAnalysisResult: jest.fn(),
+    getAnalysisHistory: jest.fn().mockReturnValue([]),
+    // Refresh additional methods
+    refreshLibrary: jest.fn(),
+    refreshCollections: jest.fn(),
   };
 
   beforeEach(() => {

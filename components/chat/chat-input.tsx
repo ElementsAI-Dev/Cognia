@@ -227,6 +227,8 @@ export function ChatInput({
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const sendOnEnter = useSettingsStore((state) => state.sendOnEnter);
+  const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
+  const isSimplifiedMode = simplifiedModeSettings.enabled;
   const addRecentFile = useRecentFilesStore((state) => state.addFile);
   const allRecentFiles = useRecentFilesStore((state) => state.recentFiles);
   const initializePromptTemplates = usePromptTemplateStore((state) => state.initializeDefaults);
@@ -682,26 +684,28 @@ export function ChatInput({
               anchorRect={anchorRect}
               containerRef={inputContainerRef}
             />
-            {/* Attachment button */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  disabled={isProcessing || disabled}
-                  onClick={openFileDialog}
-                >
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t('attachFile', { current: attachments.length, max: uploadSettings.maxFiles })}
-              </TooltipContent>
-            </Tooltip>
+            {/* Attachment button - hidden in simplified mode when hideAttachmentButton is set */}
+            {!(isSimplifiedMode && simplifiedModeSettings.hideAttachmentButton) && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    disabled={isProcessing || disabled}
+                    onClick={openFileDialog}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t('attachFile', { current: attachments.length, max: uploadSettings.maxFiles })}
+                </TooltipContent>
+              </Tooltip>
+            )}
 
-            {/* Recent files button */}
-            {showRecentFiles && recentFiles.length > 0 && (
+            {/* Recent files button - hidden in simplified mode when hideAttachmentButton is set */}
+            {showRecentFiles && recentFiles.length > 0 && !(isSimplifiedMode && simplifiedModeSettings.hideAttachmentButton) && (
               <RecentFilesPopover
                 onSelectFile={(file: RecentFile) => {
                   // Create attachment from recent file
@@ -774,24 +778,26 @@ export function ChatInput({
               </Tooltip>
             )}
 
-            {/* Prompt template picker */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  disabled={isProcessing || disabled}
-                  onClick={() => setTemplateSelectorOpen(true)}
-                >
-                  <FileText className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('insertTemplate')}</TooltipContent>
-            </Tooltip>
+            {/* Prompt template picker - hidden in simplified mode when hideAdvancedInputControls is set */}
+            {!(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    disabled={isProcessing || disabled}
+                    onClick={() => setTemplateSelectorOpen(true)}
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('insertTemplate')}</TooltipContent>
+              </Tooltip>
+            )}
 
-            {/* Prompt optimizer button */}
-            {onOptimizePrompt && value.trim() && (
+            {/* Prompt optimizer button - hidden in simplified mode when hideAdvancedInputControls is set */}
+            {onOptimizePrompt && value.trim() && !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -810,8 +816,8 @@ export function ChatInput({
               </Tooltip>
             )}
 
-            {/* MCP Tools button */}
-            {isMcpAvailable && (
+            {/* MCP Tools button - hidden in simplified mode when hideAdvancedInputControls is set */}
+            {isMcpAvailable && !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -841,8 +847,8 @@ export function ChatInput({
               </Tooltip>
             )}
 
-            {/* Tool History button */}
-            {isMcpAvailable && (
+            {/* Tool History button - hidden in simplified mode when hideAdvancedInputControls is set */}
+            {isMcpAvailable && !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
               <ToolHistoryPanel
                 asPopover
                 trigger={

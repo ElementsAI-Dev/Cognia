@@ -325,3 +325,6 @@ export {
   type SandboxActions,
   type SandboxExecutionState,
 } from './sandbox';
+
+// Input completion stores
+export { useInputCompletionStore } from './input-completion';

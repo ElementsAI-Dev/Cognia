@@ -58,3 +58,6 @@ export * from './settings';
 
 // UI types
 export * from './ui';
+
+// Input completion types
+export * from './input-completion';

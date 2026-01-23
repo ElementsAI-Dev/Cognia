@@ -3,7 +3,8 @@
 //! Commands for gathering context about the user's current activity.
 
 use crate::context::{
-    AppContext, BrowserContext, ContextManager, EditorContext, FileContext, FullContext, WindowInfo,
+    AppContext, BrowserContext, ContextManager, EditorContext, FileContext, FullContext,
+    UiElement, WindowInfo,
 };
 use tauri::State;
 
@@ -78,6 +79,50 @@ pub async fn context_find_windows_by_process(
     process_name: String,
 ) -> Result<Vec<WindowInfo>, String> {
     manager.find_windows_by_process(&process_name)
+}
+
+/// Set cache duration in milliseconds
+#[tauri::command]
+pub async fn context_set_cache_duration(
+    manager: State<'_, ContextManager>,
+    ms: u64,
+) -> Result<(), String> {
+    manager.set_cache_duration(ms);
+    Ok(())
+}
+
+/// Get current cache duration in milliseconds
+#[tauri::command]
+pub async fn context_get_cache_duration(manager: State<'_, ContextManager>) -> Result<u64, String> {
+    Ok(manager.get_cache_duration())
+}
+
+/// Analyze UI using Windows UI Automation
+#[tauri::command]
+pub async fn context_analyze_ui_automation(
+    manager: State<'_, ContextManager>,
+) -> Result<Vec<UiElement>, String> {
+    manager.get_screen_analyzer().analyze_ui_automation()
+}
+
+/// Get text at specific screen coordinates
+#[tauri::command]
+pub async fn context_get_text_at(
+    manager: State<'_, ContextManager>,
+    x: i32,
+    y: i32,
+) -> Result<Option<String>, String> {
+    Ok(manager.get_screen_analyzer().get_text_at(x, y))
+}
+
+/// Get UI element at specific screen coordinates
+#[tauri::command]
+pub async fn context_get_element_at(
+    manager: State<'_, ContextManager>,
+    x: i32,
+    y: i32,
+) -> Result<Option<UiElement>, String> {
+    Ok(manager.get_screen_analyzer().get_element_at(x, y))
 }
 
 #[cfg(test)]

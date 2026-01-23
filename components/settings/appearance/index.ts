@@ -11,3 +11,4 @@ export { ThemePreview, ThemePreviewInline } from './theme-preview';
 export { ThemeSchedule } from './theme-schedule';
 export { UICustomizationSettings } from './ui-customization-settings';
 export { WelcomeSettings } from './welcome-settings';
+export { SimplifiedModeSettings } from './simplified-mode-settings';

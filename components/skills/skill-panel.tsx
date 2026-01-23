@@ -66,6 +66,7 @@ import { SkillCard } from './skill-card';
 import { SkillDetail } from './skill-detail';
 import { SkillEditor } from './skill-editor';
 import { SkillAnalytics } from './skill-analytics';
+import { SkillGeneratorPanel } from './skill-generator';
 import type { Skill, SkillCategory, SkillStatus } from '@/types/system/skill';
 
 const CATEGORY_OPTIONS: Array<{ value: SkillCategory | 'all'; labelKey: string; icon: React.ReactNode }> = [
@@ -146,6 +147,7 @@ export function SkillPanel({
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importData, setImportData] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [showGeneratorDialog, setShowGeneratorDialog] = useState(false);
 
   // Filtered skills
   const filteredSkills = useMemo(() => {
@@ -427,6 +429,10 @@ export function SkillPanel({
               <BarChart3 className="h-4 w-4 mr-1" />
               {t('analytics')}
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowGeneratorDialog(true)}>
+              <Sparkles className="h-4 w-4 mr-1" />
+              {t('generateSkill') || 'Generate'}
+            </Button>
             <Button size="sm" onClick={handleCreateNew}>
               <Plus className="h-4 w-4 mr-1" />
               {t('newSkill')}
@@ -685,6 +691,25 @@ export function SkillPanel({
                 {t('delete')}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Generator Dialog */}
+        <Dialog open={showGeneratorDialog} onOpenChange={setShowGeneratorDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                {t('skillSeekers.title') || 'Generate Skill'}
+              </DialogTitle>
+              <DialogDescription>
+                {t('skillSeekers.description') || 'Generate AI skills from documentation, GitHub repositories, or PDFs using Skill Seekers.'}
+              </DialogDescription>
+            </DialogHeader>
+            <SkillGeneratorPanel
+              onComplete={() => setShowGeneratorDialog(false)}
+              onCancel={() => setShowGeneratorDialog(false)}
+            />
           </DialogContent>
         </Dialog>
 

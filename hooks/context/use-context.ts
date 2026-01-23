@@ -2,104 +2,36 @@
  * Context Hook
  *
  * Provides access to context awareness functionality.
+ * Uses types from lib/native/context.ts for consistency.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/lib/native/utils';
+import * as contextApi from '@/lib/native/context';
+import type { FullContext } from '@/lib/native/context';
+import { useContextStore } from '@/stores/context';
 
-export type AppType =
-  | 'Browser'
-  | 'CodeEditor'
-  | 'Terminal'
-  | 'DocumentEditor'
-  | 'Spreadsheet'
-  | 'Presentation'
-  | 'Email'
-  | 'Chat'
-  | 'FileManager'
-  | 'MediaPlayer'
-  | 'ImageEditor'
-  | 'PdfViewer'
-  | 'NoteTaking'
-  | 'Database'
-  | 'ApiClient'
-  | 'VersionControl'
-  | 'SystemSettings'
-  | 'Game'
-  | 'Unknown';
-
-export interface WindowInfo {
-  handle: number;
-  title: string;
-  class_name: string;
-  process_id: number;
-  process_name: string;
-  executable_path?: string;
-  is_visible: boolean;
-  is_minimized: boolean;
-  is_maximized: boolean;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface AppContext {
-  app_type: AppType;
-  app_name: string;
-  version?: string;
-  supports_text_input: boolean;
-  supports_rich_text: boolean;
-  is_dev_tool: boolean;
-  suggested_actions: string[];
-  metadata: Record<string, string>;
-}
-
-export interface FileContext {
-  file_path?: string;
-  file_name?: string;
-  file_extension?: string;
-  directory?: string;
-  is_modified: boolean;
-  language?: string;
-  project_root?: string;
-}
-
-export interface BrowserContext {
-  browser_name: string;
-  url?: string;
-  domain?: string;
-  page_title?: string;
-  is_secure: boolean;
-  tab_count?: number;
-}
-
-export interface EditorContext {
-  editor_name: string;
-  file_path?: string;
-  file_name?: string;
-  file_extension?: string;
-  language?: string;
-  project_name?: string;
-  is_modified: boolean;
-  git_branch?: string;
-  line_number?: number;
-  column_number?: number;
-  metadata: Record<string, string>;
-}
-
-export interface FullContext {
-  window?: WindowInfo;
-  app?: AppContext;
-  file?: FileContext;
-  browser?: BrowserContext;
-  editor?: EditorContext;
-  timestamp: number;
-}
+// Re-export types for backward compatibility
+export type {
+  FullContext,
+  WindowInfo,
+  AppContext,
+  FileContext,
+  BrowserContext,
+  EditorContext,
+  UiElement,
+  AppType,
+  FileType,
+  PageType,
+  TabInfo,
+  UiElementType,
+  TextBlock,
+  ScreenContent,
+} from '@/lib/native/context';
 
 export function useContext() {
-  const [context, setContext] = useState<FullContext | null>(null);
+  const store = useContextStore();
+  const [localContext, setLocalContext] = useState<FullContext | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,22 +41,26 @@ export function useContext() {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await invoke<FullContext>('context_get_full');
-      setContext(result);
+      const result = await contextApi.getFullContext();
+      setLocalContext(result);
+      store.setContext(result);
       return result;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      setError(errorMsg);
+      store.setError(errorMsg);
       return null;
     } finally {
       setIsLoading(false);
+      store.setIsLoading(false);
     }
-  }, []);
+  }, [store]);
 
   const getWindowInfo = useCallback(async () => {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<WindowInfo>('context_get_window');
+      return await contextApi.getWindowInfo();
     } catch (err) {
       console.error('Failed to get window info:', err);
       return null;
@@ -135,7 +71,7 @@ export function useContext() {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<AppContext>('context_get_app');
+      return await contextApi.getAppContext();
     } catch (err) {
       console.error('Failed to get app context:', err);
       return null;
@@ -146,7 +82,7 @@ export function useContext() {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<FileContext>('context_get_file');
+      return await contextApi.getFileContext();
     } catch (err) {
       console.error('Failed to get file context:', err);
       return null;
@@ -157,7 +93,7 @@ export function useContext() {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<BrowserContext>('context_get_browser');
+      return await contextApi.getBrowserContext();
     } catch (err) {
       console.error('Failed to get browser context:', err);
       return null;
@@ -168,7 +104,7 @@ export function useContext() {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<EditorContext>('context_get_editor');
+      return await contextApi.getEditorContext();
     } catch (err) {
       console.error('Failed to get editor context:', err);
       return null;
@@ -179,7 +115,7 @@ export function useContext() {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<WindowInfo[]>('context_get_all_windows');
+      return await contextApi.getAllWindows();
     } catch (err) {
       console.error('Failed to get all windows:', err);
       return [];
@@ -190,7 +126,7 @@ export function useContext() {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<WindowInfo[]>('context_find_windows_by_title', { pattern });
+      return await contextApi.findWindowsByTitle(pattern);
     } catch (err) {
       console.error('Failed to find windows by title:', err);
       return [];
@@ -201,7 +137,7 @@ export function useContext() {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<WindowInfo[]>('context_find_windows_by_process', { processName });
+      return await contextApi.findWindowsByProcess(processName);
     } catch (err) {
       console.error('Failed to find windows by process:', err);
       return [];
@@ -212,25 +148,85 @@ export function useContext() {
     if (!isTauri()) return;
 
     try {
-      await invoke('context_clear_cache');
+      await contextApi.clearCache();
+      store.clearContext();
     } catch (err) {
       console.error('Failed to clear cache:', err);
+    }
+  }, [store]);
+
+  const updateCacheDuration = useCallback(async (ms: number) => {
+    if (!isTauri()) return;
+
+    try {
+      await contextApi.setCacheDuration(ms);
+      store.setCacheDurationMs(ms);
+    } catch (err) {
+      console.error('Failed to set cache duration:', err);
+    }
+  }, [store]);
+
+  const fetchCacheDuration = useCallback(async () => {
+    if (!isTauri()) return 500;
+
+    try {
+      return await contextApi.getCacheDuration();
+    } catch (err) {
+      console.error('Failed to get cache duration:', err);
+      return 500;
+    }
+  }, []);
+
+  const analyzeUi = useCallback(async () => {
+    if (!isTauri()) return [];
+
+    try {
+      const elements = await contextApi.analyzeUiAutomation();
+      store.setUiElements(elements);
+      return elements;
+    } catch (err) {
+      console.error('Failed to analyze UI:', err);
+      return [];
+    }
+  }, [store]);
+
+  const getTextAtPosition = useCallback(async (x: number, y: number) => {
+    if (!isTauri()) return null;
+
+    try {
+      return await contextApi.getTextAt(x, y);
+    } catch (err) {
+      console.error('Failed to get text at position:', err);
+      return null;
+    }
+  }, []);
+
+  const getElementAtPosition = useCallback(async (x: number, y: number) => {
+    if (!isTauri()) return null;
+
+    try {
+      return await contextApi.getElementAt(x, y);
+    } catch (err) {
+      console.error('Failed to get element at position:', err);
+      return null;
     }
   }, []);
 
   // Auto-refresh context periodically
   useEffect(() => {
+    if (!store.autoRefreshEnabled) return;
+
     fetchContext();
 
     const interval = setInterval(() => {
       fetchContext();
-    }, 5000); // Refresh every 5 seconds
+    }, store.refreshIntervalMs);
 
     return () => clearInterval(interval);
-  }, [fetchContext]);
+  }, [fetchContext, store.autoRefreshEnabled, store.refreshIntervalMs]);
 
   return {
-    context,
+    context: localContext,
     isLoading,
     error,
     fetchContext,
@@ -243,5 +239,13 @@ export function useContext() {
     findWindowsByTitle,
     findWindowsByProcess,
     clearCache,
+    // New functions
+    updateCacheDuration,
+    fetchCacheDuration,
+    analyzeUi,
+    getTextAtPosition,
+    getElementAtPosition,
+    // Store access
+    store,
   };
 }
