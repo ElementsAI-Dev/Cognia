@@ -10,7 +10,7 @@ use std::process::{Command, Stdio};
 pub const MIN_FFMPEG_VERSION: &str = "4.0.0";
 
 /// FFmpeg installation information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FFmpegInfo {
     /// Whether FFmpeg is installed and available
     pub available: bool,
@@ -26,20 +26,6 @@ pub struct FFmpegInfo {
     pub encoders: Vec<String>,
     /// Available decoders
     pub decoders: Vec<String>,
-}
-
-impl Default for FFmpegInfo {
-    fn default() -> Self {
-        Self {
-            available: false,
-            version: None,
-            version_full: None,
-            path: None,
-            version_ok: false,
-            encoders: Vec::new(),
-            decoders: Vec::new(),
-        }
-    }
 }
 
 /// FFmpeg installation guide for different platforms

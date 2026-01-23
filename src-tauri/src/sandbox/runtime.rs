@@ -664,6 +664,7 @@ impl SandboxManager {
     }
 
     /// Execute code with timeout and memory limit
+    #[allow(dead_code)]
     pub async fn execute_with_limits(
         &self,
         language: String,

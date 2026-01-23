@@ -43,8 +43,8 @@ import type {
   CustomSuggestion,
   SuggestionIconType,
   WelcomeSectionVisibility,
-} from '@/types/settings/welcome-settings';
-import { DEFAULT_QUICK_ACCESS_LINKS } from '@/types/settings/welcome-settings';
+} from '@/types/settings/welcome';
+import { DEFAULT_QUICK_ACCESS_LINKS } from '@/types/settings/welcome';
 import { cn } from '@/lib/utils';
 
 // Icon options for suggestions

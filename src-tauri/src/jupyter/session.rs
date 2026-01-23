@@ -106,16 +106,19 @@ impl SessionManager {
     }
 
     /// Get a session by ID
+    #[allow(dead_code)]
     pub fn get_session(&self, session_id: &str) -> Option<&JupyterSession> {
         self.sessions.get(session_id)
     }
 
     /// Get a kernel by ID
+    #[allow(dead_code)]
     pub fn get_kernel(&self, kernel_id: &str) -> Option<&JupyterKernel> {
         self.kernels.get(kernel_id)
     }
 
     /// Get a mutable kernel by ID
+    #[allow(dead_code)]
     pub fn get_kernel_mut(&mut self, kernel_id: &str) -> Option<&mut JupyterKernel> {
         self.kernels.get_mut(kernel_id)
     }
@@ -330,6 +333,7 @@ impl SessionManager {
     }
 
     /// Get kernel status
+    #[allow(dead_code)]
     pub fn get_kernel_status(&self, kernel_id: &str) -> Option<KernelStatus> {
         let status = self.kernels.get(kernel_id).map(|k| k.status);
         trace!("Kernel {} status: {:?}", kernel_id, status);

@@ -25,12 +25,6 @@ impl JupyterState {
         }
     }
 
-    pub fn with_config(config: KernelConfig) -> Self {
-        Self {
-            manager: SharedSessionManager::new(config),
-        }
-    }
-
     /// Perform periodic cleanup of dead and idle kernels
     pub async fn perform_cleanup(&self) {
         self.manager.cleanup_dead_kernels().await;
@@ -648,9 +642,9 @@ mod tests {
 
     #[test]
     fn test_jupyter_state_creation() {
-        let _state = JupyterState::new();
-        // State should be created without error
-        assert!(true); // Simple existence test
+        let state = JupyterState::new();
+        // State should be created without error - the state existing proves success
+        let _ = &state;
     }
 
     #[test]

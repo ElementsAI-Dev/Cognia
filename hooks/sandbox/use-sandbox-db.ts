@@ -301,6 +301,8 @@ export interface UseSessionsReturn {
   endSession: () => Promise<void>;
   setCurrentSession: (sessionId: string | null) => Promise<void>;
   deleteSession: (id: string, deleteExecutions?: boolean) => Promise<void>;
+  updateSession: (sessionId: string, name: string, description?: string) => Promise<void>;
+  getSessionExecutions: (sessionId: string) => Promise<SandboxExecutionRecord[]>;
 }
 
 export function useSessions(options: UseSessionsOptions = {}): UseSessionsReturn {
@@ -377,6 +379,36 @@ export function useSessions(options: UseSessionsOptions = {}): UseSessionsReturn
     [currentSessionId]
   );
 
+  const updateSession = useCallback(
+    async (sessionId: string, name: string, description?: string) => {
+      if (!isTauri) return;
+      const api = await getSandboxApi();
+      await api.updateSession(sessionId, name, description);
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? { ...s, name, description: description || s.description }
+            : s
+        )
+      );
+    },
+    []
+  );
+
+  const getSessionExecutions = useCallback(
+    async (sessionId: string): Promise<SandboxExecutionRecord[]> => {
+      if (!isTauri) return [];
+      try {
+        const api = await getSandboxApi();
+        return await api.getSessionExecutions(sessionId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        return [];
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -391,6 +423,8 @@ export function useSessions(options: UseSessionsOptions = {}): UseSessionsReturn
     endSession,
     setCurrentSession,
     deleteSession,
+    updateSession,
+    getSessionExecutions,
   };
 }
 

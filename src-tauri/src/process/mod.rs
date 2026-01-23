@@ -25,11 +25,11 @@ mod unix;
 fn apply_filter_for_test(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
     #[cfg(windows)]
     {
-        return windows::apply_filter(info, filter);
+        windows::apply_filter(info, filter)
     }
     #[cfg(unix)]
     {
-        return unix::apply_filter(info, filter);
+        unix::apply_filter(info, filter)
     }
     #[cfg(not(any(windows, unix)))]
     {
@@ -43,12 +43,10 @@ fn sort_processes_for_test(processes: &mut [ProcessInfo], sort_by: ProcessSortFi
     #[cfg(windows)]
     {
         windows::sort_processes(processes, sort_by, desc);
-        return;
     }
     #[cfg(unix)]
     {
         unix::sort_processes(processes, sort_by, desc);
-        return;
     }
     #[cfg(not(any(windows, unix)))]
     {
@@ -578,10 +576,12 @@ mod tests {
         let config_path = dir.path().join("process.json");
 
         let manager = ProcessManager::new(config_path.clone()).await.expect("manager");
-        let mut updated = ProcessManagerConfig::default();
-        updated.enabled = true;
-        updated.allowed_programs = vec!["python".to_string()];
-        updated.max_tracked_processes = 42;
+        let updated = ProcessManagerConfig {
+            enabled: true,
+            allowed_programs: vec!["python".to_string()],
+            max_tracked_processes: 42,
+            ..Default::default()
+        };
 
         manager.update_config(updated).await.expect("update");
 
@@ -601,17 +601,21 @@ mod tests {
 
         assert!(!manager.is_program_allowed("python").await);
 
-        let mut enabled_config = ProcessManagerConfig::default();
-        enabled_config.enabled = true;
-        enabled_config.denied_programs = vec!["rm".to_string()];
+        let enabled_config = ProcessManagerConfig {
+            enabled: true,
+            denied_programs: vec!["rm".to_string()],
+            ..Default::default()
+        };
         manager.update_config(enabled_config).await.expect("update");
 
         assert!(!manager.is_program_allowed("rm").await);
         assert!(manager.is_program_allowed("node").await);
 
-        let mut allowlist_config = ProcessManagerConfig::default();
-        allowlist_config.enabled = true;
-        allowlist_config.allowed_programs = vec!["python".to_string()];
+        let allowlist_config = ProcessManagerConfig {
+            enabled: true,
+            allowed_programs: vec!["python".to_string()],
+            ..Default::default()
+        };
         manager.update_config(allowlist_config).await.expect("update");
 
         assert!(manager.is_program_allowed("python3").await);
@@ -624,17 +628,21 @@ mod tests {
         let config_path = dir.path().join("process.json");
         let manager = ProcessManager::new(config_path).await.expect("manager");
 
-        let mut config = ProcessManagerConfig::default();
-        config.enabled = true;
-        config.allow_terminate_any = true;
+        let config = ProcessManagerConfig {
+            enabled: true,
+            allow_terminate_any: true,
+            ..Default::default()
+        };
         manager.update_config(config).await.expect("update");
 
         assert!(manager.can_terminate(123).await);
 
-        let mut tracking_config = ProcessManagerConfig::default();
-        tracking_config.enabled = true;
-        tracking_config.allow_terminate_any = false;
-        tracking_config.only_terminate_own = true;
+        let tracking_config = ProcessManagerConfig {
+            enabled: true,
+            allow_terminate_any: false,
+            only_terminate_own: true,
+            ..Default::default()
+        };
         manager.update_config(tracking_config).await.expect("update");
 
         assert!(!manager.can_terminate(456).await);
@@ -650,9 +658,11 @@ mod tests {
         let config_path = dir.path().join("process.json");
         let manager = ProcessManager::new(config_path).await.expect("manager");
 
-        let mut config = ProcessManagerConfig::default();
-        config.enabled = true;
-        config.max_tracked_processes = 2;
+        let config = ProcessManagerConfig {
+            enabled: true,
+            max_tracked_processes: 2,
+            ..Default::default()
+        };
         manager.update_config(config).await.expect("update");
 
         manager.track_process(1).await;

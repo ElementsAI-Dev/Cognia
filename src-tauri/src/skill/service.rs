@@ -737,7 +737,7 @@ impl SkillService {
                 let matches_query = query.is_empty()
                     || skill.name.to_lowercase().contains(&query)
                     || skill.description.to_lowercase().contains(&query)
-                    || skill.tags.as_ref().map_or(false, |tags| {
+                    || skill.tags.as_ref().is_some_and(|tags| {
                         tags.iter().any(|t| t.to_lowercase().contains(&query))
                     });
 

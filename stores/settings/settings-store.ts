@@ -41,8 +41,8 @@ import type { TokenizerSettings, TokenizerProvider } from '@/types/system/tokeni
 import { DEFAULT_TOKENIZER_SETTINGS } from '@/types/system/tokenizer';
 import type { FeatureRoutingSettings, FeatureId, FeatureRoutingMode } from '@/types/routing/feature-router';
 import { DEFAULT_FEATURE_ROUTING_SETTINGS } from '@/types/routing/feature-router';
-import type { WelcomeSettings, CustomSuggestion, QuickAccessLink, WelcomeSectionVisibility } from '@/types/settings/welcome-settings';
-import { DEFAULT_WELCOME_SETTINGS } from '@/types/settings/welcome-settings';
+import type { WelcomeSettings, CustomSuggestion, QuickAccessLink, WelcomeSectionVisibility } from '@/types/settings/welcome';
+import { DEFAULT_WELCOME_SETTINGS } from '@/types/settings/welcome';
 import type { ChatMode } from '@/types/core';
 
 // Safety Mode types

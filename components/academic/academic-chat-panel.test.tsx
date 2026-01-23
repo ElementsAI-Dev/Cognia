@@ -5,12 +5,12 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AcademicChatPanel } from './academic-chat-panel';
-import { useAcademicEnhanced } from '@/hooks/academic/use-academic-enhanced';
+import { useAcademic } from '@/hooks/academic/use-academic';
 import type { Paper } from '@/types/learning/academic';
 
 // Mock the hooks
-jest.mock('@/hooks/academic/use-academic-enhanced', () => ({
-  useAcademicEnhanced: jest.fn(),
+jest.mock('@/hooks/academic/use-academic', () => ({
+  useAcademic: jest.fn(),
 }));
 
 // Mock next-intl
@@ -18,8 +18,8 @@ jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-const mockUseAcademicEnhanced = useAcademicEnhanced as jest.MockedFunction<
-  typeof useAcademicEnhanced
+const mockUseAcademic = useAcademic as jest.MockedFunction<
+  typeof useAcademic
 >;
 
 // Mock paper data
@@ -40,8 +40,8 @@ const createMockPaper = (id: string): Paper => ({
 });
 
 describe('AcademicChatPanel', () => {
-  const mockSearchPapersEnhanced = jest.fn();
-  const mockAnalyzePaperEnhanced = jest.fn();
+  const mockSearchPapers = jest.fn();
+  const mockAnalyzePaperWithAI = jest.fn();
   const mockAddToLibrary = jest.fn();
 
   const defaultMockReturn = {
@@ -52,8 +52,54 @@ describe('AcademicChatPanel', () => {
     searchError: null,
     totalResults: 0,
     libraryPapers: [],
+    collections: [],
+    selectedPaper: null,
+    selectedCollection: null,
+    activeTab: 'search' as const,
+    viewMode: 'grid' as const,
+    isLoading: false,
+    error: null,
+    searchWithProvider: jest.fn(),
+    search: jest.fn(),
+    setSearchFilter: jest.fn(),
+    clearSearch: jest.fn(),
+    removeFromLibrary: jest.fn(),
+    updatePaperStatus: jest.fn(),
+    updatePaperRating: jest.fn(),
+    addPaperNote: jest.fn(),
+    createCollection: jest.fn(),
+    deleteCollection: jest.fn(),
+    addToCollection: jest.fn(),
+    removeFromCollection: jest.fn(),
+    downloadPdf: jest.fn(),
+    hasPdf: jest.fn(),
+    analyzePaper: jest.fn(),
+    startGuidedLearning: jest.fn(),
+    setActiveTab: jest.fn(),
+    selectPaper: jest.fn(),
+    selectCollection: jest.fn(),
+    setViewMode: jest.fn(),
+    importBibtex: jest.fn(),
+    exportBibtex: jest.fn(),
+    addTag: jest.fn(),
+    removeTag: jest.fn(),
+    selectedPaperIds: [],
+    togglePaperSelection: jest.fn(),
+    selectAllPapers: jest.fn(),
+    clearPaperSelection: jest.fn(),
+    batchUpdateStatus: jest.fn(),
+    batchAddToCollection: jest.fn(),
+    batchRemove: jest.fn(),
+    searchHistory: [],
+    addSearchHistory: jest.fn(),
+    clearSearchHistory: jest.fn(),
+    saveAnalysisResult: jest.fn(),
+    getAnalysisHistory: jest.fn(),
+    refresh: jest.fn(),
+    refreshLibrary: jest.fn(),
+    refreshCollections: jest.fn(),
     // Enhanced search
-    searchPapersEnhanced: mockSearchPapersEnhanced,
+    searchPapers: mockSearchPapers,
     lastSearchResult: null,
     // A2UI integration
     createSearchResultsUI: jest.fn().mockReturnValue(null),
@@ -61,7 +107,7 @@ describe('AcademicChatPanel', () => {
     createAnalysisUI: jest.fn().mockReturnValue(null),
     createComparisonUI: jest.fn().mockReturnValue(null),
     // Analysis
-    analyzePaperEnhanced: mockAnalyzePaperEnhanced,
+    analyzePaperWithAI: mockAnalyzePaperWithAI,
     lastAnalysisResult: null,
     isAnalyzing: false,
     // Web search integration
@@ -77,7 +123,7 @@ describe('AcademicChatPanel', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseAcademicEnhanced.mockReturnValue(defaultMockReturn);
+    mockUseAcademic.mockReturnValue(defaultMockReturn);
   });
 
   describe('Rendering', () => {
@@ -172,7 +218,7 @@ describe('AcademicChatPanel', () => {
 
   describe('Search Functionality', () => {
     it('should handle search submission', async () => {
-      mockSearchPapersEnhanced.mockResolvedValue({
+      mockSearchPapers.mockResolvedValue({
         success: true,
         papers: [createMockPaper('1'), createMockPaper('2')],
       });
@@ -187,7 +233,7 @@ describe('AcademicChatPanel', () => {
       await user.keyboard('{Enter}');
 
       await waitFor(() => {
-        expect(mockSearchPapersEnhanced).toHaveBeenCalledWith(
+        expect(mockSearchPapers).toHaveBeenCalledWith(
           'machine learning papers',
           expect.objectContaining({
             maxResults: 10,
@@ -198,7 +244,7 @@ describe('AcademicChatPanel', () => {
     });
 
     it('should display search results', async () => {
-      mockSearchPapersEnhanced.mockResolvedValue({
+      mockSearchPapers.mockResolvedValue({
         success: true,
         papers: [createMockPaper('1')],
       });
@@ -218,7 +264,7 @@ describe('AcademicChatPanel', () => {
     });
 
     it('should show no results message when no papers found', async () => {
-      mockSearchPapersEnhanced.mockResolvedValue({
+      mockSearchPapers.mockResolvedValue({
         success: true,
         papers: [],
       });
@@ -238,7 +284,7 @@ describe('AcademicChatPanel', () => {
     });
 
     it('should show error message on search failure', async () => {
-      mockSearchPapersEnhanced.mockRejectedValue(new Error('Search failed'));
+      mockSearchPapers.mockRejectedValue(new Error('Search failed'));
 
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
@@ -261,11 +307,11 @@ describe('AcademicChatPanel', () => {
       const submitButton = screen.getByRole('button', { name: '' });
       await user.click(submitButton);
 
-      expect(mockSearchPapersEnhanced).not.toHaveBeenCalled();
+      expect(mockSearchPapers).not.toHaveBeenCalled();
     });
 
     it('should not submit when loading', async () => {
-      mockSearchPapersEnhanced.mockImplementation(() => new Promise(() => {})); // Never resolves
+      mockSearchPapers.mockImplementation(() => new Promise(() => {})); // Never resolves
 
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
@@ -280,13 +326,13 @@ describe('AcademicChatPanel', () => {
       await user.type(textarea, 'second search');
       await user.keyboard('{Enter}');
 
-      expect(mockSearchPapersEnhanced).toHaveBeenCalledTimes(1);
+      expect(mockSearchPapers).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('Loading State', () => {
     it('should show loading indicator during search', async () => {
-      mockSearchPapersEnhanced.mockImplementation(
+      mockSearchPapers.mockImplementation(
         () =>
           new Promise((resolve) => setTimeout(() => resolve({ success: true, papers: [] }), 1000))
       );
@@ -304,23 +350,23 @@ describe('AcademicChatPanel', () => {
     });
 
     it('should show analyzing indicator when isAnalyzing is true', () => {
-      mockUseAcademicEnhanced.mockReturnValue({
+      mockUseAcademic.mockReturnValue({
         ...defaultMockReturn,
         isAnalyzing: true,
-      } as ReturnType<typeof useAcademicEnhanced>);
+      } as ReturnType<typeof useAcademic>);
 
       render(<AcademicChatPanel />);
 
       // The component would show this when analyzing
       // Since we need to trigger the analysis first, this test verifies the hook is called correctly
-      expect(mockUseAcademicEnhanced).toHaveBeenCalled();
+      expect(mockUseAcademic).toHaveBeenCalled();
     });
   });
 
   describe('Paper Selection', () => {
     it('should call onPaperSelect when paper is clicked', async () => {
       const mockOnPaperSelect = jest.fn();
-      mockSearchPapersEnhanced.mockResolvedValue({
+      mockSearchPapers.mockResolvedValue({
         success: true,
         papers: [createMockPaper('1')],
       });
@@ -342,7 +388,7 @@ describe('AcademicChatPanel', () => {
 
   describe('Add to Library', () => {
     it('should call addToLibrary when add button is clicked', async () => {
-      mockSearchPapersEnhanced.mockResolvedValue({
+      mockSearchPapers.mockResolvedValue({
         success: true,
         papers: [createMockPaper('1')],
       });
@@ -364,7 +410,7 @@ describe('AcademicChatPanel', () => {
 
     it('should call onAddToLibrary callback when provided', async () => {
       const mockOnAddToLibrary = jest.fn();
-      mockSearchPapersEnhanced.mockResolvedValue({
+      mockSearchPapers.mockResolvedValue({
         success: true,
         papers: [createMockPaper('1')],
       });
@@ -373,13 +419,13 @@ describe('AcademicChatPanel', () => {
       render(<AcademicChatPanel onAddToLibrary={mockOnAddToLibrary} />);
 
       // The callback would be called when a paper is added
-      expect(mockUseAcademicEnhanced).toHaveBeenCalled();
+      expect(mockUseAcademic).toHaveBeenCalled();
     });
   });
 
   describe('Analysis', () => {
     it('should request analysis with summarize command', async () => {
-      mockAnalyzePaperEnhanced.mockResolvedValue({
+      mockAnalyzePaperWithAI.mockResolvedValue({
         success: true,
         analysis: 'This paper discusses...',
         suggestedQuestions: ['What are the main findings?'],
@@ -412,7 +458,7 @@ describe('AcademicChatPanel', () => {
 
   describe('Keyboard Navigation', () => {
     it('should submit on Enter without Shift', async () => {
-      mockSearchPapersEnhanced.mockResolvedValue({
+      mockSearchPapers.mockResolvedValue({
         success: true,
         papers: [],
       });
@@ -427,7 +473,7 @@ describe('AcademicChatPanel', () => {
       await user.keyboard('{Enter}');
 
       await waitFor(() => {
-        expect(mockSearchPapersEnhanced).toHaveBeenCalled();
+        expect(mockSearchPapers).toHaveBeenCalled();
       });
     });
 
@@ -441,13 +487,13 @@ describe('AcademicChatPanel', () => {
       await user.type(textarea, 'test query');
       await user.keyboard('{Shift>}{Enter}{/Shift}');
 
-      expect(mockSearchPapersEnhanced).not.toHaveBeenCalled();
+      expect(mockSearchPapers).not.toHaveBeenCalled();
     });
   });
 
   describe('Message Display', () => {
     it('should display user messages with correct styling', async () => {
-      mockSearchPapersEnhanced.mockResolvedValue({
+      mockSearchPapers.mockResolvedValue({
         success: true,
         papers: [],
       });
@@ -470,7 +516,7 @@ describe('AcademicChatPanel', () => {
     });
 
     it('should display assistant messages with correct styling', async () => {
-      mockSearchPapersEnhanced.mockResolvedValue({
+      mockSearchPapers.mockResolvedValue({
         success: true,
         papers: [],
       });
@@ -495,7 +541,7 @@ describe('AcademicChatPanel', () => {
 
   describe('Form Behavior', () => {
     it('should clear input after submission', async () => {
-      mockSearchPapersEnhanced.mockResolvedValue({
+      mockSearchPapers.mockResolvedValue({
         success: true,
         papers: [],
       });

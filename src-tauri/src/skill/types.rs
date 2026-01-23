@@ -476,7 +476,7 @@ impl SecurityScanReport {
             + (self.summary.high * 15)
             + (self.summary.medium * 8)
             + (self.summary.low * 3)
-            + (self.summary.info * 1);
+            + self.summary.info;
         self.summary.risk_score = risk.min(100);
 
         // Safe if no critical or high findings

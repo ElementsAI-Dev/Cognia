@@ -45,7 +45,7 @@ import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { AgentModeSelector } from '@/components/agent';
 import { WelcomeA2UIDemo } from './welcome-a2ui-demo';
 import { useSettingsStore } from '@/stores';
-import { DEFAULT_QUICK_ACCESS_LINKS } from '@/types/settings/welcome-settings';
+import { DEFAULT_QUICK_ACCESS_LINKS } from '@/types/settings/welcome';
 
 interface WelcomeStateProps {
   mode: ChatMode;

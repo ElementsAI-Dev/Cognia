@@ -31,38 +31,73 @@ const createMockTrace = (id: string): KnowledgeMapTrace => ({
 });
 
 const createMockKnowledgeMap = (id: string): KnowledgeMap => ({
+  schemaVersion: 1,
   id,
+  stableId: `stable-${id}`,
   title: `Knowledge Map ${id}`,
   description: 'Test knowledge map description',
   traces: [createMockTrace('1'), createMockTrace('2')],
   metadata: {
+    generationSource: 'manual',
+    generationTimestamp: new Date().toISOString(),
     mode: 'DETAILED',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    version: '1.0',
   },
   mermaidDiagram: 'graph TD; A-->B;',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
 });
 
 describe('KnowledgeMapPanel', () => {
   const defaultMockReturn = {
+    // State
     knowledgeMaps: [] as KnowledgeMap[],
     activeKnowledgeMap: null as KnowledgeMap | null,
+    annotations: [],
     isGenerating: false,
     generationProgress: 0,
     error: null as string | null,
+    // Navigation
     canNavigateBack: false,
     canNavigateForward: false,
+    // Knowledge Map CRUD
     createKnowledgeMap: jest.fn(),
+    updateKnowledgeMap: jest.fn(),
     deleteKnowledgeMap: jest.fn(),
     setActiveKnowledgeMap: jest.fn(),
+    getKnowledgeMap: jest.fn(),
+    // PDF Conversion
     convertPDFToKnowledgeMap: jest.fn(),
+    // Content-based Generation
+    generateFromContent: jest.fn(),
+    // Mind Map
+    generateMindMap: jest.fn(),
+    updateMindMap: jest.fn(),
+    // Annotations
+    addAnnotation: jest.fn(),
+    updateAnnotation: jest.fn(),
+    deleteAnnotation: jest.fn(),
+    // Navigation
+    navigateTo: jest.fn(),
     navigateBack: jest.fn(),
     navigateForward: jest.fn(),
     navigateToLocation: jest.fn(),
+    navigateToPage: jest.fn(),
+    // Trace Management
+    addTrace: jest.fn(),
+    updateTrace: jest.fn(),
+    deleteTrace: jest.fn(),
+    // Location Management
+    addLocation: jest.fn(),
+    updateLocation: jest.fn(),
+    deleteLocation: jest.fn(),
+    // Import/Export
+    importFromCodemap: jest.fn(),
+    exportToCodemap: jest.fn(),
     importFromFile: jest.fn(),
     exportToFile: jest.fn(),
+    // Utility
     clearError: jest.fn(),
+    reset: jest.fn(),
   };
 
   beforeEach(() => {

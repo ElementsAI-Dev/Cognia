@@ -11,7 +11,11 @@ pub mod kernel;
 pub mod protocol;
 pub mod session;
 
-pub use kernel::{JupyterKernel, KernelConfig};
+// Re-exports for public API (used by commands/devtools/jupyter.rs)
+pub use kernel::KernelConfig;
+#[allow(unused_imports)]
+pub use kernel::JupyterKernel;
+#[allow(unused_imports)]
 pub use session::{JupyterSession, SessionManager};
 
 use serde::{Deserialize, Serialize};

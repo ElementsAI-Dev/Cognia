@@ -4,37 +4,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Changelog
 
-### 2026-01-22
-- Complete AI context documentation system refresh
-- Full file system scan completed - 3,681 source files indexed
-- Language breakdown: TypeScript (2,356), TSX (1,020), Rust (147), JSON (100), Other (58)
-- Updated module counts: app (62 files), components (300 files, 43 dirs), lib (200 files, 20 dirs), hooks (100 files, 19 dirs), stores (100 files, 23 dirs), types (105 files, 20 dirs), src-tauri (147 files, 15 dirs)
-- Test files: 169 unit tests, 100 E2E tests
-- Enhanced module structure diagram with new features (observability, workflow-marketplace, skills)
-- All 7 module CLAUDE.md files verified present and up-to-date
-- Updated `.claude/index.json` with comprehensive project metadata
-
-### 2026-01-16
-- AI context documentation system verification scan
-- Total source files: 3,681 (TypeScript: 2,356, Rust: 147)
-- New modules identified: observability, workflow-marketplace, skills (hooks/stores)
-- All 7 module CLAUDE.md files verified present and up-to-date
-- Module counts: components (38 dirs), hooks (22 dirs), lib (30 dirs), stores (24 dirs), types (17 dirs)
-
-### 2026-01-15
-- Complete AI context documentation system refresh
-- Full file system scan completed - 850 files indexed
-- Updated module structure diagram with new routes
-- Enhanced module documentation with detailed subdirectories
-- Comprehensive dependency and configuration documentation
-- All module CLAUDE.md files present and up-to-date
-
-### 2025-01-14
-- Initial AI context documentation system created
-- Added module structure diagram with clickable navigation
-- Indexed 7 main modules with coverage analysis
-- Documented 500+ source files across frontend and backend
-
 ---
 
 ## Project Overview
@@ -184,6 +153,7 @@ pnpm i18n:validate    # Validate translation files
 ### High-Level Architecture
 
 Cognia is a hybrid web/desktop application that:
+
 1. Runs as a Next.js app during development (`pnpm dev`)
 2. Builds to static HTML for Tauri desktop distribution (`pnpm build`)
 3. Uses Tauri's Rust backend for native capabilities (MCP process management, file system access, clipboard, screenshots, system monitoring)
@@ -303,6 +273,7 @@ The application uses an 11-layer provider architecture:
 ### Testing Coverage Exclusions
 
 Excluded from coverage (require external services/runtime):
+
 - `lib/search/` — External search APIs (Tavily)
 - `lib/vector/` — Vector DB clients (Pinecone, Qdrant, ChromaDB)
 - `lib/native/` — Tauri runtime

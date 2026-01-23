@@ -267,6 +267,15 @@ export async function shutdownAll(): Promise<void> {
   return invoke('jupyter_shutdown_all');
 }
 
+/** Perform cleanup of dead and idle kernels */
+export async function cleanup(): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+
+  return invoke('jupyter_cleanup');
+}
+
 // ==================== Event Listeners ====================
 
 /** Listen for kernel status events */
@@ -335,6 +344,7 @@ export const kernelService = {
   checkKernelAvailable,
   ensureKernel,
   shutdownAll,
+  cleanup,
   // Events
   onKernelStatus,
   onKernelOutput,

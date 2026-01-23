@@ -125,7 +125,7 @@ impl StorageManager {
                 }
             }
         } else {
-            format!("recording_{}", uuid::Uuid::new_v4().to_string()[..8].to_string())
+            format!("recording_{}", &uuid::Uuid::new_v4().to_string()[..8])
         };
 
         format!("{}.{}", base_name, format)
@@ -155,7 +155,7 @@ impl StorageManager {
                 }
             }
         } else {
-            format!("screenshot_{}", uuid::Uuid::new_v4().to_string()[..8].to_string())
+            format!("screenshot_{}", &uuid::Uuid::new_v4().to_string()[..8])
         };
 
         format!("{}.{}", base_name, format)
@@ -216,6 +216,7 @@ impl StorageManager {
     }
 
     /// Calculate directory size recursively
+    #[allow(clippy::only_used_in_recursion)]
     fn calculate_dir_size(&self, dir: &Path) -> (u64, u32) {
         let mut total_size = 0u64;
         let mut file_count = 0u32;

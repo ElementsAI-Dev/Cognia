@@ -1117,6 +1117,7 @@ mod tests {
 
     #[test]
     fn test_timeout_constants() {
-        assert!(FFMPEG_STOP_TIMEOUT_SECS > 0);
+        // Compile-time check: FFMPEG_STOP_TIMEOUT_SECS must be positive
+        const _: () = assert!(FFMPEG_STOP_TIMEOUT_SECS > 0);
     }
 }

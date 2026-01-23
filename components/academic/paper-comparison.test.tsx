@@ -6,7 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PaperComparison } from './paper-comparison';
 import { useAcademic } from '@/hooks/academic';
-import type { LibraryPaper } from '@/types/learning/academic';
+import type { LibraryPaper, PaperCollection } from '@/types/learning/academic';
 
 // Mock the hooks
 jest.mock('@/hooks/academic', () => ({
@@ -48,7 +48,7 @@ const createMockLibraryPaper = (
 describe('PaperComparison', () => {
   const defaultMockReturn = {
     libraryPapers: [] as LibraryPaper[],
-    collections: [],
+    collections: [] as PaperCollection[],
     searchQuery: '',
     searchResults: [],
     isSearching: false,
@@ -60,33 +60,79 @@ describe('PaperComparison', () => {
     activeTab: 'search' as const,
     isLoading: false,
     error: null,
+    // Enhanced search
+    searchPapers: jest.fn(),
+    lastSearchResult: null,
+    // A2UI integration
+    createSearchResultsUI: jest.fn(),
+    createPaperCardUI: jest.fn(),
+    createAnalysisUI: jest.fn(),
+    createComparisonUI: jest.fn(),
+    // Enhanced analysis
+    analyzePaperWithAI: jest.fn(),
+    lastAnalysisResult: null,
+    isAnalyzing: false,
+    // Web search integration
+    searchWebForPaper: jest.fn(),
+    findRelatedPapers: jest.fn(),
+    // Combined actions
+    searchAndDisplay: jest.fn(),
+    analyzeAndDisplay: jest.fn(),
+    // Legacy search actions
     search: jest.fn(),
     setSearchQuery: jest.fn(),
     setSearchFilter: jest.fn(),
+    clearSearch: jest.fn(),
+    // Library actions
     addToLibrary: jest.fn(),
     removeFromLibrary: jest.fn(),
     updatePaperStatus: jest.fn(),
     updatePaperRating: jest.fn(),
     addPaperNote: jest.fn(),
+    // Collection actions
     createCollection: jest.fn(),
     deleteCollection: jest.fn(),
     addToCollection: jest.fn(),
     removeFromCollection: jest.fn(),
+    // PDF actions
+    downloadPdf: jest.fn(),
+    hasPdf: jest.fn(),
+    // Analysis actions
+    analyzePaper: jest.fn(),
+    startGuidedLearning: jest.fn(),
+    // UI actions
+    setActiveTab: jest.fn(),
     selectCollection: jest.fn(),
     selectPaper: jest.fn(),
     setViewMode: jest.fn(),
-    downloadPdf: jest.fn(),
-    hasPdf: jest.fn(),
-    analyzePaper: jest.fn(),
-    startGuidedLearning: jest.fn(),
+    // Import/Export
     importBibtex: jest.fn(),
     exportBibtex: jest.fn(),
+    // Tag actions
+    addTag: jest.fn(),
+    removeTag: jest.fn(),
+    // Batch actions
+    selectedPaperIds: [],
+    togglePaperSelection: jest.fn(),
+    selectAllPapers: jest.fn(),
+    clearPaperSelection: jest.fn(),
+    batchAddToCollection: jest.fn(),
+    batchUpdateStatus: jest.fn(),
+    batchRemove: jest.fn(),
+    // Search history
+    searchHistory: [],
+    addSearchHistory: jest.fn(),
+    clearSearchHistory: jest.fn(),
+    // Analysis history
+    saveAnalysisResult: jest.fn(),
+    getAnalysisHistory: jest.fn(),
+    // Other
     refresh: jest.fn(),
-    setActiveTab: jest.fn(),
+    refreshLibrary: jest.fn(),
+    refreshCollections: jest.fn(),
     clearError: jest.fn(),
     reset: jest.fn(),
     searchWithProvider: jest.fn(),
-    clearSearch: jest.fn(),
   };
 
   beforeEach(() => {

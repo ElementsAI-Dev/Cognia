@@ -53,6 +53,7 @@ pub struct JupyterKernel {
     pub python_version: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub last_activity_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[allow(dead_code)]
     config: KernelConfig,
     process: Option<Child>,
     variables: HashMap<String, String>,
@@ -708,6 +709,7 @@ print(json.dumps(get_var_info()))
     }
 
     /// Check if kernel is alive
+    #[allow(dead_code)]
     pub fn is_alive(&self) -> bool {
         self.status != KernelStatus::Dead
     }

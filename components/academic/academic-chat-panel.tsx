@@ -26,7 +26,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { useAcademicEnhanced } from '@/hooks/academic/use-academic-enhanced';
+import { useAcademic } from '@/hooks/academic/use-academic';
 import type { Paper, PaperAnalysisType } from '@/types/learning/academic';
 import { AcademicPaperCard } from '@/components/a2ui/academic/academic-paper-card';
 
@@ -66,8 +66,7 @@ export function AcademicChatPanel({
   initialQuery,
   className,
 }: AcademicChatPanelProps) {
-  const { searchPapersEnhanced, analyzePaperEnhanced, isAnalyzing, addToLibrary } =
-    useAcademicEnhanced();
+  const { searchPapers, analyzePaperWithAI, isAnalyzing, addToLibrary } = useAcademic();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState(initialQuery || '');
@@ -107,7 +106,7 @@ export function AcademicChatPanel({
       addMessage('user', query);
 
       try {
-        const result = await searchPapersEnhanced(query, {
+        const result = await searchPapers(query, {
           maxResults: 10,
           providers: ['arxiv', 'semantic-scholar'],
         });
@@ -130,7 +129,7 @@ export function AcademicChatPanel({
         setIsLoading(false);
       }
     },
-    [searchPapersEnhanced, addMessage]
+    [searchPapers, addMessage]
   );
 
   const handleAnalyze = useCallback(
@@ -140,7 +139,7 @@ export function AcademicChatPanel({
       addMessage('user', `Analyze "${paper.title}" - ${analysisType}`);
 
       try {
-        const result = await analyzePaperEnhanced(paper, analysisType);
+        const result = await analyzePaperWithAI(paper, analysisType);
 
         if (result.success) {
           addMessage('assistant', result.analysis, { analysisType });
@@ -148,7 +147,7 @@ export function AcademicChatPanel({
           if (result.suggestedQuestions && result.suggestedQuestions.length > 0) {
             addMessage(
               'assistant',
-              `**Suggested follow-up questions:**\n${result.suggestedQuestions.map((q) => `- ${q}`).join('\n')}`
+              `**Suggested follow-up questions:**\n${result.suggestedQuestions.map((q: string) => `- ${q}`).join('\n')}`
             );
           }
         } else {
@@ -163,7 +162,7 @@ export function AcademicChatPanel({
         setIsLoading(false);
       }
     },
-    [analyzePaperEnhanced, addMessage]
+    [analyzePaperWithAI, addMessage]
   );
 
   const handleSubmit = useCallback(

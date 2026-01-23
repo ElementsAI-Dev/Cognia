@@ -265,6 +265,32 @@ export async function deleteSession(
   return invoke<void>('sandbox_delete_session', { id, deleteExecutions });
 }
 
+/**
+ * Update a session's name and description
+ */
+export async function updateSession(
+  sessionId: string,
+  name: string,
+  description?: string
+): Promise<void> {
+  return invoke<void>('sandbox_update_session', {
+    session_id: sessionId,
+    name,
+    description,
+  });
+}
+
+/**
+ * Get all executions for a session
+ */
+export async function getSessionExecutions(
+  sessionId: string
+): Promise<SandboxExecutionRecord[]> {
+  return invoke<SandboxExecutionRecord[]>('sandbox_get_session_executions', {
+    session_id: sessionId,
+  });
+}
+
 // ==================== Execution History ====================
 
 /**
@@ -596,6 +622,8 @@ export const SandboxDbApi = {
   listSessions,
   getSession,
   deleteSession,
+  updateSession,
+  getSessionExecutions,
   // History
   getExecution,
   queryExecutions,

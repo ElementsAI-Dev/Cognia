@@ -44,7 +44,7 @@ HTMLCanvasElement.prototype.getContext = jest.fn(() => mockContext) as jest.Mock
 const createMockNode = (id: string, children: MindMapNode[] = []): MindMapNode => ({
   id,
   label: `Node ${id}`,
-  type: 'topic',
+  type: 'concept',
   children,
 });
 
@@ -55,6 +55,7 @@ const createMockMindMapData = (): MindMapData => ({
     { id: 'e1', source: 'root', target: 'child1' },
     { id: 'e2', source: 'root', target: 'child2' },
   ],
+  layout: 'radial',
 });
 
 describe('MindMapCanvas', () => {
@@ -168,14 +169,14 @@ describe('MindMapCanvas', () => {
     it('should render search input', () => {
       render(<MindMapCanvas {...defaultProps} />);
 
-      expect(screen.getByPlaceholder('searchNodes')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('searchNodes')).toBeInTheDocument();
     });
 
     it('should highlight matching nodes', async () => {
       const user = userEvent.setup();
       render(<MindMapCanvas {...defaultProps} />);
 
-      const searchInput = screen.getByPlaceholder('searchNodes');
+      const searchInput = screen.getByPlaceholderText('searchNodes');
       await user.type(searchInput, 'Node');
 
       expect(screen.getByText(/matchesFound/)).toBeInTheDocument();
@@ -185,7 +186,7 @@ describe('MindMapCanvas', () => {
       const user = userEvent.setup();
       render(<MindMapCanvas {...defaultProps} />);
 
-      const searchInput = screen.getByPlaceholder('searchNodes');
+      const searchInput = screen.getByPlaceholderText('searchNodes');
       await user.type(searchInput, 'test');
 
       // Clear button should appear
@@ -324,16 +325,22 @@ describe('MindMapCanvas', () => {
 
     it('should use custom theme when provided', () => {
       const customTheme = {
+        name: 'custom',
         nodeColors: {
-          topic: '#ff0000',
-          subtopic: '#00ff00',
-          detail: '#0000ff',
-          figure: '#ff00ff',
-          table: '#ffff00',
-          equation: '#00ffff',
+          root: '#ff0000',
+          concept: '#00ff00',
+          section: '#0000ff',
+          subsection: '#ff00ff',
+          detail: '#ffff00',
+          reference: '#00ffff',
+          figure: '#cccccc',
+          table: '#999999',
+          equation: '#666666',
+          citation: '#333333',
         },
         edgeColor: '#cccccc',
         backgroundColor: '#ffffff',
+        fontFamily: 'Arial',
       };
 
       render(<MindMapCanvas {...defaultProps} theme={customTheme} />);

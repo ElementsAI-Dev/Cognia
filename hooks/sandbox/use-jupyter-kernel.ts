@@ -66,6 +66,7 @@ export interface UseJupyterKernelReturn {
   checkKernelAvailable: (envPath: string) => Promise<boolean>;
   ensureKernel: (envPath: string) => Promise<boolean>;
   shutdownAll: () => Promise<void>;
+  cleanup: () => Promise<void>;
   clearError: () => void;
 
   // Chat integration
@@ -555,6 +556,16 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     }
   }, [setSessions, setKernels, setActiveSessionInStore, setError]);
 
+  // Cleanup dead and idle kernels
+  const cleanup = useCallback(async (): Promise<void> => {
+    try {
+      await kernelService.cleanup();
+      await refreshSessions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cleanup kernels');
+    }
+  }, [refreshSessions, setError]);
+
   // Get session for chat
   const getSessionForChat = useCallback(
     (chatSessionId: string): JupyterSession | null => {
@@ -620,6 +631,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     checkKernelAvailable,
     ensureKernel,
     shutdownAll,
+    cleanup,
     clearError,
 
     // Chat integration

@@ -6,10 +6,12 @@
 
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAcademicStore } from '@/stores/academic';
 import { useLearningStore } from '@/stores/learning';
 import { useSessionStore } from '@/stores/chat';
+import { useA2UI } from '@/hooks/a2ui/use-a2ui';
+import { useSettingsStore } from '@/stores/settings';
 import type {
   Paper,
   LibraryPaper,
@@ -20,6 +22,36 @@ import type {
   PaperReadingStatus,
   PaperAnalysisResult,
 } from '@/types/learning/academic';
+
+type SupportedAcademicProvider =
+  | 'arxiv'
+  | 'semantic-scholar'
+  | 'core'
+  | 'openalex'
+  | 'dblp'
+  | 'huggingface-papers';
+import {
+  executeAcademicSearch,
+  type AcademicSearchInput,
+  type AcademicSearchResult,
+} from '@/lib/ai/tools/academic-search-tool';
+import {
+  executeAcademicAnalysis,
+  type AcademicAnalysisInput,
+  type AcademicAnalysisResult,
+} from '@/lib/ai/tools/academic-analysis-tool';
+import {
+  createSearchResultsSurface,
+  createAnalysisPanelSurface,
+  createPaperCardSurface,
+  createPaperComparisonSurface,
+} from '@/lib/a2ui/academic-templates';
+
+export interface UseAcademicOptions {
+  enableA2UI?: boolean;
+  enableWebSearch?: boolean;
+  defaultProviders?: SupportedAcademicProvider[];
+}
 
 export interface UseAcademicReturn {
   // Search state
@@ -49,7 +81,43 @@ export interface UseAcademicReturn {
   isLoading: boolean;
   error: string | null;
 
-  // Search actions
+  // Enhanced search
+  searchPapers: (
+    query: string,
+    options?: Partial<AcademicSearchInput>
+  ) => Promise<AcademicSearchResult>;
+  lastSearchResult: AcademicSearchResult | null;
+
+  // A2UI integration
+  createSearchResultsUI: (papers: Paper[], query: string) => string | null;
+  createPaperCardUI: (paper: Paper) => string | null;
+  createAnalysisUI: (
+    paper: Paper,
+    analysisType: PaperAnalysisType,
+    content: string
+  ) => string | null;
+  createComparisonUI: (papers: Paper[], content: string) => string | null;
+
+  // Enhanced analysis
+  analyzePaperWithAI: (
+    paper: Paper | LibraryPaper,
+    analysisType: PaperAnalysisType
+  ) => Promise<AcademicAnalysisResult>;
+  lastAnalysisResult: AcademicAnalysisResult | null;
+  isAnalyzing: boolean;
+
+  // Web search integration
+  searchWebForPaper: (paper: Paper) => Promise<void>;
+  findRelatedPapers: (paper: Paper) => Promise<Paper[]>;
+
+  // Combined actions
+  searchAndDisplay: (query: string) => Promise<string | null>;
+  analyzeAndDisplay: (
+    paper: Paper | LibraryPaper,
+    analysisType: PaperAnalysisType
+  ) => Promise<string | null>;
+
+  // Legacy search actions
   search: (query: string) => Promise<void>;
   searchWithProvider: (provider: AcademicProviderType, query: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
@@ -129,10 +197,23 @@ export interface UseAcademicReturn {
   refreshCollections: () => Promise<void>;
 }
 
-export function useAcademic(): UseAcademicReturn {
+export function useAcademic(options: UseAcademicOptions = {}): UseAcademicReturn {
+  const {
+    enableA2UI = true,
+    enableWebSearch = true,
+    defaultProviders = ['arxiv', 'semantic-scholar'] as SupportedAcademicProvider[],
+  } = options;
+
   const academicStore = useAcademicStore();
   const learningStore = useLearningStore();
   const sessionStore = useSessionStore();
+  const a2ui = useA2UI();
+  const searchProviders = useSettingsStore((state) => state.searchProviders);
+  const searchEnabled = useSettingsStore((state) => state.searchEnabled);
+
+  const [lastSearchResult, setLastSearchResult] = useState<AcademicSearchResult | null>(null);
+  const [lastAnalysisResult, setLastAnalysisResult] = useState<AcademicAnalysisResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Computed values
   const libraryPapers = useMemo(() => {
@@ -155,7 +236,212 @@ export function useAcademic(): UseAcademicReturn {
     return selectedCollectionId ? colls[selectedCollectionId] || null : null;
   }, [academicStore.library]);
 
-  // Search actions
+  /**
+   * Enhanced paper search using direct API calls
+   */
+  const searchPapers = useCallback(
+    async (
+      query: string,
+      searchOptions?: Partial<AcademicSearchInput>
+    ): Promise<AcademicSearchResult> => {
+      const input: AcademicSearchInput = {
+        query,
+        providers: searchOptions?.providers || defaultProviders,
+        maxResults: searchOptions?.maxResults || 10,
+        yearFrom: searchOptions?.yearFrom,
+        yearTo: searchOptions?.yearTo,
+        categories: searchOptions?.categories,
+        openAccessOnly: searchOptions?.openAccessOnly || false,
+        sortBy: searchOptions?.sortBy || 'relevance',
+      };
+
+      const result = await executeAcademicSearch(input);
+      setLastSearchResult(result);
+      return result;
+    },
+    [defaultProviders]
+  );
+
+  /**
+   * Create A2UI surface for search results
+   */
+  const createSearchResultsUI = useCallback(
+    (papers: Paper[], query: string): string | null => {
+      if (!enableA2UI) return null;
+
+      const { surfaceId, messages } = createSearchResultsSurface(papers, query, papers.length);
+      a2ui.processMessages(messages);
+      return surfaceId;
+    },
+    [enableA2UI, a2ui]
+  );
+
+  /**
+   * Create A2UI surface for a paper card
+   */
+  const createPaperCardUI = useCallback(
+    (paper: Paper): string | null => {
+      if (!enableA2UI) return null;
+
+      const { surfaceId, messages } = createPaperCardSurface(paper);
+      a2ui.processMessages(messages);
+      return surfaceId;
+    },
+    [enableA2UI, a2ui]
+  );
+
+  /**
+   * Create A2UI surface for analysis results
+   */
+  const createAnalysisUI = useCallback(
+    (paper: Paper, analysisType: PaperAnalysisType, content: string): string | null => {
+      if (!enableA2UI) return null;
+
+      const { surfaceId, messages } = createAnalysisPanelSurface(
+        { title: paper.title, abstract: paper.abstract },
+        analysisType,
+        content
+      );
+      a2ui.processMessages(messages);
+      return surfaceId;
+    },
+    [enableA2UI, a2ui]
+  );
+
+  /**
+   * Create A2UI surface for paper comparison
+   */
+  const createComparisonUI = useCallback(
+    (papers: Paper[], content: string): string | null => {
+      if (!enableA2UI) return null;
+
+      const paperData = papers.map((p) => ({
+        title: p.title,
+        authors: p.authors.map((a) => a.name).join(', '),
+        year: p.year,
+        abstract: p.abstract,
+      }));
+
+      const { surfaceId, messages } = createPaperComparisonSurface(paperData, content);
+      a2ui.processMessages(messages);
+      return surfaceId;
+    },
+    [enableA2UI, a2ui]
+  );
+
+  /**
+   * Enhanced paper analysis
+   */
+  const analyzePaperWithAI = useCallback(
+    async (
+      paper: Paper | LibraryPaper,
+      analysisType: PaperAnalysisType
+    ): Promise<AcademicAnalysisResult> => {
+      setIsAnalyzing(true);
+      try {
+        const input: AcademicAnalysisInput = {
+          paperTitle: paper.title,
+          paperAbstract: paper.abstract,
+          analysisType,
+          depth: 'standard',
+          language: 'en',
+        };
+
+        const result = await executeAcademicAnalysis(input);
+        setLastAnalysisResult(result);
+        return result;
+      } finally {
+        setIsAnalyzing(false);
+      }
+    },
+    []
+  );
+
+  /**
+   * Search web for related resources about a paper
+   */
+  const searchWebForPaper = useCallback(
+    async (paper: Paper): Promise<void> => {
+      if (!enableWebSearch || !searchEnabled) return;
+
+      const searchQuery = `${paper.title} ${paper.authors[0]?.name || ''} research paper`;
+
+      try {
+        const response = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: searchQuery,
+            providerSettings: searchProviders,
+            options: { maxResults: 5 },
+          }),
+        });
+
+        if (response.ok) {
+          const _data = await response.json();
+        }
+      } catch (error) {
+        console.error('Web search for paper failed:', error);
+      }
+    },
+    [enableWebSearch, searchEnabled, searchProviders]
+  );
+
+  /**
+   * Find related papers using academic search
+   */
+  const findRelatedPapers = useCallback(
+    async (paper: Paper): Promise<Paper[]> => {
+      const keywords = [...(paper.keywords || []), ...(paper.fieldsOfStudy || [])].slice(0, 3);
+
+      const searchQuery =
+        keywords.length > 0 ? keywords.join(' ') : paper.title.split(' ').slice(0, 5).join(' ');
+
+      const result = await searchPapers(searchQuery, {
+        maxResults: 5,
+        providers: defaultProviders as SupportedAcademicProvider[],
+      });
+
+      return result.papers.filter((p) => p.id !== paper.id);
+    },
+    [searchPapers, defaultProviders]
+  );
+
+  /**
+   * Combined search and display action
+   */
+  const searchAndDisplay = useCallback(
+    async (query: string): Promise<string | null> => {
+      academicStore.setSearchQuery(query);
+      const result = await searchPapers(query);
+
+      if (result.success && result.papers.length > 0) {
+        return createSearchResultsUI(result.papers, query);
+      }
+      return null;
+    },
+    [academicStore, searchPapers, createSearchResultsUI]
+  );
+
+  /**
+   * Combined analyze and display action
+   */
+  const analyzeAndDisplay = useCallback(
+    async (
+      paper: Paper | LibraryPaper,
+      analysisType: PaperAnalysisType
+    ): Promise<string | null> => {
+      const result = await analyzePaperWithAI(paper, analysisType);
+
+      if (result.success) {
+        return createAnalysisUI(paper, analysisType, result.analysis);
+      }
+      return null;
+    },
+    [analyzePaperWithAI, createAnalysisUI]
+  );
+
+  // Legacy search action
   const search = useCallback(
     async (query: string) => {
       academicStore.setSearchQuery(query);
@@ -397,7 +683,30 @@ export function useAcademic(): UseAcademicReturn {
     isLoading: academicStore.isLoading,
     error: academicStore.error,
 
-    // Search actions
+    // Enhanced search
+    searchPapers,
+    lastSearchResult,
+
+    // A2UI integration
+    createSearchResultsUI,
+    createPaperCardUI,
+    createAnalysisUI,
+    createComparisonUI,
+
+    // Enhanced analysis
+    analyzePaperWithAI,
+    lastAnalysisResult,
+    isAnalyzing,
+
+    // Web search integration
+    searchWebForPaper,
+    findRelatedPapers,
+
+    // Combined actions
+    searchAndDisplay,
+    analyzeAndDisplay,
+
+    // Legacy search actions
     search,
     searchWithProvider,
     setSearchQuery: academicStore.setSearchQuery,

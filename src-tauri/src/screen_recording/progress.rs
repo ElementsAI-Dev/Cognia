@@ -52,6 +52,7 @@ impl Default for VideoProcessingProgress {
 }
 
 /// Parse FFmpeg progress output
+#[allow(dead_code)]
 pub fn parse_ffmpeg_progress(line: &str, total_duration: Option<f64>) -> Option<VideoProcessingProgress> {
     // FFmpeg progress output format:
     // frame=  123 fps=30 q=28.0 size=    1234kB time=00:00:05.12 bitrate=1234.5kbits/s speed=2.5x
@@ -96,7 +97,7 @@ pub fn parse_ffmpeg_progress(line: &str, total_duration: Option<f64>) -> Option<
     // Calculate ETA
     let eta_seconds = if let (Some(total), Some(spd)) = (total_duration, &speed) {
         // Parse speed like "2.5x"
-        if let Some(speed_val) = spd.trim_end_matches('x').parse::<f64>().ok() {
+        if let Ok(speed_val) = spd.trim_end_matches('x').parse::<f64>() {
             if speed_val > 0.0 {
                 let remaining = total - current_time;
                 Some(remaining / speed_val)
@@ -124,6 +125,7 @@ pub fn parse_ffmpeg_progress(line: &str, total_duration: Option<f64>) -> Option<
 }
 
 /// Monitor FFmpeg process and emit progress events
+#[allow(dead_code)]
 pub fn monitor_ffmpeg_progress(
     app_handle: &AppHandle,
     child: &mut Child,
@@ -139,12 +141,10 @@ pub fn monitor_ffmpeg_progress(
     let (tx, rx) = mpsc::channel();
     
     thread::spawn(move || {
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                if let Some(mut progress) = parse_ffmpeg_progress(&line, total_duration) {
-                    progress.operation = operation.clone();
-                    let _ = tx.send(progress);
-                }
+        for line in reader.lines().map_while(Result::ok) {
+            if let Some(mut progress) = parse_ffmpeg_progress(&line, total_duration) {
+                progress.operation = operation.clone();
+                let _ = tx.send(progress);
             }
         }
         // Send completion
@@ -182,6 +182,7 @@ pub fn monitor_ffmpeg_progress(
 }
 
 /// Emit video processing started event
+#[allow(dead_code)]
 pub fn emit_processing_started(app_handle: &AppHandle, operation: &str) {
     let progress = VideoProcessingProgress {
         operation: operation.to_string(),
@@ -198,6 +199,7 @@ pub fn emit_processing_started(app_handle: &AppHandle, operation: &str) {
 }
 
 /// Emit video processing completed event
+#[allow(dead_code)]
 pub fn emit_processing_completed(app_handle: &AppHandle, operation: &str, output_path: &str) {
     let _ = app_handle.emit("video-processing-completed", serde_json::json!({
         "operation": operation,
