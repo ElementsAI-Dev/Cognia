@@ -191,10 +191,10 @@ export function SidebarContainer({ collapsed = false }: SidebarContainerProps) {
 
         {/* Footer */}
         <div className={cn(
-          'flex items-center gap-1 p-2',
+          'flex items-center gap-0.5 sm:gap-1 p-1.5 sm:p-2',
           collapsed ? 'flex-col' : 'flex-row justify-between'
         )}>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" onClick={cycleTheme}>
@@ -222,7 +222,7 @@ export function SidebarContainer({ collapsed = false }: SidebarContainerProps) {
             </Tooltip>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link href="/projects">

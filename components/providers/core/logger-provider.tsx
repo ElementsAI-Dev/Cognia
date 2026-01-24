@@ -6,21 +6,11 @@
  */
 
 import { createContext, useContext, useCallback, ReactNode, useState, useMemo } from 'react';
-import type {
-  AppLogLevel,
-  LogEntry,
-  LoggerConfig,
-  LogTransport,
-} from '@/types';
+import type { AppLogLevel, LogEntry, LoggerConfig, LogTransport } from '@/types';
 import { LOG_LEVEL_PRIORITY } from '@/types';
 
 // Re-export types for backward compatibility
-export type {
-  AppLogLevel,
-  LogEntry,
-  LoggerConfig,
-  LogTransport,
-} from '@/types';
+export type { AppLogLevel, LogEntry, LoggerConfig, LogTransport } from '@/types';
 
 // Alias for backward compatibility
 export type LogLevel = AppLogLevel;
@@ -165,13 +155,13 @@ export function LoggerProvider({
   sessionId,
 }: LoggerProviderProps) {
   const [config, setConfig] = useState<LoggerConfig>({ ...DEFAULT_CONFIG, ...userConfig });
-  
+
   // Initialize storage transport once using useState initializer (safe pattern)
   const [storageTransport] = useState(() => new StorageTransport(config.maxStorageEntries));
-  
+
   // Track custom transports added via addTransport
   const [customTransports, setCustomTransports] = useState<LogTransport[]>([]);
-  
+
   // Compute all transports based on config
   const transports = useMemo(() => {
     const result: LogTransport[] = [consoleTransport, ...userTransports, ...customTransports];
@@ -188,8 +178,14 @@ export function LoggerProvider({
       seen.add(t.name);
       return true;
     });
-  }, [config.enableStorage, config.maxStorageEntries, storageTransport, userTransports, customTransports]);
-  
+  }, [
+    config.enableStorage,
+    config.maxStorageEntries,
+    storageTransport,
+    userTransports,
+    customTransports,
+  ]);
+
   const [stats, setStats] = useState({ total: 0, byLevel: {} as Record<LogLevel, number> });
 
   // Core logging function
@@ -345,21 +341,38 @@ export function LoggerProvider({
     return stats;
   }, [stats]);
 
-  const value: LoggerContextValue = {
-    debug,
-    info,
-    warn,
-    error,
-    fatal,
-    getLogs,
-    clearLogs,
-    exportLogs,
-    config,
-    updateConfig,
-    addTransport,
-    removeTransport,
-    getStats,
-  };
+  const value = useMemo(
+    (): LoggerContextValue => ({
+      debug,
+      info,
+      warn,
+      error,
+      fatal,
+      getLogs,
+      clearLogs,
+      exportLogs,
+      config,
+      updateConfig,
+      addTransport,
+      removeTransport,
+      getStats,
+    }),
+    [
+      debug,
+      info,
+      warn,
+      error,
+      fatal,
+      getLogs,
+      clearLogs,
+      exportLogs,
+      config,
+      updateConfig,
+      addTransport,
+      removeTransport,
+      getStats,
+    ]
+  );
 
   return <LoggerContext.Provider value={value}>{children}</LoggerContext.Provider>;
 }

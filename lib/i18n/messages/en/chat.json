@@ -56,7 +56,8 @@
       "canYouRephrase": "Can you rephrase?",
       "expandPoint1": "Expand on point 1",
       "whichRecommend": "Which one do you recommend?",
-      "compareOptions": "Compare these options"
+      "compareOptions": "Compare these options",
+      "refresh": "Refresh suggestions"
     }
   },
   "chatHeader": {

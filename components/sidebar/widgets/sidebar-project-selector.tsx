@@ -8,13 +8,7 @@
 import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import {
-  FolderKanban,
-  ChevronDown,
-  Check,
-  Plus,
-  Settings,
-} from 'lucide-react';
+import { FolderKanban, ChevronDown, Check, Plus, Settings } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,20 +84,14 @@ export function SidebarProjectSelector({
           <Button
             variant="ghost"
             size="icon"
-            className={cn(
-              'relative',
-              (filterProjectId || activeProjectId) && 'text-primary'
-            )}
+            className={cn('relative', (filterProjectId || activeProjectId) && 'text-primary')}
           >
             <FolderKanban className="h-4 w-4" />
             {(filterProjectId || activeProjectId) && (
               <span
                 className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full"
                 style={{
-                  backgroundColor:
-                    currentFilterProject?.color ||
-                    activeProject?.color ||
-                    '#3B82F6',
+                  backgroundColor: currentFilterProject?.color || activeProject?.color || '#3B82F6',
                 }}
               />
             )}
@@ -129,10 +117,10 @@ export function SidebarProjectSelector({
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             className={cn(
-              'w-full justify-between h-8 text-xs',
+              'w-full justify-between h-8 text-xs border border-border bg-transparent hover:bg-sidebar-accent',
               filterProjectId && 'border-primary/50 bg-primary/5'
             )}
           >
@@ -235,9 +223,7 @@ function ProjectMenuContent({
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  {filterProjectId === project.id && (
-                    <Check className="h-4 w-4 text-primary" />
-                  )}
+                  {filterProjectId === project.id && <Check className="h-4 w-4 text-primary" />}
                   {project.id !== activeProjectId && (
                     <Button
                       variant="ghost"

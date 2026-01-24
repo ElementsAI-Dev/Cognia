@@ -23,6 +23,7 @@ import type {
   GoalStep,
   CreateStepInput,
   UpdateStepInput,
+  ChatFolder,
 } from '@/types';
 import { DEFAULT_FLOW_CANVAS_STATE } from '@/types/chat/flow-chat';
 
@@ -48,6 +49,7 @@ interface SessionState {
   sessions: Session[];
   activeSessionId: string | null;
   modeHistory: ModeHistoryEntry[];
+  folders: ChatFolder[];
 
   createSession: (input?: CreateSessionInput) => Session;
   deleteSession: (id: string) => void;
@@ -56,6 +58,13 @@ interface SessionState {
   duplicateSession: (id: string) => Session | null;
   togglePinSession: (id: string) => void;
   deleteAllSessions: () => void;
+
+  // Folder management
+  createFolder: (name: string) => ChatFolder;
+  deleteFolder: (id: string) => void;
+  updateFolder: (id: string, updates: Partial<ChatFolder>) => void;
+  moveSessionToFolder: (sessionId: string, folderId: string | null) => void;
+  setSessionCustomIcon: (sessionId: string, icon: string | undefined) => void;
 
   switchMode: (sessionId: string, mode: ChatMode) => void;
   switchModeWithNewSession: (
@@ -157,6 +166,46 @@ export const useSessionStore = create<SessionState>()(
       sessions: [],
       activeSessionId: null,
       modeHistory: [] as ModeHistoryEntry[],
+      folders: [],
+
+      createFolder: (name: string) => {
+        const folder: ChatFolder = {
+          id: nanoid(),
+          name,
+          order: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        set((state) => ({
+          folders: [...state.folders, folder],
+        }));
+        return folder;
+      },
+
+      deleteFolder: (id: string) => {
+        set((state) => ({
+          folders: state.folders.filter((f) => f.id !== id),
+          sessions: state.sessions.map((s) => (s.folderId === id ? { ...s, folderId: undefined, updatedAt: new Date() } : s)),
+        }));
+      },
+
+      updateFolder: (id: string, updates: Partial<ChatFolder>) => {
+        set((state) => ({
+          folders: state.folders.map((f) => (f.id === id ? { ...f, ...updates, updatedAt: new Date() } : f)),
+        }));
+      },
+
+      moveSessionToFolder: (sessionId: string, folderId: string | null) => {
+        set((state) => ({
+          sessions: state.sessions.map((s) => (s.id === sessionId ? { ...s, folderId: folderId || undefined, updatedAt: new Date() } : s)),
+        }));
+      },
+
+      setSessionCustomIcon: (sessionId: string, icon: string | undefined) => {
+        set((state) => ({
+          sessions: state.sessions.map((s) => (s.id === sessionId ? { ...s, customIcon: icon, updatedAt: new Date() } : s)),
+        }));
+      },
 
       createSession: (input = {}) => {
         const session: Session = {
@@ -802,6 +851,11 @@ export const useSessionStore = create<SessionState>()(
         })),
         activeSessionId: state.activeSessionId,
         modeHistory: state.modeHistory.map((h) => ({ ...h, timestamp: h.timestamp instanceof Date ? h.timestamp.toISOString() : h.timestamp })),
+        folders: state.folders.map((f) => ({
+          ...f,
+          createdAt: f.createdAt instanceof Date ? f.createdAt.toISOString() : f.createdAt,
+          updatedAt: f.updatedAt instanceof Date ? f.updatedAt.toISOString() : f.updatedAt,
+        })),
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.sessions) {
@@ -825,6 +879,13 @@ export const useSessionStore = create<SessionState>()(
         }
         if (state?.modeHistory) {
           state.modeHistory = state.modeHistory.map((h) => ({ ...h, timestamp: new Date(h.timestamp as unknown as string) }));
+        }
+        if (state?.folders) {
+          state.folders = state.folders.map((f) => ({
+            ...f,
+            createdAt: new Date(f.createdAt as unknown as string),
+            updatedAt: new Date(f.updatedAt as unknown as string),
+          }));
         }
       },
     }

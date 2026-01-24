@@ -20,6 +20,11 @@ jest.mock('@/components/ui/tooltip', () => ({
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+// Mock useIsMobile hook - returns false (desktop) by default
+jest.mock('@/hooks/utils', () => ({
+  useIsMobile: () => false,
+}));
+
 // Mock localStorage
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -271,9 +276,9 @@ describe('FloatingPanel', () => {
     expect(header).toBeInTheDocument();
   });
 
-  it('has hover:bg-accent transition', () => {
+  it('has shadow-xl and border styling', () => {
     const { container } = render(<FloatingPanel>Content</FloatingPanel>);
-    const panel = container.querySelector('.transition-colors');
+    const panel = container.querySelector('.shadow-xl.border');
     expect(panel).toBeInTheDocument();
   });
 

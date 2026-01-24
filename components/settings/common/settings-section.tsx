@@ -140,25 +140,25 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-4 rounded-lg border p-3 transition-colors',
+        'flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 rounded-lg border p-2.5 sm:p-3 transition-colors',
         disabled && 'opacity-50',
         className
       )}
     >
-      <div className="flex items-start gap-3 min-w-0 flex-1">
+      <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
         {icon && (
-          <div className="shrink-0 mt-0.5 text-muted-foreground">{icon}</div>
+          <div className="shrink-0 mt-0.5 text-muted-foreground [&>svg]:h-4 [&>svg]:w-4">{icon}</div>
         )}
         <div className="min-w-0 flex-1 space-y-0.5">
-          <Label className="text-sm font-medium">{label}</Label>
+          <Label className="text-xs sm:text-sm font-medium">{label}</Label>
           {description && (
-            <p className="text-[10px] text-muted-foreground line-clamp-2">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground line-clamp-2">
               {description}
             </p>
           )}
         </div>
       </div>
-      <div className="shrink-0">{children}</div>
+      <div className="shrink-0 self-end sm:self-auto">{children}</div>
     </div>
   );
 }

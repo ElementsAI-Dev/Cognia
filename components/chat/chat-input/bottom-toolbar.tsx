@@ -33,7 +33,13 @@ interface BottomToolbarProps {
   isProcessing: boolean;
 }
 
-function PresetQuickPromptsWrapper({ onSelectPrompt, disabled }: { onSelectPrompt: (content: string) => void; disabled?: boolean }) {
+function PresetQuickPromptsWrapper({
+  onSelectPrompt,
+  disabled,
+}: {
+  onSelectPrompt: (content: string) => void;
+  disabled?: boolean;
+}) {
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const sessions = useSessionStore((state) => state.sessions);
   const presets = usePresetStore((state) => state.presets);
@@ -45,7 +51,9 @@ function PresetQuickPromptsWrapper({ onSelectPrompt, disabled }: { onSelectPromp
 
   if (prompts.length === 0) return null;
 
-  return <PresetQuickPrompts prompts={prompts} onSelectPrompt={onSelectPrompt} disabled={disabled} />;
+  return (
+    <PresetQuickPrompts prompts={prompts} onSelectPrompt={onSelectPrompt} disabled={disabled} />
+  );
 }
 
 export function BottomToolbar({
@@ -73,12 +81,21 @@ export function BottomToolbar({
   const t = useTranslations('chatInput');
 
   const boundedPercent = Math.min(100, Math.max(0, Math.round(contextUsagePercent)));
-  const severityClass =
-    boundedPercent < 50 ? 'low' : boundedPercent < 80 ? 'medium' : 'high';
+  const severityClass = boundedPercent < 50 ? 'low' : boundedPercent < 80 ? 'medium' : 'high';
 
   return (
-    <div className="mt-1 sm:mt-2 flex items-center justify-between px-1">
-      <div className="flex items-center gap-1">
+    <div className="mt-1 sm:mt-2 flex items-center justify-between px-1 gap-2">
+      <div
+        className="flex items-center gap-0.5 sm:gap-1 overflow-x-auto scrollbar-none flex-1 min-w-0"
+        onWheel={(e) => {
+          if (e.deltaY !== 0) {
+            e.currentTarget.scrollBy({
+              left: e.deltaY,
+              behavior: 'auto',
+            });
+          }
+        }}
+      >
         {onModelClick && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -89,7 +106,7 @@ export function BottomToolbar({
                 onClick={onModelClick}
               >
                 <span className="font-medium">⚡</span>
-                <span className="max-w-[60px] sm:max-w-[100px] truncate">{modelName}</span>
+                <span className="max-w-15 sm:max-w-25 truncate">{modelName}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>{t('changeModel')}</TooltipContent>
@@ -105,13 +122,17 @@ export function BottomToolbar({
               size="sm"
               className={cn(
                 'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
-                webSearchEnabled ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'text-muted-foreground hover:text-foreground'
+                webSearchEnabled
+                  ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
               onClick={() => onWebSearchChange?.(!webSearchEnabled)}
             >
               <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span className="hidden sm:inline">{t('search')}</span>
-              {webSearchEnabled && <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-primary animate-pulse" />}
+              {webSearchEnabled && (
+                <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-primary animate-pulse" />
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>{t('toggleWebSearch')}</TooltipContent>
@@ -124,13 +145,17 @@ export function BottomToolbar({
               size="sm"
               className={cn(
                 'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
-                thinkingEnabled ? 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20' : 'text-muted-foreground hover:text-foreground'
+                thinkingEnabled
+                  ? 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
               onClick={() => onThinkingChange?.(!thinkingEnabled)}
             >
               <Brain className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span className="hidden sm:inline">{t('think')}</span>
-              {thinkingEnabled && <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-purple-500 animate-pulse" />}
+              {thinkingEnabled && (
+                <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-purple-500 animate-pulse" />
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>{t('extendedThinking')}</TooltipContent>
@@ -143,13 +168,17 @@ export function BottomToolbar({
               size="sm"
               className={cn(
                 'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
-                streamingEnabled !== false ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20' : 'text-muted-foreground hover:text-foreground'
+                streamingEnabled !== false
+                  ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
               onClick={() => onStreamingChange?.(streamingEnabled === false)}
             >
               <Radio className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span className="hidden sm:inline">{t('stream') || 'Stream'}</span>
-              {streamingEnabled !== false && <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+              {streamingEnabled !== false && (
+                <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>{t('toggleStreaming') || 'Toggle streaming responses'}</TooltipContent>
@@ -257,7 +286,10 @@ export function BottomToolbar({
               />
             </div>
             <span
-              className={cn('tabular-nums', contextUsagePercent >= 80 && 'text-red-500 font-medium')}
+              className={cn(
+                'tabular-nums',
+                contextUsagePercent >= 80 && 'text-red-500 font-medium'
+              )}
             >
               {contextUsagePercent}%
             </span>

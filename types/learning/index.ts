@@ -7,3 +7,4 @@ export * from './academic';
 export * from './knowledge-map';
 export * from './summary';
 export * from './animation-types';
+export * from './speedpass';

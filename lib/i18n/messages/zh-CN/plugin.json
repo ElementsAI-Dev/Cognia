@@ -41,7 +41,13 @@
       "hooks": "钩子",
       "sortByName": "名称",
       "sortByRecent": "最近",
-      "sortByStatus": "状态"
+      "sortByStatus": "状态",
+      "noGroup": "不分组",
+      "groupByType": "按类型分组",
+      "groupByCapability": "按功能分组",
+      "groupByStatus": "按状态分组",
+      "select": "选择",
+      "exitSelect": "退出选择"
     },
     "emptyState": {
       "noMatch": "没有匹配的插件",
@@ -436,6 +442,34 @@
     "emptyState": {
       "selectPlugin": "选择一个插件以查看其依赖",
       "noDependencies": "未找到依赖"
+    }
+  },
+  "pluginEmptyState": {
+    "noPlugins": {
+      "title": "未安装插件",
+      "description": "通过从商店安装插件或创建自己的插件来增强您的 AI 体验。",
+      "browseMarketplace": "浏览商店",
+      "createPlugin": "创建插件",
+      "importPlugin": "导入插件",
+      "tip": "插件可以为您的代理添加新工具、组件和功能。"
+    },
+    "noResults": {
+      "title": "未找到插件",
+      "searchDescription": "未找到匹配 \"{query}\" 的插件。",
+      "filterDescription": "没有符合当前筛选条件的插件。",
+      "clearFilters": "清除筛选",
+      "browseMore": "浏览插件商店",
+      "suggestions": "尝试搜索："
+    },
+    "noEnabled": {
+      "title": "无已启用的插件",
+      "description": "您没有启用任何插件。启用一些插件来使用它们的功能。",
+      "viewAll": "查看所有插件"
+    },
+    "noDisabled": {
+      "title": "无已禁用的插件",
+      "description": "您所有安装的插件目前都已启用。",
+      "viewAll": "查看所有插件"
     }
   }
 }

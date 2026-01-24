@@ -66,6 +66,7 @@ const messages = {
   ...misc,
   ...learning,
   ...plugin,
+  ...plugin,
   ...document
 };
 

@@ -904,13 +904,14 @@
     "shortcutSettings": "Keyboard Shortcut",
     "shortcutHint": "Press this shortcut to toggle simplified mode"
   },
-  "chatSettingsTabs": {
-    "generation": "Generation",
-    "generationShort": "Gen",
-    "context": "Context",
-    "display": "Display"
-  },
+
   "chatSettings": {
+    "tabs": {
+      "generation": "Generation",
+      "generationShort": "Gen",
+      "context": "Context",
+      "display": "Display"
+    },
     "defaultProvider": "Default Provider",
     "defaultProviderDesc": "The default AI provider used for new conversations",
     "selectProvider": "Select provider",

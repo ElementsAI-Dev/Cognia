@@ -13,6 +13,15 @@ export type ChatMode = 'chat' | 'agent' | 'research' | 'learning';
 
 export type ChatGoalStatus = 'active' | 'completed' | 'paused';
 
+export interface ChatFolder {
+  id: string;
+  name: string;
+  order: number;
+  isExpanded?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface GoalStep {
   id: string;
   content: string;
@@ -51,6 +60,10 @@ export interface Session {
   title: string;
   createdAt: Date;
   updatedAt: Date;
+
+  // Customization
+  customIcon?: string; // Base64 or URL
+  folderId?: string;
 
   // Model configuration
   provider: ProviderName;

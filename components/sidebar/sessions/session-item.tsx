@@ -83,9 +83,9 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            variant={isActive ? 'secondary' : 'ghost'}
+            variant="ghost"
             size="icon"
-            className="w-full"
+            className={cn('w-full', isActive && 'bg-sidebar-accent text-sidebar-accent-foreground')}
             onClick={handleClick}
           >
             <MessageSquare className="h-4 w-4" />
@@ -101,8 +101,8 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
       className={cn(
         'group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
         isActive
-          ? 'bg-accent text-accent-foreground'
-          : 'hover:bg-accent/50 text-muted-foreground hover:text-foreground'
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+          : 'hover:bg-sidebar-accent/50 text-muted-foreground hover:text-foreground'
       )}
     >
       <button

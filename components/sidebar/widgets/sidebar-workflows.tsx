@@ -9,28 +9,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  Workflow,
-  Play,
-  Clock,
-  ChevronDown,
-  ChevronRight,
-  Plus,
-  ExternalLink,
-} from 'lucide-react';
+import { Workflow, Play, Clock, ChevronDown, ChevronRight, Plus, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-states';
 import { workflowRepository } from '@/lib/db/repositories';
@@ -135,9 +118,9 @@ export function SidebarWorkflows({
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
-        <Button 
-          variant="ghost" 
-          className="flex w-full items-center justify-between h-auto px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        <Button
+          variant="ghost"
+          className="flex items-center justify-between w-full px-2 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors h-auto group"
         >
           <span className="flex items-center gap-2">
             <Workflow className="h-4 w-4 text-green-500" />
@@ -147,11 +130,7 @@ export function SidebarWorkflows({
             <Badge variant="secondary" className="h-5 px-1.5 text-xs">
               {workflows.length}
             </Badge>
-            {isOpen ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
+            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </span>
         </Button>
       </CollapsibleTrigger>
@@ -216,10 +195,10 @@ interface WorkflowItemProps {
   quickRunLabel: string;
 }
 
-function WorkflowItem({ 
-  workflow, 
-  isRunning, 
-  onOpen, 
+function WorkflowItem({
+  workflow,
+  isRunning,
+  onOpen,
   onQuickRun,
   runningLabel,
   quickRunLabel,
@@ -257,9 +236,7 @@ function WorkflowItem({
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>
-            {isRunning ? runningLabel : quickRunLabel}
-          </TooltipContent>
+          <TooltipContent>{isRunning ? runningLabel : quickRunLabel}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
     </div>

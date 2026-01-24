@@ -427,6 +427,7 @@ export function TitleBar() {
 
   return (
     <div
+      data-titlebar
       className="fixed top-0 left-0 right-0 z-50 flex h-(--titlebar-height) select-none items-center bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-b border-border/40"
       data-tauri-drag-region
       onMouseDown={shouldUseManualDrag ? handleDragMouseDown : undefined}

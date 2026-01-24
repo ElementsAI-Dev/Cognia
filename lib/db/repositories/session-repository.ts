@@ -3,6 +3,7 @@
  */
 
 import { db, type DBSession } from '../schema';
+import { withRetry } from '../utils';
 import type { Session, CreateSessionInput, UpdateSessionInput } from '@/types';
 import { nanoid } from 'nanoid';
 import { messageRepository } from './message-repository';
@@ -85,7 +86,9 @@ export const sessionRepository = {
       updatedAt: now,
     };
 
-    await db.sessions.add(toDBSession(session));
+    await withRetry(async () => {
+      await db.sessions.add(toDBSession(session));
+    }, 'sessionRepository.create');
     return session;
   },
 
@@ -101,7 +104,9 @@ export const sessionRepository = {
       updatedAt: new Date(),
     };
 
-    await db.sessions.update(id, updateData);
+    await withRetry(async () => {
+      await db.sessions.update(id, updateData);
+    }, 'sessionRepository.update');
 
     const updated = await db.sessions.get(id);
     return updated ? toSession(updated) : undefined;
@@ -111,16 +116,20 @@ export const sessionRepository = {
    * Delete a session and all its messages
    */
   async delete(id: string): Promise<void> {
-    await messageRepository.deleteBySessionId(id);
-    await db.sessions.delete(id);
+    await withRetry(async () => {
+      await messageRepository.deleteBySessionId(id);
+      await db.sessions.delete(id);
+    }, 'sessionRepository.delete');
   },
 
   /**
    * Delete all sessions and messages
    */
   async deleteAll(): Promise<void> {
-    await db.messages.clear();
-    await db.sessions.clear();
+    await withRetry(async () => {
+      await db.messages.clear();
+      await db.sessions.clear();
+    }, 'sessionRepository.deleteAll');
   },
 
   /**
@@ -141,7 +150,9 @@ export const sessionRepository = {
       updatedAt: now,
     };
 
-    await db.sessions.add(toDBSession(duplicate));
+    await withRetry(async () => {
+      await db.sessions.add(toDBSession(duplicate));
+    }, 'sessionRepository.duplicate');
     return duplicate;
   },
 
@@ -181,14 +192,16 @@ export const sessionRepository = {
    * Import sessions from backup
    */
   async importAll(data: { sessions: Session[]; messages: unknown[] }): Promise<void> {
-    // Import sessions
-    const dbSessions = data.sessions.map(toDBSession);
-    await db.sessions.bulkAdd(dbSessions);
+    await withRetry(async () => {
+      // Import sessions
+      const dbSessions = data.sessions.map(toDBSession);
+      await db.sessions.bulkAdd(dbSessions);
 
-    // Import messages
-    if (data.messages && Array.isArray(data.messages)) {
-      await db.messages.bulkAdd(data.messages as never[]);
-    }
+      // Import messages
+      if (data.messages && Array.isArray(data.messages)) {
+        await db.messages.bulkAdd(data.messages as never[]);
+      }
+    }, 'sessionRepository.importAll');
   },
 };
 

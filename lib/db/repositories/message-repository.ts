@@ -4,6 +4,7 @@
 
 import Dexie from 'dexie';
 import { db, type DBMessage } from '../schema';
+import { withRetry } from '../utils';
 import type { UIMessage } from '@/types';
 import { nanoid } from 'nanoid';
 
@@ -80,19 +81,21 @@ export const messageRepository = {
       createdAt: inputWithOptionalIds.createdAt ?? new Date(),
     };
 
-    await db.messages.add(toDBMessage(message, sessionId));
+    return withRetry(async () => {
+      await db.messages.add(toDBMessage(message, sessionId));
 
-    // Update session message count
-    const session = await db.sessions.get(sessionId);
-    if (session) {
-      await db.sessions.update(sessionId, {
-        messageCount: (session.messageCount || 0) + 1,
-        lastMessagePreview: message.content.slice(0, 100),
-        updatedAt: new Date(),
-      });
-    }
+      // Update session message count
+      const session = await db.sessions.get(sessionId);
+      if (session) {
+        await db.sessions.update(sessionId, {
+          messageCount: (session.messageCount || 0) + 1,
+          lastMessagePreview: message.content.slice(0, 100),
+          updatedAt: new Date(),
+        });
+      }
 
-    return message;
+      return message;
+    }, 'messageRepository.create');
   },
 
   /**
@@ -109,7 +112,9 @@ export const messageRepository = {
     if (updates.tokens !== undefined) updateData.tokens = JSON.stringify(updates.tokens);
     if (updates.error !== undefined) updateData.error = updates.error;
 
-    await db.messages.update(id, updateData);
+    await withRetry(async () => {
+      await db.messages.update(id, updateData);
+    }, 'messageRepository.update');
   },
 
   /**
@@ -119,42 +124,48 @@ export const messageRepository = {
     const message = await db.messages.get(id);
     if (!message) return;
 
-    await db.messages.delete(id);
+    await withRetry(async () => {
+      await db.messages.delete(id);
 
-    // Update session message count
-    const session = await db.sessions.get(message.sessionId);
-    if (session && session.messageCount > 0) {
-      await db.sessions.update(message.sessionId, {
-        messageCount: session.messageCount - 1,
-        updatedAt: new Date(),
-      });
-    }
+      // Update session message count
+      const session = await db.sessions.get(message.sessionId);
+      if (session && session.messageCount > 0) {
+        await db.sessions.update(message.sessionId, {
+          messageCount: session.messageCount - 1,
+          updatedAt: new Date(),
+        });
+      }
+    }, 'messageRepository.delete');
   },
 
   /**
    * Delete all messages for a session
    */
   async deleteBySessionId(sessionId: string): Promise<void> {
-    await db.messages.where('sessionId').equals(sessionId).delete();
+    await withRetry(async () => {
+      await db.messages.where('sessionId').equals(sessionId).delete();
+    }, 'messageRepository.deleteBySessionId');
   },
 
   /**
    * Bulk create messages
    */
   async bulkCreate(sessionId: string, messages: UIMessage[]): Promise<void> {
-    const dbMessages = messages.map((m) => toDBMessage(m, sessionId));
-    await db.messages.bulkAdd(dbMessages);
+    await withRetry(async () => {
+      const dbMessages = messages.map((m) => toDBMessage(m, sessionId));
+      await db.messages.bulkAdd(dbMessages);
 
-    // Update session
-    const session = await db.sessions.get(sessionId);
-    if (session) {
-      const lastMessage = messages[messages.length - 1];
-      await db.sessions.update(sessionId, {
-        messageCount: (session.messageCount || 0) + messages.length,
-        lastMessagePreview: lastMessage?.content.slice(0, 100),
-        updatedAt: new Date(),
-      });
-    }
+      // Update session
+      const session = await db.sessions.get(sessionId);
+      if (session) {
+        const lastMessage = messages[messages.length - 1];
+        await db.sessions.update(sessionId, {
+          messageCount: (session.messageCount || 0) + messages.length,
+          lastMessagePreview: lastMessage?.content.slice(0, 100),
+          updatedAt: new Date(),
+        });
+      }
+    }, 'messageRepository.bulkCreate');
   },
 
   /**
@@ -271,8 +282,10 @@ export const messageRepository = {
 
     // Bulk insert the copied messages
     if (copiedMessages.length > 0) {
-      const dbMessages = copiedMessages.map((m) => toDBMessage(m, sessionId, newBranchId));
-      await db.messages.bulkAdd(dbMessages);
+      await withRetry(async () => {
+        const dbMessages = copiedMessages.map((m) => toDBMessage(m, sessionId, newBranchId));
+        await db.messages.bulkAdd(dbMessages);
+      }, 'messageRepository.copyMessagesForBranch');
     }
 
     return copiedMessages;
@@ -289,7 +302,9 @@ export const messageRepository = {
       .toArray();
 
     const ids = messages.map((m) => m.id);
-    await db.messages.bulkDelete(ids);
+    await withRetry(async () => {
+      await db.messages.bulkDelete(ids);
+    }, 'messageRepository.deleteByBranchId');
   },
 
   /**
@@ -308,17 +323,20 @@ export const messageRepository = {
       createdAt: inputWithOptionalIds.createdAt ?? new Date(),
     };
 
-    await db.messages.add(toDBMessage(message, sessionId, branchId));
+    return withRetry(async () => {
+      await db.messages.add(toDBMessage(message, sessionId, branchId));
 
-    // Update session message count
-    const session = await db.sessions.get(sessionId);
-    if (session) {
-      await db.sessions.update(sessionId, {
-        messageCount: (session.messageCount || 0) + 1,
-        lastMessagePreview: message.content.slice(0, 100),
-        updatedAt: new Date(),
-      });
-    }
+      // Update session message count
+      const session = await db.sessions.get(sessionId);
+      if (session) {
+        await db.sessions.update(sessionId, {
+          messageCount: (session.messageCount || 0) + 1,
+          lastMessagePreview: message.content.slice(0, 100),
+          updatedAt: new Date(),
+        });
+      }
+      return message;
+    }, 'messageRepository.createWithBranch');
 
     return message;
   },

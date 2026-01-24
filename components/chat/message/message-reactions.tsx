@@ -169,7 +169,7 @@ export function MessageReactions({
             <SmilePlus className="h-3.5 w-3.5" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 p-2" align="start">
+        <PopoverContent className="w-56 sm:w-64 p-2" align="start" sideOffset={8}>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="w-full h-8 mb-2">
               <TabsTrigger value="quick" className="text-xs flex-1">
@@ -182,7 +182,7 @@ export function MessageReactions({
             </TabsList>
             
             <TabsContent value="quick" className="mt-0">
-              <div className="grid grid-cols-8 gap-0.5">
+              <div className="grid grid-cols-4 sm:grid-cols-8 gap-1 sm:gap-0.5">
                 {QUICK_REACTIONS.map((emoji, index) => (
                   <Button
                     key={emoji}
@@ -190,9 +190,10 @@ export function MessageReactions({
                     size="icon"
                     onClick={() => handleReact(emoji)}
                     className={cn(
-                      'p-1.5 rounded transition-all text-lg',
+                      'p-2 sm:p-1.5 rounded transition-all text-xl sm:text-lg',
                       'hover:scale-110 active:scale-95',
-                      'animate-in fade-in-0 zoom-in-50'
+                      'animate-in fade-in-0 zoom-in-50',
+                      'touch-manipulation'
                     )}
                     style={{ animationDelay: `${index * 30}ms` } as React.CSSProperties}
                   >
@@ -202,20 +203,20 @@ export function MessageReactions({
               </div>
             </TabsContent>
             
-            <TabsContent value="all" className="mt-0 space-y-2">
+            <TabsContent value="all" className="mt-0 space-y-2 max-h-48 sm:max-h-56 overflow-y-auto">
               {Object.entries(EMOJI_CATEGORIES).map(([category, emojis]) => (
                 <div key={category}>
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
                     {t(`category.${category}`)}
                   </p>
-                  <div className="grid grid-cols-8 gap-0.5">
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1 sm:gap-0.5">
                     {emojis.map((emoji) => (
                       <Button
                         key={emoji}
                         variant="ghost"
                         size="icon"
                         onClick={() => handleReact(emoji)}
-                        className="p-1 rounded transition-all text-base hover:scale-110 active:scale-95"
+                        className="p-2 sm:p-1 rounded transition-all text-lg sm:text-base hover:scale-110 active:scale-95 touch-manipulation"
                       >
                         <span className="leading-none">{emoji}</span>
                       </Button>

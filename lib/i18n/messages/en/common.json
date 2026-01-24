@@ -20,7 +20,8 @@
     "next": "Next",
     "preview": "Preview",
     "clear": "Clear",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "configured": "Configured"
   },
   "platformWarning": {
     "notSupported": "{feature} is only available on {platforms}",

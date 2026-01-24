@@ -7,7 +7,14 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { AlertCircle, RefreshCw, Home } from 'lucide-react';
 
 export const navigation = {
@@ -76,14 +83,12 @@ function DefaultErrorFallback({
           {error && (
             <div className="text-sm text-muted-foreground mb-4">
               <p className="font-medium">{error.name}</p>
-              <p className="break-words">{error.message}</p>
+              <p className="wrap-break-word">{error.message}</p>
             </div>
           )}
           {(isDev || showDetails) && errorInfo && (
             <details className="mt-4">
-              <summary className="cursor-pointer text-sm font-medium mb-2">
-                Error Details
-              </summary>
+              <summary className="cursor-pointer text-sm font-medium mb-2">Error Details</summary>
               <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-48">
                 {errorInfo.componentStack}
               </pre>
@@ -126,13 +131,19 @@ class ErrorBoundary extends Component<ErrorBoundaryProviderProps, ErrorBoundaryS
     return {
       hasError: true,
       error,
-      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // Update state with error info
-    this.setState({ errorInfo });
+    // Only update state if we haven't already captured this error's info
+    if (!this.state.errorInfo) {
+      this.setState({
+        errorInfo,
+        // Generate errorId here where side effects are allowed/expected
+        errorId:
+          this.state.errorId || `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      });
+    }
 
     // Log error to console in development
     if (process.env.NODE_ENV === 'development') {
@@ -141,7 +152,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProviderProps, ErrorBoundaryS
 
     // Call custom error handler if provided
     if (this.props.onError) {
-      this.props.onError(error, errorInfo, this.state.errorId!);
+      // Use the generated errorId or a fallback
+      const errorId = this.state.errorId || `error-${Date.now()}`;
+      this.props.onError(error, errorInfo, errorId);
     }
 
     // In production, you could send error to error reporting service

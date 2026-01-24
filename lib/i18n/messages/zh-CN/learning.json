@@ -85,6 +85,96 @@
       "currentStreak": "当前连续",
       "achievements": "成就"
     },
+    "speedpass": {
+      "library": {
+        "title": "我的教材",
+        "subtitle": "共 {count} 本教材",
+        "addTextbook": "添加教材",
+        "emptyState": {
+          "title": "还没有教材",
+          "description": "上传 PDF 格式的教材开始学习",
+          "action": "添加第一本教材"
+        },
+        "dialog": {
+          "title": "添加教材",
+          "description": "填写教材信息，稍后可以上传 PDF 文件",
+          "nameLabel": "教材名称 *",
+          "namePlaceholder": "例如：高等数学（第七版）上册",
+          "authorLabel": "作者",
+          "authorPlaceholder": "例如：同济大学数学系",
+          "editionLabel": "版次",
+          "editionPlaceholder": "例如：第七版",
+          "isbnLabel": "ISBN",
+          "isbnPlaceholder": "选填",
+          "cancel": "取消",
+          "uploading": "添加中...",
+          "submit": "添加教材"
+        },
+        "card": {
+          "unknownAuthor": "未知作者",
+          "chapters": "章节",
+          "knowledgePoints": "知识点",
+          "questions": "题目",
+          "startLearning": "开始学习",
+          "practice": "练习",
+          "edit": "编辑信息",
+          "delete": "删除教材"
+        },
+        "status": {
+          "pending": "待处理",
+          "uploading": "上传中",
+          "parsing": "解析中 {progress}%",
+          "extracting_chapters": "提取章节 {progress}%",
+          "extracting_knowledge_points": "提取知识点 {progress}%",
+          "extracting_questions": "提取题目 {progress}%",
+          "completed": "已完成",
+          "failed": "处理失败"
+        }
+      },
+      "quiz": {
+        "loading": "正在生成题目...",
+        "progress": "{current} / {total}",
+        "exit": "退出",
+        "prev": "上一题",
+        "next": "下一题",
+        "submit": "交卷 ({current}/{total})",
+        "hint": {
+          "button": "提示",
+          "title": "提示",
+          "content": "请仔细审题，注意关键词。"
+        },
+        "navigator": "题目导航",
+        "placeholder": "请输入答案...",
+        "results": {
+          "title": "测验结束",
+          "subtitle": "查看你的答题情况",
+          "correct": "正确",
+          "incorrect": "错误",
+          "time": "用时",
+          "retry": "再做一次",
+          "finish": "完成",
+          "grade": {
+            "excellent": "优秀",
+            "good": "良好",
+            "pass": "及格",
+            "fail": "需加强"
+          }
+        },
+        "difficulty": {
+          "easy": "简单",
+          "medium": "中等",
+          "hard": "困难"
+        },
+        "questionTypes": {
+          "choice": "选择题",
+          "fill_blank": "填空题",
+          "calculation": "计算题",
+          "proof": "证明题",
+          "short_answer": "简答题",
+          "comprehensive": "综合题"
+        }
+      }
+    },
     "notes": {
       "title": "学习笔记",
       "placeholder": "记录您学到的内容...",

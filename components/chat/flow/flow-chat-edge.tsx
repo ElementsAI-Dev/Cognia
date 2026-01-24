@@ -10,6 +10,7 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
+  MarkerType,
   type EdgeProps,
 } from '@xyflow/react';
 import { Badge } from '@/components/ui/badge';
@@ -52,26 +53,47 @@ function FlowChatEdgeComponent({
   // Determine edge style based on type
   const edgeStyles: Record<FlowChatEdgeType, React.CSSProperties> = {
     conversation: {
-      stroke: 'hsl(var(--muted-foreground))',
       strokeWidth: 2,
+      opacity: 0.8,
     },
     branch: {
-      stroke: 'hsl(var(--orange-500, 249 115 22))',
-      strokeWidth: 2,
+      strokeWidth: 2.5,
       strokeDasharray: '5,5',
     },
     reference: {
-      stroke: 'hsl(var(--blue-500, 59 130 246))',
-      strokeWidth: 1.5,
+      strokeWidth: 2,
       strokeDasharray: '3,3',
     },
     parallel: {
-      stroke: 'hsl(var(--purple-500, 168 85 247))',
-      strokeWidth: 2,
+      strokeWidth: 2.5,
     },
   };
 
+  const edgeClassNames: Record<FlowChatEdgeType, string> = {
+    conversation: 'stroke-muted-foreground',
+    branch: 'stroke-orange-500',
+    reference: 'stroke-blue-500',
+    parallel: 'stroke-purple-500',
+  };
+
   const currentStyle = edgeStyles[edgeType] || edgeStyles.conversation;
+  const currentClassName = edgeClassNames[edgeType] || edgeClassNames.conversation;
+
+  // Helper to get marker color based on type
+  // This is a simplified mapping that matches the Tailwind classes
+  const getMarkerColor = (type: FlowChatEdgeType) => {
+    switch (type) {
+      case 'branch':
+        return 'var(--orange-500)';
+      case 'reference':
+        return 'var(--blue-500)';
+      case 'parallel':
+        return 'var(--purple-500)';
+      case 'conversation':
+      default:
+        return 'var(--muted-foreground)';
+    }
+  };
 
   return (
     <>
@@ -82,13 +104,22 @@ function FlowChatEdgeComponent({
           ...currentStyle,
           ...(style || {}),
         }}
+        markerEnd={
+          {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+            color: (style?.stroke as string) || getMarkerColor(edgeType),
+          } as any
+        }
         className={cn(
           'transition-all duration-200',
-          selected && 'stroke-primary',
+          currentClassName,
+          selected && 'stroke-primary opacity-100 stroke-[3px]!',
           isAnimated && 'animate-pulse'
         )}
       />
-      
+
       {/* Edge label for branch edges */}
       {edgeType === 'branch' && edgeLabel && (
         <EdgeLabelRenderer>
@@ -112,16 +143,8 @@ function FlowChatEdgeComponent({
 
       {/* Animated dot for active connections */}
       {isAnimated && (
-        <circle
-          r={4}
-          fill="hsl(var(--primary))"
-          className="animate-flow-dot"
-        >
-          <animateMotion
-            dur="2s"
-            repeatCount="indefinite"
-            path={edgePath}
-          />
+        <circle r={4} fill="var(--primary)" className="animate-flow-dot">
+          <animateMotion dur="2s" repeatCount="indefinite" path={edgePath} />
         </circle>
       )}
     </>

@@ -845,13 +845,14 @@
     "deletedModes": "已删除 {count} 个模式",
     "deleteConfirmDesc": "确定要删除此模式吗？此操作无法撤销。"
   },
-  "chatSettingsTabs": {
-    "generation": "生成",
-    "generationShort": "生成",
-    "context": "上下文",
-    "display": "显示"
-  },
+
   "chatSettings": {
+    "tabs": {
+      "generation": "生成",
+      "generationShort": "生成",
+      "context": "上下文",
+      "display": "显示"
+    },
     "defaultProvider": "默认服务商",
     "defaultProviderDesc": "新对话使用的默认 AI 服务商",
     "selectProvider": "选择服务商",

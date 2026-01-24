@@ -31,7 +31,10 @@ jest.mock('next-intl', () => ({
 // Mock stores
 jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = { sendOnEnter: true };
+    const state = {
+      sendOnEnter: true,
+      simplifiedModeSettings: { enabled: false },
+    };
     return selector ? selector(state) : state;
   },
   useRecentFilesStore: (selector: (state: Record<string, unknown>) => unknown) => {
@@ -104,8 +107,15 @@ jest.mock('react-textarea-autosize', () => {
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }));
 
@@ -183,7 +193,9 @@ describe('ChatInput', () => {
   it('calls onSubmit when send button is clicked', () => {
     render(<ChatInput {...defaultProps} value="Hello" />);
     // Find the send button by looking for the button in the input area
-    const sendButton = screen.getByRole('textbox').parentElement?.querySelector('button:not([disabled])');
+    const sendButton = screen
+      .getByRole('textbox')
+      .parentElement?.querySelector('button:not([disabled])');
     if (sendButton) {
       fireEvent.click(sendButton);
     }
@@ -197,7 +209,7 @@ describe('ChatInput', () => {
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);
     // At least one button should be disabled when input is empty
-    const hasDisabledButton = buttons.some(btn => btn.hasAttribute('disabled'));
+    const hasDisabledButton = buttons.some((btn) => btn.hasAttribute('disabled'));
     expect(hasDisabledButton).toBe(true);
   });
 
@@ -258,11 +270,11 @@ describe('ChatInput', () => {
   it('displays drag overlay when dragging', () => {
     const { container } = render(<ChatInput {...defaultProps} />);
     const dropZone = container.firstChild as HTMLElement;
-    
+
     fireEvent.dragEnter(dropZone, {
       dataTransfer: { types: ['Files'] },
     });
-    
+
     // Drag state should be set
     expect(dropZone).toHaveClass('transition-all');
   });
@@ -301,8 +313,8 @@ describe('ChatInput', () => {
   it('displays prompt optimization button when hasActivePreset and onOpenPromptOptimization are provided', () => {
     const onOpenPromptOptimization = jest.fn();
     render(
-      <ChatInput 
-        {...defaultProps} 
+      <ChatInput
+        {...defaultProps}
         onOpenPromptOptimization={onOpenPromptOptimization}
         hasActivePreset={true}
       />
@@ -317,8 +329,8 @@ describe('ChatInput', () => {
   it('does not display prompt optimization button when hasActivePreset is false', () => {
     const onOpenPromptOptimization = jest.fn();
     render(
-      <ChatInput 
-        {...defaultProps} 
+      <ChatInput
+        {...defaultProps}
         onOpenPromptOptimization={onOpenPromptOptimization}
         hasActivePreset={false}
       />

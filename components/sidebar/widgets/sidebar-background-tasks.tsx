@@ -25,7 +25,9 @@ export function SidebarBackgroundTasks({ className, collapsed }: SidebarBackgrou
   const isPanelOpen = useBackgroundAgentStore((state) => state.isPanelOpen);
   const openPanel = useBackgroundAgentStore((state) => state.openPanel);
   const getRunningAgents = useBackgroundAgentStore((state) => state.getRunningAgents);
-  const getUnreadNotificationCount = useBackgroundAgentStore((state) => state.getUnreadNotificationCount);
+  const getUnreadNotificationCount = useBackgroundAgentStore(
+    (state) => state.getUnreadNotificationCount
+  );
 
   const runningAgents = useMemo(() => getRunningAgents(), [getRunningAgents]);
   const unreadCount = useMemo(() => getUnreadNotificationCount(), [getUnreadNotificationCount]);
@@ -39,9 +41,8 @@ export function SidebarBackgroundTasks({ className, collapsed }: SidebarBackgrou
     const queued = allAgents.filter((a) => a.status === 'queued').length;
 
     // Calculate average progress of running agents
-    const avgProgress = running > 0
-      ? runningAgents.reduce((sum, a) => sum + (a.progress || 0), 0) / running
-      : 0;
+    const avgProgress =
+      running > 0 ? runningAgents.reduce((sum, a) => sum + (a.progress || 0), 0) / running : 0;
 
     return { running, completed, failed, queued, avgProgress };
   }, [runningAgents, allAgents]);
@@ -97,7 +98,7 @@ export function SidebarBackgroundTasks({ className, collapsed }: SidebarBackgrou
     <button
       onClick={() => openPanel()}
       className={cn(
-        'w-full text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/30',
+        'w-full text-left px-3 py-2 rounded-lg border border-border/50',
         'hover:bg-accent/50 hover:border-accent transition-colors group',
         isPanelOpen && 'bg-accent/50 border-accent',
         className

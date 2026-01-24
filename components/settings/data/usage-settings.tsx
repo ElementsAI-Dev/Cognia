@@ -4,17 +4,11 @@
  * UsageSettings - Display and manage token usage and costs
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Coins,
-  TrendingUp,
-  Clock,
-  Trash2,
-  Download,
-  ChevronDown,
-} from 'lucide-react';
+import { Coins, TrendingUp, Clock, Trash2, Download, ChevronDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -27,14 +21,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { useUsageStore } from '@/stores';
-import { formatTokens, formatCost } from '@/types/system/usage';
+import { formatTokens, formatCost, type UsageRecord } from '@/types/system/usage';
 
 export function UsageSettings() {
   const t = useTranslations('usageSettings');
@@ -42,12 +32,106 @@ export function UsageSettings() {
 
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const totalUsage = useUsageStore((state) => state.getTotalUsage());
-  const providerUsage = useUsageStore((state) => state.getUsageByProvider());
-  const dailyUsage = useUsageStore((state) => state.getDailyUsage(7));
-  const clearUsageRecords = useUsageStore((state) => state.clearUsageRecords);
   const records = useUsageStore((state) => state.records);
+  const clearUsageRecords = useUsageStore((state) => state.clearUsageRecords);
+
+  // Derived state with useMemo to prevent unnecessary re-renders
+  const totalUsage = useMemo(() => {
+    let tokens = 0;
+    let cost = 0;
+    for (const record of records) {
+      tokens += record.tokens.total;
+      cost += record.cost;
+    }
+    return {
+      tokens,
+      cost,
+      requests: records.length,
+    };
+  }, [records]);
+
+  const providerUsage = useMemo(() => {
+    const providerMap = new Map<
+      string,
+      { provider: string; tokens: number; cost: number; requests: number }
+    >();
+    for (const record of records) {
+      const existing = providerMap.get(record.provider);
+      if (existing) {
+        existing.tokens += record.tokens.total;
+        existing.cost += record.cost;
+        existing.requests += 1;
+      } else {
+        providerMap.set(record.provider, {
+          provider: record.provider,
+          tokens: record.tokens.total,
+          cost: record.cost,
+          requests: 1,
+        });
+      }
+    }
+    return Array.from(providerMap.values()).sort((a, b) => b.tokens - a.tokens);
+  }, [records]);
+
+  const dailyUsage = useMemo(() => {
+    const days = 7;
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - days);
+
+    const dailyMap = new Map<
+      string,
+      { date: string; tokens: number; cost: number; requests: number }
+    >();
+
+    // Initialize all days
+    for (let i = 0; i <= days; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      dailyMap.set(dateStr, {
+        date: dateStr,
+        tokens: 0,
+        cost: 0,
+        requests: 0,
+      });
+    }
+
+    // Aggregate records
+    for (const record of records) {
+      const date = record.createdAt instanceof Date ? record.createdAt : new Date(record.createdAt);
+      const dateStr = date.toISOString().split('T')[0];
+      const existing = dailyMap.get(dateStr);
+      if (existing) {
+        existing.tokens += record.tokens.total;
+        existing.cost += record.cost;
+        existing.requests += 1;
+      }
+    }
+
+    return Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }, [records]);
+
+  const filteredRecords = useMemo(() => {
+    if (!searchQuery.trim()) return [...records].reverse();
+    const query = searchQuery.toLowerCase();
+    return records
+      .filter(
+        (r) => r.provider.toLowerCase().includes(query) || r.model.toLowerCase().includes(query)
+      )
+      .reverse();
+  }, [records, searchQuery]);
+
+  const paginatedRecords = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredRecords.slice(start, start + pageSize);
+  }, [filteredRecords, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredRecords.length / pageSize);
 
   const handleClearRecords = () => {
     clearUsageRecords();
@@ -111,7 +195,10 @@ export function UsageSettings() {
                 <div className="text-[10px] text-muted-foreground uppercase">{t('since')}</div>
                 <div className="text-base font-bold">
                   {records.length > 0
-                    ? new Date(records[0].createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                    ? new Date(records[0].createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      })
                     : 'N/A'}
                 </div>
                 <div className="flex items-center justify-center text-[10px] text-muted-foreground">
@@ -144,12 +231,17 @@ export function UsageSettings() {
                         {formatTokens(provider.tokens)} • {formatCost(provider.cost)}
                       </span>
                     </div>
-                    <Progress value={(provider.tokens / maxProviderTokens) * 100} className="h-1.5" />
+                    <Progress
+                      value={(provider.tokens / maxProviderTokens) * 100}
+                      className="h-1.5"
+                    />
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground text-center py-4">{t('noProviderData')}</p>
+              <p className="text-xs text-muted-foreground text-center py-4">
+                {t('noProviderData')}
+              </p>
             )}
           </CardContent>
         </Card>
@@ -163,10 +255,7 @@ export function UsageSettings() {
         <CardContent>
           <div className="flex items-end gap-2 h-24">
             {dailyUsage.map((day) => (
-              <div
-                key={day.date}
-                className="flex-1 flex flex-col items-center gap-1"
-              >
+              <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
                 <div
                   className="w-full bg-primary/20 rounded-t transition-all relative"
                   style={{
@@ -197,7 +286,12 @@ export function UsageSettings() {
           <CollapsibleTrigger asChild>
             <CardHeader className="cursor-pointer hover:bg-accent/50 rounded-t-lg transition-colors py-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">{t('recentActivity')}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm">{t('recentActivity')}</CardTitle>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {filteredRecords.length}
+                  </Badge>
+                </div>
                 <ChevronDown
                   className={`h-4 w-4 text-muted-foreground transition-transform ${
                     showDetails ? 'rotate-180' : ''
@@ -207,33 +301,71 @@ export function UsageSettings() {
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 space-y-4">
+              {/* Search within records */}
+              <div className="relative pt-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search provider or model..."
+                  value={searchQuery}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="h-8 pl-8 text-xs bg-muted/30"
+                />
+              </div>
+
               <div className="divide-y">
-                {records.slice(-10).reverse().map((record) => (
-                  <div
-                    key={record.id}
-                    className="flex items-center justify-between py-2 text-sm"
-                  >
+                {paginatedRecords.map((record: UsageRecord) => (
+                  <div key={record.id} className="flex items-center justify-between py-2 text-sm">
                     <div>
-                      <span className="font-medium capitalize">
-                        {record.provider}
-                      </span>
+                      <span className="font-medium capitalize">{record.provider}</span>
                       <span className="text-muted-foreground"> / {record.model}</span>
                     </div>
                     <div className="text-right">
                       <div>{formatTokens(record.tokens.total)} tokens</div>
                       <div className="text-xs text-muted-foreground">
-                        {record.createdAt.toLocaleTimeString()}
+                        {new Date(record.createdAt).toLocaleString()}
                       </div>
                     </div>
                   </div>
                 ))}
-                {records.length === 0 && (
-                  <p className="py-4 text-center text-muted-foreground">
-                    {t('noRecords')}
+                {filteredRecords.length === 0 && (
+                  <p className="py-8 text-center text-muted-foreground text-xs">
+                    {searchQuery ? tCommon('noResults') : t('noRecords')}
                   </p>
                 )}
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-2 border-t text-xs">
+                  <span className="text-muted-foreground">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronDown className="h-4 w-4 rotate-90" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronDown className="h-4 w-4 -rotate-90" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </CollapsibleContent>
         </Card>
@@ -261,9 +393,7 @@ export function UsageSettings() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('clearTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('clearDesc')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('clearDesc')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>

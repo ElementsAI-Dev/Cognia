@@ -159,6 +159,15 @@ export interface DBAsset {
   updatedAt?: Date;
 }
 
+export interface DBFolder {
+  id: string;
+  name: string;
+  order: number;
+  isExpanded?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Database class
 class CogniaDB extends Dexie {
   sessions!: EntityTable<DBSession, 'id'>;
@@ -171,6 +180,7 @@ class CogniaDB extends Dexie {
   workflowExecutions!: EntityTable<DBWorkflowExecution, 'id'>;
   summaries!: EntityTable<DBSummary, 'id'>;
   assets!: EntityTable<DBAsset, 'id'>;
+  folders!: EntityTable<DBFolder, 'id'>;
 
   constructor() {
     super('CogniaDB');
@@ -227,7 +237,7 @@ class CogniaDB extends Dexie {
 
     // Version 6: Add assets table for storing binary blobs (e.g. background images)
     this.version(6).stores({
-      sessions: 'id, title, provider, projectId, createdAt, updatedAt',
+      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
       messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
       documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
       mcpServers: 'id, name, url, connected',
@@ -237,6 +247,21 @@ class CogniaDB extends Dexie {
       workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
       summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
       assets: 'id, kind, createdAt',
+    });
+
+    // Version 7: Add folders support
+    this.version(7).stores({
+      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
+      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
+      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
+      assets: 'id, kind, createdAt',
+      folders: 'id, name, order, createdAt',
     });
   }
 }

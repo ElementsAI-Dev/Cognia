@@ -56,7 +56,8 @@
       "canYouRephrase": "能换种说法吗？",
       "expandPoint1": "展开第1点",
       "whichRecommend": "你推荐哪个？",
-      "compareOptions": "比较这些选项"
+      "compareOptions": "比较这些选项",
+      "refresh": "刷新建议"
     }
   },
   "chatHeader": {

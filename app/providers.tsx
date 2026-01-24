@@ -198,7 +198,7 @@ function AppLoadingScreen() {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
+      className="fixed inset-0 z-9999 flex flex-col items-center justify-center"
       style={{ backgroundColor: colors.bg }}
     >
       {/* Subtle background gradient */}
@@ -888,8 +888,8 @@ export function Providers({ children }: ProvidersProps) {
               enableHealthChecks={true}
               healthCheckInterval={5 * 60 * 1000} // 5 minutes
             >
+              <LocaleInitializer />
               <I18nProvider>
-                <LocaleInitializer />
                 <ThemeProvider>
                   <TooltipProvider delayDuration={0}>
                     <SkillProvider loadBuiltinSkills={true}>

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { X, Minimize2, Maximize2, GripHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/utils';
 
 interface Position {
   x: number;
@@ -80,6 +81,7 @@ export function FloatingPanel({
   const [isMinimized, setIsMinimized] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const isMobile = useIsMobile();
   
   const panelRef = useRef<HTMLDivElement>(null);
   const dragStart = useRef<Position>({ x: 0, y: 0 });
@@ -184,30 +186,45 @@ export function FloatingPanel({
 
   if (!open) return null;
 
+  // On mobile, use full-width bottom sheet style
+  const mobileStyles = isMobile ? {
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 'auto',
+    width: '100%',
+    height: isMinimized ? 'auto' : '60vh',
+    maxHeight: '80vh',
+    borderRadius: '1rem 1rem 0 0',
+  } : {
+    left: position.x,
+    top: position.y,
+    width: isMinimized ? 200 : size.width,
+    height: isMinimized ? 'auto' : size.height,
+  };
+
   return (
     <div
       ref={panelRef}
       className={cn(
-        'fixed flex flex-col rounded-lg border border-border bg-background shadow-xl overflow-hidden',
+        'fixed flex flex-col border border-border bg-background shadow-xl overflow-hidden',
+        isMobile ? 'rounded-t-2xl' : 'rounded-lg',
         (isDragging || isResizing) && 'select-none',
         className
       )}
       style={{
-        left: position.x,
-        top: position.y,
-        width: isMinimized ? 200 : size.width,
-        height: isMinimized ? 'auto' : size.height,
+        ...mobileStyles,
         zIndex,
-      }}
+      } as React.CSSProperties}
     >
-      {/* Header - draggable */}
+      {/* Header - draggable on desktop only */}
       <div
         className={cn(
           'flex items-center justify-between px-3 py-2 border-b border-border bg-muted/50',
-          draggable && 'cursor-grab',
-          isDragging && 'cursor-grabbing'
+          !isMobile && draggable && 'cursor-grab',
+          !isMobile && isDragging && 'cursor-grabbing'
         )}
-        onMouseDown={handleDragStart}
+        onMouseDown={isMobile ? undefined : handleDragStart}
       >
         <div className="flex items-center gap-2">
           <GripHorizontal className="h-4 w-4 text-muted-foreground" />
@@ -260,8 +277,8 @@ export function FloatingPanel({
         </div>
       )}
 
-      {/* Resize handle */}
-      {resizable && !isMinimized && (
+      {/* Resize handle - desktop only */}
+      {resizable && !isMinimized && !isMobile && (
         <div
           className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
           onMouseDown={handleResizeStart}

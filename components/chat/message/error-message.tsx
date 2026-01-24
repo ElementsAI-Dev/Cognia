@@ -191,85 +191,85 @@ export function ErrorMessage({
     onRetry?.();
   }, [onRetry]);
 
-  const progressValue = countdown !== null ? ((getRetryDelay(retryCount) - countdown) / getRetryDelay(retryCount)) * 100 : 0;
+  const progressValue =
+    countdown !== null
+      ? ((getRetryDelay(retryCount) - countdown) / getRetryDelay(retryCount)) * 100
+      : 0;
 
   return (
     <Alert
       variant="destructive"
-      className={cn(
-        'relative mx-4 mt-2 border-destructive/50 bg-destructive/10',
-        className
-      )}
+      className={cn('relative mx-4 mt-2 border-destructive/50 bg-destructive/10', className)}
     >
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 text-destructive">{errorInfo.icon}</div>
-        <div className="flex-1 min-w-0">
-          <AlertTitle className="mb-1 font-semibold">{errorInfo.title}</AlertTitle>
-          <AlertDescription className="text-sm">
-            {errorInfo.category === 'unknown' ? error : errorInfo.description}
-            {errorInfo.category !== 'unknown' && error !== errorInfo.description && (
-              <span className="block mt-1 text-xs opacity-70">{error}</span>
-            )}
-          </AlertDescription>
+      {/* Icon - automatically placed in first column by Alert */}
+      {errorInfo.icon}
 
-          {/* Retry progress */}
-          {canAutoRetry && countdown !== null && (
-            <div className="mt-3 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">
-                  Auto-retry in {countdown}s (attempt {retryCount + 1}/{maxRetries})
-                </span>
-              </div>
-              <Progress value={progressValue} className="h-1" />
-            </div>
+      <div className="flex-1 min-w-0">
+        <AlertTitle className="mb-1 font-semibold">{errorInfo.title}</AlertTitle>
+        <AlertDescription className="text-sm">
+          {errorInfo.category === 'unknown' ? error : errorInfo.description}
+          {errorInfo.category !== 'unknown' && error !== errorInfo.description && (
+            <span className="block mt-1 text-xs opacity-70">{error}</span>
           )}
+        </AlertDescription>
 
-          {/* Action buttons */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {errorInfo.canRetry && onRetry && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleManualRetry}
-                disabled={isRetrying}
-                className="h-8 gap-1.5"
-              >
-                {isRetrying ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5" />
-                )}
-                Retry Now
-              </Button>
-            )}
-            {errorInfo.showSettings && (
-              <Button variant="outline" size="sm" asChild className="h-8 gap-1.5">
-                <Link href="/settings">
-                  <Settings className="h-3.5 w-3.5" />
-                  Go to Settings
-                </Link>
-              </Button>
-            )}
-            {retryCount >= maxRetries && (
-              <span className="text-xs text-muted-foreground">
-                Max retries reached. Please try again manually.
+        {/* Retry progress */}
+        {canAutoRetry && countdown !== null && (
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                Auto-retry in {countdown}s (attempt {retryCount + 1}/{maxRetries})
               </span>
-            )}
+            </div>
+            <Progress value={progressValue} className="h-1" />
           </div>
-        </div>
-
-        {/* Dismiss button */}
-        {onDismiss && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onDismiss}
-            className="h-6 w-6 shrink-0 rounded-full hover:bg-destructive/20"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         )}
+
+        {/* Action buttons */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {errorInfo.canRetry && onRetry && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManualRetry}
+              disabled={isRetrying}
+              className="h-8 gap-1.5"
+            >
+              {isRetrying ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              Retry Now
+            </Button>
+          )}
+          {errorInfo.showSettings && (
+            <Button variant="outline" size="sm" asChild className="h-8 gap-1.5">
+              <Link href="/settings">
+                <Settings className="h-3.5 w-3.5" />
+                Go to Settings
+              </Link>
+            </Button>
+          )}
+          {retryCount >= maxRetries && (
+            <span className="text-xs text-muted-foreground">
+              Max retries reached. Please try again manually.
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Dismiss button - positioned absolutely to avoid grid placement issues */}
+      {onDismiss && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDismiss}
+          className="absolute right-2 top-2 h-6 w-6 shrink-0 rounded-full hover:bg-destructive/20"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
     </Alert>
   );
 }

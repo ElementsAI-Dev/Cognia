@@ -272,7 +272,7 @@ export default function DesignerPage() {
   }, [aiPrompt, code, defaultProvider, providerSettings, addToHistory]);
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-background" data-page="designer">
       {/* Header */}
       <header className="flex items-center justify-between border-b px-4 py-2">
         <div className="flex items-center gap-4">

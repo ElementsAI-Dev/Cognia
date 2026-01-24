@@ -9,7 +9,20 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { useTranslations } from 'next-intl';
-import { Copy, Check, Pencil, RotateCcw, Languages, Bookmark, BookmarkCheck, Volume2, VolumeX, Share2, Loader2, BookOpen } from 'lucide-react';
+import {
+  Copy,
+  Check,
+  Pencil,
+  RotateCcw,
+  Languages,
+  Bookmark,
+  BookmarkCheck,
+  Volume2,
+  VolumeX,
+  Share2,
+  Loader2,
+  BookOpen,
+} from 'lucide-react';
 import {
   Conversation,
   ConversationContent,
@@ -29,10 +42,21 @@ import { ChatInput, type Attachment } from '../chat-input';
 import { QuickReplyBar } from '../ui/quick-reply-bar';
 import { WorkflowIndicator, type WorkflowStatus } from '../ui/workflow-indicator';
 import { useKeyboardShortcuts } from '../ui/keyboard-shortcuts-handler';
-import { ContextSettingsDialog, AISettingsDialog, type AISettings, ModelPickerDialog, PresetManagerDialog, ModeSwitchConfirmDialog } from '../dialogs';
+import {
+  ContextSettingsDialog,
+  AISettingsDialog,
+  type AISettings,
+  ModelPickerDialog,
+  PresetManagerDialog,
+  ModeSwitchConfirmDialog,
+} from '../dialogs';
 import { PromptOptimizerDialog, PromptOptimizationHub } from '@/components/prompt';
 import { WorkflowPickerDialog } from '../workflow/workflow-picker-dialog';
-import { WorkflowResultCard, type WorkflowResultData, type WorkflowExecutionStatus } from '../workflow/workflow-result-card';
+import {
+  WorkflowResultCard,
+  type WorkflowResultData,
+  type WorkflowExecutionStatus,
+} from '../workflow/workflow-result-card';
 import { MessageSwipeActions, type SwipeAction } from '../ui/message-swipe-actions';
 import { WelcomeState } from '../welcome/welcome-state';
 import { CarriedContextBanner } from '../ui/carried-context-banner';
@@ -60,8 +84,15 @@ import { LearningModePanel, LearningStartDialog } from '@/components/learning';
 import { useSkillStore } from '@/stores/skills';
 import { buildProgressiveSkillsPrompt } from '@/lib/skills/executor';
 import { useWorkflowStore } from '@/stores/workflow';
-import { initializeAgentTools, filterToolsForMode, convertMcpToolToAgentTool } from '@/lib/ai/agent';
-import { useCustomModeStore, processPromptTemplateVariables } from '@/stores/agent/custom-mode-store';
+import {
+  initializeAgentTools,
+  filterToolsForMode,
+  convertMcpToolToAgentTool,
+} from '@/lib/ai/agent';
+import {
+  useCustomModeStore,
+  processPromptTemplateVariables,
+} from '@/stores/agent/custom-mode-store';
 import {
   generateSuggestions,
   getDefaultSuggestions,
@@ -71,7 +102,17 @@ import { translateText } from '@/lib/ai/generation/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
 import { SourceVerificationDialog } from '@/components/search/source-verification-dialog';
 import { useSourceVerification } from '@/hooks/search/use-source-verification';
-import { useSessionStore, useSettingsStore, usePresetStore, useMcpStore, useAgentStore, useProjectStore, useQuoteStore, useLearningStore, useArtifactStore } from '@/stores';
+import {
+  useSessionStore,
+  useSettingsStore,
+  usePresetStore,
+  useMcpStore,
+  useAgentStore,
+  useProjectStore,
+  useQuoteStore,
+  useLearningStore,
+  useArtifactStore,
+} from '@/stores';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,7 +138,16 @@ import { useFeatureRouting } from '@/hooks/chat/use-feature-routing';
 import { ModeSwitchSuggestion } from '../ui/mode-switch-suggestion';
 import { FeatureNavigationDialog } from '../ui/feature-navigation-dialog';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
-import { useAIChat, useAutoRouter, type ProviderName, isVisionModel, buildMultimodalContent, type MultimodalMessage, isAudioModel, isVideoModel } from '@/lib/ai';
+import {
+  useAIChat,
+  useAutoRouter,
+  type ProviderName,
+  isVisionModel,
+  buildMultimodalContent,
+  type MultimodalMessage,
+  isAudioModel,
+  isVideoModel,
+} from '@/lib/ai';
 import { RoutingIndicator } from '../ui/routing-indicator';
 import type { ModelSelection } from '@/types/provider/auto-router';
 import { messageRepository } from '@/lib/db';
@@ -126,11 +176,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   const session = useMemo(() => {
     if (sessionId) {
-      return sessions.find(s => s.id === sessionId);
+      return sessions.find((s) => s.id === sessionId);
     }
-    return sessions.find(s => s.id === storeActiveSessionId);
+    return sessions.find((s) => s.id === storeActiveSessionId);
   }, [sessionId, sessions, storeActiveSessionId]);
-  
+
   const activeSessionId = session?.id || null;
   const activeBranchId = session?.activeBranchId;
 
@@ -145,11 +195,14 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const flowCanvasState = activeSessionId ? getFlowCanvasState(activeSessionId) : undefined;
   const branches = activeSessionId ? getBranches(activeSessionId) : [];
 
-  const handleViewModeChange = useCallback((mode: ChatViewMode) => {
-    if (activeSessionId) {
-      setViewMode(activeSessionId, mode);
-    }
-  }, [activeSessionId, setViewMode]);
+  const handleViewModeChange = useCallback(
+    (mode: ChatViewMode) => {
+      if (activeSessionId) {
+        setViewMode(activeSessionId, mode);
+      }
+    },
+    [activeSessionId, setViewMode]
+  );
 
   // Project context for knowledge base integration
   const getProject = useProjectStore((state) => state.getProject);
@@ -234,8 +287,10 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [showWorkflowSelector, setShowWorkflowSelector] = useState(false);
   const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
   const [showPPTPreview, setShowPPTPreview] = useState(false);
-  const [workflowResults, setWorkflowResults] = useState<Map<string, WorkflowResultData>>(new Map());
-  
+  const [workflowResults, setWorkflowResults] = useState<Map<string, WorkflowResultData>>(
+    new Map()
+  );
+
   // Active workflow indicator state
   const [activeWorkflow, setActiveWorkflow] = useState<{
     id: string;
@@ -252,7 +307,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [showLearningStartDialog, setShowLearningStartDialog] = useState(false);
   const workflowPresentations = useWorkflowStore((state) => state.presentations);
   const activePresentationId = useWorkflowStore((state) => state.activePresentationId);
-  const activePresentation = activePresentationId ? workflowPresentations[activePresentationId] : null;
+  const activePresentation = activePresentationId
+    ? workflowPresentations[activePresentationId]
+    : null;
 
   // Context settings states
   const [showContextSettings, setShowContextSettings] = useState(false);
@@ -328,7 +385,6 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
   // Feature toggles from session
   const webSearchEnabled = session?.webSearchEnabled ?? false;
   const thinkingEnabled = session?.thinkingEnabled ?? false;
@@ -347,11 +403,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const openaiSettings = providerSettings?.openai;
   const { generateChatSummary } = useSummary({
     useAI: !!openaiSettings?.apiKey,
-    aiConfig: openaiSettings?.apiKey ? {
-      provider: 'openai',
-      model: openaiSettings.defaultModel || 'gpt-4o-mini',
-      apiKey: openaiSettings.apiKey,
-    } : undefined,
+    aiConfig: openaiSettings?.apiKey
+      ? {
+          provider: 'openai',
+          model: openaiSettings.defaultModel || 'gpt-4o-mini',
+          apiKey: openaiSettings.apiKey,
+        }
+      : undefined,
   });
 
   // Intent detection for mode switching suggestions (enabled in all modes)
@@ -403,14 +461,14 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const estimatedTokens = useMemo(() => {
     // Get system prompt from session
     const systemPrompt = session?.systemPrompt || '';
-    
+
     // Calculate token breakdown with provider info for accurate counting
     const breakdown = calculateTokenBreakdown(messages, {
       systemPrompt,
       provider: currentProvider,
       model: currentModel,
     });
-    
+
     return {
       contextTokens: breakdown.contextTokens,
       systemTokens: breakdown.systemTokens,
@@ -504,20 +562,17 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       return {};
     }
     // Filter MCP servers to only include tools selected in custom mode
-    const selectedMcpTools: Record<string, typeof allAgentTools[string]> = {};
+    const selectedMcpTools: Record<string, (typeof allAgentTools)[string]> = {};
     for (const mcpToolRef of currentCustomMode.mcpTools) {
-      const server = mcpServers.find(s => s.id === mcpToolRef.serverId);
+      const server = mcpServers.find((s) => s.id === mcpToolRef.serverId);
       if (server?.status.type === 'connected') {
         // Find the tool definition from the server
-        const mcpTool = server.tools?.find(t => t.name === mcpToolRef.toolName);
+        const mcpTool = server.tools?.find((t) => t.name === mcpToolRef.toolName);
         if (mcpTool) {
           // Use the proper conversion function
-          const agentTool = convertMcpToolToAgentTool(
-            mcpToolRef.serverId,
-            server.name,
-            mcpTool,
-            { callTool: mcpCallTool }
-          );
+          const agentTool = convertMcpToolToAgentTool(mcpToolRef.serverId, server.name, mcpTool, {
+            callTool: mcpCallTool,
+          });
           selectedMcpTools[agentTool.name] = agentTool;
         }
       }
@@ -537,7 +592,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Process system prompt with template variables
   const processedSystemPrompt = useMemo(() => {
-    const basePrompt = session?.systemPrompt || 'You are a helpful AI assistant with access to tools.';
+    const basePrompt =
+      session?.systemPrompt || 'You are a helpful AI assistant with access to tools.';
     if (currentCustomMode) {
       return processPromptTemplateVariables(basePrompt, {
         modeName: currentCustomMode.name,
@@ -593,20 +649,23 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   });
 
   // Handle tool approval
-  const handleToolApproval = useCallback(async (toolCallId: string, alwaysAllow?: boolean) => {
-    if (pendingApprovalRef.current) {
-      pendingApprovalRef.current.resolve(true);
-      pendingApprovalRef.current = null;
-    }
-    setShowToolApproval(false);
-    
-    // Store alwaysAllow preference for the tool
-    if (alwaysAllow && toolApprovalRequest?.toolName) {
-      addAlwaysAllowedTool(toolApprovalRequest.toolName);
-    }
-    
-    setToolApprovalRequest(null);
-  }, [toolApprovalRequest, addAlwaysAllowedTool]);
+  const handleToolApproval = useCallback(
+    async (toolCallId: string, alwaysAllow?: boolean) => {
+      if (pendingApprovalRef.current) {
+        pendingApprovalRef.current.resolve(true);
+        pendingApprovalRef.current = null;
+      }
+      setShowToolApproval(false);
+
+      // Store alwaysAllow preference for the tool
+      if (alwaysAllow && toolApprovalRequest?.toolName) {
+        addAlwaysAllowedTool(toolApprovalRequest.toolName);
+      }
+
+      setToolApprovalRequest(null);
+    },
+    [toolApprovalRequest, addAlwaysAllowedTool]
+  );
 
   const handleToolDeny = useCallback((toolCallId: string) => {
     if (pendingApprovalRef.current) {
@@ -623,10 +682,14 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return agentToolExecutions.map((exec) => ({
       id: exec.id,
       toolName: exec.toolName,
-      state: exec.status === 'completed' ? 'output-available' as const :
-             exec.status === 'error' ? 'output-error' as const :
-             exec.status === 'running' ? 'input-available' as const :
-             'input-streaming' as const,
+      state:
+        exec.status === 'completed'
+          ? ('output-available' as const)
+          : exec.status === 'error'
+            ? ('output-error' as const)
+            : exec.status === 'running'
+              ? ('input-available' as const)
+              : ('input-streaming' as const),
       startTime: exec.startedAt ?? new Date(),
       endTime: exec.completedAt,
       error: exec.error,
@@ -648,49 +711,57 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     setError(null);
   }, [createSession]);
 
-  const handleModeChange = useCallback((mode: ChatMode) => {
-    if (session) {
-      // Check if there are messages - if so, show confirmation dialog
-      if (messages.length > 0 && mode !== currentMode) {
-        setPendingTargetMode(mode);
-        setShowModeSwitchDialog(true);
-        return;
-      }
-      updateSession(session.id, { mode });
-    } else {
-      createSession({ mode });
-    }
-    // Show learning start dialog when switching to learning mode
-    if (mode === 'learning') {
-      const currentSessionId = session?.id;
-      const hasLearningSession = currentSessionId ? getLearningSessionByChat(currentSessionId) : null;
-      if (!hasLearningSession) {
-        setShowLearningStartDialog(true);
+  const handleModeChange = useCallback(
+    (mode: ChatMode) => {
+      if (session) {
+        // Check if there are messages - if so, show confirmation dialog
+        if (messages.length > 0 && mode !== currentMode) {
+          setPendingTargetMode(mode);
+          setShowModeSwitchDialog(true);
+          return;
+        }
+        updateSession(session.id, { mode });
       } else {
-        setShowLearningPanel(true);
+        createSession({ mode });
       }
-    }
-  }, [session, updateSession, createSession, getLearningSessionByChat, messages.length, currentMode]);
+      // Show learning start dialog when switching to learning mode
+      if (mode === 'learning') {
+        const currentSessionId = session?.id;
+        const hasLearningSession = currentSessionId
+          ? getLearningSessionByChat(currentSessionId)
+          : null;
+        if (!hasLearningSession) {
+          setShowLearningStartDialog(true);
+        } else {
+          setShowLearningPanel(true);
+        }
+      }
+    },
+    [session, updateSession, createSession, getLearningSessionByChat, messages.length, currentMode]
+  );
 
   // Handle mode switch confirmation
-  const handleModeSwitchConfirm = useCallback((options: { carryContext: boolean; summary?: string }) => {
-    if (!session || !pendingTargetMode) return;
+  const handleModeSwitchConfirm = useCallback(
+    (options: { carryContext: boolean; summary?: string }) => {
+      if (!session || !pendingTargetMode) return;
 
-    // Create new session with the target mode
-    switchModeWithNewSession(session.id, pendingTargetMode, {
-      carryContext: options.carryContext,
-      summary: options.summary,
-    });
+      // Create new session with the target mode
+      switchModeWithNewSession(session.id, pendingTargetMode, {
+        carryContext: options.carryContext,
+        summary: options.summary,
+      });
 
-    // Show learning start dialog when switching to learning mode
-    if (pendingTargetMode === 'learning') {
-      setShowLearningStartDialog(true);
-    }
+      // Show learning start dialog when switching to learning mode
+      if (pendingTargetMode === 'learning') {
+        setShowLearningStartDialog(true);
+      }
 
-    // Reset state
-    setPendingTargetMode(null);
-    setShowModeSwitchDialog(false);
-  }, [session, pendingTargetMode, switchModeWithNewSession]);
+      // Reset state
+      setPendingTargetMode(null);
+      setShowModeSwitchDialog(false);
+    },
+    [session, pendingTargetMode, switchModeWithNewSession]
+  );
 
   // Handle mode switch cancel
   const handleModeSwitchCancel = useCallback(() => {
@@ -725,80 +796,118 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   }, [showLearningPanel]);
 
   // Handle agent sub-mode change (within agent mode)
-  const handleAgentModeChange = useCallback((agentMode: AgentModeConfig) => {
-    if (session) {
-      updateSession(session.id, {
-        agentModeId: agentMode.id,
-        systemPrompt: agentMode.systemPrompt,
-      });
-    }
-  }, [session, updateSession]);
+  const handleAgentModeChange = useCallback(
+    (agentMode: AgentModeConfig) => {
+      if (session) {
+        updateSession(session.id, {
+          agentModeId: agentMode.id,
+          systemPrompt: agentMode.systemPrompt,
+        });
+      }
+    },
+    [session, updateSession]
+  );
 
   // Handle preset selection
-  const handleSelectPreset = useCallback((preset: import('@/types/content/preset').Preset) => {
-    trackPresetUsage(preset.id);
+  const handleSelectPreset = useCallback(
+    (preset: import('@/types/content/preset').Preset) => {
+      trackPresetUsage(preset.id);
 
-    if (session) {
-      updateSession(session.id, {
-        provider: preset.provider === 'auto' ? 'openai' : preset.provider,
-        model: preset.model,
-        mode: preset.mode,
-        systemPrompt: preset.systemPrompt,
-        builtinPrompts: preset.builtinPrompts,
-        temperature: preset.temperature,
-        maxTokens: preset.maxTokens,
-        webSearchEnabled: preset.webSearchEnabled,
-        thinkingEnabled: preset.thinkingEnabled,
-        presetId: preset.id,
-      });
-    } else {
-      createSession({
-        provider: preset.provider === 'auto' ? 'openai' : preset.provider,
-        model: preset.model,
-        mode: preset.mode,
-        systemPrompt: preset.systemPrompt,
-      });
-    }
-  }, [session, updateSession, createSession, trackPresetUsage]);
+      if (session) {
+        updateSession(session.id, {
+          provider: preset.provider === 'auto' ? 'openai' : preset.provider,
+          model: preset.model,
+          mode: preset.mode,
+          systemPrompt: preset.systemPrompt,
+          builtinPrompts: preset.builtinPrompts,
+          temperature: preset.temperature,
+          maxTokens: preset.maxTokens,
+          webSearchEnabled: preset.webSearchEnabled,
+          thinkingEnabled: preset.thinkingEnabled,
+          presetId: preset.id,
+        });
+      } else {
+        createSession({
+          provider: preset.provider === 'auto' ? 'openai' : preset.provider,
+          model: preset.model,
+          mode: preset.mode,
+          systemPrompt: preset.systemPrompt,
+        });
+      }
+    },
+    [session, updateSession, createSession, trackPresetUsage]
+  );
 
   // Handle web search toggle
-  const handleWebSearchChange = useCallback((enabled: boolean) => {
-    if (session) {
-      updateSession(session.id, { webSearchEnabled: enabled });
-    }
-  }, [session, updateSession]);
+  const handleWebSearchChange = useCallback(
+    (enabled: boolean) => {
+      if (session) {
+        updateSession(session.id, { webSearchEnabled: enabled });
+      }
+    },
+    [session, updateSession]
+  );
 
   // Handle thinking mode toggle
-  const handleThinkingChange = useCallback((enabled: boolean) => {
-    if (session) {
-      updateSession(session.id, { thinkingEnabled: enabled });
-    }
-  }, [session, updateSession]);
+  const handleThinkingChange = useCallback(
+    (enabled: boolean) => {
+      if (session) {
+        updateSession(session.id, { thinkingEnabled: enabled });
+      }
+    },
+    [session, updateSession]
+  );
 
   // Handle AI settings change
-  const handleAISettingsChange = useCallback((settings: Partial<AISettings>) => {
-    if (session) {
-      updateSession(session.id, settings);
-    }
-  }, [session, updateSession]);
+  const handleAISettingsChange = useCallback(
+    (settings: Partial<AISettings>) => {
+      if (session) {
+        updateSession(session.id, settings);
+      }
+    },
+    [session, updateSession]
+  );
 
   // Get current AI settings from session (fallback to global defaults)
-  const currentAISettings: AISettings = useMemo(() => ({
-    temperature: session?.temperature ?? defaultTemperature,
-    maxTokens: session?.maxTokens ?? defaultMaxTokens,
-    topP: session?.topP ?? defaultTopP,
-    frequencyPenalty: session?.frequencyPenalty ?? defaultFrequencyPenalty,
-    presencePenalty: session?.presencePenalty ?? defaultPresencePenalty,
-  }), [session?.temperature, session?.maxTokens, session?.topP, session?.frequencyPenalty, session?.presencePenalty, defaultTemperature, defaultMaxTokens, defaultTopP, defaultFrequencyPenalty, defaultPresencePenalty]);
+  const currentAISettings: AISettings = useMemo(
+    () => ({
+      temperature: session?.temperature ?? defaultTemperature,
+      maxTokens: session?.maxTokens ?? defaultMaxTokens,
+      topP: session?.topP ?? defaultTopP,
+      frequencyPenalty: session?.frequencyPenalty ?? defaultFrequencyPenalty,
+      presencePenalty: session?.presencePenalty ?? defaultPresencePenalty,
+    }),
+    [
+      session?.temperature,
+      session?.maxTokens,
+      session?.topP,
+      session?.frequencyPenalty,
+      session?.presencePenalty,
+      defaultTemperature,
+      defaultMaxTokens,
+      defaultTopP,
+      defaultFrequencyPenalty,
+      defaultPresencePenalty,
+    ]
+  );
 
   // Global default AI settings for reset functionality
-  const globalDefaultAISettings: AISettings = useMemo(() => ({
-    temperature: defaultTemperature,
-    maxTokens: defaultMaxTokens,
-    topP: defaultTopP,
-    frequencyPenalty: defaultFrequencyPenalty,
-    presencePenalty: defaultPresencePenalty,
-  }), [defaultTemperature, defaultMaxTokens, defaultTopP, defaultFrequencyPenalty, defaultPresencePenalty]);
+  const globalDefaultAISettings: AISettings = useMemo(
+    () => ({
+      temperature: defaultTemperature,
+      maxTokens: defaultMaxTokens,
+      topP: defaultTopP,
+      frequencyPenalty: defaultFrequencyPenalty,
+      presencePenalty: defaultPresencePenalty,
+    }),
+    [
+      defaultTemperature,
+      defaultMaxTokens,
+      defaultTopP,
+      defaultFrequencyPenalty,
+      defaultPresencePenalty,
+    ]
+  );
 
   // Open preset manager (can be used by child components)
   const _handleManagePresets = useCallback(() => {
@@ -817,35 +926,38 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   }, []);
 
   // Generate suggestions after AI response
-  const loadSuggestions = useCallback(async (userMsg: string, assistantMsg: string) => {
-    const settings = providerSettings[currentProvider as keyof typeof providerSettings];
-    if (!settings?.apiKey) {
-      // Use default suggestions if no API key
-      setSuggestions(getDefaultSuggestions());
-      return;
-    }
-
-    setIsLoadingSuggestions(true);
-    try {
-      const result = await generateSuggestions(userMsg, assistantMsg, {
-        provider: currentProvider as ProviderName,
-        model: currentModel,
-        apiKey: settings.apiKey,
-        baseURL: settings.baseURL,
-        maxSuggestions: 4,
-      });
-
-      if (result.success && result.suggestions) {
-        setSuggestions(result.suggestions);
-      } else {
+  const loadSuggestions = useCallback(
+    async (userMsg: string, assistantMsg: string) => {
+      const settings = providerSettings[currentProvider as keyof typeof providerSettings];
+      if (!settings?.apiKey) {
+        // Use default suggestions if no API key
         setSuggestions(getDefaultSuggestions());
+        return;
       }
-    } catch {
-      setSuggestions(getDefaultSuggestions());
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  }, [currentProvider, currentModel, providerSettings]);
+
+      setIsLoadingSuggestions(true);
+      try {
+        const result = await generateSuggestions(userMsg, assistantMsg, {
+          provider: currentProvider as ProviderName,
+          model: currentModel,
+          apiKey: settings.apiKey,
+          baseURL: settings.baseURL,
+          maxSuggestions: 4,
+        });
+
+        if (result.success && result.suggestions) {
+          setSuggestions(result.suggestions);
+        } else {
+          setSuggestions(getDefaultSuggestions());
+        }
+      } catch {
+        setSuggestions(getDefaultSuggestions());
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    },
+    [currentProvider, currentModel, providerSettings]
+  );
 
   // Handle applying optimized prompt
   const handleApplyOptimizedPrompt = useCallback((optimizedPrompt: string) => {
@@ -862,11 +974,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Format search results for system prompt
   const formatSearchResults = useCallback((searchResponse: SearchResponse): string => {
-    const parts: string[] = [
-      '## Web Search Results',
-      `Query: "${searchResponse.query}"`,
-      '',
-    ];
+    const parts: string[] = ['## Web Search Results', `Query: "${searchResponse.query}"`, ''];
 
     if (searchResponse.answer) {
       parts.push(`**Quick Answer:** ${searchResponse.answer}`, '');
@@ -880,491 +988,524 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     });
 
     parts.push('---');
-    parts.push('Use the above search results to provide an informed, up-to-date response. Cite sources when relevant.');
+    parts.push(
+      'Use the above search results to provide an informed, up-to-date response. Cite sources when relevant.'
+    );
 
     return parts.join('\n');
   }, []);
 
   // Execute MCP tool calls and return results
-  const executeMcpTools = useCallback(async (toolCalls: ParsedToolCall[]): Promise<string> => {
-    const results: string[] = [];
-    
-    for (const toolCall of toolCalls) {
-      try {
-        // Find the server
-        const server = mcpServers.find(s => s.id === toolCall.serverId);
-        if (!server) {
-          results.push(`❌ Server "${toolCall.serverId}" not found`);
-          continue;
+  const executeMcpTools = useCallback(
+    async (toolCalls: ParsedToolCall[]): Promise<string> => {
+      const results: string[] = [];
+
+      for (const toolCall of toolCalls) {
+        try {
+          // Find the server
+          const server = mcpServers.find((s) => s.id === toolCall.serverId);
+          if (!server) {
+            results.push(`❌ Server "${toolCall.serverId}" not found`);
+            continue;
+          }
+
+          // Check if server is connected
+          if (server.status.type !== 'connected') {
+            results.push(`❌ Server "${toolCall.serverId}" is not connected`);
+            continue;
+          }
+
+          // Execute the tool
+          console.log(`Executing MCP tool: ${toolCall.serverId}:${toolCall.toolName}`);
+          const result = await mcpCallTool(
+            toolCall.serverId,
+            toolCall.toolName,
+            toolCall.arguments || {}
+          );
+
+          // Format the result
+          if (result.isError) {
+            results.push(`❌ **${toolCall.mentionText}** error:\n${formatToolResult(result)}`);
+          } else {
+            results.push(`✅ **${toolCall.mentionText}** result:\n${formatToolResult(result)}`);
+          }
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          results.push(`❌ **${toolCall.mentionText}** failed: ${errorMsg}`);
         }
-        
-        // Check if server is connected
-        if (server.status.type !== 'connected') {
-          results.push(`❌ Server "${toolCall.serverId}" is not connected`);
-          continue;
-        }
-        
-        // Execute the tool
-        console.log(`Executing MCP tool: ${toolCall.serverId}:${toolCall.toolName}`);
-        const result = await mcpCallTool(
-          toolCall.serverId,
-          toolCall.toolName,
-          toolCall.arguments || {}
-        );
-        
-        // Format the result
-        if (result.isError) {
-          results.push(`❌ **${toolCall.mentionText}** error:\n${formatToolResult(result)}`);
-        } else {
-          results.push(`✅ **${toolCall.mentionText}** result:\n${formatToolResult(result)}`);
-        }
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        results.push(`❌ **${toolCall.mentionText}** failed: ${errorMsg}`);
       }
-    }
-    
-    return results.join('\n\n');
-  }, [mcpServers, mcpCallTool]);
+
+      return results.join('\n\n');
+    },
+    [mcpServers, mcpCallTool]
+  );
 
   // Format tool call result for display
   const formatToolResult = (result: ToolCallResult): string => {
-    return result.content.map(item => {
-      if (item.type === 'text') {
-        return item.text;
-      } else if (item.type === 'image') {
-        return `[Image: ${item.mimeType}]`;
-      } else if (item.type === 'resource') {
-        return item.resource.text || `[Resource: ${item.resource.uri}]`;
-      }
-      return '[Unknown content]';
-    }).join('\n');
+    return result.content
+      .map((item) => {
+        if (item.type === 'text') {
+          return item.text;
+        } else if (item.type === 'image') {
+          return `[Image: ${item.mimeType}]`;
+        } else if (item.type === 'resource') {
+          return item.resource.text || `[Resource: ${item.resource.uri}]`;
+        }
+        return '[Unknown content]';
+      })
+      .join('\n');
   };
 
   // Handle Agent mode message sending
-  const handleAgentMessage = useCallback(async (content: string, currentSessionId: string) => {
-    // Add user message to database
-    await addMessage({
-      role: 'user',
-      content,
-    });
-
-    // Create streaming assistant message for agent response
-    const assistantMessage = createStreamingMessage('assistant');
-
-    try {
-      // Run the agent with the user's prompt
-      const agentResult = await runAgent(content);
-
-      if (agentResult.success) {
-        // Format the agent response with tool execution info
-        let formattedResponse = agentResult.finalResponse;
-
-        // Add tool execution summary if there were tool calls
-        if (agentResult.steps.length > 0) {
-          const toolSummary = agentResult.steps
-            .filter(step => step.toolCalls.length > 0)
-            .map(step => {
-              const toolInfo = step.toolCalls.map(tc => 
-                `- **${tc.name}**: ${tc.status === 'completed' ? '✅' : '❌'} ${tc.status}`
-              ).join('\n');
-              return toolInfo;
-            })
-            .join('\n');
-
-          if (toolSummary) {
-            formattedResponse = `${formattedResponse}\n\n---\n**Tools Used:**\n${toolSummary}`;
-          }
-        }
-
-        // Update the assistant message with the final response
-        await updateMessage(assistantMessage.id, { content: formattedResponse });
-
-        // Save to database
-        await messageRepository.create(currentSessionId, {
-          ...assistantMessage,
-          content: formattedResponse,
-          model: currentModel,
-          provider: currentProvider as ProviderName,
-        });
-
-        // Generate suggestions
-        loadSuggestions(content, formattedResponse);
-      } else {
-        // Handle agent error
-        const errorContent = `Agent execution failed: ${agentResult.error || 'Unknown error'}`;
-        await updateMessage(assistantMessage.id, { content: errorContent, error: agentResult.error });
-        setError(agentResult.error || 'Agent execution failed');
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Agent execution failed';
-      await updateMessage(assistantMessage.id, { content: `Error: ${errorMessage}`, error: errorMessage });
-      setError(errorMessage);
-    }
-  }, [addMessage, createStreamingMessage, runAgent, updateMessage, currentModel, currentProvider, loadSuggestions]);
-
-  const handleSendMessage = useCallback(async (content: string, attachments?: Attachment[], toolCalls?: ParsedToolCall[]) => {
-    if (!content.trim() && (!attachments || attachments.length === 0)) return;
-
-    // Check for feature routing intent (navigate to feature pages)
-    const featureResult = await checkFeatureIntent(content);
-    if (featureResult.detected && featureResult.feature) {
-      // If feature intent detected with high confidence, the dialog will show
-      // and the message will be sent after user confirms or continues
-      return;
-    }
-
-    // Check for learning/research intent (works in all modes)
-    checkIntent(content);
-
-    setError(null);
-    setRetryCount(0);
-    setLastFailedMessage(null);
-
-    // Ensure we have an active session
-    let currentSessionId = activeSessionId;
-    if (!currentSessionId) {
-      // Build history context if enabled
-      let historyContext: { contextText: string; sessionCount: number; generatedAt: Date } | undefined;
-      if (chatHistoryContextSettings.enabled) {
-        try {
-          const { buildHistoryContext } = await import('@/lib/context/cross-session-context');
-          const result = await buildHistoryContext(chatHistoryContextSettings, {
-            projectId: session?.projectId,
-          });
-          if (result.success && result.contextText) {
-            historyContext = {
-              contextText: result.contextText,
-              sessionCount: result.sessionCount,
-              generatedAt: new Date(),
-            };
-          }
-        } catch (err) {
-          console.warn('Failed to build history context:', err);
-        }
-      }
-      
-      const newSession = createSession({
-        title: content.slice(0, 50) || 'New conversation',
-        historyContext,
-      });
-      currentSessionId = newSession.id;
-    }
-
-    // Build message content with quotes and attachments
-    let messageContent = content;
-    
-    // Prepend quoted content if any
-    const formattedQuotes = getFormattedQuotes();
-    if (formattedQuotes) {
-      messageContent = `${formattedQuotes}\n\n${content}`;
-      clearQuotes(); // Clear quotes after including them
-    }
-    
-    if (attachments && attachments.length > 0) {
-      const attachmentInfo = attachments.map(a => `[Attached: ${a.name}]`).join(' ');
-      messageContent = messageContent ? `${messageContent}\n\n${attachmentInfo}` : attachmentInfo;
-    }
-
-    // Execute MCP tool calls if present
-    let toolResultsContext = '';
-    if (toolCalls && toolCalls.length > 0) {
-      try {
-        toolResultsContext = await executeMcpTools(toolCalls);
-        console.log('Tool execution results:', toolResultsContext);
-      } catch (err) {
-        console.error('Failed to execute MCP tools:', err);
-      }
-    }
-
-    setIsLoading(true);
-
-    // Use Agent mode execution if in agent mode
-    if (currentMode === 'agent') {
-      try {
-        // For agent mode, also process video attachments if present
-        let agentContent = messageContent;
-        const videoAttachments = attachments?.filter((a) => a.type === 'video') || [];
-        
-        if (videoAttachments.length > 0) {
-          const openaiApiKey = providerSettings.openai?.apiKey;
-          if (openaiApiKey) {
-            try {
-              const { buildVideoContextMessage } = await import('@/lib/ai/media/media-utils');
-              let videoContext = '';
-              for (const videoAttachment of videoAttachments) {
-                if (videoAttachment.file) {
-                  const videoText = await buildVideoContextMessage(
-                    videoAttachment.file,
-                    videoAttachment.name,
-                    openaiApiKey
-                  );
-                  videoContext += videoText + '\n\n';
-                }
-              }
-              if (videoContext) {
-                agentContent = `${videoContext}${messageContent}`;
-                console.log('Extracted video content for agent analysis');
-              }
-            } catch (err) {
-              console.warn('Failed to extract video content for agent:', err);
-            }
-          }
-        }
-        
-        await handleAgentMessage(agentContent, currentSessionId);
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    try {
+  const handleAgentMessage = useCallback(
+    async (content: string, currentSessionId: string) => {
       // Add user message to database
-      const userMessage = await addMessage({
+      await addMessage({
         role: 'user',
-        content: messageContent,
-        attachments: attachments?.map(a => ({
-          id: a.id,
-          name: a.name,
-          type: a.type as 'image' | 'audio' | 'video' | 'file' | 'document',
-          url: a.url,
-          size: a.size,
-          mimeType: a.mimeType,
-        })),
+        content,
       });
 
-      // Create streaming assistant message
+      // Create streaming assistant message for agent response
       const assistantMessage = createStreamingMessage('assistant');
 
-      // Determine the actual provider/model to use
-      let actualProvider = currentProvider as ProviderName;
-      let actualModel = currentModel;
+      try {
+        // Run the agent with the user's prompt
+        const agentResult = await runAgent(content);
 
-      if (isAutoMode) {
-        const selection = selectModel(content);
-        actualProvider = selection.provider;
-        actualModel = selection.model;
-        console.log('Auto-selected:', selection.reason);
-        
-        // Track routing selection for UI display
-        setLastRoutingSelection(selection);
-        if (autoRouterSettings.showRoutingIndicator) {
-          setShowRoutingIndicator(true);
+        if (agentResult.success) {
+          // Format the agent response with tool execution info
+          let formattedResponse = agentResult.finalResponse;
+
+          // Add tool execution summary if there were tool calls
+          if (agentResult.steps.length > 0) {
+            const toolSummary = agentResult.steps
+              .filter((step) => step.toolCalls.length > 0)
+              .map((step) => {
+                const toolInfo = step.toolCalls
+                  .map(
+                    (tc) =>
+                      `- **${tc.name}**: ${tc.status === 'completed' ? '✅' : '❌'} ${tc.status}`
+                  )
+                  .join('\n');
+                return toolInfo;
+              })
+              .join('\n');
+
+            if (toolSummary) {
+              formattedResponse = `${formattedResponse}\n\n---\n**Tools Used:**\n${toolSummary}`;
+            }
+          }
+
+          // Update the assistant message with the final response
+          await updateMessage(assistantMessage.id, { content: formattedResponse });
+
+          // Save to database
+          await messageRepository.create(currentSessionId, {
+            ...assistantMessage,
+            content: formattedResponse,
+            model: currentModel,
+            provider: currentProvider as ProviderName,
+          });
+
+          // Generate suggestions
+          loadSuggestions(content, formattedResponse);
+        } else {
+          // Handle agent error
+          const errorContent = `Agent execution failed: ${agentResult.error || 'Unknown error'}`;
+          await updateMessage(assistantMessage.id, {
+            content: errorContent,
+            error: agentResult.error,
+          });
+          setError(agentResult.error || 'Agent execution failed');
         }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Agent execution failed';
+        await updateMessage(assistantMessage.id, {
+          content: `Error: ${errorMessage}`,
+          error: errorMessage,
+        });
+        setError(errorMessage);
+      }
+    },
+    [
+      addMessage,
+      createStreamingMessage,
+      runAgent,
+      updateMessage,
+      currentModel,
+      currentProvider,
+      loadSuggestions,
+    ]
+  );
+
+  const handleSendMessage = useCallback(
+    async (content: string, attachments?: Attachment[], toolCalls?: ParsedToolCall[]) => {
+      if (!content.trim() && (!attachments || attachments.length === 0)) return;
+
+      // Check for feature routing intent (navigate to feature pages)
+      const featureResult = await checkFeatureIntent(content);
+      if (featureResult.detected && featureResult.feature) {
+        // If feature intent detected with high confidence, the dialog will show
+        // and the message will be sent after user confirms or continues
+        return;
       }
 
-      // Check if we have media attachments and the model supports them
-      const imageAttachments = attachments?.filter((a) => a.type === 'image') || [];
-      const audioAttachments = attachments?.filter((a) => a.type === 'audio') || [];
-      const videoAttachments = attachments?.filter((a) => a.type === 'video') || [];
-      
-      const hasImages = imageAttachments.length > 0;
-      const hasAudio = audioAttachments.length > 0;
-      const hasVideo = videoAttachments.length > 0;
-      const hasMediaAttachments = hasImages || hasAudio || hasVideo;
-      
-      const modelSupportsVision = isVisionModel(actualModel);
-      const modelSupportsAudio = isAudioModel(actualModel);
-      const modelSupportsVideo = isVideoModel(actualModel);
+      // Check for learning/research intent (works in all modes)
+      checkIntent(content);
 
-      // Build messages for AI - use multimodal format if we have supported media
-      let coreMessages: MultimodalMessage[];
+      setError(null);
+      setRetryCount(0);
+      setLastFailedMessage(null);
 
-      // Filter attachments to only include supported media types for the model
-      const supportedAttachments = [
-        ...(hasImages && modelSupportsVision ? imageAttachments : []),
-        ...(hasAudio && modelSupportsAudio ? audioAttachments : []),
-        ...(hasVideo && modelSupportsVideo ? videoAttachments : []),
-      ];
-
-      if (supportedAttachments.length > 0) {
-        // Build multimodal content for the last user message
-        const multimodalContent = await buildMultimodalContent(
-          content,
-          supportedAttachments.map((a) => ({
-            url: a.url,
-            mimeType: a.mimeType,
-            file: a.file,
-            type: a.type,
-          }))
-        );
-
-        // Previous messages are text-only
-        coreMessages = [...messages].map((m) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        }));
-
-        // Add the new user message with multimodal content
-        coreMessages.push({
-          role: 'user',
-          content: multimodalContent,
-        });
-
-        // Log unsupported media types for debugging
-        if (hasImages && !modelSupportsVision) {
-          console.warn(`Model ${actualModel} does not support vision/images`);
-        }
-        if (hasAudio && !modelSupportsAudio) {
-          console.warn(`Model ${actualModel} does not support audio input`);
-        }
-        if (hasVideo && !modelSupportsVideo) {
-          console.warn(`Model ${actualModel} does not support video input`);
-        }
-      } else if (hasMediaAttachments) {
-        // Has media but model doesn't support any of them
-        // For video, try to extract text content via transcription
-        let videoContextText = '';
-        
-        if (hasVideo && !modelSupportsVideo) {
-          const openaiApiKey = providerSettings.openai?.apiKey;
-          if (openaiApiKey && videoAttachments.length > 0) {
-            try {
-              const { buildVideoContextMessage } = await import('@/lib/ai/media/media-utils');
-              for (const videoAttachment of videoAttachments) {
-                if (videoAttachment.file) {
-                  const videoText = await buildVideoContextMessage(
-                    videoAttachment.file,
-                    videoAttachment.name,
-                    openaiApiKey
-                  );
-                  videoContextText += videoText + '\n\n';
-                }
-              }
-              console.log('Extracted video content for AI analysis');
-            } catch (err) {
-              console.warn('Failed to extract video content:', err);
+      // Ensure we have an active session
+      let currentSessionId = activeSessionId;
+      if (!currentSessionId) {
+        // Build history context if enabled
+        let historyContext:
+          | { contextText: string; sessionCount: number; generatedAt: Date }
+          | undefined;
+        if (chatHistoryContextSettings.enabled) {
+          try {
+            const { buildHistoryContext } = await import('@/lib/context/cross-session-context');
+            const result = await buildHistoryContext(chatHistoryContextSettings, {
+              projectId: session?.projectId,
+            });
+            if (result.success && result.contextText) {
+              historyContext = {
+                contextText: result.contextText,
+                sessionCount: result.sessionCount,
+                generatedAt: new Date(),
+              };
             }
-          } else {
-            console.warn('OpenAI API key required for video transcription');
+          } catch (err) {
+            console.warn('Failed to build history context:', err);
           }
         }
-        
-        // Build messages with video context if available
-        const enhancedContent = videoContextText 
-          ? `${videoContextText}${content}`
-          : content;
-        
-        coreMessages = [...messages].map((m) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        }));
-        coreMessages.push({
-          role: 'user',
-          content: enhancedContent,
+
+        const newSession = createSession({
+          title: content.slice(0, 50) || 'New conversation',
+          historyContext,
         });
-        
-        if (!videoContextText && hasVideo) {
-          console.warn(`Model ${actualModel} does not support video input and transcription unavailable`);
+        currentSessionId = newSession.id;
+      }
+
+      // Build message content with quotes and attachments
+      let messageContent = content;
+
+      // Prepend quoted content if any
+      const formattedQuotes = getFormattedQuotes();
+      if (formattedQuotes) {
+        messageContent = `${formattedQuotes}\n\n${content}`;
+        clearQuotes(); // Clear quotes after including them
+      }
+
+      if (attachments && attachments.length > 0) {
+        const attachmentInfo = attachments.map((a) => `[Attached: ${a.name}]`).join(' ');
+        messageContent = messageContent ? `${messageContent}\n\n${attachmentInfo}` : attachmentInfo;
+      }
+
+      // Execute MCP tool calls if present
+      let toolResultsContext = '';
+      if (toolCalls && toolCalls.length > 0) {
+        try {
+          toolResultsContext = await executeMcpTools(toolCalls);
+          console.log('Tool execution results:', toolResultsContext);
+        } catch (err) {
+          console.error('Failed to execute MCP tools:', err);
         }
-      } else {
-        // Text-only messages
-        coreMessages = [...messages, userMessage].map((m) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        }));
       }
 
-      // Build enhanced system prompt starting with project context if available
-      let enhancedSystemPrompt = '';
+      setIsLoading(true);
 
-      // Add carried context from mode switch if available
-      if (session?.carriedContext && messages.length === 0) {
-        const contextNote = `## Context from Previous Conversation\n\nThe user switched from ${session.carriedContext.fromMode} mode. Here's a summary of the previous conversation to provide context:\n\n${session.carriedContext.summary}\n\n---\n\nUse this context to provide continuity in your responses.`;
-        enhancedSystemPrompt = contextNote;
+      // Use Agent mode execution if in agent mode
+      if (currentMode === 'agent') {
+        try {
+          // For agent mode, also process video attachments if present
+          let agentContent = messageContent;
+          const videoAttachments = attachments?.filter((a) => a.type === 'video') || [];
+
+          if (videoAttachments.length > 0) {
+            const openaiApiKey = providerSettings.openai?.apiKey;
+            if (openaiApiKey) {
+              try {
+                const { buildVideoContextMessage } = await import('@/lib/ai/media/media-utils');
+                let videoContext = '';
+                for (const videoAttachment of videoAttachments) {
+                  if (videoAttachment.file) {
+                    const videoText = await buildVideoContextMessage(
+                      videoAttachment.file,
+                      videoAttachment.name,
+                      openaiApiKey
+                    );
+                    videoContext += videoText + '\n\n';
+                  }
+                }
+                if (videoContext) {
+                  agentContent = `${videoContext}${messageContent}`;
+                  console.log('Extracted video content for agent analysis');
+                }
+              } catch (err) {
+                console.warn('Failed to extract video content for agent:', err);
+              }
+            }
+          }
+
+          await handleAgentMessage(agentContent, currentSessionId);
+        } finally {
+          setIsLoading(false);
+        }
+        return;
       }
 
-      // Add history context from recent sessions if available (only on first message)
-      if (session?.historyContext?.contextText && messages.length === 0) {
-        enhancedSystemPrompt = enhancedSystemPrompt
-          ? `${session.historyContext.contextText}\n\n${enhancedSystemPrompt}`
-          : session.historyContext.contextText;
-      }
-      
-      // Add project knowledge base context if available
-      if (session?.projectId && projectContext?.hasKnowledge) {
-        // Rebuild context with the current query for relevance filtering
-        const project = getProject(session.projectId);
-        if (project) {
-          const { buildProjectContext } = await import('@/lib/document/knowledge-rag');
-          const queryContext = buildProjectContext(project, content, {
-            maxContextLength: 6000,
-            useRelevanceFiltering: true,
+      try {
+        // Add user message to database
+        const userMessage = await addMessage({
+          role: 'user',
+          content: messageContent,
+          attachments: attachments?.map((a) => ({
+            id: a.id,
+            name: a.name,
+            type: a.type as 'image' | 'audio' | 'video' | 'file' | 'document',
+            url: a.url,
+            size: a.size,
+            mimeType: a.mimeType,
+          })),
+        });
+
+        // Create streaming assistant message
+        const assistantMessage = createStreamingMessage('assistant');
+
+        // Determine the actual provider/model to use
+        let actualProvider = currentProvider as ProviderName;
+        let actualModel = currentModel;
+
+        if (isAutoMode) {
+          const selection = selectModel(content);
+          actualProvider = selection.provider;
+          actualModel = selection.model;
+          console.log('Auto-selected:', selection.reason);
+
+          // Track routing selection for UI display
+          setLastRoutingSelection(selection);
+          if (autoRouterSettings.showRoutingIndicator) {
+            setShowRoutingIndicator(true);
+          }
+        }
+
+        // Check if we have media attachments and the model supports them
+        const imageAttachments = attachments?.filter((a) => a.type === 'image') || [];
+        const audioAttachments = attachments?.filter((a) => a.type === 'audio') || [];
+        const videoAttachments = attachments?.filter((a) => a.type === 'video') || [];
+
+        const hasImages = imageAttachments.length > 0;
+        const hasAudio = audioAttachments.length > 0;
+        const hasVideo = videoAttachments.length > 0;
+        const hasMediaAttachments = hasImages || hasAudio || hasVideo;
+
+        const modelSupportsVision = isVisionModel(actualModel);
+        const modelSupportsAudio = isAudioModel(actualModel);
+        const modelSupportsVideo = isVideoModel(actualModel);
+
+        // Build messages for AI - use multimodal format if we have supported media
+        let coreMessages: MultimodalMessage[];
+
+        // Filter attachments to only include supported media types for the model
+        const supportedAttachments = [
+          ...(hasImages && modelSupportsVision ? imageAttachments : []),
+          ...(hasAudio && modelSupportsAudio ? audioAttachments : []),
+          ...(hasVideo && modelSupportsVideo ? videoAttachments : []),
+        ];
+
+        if (supportedAttachments.length > 0) {
+          // Build multimodal content for the last user message
+          const multimodalContent = await buildMultimodalContent(
+            content,
+            supportedAttachments.map((a) => ({
+              url: a.url,
+              mimeType: a.mimeType,
+              file: a.file,
+              type: a.type,
+            }))
+          );
+
+          // Previous messages are text-only
+          coreMessages = [...messages].map((m) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          }));
+
+          // Add the new user message with multimodal content
+          coreMessages.push({
+            role: 'user',
+            content: multimodalContent,
           });
-          enhancedSystemPrompt = queryContext.systemPrompt;
-          console.log(`Using ${queryContext.filesUsed.length} knowledge files:`, queryContext.filesUsed);
+
+          // Log unsupported media types for debugging
+          if (hasImages && !modelSupportsVision) {
+            console.warn(`Model ${actualModel} does not support vision/images`);
+          }
+          if (hasAudio && !modelSupportsAudio) {
+            console.warn(`Model ${actualModel} does not support audio input`);
+          }
+          if (hasVideo && !modelSupportsVideo) {
+            console.warn(`Model ${actualModel} does not support video input`);
+          }
+        } else if (hasMediaAttachments) {
+          // Has media but model doesn't support any of them
+          // For video, try to extract text content via transcription
+          let videoContextText = '';
+
+          if (hasVideo && !modelSupportsVideo) {
+            const openaiApiKey = providerSettings.openai?.apiKey;
+            if (openaiApiKey && videoAttachments.length > 0) {
+              try {
+                const { buildVideoContextMessage } = await import('@/lib/ai/media/media-utils');
+                for (const videoAttachment of videoAttachments) {
+                  if (videoAttachment.file) {
+                    const videoText = await buildVideoContextMessage(
+                      videoAttachment.file,
+                      videoAttachment.name,
+                      openaiApiKey
+                    );
+                    videoContextText += videoText + '\n\n';
+                  }
+                }
+                console.log('Extracted video content for AI analysis');
+              } catch (err) {
+                console.warn('Failed to extract video content:', err);
+              }
+            } else {
+              console.warn('OpenAI API key required for video transcription');
+            }
+          }
+
+          // Build messages with video context if available
+          const enhancedContent = videoContextText ? `${videoContextText}${content}` : content;
+
+          coreMessages = [...messages].map((m) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          }));
+          coreMessages.push({
+            role: 'user',
+            content: enhancedContent,
+          });
+
+          if (!videoContextText && hasVideo) {
+            console.warn(
+              `Model ${actualModel} does not support video input and transcription unavailable`
+            );
+          }
+        } else {
+          // Text-only messages
+          coreMessages = [...messages, userMessage].map((m) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          }));
         }
-      } else if (session?.systemPrompt) {
-        enhancedSystemPrompt = session.systemPrompt;
-      }
 
-      // Perform web search if enabled
-      if (webSearchEnabled) {
-        const tavilyApiKey = providerSettings.tavily?.apiKey;
-        if (tavilyApiKey) {
-          try {
-            const searchRes = await fetch('/api/search', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                query: content,
-                apiKey: tavilyApiKey,
-                options: {
-                  maxResults: 5,
-                  searchDepth: 'basic',
-                  includeAnswer: true,
-                },
-              }),
+        // Build enhanced system prompt starting with project context if available
+        let enhancedSystemPrompt = '';
+
+        // Add carried context from mode switch if available
+        if (session?.carriedContext && messages.length === 0) {
+          const contextNote = `## Context from Previous Conversation\n\nThe user switched from ${session.carriedContext.fromMode} mode. Here's a summary of the previous conversation to provide context:\n\n${session.carriedContext.summary}\n\n---\n\nUse this context to provide continuity in your responses.`;
+          enhancedSystemPrompt = contextNote;
+        }
+
+        // Add history context from recent sessions if available (only on first message)
+        if (session?.historyContext?.contextText && messages.length === 0) {
+          enhancedSystemPrompt = enhancedSystemPrompt
+            ? `${session.historyContext.contextText}\n\n${enhancedSystemPrompt}`
+            : session.historyContext.contextText;
+        }
+
+        // Add project knowledge base context if available
+        if (session?.projectId && projectContext?.hasKnowledge) {
+          // Rebuild context with the current query for relevance filtering
+          const project = getProject(session.projectId);
+          if (project) {
+            const { buildProjectContext } = await import('@/lib/document/knowledge-rag');
+            const queryContext = buildProjectContext(project, content, {
+              maxContextLength: 6000,
+              useRelevanceFiltering: true,
             });
+            enhancedSystemPrompt = queryContext.systemPrompt;
+            console.log(
+              `Using ${queryContext.filesUsed.length} knowledge files:`,
+              queryContext.filesUsed
+            );
+          }
+        } else if (session?.systemPrompt) {
+          enhancedSystemPrompt = session.systemPrompt;
+        }
 
-            if (searchRes.ok) {
-              const searchResponse: SearchResponse = await searchRes.json();
-              if (searchResponse.results && searchResponse.results.length > 0) {
-                // Apply source verification if enabled
-                const verificationSettings = sourceVerification.settings;
-                
-                if (verificationSettings.enabled && verificationSettings.mode === 'ask') {
-                  // Verify and show dialog - user will select sources
-                  await sourceVerification.verifyResults(searchResponse);
-                  // The dialog will be shown, and user can select sources
-                  // For now, use all results (dialog selection is async)
-                  const searchContext = formatSearchResults(searchResponse);
-                  enhancedSystemPrompt = enhancedSystemPrompt
-                    ? `${enhancedSystemPrompt}\n\n${searchContext}`
-                    : searchContext;
-                } else if (verificationSettings.enabled && verificationSettings.mode === 'auto') {
-                  // Auto-verify and filter low credibility sources
-                  const verified = await sourceVerification.verifyResults(searchResponse);
-                  const filteredResults = verified.results.filter(r => r.isEnabled);
-                  if (filteredResults.length > 0) {
-                    const filteredResponse: SearchResponse = {
-                      ...searchResponse,
-                      results: filteredResults,
-                    };
-                    const searchContext = formatSearchResults(filteredResponse);
+        // Perform web search if enabled
+        if (webSearchEnabled) {
+          const tavilyApiKey = providerSettings.tavily?.apiKey;
+          if (tavilyApiKey) {
+            try {
+              const searchRes = await fetch('/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  query: content,
+                  apiKey: tavilyApiKey,
+                  options: {
+                    maxResults: 5,
+                    searchDepth: 'basic',
+                    includeAnswer: true,
+                  },
+                }),
+              });
+
+              if (searchRes.ok) {
+                const searchResponse: SearchResponse = await searchRes.json();
+                if (searchResponse.results && searchResponse.results.length > 0) {
+                  // Apply source verification if enabled
+                  const verificationSettings = sourceVerification.settings;
+
+                  if (verificationSettings.enabled && verificationSettings.mode === 'ask') {
+                    // Verify and show dialog - user will select sources
+                    await sourceVerification.verifyResults(searchResponse);
+                    // The dialog will be shown, and user can select sources
+                    // For now, use all results (dialog selection is async)
+                    const searchContext = formatSearchResults(searchResponse);
+                    enhancedSystemPrompt = enhancedSystemPrompt
+                      ? `${enhancedSystemPrompt}\n\n${searchContext}`
+                      : searchContext;
+                  } else if (verificationSettings.enabled && verificationSettings.mode === 'auto') {
+                    // Auto-verify and filter low credibility sources
+                    const verified = await sourceVerification.verifyResults(searchResponse);
+                    const filteredResults = verified.results.filter((r) => r.isEnabled);
+                    if (filteredResults.length > 0) {
+                      const filteredResponse: SearchResponse = {
+                        ...searchResponse,
+                        results: filteredResults,
+                      };
+                      const searchContext = formatSearchResults(filteredResponse);
+                      enhancedSystemPrompt = enhancedSystemPrompt
+                        ? `${enhancedSystemPrompt}\n\n${searchContext}`
+                        : searchContext;
+                    }
+                  } else {
+                    // Verification disabled - use all results
+                    const searchContext = formatSearchResults(searchResponse);
                     enhancedSystemPrompt = enhancedSystemPrompt
                       ? `${enhancedSystemPrompt}\n\n${searchContext}`
                       : searchContext;
                   }
-                } else {
-                  // Verification disabled - use all results
-                  const searchContext = formatSearchResults(searchResponse);
-                  enhancedSystemPrompt = enhancedSystemPrompt
-                    ? `${enhancedSystemPrompt}\n\n${searchContext}`
-                    : searchContext;
                 }
               }
+            } catch (searchError) {
+              console.warn('Web search failed:', searchError);
             }
-          } catch (searchError) {
-            console.warn('Web search failed:', searchError);
           }
         }
-      }
 
-      // Add thinking mode instructions if enabled
-      if (thinkingEnabled) {
-        const thinkingPrompt = `You are in "Thinking Mode". Before providing your final answer, you must:
+        // Add thinking mode instructions if enabled
+        if (thinkingEnabled) {
+          const thinkingPrompt = `You are in "Thinking Mode". Before providing your final answer, you must:
 
 1. **Think Step by Step**: Break down the problem into smaller parts
 2. **Consider Multiple Angles**: Look at the question from different perspectives
@@ -1382,124 +1523,172 @@ Format your response as:
 
 Be thorough in your thinking but concise in your final answer.`;
 
-        enhancedSystemPrompt = enhancedSystemPrompt
-          ? `${enhancedSystemPrompt}\n\n${thinkingPrompt}`
-          : thinkingPrompt;
-      }
-
-      // Add MCP tool results context if available
-      if (toolResultsContext) {
-        const toolContext = `## MCP Tool Results\n\nThe following tools were executed based on user request:\n\n${toolResultsContext}\n\n---\nUse the above tool results to inform your response.`;
-        enhancedSystemPrompt = enhancedSystemPrompt
-          ? `${enhancedSystemPrompt}\n\n${toolContext}`
-          : toolContext;
-      }
-
-      // Add active skills to context using Progressive Disclosure
-      const activeSkills = getActiveSkills();
-      if (activeSkills.length > 0) {
-        const { prompt: skillsPrompt, level, tokenEstimate } = buildProgressiveSkillsPrompt(
-          activeSkills,
-          4000 // Token budget for skills
-        );
-        if (skillsPrompt) {
-          console.log(`Injecting ${activeSkills.length} skills (level: ${level}, ~${tokenEstimate} tokens)`);
           enhancedSystemPrompt = enhancedSystemPrompt
-            ? `${enhancedSystemPrompt}\n\n${skillsPrompt}`
-            : skillsPrompt;
+            ? `${enhancedSystemPrompt}\n\n${thinkingPrompt}`
+            : thinkingPrompt;
         }
-      }
 
-      // Add learning mode system prompt if in learning mode
-      if (currentMode === 'learning') {
-        const { buildLearningSystemPrompt } = await import('@/lib/learning');
-        const learningSession = getLearningSessionByChat(currentSessionId!);
-        const learningPrompt = buildLearningSystemPrompt(learningSession);
-        if (learningPrompt) {
-          console.log('Injecting learning mode (Socratic Method) system prompt');
-          enhancedSystemPrompt = learningPrompt + (enhancedSystemPrompt ? `\n\n${enhancedSystemPrompt}` : '');
+        // Add MCP tool results context if available
+        if (toolResultsContext) {
+          const toolContext = `## MCP Tool Results\n\nThe following tools were executed based on user request:\n\n${toolResultsContext}\n\n---\nUse the above tool results to inform your response.`;
+          enhancedSystemPrompt = enhancedSystemPrompt
+            ? `${enhancedSystemPrompt}\n\n${toolContext}`
+            : toolContext;
         }
-      }
 
-      // Send to AI
-      const response = await aiSendMessage(
-        {
-          messages: coreMessages,
-          systemPrompt: enhancedSystemPrompt || undefined,
-          temperature: session?.temperature ?? 0.7,
-          maxTokens: session?.maxTokens,
-          topP: session?.topP,
-          frequencyPenalty: session?.frequencyPenalty,
-          presencePenalty: session?.presencePenalty,
-          sessionId: currentSessionId!,
-          messageId: assistantMessage.id,
-          // Per-session streaming override (undefined = use global setting)
-          streaming: session?.streamingEnabled,
-        },
-        // Streaming callback
-        (chunk) => {
-          if (!streamBufferRef.current || streamBufferRef.current.messageId !== assistantMessage.id) {
-            streamBufferRef.current = { messageId: assistantMessage.id, buffer: '' };
-          }
-          streamBufferRef.current.buffer += chunk;
-
-          if (!streamFlushTimerRef.current) {
-            streamFlushTimerRef.current = setTimeout(() => {
-              flushStreamBuffer();
-            }, 75);
+        // Add active skills to context using Progressive Disclosure
+        const activeSkills = getActiveSkills();
+        if (activeSkills.length > 0) {
+          const {
+            prompt: skillsPrompt,
+            level,
+            tokenEstimate,
+          } = buildProgressiveSkillsPrompt(
+            activeSkills,
+            4000 // Token budget for skills
+          );
+          if (skillsPrompt) {
+            console.log(
+              `Injecting ${activeSkills.length} skills (level: ${level}, ~${tokenEstimate} tokens)`
+            );
+            enhancedSystemPrompt = enhancedSystemPrompt
+              ? `${enhancedSystemPrompt}\n\n${skillsPrompt}`
+              : skillsPrompt;
           }
         }
-      );
 
-      flushStreamBuffer();
+        // Add learning mode system prompt if in learning mode
+        if (currentMode === 'learning') {
+          const { buildLearningSystemPrompt } = await import('@/lib/learning');
+          const learningSession = getLearningSessionByChat(currentSessionId!);
+          const learningPrompt = buildLearningSystemPrompt(learningSession);
+          if (learningPrompt) {
+            console.log('Injecting learning mode (Socratic Method) system prompt');
+            enhancedSystemPrompt =
+              learningPrompt + (enhancedSystemPrompt ? `\n\n${enhancedSystemPrompt}` : '');
+          }
+        }
 
-      // If no streaming was used, update the message with the full response
-      if (response && !isStreaming) {
-        await updateMessage(assistantMessage.id, { content: response });
-      }
-
-      // Save the final assistant message to database
-      const finalContent = response || assistantMessage.content;
-      if (finalContent) {
-        await messageRepository.create(currentSessionId!, {
-          ...assistantMessage,
-          content: finalContent,
-          model: actualModel,
-          provider: actualProvider,
-        });
-
-        // Generate suggestions after successful response
-        loadSuggestions(content, finalContent);
-
-        // Auto-detect and create artifacts from the response content
-        try {
-          autoCreateFromContent({
+        // Send to AI
+        const response = await aiSendMessage(
+          {
+            messages: coreMessages,
+            systemPrompt: enhancedSystemPrompt || undefined,
+            temperature: session?.temperature ?? 0.7,
+            maxTokens: session?.maxTokens,
+            topP: session?.topP,
+            frequencyPenalty: session?.frequencyPenalty,
+            presencePenalty: session?.presencePenalty,
             sessionId: currentSessionId!,
             messageId: assistantMessage.id,
-            content: finalContent,
-          });
-        } catch (artifactError) {
-          console.warn('Failed to auto-create artifacts:', artifactError);
+            // Per-session streaming override (undefined = use global setting)
+            streaming: session?.streamingEnabled,
+          },
+          // Streaming callback
+          (chunk) => {
+            if (
+              !streamBufferRef.current ||
+              streamBufferRef.current.messageId !== assistantMessage.id
+            ) {
+              streamBufferRef.current = { messageId: assistantMessage.id, buffer: '' };
+            }
+            streamBufferRef.current.buffer += chunk;
+
+            if (!streamFlushTimerRef.current) {
+              streamFlushTimerRef.current = setTimeout(() => {
+                flushStreamBuffer();
+              }, 75);
+            }
+          }
+        );
+
+        flushStreamBuffer();
+
+        // If no streaming was used, update the message with the full response
+        if (response && !isStreaming) {
+          await updateMessage(assistantMessage.id, { content: response });
         }
 
-        // Process A2UI content if detected in the response
-        if (hasA2UIContent(finalContent)) {
+        // Save the final assistant message to database
+        const finalContent = response || assistantMessage.content;
+        if (finalContent) {
+          await messageRepository.create(currentSessionId!, {
+            ...assistantMessage,
+            content: finalContent,
+            model: actualModel,
+            provider: actualProvider,
+          });
+
+          // Generate suggestions after successful response
+          loadSuggestions(content, finalContent);
+
+          // Auto-detect and create artifacts from the response content
           try {
-            processA2UIMessage(finalContent, assistantMessage.id);
-          } catch (a2uiError) {
-            console.warn('Failed to process A2UI content:', a2uiError);
+            autoCreateFromContent({
+              sessionId: currentSessionId!,
+              messageId: assistantMessage.id,
+              content: finalContent,
+            });
+          } catch (artifactError) {
+            console.warn('Failed to auto-create artifacts:', artifactError);
+          }
+
+          // Process A2UI content if detected in the response
+          if (hasA2UIContent(finalContent)) {
+            try {
+              processA2UIMessage(finalContent, assistantMessage.id);
+            } catch (a2uiError) {
+              console.warn('Failed to process A2UI content:', a2uiError);
+            }
           }
         }
+      } catch (err) {
+        console.error('Chat error:', err);
+        const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+        setError(errorMessage);
+        setLastFailedMessage(content);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      console.error('Chat error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      setError(errorMessage);
-      setLastFailedMessage(content);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeSessionId, messages, currentProvider, currentModel, isAutoMode, selectModel, aiSendMessage, createSession, isStreaming, session, addMessage, createStreamingMessage, updateMessage, loadSuggestions, webSearchEnabled, thinkingEnabled, providerSettings, formatSearchResults, executeMcpTools, currentMode, handleAgentMessage, getProject, projectContext?.hasKnowledge, getFormattedQuotes, clearQuotes, getActiveSkills, getLearningSessionByChat, autoCreateFromContent, processA2UIMessage, sourceVerification, checkIntent, autoRouterSettings.showRoutingIndicator, flushStreamBuffer, chatHistoryContextSettings, checkFeatureIntent]);
+    },
+    [
+      activeSessionId,
+      messages,
+      currentProvider,
+      currentModel,
+      isAutoMode,
+      selectModel,
+      aiSendMessage,
+      createSession,
+      isStreaming,
+      session,
+      addMessage,
+      createStreamingMessage,
+      updateMessage,
+      loadSuggestions,
+      webSearchEnabled,
+      thinkingEnabled,
+      providerSettings,
+      formatSearchResults,
+      executeMcpTools,
+      currentMode,
+      handleAgentMessage,
+      getProject,
+      projectContext?.hasKnowledge,
+      getFormattedQuotes,
+      clearQuotes,
+      getActiveSkills,
+      getLearningSessionByChat,
+      autoCreateFromContent,
+      processA2UIMessage,
+      sourceVerification,
+      checkIntent,
+      autoRouterSettings.showRoutingIndicator,
+      flushStreamBuffer,
+      chatHistoryContextSettings,
+      checkFeatureIntent,
+    ]
+  );
 
   const handleStop = useCallback(() => {
     aiStop();
@@ -1529,139 +1718,156 @@ Be thorough in your thinking but concise in your final answer.`;
     setEditContent('');
   }, []);
 
-  const handleSaveEdit = useCallback(async (messageId: string) => {
-    if (!editContent.trim()) return;
+  const handleSaveEdit = useCallback(
+    async (messageId: string) => {
+      if (!editContent.trim()) return;
 
-    try {
-      // Delete all messages after this one
-      await deleteMessagesAfter(messageId);
+      try {
+        // Delete all messages after this one
+        await deleteMessagesAfter(messageId);
 
-      // Update the message content
-      await updateMessage(messageId, { content: editContent });
+        // Update the message content
+        await updateMessage(messageId, { content: editContent });
 
-      // Clear edit state
-      setEditingMessageId(null);
-      setEditContent('');
+        // Clear edit state
+        setEditingMessageId(null);
+        setEditContent('');
 
-      // Re-send to get new response
-      // Find the edited message
-      const editedMessage = messages.find(m => m.id === messageId);
-      if (editedMessage && editedMessage.role === 'user') {
-        // Trigger a new response
-        await handleSendMessage(editContent);
+        // Re-send to get new response
+        // Find the edited message
+        const editedMessage = messages.find((m) => m.id === messageId);
+        if (editedMessage && editedMessage.role === 'user') {
+          // Trigger a new response
+          await handleSendMessage(editContent);
+        }
+      } catch (err) {
+        console.error('Failed to edit message:', err);
+        setError(err instanceof Error ? err.message : 'Failed to edit message');
       }
-    } catch (err) {
-      console.error('Failed to edit message:', err);
-      setError(err instanceof Error ? err.message : 'Failed to edit message');
-    }
-  }, [editContent, deleteMessagesAfter, updateMessage, messages, handleSendMessage]);
+    },
+    [editContent, deleteMessagesAfter, updateMessage, messages, handleSendMessage]
+  );
 
   // Translate message content
-  const handleTranslateMessage = useCallback(async (_messageId: string, content: string) => {
-    const settings = providerSettings[currentProvider as keyof typeof providerSettings];
-    if (!settings?.apiKey) {
-      setError('No API key configured for translation');
-      return;
-    }
-
-    try {
-      // Auto-detect: translate to English if not English, otherwise to Chinese
-      const targetLang = /[\u4e00-\u9fa5]/.test(content) ? 'en' : 'zh';
-      
-      const result = await translateText(content, targetLang, {
-        provider: currentProvider as ProviderName,
-        model: currentModel,
-        apiKey: settings.apiKey,
-        baseURL: settings.baseURL,
-      });
-
-      if (result.success && result.translatedText) {
-        // Create a new assistant message with the translation
-        const translationMessage: UIMessage = {
-          id: `translation-${Date.now()}`,
-          role: 'assistant',
-          content: `**Translation (${result.sourceLanguage || 'auto'} → ${result.targetLanguage}):**\n\n${result.translatedText}`,
-          createdAt: new Date(),
-        };
-        await addMessage(translationMessage);
-      } else if (result.error) {
-        setError(result.error);
+  const handleTranslateMessage = useCallback(
+    async (_messageId: string, content: string) => {
+      const settings = providerSettings[currentProvider as keyof typeof providerSettings];
+      if (!settings?.apiKey) {
+        setError('No API key configured for translation');
+        return;
       }
-    } catch (err) {
-      console.error('Translation failed:', err);
-      setError(err instanceof Error ? err.message : 'Translation failed');
-    }
-  }, [providerSettings, currentProvider, currentModel, addMessage]);
+
+      try {
+        // Auto-detect: translate to English if not English, otherwise to Chinese
+        const targetLang = /[\u4e00-\u9fa5]/.test(content) ? 'en' : 'zh';
+
+        const result = await translateText(content, targetLang, {
+          provider: currentProvider as ProviderName,
+          model: currentModel,
+          apiKey: settings.apiKey,
+          baseURL: settings.baseURL,
+        });
+
+        if (result.success && result.translatedText) {
+          // Create a new assistant message with the translation
+          const translationMessage: UIMessage = {
+            id: `translation-${Date.now()}`,
+            role: 'assistant',
+            content: `**Translation (${result.sourceLanguage || 'auto'} → ${result.targetLanguage}):**\n\n${result.translatedText}`,
+            createdAt: new Date(),
+          };
+          await addMessage(translationMessage);
+        } else if (result.error) {
+          setError(result.error);
+        }
+      } catch (err) {
+        console.error('Translation failed:', err);
+        setError(err instanceof Error ? err.message : 'Translation failed');
+      }
+    },
+    [providerSettings, currentProvider, currentModel, addMessage]
+  );
 
   // Handle workflow selection from WorkflowPickerDialog
-  const handleWorkflowSelect = useCallback(async (workflow: { id: string; name: string; icon?: string }, input: Record<string, unknown>) => {
-    setShowWorkflowPicker(false);
-    
-    // Create a workflow result entry
-    const resultId = `workflow-${Date.now()}`;
-    const resultData: WorkflowResultData = {
-      workflowId: workflow.id,
-      workflowName: workflow.name,
-      executionId: resultId,
-      status: 'running' as WorkflowExecutionStatus,
-      progress: 0,
-      startedAt: new Date(),
-      input: input,
-    };
-    
-    setWorkflowResults(prev => new Map(prev).set(resultId, resultData));
-    
-    // Set active workflow for the indicator
-    setActiveWorkflow({
-      id: resultId,
-      name: workflow.name,
-      icon: workflow.icon,
-      status: 'running',
-      progress: 0,
-      currentStep: 'Starting workflow...',
-    });
-    
-    // Add a message indicating workflow started
-    const workflowMessage: UIMessage = {
-      id: resultId,
-      role: 'assistant',
-      content: `🔄 Running workflow: **${workflow.name}**\n\nWorkflow execution started...`,
-      createdAt: new Date(),
-    };
-    await addMessage(workflowMessage);
-    
-    // Simulate workflow completion after a delay (in real implementation, this would be tied to actual workflow execution)
-    setTimeout(() => {
-      setActiveWorkflow(prev => prev ? { ...prev, status: 'completed', progress: 100 } : null);
-      // Auto-dismiss after 3 seconds
-      setTimeout(() => setActiveWorkflow(null), 3000);
-    }, 5000);
-  }, [addMessage]);
+  const handleWorkflowSelect = useCallback(
+    async (
+      workflow: { id: string; name: string; icon?: string },
+      input: Record<string, unknown>
+    ) => {
+      setShowWorkflowPicker(false);
+
+      // Create a workflow result entry
+      const resultId = `workflow-${Date.now()}`;
+      const resultData: WorkflowResultData = {
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        executionId: resultId,
+        status: 'running' as WorkflowExecutionStatus,
+        progress: 0,
+        startedAt: new Date(),
+        input: input,
+      };
+
+      setWorkflowResults((prev) => new Map(prev).set(resultId, resultData));
+
+      // Set active workflow for the indicator
+      setActiveWorkflow({
+        id: resultId,
+        name: workflow.name,
+        icon: workflow.icon,
+        status: 'running',
+        progress: 0,
+        currentStep: 'Starting workflow...',
+      });
+
+      // Add a message indicating workflow started
+      const workflowMessage: UIMessage = {
+        id: resultId,
+        role: 'assistant',
+        content: `🔄 Running workflow: **${workflow.name}**\n\nWorkflow execution started...`,
+        createdAt: new Date(),
+      };
+      await addMessage(workflowMessage);
+
+      // Simulate workflow completion after a delay (in real implementation, this would be tied to actual workflow execution)
+      setTimeout(() => {
+        setActiveWorkflow((prev) =>
+          prev ? { ...prev, status: 'completed', progress: 100 } : null
+        );
+        // Auto-dismiss after 3 seconds
+        setTimeout(() => setActiveWorkflow(null), 3000);
+      }, 5000);
+    },
+    [addMessage]
+  );
 
   // Retry last assistant message
-  const handleRetry = useCallback(async (messageId: string) => {
-    const messageIndex = messages.findIndex(m => m.id === messageId);
-    if (messageIndex === -1) return;
+  const handleRetry = useCallback(
+    async (messageId: string) => {
+      const messageIndex = messages.findIndex((m) => m.id === messageId);
+      if (messageIndex === -1) return;
 
-    // Find the user message before this assistant message
-    const userMessage = messages
-      .slice(0, messageIndex)
-      .reverse()
-      .find(m => m.role === 'user');
+      // Find the user message before this assistant message
+      const userMessage = messages
+        .slice(0, messageIndex)
+        .reverse()
+        .find((m) => m.role === 'user');
 
-    if (!userMessage) return;
+      if (!userMessage) return;
 
-    try {
-      // Delete from this message onwards
-      await deleteMessagesAfter(userMessage.id);
+      try {
+        // Delete from this message onwards
+        await deleteMessagesAfter(userMessage.id);
 
-      // Re-send the user message
-      await handleSendMessage(userMessage.content);
-    } catch (err) {
-      console.error('Failed to retry:', err);
-      setError(err instanceof Error ? err.message : 'Failed to retry');
-    }
-  }, [messages, deleteMessagesAfter, handleSendMessage]);
+        // Re-send the user message
+        await handleSendMessage(userMessage.content);
+      } catch (err) {
+        console.error('Failed to retry:', err);
+        setError(err instanceof Error ? err.message : 'Failed to retry');
+      }
+    },
+    [messages, deleteMessagesAfter, handleSendMessage]
+  );
 
   const isEmpty = messages.length === 0 && isInitialized;
 
@@ -1669,9 +1875,9 @@ Be thorough in your thinking but concise in your final answer.`;
   // The UI will show even while messages are loading
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background" data-chat-container>
-      <ChatHeader 
-        sessionId={sessionId} 
+    <div className="flex min-h-0 flex-1 flex-col" data-chat-container>
+      <ChatHeader
+        sessionId={sessionId}
         viewMode={viewMode}
         onViewModeChange={handleViewModeChange}
       />
@@ -1705,10 +1911,14 @@ Be thorough in your thinking but concise in your final answer.`;
       {error && (
         <ErrorMessage
           error={error}
-          onRetry={lastFailedMessage ? () => {
-            setRetryCount((prev) => prev + 1);
-            handleSendMessage(lastFailedMessage);
-          } : undefined}
+          onRetry={
+            lastFailedMessage
+              ? () => {
+                  setRetryCount((prev) => prev + 1);
+                  handleSendMessage(lastFailedMessage);
+                }
+              : undefined
+          }
           onDismiss={() => {
             setError(null);
             setRetryCount(0);
@@ -1766,7 +1976,9 @@ Be thorough in your thinking but concise in your final answer.`;
                   onDismiss={() => {
                     // Clear carried context from session
                     if (session) {
-                      updateSession(session.id, { carriedContext: undefined } as Parameters<typeof updateSession>[1]);
+                      updateSession(session.id, { carriedContext: undefined } as Parameters<
+                        typeof updateSession
+                      >[1]);
                     }
                   }}
                 />
@@ -1839,7 +2051,6 @@ Be thorough in your thinking but concise in your final answer.`;
         </div>
       )}
 
-
       {/* Quoted content display */}
       <QuotedContent />
 
@@ -1847,10 +2058,7 @@ Be thorough in your thinking but concise in your final answer.`;
       {inputValue.length >= 3 && (
         <div className="relative mx-auto w-full max-w-4xl px-4">
           <div className="absolute bottom-0 left-4 right-4 z-10">
-            <SkillSuggestions
-              query={inputValue}
-              showActiveSkills={true}
-            />
+            <SkillSuggestions query={inputValue} showActiveSkills={true} />
           </div>
         </div>
       )}
@@ -1875,19 +2083,19 @@ Be thorough in your thinking but concise in your final answer.`;
       )}
 
       {/* Quick Reply Bar - AI-powered suggestions (only show after assistant messages) */}
-      {messages.length > 0 && 
-       messages[messages.length - 1]?.role === 'assistant' && 
-       !isLoading && 
-       !isStreaming && (
-        <QuickReplyBar
-          messages={messages}
-          onSelect={(text) => {
-            setInputValue(text);
-            inputRef.current?.focus();
-          }}
-          disabled={isLoading || isStreaming}
-        />
-      )}
+      {messages.length > 0 &&
+        messages[messages.length - 1]?.role === 'assistant' &&
+        !isLoading &&
+        !isStreaming && (
+          <QuickReplyBar
+            messages={messages}
+            onSelect={(text) => {
+              setInputValue(text);
+              inputRef.current?.focus();
+            }}
+            disabled={isLoading || isStreaming}
+          />
+        )}
 
       {/* Workflow Indicator - shown when a workflow is selected/running */}
       {activeWorkflow && (
@@ -1898,8 +2106,10 @@ Be thorough in your thinking but concise in your final answer.`;
           progress={activeWorkflow.progress}
           currentStep={activeWorkflow.currentStep}
           onCancel={() => setActiveWorkflow(null)}
-          onPause={() => setActiveWorkflow(prev => prev ? { ...prev, status: 'paused' } : null)}
-          onResume={() => setActiveWorkflow(prev => prev ? { ...prev, status: 'running' } : null)}
+          onPause={() => setActiveWorkflow((prev) => (prev ? { ...prev, status: 'paused' } : null))}
+          onResume={() =>
+            setActiveWorkflow((prev) => (prev ? { ...prev, status: 'running' } : null))
+          }
         />
       )}
 
@@ -2095,10 +2305,7 @@ Be thorough in your thinking but concise in your final answer.`;
       />
 
       {/* Workflow Selector Dialog */}
-      <WorkflowSelector
-        open={showWorkflowSelector}
-        onOpenChange={setShowWorkflowSelector}
-      />
+      <WorkflowSelector open={showWorkflowSelector} onOpenChange={setShowWorkflowSelector} />
 
       {/* Workflow Picker Dialog - for running visual workflows from chat */}
       <WorkflowPickerDialog
@@ -2109,7 +2316,10 @@ Be thorough in your thinking but concise in your final answer.`;
       />
 
       {/* PPT Preview - shown when a presentation is generated */}
-      <Dialog open={!!activePresentation && showPPTPreview} onOpenChange={(open) => setShowPPTPreview(open)}>
+      <Dialog
+        open={!!activePresentation && showPPTPreview}
+        onOpenChange={(open) => setShowPPTPreview(open)}
+      >
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
           <DialogHeader>
             <DialogTitle>Presentation Preview</DialogTitle>
@@ -2125,10 +2335,7 @@ Be thorough in your thinking but concise in your final answer.`;
           ref={learningPanelRef}
           className="fixed right-4 top-20 z-40 w-80 max-h-[calc(100vh-6rem)] overflow-auto"
         >
-          <LearningModePanel
-            onClose={() => setShowLearningPanel(false)}
-            className="shadow-lg"
-          />
+          <LearningModePanel onClose={() => setShowLearningPanel(false)} className="shadow-lg" />
         </div>
       )}
 
@@ -2187,16 +2394,16 @@ Be thorough in your thinking but concise in your final answer.`;
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('clearConversation')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('clearConversationConfirmation')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('clearConversationConfirmation')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              _clearMessages();
-              setShowClearContextConfirm(false);
-            }}>
+            <AlertDialogAction
+              onClick={() => {
+                _clearMessages();
+                setShowClearContextConfirm(false);
+              }}
+            >
               {tCommon('clear')}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -2244,20 +2451,9 @@ function MessagePartsRenderer({ parts, content, isError }: MessagePartsRendererP
       {parts.map((part, index) => {
         switch (part.type) {
           case 'text':
-            return (
-              <TextPart
-                key={`text-${index}`}
-                part={part}
-                isError={isError}
-              />
-            );
+            return <TextPart key={`text-${index}`} part={part} isError={isError} />;
           case 'reasoning':
-            return (
-              <ReasoningPart
-                key={`reasoning-${index}`}
-                part={part}
-              />
-            );
+            return <ReasoningPart key={`reasoning-${index}`} part={part} />;
           case 'tool-invocation':
             return (
               <ToolPart
@@ -2268,19 +2464,9 @@ function MessagePartsRenderer({ parts, content, isError }: MessagePartsRendererP
               />
             );
           case 'sources':
-            return (
-              <SourcesPart
-                key={`sources-${index}`}
-                part={part}
-              />
-            );
+            return <SourcesPart key={`sources-${index}`} part={part} />;
           case 'a2ui':
-            return (
-              <A2UIPart
-                key={`a2ui-${index}`}
-                part={part}
-              />
-            );
+            return <A2UIPart key={`a2ui-${index}`} part={part} />;
           default:
             return null;
         }
@@ -2332,26 +2518,26 @@ function ChatMessageItem({
   const [isBookmarked, setIsBookmarked] = useState(message.isBookmarked || false);
   const [reactions, setReactions] = useState<EmojiReaction[]>(message.reactions || []);
   const messageContentRef = useRef<HTMLDivElement>(null);
-  
+
   // TTS hook for multi-provider text-to-speech
   const { speak, stop: stopTTS, isPlaying: isSpeaking, isLoading: isTTSLoading } = useTTS();
   const ttsTooltip = isTTSLoading ? 'Loading...' : isSpeaking ? 'Stop speaking' : 'Read aloud';
 
   const handleReaction = async (emoji: string) => {
-    setReactions(prev => {
-      const existing = prev.find(r => r.emoji === emoji);
+    setReactions((prev) => {
+      const existing = prev.find((r) => r.emoji === emoji);
       if (existing) {
         if (existing.reacted) {
           // Remove reaction
           if (existing.count === 1) {
-            return prev.filter(r => r.emoji !== emoji);
+            return prev.filter((r) => r.emoji !== emoji);
           }
-          return prev.map(r => 
+          return prev.map((r) =>
             r.emoji === emoji ? { ...r, count: r.count - 1, reacted: false } : r
           );
         } else {
           // Add reaction
-          return prev.map(r => 
+          return prev.map((r) =>
             r.emoji === emoji ? { ...r, count: r.count + 1, reacted: true } : r
           );
         }
@@ -2420,179 +2606,176 @@ function ChatMessageItem({
   };
 
   // Handle swipe actions for mobile
-  const handleSwipeAction = useCallback((action: SwipeAction) => {
-    switch (action) {
-      case 'copy':
-        handleCopy();
-        break;
-      case 'edit':
-        if (message.role === 'user') onEdit();
-        break;
-      case 'regenerate':
-        if (message.role === 'assistant') onRetry();
-        break;
-      case 'bookmark':
-        handleBookmark();
-        break;
-      case 'delete':
-        // Could be implemented with a delete handler
-        break;
-    }
-  }, [handleCopy, handleBookmark, message.role, onEdit, onRetry]);
+  const handleSwipeAction = useCallback(
+    (action: SwipeAction) => {
+      switch (action) {
+        case 'copy':
+          handleCopy();
+          break;
+        case 'edit':
+          if (message.role === 'user') onEdit();
+          break;
+        case 'regenerate':
+          if (message.role === 'assistant') onRetry();
+          break;
+        case 'bookmark':
+          handleBookmark();
+          break;
+        case 'delete':
+          // Could be implemented with a delete handler
+          break;
+      }
+    },
+    [handleCopy, handleBookmark, message.role, onEdit, onRetry]
+  );
 
   return (
     <MessageSwipeActions
       onAction={handleSwipeAction}
-      enabledActions={message.role === 'user' ? ['copy', 'edit'] : ['copy', 'regenerate', 'bookmark']}
+      enabledActions={
+        message.role === 'user' ? ['copy', 'edit'] : ['copy', 'regenerate', 'bookmark']
+      }
       disabled={isEditing || isStreaming}
     >
-    <MessageUI id={`message-${message.id}`} from={message.role as "system" | "user" | "assistant"}>
-      <MessageContent>
-        {isEditing ? (
-          <div className="flex flex-col gap-2">
-            <Textarea
-              value={editContent}
-              onChange={(e) => onEditContentChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              autoFocus
-              placeholder={t('editMessagePlaceholder')}
-              aria-label={t('editMessage')}
-              className="min-h-[100px] resize-none"
-            />
-            <div className="flex gap-2 justify-end">
-              <Button
-                onClick={onCancelEdit}
-                variant="outline"
-                size="sm"
-                aria-label={tCommon('cancel')}
-              >
-                {tCommon('cancel')}
-              </Button>
-              <Button
-                onClick={onSaveEdit}
-                variant="default"
-                size="sm"
-                aria-label={t('saveAndSubmit')}
-              >
-                {t('saveAndSubmit')}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div ref={messageContentRef}>
-            {/* Workflow Result Card - render if this message has workflow data */}
-            {workflowResult && (
-              <WorkflowResultCard
-                data={workflowResult}
-                onRerun={onWorkflowRerun}
-                className="mb-3"
+      <MessageUI
+        id={`message-${message.id}`}
+        from={message.role as 'system' | 'user' | 'assistant'}
+      >
+        <MessageContent>
+          {isEditing ? (
+            <div className="flex flex-col gap-2">
+              <Textarea
+                value={editContent}
+                onChange={(e) => onEditContentChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                autoFocus
+                placeholder={t('editMessagePlaceholder')}
+                aria-label={t('editMessage')}
+                className="min-h-[100px] resize-none"
               />
-            )}
-            {message.role === 'user' ? (
-              <p className="whitespace-pre-wrap">{message.content}</p>
-            ) : hasA2UIContent(message.content) ? (
-              <A2UIEnhancedMessage
-                content={message.content}
-                messageId={message.id}
-                textRenderer={(text) => (
-                  <MessagePartsRenderer
-                    parts={message.parts}
-                    content={text}
-                    isError={!!message.error}
-                  />
-                )}
-              />
-            ) : (
-              <MessagePartsRenderer
-                parts={message.parts}
-                content={message.content}
-                isError={!!message.error}
-              />
-            )}
-            {/* Text selection popover for quoting */}
-            <TextSelectionPopover
-              containerRef={messageContentRef}
-              messageId={message.id}
-              messageRole={message.role as 'user' | 'assistant'}
-            />
-            {/* Message reactions */}
-            {message.role === 'assistant' && !message.error && (
-              <div className="mt-2">
-                <MessageReactions
-                  reactions={reactions}
-                  onReact={handleReaction}
-                />
+              <div className="flex gap-2 justify-end">
+                <Button
+                  onClick={onCancelEdit}
+                  variant="outline"
+                  size="sm"
+                  aria-label={tCommon('cancel')}
+                >
+                  {tCommon('cancel')}
+                </Button>
+                <Button
+                  onClick={onSaveEdit}
+                  variant="default"
+                  size="sm"
+                  aria-label={t('saveAndSubmit')}
+                >
+                  {t('saveAndSubmit')}
+                </Button>
               </div>
-            )}
-            {/* Message artifacts */}
-            {message.role === 'assistant' && (
-              <MessageArtifacts messageId={message.id} compact />
-            )}
-          </div>
-        )}
-      </MessageContent>
+            </div>
+          ) : (
+            <div ref={messageContentRef}>
+              {/* Workflow Result Card - render if this message has workflow data */}
+              {workflowResult && (
+                <WorkflowResultCard
+                  data={workflowResult}
+                  onRerun={onWorkflowRerun}
+                  className="mb-3"
+                />
+              )}
+              {message.role === 'user' ? (
+                <p className="whitespace-pre-wrap">{message.content}</p>
+              ) : hasA2UIContent(message.content) ? (
+                <A2UIEnhancedMessage
+                  content={message.content}
+                  messageId={message.id}
+                  textRenderer={(text) => (
+                    <MessagePartsRenderer
+                      parts={message.parts}
+                      content={text}
+                      isError={!!message.error}
+                    />
+                  )}
+                />
+              ) : (
+                <MessagePartsRenderer
+                  parts={message.parts}
+                  content={message.content}
+                  isError={!!message.error}
+                />
+              )}
+              {/* Text selection popover for quoting */}
+              <TextSelectionPopover
+                containerRef={messageContentRef}
+                messageId={message.id}
+                messageRole={message.role as 'user' | 'assistant'}
+              />
+              {/* Message reactions */}
+              {message.role === 'assistant' && !message.error && (
+                <div className="mt-2">
+                  <MessageReactions reactions={reactions} onReact={handleReaction} />
+                </div>
+              )}
+              {/* Message artifacts */}
+              {message.role === 'assistant' && <MessageArtifacts messageId={message.id} compact />}
+            </div>
+          )}
+        </MessageContent>
 
-      {!isEditing && !isStreaming && !hideMessageActions && (
-        <MessageActions>
-          {message.role === 'user' && (
-            <MessageAction
-              tooltip="Edit message"
-              onClick={onEdit}
-            >
-              <Pencil className="h-4 w-4" />
-            </MessageAction>
-          )}
-          {message.role === 'assistant' && !message.error && (
-            <>
-              <MessageAction
-                tooltip="Retry"
-                onClick={onRetry}
-              >
-                <RotateCcw className="h-4 w-4" />
+        {!isEditing && !isStreaming && !hideMessageActions && (
+          <MessageActions>
+            {message.role === 'user' && (
+              <MessageAction tooltip="Edit message" onClick={onEdit}>
+                <Pencil className="h-4 w-4" />
               </MessageAction>
-              <MessageAction
-                tooltip={copied ? 'Copied!' : 'Copy'}
-                onClick={handleCopy}
-              >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </MessageAction>
-              <MessageAction
-                tooltip={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
-                onClick={handleBookmark}
-              >
-                {isBookmarked ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
-              </MessageAction>
-              <MessageAction
-                tooltip={ttsTooltip}
-                onClick={handleSpeak}
-                disabled={isTTSLoading}
-              >
-                {isTTSLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-              </MessageAction>
-              <MessageAction
-                tooltip="Share"
-                onClick={handleShare}
-              >
-                <Share2 className="h-4 w-4" />
-              </MessageAction>
-              <MessageAction
-                tooltip="Translate"
-                onClick={handleTranslate}
-                disabled={isTranslating}
-              >
-                <Languages className="h-4 w-4" />
-              </MessageAction>
-            </>
-          )}
-          {/* Branch button for all messages */}
-          <BranchButton
-            sessionId={sessionId}
-            messageId={message.id}
-            onCopyMessages={onCopyMessagesForBranch}
-          />
-        </MessageActions>
-      )}
-    </MessageUI>
+            )}
+            {message.role === 'assistant' && !message.error && (
+              <>
+                <MessageAction tooltip="Retry" onClick={onRetry}>
+                  <RotateCcw className="h-4 w-4" />
+                </MessageAction>
+                <MessageAction tooltip={copied ? 'Copied!' : 'Copy'} onClick={handleCopy}>
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </MessageAction>
+                <MessageAction
+                  tooltip={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+                  onClick={handleBookmark}
+                >
+                  {isBookmarked ? (
+                    <BookmarkCheck className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Bookmark className="h-4 w-4" />
+                  )}
+                </MessageAction>
+                <MessageAction tooltip={ttsTooltip} onClick={handleSpeak} disabled={isTTSLoading}>
+                  {isTTSLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : isSpeaking ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </MessageAction>
+                <MessageAction tooltip="Share" onClick={handleShare}>
+                  <Share2 className="h-4 w-4" />
+                </MessageAction>
+                <MessageAction
+                  tooltip="Translate"
+                  onClick={handleTranslate}
+                  disabled={isTranslating}
+                >
+                  <Languages className="h-4 w-4" />
+                </MessageAction>
+              </>
+            )}
+            {/* Branch button for all messages */}
+            <BranchButton
+              sessionId={sessionId}
+              messageId={message.id}
+              onCopyMessages={onCopyMessagesForBranch}
+            />
+          </MessageActions>
+        )}
+      </MessageUI>
     </MessageSwipeActions>
   );
 }
@@ -2731,15 +2914,10 @@ function VirtualizedChatMessageList({
       }}
       components={{
         List: (() => {
-          const VirtualizedList = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-            (props, ref) => (
-              <div
-                {...props}
-                ref={ref}
-                className="flex flex-col gap-5 w-full"
-              />
-            )
-          );
+          const VirtualizedList = React.forwardRef<
+            HTMLDivElement,
+            React.HTMLAttributes<HTMLDivElement>
+          >((props, ref) => <div {...props} ref={ref} className="flex flex-col gap-5 w-full" />);
           VirtualizedList.displayName = 'VirtualizedList';
           return VirtualizedList;
         })(),

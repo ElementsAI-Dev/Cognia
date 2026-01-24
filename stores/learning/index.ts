@@ -12,3 +12,12 @@ export {
   selectSubQuestions,
   selectLearningGoals,
 } from './learning-store';
+
+export {
+  useSpeedPassStore,
+  selectCurrentTextbook,
+  selectCurrentTutorial,
+  selectCurrentQuiz,
+  selectActiveSession,
+  selectWrongQuestionsCount,
+} from './speedpass-store';

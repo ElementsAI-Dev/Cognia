@@ -15,6 +15,7 @@ export type FeatureId =
   | 'designer'
   | 'ppt'
   | 'academic'
+  | 'speedpass'
   | 'workflows'
   | 'skills'
   | 'projects'

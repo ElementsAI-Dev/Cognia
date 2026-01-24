@@ -230,7 +230,9 @@ export function BackgroundRenderer() {
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: backgroundValue,
+                // Use backgroundImage instead of background shorthand to avoid React warning
+                // when combining with backgroundSize, backgroundPosition, backgroundRepeat
+                backgroundImage: backgroundValue,
                 backgroundSize,
                 backgroundPosition,
                 backgroundRepeat,

@@ -187,6 +187,44 @@ export const FEATURE_ROUTES: FeatureRoute[] = [
     carryContext: true,
   },
 
+  {
+    id: 'speedpass',
+    name: 'SpeedPass Learning',
+    nameZh: '速过学习',
+    path: '/speedpass',
+    icon: 'GraduationCap',
+    category: 'research',
+    description: 'Fast-track exam preparation with textbook-based learning',
+    descriptionZh: '基于教材的快速备考学习平台',
+    patterns: {
+      chinese: [
+        /(?:帮我|请|我想|我要|我需要)?(?:复习|学习|备考|准备).*?(?:考试|期末|期中|测验)/i,
+        /(?:速过|速学|快速学习|极速学习|速成)/i,
+        /(?:教材|课本|教科书).*?(?:学习|复习|备考)/i,
+        /(?:考前|临时|突击).*?(?:复习|准备|学习)/i,
+        /(?:重点|知识点|考点).*?(?:整理|提取|学习)/i,
+        /(?:刷题|练习|做题|测验)/i,
+        /(?:错题|错题本|易错题)/i,
+      ],
+      english: [
+        /(?:help me |please |i want to |i need to )?(?:review|study|prepare for).*?(?:exam|test|midterm|final)/i,
+        /(?:speed learning|fast learning|quick study|cramming)/i,
+        /(?:textbook|coursebook).*?(?:learning|studying|review)/i,
+        /(?:last minute|quick|crash course).*?(?:review|preparation|study)/i,
+        /(?:key points|knowledge points|important concepts).*?(?:extract|learn|review)/i,
+        /(?:practice|quiz|exercise|test yourself)/i,
+        /(?:wrong answers|mistake book|error log)/i,
+      ],
+    },
+    keywords: {
+      chinese: ['速过', '速学', '备考', '复习', '考试', '教材', '知识点', '刷题', '错题本', '考点'],
+      english: ['speed learning', 'exam prep', 'review', 'study', 'textbook', 'knowledge points', 'quiz', 'practice'],
+    },
+    priority: 85,
+    enabled: true,
+    carryContext: true,
+  },
+
   // ============================================
   // Automation Features
   // ============================================

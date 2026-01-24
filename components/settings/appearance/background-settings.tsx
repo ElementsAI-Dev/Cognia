@@ -333,7 +333,8 @@ export function BackgroundSettings() {
   }, [editorMode, selectedItem?.localAssetId, setBackgroundLocalFile, setBackgroundSettings, updateSelectedItem]);
 
   // Generate preview background style
-  const previewStyle = useMemo(() => {
+  // Use only non-shorthand properties to avoid React warning about conflicting shorthand/non-shorthand properties
+  const previewStyle = useMemo((): React.CSSProperties => {
     if (!backgroundSettings.enabled || effectiveSettings.source === 'none') {
       return {};
     }
@@ -357,13 +358,15 @@ export function BackgroundSettings() {
 
     const isGradient = backgroundValue.startsWith('linear-gradient') || backgroundValue.startsWith('radial-gradient');
 
+    // Use backgroundImage instead of background shorthand to avoid React warning
+    // when combining with backgroundSize, backgroundPosition, backgroundRepeat
     return {
-      background: backgroundValue,
+      backgroundImage: backgroundValue,
       backgroundSize: isGradient ? undefined : (effectiveSettings.fit === 'tile' ? 'auto' : effectiveSettings.fit === 'fill' ? '100% 100%' : effectiveSettings.fit),
       backgroundPosition: effectiveSettings.position.replace('-', ' '),
       backgroundRepeat: effectiveSettings.fit === 'tile' ? 'repeat' : 'no-repeat',
       opacity: effectiveSettings.opacity / 100,
-      filter: `blur(${effectiveSettings.blur}px) brightness(${effectiveSettings.brightness}%) saturate(${effectiveSettings.saturation}%)`,
+      filter: `blur(${effectiveSettings.blur}px) brightness(${effectiveSettings.brightness}%) saturate(${effectiveSettings.saturation}%) contrast(${effectiveSettings.contrast ?? 100}%) grayscale(${effectiveSettings.grayscale ?? 0}%)`,
     };
   }, [backgroundSettings.enabled, effectiveSettings, localPreviewUrl]);
 

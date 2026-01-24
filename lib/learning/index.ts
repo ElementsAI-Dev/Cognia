@@ -67,3 +67,6 @@ export {
   getCategoryDisplayName,
   getCategoryDisplayNameEn,
 } from './learning-path';
+
+// SpeedPass learning utilities
+export * from './speedpass';

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Tests for loader.ts
  * Plugin Loader
@@ -14,7 +15,8 @@ const mockAppendChild = jest.fn();
 const originalDocument = global.document;
 
 beforeAll(() => {
-  // @ts-expect-error - mocking document
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore - mocking document for testing
   global.document = {
     createElement: mockCreateElement,
     head: {
@@ -49,7 +51,9 @@ describe('PluginLoader', () => {
     main: type !== 'python' ? 'index.js' : undefined,
     pythonMain: type !== 'frontend' ? 'main.py' : undefined,
     permissions: [],
-    cognia: '>=1.0.0',
+    // cognia field removed
+    description: 'Mock plugin description',
+    capabilities: [],
   });
 
   const createMockPlugin = (id: string, type: 'frontend' | 'python' | 'hybrid' = 'frontend'): Plugin => ({
@@ -58,6 +62,7 @@ describe('PluginLoader', () => {
     source: 'local',
     status: 'installed',
     installedAt: new Date(),
+    config: {},
   });
 
   describe('load', () => {
@@ -70,8 +75,7 @@ describe('PluginLoader', () => {
         activate: jest.fn(),
       };
       
-      // Access private loadedModules via any cast for testing
-      (loader as unknown as { loadedModules: Map<string, { definition: PluginDefinition }> })
+      (loader as unknown as { loadedModules: Map<string, any> })
         .loadedModules.set('cached-plugin', { definition: mockDefinition });
 
       const result = await loader.load(plugin);
@@ -88,8 +92,7 @@ describe('PluginLoader', () => {
         activate: jest.fn(),
       };
       
-      // Pre-cache the module
-      (loader as unknown as { loadedModules: Map<string, { definition: PluginDefinition }> })
+      (loader as unknown as { loadedModules: Map<string, any> })
         .loadedModules.set('concurrent-plugin', { definition: mockDefinition });
 
       // Start two concurrent loads - both should return the cached version
@@ -180,8 +183,7 @@ describe('PluginLoader', () => {
     it('should remove loaded module', async () => {
       const pluginId = 'to-unload';
       
-      // Manually add to loaded modules
-      (loader as unknown as { loadedModules: Map<string, unknown> })
+      (loader as unknown as { loadedModules: Map<string, any> })
         .loadedModules.set(pluginId, { definition: {}, exports: {} });
 
       expect(loader.isLoaded(pluginId)).toBe(true);
@@ -209,7 +211,7 @@ describe('PluginLoader', () => {
 
   describe('isLoaded', () => {
     it('should return true for loaded plugins', () => {
-      (loader as unknown as { loadedModules: Map<string, unknown> })
+      (loader as unknown as { loadedModules: Map<string, any> })
         .loadedModules.set('loaded', {});
 
       expect(loader.isLoaded('loaded')).toBe(true);
@@ -222,8 +224,7 @@ describe('PluginLoader', () => {
 
   describe('getModuleExports', () => {
     it('should return exports for loaded module', () => {
-      const exports = { customExport: 'value' };
-      (loader as unknown as { loadedModules: Map<string, { exports: unknown }> })
+      (loader as unknown as { loadedModules: Map<string, any> })
         .loadedModules.set('with-exports', { definition: {}, exports });
 
       expect(loader.getModuleExports('with-exports')).toBe(exports);
@@ -236,9 +237,9 @@ describe('PluginLoader', () => {
 
   describe('clear', () => {
     it('should clear all loaded modules', () => {
-      (loader as unknown as { loadedModules: Map<string, unknown> })
+      (loader as unknown as { loadedModules: Map<string, any> })
         .loadedModules.set('m1', {});
-      (loader as unknown as { loadedModules: Map<string, unknown> })
+      (loader as unknown as { loadedModules: Map<string, any> })
         .loadedModules.set('m2', {});
 
       loader.clear();

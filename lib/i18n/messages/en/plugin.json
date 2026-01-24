@@ -41,7 +41,13 @@
       "hooks": "Hooks",
       "sortByName": "Name",
       "sortByRecent": "Recent",
-      "sortByStatus": "Status"
+      "sortByStatus": "Status",
+      "noGroup": "No Grouping",
+      "groupByType": "Group by Type",
+      "groupByCapability": "Group by Capability",
+      "groupByStatus": "Group by Status",
+      "select": "Select",
+      "exitSelect": "Exit Selection"
     },
     "emptyState": {
       "noMatch": "No plugins match your filters",
@@ -436,6 +442,34 @@
     "emptyState": {
       "selectPlugin": "Select a plugin to view its dependencies",
       "noDependencies": "No dependencies found"
+    }
+  },
+  "pluginEmptyState": {
+    "noPlugins": {
+      "title": "No Plugins Installed",
+      "description": "Enhance your AI experience by installing plugins from the marketplace or creating your own.",
+      "browseMarketplace": "Browse Store",
+      "createPlugin": "Create Plugin",
+      "importPlugin": "Import Plugin",
+      "tip": "Plugins can add new tools, components, and capabilities to your agents."
+    },
+    "noResults": {
+      "title": "No Plugins Found",
+      "searchDescription": "No plugins matching \"{query}\" were found.",
+      "filterDescription": "No plugins match your current filters.",
+      "clearFilters": "Clear Filters",
+      "browseMore": "Browse Marketplace",
+      "suggestions": "Try searching for:"
+    },
+    "noEnabled": {
+      "title": "No Enabled Plugins",
+      "description": "You don't have any plugins enabled. Enable some plugins to use their features.",
+      "viewAll": "View All Plugins"
+    },
+    "noDisabled": {
+      "title": "No Disabled Plugins",
+      "description": "All your installed plugins are currently enabled.",
+      "viewAll": "View All Plugins"
     }
   }
 }

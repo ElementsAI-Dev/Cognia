@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -205,7 +205,7 @@
     --sidebar-width: 280px;
     --chat-max-width: 900px;
     --message-spacing: 1rem;
-    --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
   body {
     @apply bg-background text-foreground;
@@ -213,45 +213,112 @@
     height: 100%;
     font-family: var(--font-ui);
   }
-  
 }
 
 /* Preset color utilities (full + 12.5% tint) */
-.bg-preset-6366f1 { background-color: #6366f1; }
-.bg-preset-8b5cf6 { background-color: #8b5cf6; }
-.bg-preset-a855f7 { background-color: #a855f7; }
-.bg-preset-d946ef { background-color: #d946ef; }
-.bg-preset-ec4899 { background-color: #ec4899; }
-.bg-preset-f43f5e { background-color: #f43f5e; }
-.bg-preset-ef4444 { background-color: #ef4444; }
-.bg-preset-f97316 { background-color: #f97316; }
-.bg-preset-f59e0b { background-color: #f59e0b; }
-.bg-preset-eab308 { background-color: #eab308; }
-.bg-preset-84cc16 { background-color: #84cc16; }
-.bg-preset-22c55e { background-color: #22c55e; }
-.bg-preset-10b981 { background-color: #10b981; }
-.bg-preset-14b8a6 { background-color: #14b8a6; }
-.bg-preset-06b6d4 { background-color: #06b6d4; }
-.bg-preset-0ea5e9 { background-color: #0ea5e9; }
-.bg-preset-3b82f6 { background-color: #3b82f6; }
+.bg-preset-6366f1 {
+  background-color: #6366f1;
+}
+.bg-preset-8b5cf6 {
+  background-color: #8b5cf6;
+}
+.bg-preset-a855f7 {
+  background-color: #a855f7;
+}
+.bg-preset-d946ef {
+  background-color: #d946ef;
+}
+.bg-preset-ec4899 {
+  background-color: #ec4899;
+}
+.bg-preset-f43f5e {
+  background-color: #f43f5e;
+}
+.bg-preset-ef4444 {
+  background-color: #ef4444;
+}
+.bg-preset-f97316 {
+  background-color: #f97316;
+}
+.bg-preset-f59e0b {
+  background-color: #f59e0b;
+}
+.bg-preset-eab308 {
+  background-color: #eab308;
+}
+.bg-preset-84cc16 {
+  background-color: #84cc16;
+}
+.bg-preset-22c55e {
+  background-color: #22c55e;
+}
+.bg-preset-10b981 {
+  background-color: #10b981;
+}
+.bg-preset-14b8a6 {
+  background-color: #14b8a6;
+}
+.bg-preset-06b6d4 {
+  background-color: #06b6d4;
+}
+.bg-preset-0ea5e9 {
+  background-color: #0ea5e9;
+}
+.bg-preset-3b82f6 {
+  background-color: #3b82f6;
+}
 
-.bg-preset-6366f1-20 { background-color: #6366f120; }
-.bg-preset-8b5cf6-20 { background-color: #8b5cf620; }
-.bg-preset-a855f7-20 { background-color: #a855f720; }
-.bg-preset-d946ef-20 { background-color: #d946ef20; }
-.bg-preset-ec4899-20 { background-color: #ec489920; }
-.bg-preset-f43f5e-20 { background-color: #f43f5e20; }
-.bg-preset-ef4444-20 { background-color: #ef444420; }
-.bg-preset-f97316-20 { background-color: #f9731620; }
-.bg-preset-f59e0b-20 { background-color: #f59e0b20; }
-.bg-preset-eab308-20 { background-color: #eab30820; }
-.bg-preset-84cc16-20 { background-color: #84cc1620; }
-.bg-preset-22c55e-20 { background-color: #22c55e20; }
-.bg-preset-10b981-20 { background-color: #10b98120; }
-.bg-preset-14b8a6-20 { background-color: #14b8a620; }
-.bg-preset-06b6d4-20 { background-color: #06b6d420; }
-.bg-preset-0ea5e9-20 { background-color: #0ea5e920; }
-.bg-preset-3b82f6-20 { background-color: #3b82f620; }
+.bg-preset-6366f1-20 {
+  background-color: #6366f120;
+}
+.bg-preset-8b5cf6-20 {
+  background-color: #8b5cf620;
+}
+.bg-preset-a855f7-20 {
+  background-color: #a855f720;
+}
+.bg-preset-d946ef-20 {
+  background-color: #d946ef20;
+}
+.bg-preset-ec4899-20 {
+  background-color: #ec489920;
+}
+.bg-preset-f43f5e-20 {
+  background-color: #f43f5e20;
+}
+.bg-preset-ef4444-20 {
+  background-color: #ef444420;
+}
+.bg-preset-f97316-20 {
+  background-color: #f9731620;
+}
+.bg-preset-f59e0b-20 {
+  background-color: #f59e0b20;
+}
+.bg-preset-eab308-20 {
+  background-color: #eab30820;
+}
+.bg-preset-84cc16-20 {
+  background-color: #84cc1620;
+}
+.bg-preset-22c55e-20 {
+  background-color: #22c55e20;
+}
+.bg-preset-10b981-20 {
+  background-color: #10b98120;
+}
+.bg-preset-14b8a6-20 {
+  background-color: #14b8a620;
+}
+.bg-preset-06b6d4-20 {
+  background-color: #06b6d420;
+}
+.bg-preset-0ea5e9-20 {
+  background-color: #0ea5e920;
+}
+.bg-preset-3b82f6-20 {
+  background-color: #3b82f620;
+}
 
 /* ===== Tauri Desktop App Styles ===== */
 /* These must be outside @layer to have higher specificity than Tailwind utilities */
@@ -266,12 +333,12 @@ html.tauri-app body {
 }
 
 /* Sidebar positioning in Tauri mode - override Tailwind's top-0 */
-html.tauri-app [data-slot="sidebar-container"] {
+html.tauri-app [data-slot='sidebar-container'] {
   top: var(--titlebar-height) !important;
   height: calc(100vh - var(--titlebar-height)) !important;
 }
 
-html.tauri-app [data-slot="sidebar-wrapper"] {
+html.tauri-app [data-slot='sidebar-wrapper'] {
   height: calc(100vh - var(--titlebar-height)) !important;
 }
 
@@ -292,7 +359,7 @@ html.tauri-app [data-slot="sidebar-wrapper"] {
 }
 
 /* SidebarInset (main content area) positioning */
-html.tauri-app [data-slot="sidebar-inset"] {
+html.tauri-app [data-slot='sidebar-inset'] {
   height: calc(100vh - var(--titlebar-height)) !important;
 }
 
@@ -472,7 +539,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
   .katex-inline {
     break-inside: avoid;
   }
-  
+
   .katex {
     font-size: 1em !important;
   }
@@ -490,7 +557,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
 }
 
 /* Dark mode Mermaid adjustments */
-.dark .markdown-renderer svg[id^="mermaid"] {
+.dark .markdown-renderer svg[id^='mermaid'] {
   filter: invert(0.85) hue-rotate(180deg);
 }
 
@@ -554,7 +621,7 @@ html.tauri-app [data-slot="sidebar-inset"] {
   .vegalite-block {
     break-inside: avoid;
   }
-  
+
   .diagram-actions {
     display: none !important;
   }
@@ -585,7 +652,8 @@ html.tauri-app [data-slot="sidebar-inset"] {
 }
 
 .code-block code {
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
 /* Line numbers styling */
@@ -648,11 +716,11 @@ html.tauri-app [data-slot="sidebar-inset"] {
     break-inside: avoid;
     border: 1px solid #ccc;
   }
-  
+
   .code-block-header .actions {
     display: none !important;
   }
-  
+
   .code-block pre {
     white-space: pre-wrap;
     word-break: break-word;
@@ -719,7 +787,6 @@ html.tauri-app [data-slot="sidebar-inset"] {
   font-family: 'codicon' !important;
 }
 
-
 /* ===== Chat Widget Window Styles ===== */
 /* Ensures proper opaque background and content visibility for the floating chat widget */
 
@@ -768,13 +835,13 @@ html.tauri-app [data-slot="sidebar-inset"] {
 }
 
 /* Chat widget content visibility validation styles */
-.chat-widget-window [data-content-ready="true"] {
+.chat-widget-window [data-content-ready='true'] {
   /* Content is fully loaded and visible */
   visibility: visible;
   opacity: 1;
 }
 
-.chat-widget-window [data-content-ready="false"] {
+.chat-widget-window [data-content-ready='false'] {
   /* Content is loading - show loading state */
   visibility: visible;
   opacity: 0.8;
@@ -799,6 +866,50 @@ html.tauri-app [data-slot="sidebar-inset"] {
    Background Image System
    ======================================== */
 
+.has-bg-renderer body {
+  background-color: transparent !important;
+}
+
+/* Make main backgrounds transparent to show the image */
+.has-bg-renderer .bg-background {
+  background-color: color-mix(in oklch, var(--background) 60%, transparent);
+}
+
+.has-bg-renderer .dark .bg-background {
+  background-color: color-mix(in oklch, var(--background) 70%, transparent);
+}
+
+/* Sidebar transparency */
+.has-bg-renderer .bg-sidebar {
+  background-color: color-mix(in oklch, var(--sidebar) 70%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+/* Remove unwanted borders when in background mode for cleaner look */
+.has-bg-renderer .border-r,
+.has-bg-renderer .border-l,
+.has-bg-renderer .border-t,
+.has-bg-renderer .border-b,
+.has-bg-renderer .border {
+  border-color: color-mix(in oklch, var(--border) 40%, transparent);
+}
+
+/* Ensure app shell container is transparent */
+.has-bg-renderer [data-app-shell] {
+  background-color: transparent;
+}
+
+/* Sidebar accent transparency (selected items) */
+.has-bg-renderer .bg-sidebar-accent,
+.has-bg-renderer [data-active='true'] {
+  background-color: color-mix(in oklch, var(--sidebar-accent) 50%, transparent) !important;
+}
+
+/* Sidebar border/separator transparency */
+.has-bg-renderer .bg-sidebar-border {
+  background-color: color-mix(in oklch, var(--sidebar-border) 40%, transparent) !important;
+}
+
 /* Background container - applied to body when background is enabled */
 html.has-bg-image body {
   position: relative;
@@ -815,7 +926,9 @@ html.has-bg-image body::before {
   background-position: var(--bg-image-position, center center);
   background-repeat: var(--bg-image-repeat, no-repeat);
   opacity: var(--bg-image-opacity, 1);
-  filter: blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%)) saturate(var(--bg-saturation, 100%));
+  filter: blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%))
+    saturate(var(--bg-saturation, 100%)) contrast(var(--bg-contrast, 100%))
+    grayscale(var(--bg-grayscale, 0%));
   pointer-events: none;
 }
 
@@ -842,71 +955,187 @@ html.has-bg-renderer body::after {
 
 /* When background is enabled, make content layers semi-transparent for better blending */
 /* Using color-mix for wider browser support (Chrome 111+, Safari 16.2+) */
+/* Use !important to override Tailwind utility classes in v4 which use CSS layers */
 html.has-bg-image .bg-background {
-  background-color: color-mix(in oklch, var(--background) 85%, transparent);
+  background-color: color-mix(in oklch, var(--background) 85%, transparent) !important;
 }
 
 html.has-bg-image .dark .bg-background,
 html.has-bg-image.dark .bg-background {
-  background-color: color-mix(in oklch, var(--background) 90%, transparent);
+  background-color: color-mix(in oklch, var(--background) 90%, transparent) !important;
 }
 
 /* Card and popover backgrounds with subtle transparency when background enabled */
 html.has-bg-image .bg-card {
-  background-color: color-mix(in oklch, var(--card) 90%, transparent);
+  background-color: color-mix(in oklch, var(--card) 90%, transparent) !important;
 }
 
 html.has-bg-image .bg-popover {
-  background-color: color-mix(in oklch, var(--popover) 95%, transparent);
+  background-color: color-mix(in oklch, var(--popover) 95%, transparent) !important;
+}
+
+/* Muted backgrounds with transparency */
+html.has-bg-image .bg-muted {
+  background-color: color-mix(in oklch, var(--muted) 85%, transparent) !important;
 }
 
 /* Sidebar with background */
-html.has-bg-image [data-sidebar] {
-  background-color: color-mix(in oklch, var(--sidebar) 85%, transparent);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+html.has-bg-image [data-sidebar],
+html.has-bg-image .bg-sidebar {
+  background-color: color-mix(in oklch, var(--sidebar) 70%, transparent) !important;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* Sidebar components that use background utility classes */
+html.has-bg-image [data-sidebar] [data-sidebar='input'] {
+  background-color: color-mix(in oklch, var(--sidebar) 50%, transparent) !important;
+}
+
+/* Ensure consistent transparency for menu elements without stacking too much opacity */
+html.has-bg-image [data-sidebar] [data-sidebar='menu-button'][data-variant='outline'],
+html.has-bg-image [data-sidebar] [data-sidebar='menu-action'],
+html.has-bg-image [data-sidebar] [data-sidebar='menu-badge'],
+html.has-bg-image [data-sidebar] [data-sidebar='menu-sub'],
+html.has-bg-image [data-sidebar] [data-sidebar='menu-sub-button'] {
+  background-color: transparent !important;
+}
+
+/* Active states can have a bit of background */
+html.has-bg-image [data-sidebar] [data-sidebar='menu-button'][data-active='true'],
+html.has-bg-image [data-sidebar] [data-sidebar='menu-button']:hover {
+  background-color: color-mix(in oklch, var(--sidebar-accent) 40%, transparent) !important;
+}
+
+html.has-bg-image [data-sidebar] [data-sidebar='separator'] {
+  background-color: color-mix(in oklch, var(--sidebar-border) 40%, transparent) !important;
 }
 
 /* Chat area with background */
 html.has-bg-image [data-chat-container] {
-  background-color: color-mix(in oklch, var(--background) 70%, transparent);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  background-color: color-mix(in oklch, var(--background) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 /* Input area with stronger background for readability */
 html.has-bg-image [data-chat-input] {
-  background-color: color-mix(in oklch, var(--background) 90%, transparent);
+  background-color: color-mix(in oklch, var(--background) 90%, transparent) !important;
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
 
 /* Message bubbles with background */
 html.has-bg-image [data-message-bubble] {
-  background-color: color-mix(in oklch, var(--muted) 85%, transparent);
+  background-color: color-mix(in oklch, var(--muted) 85%, transparent) !important;
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
 /* Settings panel with background */
 html.has-bg-image [data-settings-panel] {
-  background-color: color-mix(in oklch, var(--background) 95%, transparent);
+  background-color: color-mix(in oklch, var(--background) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Settings page container */
+html.has-bg-image [data-settings-page] {
+  background-color: transparent !important;
+}
+
+/* Settings sidebar */
+html.has-bg-image [data-settings-page] > .flex > aside {
+  background-color: color-mix(in oklch, var(--muted) 80%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Settings header */
+html.has-bg-image [data-settings-page] > header {
+  background-color: color-mix(in oklch, var(--background) 90%, transparent) !important;
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
+}
+
+/* Main content area - ensure it's transparent to show background */
+html.has-bg-image main {
+  background-color: transparent !important;
+}
+
+/* Conversation container - ensure transparent for background image */
+html.has-bg-image [data-chat-container] [role='log'] {
+  background: transparent !important;
+}
+
+/* Chat header with background */
+html.has-bg-image [data-chat-container] > header {
+  background-color: color-mix(in oklch, var(--background) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* All headers should be semi-transparent */
+html.has-bg-image header {
+  background-color: color-mix(in oklch, var(--background) 90%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Welcome state container should be transparent */
+html.has-bg-image [data-chat-container] > div:has([class*='welcome']) {
+  background: transparent !important;
+}
+
+/* Flex containers and scroll containers should be transparent */
+html.has-bg-image .flex-1,
+html.has-bg-image .flex-col {
+  background-color: transparent;
+}
+
+/* Override only when explicitly set */
+html.has-bg-image .bg-background:not(header):not([data-sidebar]):not([data-chat-input]) {
+  background-color: color-mix(in oklch, var(--background) 85%, transparent) !important;
+}
+
+/* Dark mode specific adjustments for better readability */
+html.has-bg-image.dark .bg-background:not(header):not([data-sidebar]):not([data-chat-input]) {
+  background-color: color-mix(in oklch, var(--background) 90%, transparent) !important;
+}
+
+/* Ensure cards have proper transparency */
+html.has-bg-image .rounded-xl,
+html.has-bg-image .rounded-2xl {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Page containers with data-page attribute */
+html.has-bg-image [data-page] {
+  background-color: transparent !important;
+}
+
+/* Page headers */
+html.has-bg-image [data-page] > header {
+  background-color: color-mix(in oklch, var(--background) 90%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Page content areas */
+html.has-bg-image [data-page] > .flex-1,
+html.has-bg-image [data-page] > div:not(header) {
+  background-color: transparent !important;
+}
+
+/* Scrollable areas should also be transparent */
+html.has-bg-image [data-radix-scroll-area-viewport] {
+  background-color: transparent !important;
 }
 
 /* Background attachment support */
 html.has-bg-image body::before {
   background-attachment: var(--bg-image-attachment, fixed);
-}
-
-/* Background contrast and grayscale support */
-html.has-bg-image body::before {
-  filter: blur(var(--bg-image-blur, 0px)) 
-          brightness(var(--bg-brightness, 100%)) 
-          saturate(var(--bg-saturation, 100%))
-          contrast(var(--bg-contrast, 100%))
-          grayscale(var(--bg-grayscale, 0%));
 }
 
 /* Background Animations */
@@ -930,13 +1159,19 @@ html.has-bg-image body::before {
 
 @keyframes bg-gradient-shift {
   0% {
-    filter: hue-rotate(0deg) blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%)) saturate(var(--bg-saturation, 100%));
+    filter: hue-rotate(0deg) blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%))
+      saturate(var(--bg-saturation, 100%)) contrast(var(--bg-contrast, 100%))
+      grayscale(var(--bg-grayscale, 0%));
   }
   50% {
-    filter: hue-rotate(30deg) blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%)) saturate(var(--bg-saturation, 100%));
+    filter: hue-rotate(30deg) blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%))
+      saturate(var(--bg-saturation, 100%)) contrast(var(--bg-contrast, 100%))
+      grayscale(var(--bg-grayscale, 0%));
   }
   100% {
-    filter: hue-rotate(0deg) blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%)) saturate(var(--bg-saturation, 100%));
+    filter: hue-rotate(0deg) blur(var(--bg-image-blur, 0px)) brightness(var(--bg-brightness, 100%))
+      saturate(var(--bg-saturation, 100%)) contrast(var(--bg-contrast, 100%))
+      grayscale(var(--bg-grayscale, 0%));
   }
 }
 
@@ -957,18 +1192,61 @@ html.bg-anim-parallax body::before {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   App Shell and Layout Transparency for Background Image
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* App shell container - must be transparent for background to show */
+html.has-bg-image [data-app-shell] {
+  background-color: transparent !important;
+}
+
+/* Body should be transparent when background enabled */
+html.has-bg-image body {
+  background-color: transparent !important;
+}
+
+/* Main element transparency */
+html.has-bg-image main {
+  background-color: transparent !important;
+}
+
+/* All direct children of body that might have background */
+html.has-bg-image body > div {
+  background-color: transparent !important;
+}
+
+/* Title bar with semi-transparent background */
+html.has-bg-image [data-titlebar] {
+  background-color: color-mix(in oklch, var(--background) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Ensure Next.js root div is transparent */
+html.has-bg-image #__next,
+html.has-bg-image [data-nextjs-scroll-focus-boundary] {
+  background-color: transparent !important;
+}
+
+/* Provider wrappers should be transparent */
+html.has-bg-image .flex.h-full.w-full {
+  background-color: transparent !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    Assistant Bubble Window Animations
    ═══════════════════════════════════════════════════════════════════ */
 
 /* Bubble breathing/pulse animation */
 @keyframes bubble-breathe {
-  0%, 100% {
-    box-shadow: 
+  0%,
+  100% {
+    box-shadow:
       0 0 0 0 rgba(139, 92, 246, 0.4),
       0 4px 16px rgba(139, 92, 246, 0.3);
   }
   50% {
-    box-shadow: 
+    box-shadow:
       0 0 0 8px rgba(139, 92, 246, 0),
       0 6px 20px rgba(139, 92, 246, 0.4);
   }
@@ -976,7 +1254,8 @@ html.bg-anim-parallax body::before {
 
 /* Bubble glow effect */
 @keyframes bubble-glow {
-  0%, 100% {
+  0%,
+  100% {
     filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.4));
   }
   50% {
@@ -1013,7 +1292,8 @@ html.bg-anim-parallax body::before {
 
 /* Bubble icon sparkle */
 @keyframes bubble-sparkle {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotate(0deg) scale(1);
   }
   25% {
@@ -1038,7 +1318,8 @@ html.bg-anim-parallax body::before {
   30% {
     transform: scale(1.1);
   }
-  40%, 100% {
+  40%,
+  100% {
     transform: scale(1);
   }
 }

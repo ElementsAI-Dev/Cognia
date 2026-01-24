@@ -62,13 +62,16 @@ export function SidebarRecentFiles({
 
   const recentFiles = useMemo(() => getRecentFiles(limit), [getRecentFiles, limit]);
 
-  const handleFileClick = useCallback((file: RecentFile) => {
-    updateFileUsage(file.id);
-    onFileClick?.(file);
-    if (!onFileClick && file.url) {
-      window.open(file.url, '_blank', 'noreferrer');
-    }
-  }, [onFileClick, updateFileUsage]);
+  const handleFileClick = useCallback(
+    (file: RecentFile) => {
+      updateFileUsage(file.id);
+      onFileClick?.(file);
+      if (!onFileClick && file.url) {
+        window.open(file.url, '_blank', 'noreferrer');
+      }
+    },
+    [onFileClick, updateFileUsage]
+  );
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -113,18 +116,14 @@ export function SidebarRecentFiles({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className={className}>
-      <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-        <span className="flex items-center gap-1.5">
-          <Clock className="h-3 w-3" />
+      <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors group">
+        <span className="flex items-center gap-2">
+          <Clock className="h-4 w-4 text-orange-500" />
           {t('recentFiles') || 'Recent Files'}
         </span>
         <span className="flex items-center gap-1">
           <span className="text-[10px] bg-muted px-1 rounded">{recentFiles.length}</span>
-          {isOpen ? (
-            <ChevronDown className="h-3 w-3" />
-          ) : (
-            <ChevronRight className="h-3 w-3" />
-          )}
+          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </span>
       </CollapsibleTrigger>
       <CollapsibleContent className="px-2 pt-1 pb-2">
@@ -138,14 +137,10 @@ export function SidebarRecentFiles({
               )}
               onClick={() => handleFileClick(file)}
             >
-              <span className={FILE_TYPE_COLORS[file.type]}>
-                {FILE_TYPE_ICONS[file.type]}
-              </span>
+              <span className={FILE_TYPE_COLORS[file.type]}>{FILE_TYPE_ICONS[file.type]}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium truncate">{file.name}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {formatFileSize(file.size)}
-                </p>
+                <p className="text-[10px] text-muted-foreground">{formatFileSize(file.size)}</p>
               </div>
               <Button
                 variant="ghost"

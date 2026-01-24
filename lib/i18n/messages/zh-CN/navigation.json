@@ -40,6 +40,7 @@
     "quickRun": "快速运行",
     "nativeTools": "原生工具",
     "sessionArtifacts": "会话制品",
+    "apps": "应用",
     "usageStats": "用量统计",
     "todayTokens": "今日：{count} 令牌",
     "requests": "请求",
@@ -69,7 +70,17 @@
     "noProjects": "暂无项目",
     "copyLink": "复制链接",
     "linkCopied": "链接已复制！",
-    "observability": "可观测性"
+    "observability": "可观测性",
+    "changeIcon": "更改图标",
+    "removeIcon": "移除图标",
+    "moveToFolder": "移动到文件夹",
+    "removeFromFolder": "移出文件夹",
+    "noFolders": "暂无文件夹",
+    "emptyFolder": "空文件夹",
+    "selectIcon": "选择图标",
+    "searchIcons": "搜索图标...",
+    "noIconsFound": "未找到图标",
+    "uploadImage": "上传图片"
   },
   "mobileNav": {
     "home": "首页",

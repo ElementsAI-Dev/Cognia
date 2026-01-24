@@ -15,6 +15,7 @@ import {
   Palette,
   Monitor,
   Presentation,
+  Zap,
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -103,9 +104,7 @@ export function SidebarQuickActions({
                 <span className={action.color}>{action.icon}</span>
               </Link>
             </TooltipTrigger>
-            <TooltipContent side="right">
-              {t(action.label) || action.label}
-            </TooltipContent>
+            <TooltipContent side="right">{t(action.label) || action.label}</TooltipContent>
           </Tooltip>
         ))}
       </div>
@@ -114,13 +113,17 @@ export function SidebarQuickActions({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className={className}>
-      <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-        <span>{t('quickActions') || 'Quick Actions'}</span>
-        {isOpen ? (
-          <ChevronDown className="h-3 w-3" />
-        ) : (
-          <ChevronRight className="h-3 w-3" />
+      <CollapsibleTrigger
+        className={cn(
+          'flex items-center justify-between w-full px-2 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors',
+          'group'
         )}
+      >
+        <span className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-yellow-500" />
+          <span>{t('quickActions') || 'Quick Actions'}</span>
+        </span>
+        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
       </CollapsibleTrigger>
       <CollapsibleContent className="px-2 pt-1 pb-2">
         <div className="grid grid-cols-2 gap-1.5">
@@ -132,7 +135,7 @@ export function SidebarQuickActions({
                   className={cn(
                     'flex items-center gap-2 px-2.5 py-2 rounded-md',
                     'text-sm text-muted-foreground hover:text-foreground',
-                    'bg-muted/30 hover:bg-accent/50 border border-transparent hover:border-border/50',
+                    'border border-transparent hover:bg-accent/50 hover:border-border/50',
                     'transition-colors'
                   )}
                 >
@@ -140,7 +143,7 @@ export function SidebarQuickActions({
                   <span className="truncate text-xs">{t(action.label) || action.label}</span>
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-[200px]">
+              <TooltipContent side="right" className="max-w-50">
                 <p className="font-medium">{t(action.label) || action.label}</p>
                 {action.description && (
                   <p className="text-xs text-muted-foreground">

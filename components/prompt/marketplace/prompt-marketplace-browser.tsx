@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useTranslations } from 'next-intl';
 import {
   Search,
@@ -30,13 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -45,7 +40,11 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import type { MarketplacePrompt, MarketplaceCategory, MarketplaceSearchFilters } from '@/types/content/prompt-marketplace';
+import type {
+  MarketplacePrompt,
+  MarketplaceCategory,
+  MarketplaceSearchFilters,
+} from '@/types/content/prompt-marketplace';
 import { QUALITY_TIER_INFO } from '@/types/content/prompt-marketplace';
 import { usePromptMarketplaceStore } from '@/stores/prompt/prompt-marketplace-store';
 import { PromptMarketplaceCard } from './prompt-marketplace-card';
@@ -65,20 +64,22 @@ export function PromptMarketplaceBrowser({
   onInstall,
 }: PromptMarketplaceBrowserProps) {
   const t = useTranslations('promptMarketplace');
-  
+
   // Store state
-  const prompts = usePromptMarketplaceStore(state => Object.values(state.prompts));
-  const featuredIds = usePromptMarketplaceStore(state => state.featuredIds);
-  const trendingIds = usePromptMarketplaceStore(state => state.trendingIds);
-  const isLoading = usePromptMarketplaceStore(state => state.isLoading);
-  const installedPrompts = usePromptMarketplaceStore(state => state.userActivity.installed);
-  const favoriteIds = usePromptMarketplaceStore(state => state.userActivity.favorites);
-  const recentlyViewed = usePromptMarketplaceStore(state => state.getRecentlyViewed());
-  const searchPrompts = usePromptMarketplaceStore(state => state.searchPrompts);
-  const fetchFeatured = usePromptMarketplaceStore(state => state.fetchFeatured);
-  const fetchTrending = usePromptMarketplaceStore(state => state.fetchTrending);
-  const initializeSampleData = usePromptMarketplaceStore(state => state.initializeSampleData);
-  const getPromptById = usePromptMarketplaceStore(state => state.getPromptById);
+  const prompts = usePromptMarketplaceStore(useShallow((state) => Object.values(state.prompts)));
+  const featuredIds = usePromptMarketplaceStore((state) => state.featuredIds);
+  const trendingIds = usePromptMarketplaceStore((state) => state.trendingIds);
+  const isLoading = usePromptMarketplaceStore((state) => state.isLoading);
+  const installedPrompts = usePromptMarketplaceStore((state) => state.userActivity.installed);
+  const favoriteIds = usePromptMarketplaceStore((state) => state.userActivity.favorites);
+  const recentlyViewed = usePromptMarketplaceStore(
+    useShallow((state) => state.getRecentlyViewed())
+  );
+  const searchPrompts = usePromptMarketplaceStore((state) => state.searchPrompts);
+  const fetchFeatured = usePromptMarketplaceStore((state) => state.fetchFeatured);
+  const fetchTrending = usePromptMarketplaceStore((state) => state.fetchTrending);
+  const initializeSampleData = usePromptMarketplaceStore((state) => state.initializeSampleData);
+  const getPromptById = usePromptMarketplaceStore((state) => state.getPromptById);
 
   // Local state
   const [activeTab, setActiveTab] = useState<TabValue>(defaultTab);
@@ -112,32 +113,38 @@ export function PromptMarketplaceBrowser({
       category: selectedCategory === 'all' ? undefined : selectedCategory,
       sortBy,
       minRating: minRating > 0 ? minRating : undefined,
-      qualityTier: selectedTiers.length > 0 ? selectedTiers as MarketplaceSearchFilters['qualityTier'] : undefined,
+      qualityTier:
+        selectedTiers.length > 0
+          ? (selectedTiers as MarketplaceSearchFilters['qualityTier'])
+          : undefined,
     };
 
-    searchPrompts(filters).then(result => {
+    searchPrompts(filters).then((result) => {
       setSearchResults(result.prompts);
     });
   }, [searchQuery, selectedCategory, sortBy, minRating, selectedTiers, searchPrompts]);
 
   // Computed lists
-  const featuredPrompts = useMemo(() => 
-    featuredIds.map(id => getPromptById(id)).filter(Boolean) as MarketplacePrompt[],
+  const featuredPrompts = useMemo(
+    () => featuredIds.map((id) => getPromptById(id)).filter(Boolean) as MarketplacePrompt[],
     [featuredIds, getPromptById]
   );
 
-  const trendingPrompts = useMemo(() => 
-    trendingIds.map(id => getPromptById(id)).filter(Boolean) as MarketplacePrompt[],
+  const trendingPrompts = useMemo(
+    () => trendingIds.map((id) => getPromptById(id)).filter(Boolean) as MarketplacePrompt[],
     [trendingIds, getPromptById]
   );
 
-  const installedPromptsList = useMemo(() => 
-    installedPrompts.map(i => getPromptById(i.marketplaceId)).filter(Boolean) as MarketplacePrompt[],
+  const installedPromptsList = useMemo(
+    () =>
+      installedPrompts
+        .map((i) => getPromptById(i.marketplaceId))
+        .filter(Boolean) as MarketplacePrompt[],
     [installedPrompts, getPromptById]
   );
 
-  const favoritePrompts = useMemo(() => 
-    favoriteIds.map(id => getPromptById(id)).filter(Boolean) as MarketplacePrompt[],
+  const favoritePrompts = useMemo(
+    () => favoriteIds.map((id) => getPromptById(id)).filter(Boolean) as MarketplacePrompt[],
     [favoriteIds, getPromptById]
   );
 
@@ -154,8 +161,8 @@ export function PromptMarketplaceBrowser({
   }, []);
 
   const handleTierToggle = (tier: string) => {
-    setSelectedTiers(prev =>
-      prev.includes(tier) ? prev.filter(t => t !== tier) : [...prev, tier]
+    setSelectedTiers((prev) =>
+      prev.includes(tier) ? prev.filter((t) => t !== tier) : [...prev, tier]
     );
   };
 
@@ -167,12 +174,13 @@ export function PromptMarketplaceBrowser({
     setSelectedTiers([]);
   };
 
-  const hasActiveFilters = searchQuery || selectedCategory !== 'all' || minRating > 0 || selectedTiers.length > 0;
+  const hasActiveFilters =
+    searchQuery || selectedCategory !== 'all' || minRating > 0 || selectedTiers.length > 0;
 
   // Category counts
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { all: prompts.length };
-    prompts.forEach(p => {
+    prompts.forEach((p) => {
       counts[p.category] = (counts[p.category] || 0) + 1;
     });
     return counts;
@@ -230,7 +238,10 @@ export function PromptMarketplaceBrowser({
               </div>
 
               {/* Sort */}
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as MarketplaceSearchFilters['sortBy'])}>
+              <Select
+                value={sortBy}
+                onValueChange={(v) => setSortBy(v as MarketplaceSearchFilters['sortBy'])}
+              >
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder={t('sort.placeholder')} />
                 </SelectTrigger>
@@ -267,7 +278,10 @@ export function PromptMarketplaceBrowser({
                             checked={selectedTiers.includes(tier)}
                             onCheckedChange={() => handleTierToggle(tier)}
                           />
-                          <Label htmlFor={`tier-${tier}`} className="flex items-center gap-2 cursor-pointer">
+                          <Label
+                            htmlFor={`tier-${tier}`}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
                             <span>{info.icon}</span>
                             <span>{info.name}</span>
                           </Label>
@@ -279,7 +293,12 @@ export function PromptMarketplaceBrowser({
 
                     {/* Minimum Rating */}
                     <div className="space-y-3">
-                      <Label>{t('filters.minRating')}: {minRating > 0 ? t('filters.minRatingValue', { rating: minRating }) : t('filters.any')}</Label>
+                      <Label>
+                        {t('filters.minRating')}:{' '}
+                        {minRating > 0
+                          ? t('filters.minRatingValue', { rating: minRating })
+                          : t('filters.any')}
+                      </Label>
                       <Slider
                         value={[minRating]}
                         onValueChange={([v]) => setMinRating(v)}
@@ -352,11 +371,15 @@ export function PromptMarketplaceBrowser({
                     <Sparkles className="h-5 w-5 text-yellow-500" />
                     <h3 className="font-semibold">{t('sections.featured')}</h3>
                   </div>
-                  <div className={cn(
-                    'gap-4',
-                    viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'flex flex-col'
-                  )}>
-                    {featuredPrompts.map(prompt => (
+                  <div
+                    className={cn(
+                      'gap-4',
+                      viewMode === 'grid'
+                        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                        : 'flex flex-col'
+                    )}
+                  >
+                    {featuredPrompts.map((prompt) => (
                       <PromptMarketplaceCard
                         key={prompt.id}
                         prompt={prompt}
@@ -376,11 +399,15 @@ export function PromptMarketplaceBrowser({
                     <TrendingUp className="h-5 w-5 text-orange-500" />
                     <h3 className="font-semibold">{t('sections.trending')}</h3>
                   </div>
-                  <div className={cn(
-                    'gap-4',
-                    viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'flex flex-col'
-                  )}>
-                    {trendingPrompts.slice(0, 6).map(prompt => (
+                  <div
+                    className={cn(
+                      'gap-4',
+                      viewMode === 'grid'
+                        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                        : 'flex flex-col'
+                    )}
+                  >
+                    {trendingPrompts.slice(0, 6).map((prompt) => (
                       <PromptMarketplaceCard
                         key={prompt.id}
                         prompt={prompt}
@@ -406,20 +433,28 @@ export function PromptMarketplaceBrowser({
                 </div>
 
                 {isLoading ? (
-                  <div className={cn(
-                    'gap-4',
-                    viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'flex flex-col'
-                  )}>
-                    {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div
+                    className={cn(
+                      'gap-4',
+                      viewMode === 'grid'
+                        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                        : 'flex flex-col'
+                    )}
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
                       <Skeleton key={i} className="h-48 rounded-lg" />
                     ))}
                   </div>
                 ) : displayPrompts.length > 0 ? (
-                  <div className={cn(
-                    'gap-4',
-                    viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'flex flex-col'
-                  )}>
-                    {displayPrompts.map(prompt => (
+                  <div
+                    className={cn(
+                      'gap-4',
+                      viewMode === 'grid'
+                        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                        : 'flex flex-col'
+                    )}
+                  >
+                    {displayPrompts.map((prompt) => (
                       <PromptMarketplaceCard
                         key={prompt.id}
                         prompt={prompt}
@@ -452,11 +487,15 @@ export function PromptMarketplaceBrowser({
                 <Badge variant="secondary">{installedPromptsList.length}</Badge>
               </div>
               {installedPromptsList.length > 0 ? (
-                <div className={cn(
-                  'gap-4',
-                  viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'flex flex-col'
-                )}>
-                  {installedPromptsList.map(prompt => (
+                <div
+                  className={cn(
+                    'gap-4',
+                    viewMode === 'grid'
+                      ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                      : 'flex flex-col'
+                  )}
+                >
+                  {installedPromptsList.map((prompt) => (
                     <PromptMarketplaceCard
                       key={prompt.id}
                       prompt={prompt}
@@ -485,11 +524,15 @@ export function PromptMarketplaceBrowser({
                 <Badge variant="secondary">{favoritePrompts.length}</Badge>
               </div>
               {favoritePrompts.length > 0 ? (
-                <div className={cn(
-                  'gap-4',
-                  viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'flex flex-col'
-                )}>
-                  {favoritePrompts.map(prompt => (
+                <div
+                  className={cn(
+                    'gap-4',
+                    viewMode === 'grid'
+                      ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                      : 'flex flex-col'
+                  )}
+                >
+                  {favoritePrompts.map((prompt) => (
                     <PromptMarketplaceCard
                       key={prompt.id}
                       prompt={prompt}
@@ -519,11 +562,15 @@ export function PromptMarketplaceBrowser({
                 <Badge variant="secondary">{recentlyViewed.length}</Badge>
               </div>
               {recentlyViewed.length > 0 ? (
-                <div className={cn(
-                  'gap-4',
-                  viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'flex flex-col'
-                )}>
-                  {recentlyViewed.map(prompt => (
+                <div
+                  className={cn(
+                    'gap-4',
+                    viewMode === 'grid'
+                      ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                      : 'flex flex-col'
+                  )}
+                >
+                  {recentlyViewed.map((prompt) => (
                     <PromptMarketplaceCard
                       key={prompt.id}
                       prompt={prompt}

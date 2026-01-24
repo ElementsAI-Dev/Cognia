@@ -12,15 +12,13 @@ import type { Language } from '@/stores/settings';
 
 export function LocaleInitializer() {
   const initializedRef = useRef(false);
-  
-  const {
-    language,
-    autoDetectLocale: autoDetectEnabled,
-    hasCompletedOnboarding,
-    setLanguage,
-    setLocaleDetectionResult,
-    setDetectedTimezone,
-  } = useSettingsStore();
+
+  const language = useSettingsStore((state) => state.language);
+  const autoDetectEnabled = useSettingsStore((state) => state.autoDetectLocale);
+  const hasCompletedOnboarding = useSettingsStore((state) => state.hasCompletedOnboarding);
+  const setLanguage = useSettingsStore((state) => state.setLanguage);
+  const setLocaleDetectionResult = useSettingsStore((state) => state.setLocaleDetectionResult);
+  const setDetectedTimezone = useSettingsStore((state) => state.setDetectedTimezone);
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -34,7 +32,7 @@ export function LocaleInitializer() {
       // Only auto-detect locale if enabled and user hasn't completed onboarding
       // (meaning they haven't manually set a language yet)
       if (!autoDetectEnabled) return;
-      
+
       // Skip if language was manually set (not during first run)
       if (hasCompletedOnboarding && language !== 'en') return;
 
@@ -57,7 +55,14 @@ export function LocaleInitializer() {
     // Run with a small delay to ensure hydration is complete
     const timer = setTimeout(initLocale, 100);
     return () => clearTimeout(timer);
-  }, [autoDetectEnabled, hasCompletedOnboarding, language, setLanguage, setLocaleDetectionResult, setDetectedTimezone]);
+  }, [
+    autoDetectEnabled,
+    hasCompletedOnboarding,
+    language,
+    setLanguage,
+    setLocaleDetectionResult,
+    setDetectedTimezone,
+  ]);
 
   return null;
 }

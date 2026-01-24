@@ -42,6 +42,7 @@
     "quickRun": "Quick Run",
     "nativeTools": "Native Tools",
     "sessionArtifacts": "Session Artifacts",
+    "apps": "Apps",
     "usageStats": "Usage Stats",
     "todayTokens": "Today: {count} tokens",
     "requests": "requests",
@@ -68,7 +69,17 @@
     "manageProjects": "Manage Projects",
     "moveToProject": "Move to Project",
     "removeFromProject": "Remove from project",
-    "noProjects": "No projects"
+    "noProjects": "No projects",
+    "changeIcon": "Change Icon",
+    "removeIcon": "Remove Icon",
+    "moveToFolder": "Move to Folder",
+    "removeFromFolder": "Remove from Folder",
+    "noFolders": "No folders",
+    "emptyFolder": "Empty folder",
+    "selectIcon": "Select Icon",
+    "searchIcons": "Search icons...",
+    "noIconsFound": "No icons found",
+    "uploadImage": "Upload Image"
   },
   "mobileNav": {
     "home": "Home",

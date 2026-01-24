@@ -97,7 +97,7 @@
     "responseStyleHint": "Specify preferred format, detail level, or style.",
     "responseStylePlaceholder": "e.g., Be direct. Use bullet points. Include code examples.",
     "advancedInstructions": "Advanced Instructions",
-    "advancedInstructionsDesc": "Additional system-level instructions",
+    "advancedInstructionsHint": "Additional system-level instructions",
     "advancedPlaceholder": "Enter additional instructions for the AI...",
     "preview": "Preview",
     "previewUser": "[User]:",

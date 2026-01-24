@@ -7,3 +7,4 @@ export * from './tools';
 export * from './appearance';
 export * from './chat';
 export * from './welcome';
+export * from './layout';

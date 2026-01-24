@@ -97,7 +97,7 @@
     "responseStyleHint": "指定偏好的格式、详细程度或风格。",
     "responseStylePlaceholder": "例如：直接回答。使用要点。包含代码示例。",
     "advancedInstructions": "高级指令",
-    "advancedInstructionsDesc": "额外的系统级指令",
+    "advancedInstructionsHint": "额外的系统级指令",
     "advancedPlaceholder": "输入额外的 AI 指令...",
     "preview": "预览",
     "previewUser": "[用户]：",

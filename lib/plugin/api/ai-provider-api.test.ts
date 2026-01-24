@@ -49,8 +49,15 @@ describe('AI Provider API', () => {
       const provider: AIProviderDefinition = {
         id: 'custom-provider',
         name: 'Custom Provider',
+        description: 'Test provider description',
         models: [
-          { id: 'custom-model', name: 'Custom Model', contextWindow: 4096 },
+          { 
+            id: 'custom-model', 
+            name: 'Custom Model', 
+            provider: 'custom-provider',
+            contextLength: 4096,
+            capabilities: ['chat']
+          },
         ],
         chat: async function* () {
           yield { content: 'test' };
@@ -72,6 +79,7 @@ describe('AI Provider API', () => {
       const provider: AIProviderDefinition = {
         id: 'my-provider',
         name: 'My Provider',
+        description: 'Test provider',
         models: [],
         chat: async function* () {
           yield { content: 'test' };
@@ -90,6 +98,7 @@ describe('AI Provider API', () => {
       const provider: AIProviderDefinition = {
         id: 'temp-provider',
         name: 'Temp Provider',
+        description: 'Temp provider',
         models: [],
         chat: async function* () {
           yield { content: 'test' };
@@ -111,9 +120,10 @@ describe('AI Provider API', () => {
       const provider: AIProviderDefinition = {
         id: 'provider-1',
         name: 'Provider 1',
+        description: 'Provider 1 description',
         models: [
-          { id: 'model-a', name: 'Model A', contextWindow: 4096 },
-          { id: 'model-b', name: 'Model B', contextWindow: 8192 },
+          { id: 'model-a', name: 'Model A', provider: 'provider-1', contextLength: 4096, capabilities: ['chat'] },
+          { id: 'model-b', name: 'Model B', provider: 'provider-1', contextLength: 8192, capabilities: ['chat'] },
         ],
         chat: async function* () {
           yield { content: 'test' };
@@ -143,8 +153,9 @@ describe('AI Provider API', () => {
       const provider: AIProviderDefinition = {
         id: 'specific-provider',
         name: 'Specific Provider',
+        description: 'Specific provider description',
         models: [
-          { id: 'specific-model', name: 'Specific Model', contextWindow: 4096 },
+          { id: 'specific-model', name: 'Specific Model', provider: 'specific-provider', contextLength: 4096, capabilities: ['chat'] },
         ],
         chat: async function* () {
           yield { content: 'test' };
@@ -189,8 +200,9 @@ describe('AI Provider API', () => {
       const provider: AIProviderDefinition = {
         id: 'chat-provider',
         name: 'Chat Provider',
+        description: 'Chat provider description',
         models: [
-          { id: 'chat-model', name: 'Chat Model', contextWindow: 4096 },
+          { id: 'chat-model', name: 'Chat Model', provider: 'chat-provider', contextLength: 4096, capabilities: ['chat'] },
         ],
         chat: async function* () {
           yield { content: 'Hello from custom provider!' };
@@ -232,6 +244,7 @@ describe('AI Provider API', () => {
       const provider: AIProviderDefinition = {
         id: 'embed-provider',
         name: 'Embed Provider',
+        description: 'Embed provider description',
         models: [],
         chat: async function* () {
           yield { content: 'test' };
@@ -275,7 +288,11 @@ describe('AI Provider API', () => {
       const provider1: AIProviderDefinition = {
         id: 'provider-1',
         name: 'Provider 1',
-        models: [],
+        description: 'Provider 1 description',
+        models: [
+          { id: 'model-a', name: 'Model A', provider: 'provider-1', contextLength: 4096, capabilities: ['chat'] },
+          { id: 'model-b', name: 'Model B', provider: 'provider-1', contextLength: 8192, capabilities: ['chat'] },
+        ],
         chat: async function* () {
           yield { content: 'test' };
         },
@@ -284,6 +301,7 @@ describe('AI Provider API', () => {
       const provider2: AIProviderDefinition = {
         id: 'provider-2',
         name: 'Provider 2',
+        description: 'Provider 2',
         models: [],
         chat: async function* () {
           yield { content: 'test' };

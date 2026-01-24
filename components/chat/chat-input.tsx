@@ -2,7 +2,7 @@
 
 /**
  * ChatInput - Enhanced message input with voice, attachments, drag-drop, and MCP tool mentions
- * 
+ *
  * Features:
  * - @ mention support for MCP tools, resources, and prompts
  * - Voice input (speech recognition)
@@ -40,41 +40,52 @@ import { PromptTemplateSelector } from '@/components/prompt';
 function getCaretCoordinates(textarea: HTMLTextAreaElement): DOMRect | null {
   const { selectionStart } = textarea;
   if (selectionStart === null) return null;
-  
+
   const mirror = document.createElement('div');
   const computed = window.getComputedStyle(textarea);
-  
+
   const styles = [
-    'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
-    'letterSpacing', 'textTransform', 'wordSpacing', 'textIndent',
-    'whiteSpace', 'wordWrap', 'lineHeight', 'padding', 'border', 'boxSizing'
+    'fontFamily',
+    'fontSize',
+    'fontWeight',
+    'fontStyle',
+    'letterSpacing',
+    'textTransform',
+    'wordSpacing',
+    'textIndent',
+    'whiteSpace',
+    'wordWrap',
+    'lineHeight',
+    'padding',
+    'border',
+    'boxSizing',
   ] as const;
-  
+
   mirror.style.position = 'absolute';
   mirror.style.visibility = 'hidden';
   mirror.style.overflow = 'hidden';
   mirror.style.width = computed.width;
-  
+
   styles.forEach((style) => {
     (mirror.style as unknown as Record<string, string>)[style] = computed.getPropertyValue(
       style.replace(/([A-Z])/g, '-$1').toLowerCase()
     );
   });
-  
+
   const textBeforeCursor = textarea.value.substring(0, selectionStart);
   mirror.textContent = textBeforeCursor;
-  
+
   const marker = document.createElement('span');
   marker.textContent = '|';
   mirror.appendChild(marker);
-  
+
   document.body.appendChild(mirror);
-  
+
   const textareaRect = textarea.getBoundingClientRect();
   const markerRect = marker.getBoundingClientRect();
-  
+
   document.body.removeChild(mirror);
-  
+
   return new DOMRect(
     textareaRect.left + markerRect.left - mirror.getBoundingClientRect().left,
     textareaRect.top + markerRect.top - mirror.getBoundingClientRect().top,
@@ -145,8 +156,8 @@ interface SpeechRecognitionErrorEvent extends Event {
 
 declare global {
   interface Window {
-    SpeechRecognition: { new(): SpeechRecognition };
-    webkitSpeechRecognition: { new(): SpeechRecognition };
+    SpeechRecognition: { new (): SpeechRecognition };
+    webkitSpeechRecognition: { new (): SpeechRecognition };
   }
 }
 
@@ -233,10 +244,10 @@ export function ChatInput({
   const allRecentFiles = useRecentFilesStore((state) => state.recentFiles);
   const initializePromptTemplates = usePromptTemplateStore((state) => state.initializeDefaults);
   const recordTemplateUsage = usePromptTemplateStore((state) => state.recordUsage);
-  
+
   // Mention popover positioning
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
-  
+
   // MCP Mention system
   const {
     mentionState,
@@ -249,12 +260,13 @@ export function ChatInput({
   } = useMention({
     onMentionsChange,
   });
-  
+
   // Memoize recent files to avoid unnecessary re-renders
-  const recentFiles = useMemo(() => 
-    [...allRecentFiles]
-      .sort((a, b) => new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime())
-      .slice(0, 10),
+  const recentFiles = useMemo(
+    () =>
+      [...allRecentFiles]
+        .sort((a, b) => new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime())
+        .slice(0, 10),
     [allRecentFiles]
   );
 
@@ -293,14 +305,18 @@ export function ChatInput({
     },
     onAutoSend: (text) => {
       if (text.trim() && canSend) {
-        onSubmit(text, attachments.length > 0 ? attachments : undefined, parseToolCalls(text).length > 0 ? parseToolCalls(text) : undefined);
+        onSubmit(
+          text,
+          attachments.length > 0 ? attachments : undefined,
+          parseToolCalls(text).length > 0 ? parseToolCalls(text) : undefined
+        );
         onChange('');
         setAttachments([]);
         resetTranscript();
       }
     },
   });
-  
+
   // State for Whisper transcription loading
   const [isTranscribing, setIsTranscribing] = useState(false);
 
@@ -311,23 +327,29 @@ export function ChatInput({
   const canSend = (value.trim().length > 0 || attachments.length > 0) && !isProcessing && !disabled;
 
   // Handle input change with mention detection
-  const handleInputChange = useCallback((newValue: string) => {
-    onChange(newValue);
-    const textarea = textareaRef.current;
-    if (textarea) {
-      const pos = textarea.selectionStart || 0;
-      handleTextChange(newValue, pos);
-    }
-  }, [onChange, handleTextChange]);
+  const handleInputChange = useCallback(
+    (newValue: string) => {
+      onChange(newValue);
+      const textarea = textareaRef.current;
+      if (textarea) {
+        const pos = textarea.selectionStart || 0;
+        handleTextChange(newValue, pos);
+      }
+    },
+    [onChange, handleTextChange]
+  );
 
-  const handleTemplateSelect = useCallback((template: import('@/types/content/prompt-template').PromptTemplate) => {
-    const insertion = template.content;
-    const nextValue = value ? `${value}\n\n${insertion}` : insertion;
-    onChange(nextValue);
-    recordTemplateUsage(template.id);
-    setTemplateSelectorOpen(false);
-    requestAnimationFrame(() => textareaRef.current?.focus());
-  }, [onChange, recordTemplateUsage, value]);
+  const handleTemplateSelect = useCallback(
+    (template: import('@/types/content/prompt-template').PromptTemplate) => {
+      const insertion = template.content;
+      const nextValue = value ? `${value}\n\n${insertion}` : insertion;
+      onChange(nextValue);
+      recordTemplateUsage(template.id);
+      setTemplateSelectorOpen(false);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [onChange, recordTemplateUsage, value]
+  );
 
   // Handle cursor position changes for mention popover
   const handleSelectionChange = useCallback(() => {
@@ -335,7 +357,7 @@ export function ChatInput({
     if (textarea) {
       const pos = textarea.selectionStart || 0;
       handleTextChange(value, pos);
-      
+
       if (mentionState.isOpen) {
         const rect = getCaretCoordinates(textarea);
         setAnchorRect(rect);
@@ -344,18 +366,21 @@ export function ChatInput({
   }, [value, handleTextChange, mentionState.isOpen]);
 
   // Handle mention selection from popover
-  const handleMentionSelect = useCallback((item: MentionItem) => {
-    const { newText, newCursorPosition } = selectMention(item);
-    onChange(newText);
-    
-    requestAnimationFrame(() => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        textarea.setSelectionRange(newCursorPosition, newCursorPosition);
-        textarea.focus();
-      }
-    });
-  }, [selectMention, onChange]);
+  const handleMentionSelect = useCallback(
+    (item: MentionItem) => {
+      const { newText, newCursorPosition } = selectMention(item);
+      onChange(newText);
+
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+          textarea.focus();
+        }
+      });
+    },
+    [selectMention, onChange]
+  );
 
   // Track selection changes for mention popover positioning
   useEffect(() => {
@@ -373,7 +398,7 @@ export function ChatInput({
   // Store refs for speech recognition callbacks
   const valueRef = useRef(value);
   const onChangeRef = useRef(onChange);
-  
+
   // Keep refs updated
   useEffect(() => {
     valueRef.current = value;
@@ -383,14 +408,14 @@ export function ChatInput({
   // Handle Whisper transcription when audio blob is available
   useEffect(() => {
     if (!audioBlob || speechProvider !== 'openai') return;
-    
+
     const transcribe = async () => {
       setIsTranscribing(true);
       try {
         const result = await transcribeViaApi(audioBlob, {
           language: speechLanguage,
         });
-        
+
         if (result.success && result.text) {
           const currentValue = valueRef.current;
           onChangeRef.current(currentValue + (currentValue ? ' ' : '') + result.text);
@@ -404,28 +429,31 @@ export function ChatInput({
         resetTranscript();
       }
     };
-    
+
     transcribe();
   }, [audioBlob, speechProvider, speechLanguage, resetTranscript]);
 
   // Validate file
-  const validateFile = useCallback((file: File): string | null => {
-    if (file.size > uploadSettings.maxFileSize) {
-      return `File "${file.name}" exceeds maximum size of ${formatFileSize(uploadSettings.maxFileSize)}`;
-    }
-    if (!uploadSettings.allowedTypes.includes('*/*')) {
-      const isAllowed = uploadSettings.allowedTypes.some((type) => {
-        if (type.endsWith('/*')) {
-          return file.type.startsWith(type.slice(0, -1));
-        }
-        return file.type === type;
-      });
-      if (!isAllowed) {
-        return `File type "${file.type}" is not allowed`;
+  const validateFile = useCallback(
+    (file: File): string | null => {
+      if (file.size > uploadSettings.maxFileSize) {
+        return `File "${file.name}" exceeds maximum size of ${formatFileSize(uploadSettings.maxFileSize)}`;
       }
-    }
-    return null;
-  }, [uploadSettings]);
+      if (!uploadSettings.allowedTypes.includes('*/*')) {
+        const isAllowed = uploadSettings.allowedTypes.some((type) => {
+          if (type.endsWith('/*')) {
+            return file.type.startsWith(type.slice(0, -1));
+          }
+          return file.type === type;
+        });
+        if (!isAllowed) {
+          return `File type "${file.type}" is not allowed`;
+        }
+      }
+      return null;
+    },
+    [uploadSettings]
+  );
 
   // Use ref for attachments length to avoid recreating addFiles on every change
   const attachmentsLengthRef = useRef(attachments.length);
@@ -434,54 +462,64 @@ export function ChatInput({
   }, [attachments.length]);
 
   // Add files - use ref for attachments.length to keep callback stable
-  const addFiles = useCallback((files: FileList | File[]) => {
-    const fileArray = Array.from(files);
-    const remainingSlots = uploadSettings.maxFiles - attachmentsLengthRef.current;
+  const addFiles = useCallback(
+    (files: FileList | File[]) => {
+      const fileArray = Array.from(files);
+      const remainingSlots = uploadSettings.maxFiles - attachmentsLengthRef.current;
 
-    if (fileArray.length > remainingSlots) {
-      setUploadError(`Can only add ${remainingSlots} more files. Maximum is ${uploadSettings.maxFiles}.`);
-      return;
-    }
-
-    const newAttachments: Attachment[] = [];
-    for (const file of fileArray) {
-      const error = validateFile(file);
-      if (error) {
-        setUploadError(error);
-        continue;
+      if (fileArray.length > remainingSlots) {
+        setUploadError(
+          `Can only add ${remainingSlots} more files. Maximum is ${uploadSettings.maxFiles}.`
+        );
+        return;
       }
 
-      const attachment: Attachment = {
-        id: nanoid(),
-        name: file.name,
-        type: getFileType(file.type),
-        url: URL.createObjectURL(file),
-        size: file.size,
-        mimeType: file.type,
-        file,
-      };
-      newAttachments.push(attachment);
+      const newAttachments: Attachment[] = [];
+      for (const file of fileArray) {
+        const error = validateFile(file);
+        if (error) {
+          setUploadError(error);
+          continue;
+        }
 
-      // Track in recent files with proper type
-      const fileType = getFileType(file.type);
-      const recentFileType = fileType === 'image' ? 'image' : 
-                             fileType === 'audio' ? 'audio' : 
-                             fileType === 'video' ? 'video' : 'file';
-      addRecentFile({
-        name: file.name,
-        path: file.name,
-        type: recentFileType,
-        mimeType: file.type,
-        size: file.size,
-        url: attachment.url,
-      });
-    }
+        const attachment: Attachment = {
+          id: nanoid(),
+          name: file.name,
+          type: getFileType(file.type),
+          url: URL.createObjectURL(file),
+          size: file.size,
+          mimeType: file.type,
+          file,
+        };
+        newAttachments.push(attachment);
 
-    if (newAttachments.length > 0) {
-      setAttachments((prev) => [...prev, ...newAttachments]);
-      setUploadError(null);
-    }
-  }, [uploadSettings.maxFiles, validateFile, addRecentFile]);
+        // Track in recent files with proper type
+        const fileType = getFileType(file.type);
+        const recentFileType =
+          fileType === 'image'
+            ? 'image'
+            : fileType === 'audio'
+              ? 'audio'
+              : fileType === 'video'
+                ? 'video'
+                : 'file';
+        addRecentFile({
+          name: file.name,
+          path: file.name,
+          type: recentFileType,
+          mimeType: file.type,
+          size: file.size,
+          url: attachment.url,
+        });
+      }
+
+      if (newAttachments.length > 0) {
+        setAttachments((prev) => [...prev, ...newAttachments]);
+        setUploadError(null);
+      }
+    },
+    [uploadSettings.maxFiles, validateFile, addRecentFile]
+  );
 
   // Cleanup URL objects on unmount to prevent memory leaks
   useEffect(() => {
@@ -526,16 +564,19 @@ export function ChatInput({
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
 
-    const { files } = e.dataTransfer;
-    if (files?.length) {
-      addFiles(files);
-    }
-  }, [addFiles]);
+      const { files } = e.dataTransfer;
+      if (files?.length) {
+        addFiles(files);
+      }
+    },
+    [addFiles]
+  );
 
   // Global drag-drop
   useEffect(() => {
@@ -572,29 +613,36 @@ export function ChatInput({
   }, [addFiles]);
 
   // Handle paste
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
 
-    const files: File[] = [];
-    for (const item of items) {
-      if (item.kind === 'file') {
-        const file = item.getAsFile();
-        if (file) files.push(file);
+      const files: File[] = [];
+      for (const item of items) {
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
       }
-    }
 
-    if (files.length > 0) {
-      e.preventDefault();
-      addFiles(files);
-    }
-  }, [addFiles]);
+      if (files.length > 0) {
+        e.preventDefault();
+        addFiles(files);
+      }
+    },
+    [addFiles]
+  );
 
   const handleSubmit = useCallback(() => {
     if (!canSend) return;
     // Parse tool calls from the message
     const toolCalls = parseToolCalls(value);
-    onSubmit(value, attachments.length > 0 ? attachments : undefined, toolCalls.length > 0 ? toolCalls : undefined);
+    onSubmit(
+      value,
+      attachments.length > 0 ? attachments : undefined,
+      toolCalls.length > 0 ? toolCalls : undefined
+    );
     onChange('');
     setAttachments([]);
     textareaRef.current?.focus();
@@ -608,7 +656,7 @@ export function ChatInput({
         return;
       }
     }
-    
+
     if (e.key === 'Enter' && !e.shiftKey && sendOnEnter && !mentionState.isOpen) {
       e.preventDefault();
       handleSubmit();
@@ -657,62 +705,68 @@ export function ChatInput({
     >
       <DragOverlay isDragging={isDragging} label={t('dropFilesHere')} />
 
-      <div className="relative mx-auto max-w-3xl">
-          <AttachmentsPreview
-            attachments={attachments}
-            onRemove={removeAttachment}
-            onPreview={setPreviewAttachment}
-            removeLabel={t('removeAttachment')}
-          />
+      <div className="relative mx-auto max-w-5xl">
+        <AttachmentsPreview
+          attachments={attachments}
+          onRemove={removeAttachment}
+          onPreview={setPreviewAttachment}
+          removeLabel={t('removeAttachment')}
+        />
 
-          {uploadError && (
-            <UploadErrorAlert
-              message={uploadError}
-              onDismiss={() => setUploadError(null)}
-              dismissLabel={t('dismiss')}
-            />
+        {uploadError && (
+          <UploadErrorAlert
+            message={uploadError}
+            onDismiss={() => setUploadError(null)}
+            dismissLabel={t('dismiss')}
+          />
+        )}
+
+        <div
+          ref={inputContainerRef}
+          className="relative flex items-end gap-2 rounded-2xl border border-input/50 bg-card p-2 shadow-md focus-within:shadow-lg focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-ring/10 transition-all duration-200"
+        >
+          {/* Mention Popover */}
+          <MentionPopover
+            open={mentionState.isOpen}
+            onClose={closeMention}
+            onSelect={handleMentionSelect}
+            groupedMentions={groupedMentions}
+            query={mentionState.query}
+            anchorRect={anchorRect}
+            containerRef={inputContainerRef}
+          />
+          {/* Attachment button - hidden in simplified mode when hideAttachmentButton is set */}
+          {!(isSimplifiedMode && simplifiedModeSettings.hideAttachmentButton) && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  disabled={isProcessing || disabled}
+                  onClick={openFileDialog}
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t('attachFile', { current: attachments.length, max: uploadSettings.maxFiles })}
+              </TooltipContent>
+            </Tooltip>
           )}
 
-          <div ref={inputContainerRef} className="relative flex items-end gap-2 rounded-2xl border border-input/50 bg-card p-2 shadow-md focus-within:shadow-lg focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-ring/10 transition-all duration-200">
-            {/* Mention Popover */}
-            <MentionPopover
-              open={mentionState.isOpen}
-              onClose={closeMention}
-              onSelect={handleMentionSelect}
-              groupedMentions={groupedMentions}
-              query={mentionState.query}
-              anchorRect={anchorRect}
-              containerRef={inputContainerRef}
-            />
-            {/* Attachment button - hidden in simplified mode when hideAttachmentButton is set */}
-            {!(isSimplifiedMode && simplifiedModeSettings.hideAttachmentButton) && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    disabled={isProcessing || disabled}
-                    onClick={openFileDialog}
-                  >
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {t('attachFile', { current: attachments.length, max: uploadSettings.maxFiles })}
-                </TooltipContent>
-              </Tooltip>
-            )}
-
-            {/* Recent files button - hidden in simplified mode when hideAttachmentButton is set */}
-            {showRecentFiles && recentFiles.length > 0 && !(isSimplifiedMode && simplifiedModeSettings.hideAttachmentButton) && (
+          {/* Recent files button - hidden in simplified mode when hideAttachmentButton is set */}
+          {showRecentFiles &&
+            recentFiles.length > 0 &&
+            !(isSimplifiedMode && simplifiedModeSettings.hideAttachmentButton) && (
               <RecentFilesPopover
                 onSelectFile={(file: RecentFile) => {
                   // Create attachment from recent file
                   const attachment: Attachment = {
                     id: nanoid(),
                     name: file.name,
-                    type: file.type === 'image' ? 'image' : file.type === 'document' ? 'file' : 'file',
+                    type:
+                      file.type === 'image' ? 'image' : file.type === 'document' ? 'file' : 'file',
                     url: file.url || '',
                     size: file.size,
                     mimeType: file.mimeType,
@@ -723,81 +777,83 @@ export function ChatInput({
               />
             )}
 
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              className="hidden"
-              aria-label={t('selectFiles')}
-              onChange={(e) => {
-                if (e.target.files) {
-                  addFiles(e.target.files);
-                  e.target.value = '';
-                }
-              }}
-            />
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            aria-label={t('selectFiles')}
+            onChange={(e) => {
+              if (e.target.files) {
+                addFiles(e.target.files);
+                e.target.value = '';
+              }
+            }}
+          />
 
-            {/* Voice input button */}
-            {speechSupported && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      'h-8 w-8 shrink-0 transition-colors relative',
-                      (isListening || isRecording) && 'bg-red-500/20 text-red-500 animate-pulse',
-                      isTranscribing && 'bg-blue-500/20 text-blue-500'
-                    )}
-                    disabled={isProcessing || disabled || isTranscribing}
-                    onClick={toggleVoice}
-                  >
-                    <Mic className="h-4 w-4" />
-                    {/* Recording duration indicator */}
-                    {isRecording && recordingDuration > 0 && (
-                      <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1 min-w-[20px] text-center">
-                        {formatDuration(recordingDuration)}
-                      </span>
-                    )}
-                    {/* Language indicator */}
-                    {(isListening || isRecording) && (
-                      <span className="absolute -bottom-1 -right-1 text-[10px]">
-                        {getLanguageFlag(speechLanguage)}
-                      </span>
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isTranscribing 
-                    ? t('processing')
-                    : isListening || isRecording 
-                    ? t('stopListening') 
+          {/* Voice input button */}
+          {speechSupported && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'h-8 w-8 shrink-0 transition-colors relative',
+                    (isListening || isRecording) && 'bg-red-500/20 text-red-500 animate-pulse',
+                    isTranscribing && 'bg-blue-500/20 text-blue-500'
+                  )}
+                  disabled={isProcessing || disabled || isTranscribing}
+                  onClick={toggleVoice}
+                >
+                  <Mic className="h-4 w-4" />
+                  {/* Recording duration indicator */}
+                  {isRecording && recordingDuration > 0 && (
+                    <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1 min-w-5 text-center">
+                      {formatDuration(recordingDuration)}
+                    </span>
+                  )}
+                  {/* Language indicator */}
+                  {(isListening || isRecording) && (
+                    <span className="absolute -bottom-1 -right-1 text-[10px]">
+                      {getLanguageFlag(speechLanguage)}
+                    </span>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isTranscribing
+                  ? t('processing')
+                  : isListening || isRecording
+                    ? t('stopListening')
                     : t('voiceInput')}
-                </TooltipContent>
-              </Tooltip>
-            )}
+              </TooltipContent>
+            </Tooltip>
+          )}
 
-            {/* Prompt template picker - hidden in simplified mode when hideAdvancedInputControls is set */}
-            {!(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    disabled={isProcessing || disabled}
-                    onClick={() => setTemplateSelectorOpen(true)}
-                  >
-                    <FileText className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('insertTemplate')}</TooltipContent>
-              </Tooltip>
-            )}
+          {/* Prompt template picker - hidden in simplified mode when hideAdvancedInputControls is set */}
+          {!(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  disabled={isProcessing || disabled}
+                  onClick={() => setTemplateSelectorOpen(true)}
+                >
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('insertTemplate')}</TooltipContent>
+            </Tooltip>
+          )}
 
-            {/* Prompt optimizer button - hidden in simplified mode when hideAdvancedInputControls is set */}
-            {onOptimizePrompt && value.trim() && !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
+          {/* Prompt optimizer button - hidden in simplified mode when hideAdvancedInputControls is set */}
+          {onOptimizePrompt &&
+            value.trim() &&
+            !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -810,14 +866,13 @@ export function ChatInput({
                     <Wand2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  {t('optimizePrompt')}
-                </TooltipContent>
+                <TooltipContent>{t('optimizePrompt')}</TooltipContent>
               </Tooltip>
             )}
 
-            {/* MCP Tools button - hidden in simplified mode when hideAdvancedInputControls is set */}
-            {isMcpAvailable && !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
+          {/* MCP Tools button - hidden in simplified mode when hideAdvancedInputControls is set */}
+          {isMcpAvailable &&
+            !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -841,14 +896,13 @@ export function ChatInput({
                     <Zap className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  {t('useMcpTools')}
-                </TooltipContent>
+                <TooltipContent>{t('useMcpTools')}</TooltipContent>
               </Tooltip>
             )}
 
-            {/* Tool History button - hidden in simplified mode when hideAdvancedInputControls is set */}
-            {isMcpAvailable && !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
+          {/* Tool History button - hidden in simplified mode when hideAdvancedInputControls is set */}
+          {isMcpAvailable &&
+            !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
               <ToolHistoryPanel
                 asPopover
                 trigger={
@@ -863,9 +917,7 @@ export function ChatInput({
                         <History className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      {t('toolHistory')}
-                    </TooltipContent>
+                    <TooltipContent>{t('toolHistory')}</TooltipContent>
                   </Tooltip>
                 }
                 onInsertPrompt={(prompt) => {
@@ -874,119 +926,120 @@ export function ChatInput({
                 }}
                 onSelectTool={(toolId, prompt) => {
                   const toolParts = toolId.split(':');
-                  const mention = toolParts.length >= 3 
-                    ? `@${toolParts[1]}:${toolParts[2]}` 
-                    : `@${toolId}`;
+                  const mention =
+                    toolParts.length >= 3 ? `@${toolParts[1]}:${toolParts[2]}` : `@${toolId}`;
                   onChange(value ? `${value}\n${mention} ${prompt}` : `${mention} ${prompt}`);
                   textareaRef.current?.focus();
                 }}
               />
             )}
 
-            {/* Textarea */}
-            <TextareaAutosize
-              ref={textareaRef}
-              value={value}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder={isListening ? tPlaceholders('listening') : (isMcpAvailable ? tPlaceholders('typeToMention') : tPlaceholders('typeMessage'))}
-              className={cn(
-                'flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground',
-                'max-h-[200px] min-h-[24px] py-1'
-              )}
-              maxRows={8}
-              disabled={isProcessing || disabled}
-            />
-
-            {/* Send/Stop button */}
-            {isProcessing ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={handleStop}
-                  >
-                    {isStreaming ? (
-                      <Square className="h-4 w-4" />
-                    ) : (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isStreaming ? t('stopGenerating') : t('processing')}
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="default"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    disabled={!canSend}
-                    onClick={handleSubmit}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {t('sendMessage')} {sendOnEnter && '(Enter)'}
-                </TooltipContent>
-              </Tooltip>
+          {/* Textarea */}
+          <TextareaAutosize
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder={
+              isListening
+                ? tPlaceholders('listening')
+                : isMcpAvailable
+                  ? tPlaceholders('typeToMention')
+                  : tPlaceholders('typeMessage')
+            }
+            className={cn(
+              'flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground',
+              'max-h-50 min-h-6 py-1'
             )}
-          </div>
-
-          <BottomToolbar
-            modelName={modelName}
-            webSearchEnabled={webSearchEnabled}
-            thinkingEnabled={thinkingEnabled}
-            streamingEnabled={streamingEnabled}
-            contextUsagePercent={contextUsagePercent}
-            onModelClick={onModelClick}
-            onWebSearchChange={onWebSearchChange}
-            onThinkingChange={onThinkingChange}
-            onStreamingChange={onStreamingChange}
-            onOpenAISettings={onOpenAISettings}
-            onOpenContextSettings={onOpenContextSettings}
-            onPresetChange={onPresetChange}
-            onCreatePreset={onCreatePreset}
-            onManagePresets={onManagePresets}
-            onSelectPrompt={(content) => onChange(value ? `${value}\n${content}` : content)}
-            onOpenWorkflowPicker={onOpenWorkflowPicker}
-            onOpenPromptOptimization={onOpenPromptOptimization}
-            hasActivePreset={hasActivePreset}
-            disabled={disabled}
-            isProcessing={isProcessing}
+            maxRows={8}
+            disabled={isProcessing || disabled}
           />
 
-          {/* Helper text - simplified on small screens */}
-          <p className="mt-1 sm:mt-2 text-center text-[10px] sm:text-xs text-muted-foreground/70">
-            <span className="hidden sm:inline">
-              {sendOnEnter ? t('enterToSend') : t('clickToSend')}
-              {' • '}
-              <span>{t('dragDropFiles')}</span>
-              {isMcpAvailable && (
-                <>
-                  {' • '}
-                  <span className="text-primary/80">{t('typeAtForMcp')}</span>
-                </>
-              )}
-            </span>
-            <span className="sm:hidden">
-              {sendOnEnter ? 'Enter ↵' : 'Click ➤'}
-            </span>
-          </p>
+          {/* Send/Stop button */}
+          {isProcessing ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={handleStop}
+                >
+                  {isStreaming ? (
+                    <Square className="h-4 w-4" />
+                  ) : (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{isStreaming ? t('stopGenerating') : t('processing')}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  disabled={!canSend}
+                  onClick={handleSubmit}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t('sendMessage')} {sendOnEnter && '(Enter)'}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
 
-        <PromptTemplateSelector
-          open={isTemplateSelectorOpen}
-          onOpenChange={setTemplateSelectorOpen}
-          onSelect={handleTemplateSelect}
+        <BottomToolbar
+          modelName={modelName}
+          webSearchEnabled={webSearchEnabled}
+          thinkingEnabled={thinkingEnabled}
+          streamingEnabled={streamingEnabled}
+          contextUsagePercent={contextUsagePercent}
+          onModelClick={onModelClick}
+          onWebSearchChange={onWebSearchChange}
+          onThinkingChange={onThinkingChange}
+          onStreamingChange={onStreamingChange}
+          onOpenAISettings={onOpenAISettings}
+          onOpenContextSettings={onOpenContextSettings}
+          onPresetChange={onPresetChange}
+          onCreatePreset={onCreatePreset}
+          onManagePresets={onManagePresets}
+          onSelectPrompt={(content) => onChange(value ? `${value}\n${content}` : content)}
+          onOpenWorkflowPicker={onOpenWorkflowPicker}
+          onOpenPromptOptimization={onOpenPromptOptimization}
+          hasActivePreset={hasActivePreset}
+          disabled={disabled}
+          isProcessing={isProcessing}
         />
+
+        {/* Helper text - simplified on small screens */}
+        <p className="mt-1 sm:mt-2 text-center text-[10px] sm:text-xs text-muted-foreground/70">
+          <span className="hidden sm:inline">
+            {sendOnEnter ? t('enterToSend') : t('clickToSend')}
+            {' • '}
+            <span>{t('dragDropFiles')}</span>
+            {isMcpAvailable && (
+              <>
+                {' • '}
+                <span className="text-primary/80">{t('typeAtForMcp')}</span>
+              </>
+            )}
+          </span>
+          <span className="sm:hidden">{sendOnEnter ? 'Enter ↵' : 'Click ➤'}</span>
+        </p>
+      </div>
+
+      <PromptTemplateSelector
+        open={isTemplateSelectorOpen}
+        onOpenChange={setTemplateSelectorOpen}
+        onSelect={handleTemplateSelect}
+      />
 
       <PreviewDialog
         attachment={previewAttachment}
