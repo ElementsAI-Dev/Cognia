@@ -31,7 +31,7 @@ interface PromptTemplateState {
   categories: string[];
   selectedTemplateId: string | null;
   isInitialized: boolean;
-  
+
   // Feedback & A/B Testing state
   feedback: Record<string, PromptFeedback[]>;
   abTests: Record<string, PromptABTest>;
@@ -54,31 +54,52 @@ interface PromptTemplateState {
   exportTemplates: (ids?: string[]) => string;
 
   syncFromMcpPrompts: (serverId: string, prompts: McpPrompt[]) => void;
-  
+
   // Version History
   saveVersion: (id: string, changelog?: string) => PromptTemplateVersion | null;
   restoreVersion: (id: string, versionId: string) => boolean;
   getVersionHistory: (id: string) => PromptTemplateVersion[];
-  
+
   // Feedback & Stats
-  recordFeedback: (templateId: string, feedback: Omit<PromptFeedback, 'id' | 'templateId' | 'createdAt'>) => void;
+  recordFeedback: (
+    templateId: string,
+    feedback: Omit<PromptFeedback, 'id' | 'templateId' | 'createdAt'>
+  ) => void;
   getFeedback: (templateId: string) => PromptFeedback[];
   getStats: (templateId: string) => PromptTemplateStats;
-  
+
   // A/B Testing
-  startABTest: (templateId: string, variantContent: string, hypothesis: string) => PromptABTest | null;
-  recordABTestResult: (templateId: string, variant: 'A' | 'B', success: boolean, rating?: number) => void;
+  startABTest: (
+    templateId: string,
+    variantContent: string,
+    hypothesis: string
+  ) => PromptABTest | null;
+  recordABTestResult: (
+    templateId: string,
+    variant: 'A' | 'B',
+    success: boolean,
+    rating?: number
+  ) => void;
   getActiveABTest: (templateId: string) => PromptABTest | null;
   completeABTest: (templateId: string) => PromptABTest | null;
-  
+
   // Optimization
   markAsOptimized: (id: string, optimizedContent: string, suggestions?: string[]) => void;
-  
+
   // Optimization History & Recommendations
-  recordOptimization: (templateId: string, originalContent: string, optimizedContent: string, suggestions: string[], style?: string, appliedBy?: 'user' | 'auto') => void;
+  recordOptimization: (
+    templateId: string,
+    originalContent: string,
+    optimizedContent: string,
+    suggestions: string[],
+    style?: string,
+    appliedBy?: 'user' | 'auto'
+  ) => void;
   getOptimizationHistory: (templateId: string) => PromptOptimizationHistory[];
   getRecommendations: () => OptimizationRecommendation[];
-  getTopCandidates: (limit?: number) => Array<{ template: PromptTemplate; score: number; reasons: string[] }>;
+  getTopCandidates: (
+    limit?: number
+  ) => Array<{ template: PromptTemplate; score: number; reasons: string[] }>;
 }
 
 function withTimestamps(template: Omit<PromptTemplate, 'createdAt' | 'updatedAt'>): PromptTemplate {
@@ -111,13 +132,13 @@ function calculateStats(feedbackList: PromptFeedback[]): PromptTemplateStats {
   }
 
   const totalUses = feedbackList.length;
-  const successfulUses = feedbackList.filter(f => 
-    f.effectiveness === 'excellent' || f.effectiveness === 'good'
+  const successfulUses = feedbackList.filter(
+    (f) => f.effectiveness === 'excellent' || f.effectiveness === 'good'
   ).length;
-  
+
   const ratingSum = feedbackList.reduce((sum, f) => sum + f.rating, 0);
   const avgResponseTime = feedbackList
-    .filter(f => f.context?.responseTime)
+    .filter((f) => f.context?.responseTime)
     .reduce((sum, f, _, arr) => sum + (f.context?.responseTime || 0) / arr.length, 0);
 
   return {
@@ -189,7 +210,10 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
                   ...tpl,
                   ...input,
                   tags: input.tags ?? tpl.tags,
-                  variables: buildTemplateVariables(input.content ?? tpl.content, input.variables ?? tpl.variables),
+                  variables: buildTemplateVariables(
+                    input.content ?? tpl.content,
+                    input.variables ?? tpl.variables
+                  ),
                   updatedAt: new Date(),
                 }
               : tpl
@@ -246,7 +270,9 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         if (!normalized) return get().templates;
 
         return get().templates.filter((tpl) => {
-          const haystack = [tpl.name, tpl.description ?? '', tpl.category ?? '', tpl.tags.join(' ')].join(' ').toLowerCase();
+          const haystack = [tpl.name, tpl.description ?? '', tpl.category ?? '', tpl.tags.join(' ')]
+            .join(' ')
+            .toLowerCase();
           return haystack.includes(normalized);
         });
       },
@@ -278,9 +304,10 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       },
 
       exportTemplates: (ids) => {
-        const list = ids && ids.length > 0
-          ? get().templates.filter((tpl) => ids.includes(tpl.id))
-          : get().templates;
+        const list =
+          ids && ids.length > 0
+            ? get().templates.filter((tpl) => ids.includes(tpl.id))
+            : get().templates;
 
         return JSON.stringify(
           list.map((tpl) => ({
@@ -328,7 +355,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
 
       // Version History
       saveVersion: (id, changelog) => {
-        const template = get().templates.find(t => t.id === id);
+        const template = get().templates.find((t) => t.id === id);
         if (!template) return null;
 
         const version: PromptTemplateVersion = {
@@ -357,10 +384,10 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       },
 
       restoreVersion: (id, versionId) => {
-        const template = get().templates.find(t => t.id === id);
+        const template = get().templates.find((t) => t.id === id);
         if (!template || !template.versionHistory) return false;
 
-        const version = template.versionHistory.find(v => v.id === versionId);
+        const version = template.versionHistory.find((v) => v.id === versionId);
         if (!version) return false;
 
         // Save current state as a new version before restoring
@@ -383,7 +410,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       },
 
       getVersionHistory: (id) => {
-        const template = get().templates.find(t => t.id === id);
+        const template = get().templates.find((t) => t.id === id);
         return template?.versionHistory || [];
       },
 
@@ -409,9 +436,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
 
         set((state) => ({
           templates: state.templates.map((tpl) =>
-            tpl.id === templateId
-              ? { ...tpl, stats }
-              : tpl
+            tpl.id === templateId ? { ...tpl, stats } : tpl
           ),
         }));
       },
@@ -427,7 +452,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
 
       // A/B Testing
       startABTest: (templateId, variantContent, hypothesis) => {
-        const template = get().templates.find(t => t.id === templateId);
+        const template = get().templates.find((t) => t.id === templateId);
         if (!template) return null;
 
         const abTest: PromptABTest = {
@@ -459,9 +484,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
             [templateId]: abTest,
           },
           templates: state.templates.map((tpl) =>
-            tpl.id === templateId
-              ? { ...tpl, activeABTest: abTest.id }
-              : tpl
+            tpl.id === templateId ? { ...tpl, activeABTest: abTest.id } : tpl
           ),
         }));
 
@@ -474,7 +497,8 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
 
         const variantData = variant === 'A' ? test.variantA : test.variantB;
         const newUses = variantData.uses + 1;
-        const successCount = Math.round(variantData.successRate * variantData.uses) + (success ? 1 : 0);
+        const successCount =
+          Math.round(variantData.successRate * variantData.uses) + (success ? 1 : 0);
         const ratingSum = variantData.averageRating * variantData.uses + (rating || 0);
 
         const updatedVariant = {
@@ -505,7 +529,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         if (!test) return null;
 
         const { variantA, variantB, minSampleSize } = test;
-        
+
         if (variantA.uses < minSampleSize || variantB.uses < minSampleSize) {
           return test;
         }
@@ -533,9 +557,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
             [templateId]: completedTest,
           },
           templates: state.templates.map((tpl) =>
-            tpl.id === templateId
-              ? { ...tpl, activeABTest: undefined }
-              : tpl
+            tpl.id === templateId ? { ...tpl, activeABTest: undefined } : tpl
           ),
         }));
 
@@ -564,7 +586,14 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       },
 
       // Optimization History & Recommendations
-      recordOptimization: (templateId, originalContent, optimizedContent, suggestions, style, appliedBy = 'user') => {
+      recordOptimization: (
+        templateId,
+        originalContent,
+        optimizedContent,
+        suggestions,
+        style,
+        appliedBy = 'user'
+      ) => {
         const entry = createOptimizationHistoryEntry(
           templateId,
           originalContent,
@@ -581,7 +610,13 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
           },
           templates: state.templates.map((tpl) => {
             if (tpl.id !== templateId) return tpl;
-            const currentStats = tpl.stats || { totalUses: 0, successfulUses: 0, averageRating: 0, ratingCount: 0, optimizationCount: 0 };
+            const currentStats = tpl.stats || {
+              totalUses: 0,
+              successfulUses: 0,
+              averageRating: 0,
+              ratingCount: 0,
+              optimizationCount: 0,
+            };
             return {
               ...tpl,
               stats: {
@@ -667,9 +702,10 @@ function normalizeImportedTemplate(value: unknown): PromptTemplate | null {
 function dedupeTemplates(templates: PromptTemplate[]): PromptTemplate[] {
   const seen = new Map<string, PromptTemplate>();
   templates.forEach((tpl) => {
-    const key = tpl.meta?.mcp?.promptName && tpl.meta.mcp.serverId
-      ? `${tpl.meta.mcp.serverId}:${tpl.meta.mcp.promptName}`
-      : tpl.id;
+    const key =
+      tpl.meta?.mcp?.promptName && tpl.meta.mcp.serverId
+        ? `${tpl.meta.mcp.serverId}:${tpl.meta.mcp.promptName}`
+        : tpl.id;
 
     if (!seen.has(key)) {
       seen.set(key, tpl);

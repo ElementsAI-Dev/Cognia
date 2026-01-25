@@ -67,19 +67,19 @@ interface ScreenshotState {
   // Current capture state
   isCapturing: boolean;
   lastScreenshot: ScreenshotResult | null;
-  
+
   // History
   history: ScreenshotHistoryEntry[];
   pinnedCount: number;
-  
+
   // Configuration
   config: ScreenshotConfig;
-  
+
   // System info
   monitors: MonitorInfo[];
   selectedMonitor: number | null;
   ocrAvailable: boolean;
-  
+
   // Loading states
   isLoading: boolean;
   isInitialized: boolean;
@@ -89,13 +89,18 @@ interface ScreenshotState {
 interface ScreenshotActions {
   // Initialization
   initialize: () => Promise<void>;
-  
+
   // Capture
   captureFullscreen: (monitorIndex?: number) => Promise<ScreenshotResult | null>;
   captureWindow: () => Promise<ScreenshotResult | null>;
-  captureRegion: (x: number, y: number, width: number, height: number) => Promise<ScreenshotResult | null>;
+  captureRegion: (
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ) => Promise<ScreenshotResult | null>;
   captureWindowByHwnd: (hwnd: number) => Promise<ScreenshotResult | null>;
-  
+
   // History management
   refreshHistory: (count?: number) => Promise<void>;
   searchHistory: (query: string) => Promise<ScreenshotHistoryEntry[]>;
@@ -106,18 +111,18 @@ interface ScreenshotActions {
   addTag: (id: string, tag: string) => Promise<void>;
   removeTag: (id: string, tag: string) => Promise<void>;
   setLabel: (id: string, label: string) => Promise<void>;
-  
+
   // OCR
   extractText: (imageBase64: string) => Promise<string>;
-  
+
   // Configuration
   updateConfig: (config: Partial<ScreenshotConfig>) => Promise<void>;
   resetConfig: () => void;
-  
+
   // System
   refreshMonitors: () => Promise<void>;
   setSelectedMonitor: (index: number | null) => void;
-  
+
   // Utilities
   clearError: () => void;
   clearLastScreenshot: () => void;
@@ -244,21 +249,23 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         set({ isLoading: true, error: null });
         try {
           const [monitors, ocrAvailable] = await Promise.all([
-            invoke<Array<{
-              index: number;
-              name: string;
-              x: number;
-              y: number;
-              width: number;
-              height: number;
-              is_primary: boolean;
-              scale_factor: number;
-            }>>('screenshot_get_monitors'),
+            invoke<
+              Array<{
+                index: number;
+                name: string;
+                x: number;
+                y: number;
+                width: number;
+                height: number;
+                is_primary: boolean;
+                scale_factor: number;
+              }>
+            >('screenshot_get_monitors'),
             invoke<boolean>('screenshot_ocr_is_available').catch(() => false),
           ]);
 
           const transformedMonitors = monitors.map(transformMonitorInfo);
-          const primaryMonitor = transformedMonitors.find(m => m.isPrimary);
+          const primaryMonitor = transformedMonitors.find((m) => m.isPrimary);
 
           set({
             monitors: transformedMonitors,
@@ -295,13 +302,13 @@ export const useScreenshotStore = create<ScreenshotStore>()(
               monitor_index?: number;
             };
           }>('screenshot_capture_fullscreen_with_history', { monitorIndex });
-          
+
           const transformed = transformScreenshotResult(result);
           set({ lastScreenshot: transformed, isCapturing: false });
-          
+
           // Refresh history to include the new screenshot
           await get().refreshHistory(50);
-          
+
           return transformed;
         } catch (error) {
           set({
@@ -328,12 +335,12 @@ export const useScreenshotStore = create<ScreenshotStore>()(
               monitor_index?: number;
             };
           }>('screenshot_capture_window_with_history');
-          
+
           const transformed = transformScreenshotResult(result);
           set({ lastScreenshot: transformed, isCapturing: false });
-          
+
           await get().refreshHistory(50);
-          
+
           return transformed;
         } catch (error) {
           set({
@@ -360,12 +367,12 @@ export const useScreenshotStore = create<ScreenshotStore>()(
               monitor_index?: number;
             };
           }>('screenshot_capture_region_with_history', { x, y, width, height });
-          
+
           const transformed = transformScreenshotResult(result);
           set({ lastScreenshot: transformed, isCapturing: false });
-          
+
           await get().refreshHistory(50);
-          
+
           return transformed;
         } catch (error) {
           set({
@@ -392,12 +399,12 @@ export const useScreenshotStore = create<ScreenshotStore>()(
               monitor_index?: number;
             };
           }>('screenshot_capture_window_by_hwnd_with_history', { hwnd });
-          
+
           const transformed = transformScreenshotResult(result);
           set({ lastScreenshot: transformed, isCapturing: false });
-          
+
           await get().refreshHistory(50);
-          
+
           return transformed;
         } catch (error) {
           set({
@@ -412,24 +419,26 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          const history = await invoke<Array<{
-            id: string;
-            timestamp: number;
-            thumbnail_base64?: string;
-            file_path?: string;
-            width: number;
-            height: number;
-            mode: string;
-            window_title?: string;
-            ocr_text?: string;
-            label?: string;
-            tags: string[];
-            is_pinned: boolean;
-          }>>('screenshot_get_history', { count });
-          
+          const history = await invoke<
+            Array<{
+              id: string;
+              timestamp: number;
+              thumbnail_base64?: string;
+              file_path?: string;
+              width: number;
+              height: number;
+              mode: string;
+              window_title?: string;
+              ocr_text?: string;
+              label?: string;
+              tags: string[];
+              is_pinned: boolean;
+            }>
+          >('screenshot_get_history', { count });
+
           const transformedHistory = history.map(transformHistoryEntry);
-          const pinnedCount = transformedHistory.filter(e => e.isPinned).length;
-          
+          const pinnedCount = transformedHistory.filter((e) => e.isPinned).length;
+
           set({ history: transformedHistory, pinnedCount });
         } catch (error) {
           console.error('Failed to refresh history:', error);
@@ -440,21 +449,23 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return [];
 
         try {
-          const results = await invoke<Array<{
-            id: string;
-            timestamp: number;
-            thumbnail_base64?: string;
-            file_path?: string;
-            width: number;
-            height: number;
-            mode: string;
-            window_title?: string;
-            ocr_text?: string;
-            label?: string;
-            tags: string[];
-            is_pinned: boolean;
-          }>>('screenshot_search_history', { query });
-          
+          const results = await invoke<
+            Array<{
+              id: string;
+              timestamp: number;
+              thumbnail_base64?: string;
+              file_path?: string;
+              width: number;
+              height: number;
+              mode: string;
+              window_title?: string;
+              ocr_text?: string;
+              label?: string;
+              tags: string[];
+              is_pinned: boolean;
+            }>
+          >('screenshot_search_history', { query });
+
           return results.map(transformHistoryEntry);
         } catch (error) {
           console.error('Failed to search history:', error);
@@ -553,7 +564,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
       updateConfig: async (partialConfig) => {
         const newConfig = { ...get().config, ...partialConfig };
         set({ config: newConfig });
-        
+
         if (isTauri()) {
           try {
             await invoke('screenshot_update_config', {
@@ -581,17 +592,19 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          const monitors = await invoke<Array<{
-            index: number;
-            name: string;
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-            is_primary: boolean;
-            scale_factor: number;
-          }>>('screenshot_get_monitors');
-          
+          const monitors = await invoke<
+            Array<{
+              index: number;
+              name: string;
+              x: number;
+              y: number;
+              width: number;
+              height: number;
+              is_primary: boolean;
+              scale_factor: number;
+            }>
+          >('screenshot_get_monitors');
+
           set({ monitors: monitors.map(transformMonitorInfo) });
         } catch (error) {
           console.error('Failed to refresh monitors:', error);
@@ -615,9 +628,9 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 // ============== Selectors ==============
 
 export const selectHistory = (state: ScreenshotStore) => state.history;
-export const selectPinnedScreenshots = (state: ScreenshotStore) => 
-  state.history.filter(e => e.isPinned);
-export const selectRecentScreenshots = (state: ScreenshotStore, count = 10) => 
+export const selectPinnedScreenshots = (state: ScreenshotStore) =>
+  state.history.filter((e) => e.isPinned);
+export const selectRecentScreenshots = (state: ScreenshotStore, count = 10) =>
   state.history.slice(0, count);
 export const selectScreenshotById = (id: string) => (state: ScreenshotStore) =>
-  state.history.find(e => e.id === id);
+  state.history.find((e) => e.id === id);

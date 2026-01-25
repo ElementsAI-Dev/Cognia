@@ -70,10 +70,7 @@ describe('useDesignerStore', () => {
     it('should set element tree and build map', () => {
       const tree: DesignerElement = {
         ...createMockElement('root'),
-        children: [
-          createMockElement('child-1'),
-          createMockElement('child-2'),
-        ],
+        children: [createMockElement('child-1'), createMockElement('child-2')],
       };
 
       act(() => {

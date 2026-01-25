@@ -169,7 +169,7 @@ describe('useNativeStore', () => {
         useNativeStore.getState().updateShortcut('new-chat', { shortcut: 'Ctrl+Shift+N' });
       });
 
-      const shortcut = useNativeStore.getState().shortcuts.find(s => s.id === 'new-chat');
+      const shortcut = useNativeStore.getState().shortcuts.find((s) => s.id === 'new-chat');
       expect(shortcut?.shortcut).toBe('Ctrl+Shift+N');
     });
 

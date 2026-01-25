@@ -187,10 +187,7 @@ export const useEnvironmentStore = create<EnvironmentState & EnvironmentActions>
         set((state) => ({
           globalError: null,
           tools: Object.fromEntries(
-            Object.entries(state.tools).map(([key, tool]) => [
-              key,
-              { ...tool, error: null },
-            ])
+            Object.entries(state.tools).map(([key, tool]) => [key, { ...tool, error: null }])
           ) as Record<EnvironmentTool, ToolStatus>,
         })),
 
@@ -212,20 +209,16 @@ export const useEnvironmentStore = create<EnvironmentState & EnvironmentActions>
 );
 
 // Selector hooks for better performance
-export const useEnvironmentPlatform = () =>
-  useEnvironmentStore((state) => state.platform);
+export const useEnvironmentPlatform = () => useEnvironmentStore((state) => state.platform);
 
 export const useToolStatus = (tool: EnvironmentTool) =>
   useEnvironmentStore((state) => state.tools[tool]);
 
-export const useInstallProgress = () =>
-  useEnvironmentStore((state) => state.installProgress);
+export const useInstallProgress = () => useEnvironmentStore((state) => state.installProgress);
 
 export const useIsToolInstalled = (tool: EnvironmentTool) =>
   useEnvironmentStore((state) => state.tools[tool].installed);
 
-export const useEnvironmentRefreshing = () =>
-  useEnvironmentStore((state) => state.isRefreshing);
+export const useEnvironmentRefreshing = () => useEnvironmentStore((state) => state.isRefreshing);
 
-export const useEnvironmentInstalling = () =>
-  useEnvironmentStore((state) => state.isInstalling);
+export const useEnvironmentInstalling = () => useEnvironmentStore((state) => state.isInstalling);

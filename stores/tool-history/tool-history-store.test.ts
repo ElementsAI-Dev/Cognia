@@ -10,9 +10,15 @@ const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
   };
 })();
 
@@ -210,7 +216,7 @@ describe('useToolHistoryStore', () => {
   describe('getHistory with filters', () => {
     beforeEach(() => {
       const { result } = renderHook(() => useToolHistoryStore());
-      
+
       act(() => {
         result.current.recordToolCall({
           toolId: 'mcp:server1:tool1',
@@ -231,7 +237,7 @@ describe('useToolHistoryStore', () => {
 
     it('should filter by tool type', () => {
       const { result } = renderHook(() => useToolHistoryStore());
-      
+
       const mcpHistory = result.current.getHistory({ toolType: 'mcp' });
       expect(mcpHistory).toHaveLength(1);
       expect(mcpHistory[0].toolType).toBe('mcp');
@@ -239,14 +245,14 @@ describe('useToolHistoryStore', () => {
 
     it('should filter by result', () => {
       const { result } = renderHook(() => useToolHistoryStore());
-      
+
       const successHistory = result.current.getHistory({ result: 'success' });
       expect(successHistory).toHaveLength(1);
     });
 
     it('should filter by search query', () => {
       const { result } = renderHook(() => useToolHistoryStore());
-      
+
       const searchHistory = result.current.getHistory({ searchQuery: 'search' });
       expect(searchHistory).toHaveLength(1);
       expect(searchHistory[0].prompt).toContain('Search');
@@ -254,7 +260,7 @@ describe('useToolHistoryStore', () => {
 
     it('should limit results', () => {
       const { result } = renderHook(() => useToolHistoryStore());
-      
+
       const limitedHistory = result.current.getHistory({ limit: 1 });
       expect(limitedHistory).toHaveLength(1);
     });

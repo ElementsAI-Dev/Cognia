@@ -38,7 +38,9 @@ describe('useDesignerHistoryStore', () => {
 
     it('should add history entry to specific design', () => {
       act(() => {
-        useDesignerHistoryStore.getState().addHistoryEntry('<p>Custom</p>', 'Label', 'custom-design');
+        useDesignerHistoryStore
+          .getState()
+          .addHistoryEntry('<p>Custom</p>', 'Label', 'custom-design');
       });
 
       const history = useDesignerHistoryStore.getState().getHistory('custom-design');
@@ -136,7 +138,9 @@ describe('useDesignerHistoryStore', () => {
     it('should clear history for specific design', () => {
       act(() => {
         useDesignerHistoryStore.getState().addHistoryEntry('<div>Default</div>');
-        useDesignerHistoryStore.getState().addHistoryEntry('<div>Custom</div>', undefined, 'custom');
+        useDesignerHistoryStore
+          .getState()
+          .addHistoryEntry('<div>Custom</div>', undefined, 'custom');
       });
 
       act(() => {

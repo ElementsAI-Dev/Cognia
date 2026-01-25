@@ -52,12 +52,15 @@ interface SkillState {
   loadResourceContent: (skillId: string, path: string) => Promise<string | undefined>;
 
   // Search and filter
-  searchSkills: (query: string, filters?: {
-    category?: SkillCategory;
-    source?: SkillSource;
-    status?: SkillStatus;
-    tags?: string[];
-  }) => SkillSearchResult;
+  searchSkills: (
+    query: string,
+    filters?: {
+      category?: SkillCategory;
+      source?: SkillSource;
+      status?: SkillStatus;
+      tags?: string[];
+    }
+  ) => SkillSearchResult;
   getSkillsByCategory: (category: SkillCategory) => Skill[];
   getSkillsBySource: (source: SkillSource) => Skill[];
   getSkillsByTags: (tags: string[]) => Skill[];
@@ -73,7 +76,9 @@ interface SkillState {
 
   // Import/Export
   importSkill: (skillData: Omit<Skill, 'id' | 'createdAt' | 'updatedAt'>) => Skill;
-  exportSkill: (id: string) => Omit<Skill, 'id' | 'createdAt' | 'updatedAt' | 'isActive'> | undefined;
+  exportSkill: (
+    id: string
+  ) => Omit<Skill, 'id' | 'createdAt' | 'updatedAt' | 'isActive'> | undefined;
 
   // Bulk operations
   importBuiltinSkills: (skills: CreateSkillInput[]) => void;
@@ -131,7 +136,7 @@ export const useSkillStore = create<SkillState>()(
         const now = new Date();
         const id = nanoid();
         const name = toHyphenCase(input.name);
-        
+
         const metadata: SkillMetadata = {
           name,
           description: input.description,
@@ -142,7 +147,7 @@ export const useSkillStore = create<SkillState>()(
           metadata,
           content: input.content,
           rawContent: generateRawContent(metadata, input.content),
-          resources: (input.resources || []).map(r => ({
+          resources: (input.resources || []).map((r) => ({
             ...r,
             size: r.content?.length || 0,
             mimeType: 'text/plain',
@@ -160,7 +165,7 @@ export const useSkillStore = create<SkillState>()(
 
         // Validate the skill
         const errors = get().validateSkill(skill);
-        if (errors.some(e => e.severity === 'error')) {
+        if (errors.some((e) => e.severity === 'error')) {
           skill.status = 'error';
           skill.validationErrors = errors;
         }
@@ -182,7 +187,7 @@ export const useSkillStore = create<SkillState>()(
             : skill.metadata;
 
           const updatedContent = updates.content ?? skill.content;
-          
+
           const updatedSkill: Skill = {
             ...skill,
             metadata: updatedMetadata,
@@ -197,7 +202,7 @@ export const useSkillStore = create<SkillState>()(
 
           // Re-validate after update
           const errors = get().validateSkill(updatedSkill);
-          if (errors.some(e => e.severity === 'error')) {
+          if (errors.some((e) => e.severity === 'error')) {
             updatedSkill.validationErrors = errors;
           } else {
             updatedSkill.validationErrors = undefined;
@@ -214,7 +219,7 @@ export const useSkillStore = create<SkillState>()(
           const { [id]: _deleted, ...rest } = state.skills;
           return {
             skills: rest,
-            activeSkillIds: state.activeSkillIds.filter(sid => sid !== id),
+            activeSkillIds: state.activeSkillIds.filter((sid) => sid !== id),
           };
         });
       },
@@ -276,7 +281,7 @@ export const useSkillStore = create<SkillState>()(
           if (!skill) return state;
 
           return {
-            activeSkillIds: state.activeSkillIds.filter(sid => sid !== id),
+            activeSkillIds: state.activeSkillIds.filter((sid) => sid !== id),
             skills: {
               ...state.skills,
               [id]: { ...skill, isActive: false },
@@ -288,7 +293,7 @@ export const useSkillStore = create<SkillState>()(
       getActiveSkills: () => {
         const state = get();
         return state.activeSkillIds
-          .map(id => state.skills[id])
+          .map((id) => state.skills[id])
           .filter((s): s is Skill => s !== undefined);
       },
 
@@ -342,7 +347,7 @@ export const useSkillStore = create<SkillState>()(
               ...state.skills,
               [skillId]: {
                 ...skill,
-                resources: skill.resources.map(r =>
+                resources: skill.resources.map((r) =>
                   r.path === path ? { ...r, content, size: content.length } : r
                 ),
                 updatedAt: new Date(),
@@ -362,7 +367,7 @@ export const useSkillStore = create<SkillState>()(
               ...state.skills,
               [skillId]: {
                 ...skill,
-                resources: skill.resources.filter(r => r.path !== path),
+                resources: skill.resources.filter((r) => r.path !== path),
                 updatedAt: new Date(),
               },
             },
@@ -374,7 +379,7 @@ export const useSkillStore = create<SkillState>()(
         const skill = get().skills[skillId];
         if (!skill) return undefined;
 
-        const resource = skill.resources.find(r => r.path === path);
+        const resource = skill.resources.find((r) => r.path === path);
         return resource?.content;
       },
 
@@ -383,12 +388,13 @@ export const useSkillStore = create<SkillState>()(
         const allSkills = Object.values(get().skills);
         const lowerQuery = query.toLowerCase();
 
-        const filtered = allSkills.filter(skill => {
+        const filtered = allSkills.filter((skill) => {
           // Text search
-          const matchesQuery = !query || 
+          const matchesQuery =
+            !query ||
             skill.metadata.name.toLowerCase().includes(lowerQuery) ||
             skill.metadata.description.toLowerCase().includes(lowerQuery) ||
-            skill.tags.some(tag => tag.toLowerCase().includes(lowerQuery));
+            skill.tags.some((tag) => tag.toLowerCase().includes(lowerQuery));
 
           if (!matchesQuery) return false;
 
@@ -397,9 +403,7 @@ export const useSkillStore = create<SkillState>()(
           if (filters?.source && skill.source !== filters.source) return false;
           if (filters?.status && skill.status !== filters.status) return false;
           if (filters?.tags && filters.tags.length > 0) {
-            const hasAllTags = filters.tags.every(tag => 
-              skill.tags.includes(tag)
-            );
+            const hasAllTags = filters.tags.every((tag) => skill.tags.includes(tag));
             if (!hasAllTags) return false;
           }
 
@@ -415,17 +419,15 @@ export const useSkillStore = create<SkillState>()(
       },
 
       getSkillsByCategory: (category: SkillCategory) => {
-        return Object.values(get().skills).filter(s => s.category === category);
+        return Object.values(get().skills).filter((s) => s.category === category);
       },
 
       getSkillsBySource: (source: SkillSource) => {
-        return Object.values(get().skills).filter(s => s.source === source);
+        return Object.values(get().skills).filter((s) => s.source === source);
       },
 
       getSkillsByTags: (tags: string[]) => {
-        return Object.values(get().skills).filter(s =>
-          tags.some(tag => s.tags.includes(tag))
-        );
+        return Object.values(get().skills).filter((s) => tags.some((tag) => s.tags.includes(tag)));
       },
 
       // Validation
@@ -548,24 +550,24 @@ export const useSkillStore = create<SkillState>()(
             totalExecutions: (existingStats?.totalExecutions || 0) + 1,
             successfulExecutions: (existingStats?.successfulExecutions || 0) + (success ? 1 : 0),
             averageExecutionTime: existingStats
-              ? (existingStats.averageExecutionTime * existingStats.totalExecutions + duration) / 
+              ? (existingStats.averageExecutionTime * existingStats.totalExecutions + duration) /
                 (existingStats.totalExecutions + 1)
               : duration,
             lastExecutionAt: now,
             tokensConsumed: (existingStats?.tokensConsumed || 0) + (tokens || 0),
           };
 
-          const updatedSkill = skill ? {
-            ...skill,
-            usageCount: (skill.usageCount || 0) + 1,
-            lastUsedAt: now,
-          } : undefined;
+          const updatedSkill = skill
+            ? {
+                ...skill,
+                usageCount: (skill.usageCount || 0) + 1,
+                lastUsedAt: now,
+              }
+            : undefined;
 
           return {
             usageStats: { ...state.usageStats, [skillId]: newStats },
-            skills: updatedSkill 
-              ? { ...state.skills, [skillId]: updatedSkill }
-              : state.skills,
+            skills: updatedSkill ? { ...state.skills, [skillId]: updatedSkill } : state.skills,
           };
         });
       },
@@ -591,7 +593,7 @@ export const useSkillStore = create<SkillState>()(
 
         // Validate imported skill
         const errors = get().validateSkill(skill);
-        if (errors.some(e => e.severity === 'error')) {
+        if (errors.some((e) => e.severity === 'error')) {
           skill.status = 'error';
           skill.validationErrors = errors;
         }
@@ -630,7 +632,7 @@ export const useSkillStore = create<SkillState>()(
             metadata,
             content: input.content,
             rawContent: generateRawContent(metadata, input.content),
-            resources: (input.resources || []).map(r => ({
+            resources: (input.resources || []).map((r) => ({
               ...r,
               size: r.content?.length || 0,
               mimeType: 'text/plain',
@@ -662,7 +664,7 @@ export const useSkillStore = create<SkillState>()(
           }
           return {
             skills: filteredSkills,
-            activeSkillIds: state.activeSkillIds.filter(id => filteredSkills[id]),
+            activeSkillIds: state.activeSkillIds.filter((id) => filteredSkills[id]),
           };
         });
       },
@@ -699,12 +701,12 @@ export const useSkillStore = create<SkillState>()(
 
 // Selectors
 export const selectAllSkills = (state: SkillState) => Object.values(state.skills);
-export const selectActiveSkills = (state: SkillState) => 
-  state.activeSkillIds.map(id => state.skills[id]).filter((s): s is Skill => s !== undefined);
-export const selectEnabledSkills = (state: SkillState) => 
-  Object.values(state.skills).filter(s => s.status === 'enabled');
+export const selectActiveSkills = (state: SkillState) =>
+  state.activeSkillIds.map((id) => state.skills[id]).filter((s): s is Skill => s !== undefined);
+export const selectEnabledSkills = (state: SkillState) =>
+  Object.values(state.skills).filter((s) => s.status === 'enabled');
 export const selectSkillById = (id: string) => (state: SkillState) => state.skills[id];
-export const selectSkillsByCategory = (category: SkillCategory) => (state: SkillState) => 
-  Object.values(state.skills).filter(s => s.category === category);
+export const selectSkillsByCategory = (category: SkillCategory) => (state: SkillState) =>
+  Object.values(state.skills).filter((s) => s.category === category);
 export const selectIsLoading = (state: SkillState) => state.isLoading;
 export const selectError = (state: SkillState) => state.error;

@@ -6,7 +6,11 @@
  */
 
 import { act } from '@testing-library/react';
-import { SkillSeekersState, useSkillSeekersStore, type SkillSeekersStore } from './skill-seekers-store';
+import {
+  SkillSeekersState,
+  useSkillSeekersStore,
+  type SkillSeekersStore,
+} from './skill-seekers-store';
 import type {
   SkillGenerationJob,
   PresetConfig,
@@ -160,7 +164,7 @@ const mockLocalStorage = {
     delete mockLocalStorageStore[key];
   }),
   clear: jest.fn(() => {
-    Object.keys(mockLocalStorageStore).forEach(key => {
+    Object.keys(mockLocalStorageStore).forEach((key) => {
       delete mockLocalStorageStore[key];
     });
   }),
@@ -309,9 +313,7 @@ describe('SkillSeekersStore - Installation State', () => {
   });
 
   it('should handle checkInstallation error', async () => {
-    skillSeekersApi.isInstalled.mockRejectedValue(
-      new Error('Check failed')
-    );
+    skillSeekersApi.isInstalled.mockRejectedValue(new Error('Check failed'));
 
     const store = useSkillSeekersStore.getState();
 
@@ -336,9 +338,7 @@ describe('SkillSeekersStore - Installation State', () => {
   });
 
   it('should handle install error', async () => {
-    skillSeekersApi.install.mockRejectedValue(
-      new Error('Install failed')
-    );
+    skillSeekersApi.install.mockRejectedValue(new Error('Install failed'));
 
     const store = useSkillSeekersStore.getState();
 
@@ -440,9 +440,7 @@ describe('SkillSeekersStore - Job Management', () => {
   });
 
   it('should handle refreshJobs error gracefully', async () => {
-    skillSeekersApi.listJobs.mockRejectedValue(
-      new Error('API error')
-    );
+    skillSeekersApi.listJobs.mockRejectedValue(new Error('API error'));
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -468,9 +466,7 @@ describe('SkillSeekersStore - Job Management', () => {
   });
 
   it('should handle cancelJob error', async () => {
-    skillSeekersApi.cancelJob.mockRejectedValue(
-      new Error('Cancel failed')
-    );
+    skillSeekersApi.cancelJob.mockRejectedValue(new Error('Cancel failed'));
 
     const store = useSkillSeekersStore.getState();
 
@@ -492,9 +488,7 @@ describe('SkillSeekersStore - Job Management', () => {
   });
 
   it('should handle resumeJob error', async () => {
-    skillSeekersApi.resumeJob.mockRejectedValue(
-      new Error('Resume failed')
-    );
+    skillSeekersApi.resumeJob.mockRejectedValue(new Error('Resume failed'));
 
     const store = useSkillSeekersStore.getState();
 
@@ -516,9 +510,7 @@ describe('SkillSeekersStore - Job Management', () => {
   });
 
   it('should handle cleanupJobs error gracefully', async () => {
-    skillSeekersApi.cleanupJobs.mockRejectedValue(
-      new Error('Cleanup failed')
-    );
+    skillSeekersApi.cleanupJobs.mockRejectedValue(new Error('Cleanup failed'));
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -559,9 +551,7 @@ describe('SkillSeekersStore - Preset Management', () => {
   });
 
   it('should handle refreshPresets error gracefully', async () => {
-    skillSeekersApi.listPresets.mockRejectedValue(
-      new Error('API error')
-    );
+    skillSeekersApi.listPresets.mockRejectedValue(new Error('API error'));
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -585,9 +575,7 @@ describe('SkillSeekersStore - Generated Skills Management', () => {
 
     store.setGeneratedSkills([mockSkill]);
 
-    expect(useSkillSeekersStore.getState().generatedSkills['skill-1']).toEqual(
-      mockSkill
-    );
+    expect(useSkillSeekersStore.getState().generatedSkills['skill-1']).toEqual(mockSkill);
   });
 
   it('should add generated skill', () => {
@@ -595,9 +583,7 @@ describe('SkillSeekersStore - Generated Skills Management', () => {
 
     store.addGeneratedSkill(mockSkill);
 
-    expect(useSkillSeekersStore.getState().generatedSkills['skill-1']).toEqual(
-      mockSkill
-    );
+    expect(useSkillSeekersStore.getState().generatedSkills['skill-1']).toEqual(mockSkill);
   });
 
   it('should remove generated skill', () => {
@@ -618,15 +604,11 @@ describe('SkillSeekersStore - Generated Skills Management', () => {
     await store.refreshGeneratedSkills();
 
     expect(skillSeekersApi.listGenerated).toHaveBeenCalled();
-    expect(useSkillSeekersStore.getState().generatedSkills['skill-1']).toEqual(
-      mockSkill
-    );
+    expect(useSkillSeekersStore.getState().generatedSkills['skill-1']).toEqual(mockSkill);
   });
 
   it('should handle refreshGeneratedSkills error gracefully', async () => {
-    skillSeekersApi.listGenerated.mockRejectedValue(
-      new Error('API error')
-    );
+    skillSeekersApi.listGenerated.mockRejectedValue(new Error('API error'));
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -753,9 +735,7 @@ describe('SkillSeekersStore - Config and UI State', () => {
   });
 
   it('should handle refreshConfig error gracefully', async () => {
-    skillSeekersApi.getConfig.mockRejectedValue(
-      new Error('API error')
-    );
+    skillSeekersApi.getConfig.mockRejectedValue(new Error('API error'));
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -802,9 +782,7 @@ describe('SkillSeekersStore - Scraping Functions', () => {
       },
     };
 
-    skillSeekersApi.scrapeWebsite.mockRejectedValue(
-      new Error('Scrape failed')
-    );
+    skillSeekersApi.scrapeWebsite.mockRejectedValue(new Error('Scrape failed'));
 
     const store = useSkillSeekersStore.getState();
 
@@ -839,9 +817,7 @@ describe('SkillSeekersStore - Scraping Functions', () => {
       },
     };
 
-    skillSeekersApi.scrapeGitHub.mockRejectedValue(
-      new Error('Scrape failed')
-    );
+    skillSeekersApi.scrapeGitHub.mockRejectedValue(new Error('Scrape failed'));
 
     const store = useSkillSeekersStore.getState();
 
@@ -878,9 +854,7 @@ describe('SkillSeekersStore - Scraping Functions', () => {
       },
     };
 
-    skillSeekersApi.scrapePdf.mockRejectedValue(
-      new Error('Scrape failed')
-    );
+    skillSeekersApi.scrapePdf.mockRejectedValue(new Error('Scrape failed'));
 
     const store = useSkillSeekersStore.getState();
 
@@ -920,9 +894,7 @@ describe('SkillSeekersStore - Enhancement and Packaging', () => {
       },
     };
 
-    skillSeekersApi.enhanceSkill.mockRejectedValue(
-      new Error('Enhance failed')
-    );
+    skillSeekersApi.enhanceSkill.mockRejectedValue(new Error('Enhance failed'));
 
     const store = useSkillSeekersStore.getState();
 
@@ -939,9 +911,7 @@ describe('SkillSeekersStore - Enhancement and Packaging', () => {
       },
     };
 
-    skillSeekersApi.packageSkill.mockResolvedValue(
-      '/output/skill.md'
-    );
+    skillSeekersApi.packageSkill.mockResolvedValue('/output/skill.md');
 
     const store = useSkillSeekersStore.getState();
 
@@ -957,9 +927,7 @@ describe('SkillSeekersStore - Enhancement and Packaging', () => {
       config: {},
     };
 
-    skillSeekersApi.packageSkill.mockRejectedValue(
-      new Error('Package failed')
-    );
+    skillSeekersApi.packageSkill.mockRejectedValue(new Error('Package failed'));
 
     const store = useSkillSeekersStore.getState();
 
@@ -980,17 +948,15 @@ describe('SkillSeekersStore - Quick Generate Functions', () => {
 
     const store = useSkillSeekersStore.getState();
 
-    const jobId = await store.quickGenerateWebsite(
+    const jobId = await store.quickGenerateWebsite('https://example.com', 'Test', true, false);
+
+    expect(jobId).toBe('job-1');
+    expect(skillSeekersApi.quickGenerateWebsite).toHaveBeenCalledWith(
       'https://example.com',
       'Test',
       true,
       false
     );
-
-    expect(jobId).toBe('job-1');
-    expect(
-      skillSeekersApi.quickGenerateWebsite
-    ).toHaveBeenCalledWith('https://example.com', 'Test', true, false);
     expect(useSkillSeekersStore.getState().ui.generatorStep).toBe('progress');
   });
 
@@ -999,17 +965,15 @@ describe('SkillSeekersStore - Quick Generate Functions', () => {
 
     const store = useSkillSeekersStore.getState();
 
-    await expect(
-      store.quickGenerateWebsite('https://example.com', 'Test')
-    ).rejects.toThrow('Generate failed');
+    await expect(store.quickGenerateWebsite('https://example.com', 'Test')).rejects.toThrow(
+      'Generate failed'
+    );
 
     expect(useSkillSeekersStore.getState().error).toBe('Generate failed');
   });
 
   it('should quick generate from GitHub', async () => {
-    skillSeekersApi.quickGenerateGitHub.mockResolvedValue(
-      'job-2'
-    );
+    skillSeekersApi.quickGenerateGitHub.mockResolvedValue('job-2');
     skillSeekersApi.listJobs.mockResolvedValue([]);
 
     const store = useSkillSeekersStore.getState();
@@ -1017,30 +981,22 @@ describe('SkillSeekersStore - Quick Generate Functions', () => {
     const jobId = await store.quickGenerateGitHub('owner/repo', false, true);
 
     expect(jobId).toBe('job-2');
-    expect(
-      skillSeekersApi.quickGenerateGitHub
-    ).toHaveBeenCalledWith('owner/repo', false, true);
+    expect(skillSeekersApi.quickGenerateGitHub).toHaveBeenCalledWith('owner/repo', false, true);
     expect(useSkillSeekersStore.getState().ui.generatorStep).toBe('progress');
   });
 
   it('should handle quickGenerateGitHub error', async () => {
-    skillSeekersApi.quickGenerateGitHub.mockRejectedValue(
-      new Error('Generate failed')
-    );
+    skillSeekersApi.quickGenerateGitHub.mockRejectedValue(new Error('Generate failed'));
 
     const store = useSkillSeekersStore.getState();
 
-    await expect(
-      store.quickGenerateGitHub('owner/repo')
-    ).rejects.toThrow('Generate failed');
+    await expect(store.quickGenerateGitHub('owner/repo')).rejects.toThrow('Generate failed');
 
     expect(useSkillSeekersStore.getState().error).toBe('Generate failed');
   });
 
   it('should quick generate from preset', async () => {
-    skillSeekersApi.quickGeneratePreset.mockResolvedValue(
-      'job-3'
-    );
+    skillSeekersApi.quickGeneratePreset.mockResolvedValue('job-3');
     skillSeekersApi.listJobs.mockResolvedValue([]);
 
     const store = useSkillSeekersStore.getState();
@@ -1048,22 +1004,16 @@ describe('SkillSeekersStore - Quick Generate Functions', () => {
     const jobId = await store.quickGeneratePreset('test-preset', true, true);
 
     expect(jobId).toBe('job-3');
-    expect(
-      skillSeekersApi.quickGeneratePreset
-    ).toHaveBeenCalledWith('test-preset', true, true);
+    expect(skillSeekersApi.quickGeneratePreset).toHaveBeenCalledWith('test-preset', true, true);
     expect(useSkillSeekersStore.getState().ui.generatorStep).toBe('progress');
   });
 
   it('should handle quickGeneratePreset error', async () => {
-    skillSeekersApi.quickGeneratePreset.mockRejectedValue(
-      new Error('Generate failed')
-    );
+    skillSeekersApi.quickGeneratePreset.mockRejectedValue(new Error('Generate failed'));
 
     const store = useSkillSeekersStore.getState();
 
-    await expect(store.quickGeneratePreset('test-preset')).rejects.toThrow(
-      'Generate failed'
-    );
+    await expect(store.quickGeneratePreset('test-preset')).rejects.toThrow('Generate failed');
 
     expect(useSkillSeekersStore.getState().error).toBe('Generate failed');
   });
@@ -1075,18 +1025,14 @@ describe('SkillSeekersStore - Utility Functions', () => {
   });
 
   it('should estimate pages', async () => {
-    skillSeekersApi.estimatePages.mockResolvedValue(
-      mockPageEstimation
-    );
+    skillSeekersApi.estimatePages.mockResolvedValue(mockPageEstimation);
 
     const store = useSkillSeekersStore.getState();
 
     const estimation = await store.estimatePages('https://example.com', 'config');
 
     expect(estimation).toEqual(mockPageEstimation);
-    expect(
-      skillSeekersApi.estimatePages
-    ).toHaveBeenCalledWith('https://example.com', 'config');
+    expect(skillSeekersApi.estimatePages).toHaveBeenCalledWith('https://example.com', 'config');
   });
 
   it('should reset to initial state', () => {
@@ -1253,11 +1199,13 @@ describe('SkillSeekersStore - Selectors', () => {
   });
 
   it('selectRunningJobs should return only running jobs', () => {
-    useSkillSeekersStore.getState().setJobs([
-      mockJob,
-      { ...mockJob, id: 'job-2', status: 'completed' as const },
-      { ...mockJob, id: 'job-3', status: 'running' as const },
-    ]);
+    useSkillSeekersStore
+      .getState()
+      .setJobs([
+        mockJob,
+        { ...mockJob, id: 'job-2', status: 'completed' as const },
+        { ...mockJob, id: 'job-3', status: 'running' as const },
+      ]);
 
     const running = selectRunningJobs(useSkillSeekersStore.getState());
 
@@ -1266,11 +1214,13 @@ describe('SkillSeekersStore - Selectors', () => {
   });
 
   it('selectCompletedJobs should return only completed jobs', () => {
-    useSkillSeekersStore.getState().setJobs([
-      mockJob,
-      { ...mockJob, id: 'job-2', status: 'completed' as const },
-      { ...mockJob, id: 'job-3', status: 'failed' as const },
-    ]);
+    useSkillSeekersStore
+      .getState()
+      .setJobs([
+        mockJob,
+        { ...mockJob, id: 'job-2', status: 'completed' as const },
+        { ...mockJob, id: 'job-3', status: 'failed' as const },
+      ]);
 
     const completed = selectCompletedJobs(useSkillSeekersStore.getState());
 
@@ -1279,11 +1229,13 @@ describe('SkillSeekersStore - Selectors', () => {
   });
 
   it('selectFailedJobs should return only failed jobs', () => {
-    useSkillSeekersStore.getState().setJobs([
-      mockJob,
-      { ...mockJob, id: 'job-2', status: 'completed' as const },
-      { ...mockJob, id: 'job-3', status: 'failed' as const },
-    ]);
+    useSkillSeekersStore
+      .getState()
+      .setJobs([
+        mockJob,
+        { ...mockJob, id: 'job-2', status: 'completed' as const },
+        { ...mockJob, id: 'job-3', status: 'failed' as const },
+      ]);
 
     const failed = selectFailedJobs(useSkillSeekersStore.getState());
 
@@ -1292,11 +1244,13 @@ describe('SkillSeekersStore - Selectors', () => {
   });
 
   it('selectPausedJobs should return only paused jobs', () => {
-    useSkillSeekersStore.getState().setJobs([
-      mockJob,
-      { ...mockJob, id: 'job-2', status: 'paused' as const },
-      { ...mockJob, id: 'job-3', status: 'running' as const },
-    ]);
+    useSkillSeekersStore
+      .getState()
+      .setJobs([
+        mockJob,
+        { ...mockJob, id: 'job-2', status: 'paused' as const },
+        { ...mockJob, id: 'job-3', status: 'running' as const },
+      ]);
 
     const paused = selectPausedJobs(useSkillSeekersStore.getState());
 

@@ -36,7 +36,7 @@ describe('usePluginStore', () => {
   describe('initialization', () => {
     it('should have default state', () => {
       const { result } = renderHook(() => usePluginStore());
-      
+
       expect(result.current.plugins).toEqual({});
       expect(result.current.initialized).toBe(false);
       expect(result.current.loading).toBeDefined();
@@ -45,11 +45,11 @@ describe('usePluginStore', () => {
 
     it('should initialize store', async () => {
       const { result } = renderHook(() => usePluginStore());
-      
+
       await act(async () => {
         await result.current.initialize('/test/plugins');
       });
-      
+
       expect(result.current.initialized).toBe(true);
     });
   });
@@ -114,7 +114,9 @@ describe('usePluginStore', () => {
       });
 
       expect(result.current.plugins['existing-plugin'].status).toBe('enabled');
-      expect(result.current.plugins['existing-plugin'].manifest.description).toBe('Updated description');
+      expect(result.current.plugins['existing-plugin'].manifest.description).toBe(
+        'Updated description'
+      );
     });
   });
 
@@ -122,11 +124,11 @@ describe('usePluginStore', () => {
     it('should discover a plugin', () => {
       const { result } = renderHook(() => usePluginStore());
       const manifest = createMockManifest('test-plugin');
-      
+
       act(() => {
         result.current.discoverPlugin(manifest, 'local', '/path/to/plugin');
       });
-      
+
       expect(result.current.plugins['test-plugin']).toBeDefined();
       expect(result.current.plugins['test-plugin'].manifest.name).toBe('Test Plugin test-plugin');
     });
@@ -134,30 +136,30 @@ describe('usePluginStore', () => {
     it('should update plugin status', () => {
       const { result } = renderHook(() => usePluginStore());
       const manifest = createMockManifest('test-plugin');
-      
+
       act(() => {
         result.current.discoverPlugin(manifest, 'local', '/path/to/plugin');
       });
-      
+
       act(() => {
         result.current.setPluginStatus('test-plugin', 'enabled');
       });
-      
+
       expect(result.current.plugins['test-plugin'].status).toBe('enabled');
     });
 
     it('should update plugin config', () => {
       const { result } = renderHook(() => usePluginStore());
       const manifest = createMockManifest('test-plugin');
-      
+
       act(() => {
         result.current.discoverPlugin(manifest, 'local', '/path/to/plugin');
       });
-      
+
       act(() => {
         result.current.setPluginConfig('test-plugin', { setting1: 'updated', setting2: 'new' });
       });
-      
+
       expect(result.current.plugins['test-plugin'].config).toEqual({
         setting1: 'updated',
         setting2: 'new',
@@ -167,15 +169,15 @@ describe('usePluginStore', () => {
     it('should set plugin error', () => {
       const { result } = renderHook(() => usePluginStore());
       const manifest = createMockManifest('test-plugin');
-      
+
       act(() => {
         result.current.discoverPlugin(manifest, 'local', '/path/to/plugin');
       });
-      
+
       act(() => {
         result.current.setPluginError('test-plugin', 'Something went wrong');
       });
-      
+
       expect(result.current.plugins['test-plugin'].status).toBe('error');
       expect(result.current.errors['test-plugin']).toBe('Something went wrong');
     });
@@ -185,11 +187,11 @@ describe('usePluginStore', () => {
     it('should register plugin tools', () => {
       const { result } = renderHook(() => usePluginStore());
       const manifest = createMockManifest('test-plugin');
-      
+
       act(() => {
         result.current.discoverPlugin(manifest, 'local', '/path/to/plugin');
       });
-      
+
       const mockTool = {
         name: 'test_tool',
         pluginId: 'test-plugin',
@@ -200,11 +202,11 @@ describe('usePluginStore', () => {
         },
         execute: jest.fn(),
       };
-      
+
       act(() => {
         result.current.registerPluginTool('test-plugin', mockTool);
       });
-      
+
       expect(result.current.plugins['test-plugin'].tools).toContainEqual(
         expect.objectContaining({ name: 'test_tool' })
       );
@@ -213,7 +215,7 @@ describe('usePluginStore', () => {
     it('should unregister plugin tools', () => {
       const { result } = renderHook(() => usePluginStore());
       const manifest = createMockManifest('test-plugin');
-      
+
       act(() => {
         result.current.discoverPlugin(manifest, 'local', '/path/to/plugin');
         result.current.registerPluginTool('test-plugin', {
@@ -223,11 +225,11 @@ describe('usePluginStore', () => {
           execute: jest.fn(),
         });
       });
-      
+
       act(() => {
         result.current.unregisterPluginTool('test-plugin', 'test_tool');
       });
-      
+
       expect(result.current.plugins['test-plugin'].tools || []).not.toContainEqual(
         expect.objectContaining({ name: 'test_tool' })
       );
@@ -238,11 +240,11 @@ describe('usePluginStore', () => {
     it('should register plugin components', () => {
       const { result } = renderHook(() => usePluginStore());
       const manifest = createMockManifest('test-plugin');
-      
+
       act(() => {
         result.current.discoverPlugin(manifest, 'local', '/path/to/plugin');
       });
-      
+
       const mockComponent = {
         type: 'test-component',
         pluginId: 'test-plugin',
@@ -253,11 +255,11 @@ describe('usePluginStore', () => {
           description: 'A test component',
         },
       };
-      
+
       act(() => {
         result.current.registerPluginComponent('test-plugin', mockComponent);
       });
-      
+
       expect(result.current.plugins['test-plugin'].components).toContainEqual(
         expect.objectContaining({ type: 'test-component' })
       );
@@ -268,11 +270,11 @@ describe('usePluginStore', () => {
     it('should register plugin modes', () => {
       const { result } = renderHook(() => usePluginStore());
       const manifest = createMockManifest('test-plugin');
-      
+
       act(() => {
         result.current.discoverPlugin(manifest, 'local', '/path/to/plugin');
       });
-      
+
       const mockMode = {
         id: 'test-mode',
         type: 'custom' as const,
@@ -282,11 +284,11 @@ describe('usePluginStore', () => {
         systemPrompt: 'You are a test assistant',
         tools: [],
       };
-      
+
       act(() => {
         result.current.registerPluginMode('test-plugin', mockMode);
       });
-      
+
       expect(result.current.plugins['test-plugin'].modes).toContainEqual(
         expect.objectContaining({ id: 'test-mode' })
       );
@@ -296,7 +298,7 @@ describe('usePluginStore', () => {
   describe('selectors', () => {
     it('should get enabled plugins', () => {
       const { result } = renderHook(() => usePluginStore());
-      
+
       act(() => {
         result.current.discoverPlugin(createMockManifest('plugin-1'), 'local', '/path/to/plugin1');
         result.current.setPluginStatus('plugin-1', 'enabled');
@@ -305,17 +307,17 @@ describe('usePluginStore', () => {
         result.current.discoverPlugin(createMockManifest('plugin-3'), 'local', '/path/to/plugin3');
         result.current.setPluginStatus('plugin-3', 'enabled');
       });
-      
+
       const enabledPlugins = result.current.getEnabledPlugins();
-      
+
       expect(enabledPlugins).toHaveLength(2);
-      expect(enabledPlugins.map(p => p.manifest.id)).toContain('plugin-1');
-      expect(enabledPlugins.map(p => p.manifest.id)).toContain('plugin-3');
+      expect(enabledPlugins.map((p) => p.manifest.id)).toContain('plugin-1');
+      expect(enabledPlugins.map((p) => p.manifest.id)).toContain('plugin-3');
     });
 
     it('should get plugins by capability', async () => {
       const { result } = renderHook(() => usePluginStore());
-      
+
       await act(async () => {
         result.current.discoverPlugin(
           { ...createMockManifest('plugin-1'), capabilities: ['tools'] },
@@ -337,17 +339,17 @@ describe('usePluginStore', () => {
         result.current.setPluginStatus('plugin-2', 'enabled');
         result.current.setPluginStatus('plugin-3', 'enabled');
       });
-      
+
       const toolPlugins = result.current.getPluginsByCapability('tools');
-      
+
       expect(toolPlugins).toHaveLength(2);
-      expect(toolPlugins.map(p => p.manifest.id)).toContain('plugin-1');
-      expect(toolPlugins.map(p => p.manifest.id)).toContain('plugin-3');
+      expect(toolPlugins.map((p) => p.manifest.id)).toContain('plugin-1');
+      expect(toolPlugins.map((p) => p.manifest.id)).toContain('plugin-3');
     });
 
     it('should get all registered tools', async () => {
       const { result } = renderHook(() => usePluginStore());
-      
+
       await act(async () => {
         result.current.discoverPlugin(createMockManifest('plugin-1'), 'local', '/path/to/plugin1');
         result.current.setPluginStatus('plugin-1', 'enabled');
@@ -372,9 +374,9 @@ describe('usePluginStore', () => {
           execute: jest.fn(),
         });
       });
-      
+
       const allTools = result.current.getAllTools();
-      
+
       expect(allTools).toHaveLength(3);
       expect(allTools.map((t: { name: string }) => t.name)).toContain('tool1');
       expect(allTools.map((t: { name: string }) => t.name)).toContain('tool2');
@@ -386,18 +388,18 @@ describe('usePluginStore', () => {
     it('should emit plugin events', () => {
       const { result } = renderHook(() => usePluginStore());
       const listener = jest.fn();
-      
+
       act(() => {
         result.current.addEventListener('plugin:enabled', listener);
       });
-      
+
       act(() => {
         result.current.emitEvent({
           type: 'plugin:enabled',
           pluginId: 'test-plugin',
         });
       });
-      
+
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'plugin:enabled',
@@ -409,23 +411,23 @@ describe('usePluginStore', () => {
     it('should unsubscribe from events', () => {
       const { result } = renderHook(() => usePluginStore());
       const listener = jest.fn();
-      
+
       let unsubscribe: () => void;
       act(() => {
         unsubscribe = result.current.addEventListener('plugin:enabled', listener);
       });
-      
+
       act(() => {
         unsubscribe();
       });
-      
+
       act(() => {
         result.current.emitEvent({
           type: 'plugin:enabled',
           pluginId: 'test-plugin',
         });
       });
-      
+
       expect(listener).not.toHaveBeenCalled();
     });
   });

@@ -124,7 +124,10 @@ describe('useDocumentStore', () => {
         ]);
       });
 
-      const ids = useDocumentStore.getState().documents.slice(0, 2).map(d => d.id);
+      const ids = useDocumentStore
+        .getState()
+        .documents.slice(0, 2)
+        .map((d) => d.id);
 
       act(() => {
         useDocumentStore.getState().deleteDocuments(ids);

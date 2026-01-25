@@ -217,9 +217,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
           ...execution,
           status: 'completed' as WorkflowExecutionStatus,
           completedAt: new Date(),
-          duration: execution.startedAt
-            ? Date.now() - execution.startedAt.getTime()
-            : 0,
+          duration: execution.startedAt ? Date.now() - execution.startedAt.getTime() : 0,
           output,
           progress: 100,
         };
@@ -244,9 +242,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
           ...execution,
           status: 'failed' as WorkflowExecutionStatus,
           completedAt: new Date(),
-          duration: execution.startedAt
-            ? Date.now() - execution.startedAt.getTime()
-            : 0,
+          duration: execution.startedAt ? Date.now() - execution.startedAt.getTime() : 0,
           error,
         };
 
@@ -270,9 +266,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
           ...execution,
           status: 'cancelled' as WorkflowExecutionStatus,
           completedAt: new Date(),
-          duration: execution.startedAt
-            ? Date.now() - execution.startedAt.getTime()
-            : 0,
+          duration: execution.startedAt ? Date.now() - execution.startedAt.getTime() : 0,
         };
 
         set((state) => ({

@@ -141,7 +141,7 @@ describe('useCustomModeStore', () => {
 
       it('should not update non-existent mode', () => {
         const initialState = useCustomModeStore.getState().customModes;
-        
+
         act(() => {
           useCustomModeStore.getState().updateMode('non-existent', { name: 'Test' });
         });
@@ -275,7 +275,7 @@ describe('useCustomModeStore', () => {
     it('should get modes by category', () => {
       const technicalModes = useCustomModeStore.getState().getModesByCategory('technical');
       expect(technicalModes).toHaveLength(2);
-      expect(technicalModes.every(m => m.category === 'technical')).toBe(true);
+      expect(technicalModes.every((m) => m.category === 'technical')).toBe(true);
     });
 
     it('should get modes by tags', () => {
@@ -351,7 +351,7 @@ describe('useCustomModeStore', () => {
 
       const exported = useCustomModeStore.getState().exportMode(mode!.id);
       expect(exported).not.toBeNull();
-      
+
       const parsed = JSON.parse(exported!);
       expect(parsed.type).toBe('custom-mode');
       expect(parsed.mode.name).toBe('Export Test');
@@ -397,7 +397,7 @@ describe('useCustomModeStore', () => {
 
       const exported = useCustomModeStore.getState().exportAllModes();
       const parsed = JSON.parse(exported);
-      
+
       expect(parsed.type).toBe('custom-modes-collection');
       expect(parsed.modes).toHaveLength(2);
     });
@@ -406,10 +406,7 @@ describe('useCustomModeStore', () => {
       const json = JSON.stringify({
         version: '1.0',
         type: 'custom-modes-collection',
-        modes: [
-          { name: 'Imported 1' },
-          { name: 'Imported 2' },
-        ],
+        modes: [{ name: 'Imported 1' }, { name: 'Imported 2' }],
       });
 
       let count: number;
@@ -424,8 +421,10 @@ describe('useCustomModeStore', () => {
 
   describe('mode generation', () => {
     it('should generate mode from description', async () => {
-      let result: { mode: Partial<CustomModeConfig>; suggestedTools: string[]; confidence: number } | undefined;
-      
+      let result:
+        | { mode: Partial<CustomModeConfig>; suggestedTools: string[]; confidence: number }
+        | undefined;
+
       await act(async () => {
         result = await useCustomModeStore.getState().generateModeFromDescription({
           description: 'Create a coding assistant for Python',
@@ -563,10 +562,10 @@ describe('Tool Availability', () => {
   });
 
   it('should check tool availability with all keys available', () => {
-    const result = checkToolAvailability(
-      ['web_search', 'calculator', 'image_generate'],
-      { tavily: true, openai: true }
-    );
+    const result = checkToolAvailability(['web_search', 'calculator', 'image_generate'], {
+      tavily: true,
+      openai: true,
+    });
     expect(result.available).toContain('web_search');
     expect(result.available).toContain('calculator');
     expect(result.available).toContain('image_generate');
@@ -574,21 +573,18 @@ describe('Tool Availability', () => {
   });
 
   it('should identify unavailable tools', () => {
-    const result = checkToolAvailability(
-      ['web_search', 'calculator', 'image_generate'],
-      { tavily: false, openai: false }
-    );
+    const result = checkToolAvailability(['web_search', 'calculator', 'image_generate'], {
+      tavily: false,
+      openai: false,
+    });
     expect(result.available).toContain('calculator');
     expect(result.unavailable).toHaveLength(2);
-    expect(result.unavailable.some(u => u.tool === 'web_search')).toBe(true);
-    expect(result.unavailable.some(u => u.tool === 'image_generate')).toBe(true);
+    expect(result.unavailable.some((u) => u.tool === 'web_search')).toBe(true);
+    expect(result.unavailable.some((u) => u.tool === 'image_generate')).toBe(true);
   });
 
   it('should handle tools without requirements', () => {
-    const result = checkToolAvailability(
-      ['calculator', 'rag_search'],
-      {}
-    );
+    const result = checkToolAvailability(['calculator', 'rag_search'], {});
     expect(result.available).toContain('calculator');
     expect(result.available).toContain('rag_search');
     expect(result.unavailable).toHaveLength(0);
@@ -665,8 +661,8 @@ describe('MCP Tool Recommendations', () => {
       });
 
       expect(recommended.length).toBeGreaterThan(0);
-      expect(recommended.some(t => t.toolName === 'web_search')).toBe(true);
-      expect(recommended.some(t => t.toolName === 'scrape_page')).toBe(true);
+      expect(recommended.some((t) => t.toolName === 'web_search')).toBe(true);
+      expect(recommended.some((t) => t.toolName === 'scrape_page')).toBe(true);
     });
 
     it('should recommend tools matching mode name', () => {
@@ -677,7 +673,7 @@ describe('MCP Tool Recommendations', () => {
         systemPrompt: 'You help debug issues',
       });
 
-      expect(recommended.some(t => t.toolName === 'debug_code')).toBe(true);
+      expect(recommended.some((t) => t.toolName === 'debug_code')).toBe(true);
     });
 
     it('should boost tools based on category', () => {
@@ -690,19 +686,26 @@ describe('MCP Tool Recommendations', () => {
       });
 
       // Technical category should boost code-related tools
-      const codeTools = recommended.filter(t => 
-        t.toolName.includes('code') || t.toolName.includes('execute') || t.toolName.includes('debug')
+      const codeTools = recommended.filter(
+        (t) =>
+          t.toolName.includes('code') ||
+          t.toolName.includes('execute') ||
+          t.toolName.includes('debug')
       );
       expect(codeTools.length).toBeGreaterThan(0);
     });
 
     it('should respect limit parameter', () => {
       const tools = createMockMcpTools();
-      const recommended = getRecommendedMcpToolsForMode(tools, {
-        name: 'General',
-        description: 'search file code image database',
-        systemPrompt: 'search file code image database',
-      }, 3);
+      const recommended = getRecommendedMcpToolsForMode(
+        tools,
+        {
+          name: 'General',
+          description: 'search file code image database',
+          systemPrompt: 'search file code image database',
+        },
+        3
+      );
 
       expect(recommended.length).toBeLessThanOrEqual(3);
     });
@@ -731,7 +734,9 @@ describe('MCP Tool Recommendations', () => {
       });
 
       for (let i = 1; i < recommended.length; i++) {
-        expect(recommended[i - 1].relevanceScore).toBeGreaterThanOrEqual(recommended[i].relevanceScore);
+        expect(recommended[i - 1].relevanceScore).toBeGreaterThanOrEqual(
+          recommended[i].relevanceScore
+        );
       }
     });
 
@@ -756,8 +761,8 @@ describe('MCP Tool Recommendations', () => {
       const selected = autoSelectMcpToolsForMode(tools, 'Search the web and read files');
 
       expect(selected.length).toBeGreaterThan(0);
-      expect(selected.some(t => t.toolName === 'web_search')).toBe(true);
-      expect(selected.some(t => t.toolName === 'file_read')).toBe(true);
+      expect(selected.some((t) => t.toolName === 'web_search')).toBe(true);
+      expect(selected.some((t) => t.toolName === 'file_read')).toBe(true);
     });
 
     it('should respect maxTools parameter', () => {
@@ -775,7 +780,9 @@ describe('MCP Tool Recommendations', () => {
         expect(tool).toHaveProperty('serverId');
         expect(tool).toHaveProperty('toolName');
         // Should not have relevanceScore (it's stripped)
-        expect((tool as McpToolReference & { relevanceScore?: number }).relevanceScore).toBeUndefined();
+        expect(
+          (tool as McpToolReference & { relevanceScore?: number }).relevanceScore
+        ).toBeUndefined();
       }
     });
 

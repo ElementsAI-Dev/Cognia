@@ -24,11 +24,9 @@ describe('useProjectActivityStore', () => {
   describe('addActivity', () => {
     it('should add activity', () => {
       act(() => {
-        useProjectActivityStore.getState().addActivity(
-          'project-1',
-          'project_created',
-          'Project created'
-        );
+        useProjectActivityStore
+          .getState()
+          .addActivity('project-1', 'project_created', 'Project created');
       });
 
       const activities = useProjectActivityStore.getState().activities;
@@ -41,12 +39,11 @@ describe('useProjectActivityStore', () => {
 
     it('should add activity with metadata', () => {
       act(() => {
-        useProjectActivityStore.getState().addActivity(
-          'project-1',
-          'session_added',
-          'Session added',
-          { sessionTitle: 'Test Session' }
-        );
+        useProjectActivityStore
+          .getState()
+          .addActivity('project-1', 'session_added', 'Session added', {
+            sessionTitle: 'Test Session',
+          });
       });
 
       const activities = useProjectActivityStore.getState().activities;
@@ -61,15 +58,14 @@ describe('useProjectActivityStore', () => {
 
       act(() => {
         for (let i = 0; i < 5; i++) {
-          useProjectActivityStore.getState().addActivity(
-            'project-1',
-            'project_updated',
-            `Update ${i}`
-          );
+          useProjectActivityStore
+            .getState()
+            .addActivity('project-1', 'project_updated', `Update ${i}`);
         }
       });
 
-      const projectActivities = useProjectActivityStore.getState()
+      const projectActivities = useProjectActivityStore
+        .getState()
         .getActivitiesForProject('project-1');
       expect(projectActivities).toHaveLength(3);
     });
@@ -96,7 +92,7 @@ describe('useProjectActivityStore', () => {
 
       const p1Activities = useProjectActivityStore.getState().getActivitiesForProject('project-1');
       expect(p1Activities).toHaveLength(2);
-      expect(p1Activities.every(a => a.projectId === 'project-1')).toBe(true);
+      expect(p1Activities.every((a) => a.projectId === 'project-1')).toBe(true);
     });
 
     it('should return activities sorted by timestamp descending', () => {
@@ -123,8 +119,12 @@ describe('useProjectActivityStore', () => {
         useProjectActivityStore.getState().clearActivitiesForProject('project-1');
       });
 
-      expect(useProjectActivityStore.getState().getActivitiesForProject('project-1')).toHaveLength(0);
-      expect(useProjectActivityStore.getState().getActivitiesForProject('project-2')).toHaveLength(1);
+      expect(useProjectActivityStore.getState().getActivitiesForProject('project-1')).toHaveLength(
+        0
+      );
+      expect(useProjectActivityStore.getState().getActivitiesForProject('project-2')).toHaveLength(
+        1
+      );
     });
   });
 
@@ -152,22 +152,25 @@ describe('getActivityDescription', () => {
   });
 
   it('should return description with metadata for session types', () => {
-    expect(getActivityDescription('session_added', { sessionTitle: 'My Chat' }))
-      .toBe('Added session: My Chat');
-    expect(getActivityDescription('session_removed', { sessionTitle: 'Old Chat' }))
-      .toBe('Removed session: Old Chat');
+    expect(getActivityDescription('session_added', { sessionTitle: 'My Chat' })).toBe(
+      'Added session: My Chat'
+    );
+    expect(getActivityDescription('session_removed', { sessionTitle: 'Old Chat' })).toBe(
+      'Removed session: Old Chat'
+    );
   });
 
   it('should return description with metadata for knowledge types', () => {
-    expect(getActivityDescription('knowledge_added', { fileName: 'doc.pdf' }))
-      .toBe('Added file: doc.pdf');
-    expect(getActivityDescription('knowledge_removed', { fileName: 'old.txt' }))
-      .toBe('Removed file: old.txt');
+    expect(getActivityDescription('knowledge_added', { fileName: 'doc.pdf' })).toBe(
+      'Added file: doc.pdf'
+    );
+    expect(getActivityDescription('knowledge_removed', { fileName: 'old.txt' })).toBe(
+      'Removed file: old.txt'
+    );
   });
 
   it('should return description with metadata for tags', () => {
-    expect(getActivityDescription('tags_updated', { tags: ['a', 'b'] }))
-      .toBe('Tags: a, b');
+    expect(getActivityDescription('tags_updated', { tags: ['a', 'b'] })).toBe('Tags: a, b');
   });
 
   it('should return fallback description when no metadata', () => {

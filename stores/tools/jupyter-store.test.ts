@@ -9,7 +9,13 @@ import {
   useActiveKernel,
   useJupyterSessionForChat,
 } from './jupyter-store';
-import type { JupyterSession, KernelInfo, VariableInfo, KernelSandboxExecutionResult, ExecutableCell } from '@/types/system/jupyter';
+import type {
+  JupyterSession,
+  KernelInfo,
+  VariableInfo,
+  KernelSandboxExecutionResult,
+  ExecutableCell,
+} from '@/types/system/jupyter';
 
 const createMockSession = (overrides: Partial<JupyterSession> = {}): JupyterSession => ({
   id: `session-${Date.now()}`,
@@ -349,8 +355,24 @@ describe('useJupyterStore', () => {
     it('sets cells for a session', () => {
       const { result } = renderHook(() => useJupyterStore());
       const cells = [
-        { id: 'c1', type: 'code', source: 'x = 1', executionCount: null, outputs: [], executionState: 'idle', metadata: {} },
-        { id: 'c2', type: 'code', source: 'print(x)', executionCount: null, outputs: [], executionState: 'idle', metadata: {} },
+        {
+          id: 'c1',
+          type: 'code',
+          source: 'x = 1',
+          executionCount: null,
+          outputs: [],
+          executionState: 'idle',
+          metadata: {},
+        },
+        {
+          id: 'c2',
+          type: 'code',
+          source: 'print(x)',
+          executionCount: null,
+          outputs: [],
+          executionState: 'idle',
+          metadata: {},
+        },
       ] as ExecutableCell[];
 
       act(() => {
@@ -363,7 +385,15 @@ describe('useJupyterStore', () => {
     it('updates a cell', () => {
       const { result } = renderHook(() => useJupyterStore());
       const cells = [
-        { id: 'c1', type: 'code', source: 'x = 1', executionCount: null, outputs: [], executionState: 'idle', metadata: {} },
+        {
+          id: 'c1',
+          type: 'code',
+          source: 'x = 1',
+          executionCount: null,
+          outputs: [],
+          executionState: 'idle',
+          metadata: {},
+        },
       ] as ExecutableCell[];
 
       act(() => {
@@ -380,7 +410,15 @@ describe('useJupyterStore', () => {
     it('updates cell outputs and execution state', () => {
       const { result } = renderHook(() => useJupyterStore());
       const cells = [
-        { id: 'c1', type: 'code', source: 'x = 1', executionCount: null, outputs: [], executionState: 'idle', metadata: {} },
+        {
+          id: 'c1',
+          type: 'code',
+          source: 'x = 1',
+          executionCount: null,
+          outputs: [],
+          executionState: 'idle',
+          metadata: {},
+        },
       ] as ExecutableCell[];
 
       act(() => {

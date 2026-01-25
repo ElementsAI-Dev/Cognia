@@ -361,7 +361,7 @@ describe('useQuoteStore', () => {
         result.current.collapseAll();
       });
 
-      expect(result.current.quotedTexts.every(q => q.isCollapsed)).toBe(true);
+      expect(result.current.quotedTexts.every((q) => q.isCollapsed)).toBe(true);
     });
 
     it('should expand all quotes', () => {
@@ -377,7 +377,7 @@ describe('useQuoteStore', () => {
         result.current.expandAll();
       });
 
-      expect(result.current.quotedTexts.every(q => !q.isCollapsed)).toBe(true);
+      expect(result.current.quotedTexts.every((q) => !q.isCollapsed)).toBe(true);
     });
   });
 
@@ -408,7 +408,11 @@ describe('useQuoteStore', () => {
 
       act(() => {
         for (let i = 0; i < 12; i++) {
-          result.current.addQuote({ content: `Quote ${i}`, messageId: `msg-${i}`, messageRole: 'user' });
+          result.current.addQuote({
+            content: `Quote ${i}`,
+            messageId: `msg-${i}`,
+            messageRole: 'user',
+          });
         }
       });
 
@@ -422,7 +426,11 @@ describe('useQuoteStore', () => {
 
       act(() => {
         for (let i = 0; i < 10; i++) {
-          result.current.addQuote({ content: `Quote ${i}`, messageId: `msg-${i}`, messageRole: 'user' });
+          result.current.addQuote({
+            content: `Quote ${i}`,
+            messageId: `msg-${i}`,
+            messageRole: 'user',
+          });
         }
       });
 
@@ -510,7 +518,7 @@ describe('useQuoteStore', () => {
       });
 
       expect(result.current.quotedTexts).toHaveLength(2);
-      expect(result.current.quotedTexts.map(q => q.content)).toEqual(['A', 'C']);
+      expect(result.current.quotedTexts.map((q) => q.content)).toEqual(['A', 'C']);
     });
   });
 
@@ -520,11 +528,15 @@ describe('useQuoteStore', () => {
 
       act(() => {
         result.current.addQuote({ content: 'First', messageId: 'msg-1', messageRole: 'user' });
-        result.current.addQuote({ content: 'Second', messageId: 'msg-2', messageRole: 'assistant' });
+        result.current.addQuote({
+          content: 'Second',
+          messageId: 'msg-2',
+          messageRole: 'assistant',
+        });
         result.current.addQuote({ content: 'Third', messageId: 'msg-3', messageRole: 'user' });
       });
 
-      const ids = result.current.quotedTexts.slice(0, 2).map(q => q.id);
+      const ids = result.current.quotedTexts.slice(0, 2).map((q) => q.id);
 
       act(() => {
         result.current.mergeQuotes(ids);
@@ -557,7 +569,11 @@ describe('useQuoteStore', () => {
       const { result } = renderHook(() => useQuoteStore());
 
       act(() => {
-        result.current.addQuote({ content: 'Test content', messageId: 'msg-1', messageRole: 'user' });
+        result.current.addQuote({
+          content: 'Test content',
+          messageId: 'msg-1',
+          messageRole: 'user',
+        });
       });
 
       const exported = result.current.exportQuotes('markdown');
@@ -570,7 +586,11 @@ describe('useQuoteStore', () => {
       const { result } = renderHook(() => useQuoteStore());
 
       act(() => {
-        result.current.addQuote({ content: 'Test content', messageId: 'msg-1', messageRole: 'assistant' });
+        result.current.addQuote({
+          content: 'Test content',
+          messageId: 'msg-1',
+          messageRole: 'assistant',
+        });
       });
 
       const exported = result.current.exportQuotes('text');
@@ -583,7 +603,11 @@ describe('useQuoteStore', () => {
       const { result } = renderHook(() => useQuoteStore());
 
       act(() => {
-        result.current.addQuote({ content: 'Test content', messageId: 'msg-1', messageRole: 'user' });
+        result.current.addQuote({
+          content: 'Test content',
+          messageId: 'msg-1',
+          messageRole: 'user',
+        });
       });
 
       const exported = result.current.exportQuotes('json');

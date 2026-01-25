@@ -25,15 +25,15 @@ interface PromptMarketplaceState {
   collections: Record<string, PromptCollection>;
   featuredIds: string[];
   trendingIds: string[];
-  
+
   // User activity
   userActivity: MarketplaceUserActivity;
-  
+
   // UI State
   isLoading: boolean;
   error: string | null;
   lastSyncedAt: Date | null;
-  
+
   // Actions - Fetching
   fetchFeatured: () => Promise<void>;
   fetchTrending: () => Promise<void>;
@@ -42,7 +42,7 @@ interface PromptMarketplaceState {
   getPromptById: (id: string) => MarketplacePrompt | undefined;
   fetchPromptDetails: (id: string) => Promise<MarketplacePrompt | null>;
   fetchPromptReviews: (promptId: string, page?: number) => Promise<PromptReview[]>;
-  
+
   // Actions - Installation
   installPrompt: (prompt: MarketplacePrompt) => Promise<string>;
   uninstallPrompt: (marketplaceId: string) => void;
@@ -50,27 +50,27 @@ interface PromptMarketplaceState {
   checkForUpdates: () => Promise<InstalledMarketplacePrompt[]>;
   getInstalledPrompts: () => InstalledMarketplacePrompt[];
   isPromptInstalled: (marketplaceId: string) => boolean;
-  
+
   // Actions - User Activity
   addToFavorites: (promptId: string) => void;
   removeFromFavorites: (promptId: string) => void;
   isFavorite: (promptId: string) => boolean;
   recordView: (promptId: string) => void;
   getRecentlyViewed: () => MarketplacePrompt[];
-  
+
   // Actions - Reviews
   submitReview: (promptId: string, rating: number, content: string) => Promise<void>;
   markReviewHelpful: (reviewId: string) => Promise<void>;
-  
+
   // Actions - Publishing
   publishPrompt: (templateId: string, metadata: Partial<MarketplacePrompt>) => Promise<string>;
   unpublishPrompt: (marketplaceId: string) => Promise<void>;
-  
+
   // Actions - Collections
   fetchCollections: () => Promise<PromptCollection[]>;
   followCollection: (collectionId: string) => void;
   unfollowCollection: (collectionId: string) => void;
-  
+
   // Utility
   clearCache: () => void;
   setError: (error: string | null) => void;
@@ -104,10 +104,13 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
         set({ isLoading: true, error: null });
         try {
           // In production, this would be an API call
-          const featured = Object.values(get().prompts).filter(p => p.isFeatured);
-          set({ featuredIds: featured.map(p => p.id), isLoading: false });
+          const featured = Object.values(get().prompts).filter((p) => p.isFeatured);
+          set({ featuredIds: featured.map((p) => p.id), isLoading: false });
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to fetch featured', isLoading: false });
+          set({
+            error: error instanceof Error ? error.message : 'Failed to fetch featured',
+            isLoading: false,
+          });
         }
       },
 
@@ -118,26 +121,31 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           const trending = prompts
             .sort((a, b) => b.stats.weeklyDownloads - a.stats.weeklyDownloads)
             .slice(0, 20);
-          set({ trendingIds: trending.map(p => p.id), isLoading: false });
+          set({ trendingIds: trending.map((p) => p.id), isLoading: false });
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to fetch trending', isLoading: false });
+          set({
+            error: error instanceof Error ? error.message : 'Failed to fetch trending',
+            isLoading: false,
+          });
         }
       },
 
       fetchByCategory: async (category: MarketplaceCategory) => {
         const prompts = Object.values(get().prompts);
         if (category === 'featured') {
-          return prompts.filter(p => p.isFeatured);
+          return prompts.filter((p) => p.isFeatured);
         }
         if (category === 'trending') {
-          return prompts.sort((a, b) => b.stats.weeklyDownloads - a.stats.weeklyDownloads).slice(0, 20);
+          return prompts
+            .sort((a, b) => b.stats.weeklyDownloads - a.stats.weeklyDownloads)
+            .slice(0, 20);
         }
         if (category === 'new') {
           return prompts
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
             .slice(0, 20);
         }
-        return prompts.filter(p => p.category === category);
+        return prompts.filter((p) => p.category === category);
       },
 
       searchPrompts: async (filters: MarketplaceSearchFilters) => {
@@ -147,39 +155,36 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
         // Apply filters
         if (filters.query) {
           const query = filters.query.toLowerCase();
-          filtered = filtered.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.description.toLowerCase().includes(query) ||
-            p.tags.some(t => t.toLowerCase().includes(query))
+          filtered = filtered.filter(
+            (p) =>
+              p.name.toLowerCase().includes(query) ||
+              p.description.toLowerCase().includes(query) ||
+              p.tags.some((t) => t.toLowerCase().includes(query))
           );
         }
 
         if (filters.category && !['featured', 'trending', 'new'].includes(filters.category)) {
-          filtered = filtered.filter(p => p.category === filters.category);
+          filtered = filtered.filter((p) => p.category === filters.category);
         }
 
         if (filters.tags && filters.tags.length > 0) {
-          filtered = filtered.filter(p =>
-            filters.tags!.some(tag => p.tags.includes(tag))
-          );
+          filtered = filtered.filter((p) => filters.tags!.some((tag) => p.tags.includes(tag)));
         }
 
         if (filters.qualityTier && filters.qualityTier.length > 0) {
-          filtered = filtered.filter(p => filters.qualityTier!.includes(p.qualityTier));
+          filtered = filtered.filter((p) => filters.qualityTier!.includes(p.qualityTier));
         }
 
         if (filters.targets && filters.targets.length > 0) {
-          filtered = filtered.filter(p =>
-            filters.targets!.some(t => p.targets.includes(t))
-          );
+          filtered = filtered.filter((p) => filters.targets!.some((t) => p.targets.includes(t)));
         }
 
         if (filters.minRating) {
-          filtered = filtered.filter(p => p.rating.average >= filters.minRating!);
+          filtered = filtered.filter((p) => p.rating.average >= filters.minRating!);
         }
 
         if (filters.authorId) {
-          filtered = filtered.filter(p => p.author.id === filters.authorId);
+          filtered = filtered.filter((p) => p.author.id === filters.authorId);
         }
 
         // Sort
@@ -191,7 +196,9 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
             filtered.sort((a, b) => b.rating.average - a.rating.average);
             break;
           case 'newest':
-            filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            filtered.sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
             break;
           case 'trending':
             filtered.sort((a, b) => b.stats.weeklyDownloads - a.stats.weeklyDownloads);
@@ -210,10 +217,10 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           qualityTiers: {} as Record<string, number>,
         };
 
-        filtered.forEach(p => {
+        filtered.forEach((p) => {
           facets.categories[p.category] = (facets.categories[p.category] || 0) + 1;
           facets.qualityTiers[p.qualityTier] = (facets.qualityTiers[p.qualityTier] || 0) + 1;
-          p.tags.forEach(tag => {
+          p.tags.forEach((tag) => {
             facets.tags[tag] = (facets.tags[tag] || 0) + 1;
           });
         });
@@ -245,7 +252,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       // Installation Actions
       installPrompt: async (prompt: MarketplacePrompt) => {
         const templateStore = usePromptTemplateStore.getState();
-        
+
         // Create local template from marketplace prompt
         const template = templateStore.createTemplate({
           name: prompt.name,
@@ -274,7 +281,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           installedAt: new Date(),
         };
 
-        set(state => ({
+        set((state) => ({
           userActivity: {
             ...state.userActivity,
             installed: [...state.userActivity.installed, installation],
@@ -283,7 +290,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
 
         // Update download count locally
         if (get().prompts[prompt.id]) {
-          set(state => ({
+          set((state) => ({
             prompts: {
               ...state.prompts,
               [prompt.id]: {
@@ -302,18 +309,20 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
 
       uninstallPrompt: (marketplaceId: string) => {
         const { userActivity } = get();
-        const installation = userActivity.installed.find(i => i.marketplaceId === marketplaceId);
-        
+        const installation = userActivity.installed.find((i) => i.marketplaceId === marketplaceId);
+
         if (installation) {
           // Remove local template
           const templateStore = usePromptTemplateStore.getState();
           templateStore.deleteTemplate(installation.localTemplateId);
-          
+
           // Remove from installed list
-          set(state => ({
+          set((state) => ({
             userActivity: {
               ...state.userActivity,
-              installed: state.userActivity.installed.filter(i => i.marketplaceId !== marketplaceId),
+              installed: state.userActivity.installed.filter(
+                (i) => i.marketplaceId !== marketplaceId
+              ),
             },
           }));
         }
@@ -322,8 +331,8 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       updateInstalledPrompt: async (marketplaceId: string) => {
         const { prompts, userActivity } = get();
         const prompt = prompts[marketplaceId];
-        const installation = userActivity.installed.find(i => i.marketplaceId === marketplaceId);
-        
+        const installation = userActivity.installed.find((i) => i.marketplaceId === marketplaceId);
+
         if (!prompt || !installation) return;
 
         // Update local template
@@ -334,10 +343,10 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
         });
 
         // Update installation record
-        set(state => ({
+        set((state) => ({
           userActivity: {
             ...state.userActivity,
-            installed: state.userActivity.installed.map(i =>
+            installed: state.userActivity.installed.map((i) =>
               i.marketplaceId === marketplaceId
                 ? {
                     ...i,
@@ -356,7 +365,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
         const { prompts, userActivity } = get();
         const withUpdates: InstalledMarketplacePrompt[] = [];
 
-        const updatedInstalled = userActivity.installed.map(installation => {
+        const updatedInstalled = userActivity.installed.map((installation) => {
           const prompt = prompts[installation.marketplaceId];
           if (prompt && prompt.version !== installation.installedVersion) {
             const updated = {
@@ -370,7 +379,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           return installation;
         });
 
-        set(state => ({
+        set((state) => ({
           userActivity: {
             ...state.userActivity,
             installed: updatedInstalled,
@@ -385,12 +394,12 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       },
 
       isPromptInstalled: (marketplaceId: string) => {
-        return get().userActivity.installed.some(i => i.marketplaceId === marketplaceId);
+        return get().userActivity.installed.some((i) => i.marketplaceId === marketplaceId);
       },
 
       // User Activity Actions
       addToFavorites: (promptId: string) => {
-        set(state => ({
+        set((state) => ({
           userActivity: {
             ...state.userActivity,
             favorites: state.userActivity.favorites.includes(promptId)
@@ -401,10 +410,10 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       },
 
       removeFromFavorites: (promptId: string) => {
-        set(state => ({
+        set((state) => ({
           userActivity: {
             ...state.userActivity,
-            favorites: state.userActivity.favorites.filter(id => id !== promptId),
+            favorites: state.userActivity.favorites.filter((id) => id !== promptId),
           },
         }));
       },
@@ -414,8 +423,8 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       },
 
       recordView: (promptId: string) => {
-        set(state => {
-          const filtered = state.userActivity.recentlyViewed.filter(v => v.promptId !== promptId);
+        set((state) => {
+          const filtered = state.userActivity.recentlyViewed.filter((v) => v.promptId !== promptId);
           const newView = { promptId, viewedAt: new Date() };
           return {
             userActivity: {
@@ -429,7 +438,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       getRecentlyViewed: () => {
         const { prompts, userActivity } = get();
         return userActivity.recentlyViewed
-          .map(v => prompts[v.promptId])
+          .map((v) => prompts[v.promptId])
           .filter((p): p is MarketplacePrompt => p !== undefined);
       },
 
@@ -458,7 +467,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       },
 
       followCollection: (collectionId: string) => {
-        set(state => ({
+        set((state) => ({
           userActivity: {
             ...state.userActivity,
             collections: state.userActivity.collections.includes(collectionId)
@@ -469,10 +478,10 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       },
 
       unfollowCollection: (collectionId: string) => {
-        set(state => ({
+        set((state) => ({
           userActivity: {
             ...state.userActivity,
-            collections: state.userActivity.collections.filter(id => id !== collectionId),
+            collections: state.userActivity.collections.filter((id) => id !== collectionId),
           },
         }));
       },
@@ -524,14 +533,16 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       partialize: (state) => ({
         userActivity: {
           ...state.userActivity,
-          recentlyViewed: state.userActivity.recentlyViewed.map(v => ({
+          recentlyViewed: state.userActivity.recentlyViewed.map((v) => ({
             promptId: v.promptId,
             viewedAt: v.viewedAt instanceof Date ? v.viewedAt.toISOString() : v.viewedAt,
           })),
-          installed: state.userActivity.installed.map(i => ({
+          installed: state.userActivity.installed.map((i) => ({
             ...i,
-            installedAt: i.installedAt instanceof Date ? i.installedAt.toISOString() : i.installedAt,
-            lastSyncedAt: i.lastSyncedAt instanceof Date ? i.lastSyncedAt.toISOString() : i.lastSyncedAt,
+            installedAt:
+              i.installedAt instanceof Date ? i.installedAt.toISOString() : i.installedAt,
+            lastSyncedAt:
+              i.lastSyncedAt instanceof Date ? i.lastSyncedAt.toISOString() : i.lastSyncedAt,
           })),
         },
         prompts: state.prompts,
@@ -547,20 +558,20 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
             state.lastSyncedAt = new Date(state.lastSyncedAt);
           }
           if (state.userActivity.recentlyViewed) {
-            state.userActivity.recentlyViewed = state.userActivity.recentlyViewed.map(v => ({
+            state.userActivity.recentlyViewed = state.userActivity.recentlyViewed.map((v) => ({
               promptId: v.promptId,
               viewedAt: new Date(v.viewedAt),
             }));
           }
           if (state.userActivity.installed) {
-            state.userActivity.installed = state.userActivity.installed.map(i => ({
+            state.userActivity.installed = state.userActivity.installed.map((i) => ({
               ...i,
               installedAt: new Date(i.installedAt),
               lastSyncedAt: i.lastSyncedAt ? new Date(i.lastSyncedAt) : undefined,
             }));
           }
           // Rehydrate prompt dates
-          Object.values(state.prompts).forEach(p => {
+          Object.values(state.prompts).forEach((p) => {
             p.createdAt = new Date(p.createdAt);
             p.updatedAt = new Date(p.updatedAt);
             if (p.publishedAt) p.publishedAt = new Date(p.publishedAt);
@@ -572,14 +583,16 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
 );
 
 // Selectors
-export const selectMarketplacePrompts = (state: PromptMarketplaceState) => Object.values(state.prompts);
-export const selectFeaturedPrompts = (state: PromptMarketplaceState) => 
-  state.featuredIds.map(id => state.prompts[id]).filter(Boolean);
-export const selectTrendingPrompts = (state: PromptMarketplaceState) => 
-  state.trendingIds.map(id => state.prompts[id]).filter(Boolean);
-export const selectInstalledPrompts = (state: PromptMarketplaceState) => state.userActivity.installed;
-export const selectFavoritePrompts = (state: PromptMarketplaceState) => 
-  state.userActivity.favorites.map(id => state.prompts[id]).filter(Boolean);
+export const selectMarketplacePrompts = (state: PromptMarketplaceState) =>
+  Object.values(state.prompts);
+export const selectFeaturedPrompts = (state: PromptMarketplaceState) =>
+  state.featuredIds.map((id) => state.prompts[id]).filter(Boolean);
+export const selectTrendingPrompts = (state: PromptMarketplaceState) =>
+  state.trendingIds.map((id) => state.prompts[id]).filter(Boolean);
+export const selectInstalledPrompts = (state: PromptMarketplaceState) =>
+  state.userActivity.installed;
+export const selectFavoritePrompts = (state: PromptMarketplaceState) =>
+  state.userActivity.favorites.map((id) => state.prompts[id]).filter(Boolean);
 export const selectIsLoading = (state: PromptMarketplaceState) => state.isLoading;
 export const selectError = (state: PromptMarketplaceState) => state.error;
 

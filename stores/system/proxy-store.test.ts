@@ -143,15 +143,25 @@ describe('useProxyStore', () => {
       const { result } = renderHook(() => useProxyStore());
 
       act(() => {
-        result.current.addDetectedProxy({ software: 'clash', running: true, httpPort: 7890 } as DetectedProxy);
+        result.current.addDetectedProxy({
+          software: 'clash',
+          running: true,
+          httpPort: 7890,
+        } as DetectedProxy);
       });
 
       act(() => {
-        result.current.addDetectedProxy({ software: 'clash', running: true, httpPort: 7891 } as DetectedProxy);
+        result.current.addDetectedProxy({
+          software: 'clash',
+          running: true,
+          httpPort: 7891,
+        } as DetectedProxy);
       });
 
       expect(result.current.detectedProxies).toHaveLength(1);
-      expect((result.current.detectedProxies[0] as DetectedProxy & { httpPort: number }).httpPort).toBe(7891);
+      expect(
+        (result.current.detectedProxies[0] as DetectedProxy & { httpPort: number }).httpPort
+      ).toBe(7891);
     });
 
     it('sets detection status', () => {
@@ -285,7 +295,14 @@ describe('getActiveProxyUrl', () => {
         testUrl: '',
         autoDetectInterval: 30000,
       },
-      status: { enabled: false, mode: 'off', connected: false, lastTest: null, lastTestTime: null, currentProxy: undefined },
+      status: {
+        enabled: false,
+        mode: 'off',
+        connected: false,
+        lastTest: null,
+        lastTestTime: null,
+        currentProxy: undefined,
+      },
       detectedProxies: [],
       detectionStatus: 'idle',
       isDetecting: false,
@@ -307,7 +324,14 @@ describe('getActiveProxyUrl', () => {
         testUrl: '',
         autoDetectInterval: 30000,
       },
-      status: { enabled: true, mode: 'off', connected: false, lastTest: null, lastTestTime: null, currentProxy: undefined },
+      status: {
+        enabled: true,
+        mode: 'off',
+        connected: false,
+        lastTest: null,
+        lastTestTime: null,
+        currentProxy: undefined,
+      },
       detectedProxies: [],
       detectionStatus: 'idle',
       isDetecting: false,
@@ -329,7 +353,14 @@ describe('getActiveProxyUrl', () => {
         testUrl: '',
         autoDetectInterval: 30000,
       },
-      status: { enabled: true, mode: 'manual', connected: false, lastTest: null, lastTestTime: null, currentProxy: undefined },
+      status: {
+        enabled: true,
+        mode: 'manual',
+        connected: false,
+        lastTest: null,
+        lastTestTime: null,
+        currentProxy: undefined,
+      },
       detectedProxies: [],
       detectionStatus: 'idle',
       isDetecting: false,
@@ -346,12 +377,25 @@ describe('getActiveProxyUrl', () => {
       config: {
         enabled: true,
         mode: 'manual',
-        manual: { protocol: 'http', host: '127.0.0.1', port: 8080, username: 'user', password: 'pass' },
+        manual: {
+          protocol: 'http',
+          host: '127.0.0.1',
+          port: 8080,
+          username: 'user',
+          password: 'pass',
+        },
         selectedProxy: undefined,
         testUrl: '',
         autoDetectInterval: 30000,
       },
-      status: { enabled: true, mode: 'manual', connected: false, lastTest: null, lastTestTime: null, currentProxy: undefined },
+      status: {
+        enabled: true,
+        mode: 'manual',
+        connected: false,
+        lastTest: null,
+        lastTestTime: null,
+        currentProxy: undefined,
+      },
       detectedProxies: [],
       detectionStatus: 'idle',
       isDetecting: false,
@@ -373,7 +417,14 @@ describe('getActiveProxyUrl', () => {
         testUrl: '',
         autoDetectInterval: 30000,
       },
-      status: { enabled: true, mode: 'auto', connected: false, lastTest: null, lastTestTime: null, currentProxy: undefined },
+      status: {
+        enabled: true,
+        mode: 'auto',
+        connected: false,
+        lastTest: null,
+        lastTestTime: null,
+        currentProxy: undefined,
+      },
       detectedProxies: [
         { software: 'clash', running: true, httpPort: 7890, mixedPort: 7890 } as DetectedProxy,
       ],
@@ -439,7 +490,9 @@ describe('Selector Hooks', () => {
   it('useDetectedProxies returns detected proxies', () => {
     const store = renderHook(() => useProxyStore());
     act(() => {
-      store.result.current.setDetectedProxies([{ software: 'clash', running: true } as DetectedProxy]);
+      store.result.current.setDetectedProxies([
+        { software: 'clash', running: true } as DetectedProxy,
+      ]);
     });
 
     const { result } = renderHook(() => useDetectedProxies());

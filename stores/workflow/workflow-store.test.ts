@@ -157,7 +157,11 @@ describe('useWorkflowStore', () => {
 
     it('should complete an execution and add to history', () => {
       const { result } = renderHook(() => useWorkflowStore());
-      const execution = createMockExecution({ id: 'exec-1', status: 'executing', startedAt: new Date() });
+      const execution = createMockExecution({
+        id: 'exec-1',
+        status: 'executing',
+        startedAt: new Date(),
+      });
 
       act(() => {
         result.current.addExecution(execution);
@@ -171,7 +175,11 @@ describe('useWorkflowStore', () => {
 
     it('should fail an execution and add to history', () => {
       const { result } = renderHook(() => useWorkflowStore());
-      const execution = createMockExecution({ id: 'exec-1', status: 'executing', startedAt: new Date() });
+      const execution = createMockExecution({
+        id: 'exec-1',
+        status: 'executing',
+        startedAt: new Date(),
+      });
 
       act(() => {
         result.current.addExecution(execution);
@@ -185,7 +193,11 @@ describe('useWorkflowStore', () => {
 
     it('should cancel an execution and add to history', () => {
       const { result } = renderHook(() => useWorkflowStore());
-      const execution = createMockExecution({ id: 'exec-1', status: 'executing', startedAt: new Date() });
+      const execution = createMockExecution({
+        id: 'exec-1',
+        status: 'executing',
+        startedAt: new Date(),
+      });
 
       act(() => {
         result.current.addExecution(execution);
@@ -310,7 +322,11 @@ describe('useWorkflowStore', () => {
 
     it('should clear history', () => {
       const { result } = renderHook(() => useWorkflowStore());
-      const execution = createMockExecution({ id: 'exec-1', status: 'executing', startedAt: new Date() });
+      const execution = createMockExecution({
+        id: 'exec-1',
+        status: 'executing',
+        startedAt: new Date(),
+      });
 
       act(() => {
         result.current.addExecution(execution);

@@ -1,6 +1,6 @@
 /**
  * Learning Store - Zustand state management for Learning Mode
- * 
+ *
  * Manages learning sessions with Socratic Method workflow tracking.
  */
 
@@ -28,8 +28,8 @@ import type {
 } from '@/types/learning';
 import { DEFAULT_LEARNING_CONFIG, DEFAULT_LEARNING_STATISTICS } from '@/types/learning';
 import { detectLearningType } from '@/lib/learning/learning-type-detector';
-import { 
-  createLearningPath, 
+import {
+  createLearningPath,
   updateMilestoneProgress,
   recordStudySession,
 } from '@/lib/learning/learning-path';
@@ -76,10 +76,22 @@ interface LearningState {
   getCurrentPhase: (learningSessionId: string) => LearningPhase | undefined;
 
   // Sub-questions management
-  addSubQuestion: (learningSessionId: string, question: string, difficulty?: DifficultyLevel) => LearningSubQuestion;
-  updateSubQuestion: (learningSessionId: string, subQuestionId: string, updates: Partial<LearningSubQuestion>) => void;
+  addSubQuestion: (
+    learningSessionId: string,
+    question: string,
+    difficulty?: DifficultyLevel
+  ) => LearningSubQuestion;
+  updateSubQuestion: (
+    learningSessionId: string,
+    subQuestionId: string,
+    updates: Partial<LearningSubQuestion>
+  ) => void;
   setCurrentSubQuestion: (learningSessionId: string, subQuestionId: string) => void;
-  markSubQuestionResolved: (learningSessionId: string, subQuestionId: string, insights?: string[]) => void;
+  markSubQuestionResolved: (
+    learningSessionId: string,
+    subQuestionId: string,
+    insights?: string[]
+  ) => void;
   addHintToSubQuestion: (learningSessionId: string, subQuestionId: string, hint: string) => void;
   incrementAttempts: (learningSessionId: string, subQuestionId: string) => void;
 
@@ -209,7 +221,7 @@ export const useLearningStore = create<LearningState>()(
         // Detect learning type if auto-detection is enabled or not specified
         let durationType = input.durationType;
         let category = input.category;
-        
+
         if (input.autoDetectType !== false && (!durationType || !category)) {
           const detection = detectLearningType(input.topic, {
             backgroundKnowledge: input.backgroundKnowledge,
@@ -422,9 +434,7 @@ export const useLearningStore = create<LearningState>()(
                 subQuestions: session.subQuestions.map((sq) => ({
                   ...sq,
                   status:
-                    sq.id === subQuestionId && sq.status === 'pending'
-                      ? 'in_progress'
-                      : sq.status,
+                    sq.id === subQuestionId && sq.status === 'pending' ? 'in_progress' : sq.status,
                 })),
                 lastActivityAt: new Date(),
               },
@@ -504,9 +514,7 @@ export const useLearningStore = create<LearningState>()(
               [learningSessionId]: {
                 ...session,
                 subQuestions: session.subQuestions.map((sq) =>
-                  sq.id === subQuestionId
-                    ? { ...sq, userAttempts: sq.userAttempts + 1 }
-                    : sq
+                  sq.id === subQuestionId ? { ...sq, userAttempts: sq.userAttempts + 1 } : sq
                 ),
                 lastActivityAt: new Date(),
               },
@@ -715,9 +723,7 @@ export const useLearningStore = create<LearningState>()(
               ...state.sessions,
               [learningSessionId]: {
                 ...session,
-                notes: session.notes.map((n) =>
-                  n.id === noteId ? { ...n, ...updates } : n
-                ),
+                notes: session.notes.map((n) => (n.id === noteId ? { ...n, ...updates } : n)),
                 lastActivityAt: new Date(),
               },
             },
@@ -1032,7 +1038,10 @@ export const useLearningStore = create<LearningState>()(
 
         let newDifficulty = session.currentDifficulty;
 
-        if (session.consecutiveCorrect >= difficultyAdjustThreshold && currentIndex < difficulties.length - 1) {
+        if (
+          session.consecutiveCorrect >= difficultyAdjustThreshold &&
+          currentIndex < difficulties.length - 1
+        ) {
           newDifficulty = difficulties[currentIndex + 1];
         } else if (session.consecutiveIncorrect >= difficultyAdjustThreshold && currentIndex > 0) {
           newDifficulty = difficulties[currentIndex - 1];
@@ -1079,7 +1088,10 @@ export const useLearningStore = create<LearningState>()(
         const completedSessions = Object.values(state.sessions).filter((s) => s.completedAt);
 
         // First session achievement
-        if (completedSessions.length === 1 && !state.achievements.find((a) => a.type === 'explorer')) {
+        if (
+          completedSessions.length === 1 &&
+          !state.achievements.find((a) => a.type === 'explorer')
+        ) {
           newAchievements.push({
             id: nanoid(),
             type: 'explorer',
@@ -1091,7 +1103,10 @@ export const useLearningStore = create<LearningState>()(
         }
 
         // Scholar achievement (10 sessions)
-        if (completedSessions.length >= 10 && !state.achievements.find((a) => a.name === 'Scholar')) {
+        if (
+          completedSessions.length >= 10 &&
+          !state.achievements.find((a) => a.name === 'Scholar')
+        ) {
           newAchievements.push({
             id: nanoid(),
             type: 'scholar',
@@ -1133,7 +1148,7 @@ export const useLearningStore = create<LearningState>()(
       // Learning path management
       createPath: (sessionId: string, input: CreateLearningPathInput) => {
         const path = createLearningPath(sessionId, input);
-        
+
         set((state) => ({
           learningPaths: { ...state.learningPaths, [path.id]: path },
           activeLearningPathId: path.id,
@@ -1142,7 +1157,7 @@ export const useLearningStore = create<LearningState>()(
             journeySessionsCount: state.globalStats.journeySessionsCount + 1,
           },
         }));
-        
+
         return path;
       },
 
@@ -1177,9 +1192,9 @@ export const useLearningStore = create<LearningState>()(
         set((state) => {
           const path = state.learningPaths[pathId];
           if (!path) return state;
-          
+
           const updatedPath = updateMilestoneProgress(path, milestoneId, progress);
-          
+
           return {
             learningPaths: { ...state.learningPaths, [pathId]: updatedPath },
             globalStats: updatedPath.completedAt
@@ -1197,9 +1212,9 @@ export const useLearningStore = create<LearningState>()(
         set((state) => {
           const path = state.learningPaths[pathId];
           if (!path) return state;
-          
+
           const updatedPath = recordStudySession(path, durationMs);
-          
+
           return {
             learningPaths: { ...state.learningPaths, [pathId]: updatedPath },
             globalStats: {
@@ -1225,7 +1240,7 @@ export const useLearningStore = create<LearningState>()(
           createdAt: now,
           resolvedAt: answer ? now : undefined,
         };
-        
+
         set((state) => ({
           quickSessions: { ...state.quickSessions, [quickSession.id]: quickSession },
           globalStats: {
@@ -1233,7 +1248,7 @@ export const useLearningStore = create<LearningState>()(
             quickSessionsCount: state.globalStats.quickSessionsCount + 1,
           },
         }));
-        
+
         return quickSession;
       },
 
@@ -1249,7 +1264,7 @@ export const useLearningStore = create<LearningState>()(
         set((state) => {
           const quickSession = state.quickSessions[quickSessionId];
           if (!quickSession) return state;
-          
+
           return {
             quickSessions: {
               ...state.quickSessions,

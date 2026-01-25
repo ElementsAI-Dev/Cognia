@@ -15,14 +15,14 @@ import { BUILT_IN_TEMPLATES } from '@/types/content/template';
 
 interface TemplateState {
   templates: ChatTemplate[];
-  
+
   // Actions
   initializeTemplates: () => void;
   createTemplate: (input: CreateTemplateInput) => ChatTemplate;
   updateTemplate: (id: string, updates: UpdateTemplateInput) => void;
   deleteTemplate: (id: string) => void;
   duplicateTemplate: (id: string) => ChatTemplate | null;
-  
+
   // Selectors
   getTemplate: (id: string) => ChatTemplate | undefined;
   getTemplatesByCategory: (category: TemplateCategory) => ChatTemplate[];
@@ -38,12 +38,10 @@ export const useTemplateStore = create<TemplateState>()(
 
       initializeTemplates: () => {
         const { templates } = get();
-        
+
         // Check if built-in templates exist
         const builtInIds = templates.filter((t) => t.isBuiltIn).map((t) => t.name);
-        const missingBuiltIns = BUILT_IN_TEMPLATES.filter(
-          (t) => !builtInIds.includes(t.name)
-        );
+        const missingBuiltIns = BUILT_IN_TEMPLATES.filter((t) => !builtInIds.includes(t.name));
 
         if (missingBuiltIns.length > 0) {
           const newTemplates: ChatTemplate[] = missingBuiltIns.map((t) => ({
@@ -86,9 +84,7 @@ export const useTemplateStore = create<TemplateState>()(
       updateTemplate: (id, updates) =>
         set((state) => ({
           templates: state.templates.map((t) =>
-            t.id === id && !t.isBuiltIn
-              ? { ...t, ...updates, updatedAt: new Date() }
-              : t
+            t.id === id && !t.isBuiltIn ? { ...t, ...updates, updatedAt: new Date() } : t
           ),
         })),
 
@@ -100,7 +96,7 @@ export const useTemplateStore = create<TemplateState>()(
       duplicateTemplate: (id) => {
         const { templates, createTemplate } = get();
         const original = templates.find((t) => t.id === id);
-        
+
         if (!original) return null;
 
         return createTemplate({

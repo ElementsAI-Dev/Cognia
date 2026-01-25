@@ -77,7 +77,7 @@ export interface CustomModeA2UIAction {
 /**
  * Custom mode categories
  */
-export type CustomModeCategory = 
+export type CustomModeCategory =
   | 'productivity'
   | 'creative'
   | 'technical'
@@ -123,7 +123,19 @@ export const TOOL_CATEGORIES = {
   file: {
     name: 'File Operations',
     icon: 'FileText',
-    tools: ['file_read', 'file_write', 'file_list', 'file_exists', 'file_delete', 'file_copy', 'file_rename', 'file_info', 'file_search', 'file_append', 'directory_create'],
+    tools: [
+      'file_read',
+      'file_write',
+      'file_list',
+      'file_exists',
+      'file_delete',
+      'file_copy',
+      'file_rename',
+      'file_info',
+      'file_search',
+      'file_append',
+      'directory_create',
+    ],
   },
   document: {
     name: 'Document Processing',
@@ -138,7 +150,15 @@ export const TOOL_CATEGORIES = {
   media: {
     name: 'Media Generation',
     icon: 'Image',
-    tools: ['image_generate', 'image_edit', 'image_variation', 'video_generate', 'video_status', 'video_subtitles', 'video_analyze'],
+    tools: [
+      'image_generate',
+      'image_edit',
+      'image_variation',
+      'video_generate',
+      'video_status',
+      'video_subtitles',
+      'video_analyze',
+    ],
   },
   ppt: {
     name: 'Presentations',
@@ -148,7 +168,15 @@ export const TOOL_CATEGORIES = {
   learning: {
     name: 'Learning Tools',
     icon: 'BookOpen',
-    tools: ['display_flashcard', 'display_flashcard_deck', 'display_quiz', 'display_quiz_question', 'display_review_session', 'display_progress_summary', 'display_concept_explanation'],
+    tools: [
+      'display_flashcard',
+      'display_flashcard_deck',
+      'display_quiz',
+      'display_quiz_question',
+      'display_review_session',
+      'display_progress_summary',
+      'display_concept_explanation',
+    ],
   },
   system: {
     name: 'System',
@@ -160,7 +188,7 @@ export const TOOL_CATEGORIES = {
 /**
  * All available tools flattened
  */
-export const ALL_AVAILABLE_TOOLS = Object.values(TOOL_CATEGORIES).flatMap(cat => cat.tools);
+export const ALL_AVAILABLE_TOOLS = Object.values(TOOL_CATEGORIES).flatMap((cat) => cat.tools);
 
 /**
  * Tool requirements - which tools need specific API keys or configurations
@@ -244,7 +272,14 @@ Always explain your reasoning and provide working code examples.`,
     description: 'Academic and web research with citation support',
     icon: 'GraduationCap',
     category: 'research',
-    tools: ['web_search', 'rag_search', 'academic_search', 'academic_analysis', 'paper_comparison', 'web_scraper'],
+    tools: [
+      'web_search',
+      'rag_search',
+      'academic_search',
+      'academic_analysis',
+      'paper_comparison',
+      'web_scraper',
+    ],
     systemPrompt: `You are a thorough research analyst. Help users with:
 - Finding and synthesizing information from multiple sources
 - Academic paper analysis and comparison
@@ -317,7 +352,14 @@ Generate clean React code that can be previewed immediately.`,
     description: 'PPT slides and presentation content generation',
     icon: 'Presentation',
     category: 'productivity',
-    tools: ['ppt_outline', 'ppt_slide_content', 'ppt_finalize', 'ppt_export', 'web_search', 'image_generate'],
+    tools: [
+      'ppt_outline',
+      'ppt_slide_content',
+      'ppt_finalize',
+      'ppt_export',
+      'web_search',
+      'image_generate',
+    ],
     systemPrompt: `You are a presentation expert. Help users with:
 - Creating compelling presentation outlines
 - Writing concise, impactful slide content
@@ -335,7 +377,17 @@ Focus on clear messaging and visual appeal.`,
     description: 'Educational assistant with flashcards and quizzes',
     icon: 'BookOpen',
     category: 'education',
-    tools: ['display_flashcard', 'display_flashcard_deck', 'display_quiz', 'display_quiz_question', 'display_review_session', 'display_progress_summary', 'display_concept_explanation', 'web_search', 'rag_search'],
+    tools: [
+      'display_flashcard',
+      'display_flashcard_deck',
+      'display_quiz',
+      'display_quiz_question',
+      'display_review_session',
+      'display_progress_summary',
+      'display_concept_explanation',
+      'web_search',
+      'rag_search',
+    ],
     systemPrompt: `You are an expert tutor using proven learning techniques. Help users with:
 - Explaining concepts clearly with examples
 - Creating interactive flashcards for memorization
@@ -371,28 +423,98 @@ Preserve meaning while ensuring natural expression in the target language.`,
  * Get a mode template by ID
  */
 export function getModeTemplate(templateId: string): ModeTemplate | undefined {
-  return MODE_TEMPLATES.find(t => t.id === templateId);
+  return MODE_TEMPLATES.find((t) => t.id === templateId);
 }
 
 /**
  * Available icons for custom modes
  */
 export const AVAILABLE_MODE_ICONS = [
-  'Bot', 'Brain', 'Lightbulb', 'Rocket', 'Star', 'Heart', 'Zap',
-  'Layout', 'Code2', 'BarChart3', 'PenTool', 'Search', 'Settings',
-  'FileText', 'Image', 'Video', 'Music', 'Globe', 'Database',
-  'Shield', 'Lock', 'Key', 'Briefcase', 'GraduationCap', 'BookOpen',
-  'Palette', 'Wand2', 'Sparkles', 'Target', 'Flag', 'Award',
-  'MessageSquare', 'Mail', 'Phone', 'Calendar', 'Clock', 'Timer',
-  'Calculator', 'Clipboard', 'List', 'CheckSquare', 'Grid',
-  'Layers', 'Box', 'Package', 'Truck', 'Home', 'Building',
-  'Users', 'User', 'UserPlus', 'UserCheck', 'Smile', 'Frown',
-  'Sun', 'Moon', 'Cloud', 'Umbrella', 'Thermometer',
-  'Cpu', 'HardDrive', 'Monitor', 'Smartphone', 'Tablet',
-  'Camera', 'Mic', 'Speaker', 'Headphones', 'Radio',
-  'Coffee', 'Pizza', 'Apple', 'Leaf', 'Flower2', 'Tree',
-  'Car', 'Plane', 'Ship', 'Train', 'Bike',
-  'Gamepad2', 'Dice5', 'Puzzle', 'Trophy', 'Medal',
+  'Bot',
+  'Brain',
+  'Lightbulb',
+  'Rocket',
+  'Star',
+  'Heart',
+  'Zap',
+  'Layout',
+  'Code2',
+  'BarChart3',
+  'PenTool',
+  'Search',
+  'Settings',
+  'FileText',
+  'Image',
+  'Video',
+  'Music',
+  'Globe',
+  'Database',
+  'Shield',
+  'Lock',
+  'Key',
+  'Briefcase',
+  'GraduationCap',
+  'BookOpen',
+  'Palette',
+  'Wand2',
+  'Sparkles',
+  'Target',
+  'Flag',
+  'Award',
+  'MessageSquare',
+  'Mail',
+  'Phone',
+  'Calendar',
+  'Clock',
+  'Timer',
+  'Calculator',
+  'Clipboard',
+  'List',
+  'CheckSquare',
+  'Grid',
+  'Layers',
+  'Box',
+  'Package',
+  'Truck',
+  'Home',
+  'Building',
+  'Users',
+  'User',
+  'UserPlus',
+  'UserCheck',
+  'Smile',
+  'Frown',
+  'Sun',
+  'Moon',
+  'Cloud',
+  'Umbrella',
+  'Thermometer',
+  'Cpu',
+  'HardDrive',
+  'Monitor',
+  'Smartphone',
+  'Tablet',
+  'Camera',
+  'Mic',
+  'Speaker',
+  'Headphones',
+  'Radio',
+  'Coffee',
+  'Pizza',
+  'Apple',
+  'Leaf',
+  'Flower2',
+  'Tree',
+  'Car',
+  'Plane',
+  'Ship',
+  'Train',
+  'Bike',
+  'Gamepad2',
+  'Dice5',
+  'Puzzle',
+  'Trophy',
+  'Medal',
 ] as const;
 
 // =============================================================================
@@ -402,23 +524,23 @@ export const AVAILABLE_MODE_ICONS = [
 interface CustomModeState {
   // Custom modes
   customModes: Record<string, CustomModeConfig>;
-  
+
   // Active/selected mode
   activeModeId: string | null;
-  
+
   // Loading states
   isGenerating: boolean;
   generationError: string | null;
-  
+
   // Actions - CRUD
   createMode: (mode: Partial<CustomModeConfig>) => CustomModeConfig;
   updateMode: (id: string, updates: Partial<CustomModeConfig>) => void;
   deleteMode: (id: string) => void;
   duplicateMode: (id: string) => CustomModeConfig | null;
-  
+
   // Actions - Selection
   setActiveMode: (id: string | null) => void;
-  
+
   // Actions - Queries
   getMode: (id: string) => CustomModeConfig | undefined;
   getModesByCategory: (category: CustomModeCategory) => CustomModeConfig[];
@@ -426,23 +548,23 @@ interface CustomModeState {
   searchModes: (query: string) => CustomModeConfig[];
   getRecentModes: (limit?: number) => CustomModeConfig[];
   getMostUsedModes: (limit?: number) => CustomModeConfig[];
-  
+
   // Actions - Usage tracking
   recordModeUsage: (id: string) => void;
-  
+
   // Actions - A2UI Templates
   setModeA2UITemplate: (id: string, template: CustomModeA2UITemplate | undefined) => void;
-  
+
   // Actions - Import/Export
   exportMode: (id: string) => string | null;
   importMode: (json: string) => CustomModeConfig | null;
   exportAllModes: () => string;
   importModes: (json: string) => number;
-  
+
   // Actions - Generation
   generateModeFromDescription: (request: ModeGenerationRequest) => Promise<GeneratedModeResult>;
   setGenerationError: (error: string | null) => void;
-  
+
   // Reset
   reset: () => void;
 }
@@ -474,7 +596,7 @@ export const useCustomModeStore = create<CustomModeState>()(
       createMode: (mode) => {
         const id = mode.id || `custom-${nanoid()}`;
         const now = new Date();
-        
+
         const newMode: CustomModeConfig = {
           id,
           type: 'custom',
@@ -567,9 +689,7 @@ export const useCustomModeStore = create<CustomModeState>()(
       },
 
       getModesByCategory: (category) => {
-        return Object.values(get().customModes).filter(
-          (mode) => mode.category === category
-        );
+        return Object.values(get().customModes).filter((mode) => mode.category === category);
       },
 
       getModesByTags: (tags) => {
@@ -742,7 +862,7 @@ export const useCustomModeStore = create<CustomModeState>()(
         try {
           // Analyze description for patterns
           const result = analyzeModeDescription(request);
-          
+
           set({ isGenerating: false });
           return result;
         } catch (error) {
@@ -774,15 +894,12 @@ export const useCustomModeStore = create<CustomModeState>()(
             {
               ...mode,
               // Convert dates to strings for storage
-              createdAt: mode.createdAt instanceof Date 
-                ? mode.createdAt.toISOString() 
-                : mode.createdAt,
-              updatedAt: mode.updatedAt instanceof Date 
-                ? mode.updatedAt.toISOString() 
-                : mode.updatedAt,
-              lastUsedAt: mode.lastUsedAt instanceof Date 
-                ? mode.lastUsedAt.toISOString() 
-                : mode.lastUsedAt,
+              createdAt:
+                mode.createdAt instanceof Date ? mode.createdAt.toISOString() : mode.createdAt,
+              updatedAt:
+                mode.updatedAt instanceof Date ? mode.updatedAt.toISOString() : mode.updatedAt,
+              lastUsedAt:
+                mode.lastUsedAt instanceof Date ? mode.lastUsedAt.toISOString() : mode.lastUsedAt,
             },
           ])
         ),
@@ -817,7 +934,7 @@ export const useCustomModeStore = create<CustomModeState>()(
 function analyzeModeDescription(request: ModeGenerationRequest): GeneratedModeResult {
   const { description, includeA2UI } = request;
   const lowerDesc = description.toLowerCase();
-  
+
   // Pattern matching for common use cases
   const patterns = {
     coding: {
@@ -875,9 +992,9 @@ function analyzeModeDescription(request: ModeGenerationRequest): GeneratedModeRe
   // Find matching pattern
   let matchedPattern = null;
   let maxMatches = 0;
-  
+
   for (const [_key, pattern] of Object.entries(patterns)) {
-    const matches = pattern.keywords.filter(kw => lowerDesc.includes(kw)).length;
+    const matches = pattern.keywords.filter((kw) => lowerDesc.includes(kw)).length;
     if (matches > maxMatches) {
       maxMatches = matches;
       matchedPattern = pattern;
@@ -896,7 +1013,7 @@ function analyzeModeDescription(request: ModeGenerationRequest): GeneratedModeRe
 
   // Extract name from description
   const name = extractModeName(description);
-  
+
   // Build the mode configuration
   const mode: Partial<CustomModeConfig> = {
     name,
@@ -948,7 +1065,10 @@ function extractModeName(description: string): string {
 /**
  * Generate system prompt based on description and pattern
  */
-function generateSystemPrompt(description: string, pattern: { category?: CustomModeCategory; [key: string]: unknown }): string {
+function generateSystemPrompt(
+  description: string,
+  pattern: { category?: CustomModeCategory; [key: string]: unknown }
+): string {
   const categoryPrompts: Record<string, string> = {
     technical: `You are a technical expert assistant. Help users with coding, development, and technical problems.`,
     research: `You are a research assistant. Help users find, analyze, and synthesize information from academic sources.`,
@@ -967,9 +1087,12 @@ function generateSystemPrompt(description: string, pattern: { category?: CustomM
 /**
  * Generate basic A2UI template based on category
  */
-function generateA2UITemplate(description: string, category: CustomModeCategory): CustomModeA2UITemplate {
+function generateA2UITemplate(
+  description: string,
+  category: CustomModeCategory
+): CustomModeA2UITemplate {
   const id = `template-${nanoid(8)}`;
-  
+
   // Basic template structure
   const components: A2UIComponent[] = [
     {
@@ -1088,7 +1211,7 @@ export function processPromptTemplateVariables(
   if (!prompt) return prompt;
 
   const now = new Date();
-  
+
   const replacements: Record<string, string> = {
     '{{date}}': now.toISOString().split('T')[0],
     '{{time}}': now.toTimeString().slice(0, 5),
@@ -1096,8 +1219,8 @@ export function processPromptTemplateVariables(
     '{{weekday}}': now.toLocaleDateString('en-US', { weekday: 'long' }),
     '{{timezone}}': context.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     '{{language}}': context.language || navigator?.language || 'en',
-    '{{tools_list}}': context.tools?.length 
-      ? context.tools.join(', ') 
+    '{{tools_list}}': context.tools?.length
+      ? context.tools.join(', ')
       : 'No specific tools configured',
     '{{mode_name}}': context.modeName || 'Custom Mode',
     '{{mode_description}}': context.modeDescription || '',
@@ -1114,9 +1237,11 @@ export function processPromptTemplateVariables(
 /**
  * Get a preview of template variable replacements
  */
-export function getTemplateVariablePreview(context: PromptTemplateContext = {}): Record<string, string> {
+export function getTemplateVariablePreview(
+  context: PromptTemplateContext = {}
+): Record<string, string> {
   const now = new Date();
-  
+
   return {
     '{{date}}': now.toISOString().split('T')[0],
     '{{time}}': now.toTimeString().slice(0, 5),
@@ -1124,8 +1249,8 @@ export function getTemplateVariablePreview(context: PromptTemplateContext = {}):
     '{{weekday}}': now.toLocaleDateString('en-US', { weekday: 'long' }),
     '{{timezone}}': context.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     '{{language}}': context.language || 'en',
-    '{{tools_list}}': context.tools?.length 
-      ? context.tools.join(', ') 
+    '{{tools_list}}': context.tools?.length
+      ? context.tools.join(', ')
       : 'No specific tools configured',
     '{{mode_name}}': context.modeName || 'Custom Mode',
     '{{mode_description}}': context.modeDescription || '',
@@ -1150,9 +1275,9 @@ function scoreMcpToolForMode(
   const modeDescLower = modeDescription.toLowerCase();
   const modeNameLower = modeName.toLowerCase();
   const promptLower = systemPrompt.toLowerCase();
-  
+
   let score = 0;
-  
+
   // Check if tool name appears in mode description, name, or prompt
   if (modeDescLower.includes(toolName) || modeDescLower.includes(displayName)) {
     score += 0.4;
@@ -1163,28 +1288,40 @@ function scoreMcpToolForMode(
   if (promptLower.includes(toolName) || promptLower.includes(displayName)) {
     score += 0.3;
   }
-  
+
   // Boost for common tool patterns
   const searchTerms = ['search', 'find', 'query', 'lookup'];
   const fileTerms = ['file', 'read', 'write', 'document'];
   const webTerms = ['web', 'browse', 'scrape', 'url'];
   const codeTerms = ['code', 'execute', 'run', 'script'];
-  
+
   const combinedText = `${modeDescLower} ${modeNameLower} ${promptLower}`;
-  
-  if (searchTerms.some(t => toolName.includes(t)) && searchTerms.some(t => combinedText.includes(t))) {
+
+  if (
+    searchTerms.some((t) => toolName.includes(t)) &&
+    searchTerms.some((t) => combinedText.includes(t))
+  ) {
     score += 0.2;
   }
-  if (fileTerms.some(t => toolName.includes(t)) && fileTerms.some(t => combinedText.includes(t))) {
+  if (
+    fileTerms.some((t) => toolName.includes(t)) &&
+    fileTerms.some((t) => combinedText.includes(t))
+  ) {
     score += 0.2;
   }
-  if (webTerms.some(t => toolName.includes(t)) && webTerms.some(t => combinedText.includes(t))) {
+  if (
+    webTerms.some((t) => toolName.includes(t)) &&
+    webTerms.some((t) => combinedText.includes(t))
+  ) {
     score += 0.2;
   }
-  if (codeTerms.some(t => toolName.includes(t)) && codeTerms.some(t => combinedText.includes(t))) {
+  if (
+    codeTerms.some((t) => toolName.includes(t)) &&
+    codeTerms.some((t) => combinedText.includes(t))
+  ) {
     score += 0.2;
   }
-  
+
   return Math.min(1.0, score);
 }
 
@@ -1202,13 +1339,13 @@ export function getRecommendedMcpToolsForMode(
   limit: number = 10
 ): Array<McpToolReference & { relevanceScore: number }> {
   const { name, description, systemPrompt, category } = modeConfig;
-  
+
   // Score each tool
-  const scoredTools = availableTools.map(tool => ({
+  const scoredTools = availableTools.map((tool) => ({
     ...tool,
     relevanceScore: scoreMcpToolForMode(tool, description, name, systemPrompt),
   }));
-  
+
   // Category-based boost
   const categoryToolPatterns: Record<string, string[]> = {
     technical: ['code', 'execute', 'debug', 'compile', 'git', 'terminal'],
@@ -1218,20 +1355,20 @@ export function getRecommendedMcpToolsForMode(
     education: ['quiz', 'flashcard', 'learn', 'explain', 'tutor'],
     business: ['spreadsheet', 'chart', 'report', 'analyze', 'database'],
   };
-  
+
   if (category && categoryToolPatterns[category]) {
     const patterns = categoryToolPatterns[category];
     for (const tool of scoredTools) {
       const toolNameLower = tool.toolName.toLowerCase();
-      if (patterns.some(p => toolNameLower.includes(p))) {
+      if (patterns.some((p) => toolNameLower.includes(p))) {
         tool.relevanceScore = Math.min(1.0, tool.relevanceScore + 0.15);
       }
     }
   }
-  
+
   // Sort by score and return top N
   return scoredTools
-    .filter(t => t.relevanceScore > 0.1)
+    .filter((t) => t.relevanceScore > 0.1)
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, limit);
 }
@@ -1253,7 +1390,7 @@ export function autoSelectMcpToolsForMode(
     },
     maxTools
   );
-  
+
   return recommended.map(({ relevanceScore: _, ...tool }) => tool);
 }
 
@@ -1261,20 +1398,17 @@ export function autoSelectMcpToolsForMode(
 // Selectors
 // =============================================================================
 
-export const selectCustomModes = (state: CustomModeState) => 
-  Object.values(state.customModes);
+export const selectCustomModes = (state: CustomModeState) => Object.values(state.customModes);
 
-export const selectCustomModeById = (id: string) => (state: CustomModeState) => 
+export const selectCustomModeById = (id: string) => (state: CustomModeState) =>
   state.customModes[id];
 
-export const selectActiveCustomMode = (state: CustomModeState) => 
+export const selectActiveCustomMode = (state: CustomModeState) =>
   state.activeModeId ? state.customModes[state.activeModeId] : undefined;
 
-export const selectIsGenerating = (state: CustomModeState) => 
-  state.isGenerating;
+export const selectIsGenerating = (state: CustomModeState) => state.isGenerating;
 
-export const selectGenerationError = (state: CustomModeState) => 
-  state.generationError;
+export const selectGenerationError = (state: CustomModeState) => state.generationError;
 
-export const selectCustomModeCount = (state: CustomModeState) => 
+export const selectCustomModeCount = (state: CustomModeState) =>
   Object.keys(state.customModes).length;

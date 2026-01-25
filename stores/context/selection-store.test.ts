@@ -79,7 +79,7 @@ describe('useSelectionStore', () => {
       const { result } = renderHook(() => useSelectionStore());
 
       act(() => {
-        result.current.updateConfig({ 
+        result.current.updateConfig({
           minTextLength: 5,
           maxTextLength: 1000,
           delayMs: 500,
@@ -427,10 +427,14 @@ describe('useSelectionStore', () => {
       const { result } = renderHook(() => useSelectionStore());
 
       act(() => {
-        result.current.addSelection('code text', { x: 0, y: 0 }, {
-          sourceApp: 'VSCode',
-          textType: 'code',
-        });
+        result.current.addSelection(
+          'code text',
+          { x: 0, y: 0 },
+          {
+            sourceApp: 'VSCode',
+            textType: 'code',
+          }
+        );
       });
 
       expect(result.current.selections[0].sourceApp).toBe('VSCode');

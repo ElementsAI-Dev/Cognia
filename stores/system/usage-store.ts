@@ -1,6 +1,6 @@
 /**
  * Usage Store - tracks token usage, costs, and quota limits
- * 
+ *
  * This is the unified store for all usage tracking and quota management.
  * It handles:
  * - Usage recording (tokens, costs, requests)
@@ -60,7 +60,7 @@ interface UsageState {
   addUsageRecord: (record: Omit<UsageRecord, 'id' | 'cost' | 'createdAt'>) => void;
   clearUsageRecords: () => void;
   clearRecordsBefore: (date: Date) => void;
-  
+
   // Quota Actions
   setQuotaLimits: (providerId: string, limits: QuotaLimits) => void;
   clearQuotaLimits: (providerId: string) => void;
@@ -70,12 +70,16 @@ interface UsageState {
   getUsageByProvider: () => ProviderUsage[];
   getDailyUsage: (days?: number) => DailyUsage[];
   getTotalUsage: () => { tokens: number; cost: number; requests: number };
-  
+
   // Quota Selectors
   getQuotaStatus: (providerId: string) => QuotaStatus;
   canMakeRequest: (providerId: string) => { allowed: boolean; reason?: string };
   getProviderUsageToday: (providerId: string) => { requests: number; tokens: number; cost: number };
-  getProviderUsageThisMonth: (providerId: string) => { requests: number; tokens: number; cost: number };
+  getProviderUsageThisMonth: (providerId: string) => {
+    requests: number;
+    tokens: number;
+    cost: number;
+  };
 }
 
 export const useUsageStore = create<UsageState>()(
@@ -111,13 +115,8 @@ export const useUsageStore = create<UsageState>()(
 
       clearRecordsBefore: (date) =>
         set((state) => {
-          const filteredRecords = state.records.filter(
-            (r) => r.createdAt >= date
-          );
-          const totalTokens = filteredRecords.reduce(
-            (sum, r) => sum + r.tokens.total,
-            0
-          );
+          const filteredRecords = state.records.filter((r) => r.createdAt >= date);
+          const totalTokens = filteredRecords.reduce((sum, r) => sum + r.tokens.total, 0);
           const totalCost = filteredRecords.reduce((sum, r) => sum + r.cost, 0);
 
           return {
@@ -152,9 +151,7 @@ export const useUsageStore = create<UsageState>()(
           }
         }
 
-        return Array.from(providerMap.values()).sort(
-          (a, b) => b.tokens - a.tokens
-        );
+        return Array.from(providerMap.values()).sort((a, b) => b.tokens - a.tokens);
       },
 
       getDailyUsage: (days = 7) => {
@@ -189,9 +186,7 @@ export const useUsageStore = create<UsageState>()(
           }
         }
 
-        return Array.from(dailyMap.values()).sort((a, b) =>
-          a.date.localeCompare(b.date)
-        );
+        return Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
       },
 
       getTotalUsage: () => {
@@ -220,9 +215,7 @@ export const useUsageStore = create<UsageState>()(
         const { records } = get();
         const today = new Date().toISOString().split('T')[0];
         const todayRecords = records.filter(
-          (r) =>
-            r.provider === providerId &&
-            r.createdAt.toISOString().split('T')[0] === today
+          (r) => r.provider === providerId && r.createdAt.toISOString().split('T')[0] === today
         );
         return {
           requests: todayRecords.length,
@@ -309,10 +302,7 @@ export const useUsageStore = create<UsageState>()(
       partialize: (state) => ({
         records: state.records.map((r) => ({
           ...r,
-          createdAt:
-            r.createdAt instanceof Date
-              ? r.createdAt.toISOString()
-              : r.createdAt,
+          createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
         })),
         totalTokens: state.totalTokens,
         totalCost: state.totalCost,

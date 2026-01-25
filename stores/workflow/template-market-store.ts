@@ -1,6 +1,6 @@
 /**
  * Workflow Template Marketplace Store
- * 
+ *
  * Zustand store for managing workflow templates, categories, and marketplace features
  */
 
@@ -187,15 +187,11 @@ export const useTemplateMarketStore = create<TemplateMarketState>()(
         }
 
         if (state.filters.source && state.filters.source.length > 0) {
-          templates = templates.filter((t) =>
-            state.filters.source!.includes(t.metadata.source)
-          );
+          templates = templates.filter((t) => state.filters.source!.includes(t.metadata.source));
         }
 
         if (state.filters.minRating) {
-          templates = templates.filter(
-            (t) => t.metadata.rating >= state.filters.minRating!
-          );
+          templates = templates.filter((t) => t.metadata.rating >= state.filters.minRating!);
         }
 
         // Apply search query
@@ -227,8 +223,7 @@ export const useTemplateMarketStore = create<TemplateMarketState>()(
               comparison = a.metadata.usageCount - b.metadata.usageCount;
               break;
             case 'date':
-              comparison =
-                a.metadata.createdAt.getTime() - b.metadata.createdAt.getTime();
+              comparison = a.metadata.createdAt.getTime() - b.metadata.createdAt.getTime();
               break;
             case 'author':
               comparison = a.author.localeCompare(b.author);
@@ -274,8 +269,7 @@ export const useTemplateMarketStore = create<TemplateMarketState>()(
 
           const newRatingCount = template.metadata.ratingCount + 1;
           const newRating =
-            (template.metadata.rating * template.metadata.ratingCount + rating) /
-            newRatingCount;
+            (template.metadata.rating * template.metadata.ratingCount + rating) / newRatingCount;
 
           return {
             templates: {

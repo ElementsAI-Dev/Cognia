@@ -17,10 +17,10 @@ export interface DesignerHistoryEntry {
 interface DesignerHistoryState {
   // History entries per design (keyed by design ID or 'default')
   histories: Record<string, DesignerHistoryEntry[]>;
-  
+
   // Current design ID
   activeDesignId: string;
-  
+
   // Maximum history entries per design
   maxHistoryEntries: number;
 
@@ -30,7 +30,7 @@ interface DesignerHistoryState {
   deleteHistoryEntry: (entryId: string, designId?: string) => void;
   clearHistory: (designId?: string) => void;
   setActiveDesignId: (designId: string) => void;
-  
+
   // Selectors
   getHistory: (designId?: string) => DesignerHistoryEntry[];
   getHistoryEntry: (entryId: string, designId?: string) => DesignerHistoryEntry | undefined;
@@ -47,25 +47,25 @@ export const useDesignerHistoryStore = create<DesignerHistoryState>()(
 
       addHistoryEntry: (code, label, designId) => {
         const id = designId || get().activeDesignId;
-        
+
         set((state) => {
           const currentHistory = state.histories[id] || [];
-          
+
           // Don't add duplicate entries (same code)
           if (currentHistory.length > 0 && currentHistory[0].code === code) {
             return state;
           }
-          
+
           const newEntry: DesignerHistoryEntry = {
             id: nanoid(),
             code,
             timestamp: new Date(),
             label,
           };
-          
+
           // Add new entry at the beginning, limit size
           const updatedHistory = [newEntry, ...currentHistory].slice(0, state.maxHistoryEntries);
-          
+
           return {
             histories: {
               ...state.histories,
@@ -84,11 +84,11 @@ export const useDesignerHistoryStore = create<DesignerHistoryState>()(
 
       deleteHistoryEntry: (entryId, designId) => {
         const id = designId || get().activeDesignId;
-        
+
         set((state) => {
           const currentHistory = state.histories[id] || [];
           const updatedHistory = currentHistory.filter((e) => e.id !== entryId);
-          
+
           return {
             histories: {
               ...state.histories,
@@ -100,7 +100,7 @@ export const useDesignerHistoryStore = create<DesignerHistoryState>()(
 
       clearHistory: (designId) => {
         const id = designId || get().activeDesignId;
-        
+
         set((state) => ({
           histories: {
             ...state.histories,

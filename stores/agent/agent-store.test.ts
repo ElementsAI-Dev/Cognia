@@ -3,7 +3,12 @@
  */
 
 import { act } from '@testing-library/react';
-import { useAgentStore, selectIsAgentRunning, selectCurrentStep, selectAgentProgress } from './agent-store';
+import {
+  useAgentStore,
+  selectIsAgentRunning,
+  selectCurrentStep,
+  selectAgentProgress,
+} from './agent-store';
 import type { AgentToolStatus } from '@/types/agent/tool';
 
 describe('useAgentStore', () => {
@@ -116,7 +121,9 @@ describe('useAgentStore', () => {
       });
 
       act(() => {
-        useAgentStore.getState().updateToolExecution('tool-1', { status: 'completed' as AgentToolStatus });
+        useAgentStore
+          .getState()
+          .updateToolExecution('tool-1', { status: 'completed' as AgentToolStatus });
       });
 
       expect(useAgentStore.getState().toolExecutions[0].status).toBe('completed');

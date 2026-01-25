@@ -1,6 +1,6 @@
 /**
  * Summary Store - manages chat summary persistence and state
- * 
+ *
  * Provides:
  * - CRUD operations for summaries
  * - Session-based summary retrieval
@@ -25,35 +25,37 @@ import type {
 interface SummaryState {
   // Configuration
   autoSummaryConfig: AutoSummaryConfig;
-  
+
   // Current session state
   currentSessionId: string | null;
   summaries: StoredSummary[];
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   setCurrentSession: (sessionId: string | null) => void;
   loadSummariesForSession: (sessionId: string) => Promise<void>;
-  
+
   // CRUD operations
-  createSummary: (summary: Omit<StoredSummary, 'id' | 'createdAt' | 'updatedAt'>) => Promise<StoredSummary>;
+  createSummary: (
+    summary: Omit<StoredSummary, 'id' | 'createdAt' | 'updatedAt'>
+  ) => Promise<StoredSummary>;
   updateSummary: (id: string, updates: Partial<StoredSummary>) => Promise<void>;
   deleteSummary: (id: string) => Promise<void>;
   deleteAllSummariesForSession: (sessionId: string) => Promise<void>;
-  
+
   // Retrieval
   getSummary: (id: string) => StoredSummary | undefined;
   getSummariesForSession: (sessionId: string) => StoredSummary[];
   getLatestSummary: (sessionId: string) => StoredSummary | undefined;
-  
+
   // Statistics
   getSummaryStats: (sessionId: string) => SummaryStats;
-  
+
   // Configuration
   updateAutoSummaryConfig: (config: Partial<AutoSummaryConfig>) => void;
   shouldSuggestSummary: (messageCount: number, tokenCount: number) => boolean;
-  
+
   // Cleanup
   clearError: () => void;
   reset: () => void;
@@ -72,7 +74,9 @@ function dbToStoredSummary(dbSummary: DBSummary): StoredSummary {
     topics: dbSummary.topics ? JSON.parse(dbSummary.topics) : [],
     diagram: dbSummary.diagram,
     diagramType: dbSummary.diagramType as DiagramType | undefined,
-    messageRange: dbSummary.messageRange ? JSON.parse(dbSummary.messageRange) : { startIndex: 0, endIndex: 0 },
+    messageRange: dbSummary.messageRange
+      ? JSON.parse(dbSummary.messageRange)
+      : { startIndex: 0, endIndex: 0 },
     messageCount: dbSummary.messageCount,
     sourceTokens: dbSummary.sourceTokens,
     summaryTokens: dbSummary.summaryTokens,
@@ -146,14 +150,11 @@ export const useSummaryStore = create<SummaryState>()(
       loadSummariesForSession: async (sessionId) => {
         set({ isLoading: true, error: null });
         try {
-          const dbSummaries = await db.summaries
-            .where('sessionId')
-            .equals(sessionId)
-            .toArray();
-          
+          const dbSummaries = await db.summaries.where('sessionId').equals(sessionId).toArray();
+
           const summaries = dbSummaries.map(dbToStoredSummary);
           summaries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-          
+
           set({ summaries, isLoading: false });
         } catch (error) {
           set({
@@ -210,9 +211,7 @@ export const useSummaryStore = create<SummaryState>()(
           await db.summaries.put(dbSummary);
 
           set((state) => ({
-            summaries: state.summaries.map((s) =>
-              s.id === id ? updatedSummary : s
-            ),
+            summaries: state.summaries.map((s) => (s.id === id ? updatedSummary : s)),
             isLoading: false,
           }));
         } catch (error) {
@@ -267,9 +266,7 @@ export const useSummaryStore = create<SummaryState>()(
       },
 
       getLatestSummary: (sessionId) => {
-        const sessionSummaries = get().summaries.filter(
-          (s) => s.sessionId === sessionId
-        );
+        const sessionSummaries = get().summaries.filter((s) => s.sessionId === sessionId);
         if (sessionSummaries.length === 0) return undefined;
         return sessionSummaries.reduce((latest, current) =>
           current.createdAt > latest.createdAt ? current : latest
@@ -277,9 +274,7 @@ export const useSummaryStore = create<SummaryState>()(
       },
 
       getSummaryStats: (sessionId) => {
-        const sessionSummaries = get().summaries.filter(
-          (s) => s.sessionId === sessionId
-        );
+        const sessionSummaries = get().summaries.filter((s) => s.sessionId === sessionId);
 
         if (sessionSummaries.length === 0) {
           return {
@@ -319,8 +314,7 @@ export const useSummaryStore = create<SummaryState>()(
         const { autoSummaryConfig } = get();
         if (!autoSummaryConfig.enabled) return false;
         return (
-          messageCount >= autoSummaryConfig.minMessages ||
-          tokenCount >= autoSummaryConfig.minTokens
+          messageCount >= autoSummaryConfig.minMessages || tokenCount >= autoSummaryConfig.minTokens
         );
       },
 

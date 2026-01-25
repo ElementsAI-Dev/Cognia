@@ -3,7 +3,12 @@
  */
 
 import { act } from '@testing-library/react';
-import { useSettingsStore, selectTheme, selectLanguage, selectDefaultProvider } from './settings-store';
+import {
+  useSettingsStore,
+  selectTheme,
+  selectLanguage,
+  selectDefaultProvider,
+} from './settings-store';
 
 const mockIsStrongholdAvailable = jest.fn(() => false);
 const mockSecureStoreProviderApiKey = jest.fn();
@@ -17,7 +22,8 @@ jest.mock('@/lib/native/stronghold-integration', () => ({
   secureStoreProviderApiKey: (...args: unknown[]) => mockSecureStoreProviderApiKey(...args),
   secureStoreProviderApiKeys: (...args: unknown[]) => mockSecureStoreProviderApiKeys(...args),
   secureStoreSearchApiKey: (...args: unknown[]) => mockSecureStoreSearchApiKey(...args),
-  secureStoreCustomProviderApiKey: (...args: unknown[]) => mockSecureStoreCustomProviderApiKey(...args),
+  secureStoreCustomProviderApiKey: (...args: unknown[]) =>
+    mockSecureStoreCustomProviderApiKey(...args),
   secureRemoveProviderApiKey: (...args: unknown[]) => mockSecureRemoveProviderApiKey(...args),
 }));
 
@@ -344,7 +350,9 @@ describe('useSettingsStore', () => {
         useSettingsStore.getState().updateCustomProvider(providerId!, { customName: 'Updated' });
       });
 
-      expect(useSettingsStore.getState().getCustomProvider(providerId!)?.customName).toBe('Updated');
+      expect(useSettingsStore.getState().getCustomProvider(providerId!)?.customName).toBe(
+        'Updated'
+      );
     });
 
     it('should remove custom provider', () => {

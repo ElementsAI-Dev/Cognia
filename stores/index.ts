@@ -98,7 +98,13 @@ export {
 } from './learning';
 
 // MCP stores
-export { useMcpStore, installNpmPackage, installPipPackage, checkCommandExists, useMcpMarketplaceStore } from './mcp';
+export {
+  useMcpStore,
+  installNpmPackage,
+  installPipPackage,
+  checkCommandExists,
+  useMcpMarketplaceStore,
+} from './mcp';
 
 // Prompt templates
 export {

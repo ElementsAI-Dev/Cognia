@@ -2,11 +2,7 @@
  * Project stores index
  */
 
-export {
-  useProjectStore,
-  selectProjects,
-  selectActiveProjectId,
-} from './project-store';
+export { useProjectStore, selectProjects, selectActiveProjectId } from './project-store';
 
 export {
   useProjectActivityStore,
@@ -15,7 +11,4 @@ export {
   type ProjectActivity,
 } from './project-activity-store';
 
-export {
-  initProjectActivitySubscriber,
-  resetSubscriberState,
-} from './project-activity-subscriber';
+export { initProjectActivitySubscriber, resetSubscriberState } from './project-activity-subscriber';

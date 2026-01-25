@@ -96,10 +96,10 @@ export interface MediaFilter {
 interface MediaState {
   // Image storage
   images: GeneratedImageRecord[];
-  
+
   // Video storage
   videos: GeneratedVideoRecord[];
-  
+
   // Image actions
   addImage: (image: Omit<GeneratedImageRecord, 'id' | 'createdAt' | 'favorite' | 'tags'>) => string;
   updateImage: (id: string, updates: Partial<GeneratedImageRecord>) => void;
@@ -107,7 +107,7 @@ interface MediaState {
   toggleImageFavorite: (id: string) => void;
   addImageTag: (id: string, tag: string) => void;
   removeImageTag: (id: string, tag: string) => void;
-  
+
   // Video actions
   addVideo: (video: Omit<GeneratedVideoRecord, 'id' | 'createdAt' | 'favorite' | 'tags'>) => string;
   updateVideo: (id: string, updates: Partial<GeneratedVideoRecord>) => void;
@@ -115,8 +115,13 @@ interface MediaState {
   toggleVideoFavorite: (id: string) => void;
   addVideoTag: (id: string, tag: string) => void;
   removeVideoTag: (id: string, tag: string) => void;
-  updateVideoStatus: (id: string, status: VideoStatus, progress?: number, video?: GeneratedVideo) => void;
-  
+  updateVideoStatus: (
+    id: string,
+    status: VideoStatus,
+    progress?: number,
+    video?: GeneratedVideo
+  ) => void;
+
   // Query actions
   getImageById: (id: string) => GeneratedImageRecord | undefined;
   getVideoById: (id: string) => GeneratedVideoRecord | undefined;
@@ -128,11 +133,11 @@ interface MediaState {
   getFavoriteVideos: () => GeneratedVideoRecord[];
   getImagesBySession: (sessionId: string) => GeneratedImageRecord[];
   getVideosBySession: (sessionId: string) => GeneratedVideoRecord[];
-  
+
   // Statistics
   getStats: () => MediaStats;
   getAllTags: () => string[];
-  
+
   // Bulk actions
   deleteAllImages: () => void;
   deleteAllVideos: () => void;
@@ -146,7 +151,7 @@ export const useMediaStore = create<MediaState>()(
     (set, get) => ({
       images: [],
       videos: [],
-      
+
       // Image actions
       addImage: (image) => {
         const id = nanoid();
@@ -162,21 +167,19 @@ export const useMediaStore = create<MediaState>()(
         }));
         return id;
       },
-      
+
       updateImage: (id, updates) => {
         set((state) => ({
-          images: state.images.map((img) =>
-            img.id === id ? { ...img, ...updates } : img
-          ),
+          images: state.images.map((img) => (img.id === id ? { ...img, ...updates } : img)),
         }));
       },
-      
+
       deleteImage: (id) => {
         set((state) => ({
           images: state.images.filter((img) => img.id !== id),
         }));
       },
-      
+
       toggleImageFavorite: (id) => {
         set((state) => ({
           images: state.images.map((img) =>
@@ -184,27 +187,23 @@ export const useMediaStore = create<MediaState>()(
           ),
         }));
       },
-      
+
       addImageTag: (id, tag) => {
         set((state) => ({
           images: state.images.map((img) =>
-            img.id === id && !img.tags.includes(tag)
-              ? { ...img, tags: [...img.tags, tag] }
-              : img
+            img.id === id && !img.tags.includes(tag) ? { ...img, tags: [...img.tags, tag] } : img
           ),
         }));
       },
-      
+
       removeImageTag: (id, tag) => {
         set((state) => ({
           images: state.images.map((img) =>
-            img.id === id
-              ? { ...img, tags: img.tags.filter((t) => t !== tag) }
-              : img
+            img.id === id ? { ...img, tags: img.tags.filter((t) => t !== tag) } : img
           ),
         }));
       },
-      
+
       // Video actions
       addVideo: (video) => {
         const id = nanoid();
@@ -220,21 +219,19 @@ export const useMediaStore = create<MediaState>()(
         }));
         return id;
       },
-      
+
       updateVideo: (id, updates) => {
         set((state) => ({
-          videos: state.videos.map((vid) =>
-            vid.id === id ? { ...vid, ...updates } : vid
-          ),
+          videos: state.videos.map((vid) => (vid.id === id ? { ...vid, ...updates } : vid)),
         }));
       },
-      
+
       deleteVideo: (id) => {
         set((state) => ({
           videos: state.videos.filter((vid) => vid.id !== id),
         }));
       },
-      
+
       toggleVideoFavorite: (id) => {
         set((state) => ({
           videos: state.videos.map((vid) =>
@@ -242,27 +239,23 @@ export const useMediaStore = create<MediaState>()(
           ),
         }));
       },
-      
+
       addVideoTag: (id, tag) => {
         set((state) => ({
           videos: state.videos.map((vid) =>
-            vid.id === id && !vid.tags.includes(tag)
-              ? { ...vid, tags: [...vid.tags, tag] }
-              : vid
+            vid.id === id && !vid.tags.includes(tag) ? { ...vid, tags: [...vid.tags, tag] } : vid
           ),
         }));
       },
-      
+
       removeVideoTag: (id, tag) => {
         set((state) => ({
           videos: state.videos.map((vid) =>
-            vid.id === id
-              ? { ...vid, tags: vid.tags.filter((t) => t !== tag) }
-              : vid
+            vid.id === id ? { ...vid, tags: vid.tags.filter((t) => t !== tag) } : vid
           ),
         }));
       },
-      
+
       updateVideoStatus: (id, status, progress, video) => {
         set((state) => ({
           videos: state.videos.map((vid) =>
@@ -283,19 +276,19 @@ export const useMediaStore = create<MediaState>()(
           ),
         }));
       },
-      
+
       // Query actions
       getImageById: (id) => {
         return get().images.find((img) => img.id === id);
       },
-      
+
       getVideoById: (id) => {
         return get().videos.find((vid) => vid.id === id);
       },
-      
+
       getFilteredImages: (filter) => {
         let result = get().images;
-        
+
         if (filter.provider) {
           result = result.filter((img) => img.provider === filter.provider);
         }
@@ -306,9 +299,7 @@ export const useMediaStore = create<MediaState>()(
           result = result.filter((img) => img.favorite === filter.favorite);
         }
         if (filter.tags && filter.tags.length > 0) {
-          result = result.filter((img) =>
-            filter.tags!.some((tag) => img.tags.includes(tag))
-          );
+          result = result.filter((img) => filter.tags!.some((tag) => img.tags.includes(tag)));
         }
         if (filter.dateFrom) {
           result = result.filter((img) => img.createdAt >= filter.dateFrom!);
@@ -325,13 +316,13 @@ export const useMediaStore = create<MediaState>()(
               img.tags.some((t) => t.toLowerCase().includes(query))
           );
         }
-        
+
         return result;
       },
-      
+
       getFilteredVideos: (filter) => {
         let result = get().videos;
-        
+
         if (filter.provider) {
           result = result.filter((vid) => vid.provider === filter.provider);
         }
@@ -342,9 +333,7 @@ export const useMediaStore = create<MediaState>()(
           result = result.filter((vid) => vid.favorite === filter.favorite);
         }
         if (filter.tags && filter.tags.length > 0) {
-          result = result.filter((vid) =>
-            filter.tags!.some((tag) => vid.tags.includes(tag))
-          );
+          result = result.filter((vid) => filter.tags!.some((tag) => vid.tags.includes(tag)));
         }
         if (filter.dateFrom) {
           result = result.filter((vid) => vid.createdAt >= filter.dateFrom!);
@@ -361,34 +350,34 @@ export const useMediaStore = create<MediaState>()(
               vid.tags.some((t) => t.toLowerCase().includes(query))
           );
         }
-        
+
         return result;
       },
-      
+
       getRecentImages: (limit = 20) => {
         return get().images.slice(0, limit);
       },
-      
+
       getRecentVideos: (limit = 20) => {
         return get().videos.slice(0, limit);
       },
-      
+
       getFavoriteImages: () => {
         return get().images.filter((img) => img.favorite);
       },
-      
+
       getFavoriteVideos: () => {
         return get().videos.filter((vid) => vid.favorite);
       },
-      
+
       getImagesBySession: (sessionId) => {
         return get().images.filter((img) => img.sessionId === sessionId);
       },
-      
+
       getVideosBySession: (sessionId) => {
         return get().videos.filter((vid) => vid.sessionId === sessionId);
       },
-      
+
       // Statistics
       getStats: () => {
         const { images, videos } = get();
@@ -403,7 +392,7 @@ export const useMediaStore = create<MediaState>()(
           lastVideoGeneratedAt: videos[0]?.createdAt,
         };
       },
-      
+
       getAllTags: () => {
         const { images, videos } = get();
         const allTags = new Set<string>();
@@ -411,16 +400,16 @@ export const useMediaStore = create<MediaState>()(
         videos.forEach((vid) => vid.tags.forEach((t) => allTags.add(t)));
         return Array.from(allTags).sort();
       },
-      
+
       // Bulk actions
       deleteAllImages: () => {
         set({ images: [] });
       },
-      
+
       deleteAllVideos: () => {
         set({ videos: [] });
       },
-      
+
       deleteOldMedia: (daysOld) => {
         const cutoff = Date.now() - daysOld * 24 * 60 * 60 * 1000;
         set((state) => ({
@@ -428,19 +417,25 @@ export const useMediaStore = create<MediaState>()(
           videos: state.videos.filter((vid) => vid.createdAt >= cutoff || vid.favorite),
         }));
       },
-      
+
       exportMedia: () => {
         const { images, videos } = get();
         return { images, videos };
       },
-      
+
       importMedia: (data) => {
         set((state) => ({
           images: data.images
-            ? [...data.images.filter((img) => !state.images.some((i) => i.id === img.id)), ...state.images]
+            ? [
+                ...data.images.filter((img) => !state.images.some((i) => i.id === img.id)),
+                ...state.images,
+              ]
             : state.images,
           videos: data.videos
-            ? [...data.videos.filter((vid) => !state.videos.some((v) => v.id === vid.id)), ...state.videos]
+            ? [
+                ...data.videos.filter((vid) => !state.videos.some((v) => v.id === vid.id)),
+                ...state.videos,
+              ]
             : state.videos,
         }));
       },
@@ -459,10 +454,14 @@ export const useMediaStore = create<MediaState>()(
 // Selectors
 export const selectImages = (state: MediaState) => state.images;
 export const selectVideos = (state: MediaState) => state.videos;
-export const selectRecentImages = (limit: number = 10) => (state: MediaState) =>
-  state.images.slice(0, limit);
-export const selectRecentVideos = (limit: number = 10) => (state: MediaState) =>
-  state.videos.slice(0, limit);
+export const selectRecentImages =
+  (limit: number = 10) =>
+  (state: MediaState) =>
+    state.images.slice(0, limit);
+export const selectRecentVideos =
+  (limit: number = 10) =>
+  (state: MediaState) =>
+    state.videos.slice(0, limit);
 export const selectFavoriteImages = (state: MediaState) =>
   state.images.filter((img) => img.favorite);
 export const selectFavoriteVideos = (state: MediaState) =>

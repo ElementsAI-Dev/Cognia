@@ -217,7 +217,9 @@ describe('useMemoryStore', () => {
 
     it('should format memories for prompt', () => {
       act(() => {
-        useMemoryStore.getState().createMemory({ type: 'preference', content: 'I like TypeScript' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'preference', content: 'I like TypeScript' });
         useMemoryStore.getState().createMemory({ type: 'fact', content: 'I am a developer' });
       });
 
@@ -230,7 +232,9 @@ describe('useMemoryStore', () => {
 
   describe('detectMemoryFromText', () => {
     it('should detect preference patterns', () => {
-      const result = useMemoryStore.getState().detectMemoryFromText('I prefer TypeScript over JavaScript');
+      const result = useMemoryStore
+        .getState()
+        .detectMemoryFromText('I prefer TypeScript over JavaScript');
       expect(result).not.toBeNull();
       expect(result!.type).toBe('preference');
     });
@@ -242,7 +246,9 @@ describe('useMemoryStore', () => {
     });
 
     it('should detect explicit remember commands', () => {
-      const result = useMemoryStore.getState().detectMemoryFromText('Remember that I work from home');
+      const result = useMemoryStore
+        .getState()
+        .detectMemoryFromText('Remember that I work from home');
       expect(result).not.toBeNull();
       expect(result!.type).toBe('instruction');
     });
@@ -333,7 +339,7 @@ describe('useMemoryStore', () => {
         const m1 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 1' });
         const m2 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 2' });
         useMemoryStore.getState().createMemory({ type: 'fact', content: 'Memory 3' });
-        
+
         useMemoryStore.getState().togglePin(m1.id);
         useMemoryStore.getState().togglePin(m2.id);
         useMemoryStore.getState().updateMemory(m2.id, { enabled: false });
@@ -348,14 +354,22 @@ describe('useMemoryStore', () => {
   describe('findSimilarMemories', () => {
     it('should find memories with similar content', () => {
       act(() => {
-        useMemoryStore.getState().createMemory({ type: 'preference', content: 'I prefer TypeScript for web development' });
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'I work with Python data science' });
-        useMemoryStore.getState().createMemory({ type: 'preference', content: 'TypeScript is great for large projects' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'preference', content: 'I prefer TypeScript for web development' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'I work with Python data science' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'preference', content: 'TypeScript is great for large projects' });
       });
 
-      const similar = useMemoryStore.getState().findSimilarMemories('TypeScript development projects');
+      const similar = useMemoryStore
+        .getState()
+        .findSimilarMemories('TypeScript development projects');
       expect(similar.length).toBeGreaterThan(0);
-      expect(similar.some(m => m.content.includes('TypeScript'))).toBe(true);
+      expect(similar.some((m) => m.content.includes('TypeScript'))).toBe(true);
     });
 
     it('should return empty array for short content', () => {
@@ -371,10 +385,14 @@ describe('useMemoryStore', () => {
   describe('getMemoryStats', () => {
     it('should return correct statistics including pinned count', () => {
       act(() => {
-        const m1 = useMemoryStore.getState().createMemory({ type: 'preference', content: 'Pref 1' });
+        const m1 = useMemoryStore
+          .getState()
+          .createMemory({ type: 'preference', content: 'Pref 1' });
         useMemoryStore.getState().createMemory({ type: 'fact', content: 'Fact 1' });
-        const m3 = useMemoryStore.getState().createMemory({ type: 'instruction', content: 'Instruction 1' });
-        
+        const m3 = useMemoryStore
+          .getState()
+          .createMemory({ type: 'instruction', content: 'Instruction 1' });
+
         useMemoryStore.getState().togglePin(m1.id);
         useMemoryStore.getState().togglePin(m3.id);
         useMemoryStore.getState().updateMemory(m3.id, { enabled: false });
@@ -393,8 +411,12 @@ describe('useMemoryStore', () => {
   describe('getAllTags', () => {
     it('should return all unique tags sorted', () => {
       act(() => {
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'A', tags: ['coding', 'typescript'] });
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'B', tags: ['python', 'coding'] });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'A', tags: ['coding', 'typescript'] });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'B', tags: ['python', 'coding'] });
         useMemoryStore.getState().createMemory({ type: 'fact', content: 'C', tags: ['react'] });
       });
 
@@ -486,17 +508,23 @@ describe('useMemoryStore', () => {
   describe('getMemoriesForPrompt with sorting', () => {
     it('should sort memories by pinned, then priority, then useCount', () => {
       act(() => {
-        const m1 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Low priority' });
-        const m2 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'High priority' });
-        const m3 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Pinned memory' });
-        
+        const m1 = useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Low priority' });
+        const m2 = useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'High priority' });
+        const m3 = useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Pinned memory' });
+
         useMemoryStore.getState().setPriority(m1.id, 2);
         useMemoryStore.getState().setPriority(m2.id, 8);
         useMemoryStore.getState().togglePin(m3.id);
       });
 
       const prompt = useMemoryStore.getState().getMemoriesForPrompt();
-      
+
       // Pinned memory should appear first
       expect(prompt.indexOf('Pinned memory')).toBeLessThan(prompt.indexOf('High priority'));
       expect(prompt.indexOf('High priority')).toBeLessThan(prompt.indexOf('Low priority'));
@@ -506,17 +534,33 @@ describe('useMemoryStore', () => {
   describe('getMemoriesBySession', () => {
     it('should return memories for specific session and global memories', () => {
       act(() => {
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Global memory', scope: 'global' });
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Session A memory', sessionId: 'session-a', scope: 'session' });
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Session B memory', sessionId: 'session-b', scope: 'session' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Global memory', scope: 'global' });
+        useMemoryStore
+          .getState()
+          .createMemory({
+            type: 'fact',
+            content: 'Session A memory',
+            sessionId: 'session-a',
+            scope: 'session',
+          });
+        useMemoryStore
+          .getState()
+          .createMemory({
+            type: 'fact',
+            content: 'Session B memory',
+            sessionId: 'session-b',
+            scope: 'session',
+          });
       });
 
       const sessionAMemories = useMemoryStore.getState().getMemoriesBySession('session-a');
-      
+
       expect(sessionAMemories).toHaveLength(2);
-      expect(sessionAMemories.some(m => m.content === 'Global memory')).toBe(true);
-      expect(sessionAMemories.some(m => m.content === 'Session A memory')).toBe(true);
-      expect(sessionAMemories.some(m => m.content === 'Session B memory')).toBe(false);
+      expect(sessionAMemories.some((m) => m.content === 'Global memory')).toBe(true);
+      expect(sessionAMemories.some((m) => m.content === 'Session A memory')).toBe(true);
+      expect(sessionAMemories.some((m) => m.content === 'Session B memory')).toBe(false);
     });
 
     it('should return memories without sessionId as accessible to all sessions', () => {
@@ -532,9 +576,15 @@ describe('useMemoryStore', () => {
   describe('getMemoriesByScope', () => {
     it('should filter memories by scope', () => {
       act(() => {
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Global 1', scope: 'global' });
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Global 2', scope: 'global' });
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Session 1', scope: 'session' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Global 1', scope: 'global' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Global 2', scope: 'global' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Session 1', scope: 'session' });
       });
 
       const globalMemories = useMemoryStore.getState().getMemoriesByScope('global');
@@ -558,18 +608,22 @@ describe('useMemoryStore', () => {
     it('should return memories expiring within specified days', () => {
       const soon = new Date();
       soon.setDate(soon.getDate() + 3);
-      
+
       const later = new Date();
       later.setDate(later.getDate() + 30);
 
       act(() => {
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Expiring soon', expiresAt: soon });
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Expiring later', expiresAt: later });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Expiring soon', expiresAt: soon });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Expiring later', expiresAt: later });
         useMemoryStore.getState().createMemory({ type: 'fact', content: 'No expiration' });
       });
 
       const expiring = useMemoryStore.getState().getExpiringMemories(7);
-      
+
       expect(expiring).toHaveLength(1);
       expect(expiring[0].content).toBe('Expiring soon');
     });
@@ -630,14 +684,16 @@ describe('useMemoryStore', () => {
 
       let updated: number = 0;
       act(() => {
-        updated = useMemoryStore.getState().batchUpdate([ids[0], ids[1]], { category: 'test-category' });
+        updated = useMemoryStore
+          .getState()
+          .batchUpdate([ids[0], ids[1]], { category: 'test-category' });
       });
 
       expect(updated).toBe(2);
-      
+
       const memories = useMemoryStore.getState().memories;
-      expect(memories.filter(m => m.category === 'test-category')).toHaveLength(2);
-      expect(memories.find(m => m.id === ids[2])?.category).toBeUndefined();
+      expect(memories.filter((m) => m.category === 'test-category')).toHaveLength(2);
+      expect(memories.find((m) => m.id === ids[2])?.category).toBeUndefined();
     });
   });
 
@@ -653,7 +709,7 @@ describe('useMemoryStore', () => {
       });
 
       // All should be enabled initially
-      expect(useMemoryStore.getState().memories.every(m => m.enabled)).toBe(true);
+      expect(useMemoryStore.getState().memories.every((m) => m.enabled)).toBe(true);
 
       let updated: number = 0;
       act(() => {
@@ -661,10 +717,10 @@ describe('useMemoryStore', () => {
       });
 
       expect(updated).toBe(2);
-      
+
       const memories = useMemoryStore.getState().memories;
-      expect(memories.filter(m => !m.enabled)).toHaveLength(2);
-      expect(memories.find(m => m.id === ids[2])?.enabled).toBe(true);
+      expect(memories.filter((m) => !m.enabled)).toHaveLength(2);
+      expect(memories.find((m) => m.id === ids[2])?.enabled).toBe(true);
     });
   });
 
@@ -672,13 +728,17 @@ describe('useMemoryStore', () => {
     it('should remove expired memories', () => {
       const past = new Date();
       past.setDate(past.getDate() - 10);
-      
+
       const future = new Date();
       future.setDate(future.getDate() + 10);
 
       act(() => {
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Expired', expiresAt: past });
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Not expired', expiresAt: future });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Expired', expiresAt: past });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Not expired', expiresAt: future });
         useMemoryStore.getState().createMemory({ type: 'fact', content: 'No expiration' });
       });
 
@@ -691,7 +751,7 @@ describe('useMemoryStore', () => {
 
       expect(cleaned).toBe(1);
       expect(useMemoryStore.getState().memories).toHaveLength(2);
-      expect(useMemoryStore.getState().memories.some(m => m.content === 'Expired')).toBe(false);
+      expect(useMemoryStore.getState().memories.some((m) => m.content === 'Expired')).toBe(false);
     });
   });
 
@@ -704,11 +764,13 @@ describe('useMemoryStore', () => {
       act(() => {
         const m1 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Old unused' });
         useMemoryStore.getState().createMemory({ type: 'fact', content: 'Recent' });
-        const m3 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Old but pinned' });
-        
+        const m3 = useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Old but pinned' });
+
         // Manually set lastUsedAt for testing
         useMemoryStore.setState({
-          memories: useMemoryStore.getState().memories.map(m => {
+          memories: useMemoryStore.getState().memories.map((m) => {
             if (m.id === m1.id) return { ...m, lastUsedAt: oldDate, useCount: 0 };
             if (m.id === m3.id) {
               return { ...m, lastUsedAt: oldDate, useCount: 0, pinned: true };
@@ -725,8 +787,12 @@ describe('useMemoryStore', () => {
 
       expect(cleaned).toBe(1);
       expect(useMemoryStore.getState().memories).toHaveLength(2);
-      expect(useMemoryStore.getState().memories.some(m => m.content === 'Old unused')).toBe(false);
-      expect(useMemoryStore.getState().memories.some(m => m.content === 'Old but pinned')).toBe(true);
+      expect(useMemoryStore.getState().memories.some((m) => m.content === 'Old unused')).toBe(
+        false
+      );
+      expect(useMemoryStore.getState().memories.some((m) => m.content === 'Old but pinned')).toBe(
+        true
+      );
     });
 
     it('should not remove pinned memories even if old', () => {
@@ -737,9 +803,11 @@ describe('useMemoryStore', () => {
         const m = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Old pinned' });
         useMemoryStore.getState().togglePin(m.id);
         useMemoryStore.setState({
-          memories: useMemoryStore.getState().memories.map(mem => 
-            mem.id === m.id ? { ...mem, lastUsedAt: oldDate, useCount: 0 } : mem
-          ),
+          memories: useMemoryStore
+            .getState()
+            .memories.map((mem) =>
+              mem.id === m.id ? { ...mem, lastUsedAt: oldDate, useCount: 0 } : mem
+            ),
         });
       });
 
@@ -756,13 +824,19 @@ describe('useMemoryStore', () => {
   describe('extended getMemoryStats', () => {
     it('should include byScope statistics', () => {
       act(() => {
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Global 1', scope: 'global' });
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Global 2', scope: 'global' });
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Session 1', scope: 'session' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Global 1', scope: 'global' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Global 2', scope: 'global' });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Session 1', scope: 'session' });
       });
 
       const stats = useMemoryStore.getState().getMemoryStats();
-      
+
       expect(stats.byScope.global).toBe(2);
       expect(stats.byScope.session).toBe(1);
     });
@@ -772,7 +846,9 @@ describe('useMemoryStore', () => {
       soon.setDate(soon.getDate() + 3);
 
       act(() => {
-        useMemoryStore.getState().createMemory({ type: 'fact', content: 'Expiring', expiresAt: soon });
+        useMemoryStore
+          .getState()
+          .createMemory({ type: 'fact', content: 'Expiring', expiresAt: soon });
         useMemoryStore.getState().createMemory({ type: 'fact', content: 'Not expiring' });
       });
 
@@ -787,14 +863,14 @@ describe('useMemoryStore', () => {
       act(() => {
         const m1 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Recent' });
         const m2 = useMemoryStore.getState().createMemory({ type: 'fact', content: 'Old' });
-        
+
         // Set m2 as old
         useMemoryStore.setState({
-          memories: useMemoryStore.getState().memories.map(m =>
-            m.id === m2.id ? { ...m, lastUsedAt: oldDate } : m
-          ),
+          memories: useMemoryStore
+            .getState()
+            .memories.map((m) => (m.id === m2.id ? { ...m, lastUsedAt: oldDate } : m)),
         });
-        
+
         // m1 is already recent (just created)
         void m1;
       });

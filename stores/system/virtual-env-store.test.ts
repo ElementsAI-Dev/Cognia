@@ -746,7 +746,9 @@ describe('Virtual Environment Store', () => {
 
     it('should clear specific package cache', () => {
       const { result } = renderHook(() => useVirtualEnvStore());
-      const packages = [{ name: 'numpy', version: '1.0', latest: null, description: null, location: null }];
+      const packages = [
+        { name: 'numpy', version: '1.0', latest: null, description: null, location: null },
+      ];
 
       act(() => {
         result.current.cachePackages('/path/1', packages);
@@ -763,7 +765,9 @@ describe('Virtual Environment Store', () => {
 
     it('should clear all package cache', () => {
       const { result } = renderHook(() => useVirtualEnvStore());
-      const packages = [{ name: 'numpy', version: '1.0', latest: null, description: null, location: null }];
+      const packages = [
+        { name: 'numpy', version: '1.0', latest: null, description: null, location: null },
+      ];
 
       act(() => {
         result.current.cachePackages('/path/1', packages);
@@ -931,7 +935,7 @@ describe('Virtual Environment Store', () => {
 
       const uvEnvs = selectEnvsByType(result.current, 'uv');
       expect(uvEnvs).toHaveLength(2);
-      expect(uvEnvs.every(e => e.type === 'uv')).toBe(true);
+      expect(uvEnvs.every((e) => e.type === 'uv')).toBe(true);
     });
 
     it('selectEnvsByStatus should filter by status', () => {
@@ -987,8 +991,8 @@ describe('Virtual Environment Store', () => {
 
       const selected = selectSelectedEnvs(result.current);
       expect(selected).toHaveLength(2);
-      expect(selected.map(e => e.id)).toContain('env-1');
-      expect(selected.map(e => e.id)).toContain('env-3');
+      expect(selected.map((e) => e.id)).toContain('env-1');
+      expect(selected.map((e) => e.id)).toContain('env-3');
     });
 
     it('selectRecentEnvs should return most recent environments', () => {

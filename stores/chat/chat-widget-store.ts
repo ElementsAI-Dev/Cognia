@@ -146,7 +146,8 @@ export const useChatWidgetStore = create<ChatWidgetStore>()(
       show: () => set({ isVisible: true, lastActivity: new Date() }),
       hide: () => set({ isVisible: false }),
       toggle: () => set((state) => ({ isVisible: !state.isVisible, lastActivity: new Date() })),
-      setVisible: (visible) => set({ isVisible: visible, lastActivity: visible ? new Date() : get().lastActivity }),
+      setVisible: (visible) =>
+        set({ isVisible: visible, lastActivity: visible ? new Date() : get().lastActivity }),
 
       // Messages
       addMessage: (message) => {
@@ -171,9 +172,7 @@ export const useChatWidgetStore = create<ChatWidgetStore>()(
 
       updateMessage: (id, updates) =>
         set((state) => ({
-          messages: state.messages.map((m) =>
-            m.id === id ? { ...m, ...updates } : m
-          ),
+          messages: state.messages.map((m) => (m.id === id ? { ...m, ...updates } : m)),
         })),
 
       deleteMessage: (id) =>
@@ -196,17 +195,13 @@ export const useChatWidgetStore = create<ChatWidgetStore>()(
 
       setStreaming: (id, isStreaming) =>
         set((state) => ({
-          messages: state.messages.map((m) =>
-            m.id === id ? { ...m, isStreaming } : m
-          ),
+          messages: state.messages.map((m) => (m.id === id ? { ...m, isStreaming } : m)),
           isStreaming,
         })),
 
       setFeedback: (id, feedback) =>
         set((state) => ({
-          messages: state.messages.map((m) =>
-            m.id === id ? { ...m, feedback } : m
-          ),
+          messages: state.messages.map((m) => (m.id === id ? { ...m, feedback } : m)),
         })),
 
       editMessage: (id, newContent) =>

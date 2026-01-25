@@ -44,16 +44,27 @@ jest.mock('@/lib/a2ui/data-model', () => ({
 jest.mock('@/lib/a2ui/events', () => ({
   globalEventEmitter: { emitAction: jest.fn(), emitDataChange: jest.fn() },
   createUserAction: jest.fn((surfaceId, action, componentId, data) => ({
-    type: 'user_action', surfaceId, action, componentId, data, timestamp: Date.now(),
+    type: 'user_action',
+    surfaceId,
+    action,
+    componentId,
+    data,
+    timestamp: Date.now(),
   })),
   createDataModelChange: jest.fn((surfaceId, path, value) => ({
-    type: 'data_model_change', surfaceId, path, value, timestamp: Date.now(),
+    type: 'data_model_change',
+    surfaceId,
+    path,
+    value,
+    timestamp: Date.now(),
   })),
 }));
 
 describe('useA2UIStore', () => {
   beforeEach(() => {
-    act(() => { useA2UIStore.getState().reset(); });
+    act(() => {
+      useA2UIStore.getState().reset();
+    });
   });
 
   describe('initial state', () => {
@@ -67,7 +78,9 @@ describe('useA2UIStore', () => {
 
   describe('createSurface', () => {
     it('should create a new surface', () => {
-      act(() => { useA2UIStore.getState().createSurface('surface-1', 'dialog', { title: 'Test' }); });
+      act(() => {
+        useA2UIStore.getState().createSurface('surface-1', 'dialog', { title: 'Test' });
+      });
       const state = useA2UIStore.getState();
       expect(state.surfaces['surface-1']).toBeDefined();
       expect(state.surfaces['surface-1'].type).toBe('dialog');
@@ -89,9 +102,11 @@ describe('useA2UIStore', () => {
     it('should update components on a surface', () => {
       act(() => {
         useA2UIStore.getState().createSurface('surface-1', 'dialog');
-        useA2UIStore.getState().updateComponents('surface-1', [
-          { id: 'comp-1', type: 'Button', props: { label: 'Click' } } as never,
-        ]);
+        useA2UIStore
+          .getState()
+          .updateComponents('surface-1', [
+            { id: 'comp-1', type: 'Button', props: { label: 'Click' } } as never,
+          ]);
       });
       expect(useA2UIStore.getState().surfaces['surface-1'].components['comp-1']).toBeDefined();
     });
@@ -139,22 +154,30 @@ describe('useA2UIStore', () => {
 
   describe('selectors', () => {
     it('should select surface', () => {
-      act(() => { useA2UIStore.getState().createSurface('surface-1', 'dialog'); });
+      act(() => {
+        useA2UIStore.getState().createSurface('surface-1', 'dialog');
+      });
       expect(selectSurface('surface-1')(useA2UIStore.getState())).toBeDefined();
     });
 
     it('should select active surface', () => {
-      act(() => { useA2UIStore.getState().createSurface('surface-1', 'dialog'); });
+      act(() => {
+        useA2UIStore.getState().createSurface('surface-1', 'dialog');
+      });
       expect(selectActiveSurface(useA2UIStore.getState())).toBeDefined();
     });
 
     it('should select surface components', () => {
-      act(() => { useA2UIStore.getState().createSurface('surface-1', 'dialog'); });
+      act(() => {
+        useA2UIStore.getState().createSurface('surface-1', 'dialog');
+      });
       expect(selectSurfaceComponents('surface-1')(useA2UIStore.getState())).toEqual({});
     });
 
     it('should select surface data model', () => {
-      act(() => { useA2UIStore.getState().createSurface('surface-1', 'dialog'); });
+      act(() => {
+        useA2UIStore.getState().createSurface('surface-1', 'dialog');
+      });
       expect(selectSurfaceDataModel('surface-1')(useA2UIStore.getState())).toEqual({});
     });
 

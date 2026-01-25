@@ -58,56 +58,56 @@ let nodeHistoryTimer: ReturnType<typeof setTimeout> | undefined;
 interface WorkflowEditorState {
   // Current workflow
   currentWorkflow: VisualWorkflow | null;
-  
+
   // Selection
   selectedNodes: string[];
   selectedEdges: string[];
-  
+
   // Clipboard
   copiedNodes: WorkflowNode[];
   copiedEdges: WorkflowEdge[];
-  
+
   // History for undo/redo
   history: VisualWorkflow[];
   historyIndex: number;
   maxHistorySize: number;
-  
+
   // Dirty state
   isDirty: boolean;
-  
+
   // Execution state
   isExecuting: boolean;
   executionState: WorkflowExecutionState | null;
-  
+
   // Debug mode
   isDebugMode: boolean;
   breakpoints: Set<string>;
   debugStepIndex: number;
   isPausedAtBreakpoint: boolean;
-  
+
   // UI state
   showNodePalette: boolean;
   showConfigPanel: boolean;
   showExecutionPanel: boolean;
   showMinimap: boolean;
   activeConfigTab: string;
-  
+
   // Validation
   validationErrors: ValidationError[];
-  
+
   // Search
   searchQuery: string;
-  
+
   // Saved workflows
   savedWorkflows: VisualWorkflow[];
-  
+
   // Node templates
   nodeTemplates: NodeTemplate[];
-  
+
   // Version control
   workflowVersions: Record<string, WorkflowVersion[]>;
   currentVersionNumber: number;
-  
+
   // Execution statistics
   WorkflowExecutionRecords: WorkflowExecutionRecord[];
 }
@@ -119,12 +119,14 @@ interface WorkflowEditorActions {
   saveWorkflow: () => Promise<void>;
   deleteWorkflow: (workflowId: string) => void;
   duplicateWorkflow: (workflowId: string) => void;
-  updateWorkflowMeta: (updates: Partial<Pick<VisualWorkflow, 'name' | 'description' | 'category' | 'tags' | 'icon'>>) => void;
+  updateWorkflowMeta: (
+    updates: Partial<Pick<VisualWorkflow, 'name' | 'description' | 'category' | 'tags' | 'icon'>>
+  ) => void;
   updateWorkflowSettings: (settings: Partial<WorkflowSettings>) => void;
   updateWorkflowVariables: (variables: Record<string, unknown>) => void;
   setWorkflowVariable: (name: string, value: unknown) => void;
   deleteWorkflowVariable: (name: string) => void;
-  
+
   // Node operations
   addNode: (type: WorkflowNodeType, position: { x: number; y: number }) => string;
   updateNode: (nodeId: string, data: Partial<WorkflowNodeData>) => void;
@@ -132,7 +134,7 @@ interface WorkflowEditorActions {
   deleteNodes: (nodeIds: string[]) => void;
   duplicateNode: (nodeId: string) => string | null;
   onNodesChange: (changes: NodeChange<WorkflowNode>[]) => void;
-  
+
   // Edge operations
   addEdge: (connection: Connection) => void;
   updateEdge: (edgeId: string, data: Partial<WorkflowEdgeData>) => void;
@@ -140,37 +142,37 @@ interface WorkflowEditorActions {
   deleteEdges: (edgeIds: string[]) => void;
   onEdgesChange: (changes: EdgeChange<WorkflowEdge>[]) => void;
   onConnect: (connection: Connection) => void;
-  
+
   // Selection
   selectNodes: (nodeIds: string[]) => void;
   selectEdges: (edgeIds: string[]) => void;
   selectAll: () => void;
   clearSelection: () => void;
-  
+
   // Clipboard
   copySelection: () => void;
   pasteSelection: (position?: { x: number; y: number }) => void;
   cutSelection: () => void;
-  
+
   // History
   undo: () => void;
   redo: () => void;
   pushHistory: () => void;
   clearHistory: () => void;
-  
+
   // Viewport
   setViewport: (viewport: Viewport) => void;
   fitView: () => void;
-  
+
   // Layout
   autoLayout: () => void;
   alignNodes: (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void;
   distributeNodes: (direction: 'horizontal' | 'vertical') => void;
-  
+
   // Validation
   validate: () => ValidationError[];
   clearValidationErrors: () => void;
-  
+
   // Execution
   startExecution: (input: Record<string, unknown>) => void;
   pauseExecution: () => void;
@@ -179,7 +181,7 @@ interface WorkflowEditorActions {
   updateNodeExecutionState: (nodeId: string, state: Partial<NodeExecutionState>) => void;
   addExecutionLog: (log: ExecutionLog) => void;
   clearExecutionState: () => void;
-  
+
   // Debug mode
   toggleDebugMode: () => void;
   setBreakpoint: (nodeId: string) => void;
@@ -188,7 +190,7 @@ interface WorkflowEditorActions {
   stepOver: () => void;
   stepInto: () => void;
   continueExecution: () => void;
-  
+
   // UI state
   toggleNodePalette: () => void;
   toggleConfigPanel: () => void;
@@ -196,30 +198,37 @@ interface WorkflowEditorActions {
   toggleMinimap: () => void;
   setActiveConfigTab: (tab: string) => void;
   setSearchQuery: (query: string) => void;
-  
+
   // Node templates
-  saveNodeAsTemplate: (nodeId: string, name: string, options?: { description?: string; category?: string; tags?: string[] }) => NodeTemplate | null;
+  saveNodeAsTemplate: (
+    nodeId: string,
+    name: string,
+    options?: { description?: string; category?: string; tags?: string[] }
+  ) => NodeTemplate | null;
   addNodeFromTemplate: (templateId: string, position: { x: number; y: number }) => string | null;
   deleteNodeTemplate: (templateId: string) => void;
-  updateNodeTemplate: (templateId: string, updates: Partial<Pick<NodeTemplate, 'name' | 'description' | 'category' | 'tags'>>) => void;
-  
+  updateNodeTemplate: (
+    templateId: string,
+    updates: Partial<Pick<NodeTemplate, 'name' | 'description' | 'category' | 'tags'>>
+  ) => void;
+
   // Version control
   saveVersion: (name?: string, description?: string) => WorkflowVersion | null;
   getVersions: () => WorkflowVersion[];
   restoreVersion: (versionId: string) => void;
   deleteVersion: (versionId: string) => void;
-  
+
   // Import/Export
   exportWorkflow: (options?: { includeTemplates?: boolean }) => WorkflowExport | null;
   importWorkflow: (data: WorkflowExport) => void;
   exportToFile: () => void;
   importFromFile: (file: File) => Promise<void>;
-  
+
   // Execution statistics
   recordExecution: (record: Omit<WorkflowExecutionRecord, 'id'>) => void;
   getWorkflowStatistics: (workflowId?: string) => WorkflowStatistics | null;
   clearWorkflowExecutionRecords: (workflowId?: string) => void;
-  
+
   // Reset
   reset: () => void;
 }
@@ -286,1526 +295,1540 @@ export const useWorkflowEditorStore = create<WorkflowEditorState & WorkflowEdito
       return {
         ...initialState,
 
-      // Workflow management
-      createWorkflow: (name) => {
-        const workflow = createEmptyVisualWorkflow(name);
-        set({
-          currentWorkflow: workflow,
-          selectedNodes: [],
-          selectedEdges: [],
-          history: [workflow],
-          historyIndex: 0,
-          isDirty: false,
-          validationErrors: [],
-        });
-      },
-
-      loadWorkflow: (workflow) => {
-        set({
-          currentWorkflow: workflow,
-          selectedNodes: [],
-          selectedEdges: [],
-          history: [workflow],
-          historyIndex: 0,
-          isDirty: false,
-          validationErrors: [],
-          executionState: null,
-          isExecuting: false,
-        });
-      },
-
-      saveWorkflow: async () => {
-        const { currentWorkflow, savedWorkflows } = get();
-        if (!currentWorkflow) return;
-
-        try {
-          const saved = await workflowRepository.save({
-            ...currentWorkflow,
-            updatedAt: new Date(),
-          });
-
-          const existingIndex = savedWorkflows.findIndex(w => w.id === saved.id);
-          const newSavedWorkflows = existingIndex >= 0
-            ? savedWorkflows.map((w, i) => i === existingIndex ? saved : w)
-            : [...savedWorkflows, saved];
-
+        // Workflow management
+        createWorkflow: (name) => {
+          const workflow = createEmptyVisualWorkflow(name);
           set({
-            currentWorkflow: saved,
-            savedWorkflows: newSavedWorkflows,
+            currentWorkflow: workflow,
+            selectedNodes: [],
+            selectedEdges: [],
+            history: [workflow],
+            historyIndex: 0,
             isDirty: false,
+            validationErrors: [],
           });
-        } catch (error) {
-          console.error('Failed to save workflow:', error);
-        }
-      },
+        },
 
-      deleteWorkflow: (workflowId) => {
-        void (async () => {
+        loadWorkflow: (workflow) => {
+          set({
+            currentWorkflow: workflow,
+            selectedNodes: [],
+            selectedEdges: [],
+            history: [workflow],
+            historyIndex: 0,
+            isDirty: false,
+            validationErrors: [],
+            executionState: null,
+            isExecuting: false,
+          });
+        },
+
+        saveWorkflow: async () => {
+          const { currentWorkflow, savedWorkflows } = get();
+          if (!currentWorkflow) return;
+
           try {
-            const deleted = await workflowRepository.delete(workflowId);
-            if (!deleted) return;
+            const saved = await workflowRepository.save({
+              ...currentWorkflow,
+              updatedAt: new Date(),
+            });
 
-            const { savedWorkflows, currentWorkflow } = get();
-            const isCurrentDeleted = currentWorkflow?.id === workflowId;
+            const existingIndex = savedWorkflows.findIndex((w) => w.id === saved.id);
+            const newSavedWorkflows =
+              existingIndex >= 0
+                ? savedWorkflows.map((w, i) => (i === existingIndex ? saved : w))
+                : [...savedWorkflows, saved];
 
             set({
-              savedWorkflows: savedWorkflows.filter(w => w.id !== workflowId),
-              currentWorkflow: isCurrentDeleted ? null : currentWorkflow,
-              ...(isCurrentDeleted
-                ? {
-                    history: [],
-                    historyIndex: -1,
-                    selectedNodes: [],
-                    selectedEdges: [],
-                    isDirty: false,
-                    validationErrors: [],
-                  }
-                : {}),
+              currentWorkflow: saved,
+              savedWorkflows: newSavedWorkflows,
+              isDirty: false,
             });
           } catch (error) {
-            console.error('Failed to delete workflow:', error);
+            console.error('Failed to save workflow:', error);
           }
-        })();
-      },
+        },
 
-      duplicateWorkflow: (workflowId) => {
-        void (async () => {
-          try {
-            const duplicated = await workflowRepository.duplicate(workflowId);
-            if (!duplicated) return;
+        deleteWorkflow: (workflowId) => {
+          void (async () => {
+            try {
+              const deleted = await workflowRepository.delete(workflowId);
+              if (!deleted) return;
 
-            const { savedWorkflows } = get();
-            set({ savedWorkflows: [...savedWorkflows, duplicated] });
-          } catch (error) {
-            console.error('Failed to duplicate workflow:', error);
-          }
-        })();
-      },
+              const { savedWorkflows, currentWorkflow } = get();
+              const isCurrentDeleted = currentWorkflow?.id === workflowId;
 
-      updateWorkflowMeta: (updates) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
+              set({
+                savedWorkflows: savedWorkflows.filter((w) => w.id !== workflowId),
+                currentWorkflow: isCurrentDeleted ? null : currentWorkflow,
+                ...(isCurrentDeleted
+                  ? {
+                      history: [],
+                      historyIndex: -1,
+                      selectedNodes: [],
+                      selectedEdges: [],
+                      isDirty: false,
+                      validationErrors: [],
+                    }
+                  : {}),
+              });
+            } catch (error) {
+              console.error('Failed to delete workflow:', error);
+            }
+          })();
+        },
 
-        const updated = {
-          ...currentWorkflow,
-          ...updates,
-          updatedAt: new Date(),
-        };
+        duplicateWorkflow: (workflowId) => {
+          void (async () => {
+            try {
+              const duplicated = await workflowRepository.duplicate(workflowId);
+              if (!duplicated) return;
 
-        set({ currentWorkflow: updated, isDirty: true });
-        scheduleMetaHistoryPush(updated.id);
-      },
+              const { savedWorkflows } = get();
+              set({ savedWorkflows: [...savedWorkflows, duplicated] });
+            } catch (error) {
+              console.error('Failed to duplicate workflow:', error);
+            }
+          })();
+        },
 
-      updateWorkflowSettings: (settings) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
+        updateWorkflowMeta: (updates) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
 
-        const updated = {
-          ...currentWorkflow,
-          settings: { ...currentWorkflow.settings, ...settings },
-          updatedAt: new Date(),
-        };
+          const updated = {
+            ...currentWorkflow,
+            ...updates,
+            updatedAt: new Date(),
+          };
 
-        set({ currentWorkflow: updated, isDirty: true });
-      },
+          set({ currentWorkflow: updated, isDirty: true });
+          scheduleMetaHistoryPush(updated.id);
+        },
 
-      updateWorkflowVariables: (variables) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
+        updateWorkflowSettings: (settings) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
 
-        const updated = {
-          ...currentWorkflow,
-          variables,
-          updatedAt: new Date(),
-        };
+          const updated = {
+            ...currentWorkflow,
+            settings: { ...currentWorkflow.settings, ...settings },
+            updatedAt: new Date(),
+          };
 
-        set({ currentWorkflow: updated, isDirty: true });
-        scheduleMetaHistoryPush(updated.id);
-      },
+          set({ currentWorkflow: updated, isDirty: true });
+        },
 
-      setWorkflowVariable: (name, value) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
+        updateWorkflowVariables: (variables) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
 
-        const updated = {
-          ...currentWorkflow,
-          variables: {
-            ...currentWorkflow.variables,
-            [name]: value,
-          },
-          updatedAt: new Date(),
-        };
+          const updated = {
+            ...currentWorkflow,
+            variables,
+            updatedAt: new Date(),
+          };
 
-        set({ currentWorkflow: updated, isDirty: true });
-        scheduleMetaHistoryPush(updated.id);
-      },
+          set({ currentWorkflow: updated, isDirty: true });
+          scheduleMetaHistoryPush(updated.id);
+        },
 
-      deleteWorkflowVariable: (name) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
+        setWorkflowVariable: (name, value) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
 
-        const { [name]: _deleted, ...rest } = currentWorkflow.variables;
-        const updated = {
-          ...currentWorkflow,
-          variables: rest,
-          updatedAt: new Date(),
-        };
-
-        set({ currentWorkflow: updated, isDirty: true });
-        scheduleMetaHistoryPush(updated.id);
-      },
-
-      // Node operations
-      addNode: (type, position) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return '';
-
-        const nodeId = `${type}-${nanoid(8)}`;
-        const newNode: WorkflowNode = {
-          id: nodeId,
-          type,
-          position,
-          data: createDefaultNodeData(type),
-        };
-
-        const updated = {
-          ...currentWorkflow,
-          nodes: [...currentWorkflow.nodes, newNode],
-          updatedAt: new Date(),
-        };
-
-        set({ currentWorkflow: updated, isDirty: true, selectedNodes: [nodeId] });
-        get().pushHistory();
-        return nodeId;
-      },
-
-      updateNode: (nodeId, data) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const updated = {
-          ...currentWorkflow,
-          nodes: currentWorkflow.nodes.map(node =>
-            node.id === nodeId
-              ? { ...node, data: { ...node.data, ...data } as WorkflowNodeData }
-              : node
-          ),
-          updatedAt: new Date(),
-        };
-
-        set({ currentWorkflow: updated, isDirty: true });
-
-        const keys = Object.keys(data);
-        const isHighFrequencyTextUpdate =
-          keys.length > 0 &&
-          keys.every((k) => k === 'label' || k === 'text' || k === 'content' || k === 'description' || k === 'title');
-
-        if (isHighFrequencyTextUpdate) {
-          scheduleNodeHistoryPush(updated.id);
-        } else {
-          get().pushHistory();
-        }
-      },
-
-      deleteNode: (nodeId) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const updated = {
-          ...currentWorkflow,
-          nodes: currentWorkflow.nodes.filter(n => n.id !== nodeId),
-          edges: currentWorkflow.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
-          updatedAt: new Date(),
-        };
-
-        set({
-          currentWorkflow: updated,
-          isDirty: true,
-          selectedNodes: get().selectedNodes.filter(id => id !== nodeId),
-        });
-        get().pushHistory();
-      },
-
-      deleteNodes: (nodeIds) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const nodeIdSet = new Set(nodeIds);
-        const updated = {
-          ...currentWorkflow,
-          nodes: currentWorkflow.nodes.filter(n => !nodeIdSet.has(n.id)),
-          edges: currentWorkflow.edges.filter(e => !nodeIdSet.has(e.source) && !nodeIdSet.has(e.target)),
-          updatedAt: new Date(),
-        };
-
-        set({
-          currentWorkflow: updated,
-          isDirty: true,
-          selectedNodes: get().selectedNodes.filter(id => !nodeIdSet.has(id)),
-        });
-        get().pushHistory();
-      },
-
-      duplicateNode: (nodeId) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return null;
-
-        const node = currentWorkflow.nodes.find(n => n.id === nodeId);
-        if (!node) return null;
-
-        const newNodeId = `${node.type}-${nanoid(8)}`;
-        const newNode: WorkflowNode = {
-          ...node,
-          id: newNodeId,
-          position: {
-            x: node.position.x + 50,
-            y: node.position.y + 50,
-          },
-          data: { ...node.data },
-        };
-
-        const updated = {
-          ...currentWorkflow,
-          nodes: [...currentWorkflow.nodes, newNode],
-          updatedAt: new Date(),
-        };
-
-        set({ currentWorkflow: updated, isDirty: true, selectedNodes: [newNodeId] });
-        get().pushHistory();
-        return newNodeId;
-      },
-
-      onNodesChange: (changes) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const removedIds = changes
-          .filter((c) => c.type === 'remove')
-          .map((c) => c.id);
-        if (removedIds.length > 0) {
-          get().deleteNodes(removedIds);
-          return;
-        }
-
-        const updated = {
-          ...currentWorkflow,
-          nodes: applyNodeChanges(changes, currentWorkflow.nodes),
-          updatedAt: new Date(),
-        };
-
-        set({ currentWorkflow: updated, isDirty: true });
-      },
-
-      // Edge operations
-      addEdge: (connection) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const newEdge: WorkflowEdge = {
-          id: `edge-${nanoid(8)}`,
-          source: connection.source!,
-          target: connection.target!,
-          sourceHandle: connection.sourceHandle,
-          targetHandle: connection.targetHandle,
-          type: 'default',
-          data: {},
-        };
-
-        const updated = {
-          ...currentWorkflow,
-          edges: [...currentWorkflow.edges, newEdge],
-          updatedAt: new Date(),
-        };
-
-        set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
-      },
-
-      updateEdge: (edgeId, data) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const updated = {
-          ...currentWorkflow,
-          edges: currentWorkflow.edges.map(edge =>
-            edge.id === edgeId
-              ? { ...edge, data: { ...edge.data, ...data } }
-              : edge
-          ),
-          updatedAt: new Date(),
-        };
-
-        set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
-      },
-
-      deleteEdge: (edgeId) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const updated = {
-          ...currentWorkflow,
-          edges: currentWorkflow.edges.filter(e => e.id !== edgeId),
-          updatedAt: new Date(),
-        };
-
-        set({
-          currentWorkflow: updated,
-          isDirty: true,
-          selectedEdges: get().selectedEdges.filter(id => id !== edgeId),
-        });
-        get().pushHistory();
-      },
-
-      deleteEdges: (edgeIds) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const edgeIdSet = new Set(edgeIds);
-        const updated = {
-          ...currentWorkflow,
-          edges: currentWorkflow.edges.filter(e => !edgeIdSet.has(e.id)),
-          updatedAt: new Date(),
-        };
-
-        set({
-          currentWorkflow: updated,
-          isDirty: true,
-          selectedEdges: get().selectedEdges.filter(id => !edgeIdSet.has(id)),
-        });
-        get().pushHistory();
-      },
-
-      onEdgesChange: (changes) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const removedIds = changes
-          .filter((c) => c.type === 'remove')
-          .map((c) => c.id);
-        if (removedIds.length > 0) {
-          get().deleteEdges(removedIds);
-          return;
-        }
-
-        const updated = {
-          ...currentWorkflow,
-          edges: applyEdgeChanges(changes, currentWorkflow.edges),
-          updatedAt: new Date(),
-        };
-
-        set({ currentWorkflow: updated, isDirty: true });
-
-        const shouldRecordHistory = changes.some((c) => c.type !== 'select');
-        if (shouldRecordHistory) {
-          get().pushHistory();
-        }
-      },
-
-      onConnect: (connection) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const updated = {
-          ...currentWorkflow,
-          edges: rfAddEdge(
-            {
-              ...connection,
-              id: `edge-${nanoid(8)}`,
-              type: 'default',
-              data: {},
+          const updated = {
+            ...currentWorkflow,
+            variables: {
+              ...currentWorkflow.variables,
+              [name]: value,
             },
-            currentWorkflow.edges as never[]
-          ) as WorkflowEdge[],
-          updatedAt: new Date(),
-        };
+            updatedAt: new Date(),
+          };
 
-        set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
-      },
+          set({ currentWorkflow: updated, isDirty: true });
+          scheduleMetaHistoryPush(updated.id);
+        },
 
-      // Selection
-      selectNodes: (nodeIds) => {
-        set({ selectedNodes: nodeIds });
-      },
+        deleteWorkflowVariable: (name) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
 
-      selectEdges: (edgeIds) => {
-        set({ selectedEdges: edgeIds });
-      },
+          const { [name]: _deleted, ...rest } = currentWorkflow.variables;
+          const updated = {
+            ...currentWorkflow,
+            variables: rest,
+            updatedAt: new Date(),
+          };
 
-      selectAll: () => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
+          set({ currentWorkflow: updated, isDirty: true });
+          scheduleMetaHistoryPush(updated.id);
+        },
 
-        set({
-          selectedNodes: currentWorkflow.nodes.map(n => n.id),
-          selectedEdges: currentWorkflow.edges.map(e => e.id),
-        });
-      },
+        // Node operations
+        addNode: (type, position) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return '';
 
-      clearSelection: () => {
-        set({ selectedNodes: [], selectedEdges: [] });
-      },
+          const nodeId = `${type}-${nanoid(8)}`;
+          const newNode: WorkflowNode = {
+            id: nodeId,
+            type,
+            position,
+            data: createDefaultNodeData(type),
+          };
 
-      // Clipboard
-      copySelection: () => {
-        const { currentWorkflow, selectedNodes, selectedEdges } = get();
-        if (!currentWorkflow) return;
+          const updated = {
+            ...currentWorkflow,
+            nodes: [...currentWorkflow.nodes, newNode],
+            updatedAt: new Date(),
+          };
 
-        const nodeIdSet = new Set(selectedNodes);
-        const copiedNodes = currentWorkflow.nodes.filter(n => nodeIdSet.has(n.id));
-        const copiedEdges = currentWorkflow.edges.filter(
-          e => nodeIdSet.has(e.source) && nodeIdSet.has(e.target) && selectedEdges.includes(e.id)
-        );
+          set({ currentWorkflow: updated, isDirty: true, selectedNodes: [nodeId] });
+          get().pushHistory();
+          return nodeId;
+        },
 
-        set({ copiedNodes, copiedEdges });
-      },
+        updateNode: (nodeId, data) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
 
-      pasteSelection: (position) => {
-        const { currentWorkflow, copiedNodes, copiedEdges } = get();
-        if (!currentWorkflow || copiedNodes.length === 0) return;
+          const updated = {
+            ...currentWorkflow,
+            nodes: currentWorkflow.nodes.map((node) =>
+              node.id === nodeId
+                ? { ...node, data: { ...node.data, ...data } as WorkflowNodeData }
+                : node
+            ),
+            updatedAt: new Date(),
+          };
 
-        const idMap = new Map<string, string>();
-        const offset = position || { x: 50, y: 50 };
+          set({ currentWorkflow: updated, isDirty: true });
 
-        const newNodes = copiedNodes.map(node => {
-          const newId = `${node.type}-${nanoid(8)}`;
-          idMap.set(node.id, newId);
-          return {
+          const keys = Object.keys(data);
+          const isHighFrequencyTextUpdate =
+            keys.length > 0 &&
+            keys.every(
+              (k) =>
+                k === 'label' ||
+                k === 'text' ||
+                k === 'content' ||
+                k === 'description' ||
+                k === 'title'
+            );
+
+          if (isHighFrequencyTextUpdate) {
+            scheduleNodeHistoryPush(updated.id);
+          } else {
+            get().pushHistory();
+          }
+        },
+
+        deleteNode: (nodeId) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          const updated = {
+            ...currentWorkflow,
+            nodes: currentWorkflow.nodes.filter((n) => n.id !== nodeId),
+            edges: currentWorkflow.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+            updatedAt: new Date(),
+          };
+
+          set({
+            currentWorkflow: updated,
+            isDirty: true,
+            selectedNodes: get().selectedNodes.filter((id) => id !== nodeId),
+          });
+          get().pushHistory();
+        },
+
+        deleteNodes: (nodeIds) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          const nodeIdSet = new Set(nodeIds);
+          const updated = {
+            ...currentWorkflow,
+            nodes: currentWorkflow.nodes.filter((n) => !nodeIdSet.has(n.id)),
+            edges: currentWorkflow.edges.filter(
+              (e) => !nodeIdSet.has(e.source) && !nodeIdSet.has(e.target)
+            ),
+            updatedAt: new Date(),
+          };
+
+          set({
+            currentWorkflow: updated,
+            isDirty: true,
+            selectedNodes: get().selectedNodes.filter((id) => !nodeIdSet.has(id)),
+          });
+          get().pushHistory();
+        },
+
+        duplicateNode: (nodeId) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return null;
+
+          const node = currentWorkflow.nodes.find((n) => n.id === nodeId);
+          if (!node) return null;
+
+          const newNodeId = `${node.type}-${nanoid(8)}`;
+          const newNode: WorkflowNode = {
             ...node,
-            id: newId,
+            id: newNodeId,
             position: {
-              x: node.position.x + offset.x,
-              y: node.position.y + offset.y,
+              x: node.position.x + 50,
+              y: node.position.y + 50,
             },
             data: { ...node.data },
           };
-        });
 
-        const newEdges = copiedEdges.map(edge => ({
-          ...edge,
-          id: `edge-${nanoid(8)}`,
-          source: idMap.get(edge.source) || edge.source,
-          target: idMap.get(edge.target) || edge.target,
-          data: { ...edge.data },
-        }));
-
-        const updated = {
-          ...currentWorkflow,
-          nodes: [...currentWorkflow.nodes, ...newNodes],
-          edges: [...currentWorkflow.edges, ...newEdges],
-          updatedAt: new Date(),
-        };
-
-        set({
-          currentWorkflow: updated,
-          isDirty: true,
-          selectedNodes: newNodes.map(n => n.id),
-          selectedEdges: newEdges.map(e => e.id),
-        });
-        get().pushHistory();
-      },
-
-      cutSelection: () => {
-        const { selectedNodes, selectedEdges } = get();
-        get().copySelection();
-        get().deleteNodes(selectedNodes);
-        get().deleteEdges(selectedEdges);
-      },
-
-      // History
-      undo: () => {
-        const { history, historyIndex } = get();
-        if (historyIndex <= 0) return;
-
-        const newIndex = historyIndex - 1;
-        set({
-          currentWorkflow: history[newIndex],
-          historyIndex: newIndex,
-          isDirty: true,
-        });
-      },
-
-      redo: () => {
-        const { history, historyIndex } = get();
-        if (historyIndex >= history.length - 1) return;
-
-        const newIndex = historyIndex + 1;
-        set({
-          currentWorkflow: history[newIndex],
-          historyIndex: newIndex,
-          isDirty: true,
-        });
-      },
-
-      pushHistory: () => {
-        const { currentWorkflow, history, historyIndex, maxHistorySize } = get();
-        if (!currentWorkflow) return;
-
-        const newHistory = history.slice(0, historyIndex + 1);
-        newHistory.push({ ...currentWorkflow });
-
-        if (newHistory.length > maxHistorySize) {
-          newHistory.shift();
-        }
-
-        set({
-          history: newHistory,
-          historyIndex: newHistory.length - 1,
-        });
-      },
-
-      clearHistory: () => {
-        const { currentWorkflow } = get();
-        set({
-          history: currentWorkflow ? [currentWorkflow] : [],
-          historyIndex: currentWorkflow ? 0 : -1,
-        });
-      },
-
-      // Viewport
-      setViewport: (viewport) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        set({
-          currentWorkflow: {
+          const updated = {
             ...currentWorkflow,
-            viewport,
+            nodes: [...currentWorkflow.nodes, newNode],
             updatedAt: new Date(),
-          },
-          isDirty: true,
-        });
-      },
-
-      fitView: () => {
-        // This will be handled by the React Flow component
-      },
-
-      // Layout
-      autoLayout: () => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        // Simple top-to-bottom layout
-        const nodes = [...currentWorkflow.nodes];
-        const edges = currentWorkflow.edges;
-
-        // Build adjacency list
-        const adjacency = new Map<string, string[]>();
-        const inDegree = new Map<string, number>();
-
-        nodes.forEach(n => {
-          adjacency.set(n.id, []);
-          inDegree.set(n.id, 0);
-        });
-
-        edges.forEach(e => {
-          adjacency.get(e.source)?.push(e.target);
-          inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1);
-        });
-
-        // Topological sort with levels
-        const levels: string[][] = [];
-        const queue = nodes.filter(n => inDegree.get(n.id) === 0).map(n => n.id);
-        const visited = new Set<string>();
-
-        while (queue.length > 0) {
-          const levelNodes: string[] = [];
-          const levelSize = queue.length;
-
-          for (let i = 0; i < levelSize; i++) {
-            const nodeId = queue.shift()!;
-            if (visited.has(nodeId)) continue;
-            visited.add(nodeId);
-            levelNodes.push(nodeId);
-
-            adjacency.get(nodeId)?.forEach(targetId => {
-              const newDegree = (inDegree.get(targetId) || 0) - 1;
-              inDegree.set(targetId, newDegree);
-              if (newDegree === 0 && !visited.has(targetId)) {
-                queue.push(targetId);
-              }
-            });
-          }
-
-          if (levelNodes.length > 0) {
-            levels.push(levelNodes);
-          }
-        }
-
-        // Position nodes
-        const nodeWidth = 200;
-        const nodeHeight = 80;
-        const horizontalGap = 50;
-        const verticalGap = 100;
-
-        const updatedNodes = nodes.map(node => {
-          const levelIndex = levels.findIndex(level => level.includes(node.id));
-          const nodeIndex = levels[levelIndex]?.indexOf(node.id) || 0;
-          const levelWidth = (levels[levelIndex]?.length || 1) * (nodeWidth + horizontalGap);
-          const startX = (800 - levelWidth) / 2;
-
-          return {
-            ...node,
-            position: {
-              x: startX + nodeIndex * (nodeWidth + horizontalGap),
-              y: levelIndex * (nodeHeight + verticalGap) + 50,
-            },
           };
-        });
 
-        const updated = {
-          ...currentWorkflow,
-          nodes: updatedNodes,
-          updatedAt: new Date(),
-        };
+          set({ currentWorkflow: updated, isDirty: true, selectedNodes: [newNodeId] });
+          get().pushHistory();
+          return newNodeId;
+        },
 
-        set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
-      },
+        onNodesChange: (changes) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
 
-      alignNodes: (alignment) => {
-        const { currentWorkflow, selectedNodes } = get();
-        if (!currentWorkflow || selectedNodes.length < 2) return;
-
-        const selected = currentWorkflow.nodes.filter(n => selectedNodes.includes(n.id));
-        if (selected.length < 2) return;
-
-        let targetValue: number;
-
-        switch (alignment) {
-          case 'left':
-            targetValue = Math.min(...selected.map(n => n.position.x));
-            break;
-          case 'center':
-            targetValue = selected.reduce((sum, n) => sum + n.position.x, 0) / selected.length;
-            break;
-          case 'right':
-            targetValue = Math.max(...selected.map(n => n.position.x));
-            break;
-          case 'top':
-            targetValue = Math.min(...selected.map(n => n.position.y));
-            break;
-          case 'middle':
-            targetValue = selected.reduce((sum, n) => sum + n.position.y, 0) / selected.length;
-            break;
-          case 'bottom':
-            targetValue = Math.max(...selected.map(n => n.position.y));
-            break;
-        }
-
-        const updatedNodes = currentWorkflow.nodes.map(node => {
-          if (!selectedNodes.includes(node.id)) return node;
-
-          const position = { ...node.position };
-          if (['left', 'center', 'right'].includes(alignment)) {
-            position.x = targetValue;
-          } else {
-            position.y = targetValue;
+          const removedIds = changes.filter((c) => c.type === 'remove').map((c) => c.id);
+          if (removedIds.length > 0) {
+            get().deleteNodes(removedIds);
+            return;
           }
 
-          return { ...node, position };
-        });
+          const updated = {
+            ...currentWorkflow,
+            nodes: applyNodeChanges(changes, currentWorkflow.nodes),
+            updatedAt: new Date(),
+          };
 
-        const updated = {
-          ...currentWorkflow,
-          nodes: updatedNodes,
-          updatedAt: new Date(),
-        };
+          set({ currentWorkflow: updated, isDirty: true });
+        },
 
-        set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
-      },
+        // Edge operations
+        addEdge: (connection) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
 
-      distributeNodes: (direction) => {
-        const { currentWorkflow, selectedNodes } = get();
-        if (!currentWorkflow || selectedNodes.length < 3) return;
+          const newEdge: WorkflowEdge = {
+            id: `edge-${nanoid(8)}`,
+            source: connection.source!,
+            target: connection.target!,
+            sourceHandle: connection.sourceHandle,
+            targetHandle: connection.targetHandle,
+            type: 'default',
+            data: {},
+          };
 
-        const selected = currentWorkflow.nodes
-          .filter(n => selectedNodes.includes(n.id))
-          .sort((a, b) =>
-            direction === 'horizontal'
-              ? a.position.x - b.position.x
-              : a.position.y - b.position.y
+          const updated = {
+            ...currentWorkflow,
+            edges: [...currentWorkflow.edges, newEdge],
+            updatedAt: new Date(),
+          };
+
+          set({ currentWorkflow: updated, isDirty: true });
+          get().pushHistory();
+        },
+
+        updateEdge: (edgeId, data) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          const updated = {
+            ...currentWorkflow,
+            edges: currentWorkflow.edges.map((edge) =>
+              edge.id === edgeId ? { ...edge, data: { ...edge.data, ...data } } : edge
+            ),
+            updatedAt: new Date(),
+          };
+
+          set({ currentWorkflow: updated, isDirty: true });
+          get().pushHistory();
+        },
+
+        deleteEdge: (edgeId) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          const updated = {
+            ...currentWorkflow,
+            edges: currentWorkflow.edges.filter((e) => e.id !== edgeId),
+            updatedAt: new Date(),
+          };
+
+          set({
+            currentWorkflow: updated,
+            isDirty: true,
+            selectedEdges: get().selectedEdges.filter((id) => id !== edgeId),
+          });
+          get().pushHistory();
+        },
+
+        deleteEdges: (edgeIds) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          const edgeIdSet = new Set(edgeIds);
+          const updated = {
+            ...currentWorkflow,
+            edges: currentWorkflow.edges.filter((e) => !edgeIdSet.has(e.id)),
+            updatedAt: new Date(),
+          };
+
+          set({
+            currentWorkflow: updated,
+            isDirty: true,
+            selectedEdges: get().selectedEdges.filter((id) => !edgeIdSet.has(id)),
+          });
+          get().pushHistory();
+        },
+
+        onEdgesChange: (changes) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          const removedIds = changes.filter((c) => c.type === 'remove').map((c) => c.id);
+          if (removedIds.length > 0) {
+            get().deleteEdges(removedIds);
+            return;
+          }
+
+          const updated = {
+            ...currentWorkflow,
+            edges: applyEdgeChanges(changes, currentWorkflow.edges),
+            updatedAt: new Date(),
+          };
+
+          set({ currentWorkflow: updated, isDirty: true });
+
+          const shouldRecordHistory = changes.some((c) => c.type !== 'select');
+          if (shouldRecordHistory) {
+            get().pushHistory();
+          }
+        },
+
+        onConnect: (connection) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          const updated = {
+            ...currentWorkflow,
+            edges: rfAddEdge(
+              {
+                ...connection,
+                id: `edge-${nanoid(8)}`,
+                type: 'default',
+                data: {},
+              },
+              currentWorkflow.edges as never[]
+            ) as WorkflowEdge[],
+            updatedAt: new Date(),
+          };
+
+          set({ currentWorkflow: updated, isDirty: true });
+          get().pushHistory();
+        },
+
+        // Selection
+        selectNodes: (nodeIds) => {
+          set({ selectedNodes: nodeIds });
+        },
+
+        selectEdges: (edgeIds) => {
+          set({ selectedEdges: edgeIds });
+        },
+
+        selectAll: () => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          set({
+            selectedNodes: currentWorkflow.nodes.map((n) => n.id),
+            selectedEdges: currentWorkflow.edges.map((e) => e.id),
+          });
+        },
+
+        clearSelection: () => {
+          set({ selectedNodes: [], selectedEdges: [] });
+        },
+
+        // Clipboard
+        copySelection: () => {
+          const { currentWorkflow, selectedNodes, selectedEdges } = get();
+          if (!currentWorkflow) return;
+
+          const nodeIdSet = new Set(selectedNodes);
+          const copiedNodes = currentWorkflow.nodes.filter((n) => nodeIdSet.has(n.id));
+          const copiedEdges = currentWorkflow.edges.filter(
+            (e) =>
+              nodeIdSet.has(e.source) && nodeIdSet.has(e.target) && selectedEdges.includes(e.id)
           );
 
-        if (selected.length < 3) return;
+          set({ copiedNodes, copiedEdges });
+        },
 
-        const first = selected[0];
-        const last = selected[selected.length - 1];
-        const totalDistance = direction === 'horizontal'
-          ? last.position.x - first.position.x
-          : last.position.y - first.position.y;
-        const gap = totalDistance / (selected.length - 1);
+        pasteSelection: (position) => {
+          const { currentWorkflow, copiedNodes, copiedEdges } = get();
+          if (!currentWorkflow || copiedNodes.length === 0) return;
 
-        const updatedNodes = currentWorkflow.nodes.map(node => {
-          const index = selected.findIndex(n => n.id === node.id);
-          if (index === -1) return node;
+          const idMap = new Map<string, string>();
+          const offset = position || { x: 50, y: 50 };
 
-          const position = { ...node.position };
-          if (direction === 'horizontal') {
-            position.x = first.position.x + index * gap;
-          } else {
-            position.y = first.position.y + index * gap;
+          const newNodes = copiedNodes.map((node) => {
+            const newId = `${node.type}-${nanoid(8)}`;
+            idMap.set(node.id, newId);
+            return {
+              ...node,
+              id: newId,
+              position: {
+                x: node.position.x + offset.x,
+                y: node.position.y + offset.y,
+              },
+              data: { ...node.data },
+            };
+          });
+
+          const newEdges = copiedEdges.map((edge) => ({
+            ...edge,
+            id: `edge-${nanoid(8)}`,
+            source: idMap.get(edge.source) || edge.source,
+            target: idMap.get(edge.target) || edge.target,
+            data: { ...edge.data },
+          }));
+
+          const updated = {
+            ...currentWorkflow,
+            nodes: [...currentWorkflow.nodes, ...newNodes],
+            edges: [...currentWorkflow.edges, ...newEdges],
+            updatedAt: new Date(),
+          };
+
+          set({
+            currentWorkflow: updated,
+            isDirty: true,
+            selectedNodes: newNodes.map((n) => n.id),
+            selectedEdges: newEdges.map((e) => e.id),
+          });
+          get().pushHistory();
+        },
+
+        cutSelection: () => {
+          const { selectedNodes, selectedEdges } = get();
+          get().copySelection();
+          get().deleteNodes(selectedNodes);
+          get().deleteEdges(selectedEdges);
+        },
+
+        // History
+        undo: () => {
+          const { history, historyIndex } = get();
+          if (historyIndex <= 0) return;
+
+          const newIndex = historyIndex - 1;
+          set({
+            currentWorkflow: history[newIndex],
+            historyIndex: newIndex,
+            isDirty: true,
+          });
+        },
+
+        redo: () => {
+          const { history, historyIndex } = get();
+          if (historyIndex >= history.length - 1) return;
+
+          const newIndex = historyIndex + 1;
+          set({
+            currentWorkflow: history[newIndex],
+            historyIndex: newIndex,
+            isDirty: true,
+          });
+        },
+
+        pushHistory: () => {
+          const { currentWorkflow, history, historyIndex, maxHistorySize } = get();
+          if (!currentWorkflow) return;
+
+          const newHistory = history.slice(0, historyIndex + 1);
+          newHistory.push({ ...currentWorkflow });
+
+          if (newHistory.length > maxHistorySize) {
+            newHistory.shift();
           }
 
-          return { ...node, position };
-        });
-
-        const updated = {
-          ...currentWorkflow,
-          nodes: updatedNodes,
-          updatedAt: new Date(),
-        };
-
-        set({ currentWorkflow: updated, isDirty: true });
-        get().pushHistory();
-      },
-
-      // Validation
-      validate: () => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return [];
-
-        const result = validateCompleteWorkflow(
-          currentWorkflow.nodes,
-          currentWorkflow.edges
-        );
-
-        const normalized: ValidationError[] = [];
-
-        result.structureValidation.errors.forEach((e) => {
-          normalized.push({
-            nodeId: e.nodeId,
-            edgeId: e.edgeId,
-            message: e.message,
-            severity: 'error',
-          });
-        });
-        result.structureValidation.warnings.forEach((w) => {
-          normalized.push({
-            nodeId: w.nodeId,
-            edgeId: w.edgeId,
-            message: w.message,
-            severity: 'warning',
-          });
-        });
-
-        result.ioValidation.errors.forEach((e) => {
-          normalized.push({
-            nodeId: e.targetNodeId,
-            message: e.message,
-            severity: 'error',
-          });
-        });
-        result.ioValidation.warnings.forEach((w) => {
-          normalized.push({
-            nodeId: w.targetNodeId,
-            message: w.message,
-            severity: 'warning',
-          });
-        });
-
-        set({ validationErrors: normalized });
-        return normalized;
-      },
-
-      clearValidationErrors: () => {
-        set({ validationErrors: [] });
-      },
-
-      // Execution
-      startExecution: async (input) => {
-        const { currentWorkflow } = get();
-        if (!currentWorkflow) return;
-
-        const errors = get().validate();
-        if (errors.some((e) => e.severity === 'error')) {
-          const errorMessage = errors
-            .filter((e) => e.severity === 'error')
-            .map((e) => e.message)
-            .join(', ');
-          console.error('Workflow validation failed:', errorMessage);
           set({
-            executionState: {
-              executionId: `exec-${nanoid(8)}`,
-              workflowId: currentWorkflow.id,
-              status: 'failed',
-              progress: 0,
-              nodeStates: {},
-              startedAt: new Date(),
-              input,
-              error: `Validation failed: ${errorMessage}`,
-              logs: [{
-                timestamp: new Date(),
-                level: 'error',
-                message: `Workflow validation failed: ${errorMessage}`,
-              }],
+            history: newHistory,
+            historyIndex: newHistory.length - 1,
+          });
+        },
+
+        clearHistory: () => {
+          const { currentWorkflow } = get();
+          set({
+            history: currentWorkflow ? [currentWorkflow] : [],
+            historyIndex: currentWorkflow ? 0 : -1,
+          });
+        },
+
+        // Viewport
+        setViewport: (viewport) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          set({
+            currentWorkflow: {
+              ...currentWorkflow,
+              viewport,
+              updatedAt: new Date(),
             },
+            isDirty: true,
           });
-          return;
-        }
+        },
 
-        // Initialize execution state
-        const executionState: WorkflowExecutionState = {
-          executionId: `exec-${nanoid(8)}`,
-          workflowId: currentWorkflow.id,
-          status: 'running',
-          progress: 0,
-          nodeStates: {},
-          startedAt: new Date(),
-          input,
-          logs: [{
-            timestamp: new Date(),
-            level: 'info',
-            message: 'Starting workflow execution...',
-          }],
-        };
+        fitView: () => {
+          // This will be handled by the React Flow component
+        },
 
-        // Initialize node states
-        currentWorkflow.nodes.forEach(node => {
-          executionState.nodeStates[node.id] = {
-            nodeId: node.id,
-            status: 'pending',
-            logs: [],
-            retryCount: 0,
+        // Layout
+        autoLayout: () => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          // Simple top-to-bottom layout
+          const nodes = [...currentWorkflow.nodes];
+          const edges = currentWorkflow.edges;
+
+          // Build adjacency list
+          const adjacency = new Map<string, string[]>();
+          const inDegree = new Map<string, number>();
+
+          nodes.forEach((n) => {
+            adjacency.set(n.id, []);
+            inDegree.set(n.id, 0);
+          });
+
+          edges.forEach((e) => {
+            adjacency.get(e.source)?.push(e.target);
+            inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1);
+          });
+
+          // Topological sort with levels
+          const levels: string[][] = [];
+          const queue = nodes.filter((n) => inDegree.get(n.id) === 0).map((n) => n.id);
+          const visited = new Set<string>();
+
+          while (queue.length > 0) {
+            const levelNodes: string[] = [];
+            const levelSize = queue.length;
+
+            for (let i = 0; i < levelSize; i++) {
+              const nodeId = queue.shift()!;
+              if (visited.has(nodeId)) continue;
+              visited.add(nodeId);
+              levelNodes.push(nodeId);
+
+              adjacency.get(nodeId)?.forEach((targetId) => {
+                const newDegree = (inDegree.get(targetId) || 0) - 1;
+                inDegree.set(targetId, newDegree);
+                if (newDegree === 0 && !visited.has(targetId)) {
+                  queue.push(targetId);
+                }
+              });
+            }
+
+            if (levelNodes.length > 0) {
+              levels.push(levelNodes);
+            }
+          }
+
+          // Position nodes
+          const nodeWidth = 200;
+          const nodeHeight = 80;
+          const horizontalGap = 50;
+          const verticalGap = 100;
+
+          const updatedNodes = nodes.map((node) => {
+            const levelIndex = levels.findIndex((level) => level.includes(node.id));
+            const nodeIndex = levels[levelIndex]?.indexOf(node.id) || 0;
+            const levelWidth = (levels[levelIndex]?.length || 1) * (nodeWidth + horizontalGap);
+            const startX = (800 - levelWidth) / 2;
+
+            return {
+              ...node,
+              position: {
+                x: startX + nodeIndex * (nodeWidth + horizontalGap),
+                y: levelIndex * (nodeHeight + verticalGap) + 50,
+              },
+            };
+          });
+
+          const updated = {
+            ...currentWorkflow,
+            nodes: updatedNodes,
+            updatedAt: new Date(),
           };
-        });
 
-        set({
-          isExecuting: true,
-          executionState,
-          showExecutionPanel: true,
-        });
+          set({ currentWorkflow: updated, isDirty: true });
+          get().pushHistory();
+        },
 
-        // Get provider settings from store
-        const settings = useSettingsStore.getState();
-        const providerSettings = settings.providerSettings[settings.defaultProvider];
-        if (!providerSettings) {
-          const error = 'No provider configured for workflow execution';
-          get().updateNodeExecutionState(currentWorkflow.nodes[0].id, {
-            status: 'failed',
-            error,
+        alignNodes: (alignment) => {
+          const { currentWorkflow, selectedNodes } = get();
+          if (!currentWorkflow || selectedNodes.length < 2) return;
+
+          const selected = currentWorkflow.nodes.filter((n) => selectedNodes.includes(n.id));
+          if (selected.length < 2) return;
+
+          let targetValue: number;
+
+          switch (alignment) {
+            case 'left':
+              targetValue = Math.min(...selected.map((n) => n.position.x));
+              break;
+            case 'center':
+              targetValue = selected.reduce((sum, n) => sum + n.position.x, 0) / selected.length;
+              break;
+            case 'right':
+              targetValue = Math.max(...selected.map((n) => n.position.x));
+              break;
+            case 'top':
+              targetValue = Math.min(...selected.map((n) => n.position.y));
+              break;
+            case 'middle':
+              targetValue = selected.reduce((sum, n) => sum + n.position.y, 0) / selected.length;
+              break;
+            case 'bottom':
+              targetValue = Math.max(...selected.map((n) => n.position.y));
+              break;
+          }
+
+          const updatedNodes = currentWorkflow.nodes.map((node) => {
+            if (!selectedNodes.includes(node.id)) return node;
+
+            const position = { ...node.position };
+            if (['left', 'center', 'right'].includes(alignment)) {
+              position.x = targetValue;
+            } else {
+              position.y = targetValue;
+            }
+
+            return { ...node, position };
           });
-          get().addExecutionLog({
-            timestamp: new Date(),
-            level: 'error',
-            message: error,
+
+          const updated = {
+            ...currentWorkflow,
+            nodes: updatedNodes,
+            updatedAt: new Date(),
+          };
+
+          set({ currentWorkflow: updated, isDirty: true });
+          get().pushHistory();
+        },
+
+        distributeNodes: (direction) => {
+          const { currentWorkflow, selectedNodes } = get();
+          if (!currentWorkflow || selectedNodes.length < 3) return;
+
+          const selected = currentWorkflow.nodes
+            .filter((n) => selectedNodes.includes(n.id))
+            .sort((a, b) =>
+              direction === 'horizontal' ? a.position.x - b.position.x : a.position.y - b.position.y
+            );
+
+          if (selected.length < 3) return;
+
+          const first = selected[0];
+          const last = selected[selected.length - 1];
+          const totalDistance =
+            direction === 'horizontal'
+              ? last.position.x - first.position.x
+              : last.position.y - first.position.y;
+          const gap = totalDistance / (selected.length - 1);
+
+          const updatedNodes = currentWorkflow.nodes.map((node) => {
+            const index = selected.findIndex((n) => n.id === node.id);
+            if (index === -1) return node;
+
+            const position = { ...node.position };
+            if (direction === 'horizontal') {
+              position.x = first.position.x + index * gap;
+            } else {
+              position.y = first.position.y + index * gap;
+            }
+
+            return { ...node, position };
           });
+
+          const updated = {
+            ...currentWorkflow,
+            nodes: updatedNodes,
+            updatedAt: new Date(),
+          };
+
+          set({ currentWorkflow: updated, isDirty: true });
+          get().pushHistory();
+        },
+
+        // Validation
+        validate: () => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return [];
+
+          const result = validateCompleteWorkflow(currentWorkflow.nodes, currentWorkflow.edges);
+
+          const normalized: ValidationError[] = [];
+
+          result.structureValidation.errors.forEach((e) => {
+            normalized.push({
+              nodeId: e.nodeId,
+              edgeId: e.edgeId,
+              message: e.message,
+              severity: 'error',
+            });
+          });
+          result.structureValidation.warnings.forEach((w) => {
+            normalized.push({
+              nodeId: w.nodeId,
+              edgeId: w.edgeId,
+              message: w.message,
+              severity: 'warning',
+            });
+          });
+
+          result.ioValidation.errors.forEach((e) => {
+            normalized.push({
+              nodeId: e.targetNodeId,
+              message: e.message,
+              severity: 'error',
+            });
+          });
+          result.ioValidation.warnings.forEach((w) => {
+            normalized.push({
+              nodeId: w.targetNodeId,
+              message: w.message,
+              severity: 'warning',
+            });
+          });
+
+          set({ validationErrors: normalized });
+          return normalized;
+        },
+
+        clearValidationErrors: () => {
+          set({ validationErrors: [] });
+        },
+
+        // Execution
+        startExecution: async (input) => {
+          const { currentWorkflow } = get();
+          if (!currentWorkflow) return;
+
+          const errors = get().validate();
+          if (errors.some((e) => e.severity === 'error')) {
+            const errorMessage = errors
+              .filter((e) => e.severity === 'error')
+              .map((e) => e.message)
+              .join(', ');
+            console.error('Workflow validation failed:', errorMessage);
+            set({
+              executionState: {
+                executionId: `exec-${nanoid(8)}`,
+                workflowId: currentWorkflow.id,
+                status: 'failed',
+                progress: 0,
+                nodeStates: {},
+                startedAt: new Date(),
+                input,
+                error: `Validation failed: ${errorMessage}`,
+                logs: [
+                  {
+                    timestamp: new Date(),
+                    level: 'error',
+                    message: `Workflow validation failed: ${errorMessage}`,
+                  },
+                ],
+              },
+            });
+            return;
+          }
+
+          // Initialize execution state
+          const executionState: WorkflowExecutionState = {
+            executionId: `exec-${nanoid(8)}`,
+            workflowId: currentWorkflow.id,
+            status: 'running',
+            progress: 0,
+            nodeStates: {},
+            startedAt: new Date(),
+            input,
+            logs: [
+              {
+                timestamp: new Date(),
+                level: 'info',
+                message: 'Starting workflow execution...',
+              },
+            ],
+          };
+
+          // Initialize node states
+          currentWorkflow.nodes.forEach((node) => {
+            executionState.nodeStates[node.id] = {
+              nodeId: node.id,
+              status: 'pending',
+              logs: [],
+              retryCount: 0,
+            };
+          });
+
           set({
-            isExecuting: false,
-            executionState: {
-              ...get().executionState!,
+            isExecuting: true,
+            executionState,
+            showExecutionPanel: true,
+          });
+
+          // Get provider settings from store
+          const settings = useSettingsStore.getState();
+          const providerSettings = settings.providerSettings[settings.defaultProvider];
+          if (!providerSettings) {
+            const error = 'No provider configured for workflow execution';
+            get().updateNodeExecutionState(currentWorkflow.nodes[0].id, {
               status: 'failed',
               error,
-              completedAt: new Date(),
-            },
-          });
-          return;
-        }
+            });
+            get().addExecutionLog({
+              timestamp: new Date(),
+              level: 'error',
+              message: error,
+            });
+            set({
+              isExecuting: false,
+              executionState: {
+                ...get().executionState!,
+                status: 'failed',
+                error,
+                completedAt: new Date(),
+              },
+            });
+            return;
+          }
 
-        // Execute the workflow
-        try {
-          const result = await executeVisualWorkflow(
-            currentWorkflow,
-            input,
-            {
-              provider: settings.defaultProvider as ProviderName,
-              model: providerSettings.defaultModel || 'gpt-4o',
-              apiKey: providerSettings.apiKey || '',
-              baseURL: providerSettings.baseURL,
-              temperature: 0.7,
-              maxRetries: currentWorkflow.settings.maxRetries || 3,
-              stepTimeout: currentWorkflow.settings.maxExecutionTime || 300000,
-            },
-            {
-              onProgress: (execution, progress) => {
-                const currentState = get().executionState;
-                if (currentState) {
-                  set({
-                    executionState: {
-                      ...currentState,
-                      progress: Math.round(progress * 100),
-                      currentNodeId: execution.steps.find(s => s.status === 'running')?.stepId,
-                    },
-                  });
-                }
+          // Execute the workflow
+          try {
+            const result = await executeVisualWorkflow(
+              currentWorkflow,
+              input,
+              {
+                provider: settings.defaultProvider as ProviderName,
+                model: providerSettings.defaultModel || 'gpt-4o',
+                apiKey: providerSettings.apiKey || '',
+                baseURL: providerSettings.baseURL,
+                temperature: 0.7,
+                maxRetries: currentWorkflow.settings.maxRetries || 3,
+                stepTimeout: currentWorkflow.settings.maxExecutionTime || 300000,
               },
-              onStepStart: (execution, stepId) => {
-                get().updateNodeExecutionState(stepId, {
-                  status: 'running',
-                  startedAt: new Date(),
-                });
-                get().addExecutionLog({
-                  timestamp: new Date(),
-                  level: 'info',
-                  message: `Executing step: ${stepId}`,
-                });
-              },
-              onStepComplete: (execution, stepId, output) => {
-                get().updateNodeExecutionState(stepId, {
-                  status: 'completed',
-                  completedAt: new Date(),
-                  output: output as Record<string, unknown>,
-                });
-                get().addExecutionLog({
-                  timestamp: new Date(),
-                  level: 'info',
-                  message: `Step completed: ${stepId}`,
-                });
-              },
-              onStepError: (execution, stepId, error) => {
-                get().updateNodeExecutionState(stepId, {
-                  status: 'failed',
-                  error,
-                  completedAt: new Date(),
-                });
-                get().addExecutionLog({
-                  timestamp: new Date(),
-                  level: 'error',
-                  message: `Step failed: ${stepId} - ${error}`,
-                });
-              },
-              onComplete: (execution) => {
-                const currentState = get().executionState;
-                set({
-                  isExecuting: false,
-                  executionState: {
-                    ...currentState!,
-                    status: 'completed',
-                    progress: 100,
-                    output: execution.output as Record<string, unknown>,
-                    completedAt: new Date(),
-                    logs: [
-                      ...currentState!.logs,
-                      {
-                        timestamp: new Date(),
-                        level: 'info',
-                        message: 'Workflow execution completed successfully',
+              {
+                onProgress: (execution, progress) => {
+                  const currentState = get().executionState;
+                  if (currentState) {
+                    set({
+                      executionState: {
+                        ...currentState,
+                        progress: Math.round(progress * 100),
+                        currentNodeId: execution.steps.find((s) => s.status === 'running')?.stepId,
                       },
-                    ],
-                  },
-                });
-              },
-              onError: (execution, error) => {
-                const currentState = get().executionState;
-                set({
-                  isExecuting: false,
-                  executionState: {
-                    ...currentState!,
+                    });
+                  }
+                },
+                onStepStart: (execution, stepId) => {
+                  get().updateNodeExecutionState(stepId, {
+                    status: 'running',
+                    startedAt: new Date(),
+                  });
+                  get().addExecutionLog({
+                    timestamp: new Date(),
+                    level: 'info',
+                    message: `Executing step: ${stepId}`,
+                  });
+                },
+                onStepComplete: (execution, stepId, output) => {
+                  get().updateNodeExecutionState(stepId, {
+                    status: 'completed',
+                    completedAt: new Date(),
+                    output: output as Record<string, unknown>,
+                  });
+                  get().addExecutionLog({
+                    timestamp: new Date(),
+                    level: 'info',
+                    message: `Step completed: ${stepId}`,
+                  });
+                },
+                onStepError: (execution, stepId, error) => {
+                  get().updateNodeExecutionState(stepId, {
                     status: 'failed',
                     error,
                     completedAt: new Date(),
-                    logs: [
-                      ...currentState!.logs,
-                      {
-                        timestamp: new Date(),
-                        level: 'error',
-                        message: `Workflow execution failed: ${error}`,
-                      },
-                    ],
-                  },
-                });
-              },
-            }
-          );
+                  });
+                  get().addExecutionLog({
+                    timestamp: new Date(),
+                    level: 'error',
+                    message: `Step failed: ${stepId} - ${error}`,
+                  });
+                },
+                onComplete: (execution) => {
+                  const currentState = get().executionState;
+                  set({
+                    isExecuting: false,
+                    executionState: {
+                      ...currentState!,
+                      status: 'completed',
+                      progress: 100,
+                      output: execution.output as Record<string, unknown>,
+                      completedAt: new Date(),
+                      logs: [
+                        ...currentState!.logs,
+                        {
+                          timestamp: new Date(),
+                          level: 'info',
+                          message: 'Workflow execution completed successfully',
+                        },
+                      ],
+                    },
+                  });
+                },
+                onError: (execution, error) => {
+                  const currentState = get().executionState;
+                  set({
+                    isExecuting: false,
+                    executionState: {
+                      ...currentState!,
+                      status: 'failed',
+                      error,
+                      completedAt: new Date(),
+                      logs: [
+                        ...currentState!.logs,
+                        {
+                          timestamp: new Date(),
+                          level: 'error',
+                          message: `Workflow execution failed: ${error}`,
+                        },
+                      ],
+                    },
+                  });
+                },
+              }
+            );
 
-          // Update final state
-          if (result.success) {
+            // Update final state
+            if (result.success) {
+              const currentState = get().executionState;
+              set({
+                isExecuting: false,
+                executionState: {
+                  ...currentState!,
+                  status: 'completed',
+                  progress: 100,
+                  output: result.output as Record<string, unknown>,
+                  completedAt: new Date(),
+                },
+              });
+            } else {
+              throw new Error(result.error || 'Workflow execution failed');
+            }
+          } catch (error) {
             const currentState = get().executionState;
             set({
               isExecuting: false,
               executionState: {
                 ...currentState!,
-                status: 'completed',
-                progress: 100,
-                output: result.output as Record<string, unknown>,
+                status: 'failed',
+                error: error instanceof Error ? error.message : String(error),
                 completedAt: new Date(),
               },
             });
-          } else {
-            throw new Error(result.error || 'Workflow execution failed');
           }
-        } catch (error) {
-          const currentState = get().executionState;
+        },
+
+        pauseExecution: () => {
+          const { executionState } = get();
+          if (!executionState || executionState.status !== 'running') return;
+
+          // Call the actual pause function
+          pauseVisualWorkflow(executionState.executionId);
+
+          set({
+            executionState: {
+              ...executionState,
+              status: 'paused',
+            },
+          });
+        },
+
+        resumeExecution: () => {
+          const { executionState } = get();
+          if (!executionState || executionState.status !== 'paused') return;
+
+          // Call the actual resume function
+          resumeVisualWorkflow(executionState.executionId);
+
+          set({
+            executionState: {
+              ...executionState,
+              status: 'running',
+            },
+          });
+        },
+
+        cancelExecution: () => {
+          const { executionState } = get();
+          if (!executionState) return;
+
+          // Call the actual cancel function
+          cancelVisualWorkflow(executionState.executionId);
+
           set({
             isExecuting: false,
             executionState: {
-              ...currentState!,
-              status: 'failed',
-              error: error instanceof Error ? error.message : String(error),
+              ...executionState,
+              status: 'cancelled',
               completedAt: new Date(),
             },
           });
-        }
-      },
+        },
 
-      pauseExecution: () => {
-        const { executionState } = get();
-        if (!executionState || executionState.status !== 'running') return;
+        updateNodeExecutionState: (nodeId, state) => {
+          const { executionState } = get();
+          if (!executionState) return;
 
-        // Call the actual pause function
-        pauseVisualWorkflow(executionState.executionId);
+          const nodeState = executionState.nodeStates[nodeId] || {
+            nodeId,
+            status: 'pending',
+            logs: [],
+            retryCount: 0,
+          };
 
-        set({
-          executionState: {
-            ...executionState,
-            status: 'paused',
-          },
-        });
-      },
-
-      resumeExecution: () => {
-        const { executionState } = get();
-        if (!executionState || executionState.status !== 'paused') return;
-
-        // Call the actual resume function
-        resumeVisualWorkflow(executionState.executionId);
-
-        set({
-          executionState: {
-            ...executionState,
-            status: 'running',
-          },
-        });
-      },
-
-      cancelExecution: () => {
-        const { executionState } = get();
-        if (!executionState) return;
-
-        // Call the actual cancel function
-        cancelVisualWorkflow(executionState.executionId);
-
-        set({
-          isExecuting: false,
-          executionState: {
-            ...executionState,
-            status: 'cancelled',
-            completedAt: new Date(),
-          },
-        });
-      },
-
-      updateNodeExecutionState: (nodeId, state) => {
-        const { executionState } = get();
-        if (!executionState) return;
-
-        const nodeState = executionState.nodeStates[nodeId] || {
-          nodeId,
-          status: 'pending',
-          logs: [],
-          retryCount: 0,
-        };
-
-        set({
-          executionState: {
-            ...executionState,
-            nodeStates: {
-              ...executionState.nodeStates,
-              [nodeId]: { ...nodeState, ...state },
+          set({
+            executionState: {
+              ...executionState,
+              nodeStates: {
+                ...executionState.nodeStates,
+                [nodeId]: { ...nodeState, ...state },
+              },
+              currentNodeId: state.status === 'running' ? nodeId : executionState.currentNodeId,
             },
-            currentNodeId: state.status === 'running' ? nodeId : executionState.currentNodeId,
-          },
-        });
-      },
-
-      addExecutionLog: (log) => {
-        const { executionState } = get();
-        if (!executionState) return;
-
-        set({
-          executionState: {
-            ...executionState,
-            logs: [...executionState.logs, log],
-          },
-        });
-      },
-
-      clearExecutionState: () => {
-        const { executionState, currentWorkflow, recordExecution } = get();
-        
-        // Record execution statistics before clearing
-        if (executionState && currentWorkflow && 
-            (executionState.status === 'completed' || 
-             executionState.status === 'failed' || 
-             executionState.status === 'cancelled')) {
-          const nodeStates = Object.values(executionState.nodeStates);
-          const startTime = executionState.startedAt ? new Date(executionState.startedAt).getTime() : Date.now();
-          const endTime = executionState.completedAt ? new Date(executionState.completedAt).getTime() : Date.now();
-          
-          recordExecution({
-            workflowId: currentWorkflow.id,
-            status: executionState.status as 'completed' | 'failed' | 'cancelled',
-            startedAt: new Date(startTime),
-            completedAt: new Date(endTime),
-            duration: endTime - startTime,
-            nodesExecuted: nodeStates.filter(s => s.status === 'completed').length,
-            nodesFailed: nodeStates.filter(s => s.status === 'failed').length,
-            nodesSkipped: nodeStates.filter(s => s.status === 'skipped').length,
-            errorMessage: executionState.error,
           });
-        }
-        
-        set({
-          isExecuting: false,
-          executionState: null,
-        });
-      },
+        },
 
-      // Debug mode
-      toggleDebugMode: () => {
-        set(state => ({ 
-          isDebugMode: !state.isDebugMode,
-          debugStepIndex: -1,
-          isPausedAtBreakpoint: false,
-        }));
-      },
+        addExecutionLog: (log) => {
+          const { executionState } = get();
+          if (!executionState) return;
 
-      setBreakpoint: (nodeId) => {
-        set(state => {
-          const newBreakpoints = new Set(state.breakpoints);
-          newBreakpoints.add(nodeId);
-          return { breakpoints: newBreakpoints };
-        });
-      },
+          set({
+            executionState: {
+              ...executionState,
+              logs: [...executionState.logs, log],
+            },
+          });
+        },
 
-      removeBreakpoint: (nodeId) => {
-        set(state => {
-          const newBreakpoints = new Set(state.breakpoints);
-          newBreakpoints.delete(nodeId);
-          return { breakpoints: newBreakpoints };
-        });
-      },
+        clearExecutionState: () => {
+          const { executionState, currentWorkflow, recordExecution } = get();
 
-      clearBreakpoints: () => {
-        set({ breakpoints: new Set<string>() });
-      },
+          // Record execution statistics before clearing
+          if (
+            executionState &&
+            currentWorkflow &&
+            (executionState.status === 'completed' ||
+              executionState.status === 'failed' ||
+              executionState.status === 'cancelled')
+          ) {
+            const nodeStates = Object.values(executionState.nodeStates);
+            const startTime = executionState.startedAt
+              ? new Date(executionState.startedAt).getTime()
+              : Date.now();
+            const endTime = executionState.completedAt
+              ? new Date(executionState.completedAt).getTime()
+              : Date.now();
 
-      stepOver: () => {
-        const { executionState, currentWorkflow, isDebugMode, addExecutionLog } = get();
-        if (!isDebugMode || !executionState || !currentWorkflow) return;
+            recordExecution({
+              workflowId: currentWorkflow.id,
+              status: executionState.status as 'completed' | 'failed' | 'cancelled',
+              startedAt: new Date(startTime),
+              completedAt: new Date(endTime),
+              duration: endTime - startTime,
+              nodesExecuted: nodeStates.filter((s) => s.status === 'completed').length,
+              nodesFailed: nodeStates.filter((s) => s.status === 'failed').length,
+              nodesSkipped: nodeStates.filter((s) => s.status === 'skipped').length,
+              errorMessage: executionState.error,
+            });
+          }
 
-        // Find next node to execute
-        const pendingNodes = currentWorkflow.nodes.filter(
-          n => n.type !== 'start' && n.type !== 'end' &&
-          executionState.nodeStates[n.id]?.status === 'pending'
-        );
+          set({
+            isExecuting: false,
+            executionState: null,
+          });
+        },
 
-        if (pendingNodes.length > 0) {
-          const nextNode = pendingNodes[0];
+        // Debug mode
+        toggleDebugMode: () => {
+          set((state) => ({
+            isDebugMode: !state.isDebugMode,
+            debugStepIndex: -1,
+            isPausedAtBreakpoint: false,
+          }));
+        },
+
+        setBreakpoint: (nodeId) => {
+          set((state) => {
+            const newBreakpoints = new Set(state.breakpoints);
+            newBreakpoints.add(nodeId);
+            return { breakpoints: newBreakpoints };
+          });
+        },
+
+        removeBreakpoint: (nodeId) => {
+          set((state) => {
+            const newBreakpoints = new Set(state.breakpoints);
+            newBreakpoints.delete(nodeId);
+            return { breakpoints: newBreakpoints };
+          });
+        },
+
+        clearBreakpoints: () => {
+          set({ breakpoints: new Set<string>() });
+        },
+
+        stepOver: () => {
+          const { executionState, currentWorkflow, isDebugMode, addExecutionLog } = get();
+          if (!isDebugMode || !executionState || !currentWorkflow) return;
+
+          // Find next node to execute
+          const pendingNodes = currentWorkflow.nodes.filter(
+            (n) =>
+              n.type !== 'start' &&
+              n.type !== 'end' &&
+              executionState.nodeStates[n.id]?.status === 'pending'
+          );
+
+          if (pendingNodes.length > 0) {
+            const nextNode = pendingNodes[0];
+            addExecutionLog({
+              timestamp: new Date(),
+              level: 'info',
+              message: `Debug: Stepping to node "${nextNode.data.label}" (${nextNode.id})`,
+            });
+
+            set((state) => ({
+              debugStepIndex: state.debugStepIndex + 1,
+              isPausedAtBreakpoint: false,
+            }));
+          }
+        },
+
+        stepInto: () => {
+          // Same as stepOver for now - could be extended for subworkflows
+          get().stepOver();
+        },
+
+        continueExecution: () => {
+          const { isDebugMode, addExecutionLog } = get();
+          if (!isDebugMode) return;
+
           addExecutionLog({
             timestamp: new Date(),
             level: 'info',
-            message: `Debug: Stepping to node "${nextNode.data.label}" (${nextNode.id})`,
+            message: 'Debug: Continuing execution until next breakpoint',
           });
-          
-          set(state => ({
-            debugStepIndex: state.debugStepIndex + 1,
+
+          set({
             isPausedAtBreakpoint: false,
-          }));
-        }
-      },
+          });
+        },
 
-      stepInto: () => {
-        // Same as stepOver for now - could be extended for subworkflows
-        get().stepOver();
-      },
+        // UI state
+        toggleNodePalette: () => {
+          set((state) => ({ showNodePalette: !state.showNodePalette }));
+        },
 
-      continueExecution: () => {
-        const { isDebugMode, addExecutionLog } = get();
-        if (!isDebugMode) return;
+        toggleConfigPanel: () => {
+          set((state) => ({ showConfigPanel: !state.showConfigPanel }));
+        },
 
-        addExecutionLog({
-          timestamp: new Date(),
-          level: 'info',
-          message: 'Debug: Continuing execution until next breakpoint',
-        });
+        toggleExecutionPanel: () => {
+          set((state) => ({ showExecutionPanel: !state.showExecutionPanel }));
+        },
 
-        set({
-          isPausedAtBreakpoint: false,
-        });
-      },
+        toggleMinimap: () => {
+          set((state) => ({ showMinimap: !state.showMinimap }));
+        },
 
-      // UI state
-      toggleNodePalette: () => {
-        set(state => ({ showNodePalette: !state.showNodePalette }));
-      },
+        setActiveConfigTab: (tab) => {
+          set({ activeConfigTab: tab });
+        },
 
-      toggleConfigPanel: () => {
-        set(state => ({ showConfigPanel: !state.showConfigPanel }));
-      },
+        setSearchQuery: (query) => {
+          set({ searchQuery: query });
+        },
 
-      toggleExecutionPanel: () => {
-        set(state => ({ showExecutionPanel: !state.showExecutionPanel }));
-      },
+        // Node templates
+        saveNodeAsTemplate: (nodeId, name, options) => {
+          const { currentWorkflow, nodeTemplates } = get();
+          if (!currentWorkflow) return null;
 
-      toggleMinimap: () => {
-        set(state => ({ showMinimap: !state.showMinimap }));
-      },
+          const node = currentWorkflow.nodes.find((n) => n.id === nodeId);
+          if (!node) return null;
 
-      setActiveConfigTab: (tab) => {
-        set({ activeConfigTab: tab });
-      },
+          const template = createNodeTemplate(name, node.type as WorkflowNodeType, node.data, {
+            description: options?.description,
+            category: options?.category,
+            tags: options?.tags,
+          });
 
-      setSearchQuery: (query) => {
-        set({ searchQuery: query });
-      },
+          set({ nodeTemplates: [...nodeTemplates, template] });
+          return template;
+        },
 
-      // Node templates
-      saveNodeAsTemplate: (nodeId, name, options) => {
-        const { currentWorkflow, nodeTemplates } = get();
-        if (!currentWorkflow) return null;
+        addNodeFromTemplate: (templateId, position) => {
+          const { currentWorkflow, nodeTemplates } = get();
+          if (!currentWorkflow) return null;
 
-        const node = currentWorkflow.nodes.find((n) => n.id === nodeId);
-        if (!node) return null;
+          const template = nodeTemplates.find((t) => t.id === templateId);
+          if (!template) return null;
 
-        const template = createNodeTemplate(name, node.type as WorkflowNodeType, node.data, {
-          description: options?.description,
-          category: options?.category,
-          tags: options?.tags,
-        });
+          const nodeId = `node-${nanoid()}`;
+          const newNode: WorkflowNode = {
+            id: nodeId,
+            type: template.nodeType,
+            position,
+            data: {
+              ...template.data,
+              label: template.name,
+            },
+          };
 
-        set({ nodeTemplates: [...nodeTemplates, template] });
-        return template;
-      },
+          set({
+            currentWorkflow: {
+              ...currentWorkflow,
+              nodes: [...currentWorkflow.nodes, newNode],
+              updatedAt: new Date(),
+            },
+            isDirty: true,
+          });
 
-      addNodeFromTemplate: (templateId, position) => {
-        const { currentWorkflow, nodeTemplates } = get();
-        if (!currentWorkflow) return null;
+          get().pushHistory();
 
-        const template = nodeTemplates.find((t) => t.id === templateId);
-        if (!template) return null;
+          return nodeId;
+        },
 
-        const nodeId = `node-${nanoid()}`;
-        const newNode: WorkflowNode = {
-          id: nodeId,
-          type: template.nodeType,
-          position,
-          data: {
-            ...template.data,
-            label: template.name,
-          },
-        };
-
-        set({
-          currentWorkflow: {
-            ...currentWorkflow,
-            nodes: [...currentWorkflow.nodes, newNode],
-            updatedAt: new Date(),
-          },
-          isDirty: true,
-        });
-
-        get().pushHistory();
-
-        return nodeId;
-      },
-
-      deleteNodeTemplate: (templateId) => {
-        const { nodeTemplates } = get();
-        set({
-          nodeTemplates: nodeTemplates.filter((t) => t.id !== templateId),
-        });
-      },
-
-      updateNodeTemplate: (templateId, updates) => {
-        const { nodeTemplates } = get();
-        set({
-          nodeTemplates: nodeTemplates.map((t) =>
-            t.id === templateId
-              ? { ...t, ...updates, updatedAt: new Date() }
-              : t
-          ),
-        });
-      },
-
-      // Version control
-      saveVersion: (name, description) => {
-        const { currentWorkflow, workflowVersions, currentVersionNumber } = get();
-        if (!currentWorkflow) return null;
-
-        const newVersionNumber = currentVersionNumber + 1;
-        const version = createWorkflowVersion(currentWorkflow, newVersionNumber, {
-          name: name || `Version ${newVersionNumber}`,
-          description,
-        });
-
-        const workflowId = currentWorkflow.id;
-        const existingVersions = workflowVersions[workflowId] || [];
-
-        set({
-          workflowVersions: {
-            ...workflowVersions,
-            [workflowId]: [...existingVersions, version],
-          },
-          currentVersionNumber: newVersionNumber,
-        });
-
-        return version;
-      },
-
-      getVersions: () => {
-        const { currentWorkflow, workflowVersions } = get();
-        if (!currentWorkflow) return [];
-        return workflowVersions[currentWorkflow.id] || [];
-      },
-
-      restoreVersion: (versionId) => {
-        const { currentWorkflow, workflowVersions } = get();
-        if (!currentWorkflow) return;
-
-        const versions = workflowVersions[currentWorkflow.id] || [];
-        const version = versions.find((v) => v.id === versionId);
-        if (!version) return;
-
-        get().pushHistory();
-        set({
-          currentWorkflow: {
-            ...version.snapshot,
-            id: currentWorkflow.id,
-            updatedAt: new Date(),
-          },
-          isDirty: true,
-        });
-      },
-
-      deleteVersion: (versionId) => {
-        const { currentWorkflow, workflowVersions } = get();
-        if (!currentWorkflow) return;
-
-        const workflowId = currentWorkflow.id;
-        const versions = workflowVersions[workflowId] || [];
-
-        set({
-          workflowVersions: {
-            ...workflowVersions,
-            [workflowId]: versions.filter((v) => v.id !== versionId),
-          },
-        });
-      },
-
-      // Import/Export
-      exportWorkflow: (options) => {
-        const { currentWorkflow, nodeTemplates } = get();
-        if (!currentWorkflow) return null;
-
-        return createWorkflowExport(currentWorkflow, {
-          includeTemplates: options?.includeTemplates ? nodeTemplates : undefined,
-        });
-      },
-
-      importWorkflow: (data) => {
-        const workflow = data.workflow;
-        workflow.id = `workflow-${nanoid()}`;
-        workflow.createdAt = new Date();
-        workflow.updatedAt = new Date();
-
-        set({
-          currentWorkflow: workflow,
-          isDirty: false,
-          selectedNodes: [],
-          selectedEdges: [],
-        });
-
-        if (data.templates && data.templates.length > 0) {
+        deleteNodeTemplate: (templateId) => {
           const { nodeTemplates } = get();
           set({
-            nodeTemplates: [...nodeTemplates, ...data.templates],
+            nodeTemplates: nodeTemplates.filter((t) => t.id !== templateId),
           });
-        }
-      },
+        },
 
-      exportToFile: () => {
-        const exportData = get().exportWorkflow({ includeTemplates: true });
-        if (!exportData) return;
+        updateNodeTemplate: (templateId, updates) => {
+          const { nodeTemplates } = get();
+          set({
+            nodeTemplates: nodeTemplates.map((t) =>
+              t.id === templateId ? { ...t, ...updates, updatedAt: new Date() } : t
+            ),
+          });
+        },
 
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-          type: 'application/json',
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${exportData.workflow.name || 'workflow'}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      },
+        // Version control
+        saveVersion: (name, description) => {
+          const { currentWorkflow, workflowVersions, currentVersionNumber } = get();
+          if (!currentWorkflow) return null;
 
-      importFromFile: async (file) => {
-        const text = await file.text();
-        const parsed = JSON.parse(text) as unknown;
-        const workflow = await workflowRepository.import(text);
+          const newVersionNumber = currentVersionNumber + 1;
+          const version = createWorkflowVersion(currentWorkflow, newVersionNumber, {
+            name: name || `Version ${newVersionNumber}`,
+            description,
+          });
 
-        set({
-          currentWorkflow: workflow,
-          isDirty: false,
-          selectedNodes: [],
-          selectedEdges: [],
-          history: [workflow],
-          historyIndex: 0,
-        });
+          const workflowId = currentWorkflow.id;
+          const existingVersions = workflowVersions[workflowId] || [];
 
-        if (
-          parsed &&
-          typeof parsed === 'object' &&
-          'templates' in parsed &&
-          Array.isArray((parsed as { templates?: unknown }).templates)
-        ) {
-          const templates = (parsed as { templates?: NodeTemplate[] }).templates;
-          if (templates && templates.length > 0) {
+          set({
+            workflowVersions: {
+              ...workflowVersions,
+              [workflowId]: [...existingVersions, version],
+            },
+            currentVersionNumber: newVersionNumber,
+          });
+
+          return version;
+        },
+
+        getVersions: () => {
+          const { currentWorkflow, workflowVersions } = get();
+          if (!currentWorkflow) return [];
+          return workflowVersions[currentWorkflow.id] || [];
+        },
+
+        restoreVersion: (versionId) => {
+          const { currentWorkflow, workflowVersions } = get();
+          if (!currentWorkflow) return;
+
+          const versions = workflowVersions[currentWorkflow.id] || [];
+          const version = versions.find((v) => v.id === versionId);
+          if (!version) return;
+
+          get().pushHistory();
+          set({
+            currentWorkflow: {
+              ...version.snapshot,
+              id: currentWorkflow.id,
+              updatedAt: new Date(),
+            },
+            isDirty: true,
+          });
+        },
+
+        deleteVersion: (versionId) => {
+          const { currentWorkflow, workflowVersions } = get();
+          if (!currentWorkflow) return;
+
+          const workflowId = currentWorkflow.id;
+          const versions = workflowVersions[workflowId] || [];
+
+          set({
+            workflowVersions: {
+              ...workflowVersions,
+              [workflowId]: versions.filter((v) => v.id !== versionId),
+            },
+          });
+        },
+
+        // Import/Export
+        exportWorkflow: (options) => {
+          const { currentWorkflow, nodeTemplates } = get();
+          if (!currentWorkflow) return null;
+
+          return createWorkflowExport(currentWorkflow, {
+            includeTemplates: options?.includeTemplates ? nodeTemplates : undefined,
+          });
+        },
+
+        importWorkflow: (data) => {
+          const workflow = data.workflow;
+          workflow.id = `workflow-${nanoid()}`;
+          workflow.createdAt = new Date();
+          workflow.updatedAt = new Date();
+
+          set({
+            currentWorkflow: workflow,
+            isDirty: false,
+            selectedNodes: [],
+            selectedEdges: [],
+          });
+
+          if (data.templates && data.templates.length > 0) {
             const { nodeTemplates } = get();
             set({
-              nodeTemplates: [...nodeTemplates, ...templates],
+              nodeTemplates: [...nodeTemplates, ...data.templates],
             });
           }
-        }
-      },
+        },
 
-      // Execution statistics
-      recordExecution: (record) => {
-        const { WorkflowExecutionRecords } = get();
-        const newRecord: WorkflowExecutionRecord = {
-          ...record,
-          id: `exec-${nanoid()}`,
-        };
-        set({
-          WorkflowExecutionRecords: [newRecord, ...WorkflowExecutionRecords].slice(0, 500),
-        });
-      },
+        exportToFile: () => {
+          const exportData = get().exportWorkflow({ includeTemplates: true });
+          if (!exportData) return;
 
-      getWorkflowStatistics: (workflowId) => {
-        const { currentWorkflow, WorkflowExecutionRecords } = get();
-        const targetId = workflowId || currentWorkflow?.id;
-        if (!targetId) return null;
-        return calculateWorkflowStatistics(targetId, WorkflowExecutionRecords);
-      },
-
-      clearWorkflowExecutionRecords: (workflowId) => {
-        const { WorkflowExecutionRecords } = get();
-        if (workflowId) {
-          set({
-            WorkflowExecutionRecords: WorkflowExecutionRecords.filter((r) => r.workflowId !== workflowId),
+          const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+            type: 'application/json',
           });
-        } else {
-          set({ WorkflowExecutionRecords: [] });
-        }
-      },
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${exportData.workflow.name || 'workflow'}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        },
 
-      // Reset
-      reset: () => {
-        if (metaHistoryTimer) {
-          clearTimeout(metaHistoryTimer);
-          metaHistoryTimer = undefined;
-        }
-        if (nodeHistoryTimer) {
-          clearTimeout(nodeHistoryTimer);
-          nodeHistoryTimer = undefined;
-        }
-        set(initialState);
-      },
+        importFromFile: async (file) => {
+          const text = await file.text();
+          const parsed = JSON.parse(text) as unknown;
+          const workflow = await workflowRepository.import(text);
+
+          set({
+            currentWorkflow: workflow,
+            isDirty: false,
+            selectedNodes: [],
+            selectedEdges: [],
+            history: [workflow],
+            historyIndex: 0,
+          });
+
+          if (
+            parsed &&
+            typeof parsed === 'object' &&
+            'templates' in parsed &&
+            Array.isArray((parsed as { templates?: unknown }).templates)
+          ) {
+            const templates = (parsed as { templates?: NodeTemplate[] }).templates;
+            if (templates && templates.length > 0) {
+              const { nodeTemplates } = get();
+              set({
+                nodeTemplates: [...nodeTemplates, ...templates],
+              });
+            }
+          }
+        },
+
+        // Execution statistics
+        recordExecution: (record) => {
+          const { WorkflowExecutionRecords } = get();
+          const newRecord: WorkflowExecutionRecord = {
+            ...record,
+            id: `exec-${nanoid()}`,
+          };
+          set({
+            WorkflowExecutionRecords: [newRecord, ...WorkflowExecutionRecords].slice(0, 500),
+          });
+        },
+
+        getWorkflowStatistics: (workflowId) => {
+          const { currentWorkflow, WorkflowExecutionRecords } = get();
+          const targetId = workflowId || currentWorkflow?.id;
+          if (!targetId) return null;
+          return calculateWorkflowStatistics(targetId, WorkflowExecutionRecords);
+        },
+
+        clearWorkflowExecutionRecords: (workflowId) => {
+          const { WorkflowExecutionRecords } = get();
+          if (workflowId) {
+            set({
+              WorkflowExecutionRecords: WorkflowExecutionRecords.filter(
+                (r) => r.workflowId !== workflowId
+              ),
+            });
+          } else {
+            set({ WorkflowExecutionRecords: [] });
+          }
+        },
+
+        // Reset
+        reset: () => {
+          if (metaHistoryTimer) {
+            clearTimeout(metaHistoryTimer);
+            metaHistoryTimer = undefined;
+          }
+          if (nodeHistoryTimer) {
+            clearTimeout(nodeHistoryTimer);
+            nodeHistoryTimer = undefined;
+          }
+          set(initialState);
+        },
       };
     },
     {

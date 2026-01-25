@@ -167,7 +167,7 @@ describe('useSettingsProfilesStore', () => {
       });
 
       expect(result.current.profiles).toHaveLength(2);
-      
+
       const duplicate = result.current.profiles.find((p) => p.id === duplicateId);
       expect(duplicate?.name).toBe('Copy');
       expect(duplicate?.theme).toBe('dark');

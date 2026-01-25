@@ -1,5 +1,5 @@
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   SelectionConfig,
   SelectionAction,
@@ -8,7 +8,7 @@ import {
   SelectionItem,
   ReferenceResource,
   DEFAULT_SELECTION_CONFIG,
-} from "@/types";
+} from '@/types';
 
 export interface SelectionHistoryItem {
   id: string;
@@ -64,10 +64,15 @@ export interface SelectionActions {
   resetConfig: () => void;
   setEnabled: (enabled: boolean) => void;
   toggle: () => void;
-  showToolbar: (text: string, x: number, y: number, options?: {
-    sourceApp?: string;
-    textType?: TextType;
-  }) => void;
+  showToolbar: (
+    text: string,
+    x: number,
+    y: number,
+    options?: {
+      sourceApp?: string;
+      textType?: TextType;
+    }
+  ) => void;
   hideToolbar: () => void;
   setProcessing: (action: SelectionAction | null) => void;
   setStreaming: (isStreaming: boolean) => void;
@@ -77,7 +82,7 @@ export interface SelectionActions {
   clearResult: () => void;
   setSelectionMode: (mode: SelectionMode) => void;
   setShowMoreMenu: (show: boolean) => void;
-  addToHistory: (item: Omit<SelectionHistoryItem, "id" | "timestamp">) => void;
+  addToHistory: (item: Omit<SelectionHistoryItem, 'id' | 'timestamp'>) => void;
   removeFromHistory: (id: string) => void;
   toggleFavorite: (id: string) => void;
   clearHistory: () => void;
@@ -86,19 +91,28 @@ export interface SelectionActions {
   setFeedback: (actionId: string, positive: boolean) => void;
   // Multi-selection actions
   toggleMultiSelectMode: () => void;
-  addSelection: (text: string, position: { x: number; y: number }, options?: { sourceApp?: string; textType?: TextType }) => void;
+  addSelection: (
+    text: string,
+    position: { x: number; y: number },
+    options?: { sourceApp?: string; textType?: TextType }
+  ) => void;
   removeSelection: (id: string) => void;
   clearSelections: () => void;
   getSelectedTexts: () => string[];
   getCombinedText: () => string;
   // Reference actions
-  addReference: (resource: Omit<ReferenceResource, "id">) => void;
+  addReference: (resource: Omit<ReferenceResource, 'id'>) => void;
   removeReference: (id: string) => void;
   clearReferences: () => void;
   updateReference: (id: string, updates: Partial<ReferenceResource>) => void;
   // Translation memory actions
-  addTranslationMemory: (entry: Omit<TranslationMemoryEntry, "id" | "timestamp" | "usageCount">) => void;
-  findTranslationMemory: (sourceText: string, targetLanguage: string) => TranslationMemoryEntry | null;
+  addTranslationMemory: (
+    entry: Omit<TranslationMemoryEntry, 'id' | 'timestamp' | 'usageCount'>
+  ) => void;
+  findTranslationMemory: (
+    sourceText: string,
+    targetLanguage: string
+  ) => TranslationMemoryEntry | null;
   incrementTranslationUsage: (id: string) => void;
   clearTranslationMemory: () => void;
 }
@@ -112,7 +126,7 @@ export const useSelectionStore = create<SelectionStore>()(
       config: DEFAULT_SELECTION_CONFIG,
       isEnabled: false,
       isToolbarVisible: false,
-      selectedText: "",
+      selectedText: '',
       position: { x: 0, y: 0 },
       isProcessing: false,
       isStreaming: false,
@@ -121,7 +135,7 @@ export const useSelectionStore = create<SelectionStore>()(
       result: null,
       error: null,
       history: [],
-      selectionMode: "auto",
+      selectionMode: 'auto',
       textType: null,
       sourceApp: null,
       showMoreMenu: false,
@@ -174,7 +188,7 @@ export const useSelectionStore = create<SelectionStore>()(
       hideToolbar: () =>
         set({
           isToolbarVisible: false,
-          selectedText: "",
+          selectedText: '',
           result: null,
           streamingResult: null,
           error: null,
@@ -195,12 +209,12 @@ export const useSelectionStore = create<SelectionStore>()(
       setStreaming: (isStreaming: boolean) =>
         set({
           isStreaming,
-          streamingResult: isStreaming ? "" : null,
+          streamingResult: isStreaming ? '' : null,
         }),
 
       appendStreamingResult: (chunk: string) =>
         set((state) => ({
-          streamingResult: (state.streamingResult || "") + chunk,
+          streamingResult: (state.streamingResult || '') + chunk,
         })),
 
       setResult: (result: string | null) =>
@@ -235,7 +249,7 @@ export const useSelectionStore = create<SelectionStore>()(
           showMoreMenu: show,
         }),
 
-      addToHistory: (item: Omit<SelectionHistoryItem, "id" | "timestamp">) =>
+      addToHistory: (item: Omit<SelectionHistoryItem, 'id' | 'timestamp'>) =>
         set((state) => ({
           history: [
             {
@@ -339,11 +353,11 @@ export const useSelectionStore = create<SelectionStore>()(
         if (state.selections.length === 0) {
           return state.selectedText;
         }
-        return state.selections.map((s) => s.text).join("\n\n---\n\n");
+        return state.selections.map((s) => s.text).join('\n\n---\n\n');
       },
 
       // Reference actions
-      addReference: (resource: Omit<ReferenceResource, "id">) =>
+      addReference: (resource: Omit<ReferenceResource, 'id'>) =>
         set((state) => {
           const newRef: ReferenceResource = {
             ...resource,
@@ -366,21 +380,21 @@ export const useSelectionStore = create<SelectionStore>()(
 
       updateReference: (id: string, updates: Partial<ReferenceResource>) =>
         set((state) => ({
-          references: state.references.map((r) =>
-            r.id === id ? { ...r, ...updates } : r
-          ),
+          references: state.references.map((r) => (r.id === id ? { ...r, ...updates } : r)),
         })),
 
       // Translation memory actions
-      addTranslationMemory: (entry: Omit<TranslationMemoryEntry, "id" | "timestamp" | "usageCount">) =>
+      addTranslationMemory: (
+        entry: Omit<TranslationMemoryEntry, 'id' | 'timestamp' | 'usageCount'>
+      ) =>
         set((state) => {
           // Check if similar entry exists (same source text and target language)
           const existingIndex = state.translationMemory.findIndex(
-            (tm) => 
+            (tm) =>
               tm.sourceText.toLowerCase() === entry.sourceText.toLowerCase() &&
               tm.targetLanguage === entry.targetLanguage
           );
-          
+
           if (existingIndex !== -1) {
             // Update existing entry
             const updated = [...state.translationMemory];
@@ -392,7 +406,7 @@ export const useSelectionStore = create<SelectionStore>()(
             };
             return { translationMemory: updated };
           }
-          
+
           // Add new entry (limit to 500 entries)
           const newEntry: TranslationMemoryEntry = {
             ...entry,
@@ -407,11 +421,13 @@ export const useSelectionStore = create<SelectionStore>()(
 
       findTranslationMemory: (sourceText: string, targetLanguage: string) => {
         const state = get();
-        return state.translationMemory.find(
-          (tm) =>
-            tm.sourceText.toLowerCase() === sourceText.toLowerCase() &&
-            tm.targetLanguage === targetLanguage
-        ) || null;
+        return (
+          state.translationMemory.find(
+            (tm) =>
+              tm.sourceText.toLowerCase() === sourceText.toLowerCase() &&
+              tm.targetLanguage === targetLanguage
+          ) || null
+        );
       },
 
       incrementTranslationUsage: (id: string) =>
@@ -427,7 +443,7 @@ export const useSelectionStore = create<SelectionStore>()(
         }),
     }),
     {
-      name: "selection-toolbar-storage",
+      name: 'selection-toolbar-storage',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         config: state.config,

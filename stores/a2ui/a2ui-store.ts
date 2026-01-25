@@ -60,11 +60,7 @@ interface A2UIActions {
   getComponent: (surfaceId: string, componentId: string) => A2UIComponent | undefined;
 
   // Data model management
-  updateDataModel: (
-    surfaceId: string,
-    data: Record<string, unknown>,
-    merge?: boolean
-  ) => void;
+  updateDataModel: (surfaceId: string, data: Record<string, unknown>, merge?: boolean) => void;
   setDataValue: (surfaceId: string, path: string, value: unknown) => void;
   getDataValue: <T = unknown>(surfaceId: string, path: string) => T | undefined;
 
@@ -146,7 +142,7 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
           loadingSurfaces: newLoadingSurfaces,
           activeSurfaceId:
             state.activeSurfaceId === surfaceId
-              ? Object.keys(remainingSurfaces)[0] ?? null
+              ? (Object.keys(remainingSurfaces)[0] ?? null)
               : state.activeSurfaceId,
         };
       });
@@ -191,9 +187,7 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
         const surface = state.surfaces[surfaceId];
         if (!surface) return state;
 
-        const newDataModel = merge
-          ? deepMerge(surface.dataModel, data)
-          : deepClone(data);
+        const newDataModel = merge ? deepMerge(surface.dataModel, data) : deepClone(data);
 
         return {
           surfaces: {
@@ -253,7 +247,8 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
 
     // Message processing
     processMessage: (message) => {
-      const { createSurface, updateComponents, updateDataModel, deleteSurface, setSurfaceReady } = get();
+      const { createSurface, updateComponents, updateDataModel, deleteSurface, setSurfaceReady } =
+        get();
 
       if (isCreateSurfaceMessage(message)) {
         createSurface(message.surfaceId, message.surfaceType, {
@@ -373,8 +368,7 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
 /**
  * Selectors
  */
-export const selectSurface = (surfaceId: string) => (state: A2UIState) =>
-  state.surfaces[surfaceId];
+export const selectSurface = (surfaceId: string) => (state: A2UIState) => state.surfaces[surfaceId];
 
 export const selectActiveSurface = (state: A2UIState & A2UIActions) =>
   state.activeSurfaceId ? state.surfaces[state.activeSurfaceId] : undefined;

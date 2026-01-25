@@ -16,8 +16,7 @@ jest.mock('@/lib/mcp/marketplace', () => ({
       const query = filters.search.toLowerCase();
       filtered = filtered.filter(
         (item: McpMarketplaceItem) =>
-          item.name.toLowerCase().includes(query) ||
-          item.description.toLowerCase().includes(query)
+          item.name.toLowerCase().includes(query) || item.description.toLowerCase().includes(query)
       );
     }
     if (filters.source && filters.source !== 'all') {
@@ -45,11 +44,16 @@ import { getCachedDetails, setCachedDetails } from '@/lib/mcp/marketplace-utils'
 const mockGetCachedDetails = getCachedDetails as jest.MockedFunction<typeof getCachedDetails>;
 const mockSetCachedDetails = setCachedDetails as jest.MockedFunction<typeof setCachedDetails>;
 
-const mockFetchMcpMarketplace = fetchMcpMarketplace as jest.MockedFunction<typeof fetchMcpMarketplace>;
+const mockFetchMcpMarketplace = fetchMcpMarketplace as jest.MockedFunction<
+  typeof fetchMcpMarketplace
+>;
 const mockDownloadMcpServer = downloadMcpServer as jest.MockedFunction<typeof downloadMcpServer>;
 
 // Helper to create mock marketplace item
-const createMockItem = (id: string, source: 'cline' | 'smithery' | 'glama' = 'cline'): McpMarketplaceItem => ({
+const createMockItem = (
+  id: string,
+  source: 'cline' | 'smithery' | 'glama' = 'cline'
+): McpMarketplaceItem => ({
   mcpId: id,
   name: `Test Server ${id}`,
   author: 'test-author',
@@ -124,10 +128,7 @@ describe('useMcpMarketplaceStore', () => {
 
   describe('fetchCatalog', () => {
     it('fetches marketplace catalog successfully', async () => {
-      const mockItems = [
-        createMockItem('server-1'),
-        createMockItem('server-2'),
-      ];
+      const mockItems = [createMockItem('server-1'), createMockItem('server-2')];
       const mockCatalog = createMockCatalog(mockItems);
       mockFetchMcpMarketplace.mockResolvedValueOnce(mockCatalog);
 
@@ -375,7 +376,9 @@ describe('useMcpMarketplaceStore', () => {
 
     it('sets installation error', () => {
       act(() => {
-        useMcpMarketplaceStore.getState().setInstallStatus('test-server', 'error', 'Install failed');
+        useMcpMarketplaceStore
+          .getState()
+          .setInstallStatus('test-server', 'error', 'Install failed');
       });
 
       const state = useMcpMarketplaceStore.getState();
@@ -428,10 +431,7 @@ describe('useMcpMarketplaceStore', () => {
     });
 
     it('returns filtered items when catalog exists', () => {
-      const mockItems = [
-        createMockItem('server-1'),
-        createMockItem('server-2'),
-      ];
+      const mockItems = [createMockItem('server-1'), createMockItem('server-2')];
       useMcpMarketplaceStore.setState({
         catalog: createMockCatalog(mockItems),
       });
@@ -588,7 +588,7 @@ describe('useMcpMarketplaceStore', () => {
 
       const result = useMcpMarketplaceStore.getState().getFilteredItems();
       expect(result.length).toBe(2);
-      expect(result.map(i => i.mcpId)).toEqual(['server-1', 'server-3']);
+      expect(result.map((i) => i.mcpId)).toEqual(['server-1', 'server-3']);
     });
   });
 
@@ -614,9 +614,7 @@ describe('useMcpMarketplaceStore', () => {
     });
 
     it('getPaginatedItems returns correct slice', () => {
-      const mockItems = Array.from({ length: 30 }, (_, i) => 
-        createMockItem(`server-${i + 1}`)
-      );
+      const mockItems = Array.from({ length: 30 }, (_, i) => createMockItem(`server-${i + 1}`));
       useMcpMarketplaceStore.setState({
         catalog: createMockCatalog(mockItems),
         itemsPerPage: 10,
@@ -630,9 +628,7 @@ describe('useMcpMarketplaceStore', () => {
     });
 
     it('getTotalPages calculates correctly', () => {
-      const mockItems = Array.from({ length: 25 }, (_, i) => 
-        createMockItem(`server-${i + 1}`)
-      );
+      const mockItems = Array.from({ length: 25 }, (_, i) => createMockItem(`server-${i + 1}`));
       useMcpMarketplaceStore.setState({
         catalog: createMockCatalog(mockItems),
         itemsPerPage: 10,

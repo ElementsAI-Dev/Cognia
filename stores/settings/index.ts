@@ -24,11 +24,7 @@ export {
   type MessageBubbleStyle,
 } from './settings-store';
 
-export {
-  usePresetStore,
-  selectPresets,
-  selectSelectedPresetId,
-} from './preset-store';
+export { usePresetStore, selectPresets, selectSelectedPresetId } from './preset-store';
 
 export {
   useCustomThemeStore,
@@ -36,7 +32,4 @@ export {
   type CustomSyntaxTheme,
 } from './custom-theme-store';
 
-export {
-  useSettingsProfilesStore,
-  type SettingsProfile,
-} from './settings-profiles-store';
+export { useSettingsProfilesStore, type SettingsProfile } from './settings-profiles-store';

@@ -125,8 +125,7 @@ export const usePresetStore = create<PresetState>()(
       deletePreset: (id) => {
         set((state) => ({
           presets: state.presets.filter((p) => p.id !== id),
-          selectedPresetId:
-            state.selectedPresetId === id ? null : state.selectedPresetId,
+          selectedPresetId: state.selectedPresetId === id ? null : state.selectedPresetId,
         }));
       },
 
@@ -183,9 +182,7 @@ export const usePresetStore = create<PresetState>()(
       toggleFavorite: (id) => {
         set((state) => ({
           presets: state.presets.map((preset) =>
-            preset.id === id
-              ? { ...preset, isFavorite: !preset.isFavorite }
-              : preset
+            preset.id === id ? { ...preset, isFavorite: !preset.isFavorite } : preset
           ),
         }));
       },
@@ -194,19 +191,19 @@ export const usePresetStore = create<PresetState>()(
         set((state) => {
           const oldIndex = state.presets.findIndex((p) => p.id === activeId);
           const newIndex = state.presets.findIndex((p) => p.id === overId);
-          
+
           if (oldIndex === -1 || newIndex === -1) return state;
-          
+
           const newPresets = [...state.presets];
           const [removed] = newPresets.splice(oldIndex, 1);
           newPresets.splice(newIndex, 0, removed);
-          
+
           // Update sortOrder for all presets
           const updatedPresets = newPresets.map((preset, index) => ({
             ...preset,
             sortOrder: index,
           }));
-          
+
           return { presets: updatedPresets };
         });
       },
@@ -238,17 +235,12 @@ export const usePresetStore = create<PresetState>()(
       getRecentPresets: (limit = 5) => {
         return [...get().presets]
           .filter((p) => p.lastUsedAt)
-          .sort(
-            (a, b) =>
-              (b.lastUsedAt?.getTime() || 0) - (a.lastUsedAt?.getTime() || 0)
-          )
+          .sort((a, b) => (b.lastUsedAt?.getTime() || 0) - (a.lastUsedAt?.getTime() || 0))
           .slice(0, limit);
       },
 
       getMostUsedPresets: (limit = 5) => {
-        return [...get().presets]
-          .sort((a, b) => b.usageCount - a.usageCount)
-          .slice(0, limit);
+        return [...get().presets].sort((a, b) => b.usageCount - a.usageCount).slice(0, limit);
       },
 
       searchPresets: (query) => {
@@ -266,14 +258,8 @@ export const usePresetStore = create<PresetState>()(
       partialize: (state) => ({
         presets: state.presets.map((p) => ({
           ...p,
-          createdAt:
-            p.createdAt instanceof Date
-              ? p.createdAt.toISOString()
-              : p.createdAt,
-          updatedAt:
-            p.updatedAt instanceof Date
-              ? p.updatedAt.toISOString()
-              : p.updatedAt,
+          createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
+          updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : p.updatedAt,
           lastUsedAt: p.lastUsedAt
             ? p.lastUsedAt instanceof Date
               ? p.lastUsedAt.toISOString()
@@ -299,7 +285,6 @@ export const usePresetStore = create<PresetState>()(
 
 // Selectors
 export const selectPresets = (state: PresetState) => state.presets;
-export const selectSelectedPresetId = (state: PresetState) =>
-  state.selectedPresetId;
+export const selectSelectedPresetId = (state: PresetState) => state.selectedPresetId;
 
 export default usePresetStore;

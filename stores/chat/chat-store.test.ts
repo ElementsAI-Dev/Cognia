@@ -3,7 +3,13 @@
  */
 
 import { act } from '@testing-library/react';
-import { useChatStore, selectMessages, selectIsLoading, selectIsStreaming, selectError } from './chat-store';
+import {
+  useChatStore,
+  selectMessages,
+  selectIsLoading,
+  selectIsStreaming,
+  selectError,
+} from './chat-store';
 import type { UIMessage } from '@/types/core/message';
 
 // Helper to create mock message
@@ -124,10 +130,7 @@ describe('useChatStore', () => {
 
   describe('deleteMessage', () => {
     it('should delete message by id', () => {
-      const messages = [
-        createMockMessage({ id: 'msg-1' }),
-        createMockMessage({ id: 'msg-2' }),
-      ];
+      const messages = [createMockMessage({ id: 'msg-1' }), createMockMessage({ id: 'msg-2' })];
 
       act(() => {
         useChatStore.getState().setMessages(messages);
@@ -286,11 +289,11 @@ describe('useChatStore', () => {
   describe('selectors', () => {
     it('should select messages', () => {
       const messages = [createMockMessage()];
-      
+
       act(() => {
         useChatStore.getState().setMessages(messages);
       });
-      
+
       expect(selectMessages(useChatStore.getState())).toEqual(messages);
     });
 
@@ -298,7 +301,7 @@ describe('useChatStore', () => {
       act(() => {
         useChatStore.getState().setLoading(true);
       });
-      
+
       expect(selectIsLoading(useChatStore.getState())).toBe(true);
     });
 
@@ -306,7 +309,7 @@ describe('useChatStore', () => {
       act(() => {
         useChatStore.getState().setStreaming(true);
       });
-      
+
       expect(selectIsStreaming(useChatStore.getState())).toBe(true);
     });
 
@@ -314,7 +317,7 @@ describe('useChatStore', () => {
       act(() => {
         useChatStore.getState().setError('Test error');
       });
-      
+
       expect(selectError(useChatStore.getState())).toBe('Test error');
     });
   });

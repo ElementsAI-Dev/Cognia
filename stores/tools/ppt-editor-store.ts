@@ -39,34 +39,34 @@ export interface ClipboardContent {
 interface PPTEditorState {
   // Current presentation being edited
   presentation: PPTPresentation | null;
-  
+
   // Editor state
   mode: EditorMode;
   currentSlideIndex: number;
   selection: SelectionState;
   clipboard: ClipboardContent | null;
-  
+
   // History for undo/redo
   history: HistoryEntry[];
   historyIndex: number;
   maxHistorySize: number;
-  
+
   // UI state
   showGrid: boolean;
   showGuides: boolean;
   showNotes: boolean;
   zoom: number;
   panelWidth: number;
-  
+
   // Editing state
   isDirty: boolean;
   isEditing: boolean;
   editingElementId: string | null;
-  
+
   // AI generation state
   isGenerating: boolean;
   generatingSlideId: string | null;
-  
+
   // Slideshow settings (persisted)
   slideshowSettings: SlideshowSettings;
 }
@@ -76,7 +76,7 @@ interface PPTEditorActions {
   loadPresentation: (presentation: PPTPresentation) => void;
   savePresentation: () => PPTPresentation | null;
   clearPresentation: () => void;
-  
+
   // Slide operations
   addSlide: (layout?: PPTSlideLayout, index?: number) => void;
   duplicateSlide: (slideId: string) => void;
@@ -85,67 +85,78 @@ interface PPTEditorActions {
   updateSlide: (slideId: string, updates: Partial<PPTSlide>) => void;
   setSlideLayout: (slideId: string, layout: PPTSlideLayout) => void;
   setSlideBackground: (slideId: string, background: { color?: string; image?: string }) => void;
-  
+
   // Element operations
   addElement: (slideId: string, element: Omit<PPTSlideElement, 'id'>) => void;
   updateElement: (slideId: string, elementId: string, updates: Partial<PPTSlideElement>) => void;
   deleteElement: (slideId: string, elementId: string) => void;
   duplicateElement: (slideId: string, elementId: string) => void;
   moveElement: (slideId: string, elementId: string, position: { x: number; y: number }) => void;
-  resizeElement: (slideId: string, elementId: string, size: { width: number; height: number }) => void;
+  resizeElement: (
+    slideId: string,
+    elementId: string,
+    size: { width: number; height: number }
+  ) => void;
   bringToFront: (slideId: string, elementId: string) => void;
   sendToBack: (slideId: string, elementId: string) => void;
-  
+
   // Theme operations
   setTheme: (theme: PPTTheme) => void;
   setThemeById: (themeId: string) => void;
-  updateThemeColors: (colors: Partial<Pick<PPTTheme, 'primaryColor' | 'secondaryColor' | 'accentColor' | 'backgroundColor' | 'textColor'>>) => void;
-  
+  updateThemeColors: (
+    colors: Partial<
+      Pick<
+        PPTTheme,
+        'primaryColor' | 'secondaryColor' | 'accentColor' | 'backgroundColor' | 'textColor'
+      >
+    >
+  ) => void;
+
   // Navigation
   setCurrentSlide: (index: number) => void;
   nextSlide: () => void;
   prevSlide: () => void;
   goToSlide: (slideId: string) => void;
-  
+
   // Selection
   selectSlide: (slideId: string) => void;
   selectElement: (elementId: string) => void;
   selectElements: (elementIds: string[]) => void;
   addToSelection: (elementId: string) => void;
   clearSelection: () => void;
-  
+
   // Clipboard
   copy: () => void;
   cut: () => void;
   paste: () => void;
-  
+
   // History (undo/redo)
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
   pushHistory: (description: string) => void;
-  
+
   // Editor mode
   setMode: (mode: EditorMode) => void;
   startEditing: (elementId: string) => void;
   stopEditing: () => void;
-  
+
   // UI state
   setZoom: (zoom: number) => void;
   toggleGrid: () => void;
   toggleGuides: () => void;
   toggleNotes: () => void;
   setPanelWidth: (width: number) => void;
-  
+
   // AI generation
   setGenerating: (isGenerating: boolean, slideId?: string | null) => void;
   regenerateSlide: (slideId: string) => Promise<void>;
-  
+
   // Slideshow settings
   updateSlideshowSettings: (settings: Partial<SlideshowSettings>) => void;
   resetSlideshowSettings: () => void;
-  
+
   // Utilities
   getCurrentSlide: () => PPTSlide | null;
   getSlideById: (slideId: string) => PPTSlide | null;
@@ -201,11 +212,13 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           presentation,
           currentSlideIndex: 0,
           selection: { slideId: presentation.slides[0]?.id || null, elementIds: [] },
-          history: [{
-            presentation: JSON.parse(JSON.stringify(presentation)),
-            timestamp: Date.now(),
-            description: 'Load presentation',
-          }],
+          history: [
+            {
+              presentation: JSON.parse(JSON.stringify(presentation)),
+              timestamp: Date.now(),
+              description: 'Load presentation',
+            },
+          ],
           historyIndex: 0,
           isDirty: false,
         });
@@ -232,11 +245,11 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
 
         const newSlide = createEmptySlide(layout, presentation.slides.length);
         newSlide.id = `slide-${generateId()}`;
-        
+
         const insertIndex = index ?? presentation.slides.length;
         const newSlides = [...presentation.slides];
         newSlides.splice(insertIndex, 0, newSlide);
-        
+
         // Update order for all slides
         newSlides.forEach((slide, i) => {
           slide.order = i;
@@ -253,7 +266,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           selection: { slideId: newSlide.id, elementIds: [] },
           isDirty: true,
         });
-        
+
         pushHistory('Add slide');
       },
 
@@ -261,7 +274,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const { presentation, pushHistory } = get();
         if (!presentation) return;
 
-        const slideIndex = presentation.slides.findIndex(s => s.id === slideId);
+        const slideIndex = presentation.slides.findIndex((s) => s.id === slideId);
         if (slideIndex === -1) return;
 
         const originalSlide = presentation.slides[slideIndex];
@@ -273,7 +286,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
 
         const newSlides = [...presentation.slides];
         newSlides.splice(slideIndex + 1, 0, duplicatedSlide);
-        
+
         // Update order for all slides
         newSlides.forEach((slide, i) => {
           slide.order = i;
@@ -290,7 +303,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           selection: { slideId: duplicatedSlide.id, elementIds: [] },
           isDirty: true,
         });
-        
+
         pushHistory('Duplicate slide');
       },
 
@@ -298,11 +311,11 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const { presentation, currentSlideIndex, pushHistory } = get();
         if (!presentation || presentation.slides.length <= 1) return;
 
-        const slideIndex = presentation.slides.findIndex(s => s.id === slideId);
+        const slideIndex = presentation.slides.findIndex((s) => s.id === slideId);
         if (slideIndex === -1) return;
 
-        const newSlides = presentation.slides.filter(s => s.id !== slideId);
-        
+        const newSlides = presentation.slides.filter((s) => s.id !== slideId);
+
         // Update order for all slides
         newSlides.forEach((slide, i) => {
           slide.order = i;
@@ -321,7 +334,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           selection: { slideId: newSlides[newCurrentIndex]?.id || null, elementIds: [] },
           isDirty: true,
         });
-        
+
         pushHistory('Delete slide');
       },
 
@@ -335,7 +348,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const newSlides = [...presentation.slides];
         const [movedSlide] = newSlides.splice(fromIndex, 1);
         newSlides.splice(toIndex, 0, movedSlide);
-        
+
         // Update order for all slides
         newSlides.forEach((slide, i) => {
           slide.order = i;
@@ -350,7 +363,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           currentSlideIndex: toIndex,
           isDirty: true,
         });
-        
+
         pushHistory('Move slide');
       },
 
@@ -358,7 +371,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const { presentation, pushHistory } = get();
         if (!presentation) return;
 
-        const newSlides = presentation.slides.map(slide =>
+        const newSlides = presentation.slides.map((slide) =>
           slide.id === slideId ? { ...slide, ...updates } : slide
         );
 
@@ -370,7 +383,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           },
           isDirty: true,
         });
-        
+
         pushHistory('Update slide');
       },
 
@@ -397,7 +410,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           id: `element-${generateId()}`,
         };
 
-        const newSlides = presentation.slides.map(slide => {
+        const newSlides = presentation.slides.map((slide) => {
           if (slide.id === slideId) {
             return {
               ...slide,
@@ -416,7 +429,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           selection: { slideId, elementIds: [newElement.id] },
           isDirty: true,
         });
-        
+
         pushHistory('Add element');
       },
 
@@ -424,11 +437,11 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const { presentation, pushHistory } = get();
         if (!presentation) return;
 
-        const newSlides = presentation.slides.map(slide => {
+        const newSlides = presentation.slides.map((slide) => {
           if (slide.id === slideId) {
             return {
               ...slide,
-              elements: slide.elements.map(el =>
+              elements: slide.elements.map((el) =>
                 el.id === elementId ? { ...el, ...updates } : el
               ),
             };
@@ -444,7 +457,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           },
           isDirty: true,
         });
-        
+
         pushHistory('Update element');
       },
 
@@ -452,11 +465,11 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const { presentation, selection, pushHistory } = get();
         if (!presentation) return;
 
-        const newSlides = presentation.slides.map(slide => {
+        const newSlides = presentation.slides.map((slide) => {
           if (slide.id === slideId) {
             return {
               ...slide,
-              elements: slide.elements.filter(el => el.id !== elementId),
+              elements: slide.elements.filter((el) => el.id !== elementId),
             };
           }
           return slide;
@@ -470,11 +483,11 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           },
           selection: {
             ...selection,
-            elementIds: selection.elementIds.filter(id => id !== elementId),
+            elementIds: selection.elementIds.filter((id) => id !== elementId),
           },
           isDirty: true,
         });
-        
+
         pushHistory('Delete element');
       },
 
@@ -487,11 +500,13 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
 
         const newElement = {
           ...element,
-          position: element.position ? {
-            ...element.position,
-            x: element.position.x + 2,
-            y: element.position.y + 2,
-          } : undefined,
+          position: element.position
+            ? {
+                ...element.position,
+                x: element.position.x + 2,
+                y: element.position.y + 2,
+              }
+            : undefined,
         };
 
         // Remove id so addElement generates a new one
@@ -535,9 +550,9 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const { presentation, pushHistory } = get();
         if (!presentation) return;
 
-        const newSlides = presentation.slides.map(slide => {
+        const newSlides = presentation.slides.map((slide) => {
           if (slide.id === slideId) {
-            const elementIndex = slide.elements.findIndex(el => el.id === elementId);
+            const elementIndex = slide.elements.findIndex((el) => el.id === elementId);
             if (elementIndex === -1) return slide;
 
             const newElements = [...slide.elements];
@@ -557,7 +572,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           },
           isDirty: true,
         });
-        
+
         pushHistory('Bring to front');
       },
 
@@ -565,9 +580,9 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const { presentation, pushHistory } = get();
         if (!presentation) return;
 
-        const newSlides = presentation.slides.map(slide => {
+        const newSlides = presentation.slides.map((slide) => {
           if (slide.id === slideId) {
-            const elementIndex = slide.elements.findIndex(el => el.id === elementId);
+            const elementIndex = slide.elements.findIndex((el) => el.id === elementId);
             if (elementIndex === -1) return slide;
 
             const newElements = [...slide.elements];
@@ -587,7 +602,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           },
           isDirty: true,
         });
-        
+
         pushHistory('Send to back');
       },
 
@@ -604,7 +619,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           },
           isDirty: true,
         });
-        
+
         pushHistory('Change theme');
       },
 
@@ -628,7 +643,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           },
           isDirty: true,
         });
-        
+
         pushHistory('Update theme colors');
       },
 
@@ -666,7 +681,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const { presentation } = get();
         if (!presentation) return;
 
-        const index = presentation.slides.findIndex(s => s.id === slideId);
+        const index = presentation.slides.findIndex((s) => s.id === slideId);
         if (index !== -1) {
           get().setCurrentSlide(index);
         }
@@ -728,13 +743,11 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
 
         if (selection.elementIds.length > 0 && selection.slideId) {
           // Copy selected elements
-          const slide = presentation.slides.find(s => s.id === selection.slideId);
+          const slide = presentation.slides.find((s) => s.id === selection.slideId);
           if (!slide) return;
 
-          const elements = slide.elements.filter(el =>
-            selection.elementIds.includes(el.id)
-          );
-          
+          const elements = slide.elements.filter((el) => selection.elementIds.includes(el.id));
+
           if (elements.length === 1) {
             set({ clipboard: { type: 'element', data: elements[0] } });
           }
@@ -748,14 +761,15 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
       },
 
       cut: () => {
-        const { selection, currentSlideIndex, presentation, copy, deleteSlide, deleteElement } = get();
+        const { selection, currentSlideIndex, presentation, copy, deleteSlide, deleteElement } =
+          get();
         if (!presentation) return;
 
         copy();
 
         if (selection.elementIds.length > 0 && selection.slideId) {
           // Delete selected elements
-          selection.elementIds.forEach(elementId => {
+          selection.elementIds.forEach((elementId) => {
             deleteElement(selection.slideId!, elementId);
           });
         } else if (presentation.slides.length > 1) {
@@ -774,7 +788,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         if (clipboard.type === 'slide') {
           const slideData = clipboard.data as PPTSlide;
           addSlide(slideData.layout, currentSlideIndex + 1);
-          
+
           // Update the newly added slide with the copied content
           const { presentation: updatedPresentation, updateSlide } = get();
           if (updatedPresentation) {
@@ -786,7 +800,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
                 content: slideData.content,
                 bullets: slideData.bullets,
                 notes: slideData.notes,
-                elements: slideData.elements.map(el => ({
+                elements: slideData.elements.map((el) => ({
                   ...el,
                   id: `element-${generateId()}`,
                 })),
@@ -800,11 +814,13 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
             const { id: _id, ...elementWithoutId } = elementData;
             const newElement = {
               ...elementWithoutId,
-              position: elementData.position ? {
-                ...elementData.position,
-                x: elementData.position.x + 2,
-                y: elementData.position.y + 2,
-              } : undefined,
+              position: elementData.position
+                ? {
+                    ...elementData.position,
+                    x: elementData.position.x + 2,
+                    y: elementData.position.y + 2,
+                  }
+                : undefined,
             };
             addElement(currentSlide.id, newElement);
           }
@@ -818,7 +834,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
 
         // Remove any future history if we're not at the end
         const newHistory = history.slice(0, historyIndex + 1);
-        
+
         // Add new entry
         newHistory.push({
           presentation: JSON.parse(JSON.stringify(presentation)),
@@ -900,15 +916,15 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
       },
 
       toggleGrid: () => {
-        set(state => ({ showGrid: !state.showGrid }));
+        set((state) => ({ showGrid: !state.showGrid }));
       },
 
       toggleGuides: () => {
-        set(state => ({ showGuides: !state.showGuides }));
+        set((state) => ({ showGuides: !state.showGuides }));
       },
 
       toggleNotes: () => {
-        set(state => ({ showNotes: !state.showNotes }));
+        set((state) => ({ showNotes: !state.showNotes }));
       },
 
       setPanelWidth: (width) => {
@@ -927,10 +943,10 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         // This will be implemented with AI integration
         // For now, it's a placeholder
         set({ isGenerating: true, generatingSlideId: _slideId });
-        
+
         // Simulate async operation
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         set({ isGenerating: false, generatingSlideId: null });
       },
 
@@ -957,21 +973,21 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
 
       getSlideById: (slideId) => {
         const { presentation } = get();
-        return presentation?.slides.find(s => s.id === slideId) || null;
+        return presentation?.slides.find((s) => s.id === slideId) || null;
       },
 
       getElementById: (slideId, elementId) => {
         const slide = get().getSlideById(slideId);
-        return slide?.elements.find(el => el.id === elementId) || null;
+        return slide?.elements.find((el) => el.id === elementId) || null;
       },
 
       reorderSlides: (slideIds) => {
         const { presentation, pushHistory } = get();
         if (!presentation) return;
 
-        const slideMap = new Map(presentation.slides.map(s => [s.id, s]));
+        const slideMap = new Map(presentation.slides.map((s) => [s.id, s]));
         const newSlides = slideIds
-          .map(id => slideMap.get(id))
+          .map((id) => slideMap.get(id))
           .filter((s): s is PPTSlide => s !== undefined);
 
         // Update order for all slides
@@ -987,7 +1003,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           },
           isDirty: true,
         });
-        
+
         pushHistory('Reorder slides');
       },
     }),
@@ -1010,13 +1026,12 @@ export const selectCurrentSlide = (state: PPTEditorState) =>
   state.presentation?.slides[state.currentSlideIndex] || null;
 
 export const selectSelectedElements = (state: PPTEditorState) => {
-  const slide = state.presentation?.slides.find(s => s.id === state.selection.slideId);
+  const slide = state.presentation?.slides.find((s) => s.id === state.selection.slideId);
   if (!slide) return [];
-  return slide.elements.filter(el => state.selection.elementIds.includes(el.id));
+  return slide.elements.filter((el) => state.selection.elementIds.includes(el.id));
 };
 
-export const selectSlideCount = (state: PPTEditorState) =>
-  state.presentation?.slides.length || 0;
+export const selectSlideCount = (state: PPTEditorState) => state.presentation?.slides.length || 0;
 
 export const selectIsDirty = (state: PPTEditorState) => state.isDirty;
 

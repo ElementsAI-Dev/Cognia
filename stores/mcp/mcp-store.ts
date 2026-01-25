@@ -44,10 +44,10 @@ interface McpState {
   isLoading: boolean;
   error: string | null;
   isInitialized: boolean;
-  
+
   // Active tool calls tracking for parallel execution
   activeToolCalls: Map<string, ActiveToolCall>;
-  
+
   // Tool selection state
   toolSelectionConfig: McpToolSelectionConfig;
   toolUsageHistory: Map<string, ToolUsageRecord>;
@@ -77,16 +77,21 @@ interface McpState {
   pingServer: (serverId: string) => Promise<number>;
   setLogLevel: (serverId: string, level: LogLevel) => Promise<void>;
   clearError: () => void;
-  
+
   // Tool selection actions
   setToolSelectionConfig: (config: Partial<McpToolSelectionConfig>) => void;
   recordToolUsage: (toolName: string, success: boolean, executionTime?: number) => void;
   getToolUsageHistory: () => Map<string, ToolUsageRecord>;
   setLastToolSelection: (selection: ToolSelectionResult | null) => void;
   resetToolUsageHistory: () => void;
-  
+
   // Active tool call tracking actions
-  trackToolCallStart: (id: string, serverId: string, toolName: string, args: Record<string, unknown>) => void;
+  trackToolCallStart: (
+    id: string,
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown>
+  ) => void;
   trackToolCallProgress: (id: string, progress: number) => void;
   trackToolCallComplete: (id: string, result: unknown) => void;
   trackToolCallError: (id: string, error: string) => void;
@@ -110,10 +115,10 @@ export const useMcpStore = create<McpState>((set, get) => ({
   isLoading: false,
   error: null,
   isInitialized: false,
-  
+
   // Active tool calls tracking
   activeToolCalls: new Map<string, ActiveToolCall>(),
-  
+
   // Tool selection state
   toolSelectionConfig: { ...DEFAULT_TOOL_SELECTION_CONFIG },
   toolUsageHistory: new Map<string, ToolUsageRecord>(),
@@ -131,60 +136,48 @@ export const useMcpStore = create<McpState>((set, get) => ({
 
     try {
       // Setup event listeners
-      unlistenServerUpdate = await listen<McpServerState>(
-        'mcp:server-update',
-        (event) => {
-          get()._updateServer(event.payload);
-        }
-      );
+      unlistenServerUpdate = await listen<McpServerState>('mcp:server-update', (event) => {
+        get()._updateServer(event.payload);
+      });
 
-      unlistenServersChanged = await listen<McpServerState[]>(
-        'mcp:servers-changed',
-        (event) => {
-          get()._setServers(event.payload);
-        }
-      );
+      unlistenServersChanged = await listen<McpServerState[]>('mcp:servers-changed', (event) => {
+        get()._setServers(event.payload);
+      });
 
-      unlistenNotification = await listen<McpNotificationEvent>(
-        'mcp:notification',
-        (event) => {
-          console.log('MCP notification:', event.payload);
-        }
-      );
+      unlistenNotification = await listen<McpNotificationEvent>('mcp:notification', (event) => {
+        console.log('MCP notification:', event.payload);
+      });
 
-      unlistenToolProgress = await listen<ToolCallProgress>(
-        'mcp:tool-call-progress',
-        (event) => {
-          const { callId, serverId, toolName, state, progress, error } = event.payload;
-          
-          // Update tool call tracking based on state
-          switch (state) {
-            case 'pending':
-            case 'running':
-              // Check if already tracked, if not start tracking
-              if (!get().activeToolCalls.has(callId)) {
-                get().trackToolCallStart(callId, serverId, toolName, {});
-              }
-              if (progress !== undefined) {
-                get().trackToolCallProgress(callId, progress);
-              }
-              break;
-            case 'completed':
-              get().trackToolCallComplete(callId, undefined);
-              // Record usage for analytics
-              get().recordToolUsage(toolName, true);
-              break;
-            case 'failed':
-              get().trackToolCallError(callId, error || 'Unknown error');
-              // Record usage for analytics
-              get().recordToolUsage(toolName, false);
-              break;
-            case 'cancelled':
-              get().trackToolCallError(callId, 'Cancelled');
-              break;
-          }
+      unlistenToolProgress = await listen<ToolCallProgress>('mcp:tool-call-progress', (event) => {
+        const { callId, serverId, toolName, state, progress, error } = event.payload;
+
+        // Update tool call tracking based on state
+        switch (state) {
+          case 'pending':
+          case 'running':
+            // Check if already tracked, if not start tracking
+            if (!get().activeToolCalls.has(callId)) {
+              get().trackToolCallStart(callId, serverId, toolName, {});
+            }
+            if (progress !== undefined) {
+              get().trackToolCallProgress(callId, progress);
+            }
+            break;
+          case 'completed':
+            get().trackToolCallComplete(callId, undefined);
+            // Record usage for analytics
+            get().recordToolUsage(toolName, true);
+            break;
+          case 'failed':
+            get().trackToolCallError(callId, error || 'Unknown error');
+            // Record usage for analytics
+            get().recordToolUsage(toolName, false);
+            break;
+          case 'cancelled':
+            get().trackToolCallError(callId, 'Cancelled');
+            break;
         }
-      );
+      });
 
       // Load initial servers
       await get().loadServers();
@@ -305,7 +298,7 @@ export const useMcpStore = create<McpState>((set, get) => ({
   clearError: () => {
     set({ error: null });
   },
-  
+
   // Tool selection actions
   setToolSelectionConfig: (config) => {
     set((prev) => ({
@@ -315,20 +308,20 @@ export const useMcpStore = create<McpState>((set, get) => ({
       },
     }));
   },
-  
+
   recordToolUsage: (toolName, success, executionTime) => {
     set((prev) => {
       const history = new Map(prev.toolUsageHistory);
       const existing = history.get(toolName);
-      
+
       if (existing) {
         const newUsageCount = existing.usageCount + 1;
         const newSuccessCount = existing.successCount + (success ? 1 : 0);
         const newFailureCount = existing.failureCount + (success ? 0 : 1);
-        const newAvgTime = executionTime 
+        const newAvgTime = executionTime
           ? (existing.avgExecutionTime * existing.usageCount + executionTime) / newUsageCount
           : existing.avgExecutionTime;
-        
+
         history.set(toolName, {
           toolName,
           usageCount: newUsageCount,
@@ -347,23 +340,23 @@ export const useMcpStore = create<McpState>((set, get) => ({
           avgExecutionTime: executionTime || 0,
         });
       }
-      
+
       return { toolUsageHistory: history };
     });
   },
-  
+
   getToolUsageHistory: () => {
     return get().toolUsageHistory;
   },
-  
+
   setLastToolSelection: (selection) => {
     set({ lastToolSelection: selection });
   },
-  
+
   resetToolUsageHistory: () => {
     set({ toolUsageHistory: new Map<string, ToolUsageRecord>() });
   },
-  
+
   // Active tool call tracking actions
   trackToolCallStart: (id, serverId, toolName, args) => {
     set((prev) => {
@@ -379,7 +372,7 @@ export const useMcpStore = create<McpState>((set, get) => ({
       return { activeToolCalls: calls };
     });
   },
-  
+
   trackToolCallProgress: (id, progress) => {
     set((prev) => {
       const calls = new Map(prev.activeToolCalls);
@@ -390,7 +383,7 @@ export const useMcpStore = create<McpState>((set, get) => ({
       return { activeToolCalls: calls };
     });
   },
-  
+
   trackToolCallComplete: (id, result) => {
     set((prev) => {
       const calls = new Map(prev.activeToolCalls);
@@ -408,7 +401,7 @@ export const useMcpStore = create<McpState>((set, get) => ({
       return { activeToolCalls: calls };
     });
   },
-  
+
   trackToolCallError: (id, error) => {
     set((prev) => {
       const calls = new Map(prev.activeToolCalls);
@@ -427,11 +420,11 @@ export const useMcpStore = create<McpState>((set, get) => ({
       return { activeToolCalls: calls };
     });
   },
-  
+
   getActiveToolCalls: () => {
     return Array.from(get().activeToolCalls.values());
   },
-  
+
   clearCompletedToolCalls: () => {
     set((prev) => {
       const calls = new Map(prev.activeToolCalls);

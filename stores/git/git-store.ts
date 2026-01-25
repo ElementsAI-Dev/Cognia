@@ -24,31 +24,31 @@ export interface GitState {
   isCheckingGit: boolean;
   isInstallingGit: boolean;
   installProgress: GitOperationProgress | null;
-  
+
   // Git configuration
   gitConfig: GitConfig | null;
-  
+
   // Current repository
   currentRepoPath: string | null;
   currentRepoInfo: GitRepoInfo | null;
-  
+
   // Repository state
   branches: GitBranchInfo[];
   commits: GitCommitInfo[];
   fileStatus: GitFileStatus[];
   stashList: { index: number; message: string; branch?: string; date?: string }[];
-  
+
   // Operation state
   operationStatus: GitOperationStatus;
   operationProgress: GitOperationProgress | null;
   lastError: string | null;
-  
+
   // Project Git configurations (per project)
   projectConfigs: Record<string, ProjectGitConfig>;
-  
+
   // Auto-commit configuration
   autoCommitConfig: AutoCommitConfig;
-  
+
   // Tracked repositories
   trackedRepos: string[];
 }
@@ -57,42 +57,49 @@ export interface GitActions {
   // Git installation
   checkGitInstalled: () => Promise<void>;
   installGit: () => Promise<void>;
-  
+
   // Git configuration
   loadGitConfig: () => Promise<void>;
   updateGitConfig: (config: Partial<GitConfig>) => Promise<void>;
-  
+
   // Repository management
   setCurrentRepo: (path: string | null) => void;
   loadRepoStatus: (path?: string) => Promise<void>;
   initRepo: (path: string, options?: { initialBranch?: string }) => Promise<boolean>;
-  cloneRepo: (url: string, targetPath: string, options?: { branch?: string; depth?: number }) => Promise<boolean>;
-  
+  cloneRepo: (
+    url: string,
+    targetPath: string,
+    options?: { branch?: string; depth?: number }
+  ) => Promise<boolean>;
+
   // Staging
   stageFiles: (files: string[]) => Promise<boolean>;
   stageAll: () => Promise<boolean>;
   unstageFiles: (files: string[]) => Promise<boolean>;
-  
+
   // Commits
-  commit: (message: string, options?: { description?: string; amend?: boolean }) => Promise<boolean>;
+  commit: (
+    message: string,
+    options?: { description?: string; amend?: boolean }
+  ) => Promise<boolean>;
   loadCommitHistory: (options?: { maxCount?: number }) => Promise<void>;
-  
+
   // Branches
   loadBranches: () => Promise<void>;
   createBranch: (name: string, startPoint?: string) => Promise<boolean>;
   deleteBranch: (name: string, force?: boolean) => Promise<boolean>;
   checkout: (target: string, createBranch?: boolean) => Promise<boolean>;
-  
+
   // Remote operations
   push: (options?: { force?: boolean; setUpstream?: boolean }) => Promise<boolean>;
   pull: (options?: { rebase?: boolean }) => Promise<boolean>;
   fetch: () => Promise<boolean>;
-  
+
   // File operations
   loadFileStatus: () => Promise<void>;
   discardChanges: (files: string[]) => Promise<boolean>;
   getDiffContent: (filePath: string, staged?: boolean) => Promise<string | null>;
-  
+
   // Stash operations
   loadStashList: () => Promise<void>;
   stashSave: (message?: string, includeUntracked?: boolean) => Promise<boolean>;
@@ -100,21 +107,21 @@ export interface GitActions {
   stashApply: (index?: number) => Promise<boolean>;
   stashDrop: (index?: number) => Promise<boolean>;
   stashClear: () => Promise<boolean>;
-  
+
   // Project Git configuration
   getProjectConfig: (projectId: string) => ProjectGitConfig;
   setProjectConfig: (projectId: string, config: Partial<ProjectGitConfig>) => void;
   enableGitForProject: (projectId: string, repoPath: string) => Promise<boolean>;
   disableGitForProject: (projectId: string) => void;
-  
+
   // Auto-commit
   setAutoCommitConfig: (config: Partial<AutoCommitConfig>) => void;
   triggerAutoCommit: (projectId: string, trigger: string) => Promise<boolean>;
-  
+
   // Repository tracking
   addTrackedRepo: (path: string) => void;
   removeTrackedRepo: (path: string) => void;
-  
+
   // State management
   setOperationStatus: (status: GitOperationStatus) => void;
   setError: (error: string | null) => void;
@@ -890,20 +897,22 @@ export const useGitStore = create<GitState & GitActions>()(
       // Project Git configuration
       getProjectConfig: (projectId) => {
         const { projectConfigs } = get();
-        return projectConfigs[projectId] || {
-          enabled: false,
-          repoPath: null,
-          autoCommit: false,
-          autoCommitInterval: 30,
-          commitOnSessionEnd: true,
-          commitOnExport: true,
-          includeChatHistory: true,
-          includeDesignerProjects: true,
-          includeWorkflows: true,
-          excludePatterns: ['node_modules', '.env', '*.log'],
-          remoteUrl: null,
-          branch: 'main',
-        };
+        return (
+          projectConfigs[projectId] || {
+            enabled: false,
+            repoPath: null,
+            autoCommit: false,
+            autoCommitInterval: 30,
+            commitOnSessionEnd: true,
+            commitOnExport: true,
+            includeChatHistory: true,
+            includeDesignerProjects: true,
+            includeWorkflows: true,
+            excludePatterns: ['node_modules', '.env', '*.log'],
+            remoteUrl: null,
+            branch: 'main',
+          }
+        );
       },
 
       setProjectConfig: (projectId, config) => {
@@ -919,19 +928,19 @@ export const useGitStore = create<GitState & GitActions>()(
 
       enableGitForProject: async (projectId, repoPath) => {
         const { setProjectConfig, initRepo } = get();
-        
+
         // Check if repo exists, if not initialize it
         const isRepo = await gitService.isRepo(repoPath);
         if (!isRepo) {
           const success = await initRepo(repoPath);
           if (!success) return false;
         }
-        
+
         setProjectConfig(projectId, {
           enabled: true,
           repoPath,
         });
-        
+
         get().addTrackedRepo(repoPath);
         return true;
       },
@@ -959,15 +968,15 @@ export const useGitStore = create<GitState & GitActions>()(
       triggerAutoCommit: async (projectId, trigger) => {
         const { getProjectConfig, autoCommitConfig } = get();
         const projectConfig = getProjectConfig(projectId);
-        
+
         if (!projectConfig.enabled || !projectConfig.repoPath) {
           return false;
         }
-        
+
         if (!autoCommitConfig.enabled) {
           return false;
         }
-        
+
         try {
           const result = await gitService.autoCommit(
             projectConfig.repoPath,

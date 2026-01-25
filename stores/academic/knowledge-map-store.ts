@@ -1,6 +1,6 @@
 /**
  * Knowledge Map Store - Zustand state management for knowledge maps
- * 
+ *
  * Manages knowledge maps, mind maps, annotations, and navigation
  */
 
@@ -36,53 +36,71 @@ interface KnowledgeMapState {
   isGenerating: boolean;
   generationProgress: number;
   error: string | null;
-  
+
   // Knowledge Map CRUD
   createKnowledgeMap: (request: KnowledgeMapGenerationRequest) => Promise<KnowledgeMap>;
   updateKnowledgeMap: (id: string, updates: Partial<KnowledgeMap>) => void;
   deleteKnowledgeMap: (id: string) => void;
   getKnowledgeMap: (id: string) => KnowledgeMap | null;
   setActiveKnowledgeMap: (id: string | null) => void;
-  
+
   // PDF Conversion
-  convertPDFToKnowledgeMap: (pdfPath: string, options?: Partial<PDFConversionOptions>) => Promise<PDFConversionResult>;
-  
+  convertPDFToKnowledgeMap: (
+    pdfPath: string,
+    options?: Partial<PDFConversionOptions>
+  ) => Promise<PDFConversionResult>;
+
   // Content-based Generation
   generateFromContent: (content: string, title?: string) => Promise<KnowledgeMap>;
-  
+
   // Mind Map Generation
   generateMindMap: (request: MindMapGenerationRequest) => Promise<MindMapData | null>;
   updateMindMap: (knowledgeMapId: string, mindMap: MindMapData) => void;
-  
+
   // Annotation Management
-  addAnnotation: (annotation: Omit<KnowledgeAnnotation, 'id' | 'createdAt' | 'updatedAt'>) => KnowledgeAnnotation;
+  addAnnotation: (
+    annotation: Omit<KnowledgeAnnotation, 'id' | 'createdAt' | 'updatedAt'>
+  ) => KnowledgeAnnotation;
   updateAnnotation: (id: string, updates: Partial<KnowledgeAnnotation>) => void;
   deleteAnnotation: (id: string) => void;
   getAnnotationsForKnowledgeMap: (knowledgeMapId: string) => KnowledgeAnnotation[];
-  
+
   // Navigation
   navigateTo: (target: KnowledgeMapNavigationTarget) => void;
   navigateBack: () => void;
   navigateForward: () => void;
   canNavigateBack: () => boolean;
   canNavigateForward: () => boolean;
-  
+
   // Import/Export
   importFromCodemap: (data: string) => Promise<KnowledgeMap | null>;
   exportToCodemap: (id: string) => string | null;
   importFromFile: (file: File) => Promise<KnowledgeMap | null>;
   exportToFile: (id: string, filename?: string) => void;
-  
+
   // Trace Management
   addTrace: (knowledgeMapId: string, trace: Omit<KnowledgeMapTrace, 'id'>) => void;
-  updateTrace: (knowledgeMapId: string, traceId: string, updates: Partial<KnowledgeMapTrace>) => void;
+  updateTrace: (
+    knowledgeMapId: string,
+    traceId: string,
+    updates: Partial<KnowledgeMapTrace>
+  ) => void;
   deleteTrace: (knowledgeMapId: string, traceId: string) => void;
-  
+
   // Location Management
-  addLocation: (knowledgeMapId: string, traceId: string, location: Omit<KnowledgeMapLocation, 'id'>) => void;
-  updateLocation: (knowledgeMapId: string, traceId: string, locationId: string, updates: Partial<KnowledgeMapLocation>) => void;
+  addLocation: (
+    knowledgeMapId: string,
+    traceId: string,
+    location: Omit<KnowledgeMapLocation, 'id'>
+  ) => void;
+  updateLocation: (
+    knowledgeMapId: string,
+    traceId: string,
+    locationId: string,
+    updates: Partial<KnowledgeMapLocation>
+  ) => void;
   deleteLocation: (knowledgeMapId: string, traceId: string, locationId: string) => void;
-  
+
   // State Management
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -139,7 +157,7 @@ export const useKnowledgeMapStore = create<KnowledgeMapState>()(
             };
           } else if (request.content) {
             set({ generationProgress: 30 });
-            
+
             const result = await invoke<KnowledgeMap>('academic_generate_knowledge_map', {
               content: request.content,
               title: request.title,
@@ -212,11 +230,12 @@ export const useKnowledgeMapStore = create<KnowledgeMapState>()(
         set((state) => {
           const { [id]: _deleted, ...rest } = state.knowledgeMaps;
           const { [id]: _deletedAnnotations, ...restAnnotations } = state.annotations;
-          
+
           return {
             knowledgeMaps: rest,
             annotations: restAnnotations,
-            activeKnowledgeMapId: state.activeKnowledgeMapId === id ? null : state.activeKnowledgeMapId,
+            activeKnowledgeMapId:
+              state.activeKnowledgeMapId === id ? null : state.activeKnowledgeMapId,
           };
         });
       },
@@ -272,10 +291,13 @@ export const useKnowledgeMapStore = create<KnowledgeMapState>()(
         try {
           set({ generationProgress: 20 });
 
-          const knowledgeMap = await invoke<KnowledgeMap>('academic_generate_knowledge_map_from_content', {
-            content,
-            title: title || 'Knowledge Map from Selection',
-          });
+          const knowledgeMap = await invoke<KnowledgeMap>(
+            'academic_generate_knowledge_map_from_content',
+            {
+              content,
+              title: title || 'Knowledge Map from Selection',
+            }
+          );
 
           set({ generationProgress: 100 });
 
@@ -400,7 +422,7 @@ export const useKnowledgeMapStore = create<KnowledgeMapState>()(
       updateAnnotation: (id, updates) => {
         set((state) => {
           const newAnnotations = { ...state.annotations };
-          
+
           for (const [knowledgeMapId, annotations] of Object.entries(newAnnotations)) {
             const index = annotations.findIndex((a) => a.id === id);
             if (index !== -1) {
@@ -424,7 +446,7 @@ export const useKnowledgeMapStore = create<KnowledgeMapState>()(
       deleteAnnotation: (id) => {
         set((state) => {
           const newAnnotations = { ...state.annotations };
-          
+
           for (const [knowledgeMapId, annotations] of Object.entries(newAnnotations)) {
             const index = annotations.findIndex((a) => a.id === id);
             if (index !== -1) {
@@ -511,7 +533,7 @@ export const useKnowledgeMapStore = create<KnowledgeMapState>()(
       importFromCodemap: async (data) => {
         try {
           const parsed = JSON.parse(data);
-          
+
           if (!isValidCodemapFile(parsed)) {
             throw new Error('Invalid codemap file format');
           }
@@ -607,9 +629,7 @@ export const useKnowledgeMapStore = create<KnowledgeMapState>()(
               ...state.knowledgeMaps,
               [knowledgeMapId]: {
                 ...existing,
-                traces: existing.traces.map((t) =>
-                  t.id === traceId ? { ...t, ...updates } : t
-                ),
+                traces: existing.traces.map((t) => (t.id === traceId ? { ...t, ...updates } : t)),
                 updatedAt: new Date().toISOString(),
               },
             },
@@ -652,9 +672,7 @@ export const useKnowledgeMapStore = create<KnowledgeMapState>()(
               [knowledgeMapId]: {
                 ...existing,
                 traces: existing.traces.map((t) =>
-                  t.id === traceId
-                    ? { ...t, locations: [...t.locations, newLocation] }
-                    : t
+                  t.id === traceId ? { ...t, locations: [...t.locations, newLocation] } : t
                 ),
                 updatedAt: new Date().toISOString(),
               },

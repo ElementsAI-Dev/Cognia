@@ -268,8 +268,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     state.saveToHistory();
     set({
       annotations: state.annotations.filter((a) => a.id !== id),
-      selectedAnnotationId:
-        state.selectedAnnotationId === id ? null : state.selectedAnnotationId,
+      selectedAnnotationId: state.selectedAnnotationId === id ? null : state.selectedAnnotationId,
     });
   },
 
@@ -332,5 +331,4 @@ export const selectCanUndo = (state: EditorStore) => state.undoStack.length > 0;
 export const selectCanRedo = (state: EditorStore) => state.redoStack.length > 0;
 export const selectIsEditing = (state: EditorStore) =>
   state.mode === 'editing' || state.mode === 'annotating';
-export const selectHasSelection = (state: EditorStore) =>
-  state.selection !== null;
+export const selectHasSelection = (state: EditorStore) => state.selection !== null;

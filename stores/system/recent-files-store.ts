@@ -121,17 +121,14 @@ export const useRecentFilesStore = create<RecentFilesState>()(
       },
 
       getMostUsedFiles: (limit = 10) => {
-        return [...get().recentFiles]
-          .sort((a, b) => b.usageCount - a.usageCount)
-          .slice(0, limit);
+        return [...get().recentFiles].sort((a, b) => b.usageCount - a.usageCount).slice(0, limit);
       },
 
       searchFiles: (query) => {
         const lowerQuery = query.toLowerCase();
         return get().recentFiles.filter(
           (f) =>
-            f.name.toLowerCase().includes(lowerQuery) ||
-            f.path.toLowerCase().includes(lowerQuery)
+            f.name.toLowerCase().includes(lowerQuery) || f.path.toLowerCase().includes(lowerQuery)
         );
       },
 

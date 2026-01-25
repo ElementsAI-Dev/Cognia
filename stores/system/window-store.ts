@@ -224,9 +224,10 @@ export const useWindowStore = create<WindowStoreState>()(
       setTitle: (title) => set({ title }),
       setSize: (size) => set({ size }),
       setPosition: (position) => set({ position }),
-      setConstraints: (constraints) => set((state) => ({
-        constraints: { ...state.constraints, ...constraints },
-      })),
+      setConstraints: (constraints) =>
+        set((state) => ({
+          constraints: { ...state.constraints, ...constraints },
+        })),
       setScaleFactor: (scaleFactor) => set({ scaleFactor }),
 
       // Cursor setters
@@ -243,42 +244,53 @@ export const useWindowStore = create<WindowStoreState>()(
       setProgressBar: (progressBar) => set({ progressBar }),
 
       // Preference setters
-      setPreferences: (preferences) => set((state) => ({
-        preferences: { ...state.preferences, ...preferences },
-      })),
-      setRememberPosition: (rememberPosition) => set((state) => ({
-        preferences: { ...state.preferences, rememberPosition },
-      })),
-      setRememberSize: (rememberSize) => set((state) => ({
-        preferences: { ...state.preferences, rememberSize },
-      })),
-      setStartMaximized: (startMaximized) => set((state) => ({
-        preferences: { ...state.preferences, startMaximized },
-      })),
-      setStartCentered: (startCentered) => set((state) => ({
-        preferences: { ...state.preferences, startCentered },
-      })),
-      setDefaultAlwaysOnTop: (defaultAlwaysOnTop) => set((state) => ({
-        preferences: { ...state.preferences, defaultAlwaysOnTop },
-      })),
-      setTitleBarHeight: (titleBarHeight) => set((state) => ({
-        preferences: { ...state.preferences, titleBarHeight },
-      })),
-      setEnableDoubleClickMaximize: (enableDoubleClickMaximize) => set((state) => ({
-        preferences: { ...state.preferences, enableDoubleClickMaximize },
-      })),
-      setEnableDragToMove: (enableDragToMove) => set((state) => ({
-        preferences: { ...state.preferences, enableDragToMove },
-      })),
-      setTitleBarCustomLayout: (titleBarCustomLayout) => set((state) => ({
-        preferences: { ...state.preferences, titleBarCustomLayout },
-      })),
+      setPreferences: (preferences) =>
+        set((state) => ({
+          preferences: { ...state.preferences, ...preferences },
+        })),
+      setRememberPosition: (rememberPosition) =>
+        set((state) => ({
+          preferences: { ...state.preferences, rememberPosition },
+        })),
+      setRememberSize: (rememberSize) =>
+        set((state) => ({
+          preferences: { ...state.preferences, rememberSize },
+        })),
+      setStartMaximized: (startMaximized) =>
+        set((state) => ({
+          preferences: { ...state.preferences, startMaximized },
+        })),
+      setStartCentered: (startCentered) =>
+        set((state) => ({
+          preferences: { ...state.preferences, startCentered },
+        })),
+      setDefaultAlwaysOnTop: (defaultAlwaysOnTop) =>
+        set((state) => ({
+          preferences: { ...state.preferences, defaultAlwaysOnTop },
+        })),
+      setTitleBarHeight: (titleBarHeight) =>
+        set((state) => ({
+          preferences: { ...state.preferences, titleBarHeight },
+        })),
+      setEnableDoubleClickMaximize: (enableDoubleClickMaximize) =>
+        set((state) => ({
+          preferences: { ...state.preferences, enableDoubleClickMaximize },
+        })),
+      setEnableDragToMove: (enableDragToMove) =>
+        set((state) => ({
+          preferences: { ...state.preferences, enableDragToMove },
+        })),
+      setTitleBarCustomLayout: (titleBarCustomLayout) =>
+        set((state) => ({
+          preferences: { ...state.preferences, titleBarCustomLayout },
+        })),
 
       // Bulk state update
-      updateWindowState: (windowState) => set((state) => ({
-        ...state,
-        ...windowState,
-      })),
+      updateWindowState: (windowState) =>
+        set((state) => ({
+          ...state,
+          ...windowState,
+        })),
 
       // Reset
       resetPreferences: () => set({ preferences: defaultPreferences }),

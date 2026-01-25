@@ -68,7 +68,7 @@ describe('useKnowledgeMapStore', () => {
   describe('Initial State', () => {
     it('should have empty initial state', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       expect(result.current.knowledgeMaps).toEqual({});
       expect(result.current.activeKnowledgeMapId).toBeNull();
       expect(result.current.annotations).toEqual({});
@@ -81,7 +81,7 @@ describe('useKnowledgeMapStore', () => {
   describe('Knowledge Map CRUD', () => {
     it('should create a knowledge map', async () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const mockKnowledgeMap = createTestKnowledgeMap({ id: 'test-km-1' });
 
       // Mock the invoke to return the knowledge map
@@ -101,7 +101,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should update a knowledge map', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const testMap = createTestKnowledgeMap({ id: 'test-km-2', title: 'Original Title' });
 
       act(() => {
@@ -117,7 +117,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should delete a knowledge map', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const testMap = createTestKnowledgeMap({ id: 'test-km-3', title: 'To Delete' });
 
       act(() => {
@@ -133,7 +133,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should set active knowledge map', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       act(() => {
         result.current.setActiveKnowledgeMap('test-km-4');
       });
@@ -143,7 +143,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should get knowledge map by id', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const testMap = createTestKnowledgeMap({ id: 'test-km-5', title: 'Get Test' });
 
       act(() => {
@@ -158,7 +158,7 @@ describe('useKnowledgeMapStore', () => {
   describe('Annotation Management', () => {
     it('should add an annotation', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       let annotation: KnowledgeAnnotation | undefined;
       act(() => {
         annotation = result.current.addAnnotation({
@@ -176,7 +176,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should update an annotation', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       let annotation: KnowledgeAnnotation | undefined;
       act(() => {
         annotation = result.current.addAnnotation({
@@ -194,14 +194,14 @@ describe('useKnowledgeMapStore', () => {
 
         // Get updated annotation
         const allAnnotations = result.current.getAnnotationsForKnowledgeMap('test-km-1');
-        const updated = allAnnotations.find(a => a.id === annotation!.id);
+        const updated = allAnnotations.find((a) => a.id === annotation!.id);
         expect(updated?.content).toBe('Updated content');
       }
     });
 
     it('should delete an annotation', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       let annotation: KnowledgeAnnotation | undefined;
       act(() => {
         annotation = result.current.addAnnotation({
@@ -219,13 +219,13 @@ describe('useKnowledgeMapStore', () => {
         });
 
         const remaining = result.current.getAnnotationsForKnowledgeMap('test-km-1');
-        expect(remaining.find(a => a.id === annotationId)).toBeUndefined();
+        expect(remaining.find((a) => a.id === annotationId)).toBeUndefined();
       }
     });
 
     it('should get annotations for a knowledge map', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       act(() => {
         result.current.addAnnotation({
           knowledgeMapId: 'test-km-1',
@@ -255,7 +255,7 @@ describe('useKnowledgeMapStore', () => {
   describe('Navigation', () => {
     it('should navigate to a target', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const target: KnowledgeMapNavigationTarget = {
         knowledgeMapId: 'test-km',
         traceId: 'trace-1',
@@ -271,7 +271,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should support back and forward navigation', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const target1: KnowledgeMapNavigationTarget = {
         knowledgeMapId: 'test-km-1',
         traceId: 'trace-1',
@@ -308,7 +308,7 @@ describe('useKnowledgeMapStore', () => {
   describe('Trace Management', () => {
     it('should add a trace to a knowledge map', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const testMap = createTestKnowledgeMap({ id: 'test-km-trace', traces: [] });
 
       act(() => {
@@ -327,9 +327,9 @@ describe('useKnowledgeMapStore', () => {
 
     it('should update a trace', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const existingTrace = createTestTrace({ id: 'trace-to-update', title: 'Original Trace' });
-      const testMap = createTestKnowledgeMap({ 
+      const testMap = createTestKnowledgeMap({
         id: 'test-km-trace-update',
         traces: [existingTrace],
       });
@@ -339,17 +339,21 @@ describe('useKnowledgeMapStore', () => {
       });
 
       act(() => {
-        result.current.updateTrace('test-km-trace-update', 'trace-to-update', { title: 'Updated Trace' });
+        result.current.updateTrace('test-km-trace-update', 'trace-to-update', {
+          title: 'Updated Trace',
+        });
       });
 
-      expect(result.current.knowledgeMaps['test-km-trace-update']?.traces[0].title).toBe('Updated Trace');
+      expect(result.current.knowledgeMaps['test-km-trace-update']?.traces[0].title).toBe(
+        'Updated Trace'
+      );
     });
 
     it('should delete a trace', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const existingTrace = createTestTrace({ id: 'trace-to-delete', title: 'To Delete' });
-      const testMap = createTestKnowledgeMap({ 
+      const testMap = createTestKnowledgeMap({
         id: 'test-km-trace-delete',
         traces: [existingTrace],
       });
@@ -369,7 +373,7 @@ describe('useKnowledgeMapStore', () => {
   describe('Import/Export', () => {
     it('should import from codemap format', async () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const codemapContent = JSON.stringify({
         schemaVersion: 1,
         id: 'test-codemap',
@@ -391,12 +395,12 @@ describe('useKnowledgeMapStore', () => {
       });
 
       const maps = Object.values(result.current.knowledgeMaps);
-      expect(maps.some(m => m.title === 'Imported Codemap')).toBe(true);
+      expect(maps.some((m) => m.title === 'Imported Codemap')).toBe(true);
     });
 
     it('should export to codemap format', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const testMap = createTestKnowledgeMap({
         id: 'test-km-export',
         title: 'Export Test',
@@ -409,7 +413,7 @@ describe('useKnowledgeMapStore', () => {
 
       const exported = result.current.exportToCodemap('test-km-export');
       expect(exported).toBeDefined();
-      
+
       const parsed = JSON.parse(exported!);
       expect(parsed.title).toBe('Export Test');
       expect(parsed.traces.length).toBe(1);
@@ -419,7 +423,7 @@ describe('useKnowledgeMapStore', () => {
   describe('Error Handling', () => {
     it('should clear errors', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       act(() => {
         result.current.clearError();
       });
@@ -431,7 +435,7 @@ describe('useKnowledgeMapStore', () => {
   describe('Reset', () => {
     it('should reset the store to initial state', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       // Add some data
       const testMap = createTestKnowledgeMap({ id: 'test-km' });
       act(() => {
@@ -452,7 +456,7 @@ describe('useKnowledgeMapStore', () => {
   describe('Content Generation', () => {
     it('should generate knowledge map from content', async () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const mockKnowledgeMap = createTestKnowledgeMap({
         id: 'generated-km',
         title: 'Generated from Content',
@@ -462,7 +466,10 @@ describe('useKnowledgeMapStore', () => {
       (invoke as jest.Mock).mockResolvedValueOnce(mockKnowledgeMap);
 
       await act(async () => {
-        await result.current.generateFromContent('# Test Content\n\nThis is test content.', 'Test Title');
+        await result.current.generateFromContent(
+          '# Test Content\n\nThis is test content.',
+          'Test Title'
+        );
       });
 
       expect(Object.keys(result.current.knowledgeMaps).length).toBeGreaterThan(0);
@@ -472,7 +479,7 @@ describe('useKnowledgeMapStore', () => {
   describe('Edge Cases', () => {
     it('should handle empty content gracefully', async () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const mockKnowledgeMap = createTestKnowledgeMap({
         id: 'empty-content-km',
         title: 'Empty Content',
@@ -492,7 +499,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should handle very long content', async () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const longContent = 'A'.repeat(100000);
       const mockKnowledgeMap = createTestKnowledgeMap({
         id: 'long-content-km',
@@ -511,7 +518,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should handle special characters in title', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const testMap = createTestKnowledgeMap({
         id: 'special-chars-km',
         title: 'Test <script>alert("xss")</script> & "quotes"',
@@ -526,7 +533,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should handle unicode content', async () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const unicodeContent = '# 中文标题\n\n日本語テキスト\n\n한국어 텍스트\n\nΕλληνικά\n\nالعربية';
       const mockKnowledgeMap = createTestKnowledgeMap({
         id: 'unicode-km',
@@ -545,7 +552,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should handle concurrent operations', async () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const mockKnowledgeMap1 = createTestKnowledgeMap({ id: 'concurrent-1' });
       const mockKnowledgeMap2 = createTestKnowledgeMap({ id: 'concurrent-2' });
 
@@ -567,7 +574,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should handle null active knowledge map gracefully', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       act(() => {
         result.current.setActiveKnowledgeMap(null);
       });
@@ -578,7 +585,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should handle updating non-existent knowledge map', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       act(() => {
         result.current.updateKnowledgeMap('non-existent-id', { title: 'New Title' });
       });
@@ -589,7 +596,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should handle deleting non-existent knowledge map', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       act(() => {
         result.current.deleteKnowledgeMap('non-existent-id');
       });
@@ -600,7 +607,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should preserve other knowledge maps when deleting one', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const map1 = createTestKnowledgeMap({ id: 'keep-km' });
       const map2 = createTestKnowledgeMap({ id: 'delete-km' });
 
@@ -619,7 +626,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should handle multiple traces in a knowledge map', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const testMap = createTestKnowledgeMap({
         id: 'multi-trace-km',
         traces: [
@@ -638,7 +645,7 @@ describe('useKnowledgeMapStore', () => {
 
     it('should handle deeply nested locations', () => {
       const { result } = renderHook(() => useKnowledgeMapStore());
-      
+
       const traceWithLocations = createTestTrace({
         id: 'deep-trace',
         locations: [

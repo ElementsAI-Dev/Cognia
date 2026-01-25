@@ -128,11 +128,7 @@ export const useMemoryStore = create<MemoryState>()(
 
       updateMemory: (id, updates) =>
         set((state) => ({
-          memories: state.memories.map((m) =>
-            m.id === id
-              ? { ...m, ...updates }
-              : m
-          ),
+          memories: state.memories.map((m) => (m.id === id ? { ...m, ...updates } : m)),
         })),
 
       deleteMemory: (id) =>
@@ -140,8 +136,7 @@ export const useMemoryStore = create<MemoryState>()(
           memories: state.memories.filter((m) => m.id !== id),
         })),
 
-      clearAllMemories: () =>
-        set({ memories: [] }),
+      clearAllMemories: () => set({ memories: [] }),
 
       useMemory: (id) =>
         set((state) => ({
@@ -158,9 +153,7 @@ export const useMemoryStore = create<MemoryState>()(
 
       togglePin: (id) =>
         set((state) => ({
-          memories: state.memories.map((m) =>
-            m.id === id ? { ...m, pinned: !m.pinned } : m
-          ),
+          memories: state.memories.map((m) => (m.id === id ? { ...m, pinned: !m.pinned } : m)),
         })),
 
       setPriority: (id, priority) =>
@@ -267,13 +260,25 @@ export const useMemoryStore = create<MemoryState>()(
           if (memory.enabled) enabled++;
           if (memory.pinned) pinned++;
           if (memory.expiresAt) {
-            const expiresAt = memory.expiresAt instanceof Date ? memory.expiresAt : new Date(memory.expiresAt);
+            const expiresAt =
+              memory.expiresAt instanceof Date ? memory.expiresAt : new Date(memory.expiresAt);
             if (expiresAt <= weekFromNow) expiringSoon++;
           }
-          const lastUsed = memory.lastUsedAt instanceof Date ? memory.lastUsedAt.getTime() : new Date(memory.lastUsedAt).getTime();
+          const lastUsed =
+            memory.lastUsedAt instanceof Date
+              ? memory.lastUsedAt.getTime()
+              : new Date(memory.lastUsedAt).getTime();
           if (lastUsed >= weekAgo) recentlyUsed++;
         }
-        return { total: memories.length, enabled, pinned, byType, byScope, expiringSoon, recentlyUsed };
+        return {
+          total: memories.length,
+          enabled,
+          pinned,
+          byType,
+          byScope,
+          expiringSoon,
+          recentlyUsed,
+        };
       },
 
       // Generate prompt section from memories and track their usage
@@ -332,9 +337,7 @@ export const useMemoryStore = create<MemoryState>()(
         }
 
         if (byType.fact?.length) {
-          sections.push(
-            `About the user:\n${byType.fact.map((m) => `- ${m.content}`).join('\n')}`
-          );
+          sections.push(`About the user:\n${byType.fact.map((m) => `- ${m.content}`).join('\n')}`);
         }
 
         if (byType.instruction?.length) {
@@ -344,9 +347,7 @@ export const useMemoryStore = create<MemoryState>()(
         }
 
         if (byType.context?.length) {
-          sections.push(
-            `Context:\n${byType.context.map((m) => `- ${m.content}`).join('\n')}`
-          );
+          sections.push(`Context:\n${byType.context.map((m) => `- ${m.content}`).join('\n')}`);
         }
 
         if (sections.length === 0) {
@@ -361,7 +362,7 @@ export const useMemoryStore = create<MemoryState>()(
         const lowerText = text.toLowerCase();
 
         // Check for explicit "remember" commands
-        if (lowerText.includes('remember') || lowerText.includes('don\'t forget')) {
+        if (lowerText.includes('remember') || lowerText.includes("don't forget")) {
           return {
             type: 'instruction',
             content: text,
@@ -391,7 +392,7 @@ export const useMemoryStore = create<MemoryState>()(
         const { memories } = get();
         const lowerContent = content.toLowerCase();
         const words = lowerContent.split(/\s+/).filter((w) => w.length > 3);
-        
+
         if (words.length === 0) return [];
 
         return memories.filter((m) => {
@@ -425,9 +426,13 @@ export const useMemoryStore = create<MemoryState>()(
 
         try {
           const data = JSON.parse(jsonData);
-          
+
           if (!data.memories || !Array.isArray(data.memories)) {
-            return { success: false, imported: 0, errors: ['Invalid format: memories array not found'] };
+            return {
+              success: false,
+              imported: 0,
+              errors: ['Invalid format: memories array not found'],
+            };
           }
 
           const { memories: currentMemories, settings: currentSettings } = get();
@@ -559,7 +564,10 @@ export const useMemoryStore = create<MemoryState>()(
           const newMemories = state.memories.filter((m) => {
             // Never clean pinned memories
             if (m.pinned) return true;
-            const lastUsed = m.lastUsedAt instanceof Date ? m.lastUsedAt.getTime() : new Date(m.lastUsedAt).getTime();
+            const lastUsed =
+              m.lastUsedAt instanceof Date
+                ? m.lastUsedAt.getTime()
+                : new Date(m.lastUsedAt).getTime();
             if (lastUsed < threshold && m.useCount === 0) {
               cleaned++;
               return false;

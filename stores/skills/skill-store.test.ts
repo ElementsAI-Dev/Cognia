@@ -56,7 +56,9 @@ describe('useSkillStore', () => {
         });
       });
 
-      expect((skill as unknown as { metadata: { name: string } }).metadata.name).toBe('my-test-skill');
+      expect((skill as unknown as { metadata: { name: string } }).metadata.name).toBe(
+        'my-test-skill'
+      );
     });
 
     it('should set default values', () => {
@@ -116,7 +118,9 @@ describe('useSkillStore', () => {
         });
       });
 
-      expect(result.current.skills['test-skill-id'].metadata.description).toBe('Updated description');
+      expect(result.current.skills['test-skill-id'].metadata.description).toBe(
+        'Updated description'
+      );
     });
 
     it('should update updatedAt timestamp', () => {

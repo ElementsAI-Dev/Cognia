@@ -18,7 +18,14 @@ import {
   selectSelectedLanguage,
   selectEditorCode,
 } from './sandbox-store';
-import type { SandboxExecutionResult, SandboxExecutionRecord, CodeSnippet, ExecutionSession, SandboxStats, BackendSandboxConfig } from '@/types/system/sandbox';
+import type {
+  SandboxExecutionResult,
+  SandboxExecutionRecord,
+  CodeSnippet,
+  ExecutionSession,
+  SandboxStats,
+  BackendSandboxConfig,
+} from '@/types/system/sandbox';
 
 describe('useSandboxStore', () => {
   beforeEach(() => {

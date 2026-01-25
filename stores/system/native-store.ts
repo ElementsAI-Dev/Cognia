@@ -94,7 +94,11 @@ export interface NativeActions {
 
   // Shortcut conflict detection actions
   detectConflicts: () => Promise<ShortcutConflict[]>;
-  validateShortcut: (shortcut: string, owner: string, action: string) => Promise<ShortcutValidationResult>;
+  validateShortcut: (
+    shortcut: string,
+    owner: string,
+    action: string
+  ) => Promise<ShortcutValidationResult>;
   resolveConflict: (conflict: ShortcutConflict, resolution: ConflictResolution) => Promise<void>;
   setConflictResolutionMode: (mode: ConflictResolutionMode) => void;
   clearConflicts: () => void;
@@ -198,29 +202,22 @@ export const useNativeStore = create<NativeState & NativeActions>()(
     (set) => ({
       ...initialState,
 
-      setSystemInfo: (platform, appVersion) =>
-        set({ platform, appVersion }),
+      setSystemInfo: (platform, appVersion) => set({ platform, appVersion }),
 
-      setIsDesktop: (isDesktop) =>
-        set({ isDesktop }),
+      setIsDesktop: (isDesktop) => set({ isDesktop }),
 
-      setAlwaysOnTop: (isAlwaysOnTop) =>
-        set({ isAlwaysOnTop }),
+      setAlwaysOnTop: (isAlwaysOnTop) => set({ isAlwaysOnTop }),
 
-      setFullscreen: (isFullscreen) =>
-        set({ isFullscreen }),
+      setFullscreen: (isFullscreen) => set({ isFullscreen }),
 
-      setMaximized: (isMaximized) =>
-        set({ isMaximized }),
+      setMaximized: (isMaximized) => set({ isMaximized }),
 
       setUpdateAvailable: (updateAvailable, updateVersion) =>
         set({ updateAvailable, updateVersion: updateVersion ?? null }),
 
-      setUpdateDownloading: (updateDownloading) =>
-        set({ updateDownloading }),
+      setUpdateDownloading: (updateDownloading) => set({ updateDownloading }),
 
-      setUpdateProgress: (updateProgress) =>
-        set({ updateProgress }),
+      setUpdateProgress: (updateProgress) => set({ updateProgress }),
 
       clearUpdateState: () =>
         set({
@@ -230,14 +227,11 @@ export const useNativeStore = create<NativeState & NativeActions>()(
           updateProgress: 0,
         }),
 
-      setNotificationsEnabled: (notificationsEnabled) =>
-        set({ notificationsEnabled }),
+      setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
 
-      setNotificationPermission: (notificationPermission) =>
-        set({ notificationPermission }),
+      setNotificationPermission: (notificationPermission) => set({ notificationPermission }),
 
-      setShortcuts: (shortcuts) =>
-        set({ shortcuts }),
+      setShortcuts: (shortcuts) => set({ shortcuts }),
 
       addShortcut: (shortcut) =>
         set((state) => ({
@@ -246,9 +240,7 @@ export const useNativeStore = create<NativeState & NativeActions>()(
 
       updateShortcut: (id, config) =>
         set((state) => ({
-          shortcuts: state.shortcuts.map((s) =>
-            s.id === id ? { ...s, ...config } : s
-          ),
+          shortcuts: state.shortcuts.map((s) => (s.id === id ? { ...s, ...config } : s)),
         })),
 
       removeShortcut: (id) =>
@@ -256,17 +248,16 @@ export const useNativeStore = create<NativeState & NativeActions>()(
           shortcuts: state.shortcuts.filter((s) => s.id !== id),
         })),
 
-      setShortcutsEnabled: (shortcutsEnabled) =>
-        set({ shortcutsEnabled }),
+      setShortcutsEnabled: (shortcutsEnabled) => set({ shortcutsEnabled }),
 
       // Conflict detection actions
       detectConflicts: async () => {
         const conflicts: ShortcutConflict[] = [];
         const metadata = getAllShortcutMetadata();
-        
+
         // Check for duplicates in metadata
-        const shortcutMap = new Map<string, typeof metadata[0]>();
-        
+        const shortcutMap = new Map<string, (typeof metadata)[0]>();
+
         for (const meta of metadata) {
           const existing = shortcutMap.get(meta.shortcut);
           if (existing && existing.owner !== meta.owner) {
@@ -282,7 +273,7 @@ export const useNativeStore = create<NativeState & NativeActions>()(
             shortcutMap.set(meta.shortcut, meta);
           }
         }
-        
+
         set({ shortcutConflicts: conflicts });
         return conflicts;
       },
@@ -313,7 +304,7 @@ export const useNativeStore = create<NativeState & NativeActions>()(
         } else if (resolution === 'use-new') {
           // Unregister existing and keep new
           await unregisterShortcut(conflict.shortcut);
-          
+
           // Remove conflict from list
           set((state) => ({
             shortcutConflicts: state.shortcutConflicts.filter(
@@ -323,11 +314,9 @@ export const useNativeStore = create<NativeState & NativeActions>()(
         }
       },
 
-      setConflictResolutionMode: (mode) =>
-        set({ conflictResolutionMode: mode }),
+      setConflictResolutionMode: (mode) => set({ conflictResolutionMode: mode }),
 
-      clearConflicts: () =>
-        set({ shortcutConflicts: [] }),
+      clearConflicts: () => set({ shortcutConflicts: [] }),
 
       setNativeToolsConfig: (config) =>
         set((state) => ({

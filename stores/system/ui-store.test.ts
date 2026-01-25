@@ -3,7 +3,12 @@
  */
 
 import { act } from '@testing-library/react';
-import { useUIStore, selectSidebarOpen, selectActiveModal, selectCommandPaletteOpen } from './ui-store';
+import {
+  useUIStore,
+  selectSidebarOpen,
+  selectActiveModal,
+  selectCommandPaletteOpen,
+} from './ui-store';
 
 describe('useUIStore', () => {
   beforeEach(() => {
@@ -192,7 +197,7 @@ describe('useUIStore', () => {
       act(() => {
         useUIStore.getState().openModal('settings');
       });
-      
+
       expect(selectActiveModal(useUIStore.getState())).toBe('settings');
     });
 
@@ -200,7 +205,7 @@ describe('useUIStore', () => {
       act(() => {
         useUIStore.getState().setCommandPaletteOpen(true);
       });
-      
+
       expect(selectCommandPaletteOpen(useUIStore.getState())).toBe(true);
     });
   });

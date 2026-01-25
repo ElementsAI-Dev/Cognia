@@ -180,7 +180,13 @@ interface ClipboardContextActions {
   getSuggestedActions: (content: string) => Promise<SuggestedAction[]>;
 
   // Detection
-  detectCategory: (content: string) => Promise<{ category: ContentCategory; secondary: ContentCategory[]; confidence: number } | null>;
+  detectCategory: (
+    content: string
+  ) => Promise<{
+    category: ContentCategory;
+    secondary: ContentCategory[];
+    confidence: number;
+  } | null>;
   detectLanguage: (content: string) => Promise<DetectedLanguage | null>;
   checkSensitive: (content: string) => Promise<boolean>;
   getStats: (content: string) => Promise<ContentStats | null>;
@@ -306,7 +312,9 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
       if (!isTauri()) return null;
 
       try {
-        const result = await invoke<[string, ClipboardAnalysis] | null>('clipboard_get_current_with_analysis');
+        const result = await invoke<[string, ClipboardAnalysis] | null>(
+          'clipboard_get_current_with_analysis'
+        );
         if (result) {
           const [content, analysis] = result;
           set({ currentContent: content, currentAnalysis: analysis, error: null });
@@ -357,7 +365,9 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
       if (!isTauri()) return [];
 
       try {
-        const actions = await invoke<SuggestedAction[]>('clipboard_get_suggested_actions', { content });
+        const actions = await invoke<SuggestedAction[]>('clipboard_get_suggested_actions', {
+          content,
+        });
         return actions;
       } catch (error) {
         console.error('Failed to get suggested actions:', error);
@@ -369,7 +379,10 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
       if (!isTauri()) return null;
 
       try {
-        const result = await invoke<[ContentCategory, ContentCategory[], number]>('clipboard_detect_category', { content });
+        const result = await invoke<[ContentCategory, ContentCategory[], number]>(
+          'clipboard_detect_category',
+          { content }
+        );
         return { category: result[0], secondary: result[1], confidence: result[2] };
       } catch (error) {
         console.error('Failed to detect category:', error);
@@ -381,7 +394,9 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
       if (!isTauri()) return null;
 
       try {
-        const language = await invoke<DetectedLanguage | null>('clipboard_detect_language', { content });
+        const language = await invoke<DetectedLanguage | null>('clipboard_detect_language', {
+          content,
+        });
         return language;
       } catch (error) {
         console.error('Failed to detect language:', error);
@@ -431,9 +446,7 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
 
     updateTemplate: (id: string, updates: Partial<ClipboardTemplate>) => {
       set((state) => ({
-        templates: state.templates.map((t) =>
-          t.id === id ? { ...t, ...updates } : t
-        ),
+        templates: state.templates.map((t) => (t.id === id ? { ...t, ...updates } : t)),
       }));
     },
 
@@ -536,8 +549,7 @@ export const useCurrentClipboardContent = () =>
 export const useCurrentClipboardAnalysis = () =>
   useClipboardContextStore((state) => state.currentAnalysis);
 
-export const useClipboardTemplates = () =>
-  useClipboardContextStore((state) => state.templates);
+export const useClipboardTemplates = () => useClipboardContextStore((state) => state.templates);
 
 export const useIsClipboardMonitoring = () =>
   useClipboardContextStore((state) => state.isMonitoring);

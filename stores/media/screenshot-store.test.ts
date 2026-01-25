@@ -154,7 +154,9 @@ describe('useScreenshotStore', () => {
       });
 
       expect(result.current.lastScreenshot).not.toBeNull();
-      expect(mockInvoke).toHaveBeenCalledWith('screenshot_capture_fullscreen_with_history', { monitorIndex: 0 });
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_capture_fullscreen_with_history', {
+        monitorIndex: 0,
+      });
     });
 
     it('should handle capture errors', async () => {
@@ -384,15 +386,17 @@ describe('useScreenshotStore', () => {
           return Promise.resolve(true);
         }
         if (command === 'screenshot_get_history') {
-          return Promise.resolve([{
-            id: '1',
-            timestamp: Date.now(),
-            width: 1920,
-            height: 1080,
-            mode: 'fullscreen',
-            tags: ['new-tag'],
-            is_pinned: false,
-          }]);
+          return Promise.resolve([
+            {
+              id: '1',
+              timestamp: Date.now(),
+              width: 1920,
+              height: 1080,
+              mode: 'fullscreen',
+              tags: ['new-tag'],
+              is_pinned: false,
+            },
+          ]);
         }
         return Promise.resolve();
       });
@@ -412,15 +416,17 @@ describe('useScreenshotStore', () => {
           return Promise.resolve(true);
         }
         if (command === 'screenshot_get_history') {
-          return Promise.resolve([{
-            id: '1',
-            timestamp: Date.now(),
-            width: 1920,
-            height: 1080,
-            mode: 'fullscreen',
-            tags: [],
-            is_pinned: false,
-          }]);
+          return Promise.resolve([
+            {
+              id: '1',
+              timestamp: Date.now(),
+              width: 1920,
+              height: 1080,
+              mode: 'fullscreen',
+              tags: [],
+              is_pinned: false,
+            },
+          ]);
         }
         return Promise.resolve();
       });
@@ -440,16 +446,18 @@ describe('useScreenshotStore', () => {
           return Promise.resolve(true);
         }
         if (command === 'screenshot_get_history') {
-          return Promise.resolve([{
-            id: '1',
-            timestamp: Date.now(),
-            width: 1920,
-            height: 1080,
-            mode: 'fullscreen',
-            tags: [],
-            label: 'My Label',
-            is_pinned: false,
-          }]);
+          return Promise.resolve([
+            {
+              id: '1',
+              timestamp: Date.now(),
+              width: 1920,
+              height: 1080,
+              mode: 'fullscreen',
+              tags: [],
+              label: 'My Label',
+              is_pinned: false,
+            },
+          ]);
         }
         return Promise.resolve();
       });
@@ -460,7 +468,10 @@ describe('useScreenshotStore', () => {
         await result.current.setLabel('1', 'My Label');
       });
 
-      expect(mockInvoke).toHaveBeenCalledWith('screenshot_set_label', { id: '1', label: 'My Label' });
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_set_label', {
+        id: '1',
+        label: 'My Label',
+      });
     });
   });
 

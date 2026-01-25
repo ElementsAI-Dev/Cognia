@@ -1,6 +1,6 @@
 /**
  * Learning Store Tests
- * 
+ *
  * Unit tests for the learning mode Zustand store.
  */
 
@@ -47,11 +47,10 @@ describe('useLearningStore', () => {
       });
 
       act(() => {
-        result.current.endLearningSession(
-          learningSession.id,
-          'Great learning session!',
-          ['Key takeaway 1', 'Key takeaway 2']
-        );
+        result.current.endLearningSession(learningSession.id, 'Great learning session!', [
+          'Key takeaway 1',
+          'Key takeaway 2',
+        ]);
       });
 
       const session = result.current.getLearningSession(learningSession.id);
@@ -173,11 +172,10 @@ describe('useLearningStore', () => {
       });
 
       act(() => {
-        result.current.markSubQuestionResolved(
-          learningSession.id,
-          subQuestion.id,
-          ['Insight 1', 'Insight 2']
-        );
+        result.current.markSubQuestionResolved(learningSession.id, subQuestion.id, [
+          'Insight 1',
+          'Insight 2',
+        ]);
       });
 
       const session = result.current.getLearningSession(learningSession.id);
@@ -205,7 +203,11 @@ describe('useLearningStore', () => {
       act(() => {
         result.current.incrementAttempts(learningSession.id, subQuestion.id);
         result.current.incrementAttempts(learningSession.id, subQuestion.id);
-        result.current.addHintToSubQuestion(learningSession.id, subQuestion.id, 'Try thinking about...');
+        result.current.addHintToSubQuestion(
+          learningSession.id,
+          subQuestion.id,
+          'Try thinking about...'
+        );
       });
 
       const session = result.current.getLearningSession(learningSession.id);
@@ -422,7 +424,11 @@ describe('useLearningStore', () => {
 
       let concept!: ReturnType<typeof result.current.addConcept>;
       act(() => {
-        concept = result.current.addConcept(learningSession.id, 'Recursion', 'A function that calls itself');
+        concept = result.current.addConcept(
+          learningSession.id,
+          'Recursion',
+          'A function that calls itself'
+        );
       });
 
       expect(concept.name).toBe('Recursion');
@@ -455,7 +461,7 @@ describe('useLearningStore', () => {
       });
 
       const session = result.current.getLearningSession(learningSession.id);
-      const updatedConcept = session?.concepts.find(c => c.id === concept.id);
+      const updatedConcept = session?.concepts.find((c) => c.id === concept.id);
       expect(updatedConcept?.correctAnswers).toBe(3);
       expect(updatedConcept?.totalAttempts).toBe(3);
       expect(updatedConcept?.masteryScore).toBe(100);
@@ -482,7 +488,7 @@ describe('useLearningStore', () => {
       });
 
       const session = result.current.getLearningSession(learningSession.id);
-      const updatedConcept = session?.concepts.find(c => c.id === concept.id);
+      const updatedConcept = session?.concepts.find((c) => c.id === concept.id);
       expect(updatedConcept?.correctAnswers).toBe(0);
       expect(updatedConcept?.totalAttempts).toBe(1);
       expect(updatedConcept?.masteryScore).toBe(0);
@@ -549,7 +555,9 @@ describe('useLearningStore', () => {
         });
       });
 
-      const initialEngagement = result.current.getLearningSession(learningSession.id)?.engagementScore;
+      const initialEngagement = result.current.getLearningSession(
+        learningSession.id
+      )?.engagementScore;
 
       act(() => {
         result.current.updateEngagement(learningSession.id, true);
@@ -740,7 +748,7 @@ describe('useLearningStore', () => {
       });
 
       const session = result.current.getLearningSession(learningSession.id);
-      const updatedItem = session?.reviewItems.find(r => r.id === reviewItem.id);
+      const updatedItem = session?.reviewItems.find((r) => r.id === reviewItem.id);
       expect(updatedItem?.repetitions).toBe(1);
       expect(updatedItem?.interval).toBe(1);
       expect(updatedItem?.lastReviewedAt).toBeDefined();

@@ -33,13 +33,13 @@ interface PluginState extends PluginStoreState {
   disablePlugin: (pluginId: string) => Promise<void>;
   unloadPlugin: (pluginId: string) => Promise<void>;
   uninstallPlugin: (pluginId: string, options?: { skipFileRemoval?: boolean }) => Promise<void>;
-  
+
   // Actions - Plugin State
   setPluginStatus: (pluginId: string, status: PluginStatus) => void;
   setPluginError: (pluginId: string, error: string | null) => void;
   setPluginConfig: (pluginId: string, config: Record<string, unknown>) => void;
   updatePluginConfig: (pluginId: string, updates: Record<string, unknown>) => void;
-  
+
   // Actions - Plugin Registration
   registerPluginHooks: (pluginId: string, hooks: PluginHooks) => void;
   registerPluginTool: (pluginId: string, tool: PluginTool) => void;
@@ -50,7 +50,7 @@ interface PluginState extends PluginStoreState {
   unregisterPluginMode: (pluginId: string, modeId: string) => void;
   registerPluginCommand: (pluginId: string, command: PluginCommand) => void;
   unregisterPluginCommand: (pluginId: string, commandId: string) => void;
-  
+
   // Actions - System
   initialize: (pluginDirectory: string) => Promise<void>;
   scanPlugins: () => Promise<void>;
@@ -61,12 +61,12 @@ interface PluginState extends PluginStoreState {
   getAllComponents: () => PluginA2UIComponent[];
   getAllModes: () => AgentModeConfig[];
   getAllCommands: () => PluginCommand[];
-  
+
   // Events
   eventListeners: Map<string, Set<(event: PluginSystemEvent) => void>>;
   addEventListener: (type: string, listener: (event: PluginSystemEvent) => void) => () => void;
   emitEvent: (event: PluginSystemEvent) => void;
-  
+
   // Reset
   reset: () => void;
 }
@@ -75,7 +75,9 @@ interface PluginState extends PluginStoreState {
 // Initial State
 // =============================================================================
 
-const initialState: PluginStoreState & { eventListeners: Map<string, Set<(event: PluginSystemEvent) => void>> } = {
+const initialState: PluginStoreState & {
+  eventListeners: Map<string, Set<(event: PluginSystemEvent) => void>>;
+} = {
   plugins: {},
   loadOrder: [],
   loading: new Set(),
@@ -211,8 +213,8 @@ export const usePluginStore = create<PluginState>()(
           set((state) => ({
             plugins: {
               ...state.plugins,
-              [pluginId]: { 
-                ...state.plugins[pluginId], 
+              [pluginId]: {
+                ...state.plugins[pluginId],
                 status: 'enabled',
                 enabledAt: new Date(),
               },
@@ -486,9 +488,7 @@ export const usePluginStore = create<PluginState>()(
           if (!plugin) return state;
 
           const existingComponents = plugin.components || [];
-          const filteredComponents = existingComponents.filter(
-            (c) => c.type !== component.type
-          );
+          const filteredComponents = existingComponents.filter((c) => c.type !== component.type);
 
           return {
             plugins: {
@@ -704,7 +704,7 @@ export const usePluginStore = create<PluginState>()(
 
       emitEvent: (event) => {
         const listeners = get().eventListeners;
-        
+
         // Emit to specific type listeners
         const typeListeners = listeners.get(event.type);
         if (typeListeners) {
@@ -758,8 +758,7 @@ export const usePluginStore = create<PluginState>()(
 // Selectors
 // =============================================================================
 
-export const selectPlugin = (pluginId: string) => (state: PluginState) =>
-  state.plugins[pluginId];
+export const selectPlugin = (pluginId: string) => (state: PluginState) => state.plugins[pluginId];
 
 export const selectEnabledPlugins = (state: PluginState) =>
   Object.values(state.plugins).filter((p) => p.status === 'enabled');

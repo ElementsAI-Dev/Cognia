@@ -29,7 +29,10 @@ const createMockPaper = (id: string, overrides: Partial<Paper> = {}): Paper => (
   ...overrides,
 });
 
-const createMockLibraryPaper = (id: string, overrides: Partial<LibraryPaper> = {}): LibraryPaper => ({
+const createMockLibraryPaper = (
+  id: string,
+  overrides: Partial<LibraryPaper> = {}
+): LibraryPaper => ({
   ...createMockPaper(id),
   libraryId: `lib-${id}`,
   addedAt: new Date(),
@@ -38,7 +41,10 @@ const createMockLibraryPaper = (id: string, overrides: Partial<LibraryPaper> = {
   ...overrides,
 });
 
-const createMockCollection = (id: string, overrides: Partial<PaperCollection> = {}): PaperCollection => ({
+const createMockCollection = (
+  id: string,
+  overrides: Partial<PaperCollection> = {}
+): PaperCollection => ({
   id,
   name: `Collection ${id}`,
   paperIds: [],
@@ -395,9 +401,12 @@ describe('useAcademicStore', () => {
         await result.current.addTag('1', 'new-tag');
       });
 
-      expect(mockInvoke).toHaveBeenCalledWith('academic_update_paper', expect.objectContaining({
-        paperId: '1',
-      }));
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'academic_update_paper',
+        expect.objectContaining({
+          paperId: '1',
+        })
+      );
     });
 
     it('should not add duplicate tag', async () => {
@@ -437,9 +446,12 @@ describe('useAcademicStore', () => {
         await result.current.removeTag('1', 'tag2');
       });
 
-      expect(mockInvoke).toHaveBeenCalledWith('academic_update_paper', expect.objectContaining({
-        paperId: '1',
-      }));
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'academic_update_paper',
+        expect.objectContaining({
+          paperId: '1',
+        })
+      );
     });
   });
 
@@ -514,12 +526,18 @@ describe('useAcademicStore', () => {
         await result.current.batchUpdateStatus(['1', '2'], 'completed');
       });
 
-      expect(mockInvoke).toHaveBeenCalledWith('academic_update_paper', expect.objectContaining({
-        paperId: '1',
-      }));
-      expect(mockInvoke).toHaveBeenCalledWith('academic_update_paper', expect.objectContaining({
-        paperId: '2',
-      }));
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'academic_update_paper',
+        expect.objectContaining({
+          paperId: '1',
+        })
+      );
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'academic_update_paper',
+        expect.objectContaining({
+          paperId: '2',
+        })
+      );
     });
 
     it('should batch add to collection', async () => {
@@ -566,7 +584,9 @@ describe('useAcademicStore', () => {
         result.current.addSearchHistory('machine learning');
       });
 
-      expect(result.current.search.searchHistory.filter(q => q === 'machine learning').length).toBe(1);
+      expect(
+        result.current.search.searchHistory.filter((q) => q === 'machine learning').length
+      ).toBe(1);
     });
 
     it('should move duplicate to top of history', () => {
@@ -627,7 +647,9 @@ describe('useAcademicStore', () => {
 
       expect(result.current.library.analysisHistory['paper-1']).toBeDefined();
       expect(result.current.library.analysisHistory['paper-1'].length).toBe(1);
-      expect(result.current.library.analysisHistory['paper-1'][0].content).toBe('This is a summary');
+      expect(result.current.library.analysisHistory['paper-1'][0].content).toBe(
+        'This is a summary'
+      );
     });
 
     it('should get analysis history', () => {

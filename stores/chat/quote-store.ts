@@ -22,13 +22,13 @@ interface QuoteState {
   maxQuotes: number;
   selectedIds: Set<string>;
   isSelectionMode: boolean;
-  
+
   // Basic operations
   addQuote: (quote: Omit<QuotedText, 'id' | 'createdAt'>) => void;
   removeQuote: (id: string) => void;
   clearQuotes: () => void;
   getFormattedQuotes: () => string;
-  
+
   // Enhanced operations
   updateQuote: (id: string, content: string) => void;
   moveQuoteUp: (id: string) => void;
@@ -38,21 +38,21 @@ interface QuoteState {
   collapseAll: () => void;
   expandAll: () => void;
   duplicateQuote: (id: string) => void;
-  
+
   // Selection operations
   toggleSelectionMode: () => void;
   toggleSelect: (id: string) => void;
   selectAll: () => void;
   deselectAll: () => void;
   removeSelected: () => void;
-  
+
   // Merge & Export operations
   mergeQuotes: (ids: string[]) => void;
   mergeSelected: () => void;
   exportQuotes: (format: ExportFormat, ids?: string[]) => string;
   exportSelected: (format: ExportFormat) => string;
   copyToClipboard: (text: string) => Promise<void>;
-  
+
   // Utility
   getQuoteCount: () => number;
   canAddMore: () => boolean;
@@ -68,7 +68,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   addQuote: (quote) => {
     const { quotedTexts, maxQuotes } = get();
     if (quotedTexts.length >= maxQuotes) return;
-    
+
     const newQuote: QuotedText = {
       ...quote,
       id: nanoid(),
@@ -104,9 +104,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
 
   updateQuote: (id, content) => {
     set((state) => ({
-      quotedTexts: state.quotedTexts.map((q) =>
-        q.id === id ? { ...q, content } : q
-      ),
+      quotedTexts: state.quotedTexts.map((q) => (q.id === id ? { ...q, content } : q)),
     }));
   },
 
@@ -114,7 +112,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     set((state) => {
       const index = state.quotedTexts.findIndex((q) => q.id === id);
       if (index <= 0) return state;
-      
+
       const newQuotes = [...state.quotedTexts];
       [newQuotes[index - 1], newQuotes[index]] = [newQuotes[index], newQuotes[index - 1]];
       return { quotedTexts: newQuotes };
@@ -125,7 +123,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     set((state) => {
       const index = state.quotedTexts.findIndex((q) => q.id === id);
       if (index < 0 || index >= state.quotedTexts.length - 1) return state;
-      
+
       const newQuotes = [...state.quotedTexts];
       [newQuotes[index], newQuotes[index + 1]] = [newQuotes[index + 1], newQuotes[index]];
       return { quotedTexts: newQuotes };
@@ -142,7 +140,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       ) {
         return state;
       }
-      
+
       const newQuotes = [...state.quotedTexts];
       const [removed] = newQuotes.splice(fromIndex, 1);
       newQuotes.splice(toIndex, 0, removed);
@@ -173,16 +171,16 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   duplicateQuote: (id) => {
     const { quotedTexts, maxQuotes } = get();
     if (quotedTexts.length >= maxQuotes) return;
-    
+
     const original = quotedTexts.find((q) => q.id === id);
     if (!original) return;
-    
+
     const duplicate: QuotedText = {
       ...original,
       id: nanoid(),
       createdAt: new Date(),
     };
-    
+
     set((state) => {
       const index = state.quotedTexts.findIndex((q) => q.id === id);
       const newQuotes = [...state.quotedTexts];
@@ -192,7 +190,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   },
 
   getQuoteCount: () => get().quotedTexts.length,
-  
+
   canAddMore: () => {
     const { quotedTexts, maxQuotes } = get();
     return quotedTexts.length < maxQuotes;
@@ -260,7 +258,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     set((state) => {
       const filteredQuotes = state.quotedTexts.filter((q) => !ids.includes(q.id));
       filteredQuotes.splice(firstIndex, 0, mergedQuote);
-      return { 
+      return {
         quotedTexts: filteredQuotes,
         selectedIds: new Set<string>(),
       };
@@ -277,9 +275,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
 
   exportQuotes: (format, ids) => {
     const { quotedTexts } = get();
-    const quotesToExport = ids 
-      ? quotedTexts.filter((q) => ids.includes(q.id))
-      : quotedTexts;
+    const quotesToExport = ids ? quotedTexts.filter((q) => ids.includes(q.id)) : quotedTexts;
 
     if (quotesToExport.length === 0) return '';
 

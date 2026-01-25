@@ -82,17 +82,19 @@ describe('useTemplateStore', () => {
 
     it('should not update builtin template', () => {
       useTemplateStore.setState({
-        templates: [{
-          id: 'builtin-1',
-          name: 'Built-in',
-          description: 'Builtin template',
-          icon: '📝',
-          category: 'general',
-          systemPrompt: 'Test',
-          isBuiltIn: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }],
+        templates: [
+          {
+            id: 'builtin-1',
+            name: 'Built-in',
+            description: 'Builtin template',
+            icon: '📝',
+            category: 'general',
+            systemPrompt: 'Test',
+            isBuiltIn: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
       });
 
       act(() => {
@@ -124,17 +126,19 @@ describe('useTemplateStore', () => {
 
     it('should not delete builtin template', () => {
       useTemplateStore.setState({
-        templates: [{
-          id: 'builtin-1',
-          name: 'Built-in',
-          description: 'Builtin template',
-          icon: '📝',
-          category: 'general',
-          systemPrompt: 'Test',
-          isBuiltIn: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }],
+        templates: [
+          {
+            id: 'builtin-1',
+            name: 'Built-in',
+            description: 'Builtin template',
+            icon: '📝',
+            category: 'general',
+            systemPrompt: 'Test',
+            isBuiltIn: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
       });
 
       act(() => {

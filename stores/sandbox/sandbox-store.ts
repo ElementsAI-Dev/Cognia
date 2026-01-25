@@ -75,44 +75,44 @@ export interface SandboxActions {
   setLanguages: (languages: string[]) => void;
   setAllLanguages: (languages: string[]) => void;
   setAvailableLanguages: (languages: string[]) => void;
-  
+
   // Execution state
   startExecution: (executionId: string) => void;
   completeExecution: (result: SandboxExecutionResult) => void;
   failExecution: (error: string) => void;
   resetExecution: () => void;
-  
+
   // History
   setRecentExecutions: (executions: SandboxExecutionRecord[]) => void;
   addExecution: (execution: SandboxExecutionRecord) => void;
   removeExecution: (id: string) => void;
   setHistoryLoading: (loading: boolean) => void;
-  
+
   // Snippets
   setSnippets: (snippets: CodeSnippet[]) => void;
   addSnippet: (snippet: CodeSnippet) => void;
   updateSnippet: (id: string, updates: Partial<CodeSnippet>) => void;
   removeSnippet: (id: string) => void;
   setSnippetsLoading: (loading: boolean) => void;
-  
+
   // Sessions
   setCurrentSession: (session: ExecutionSession | null) => void;
   setSessions: (sessions: ExecutionSession[]) => void;
   addSession: (session: ExecutionSession) => void;
   removeSession: (id: string) => void;
-  
+
   // Statistics
   setStats: (stats: SandboxStats | null) => void;
   setLanguageStats: (language: string, stats: LanguageStats) => void;
-  
+
   // UI state
   setSelectedLanguage: (language: string) => void;
   setEditorCode: (code: string) => void;
-  
+
   // Error handling
   setError: (error: string | null) => void;
   clearError: () => void;
-  
+
   // Reset
   reset: () => void;
 }
@@ -196,8 +196,7 @@ export const useSandboxStore = create<SandboxState & SandboxActions>()(
         }),
 
       // History
-      setRecentExecutions: (executions) =>
-        set({ recentExecutions: executions }),
+      setRecentExecutions: (executions) => set({ recentExecutions: executions }),
 
       addExecution: (execution) =>
         set((state) => ({
@@ -221,9 +220,7 @@ export const useSandboxStore = create<SandboxState & SandboxActions>()(
 
       updateSnippet: (id, updates) =>
         set((state) => ({
-          snippets: state.snippets.map((s) =>
-            s.id === id ? { ...s, ...updates } : s
-          ),
+          snippets: state.snippets.map((s) => (s.id === id ? { ...s, ...updates } : s)),
         })),
 
       removeSnippet: (id) =>
@@ -246,8 +243,7 @@ export const useSandboxStore = create<SandboxState & SandboxActions>()(
       removeSession: (id) =>
         set((state) => ({
           sessions: state.sessions.filter((s) => s.id !== id),
-          currentSession:
-            state.currentSession?.id === id ? null : state.currentSession,
+          currentSession: state.currentSession?.id === id ? null : state.currentSession,
         })),
 
       // Statistics
@@ -283,23 +279,15 @@ export const useSandboxStore = create<SandboxState & SandboxActions>()(
 );
 
 // Selectors
-export const selectIsExecuting = (state: SandboxState) =>
-  state.execution.isExecuting;
-export const selectLastResult = (state: SandboxState) =>
-  state.execution.lastResult;
-export const selectExecutionError = (state: SandboxState) =>
-  state.execution.error;
+export const selectIsExecuting = (state: SandboxState) => state.execution.isExecuting;
+export const selectLastResult = (state: SandboxState) => state.execution.lastResult;
+export const selectExecutionError = (state: SandboxState) => state.execution.error;
 export const selectSandboxConfig = (state: SandboxState) => state.config;
-export const selectAvailableRuntimes = (state: SandboxState) =>
-  state.availableRuntimes;
-export const selectSupportedLanguages = (state: SandboxState) =>
-  state.supportedLanguages;
-export const selectRecentExecutions = (state: SandboxState) =>
-  state.recentExecutions;
+export const selectAvailableRuntimes = (state: SandboxState) => state.availableRuntimes;
+export const selectSupportedLanguages = (state: SandboxState) => state.supportedLanguages;
+export const selectRecentExecutions = (state: SandboxState) => state.recentExecutions;
 export const selectSnippets = (state: SandboxState) => state.snippets;
-export const selectCurrentSession = (state: SandboxState) =>
-  state.currentSession;
+export const selectCurrentSession = (state: SandboxState) => state.currentSession;
 export const selectSandboxStats = (state: SandboxState) => state.stats;
-export const selectSelectedLanguage = (state: SandboxState) =>
-  state.selectedLanguage;
+export const selectSelectedLanguage = (state: SandboxState) => state.selectedLanguage;
 export const selectEditorCode = (state: SandboxState) => state.editorCode;

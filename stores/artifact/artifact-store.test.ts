@@ -518,14 +518,14 @@ describe('useArtifactStore', () => {
 
     it('should filter search by sessionId', () => {
       const results = useArtifactStore.getState().searchArtifacts('Hello', 'session-1');
-      const session2Results = results.filter(a => a.sessionId === 'session-2');
+      const session2Results = results.filter((a) => a.sessionId === 'session-2');
       expect(session2Results).toHaveLength(0);
     });
 
     it('should filter artifacts by type', () => {
       const codeArtifacts = useArtifactStore.getState().filterArtifactsByType('code');
       expect(codeArtifacts).toHaveLength(2);
-      expect(codeArtifacts.every(a => a.type === 'code')).toBe(true);
+      expect(codeArtifacts.every((a) => a.type === 'code')).toBe(true);
     });
 
     it('should filter artifacts by type and sessionId', () => {

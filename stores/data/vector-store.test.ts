@@ -140,7 +140,9 @@ describe('useVectorStore', () => {
       });
 
       expect(useVectorStore.getState().getCollectionByName('My Collection')).toBeDefined();
-      expect(useVectorStore.getState().getCollectionByName('My Collection')?.name).toBe('My Collection');
+      expect(useVectorStore.getState().getCollectionByName('My Collection')?.name).toBe(
+        'My Collection'
+      );
       expect(useVectorStore.getState().getCollectionByName('Non-existent')).toBeUndefined();
     });
 
@@ -183,10 +185,12 @@ describe('useVectorStore', () => {
 
     it('should add documents', () => {
       act(() => {
-        useVectorStore.getState().addDocuments(collectionId, [
-          { content: 'Document 1', metadata: { source: 'test' } },
-          { content: 'Document 2' },
-        ]);
+        useVectorStore
+          .getState()
+          .addDocuments(collectionId, [
+            { content: 'Document 1', metadata: { source: 'test' } },
+            { content: 'Document 2' },
+          ]);
       });
 
       const docs = useVectorStore.getState().getDocuments(collectionId);
@@ -200,10 +204,9 @@ describe('useVectorStore', () => {
 
     it('should remove documents', () => {
       act(() => {
-        useVectorStore.getState().addDocuments(collectionId, [
-          { content: 'Doc 1' },
-          { content: 'Doc 2' },
-        ]);
+        useVectorStore
+          .getState()
+          .addDocuments(collectionId, [{ content: 'Doc 1' }, { content: 'Doc 2' }]);
       });
 
       const docId = useVectorStore.getState().getDocuments(collectionId)[0].id;
@@ -218,10 +221,9 @@ describe('useVectorStore', () => {
 
     it('should clear documents', () => {
       act(() => {
-        useVectorStore.getState().addDocuments(collectionId, [
-          { content: 'Doc 1' },
-          { content: 'Doc 2' },
-        ]);
+        useVectorStore
+          .getState()
+          .addDocuments(collectionId, [{ content: 'Doc 1' }, { content: 'Doc 2' }]);
       });
 
       act(() => {

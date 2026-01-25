@@ -31,7 +31,9 @@ describe('useChatWidgetStore', () => {
 
   describe('visibility', () => {
     it('should show the widget', () => {
-      act(() => { useChatWidgetStore.getState().show(); });
+      act(() => {
+        useChatWidgetStore.getState().show();
+      });
       expect(useChatWidgetStore.getState().isVisible).toBe(true);
     });
 
@@ -44,14 +46,20 @@ describe('useChatWidgetStore', () => {
     });
 
     it('should toggle visibility', () => {
-      act(() => { useChatWidgetStore.getState().toggle(); });
+      act(() => {
+        useChatWidgetStore.getState().toggle();
+      });
       expect(useChatWidgetStore.getState().isVisible).toBe(true);
-      act(() => { useChatWidgetStore.getState().toggle(); });
+      act(() => {
+        useChatWidgetStore.getState().toggle();
+      });
       expect(useChatWidgetStore.getState().isVisible).toBe(false);
     });
 
     it('should set visibility directly', () => {
-      act(() => { useChatWidgetStore.getState().setVisible(true); });
+      act(() => {
+        useChatWidgetStore.getState().setVisible(true);
+      });
       expect(useChatWidgetStore.getState().isVisible).toBe(true);
     });
   });
@@ -148,7 +156,9 @@ describe('useChatWidgetStore', () => {
 
   describe('input', () => {
     it('should set input value', () => {
-      act(() => { useChatWidgetStore.getState().setInputValue('Hello'); });
+      act(() => {
+        useChatWidgetStore.getState().setInputValue('Hello');
+      });
       expect(useChatWidgetStore.getState().inputValue).toBe('Hello');
     });
 
@@ -163,7 +173,9 @@ describe('useChatWidgetStore', () => {
 
   describe('loading and error', () => {
     it('should set loading state', () => {
-      act(() => { useChatWidgetStore.getState().setLoading(true); });
+      act(() => {
+        useChatWidgetStore.getState().setLoading(true);
+      });
       expect(useChatWidgetStore.getState().isLoading).toBe(true);
     });
 
@@ -179,7 +191,9 @@ describe('useChatWidgetStore', () => {
 
   describe('configuration', () => {
     it('should update config', () => {
-      act(() => { useChatWidgetStore.getState().updateConfig({ width: 500 }); });
+      act(() => {
+        useChatWidgetStore.getState().updateConfig({ width: 500 });
+      });
       expect(useChatWidgetStore.getState().config.width).toBe(500);
     });
 
@@ -204,14 +218,18 @@ describe('useChatWidgetStore', () => {
     });
 
     it('should record activity', () => {
-      act(() => { useChatWidgetStore.getState().recordActivity(); });
+      act(() => {
+        useChatWidgetStore.getState().recordActivity();
+      });
       expect(useChatWidgetStore.getState().lastActivity).toBeDefined();
     });
   });
 
   describe('quick actions', () => {
     it('should send quick message', () => {
-      act(() => { useChatWidgetStore.getState().sendQuickMessage('Quick test'); });
+      act(() => {
+        useChatWidgetStore.getState().sendQuickMessage('Quick test');
+      });
       expect(useChatWidgetStore.getState().isVisible).toBe(true);
       expect(useChatWidgetStore.getState().inputValue).toBe('Quick test');
     });
@@ -219,7 +237,9 @@ describe('useChatWidgetStore', () => {
 
   describe('selectors', () => {
     it('should select messages', () => {
-      act(() => { useChatWidgetStore.getState().addMessage({ role: 'user', content: 'Test' }); });
+      act(() => {
+        useChatWidgetStore.getState().addMessage({ role: 'user', content: 'Test' });
+      });
       expect(selectChatWidgetMessages(useChatWidgetStore.getState())).toHaveLength(1);
     });
 
@@ -228,12 +248,16 @@ describe('useChatWidgetStore', () => {
     });
 
     it('should select visibility', () => {
-      act(() => { useChatWidgetStore.getState().show(); });
+      act(() => {
+        useChatWidgetStore.getState().show();
+      });
       expect(selectChatWidgetIsVisible(useChatWidgetStore.getState())).toBe(true);
     });
 
     it('should select loading state', () => {
-      act(() => { useChatWidgetStore.getState().setLoading(true); });
+      act(() => {
+        useChatWidgetStore.getState().setLoading(true);
+      });
       expect(selectChatWidgetIsLoading(useChatWidgetStore.getState())).toBe(true);
     });
   });

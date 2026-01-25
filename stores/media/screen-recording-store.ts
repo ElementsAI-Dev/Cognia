@@ -54,35 +54,35 @@ interface ScreenRecordingState {
   status: RecordingStatus;
   recordingId: string | null;
   duration: number;
-  
+
   // Configuration
   config: RecordingConfig;
-  
+
   // System info
   monitors: MonitorInfo[];
   audioDevices: AudioDevices;
   ffmpegAvailable: boolean;
-  
+
   // History
   history: RecordingHistoryEntry[];
-  
+
   // Storage
   storageStats: StorageStats | null;
   storageConfig: StorageConfig | null;
   storageUsagePercent: number;
   isStorageExceeded: boolean;
-  
+
   // UI state
   showRecordingIndicator: boolean;
   selectedMonitor: number | null;
   selectedMode: RecordingMode;
   regionSelection: RecordingRegion | null;
-  
+
   // Loading states
   isLoading: boolean;
   isInitialized: boolean;
   error: string | null;
-  
+
   // Event listener cleanup functions
   _eventListeners: UnlistenFn[];
 }
@@ -91,45 +91,48 @@ interface ScreenRecordingActions {
   // Initialization
   initialize: () => Promise<void>;
   cleanup: () => void;
-  
+
   // Event listeners
   setupEventListeners: () => Promise<void>;
-  
+
   // Recording control
-  startRecording: (mode: RecordingMode, options?: {
-    monitorIndex?: number;
-    windowTitle?: string;
-    region?: RecordingRegion;
-  }) => Promise<string | null>;
+  startRecording: (
+    mode: RecordingMode,
+    options?: {
+      monitorIndex?: number;
+      windowTitle?: string;
+      region?: RecordingRegion;
+    }
+  ) => Promise<string | null>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   stop: () => Promise<RecordingMetadata | null>;
   cancel: () => Promise<void>;
-  
+
   // Status updates
   updateStatus: () => Promise<void>;
   updateDuration: () => Promise<void>;
-  
+
   // Configuration
   updateConfig: (config: Partial<RecordingConfig>) => Promise<void>;
   resetConfig: () => void;
-  
+
   // System
   refreshMonitors: () => Promise<void>;
   refreshAudioDevices: () => Promise<void>;
   checkFfmpeg: () => Promise<boolean>;
-  
+
   // History
   refreshHistory: () => Promise<void>;
   deleteFromHistory: (id: string) => Promise<void>;
   clearHistory: () => Promise<void>;
-  
+
   // Storage
   refreshStorageStats: () => Promise<void>;
   refreshStorageConfig: () => Promise<void>;
   updateStorageConfig: (config: StorageConfig) => Promise<void>;
   runStorageCleanup: () => Promise<CleanupResult | null>;
-  
+
   // UI
   setSelectedMonitor: (index: number | null) => void;
   setSelectedMode: (mode: RecordingMode) => void;
@@ -211,7 +214,7 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             storageConfig: storageConfigResult,
             storageUsagePercent: storageUsagePercentResult,
             isStorageExceeded: isStorageExceededResult,
-            selectedMonitor: monitors.find(m => m.is_primary)?.index ?? 0,
+            selectedMonitor: monitors.find((m) => m.is_primary)?.index ?? 0,
             isInitialized: true,
             isLoading: false,
           });
@@ -262,16 +265,19 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
           listeners.push(unlistenCountdown);
 
           // Listen for recording completed
-          const unlistenCompleted = await listen<RecordingMetadata>('recording-completed', (event) => {
-            console.log('[Recording] Completed:', event.payload.id);
-            set({
-              status: 'Idle',
-              recordingId: null,
-              duration: 0,
-            });
-            // Refresh history to include new recording
-            get().refreshHistory();
-          });
+          const unlistenCompleted = await listen<RecordingMetadata>(
+            'recording-completed',
+            (event) => {
+              console.log('[Recording] Completed:', event.payload.id);
+              set({
+                status: 'Idle',
+                recordingId: null,
+                duration: 0,
+              });
+              // Refresh history to include new recording
+              get().refreshHistory();
+            }
+          );
           listeners.push(unlistenCompleted);
 
           // Listen for recording cancelled
@@ -285,13 +291,16 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
           listeners.push(unlistenCancelled);
 
           // Listen for recording errors
-          const unlistenError = await listen<{ error: string; code: string }>('recording-error', (event) => {
-            set({
-              error: event.payload.error,
-              status: 'Idle',
-              recordingId: null,
-            });
-          });
+          const unlistenError = await listen<{ error: string; code: string }>(
+            'recording-error',
+            (event) => {
+              set({
+                error: event.payload.error,
+                status: 'Idle',
+                recordingId: null,
+              });
+            }
+          );
           listeners.push(unlistenError);
 
           set({ _eventListeners: listeners });
@@ -312,7 +321,7 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
         set({ isLoading: true, error: null });
         try {
           let recordingId: string;
-          
+
           switch (mode) {
             case 'fullscreen':
               recordingId = await startFullscreenRecording(options.monitorIndex);
@@ -536,7 +545,9 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
           // Refresh stats after config change
           await get().refreshStorageStats();
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to update storage config' });
+          set({
+            error: error instanceof Error ? error.message : 'Failed to update storage config',
+          });
         }
       },
 
@@ -545,10 +556,7 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
         try {
           const result = await cleanupStorage();
           // Refresh stats and history after cleanup
-          await Promise.all([
-            get().refreshStorageStats(),
-            get().refreshHistory(),
-          ]);
+          await Promise.all([get().refreshStorageStats(), get().refreshHistory()]);
           return result;
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to run cleanup' });

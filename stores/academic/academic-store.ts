@@ -1,6 +1,6 @@
 /**
  * Academic Mode Store - Zustand state management for paper library
- * 
+ *
  * Manages paper search, library, collections, and analysis state
  */
 
@@ -51,87 +51,120 @@ interface LibraryState {
 interface AcademicState {
   // Search state
   search: SearchState;
-  
+
   // Library state
   library: LibraryState;
-  
+
   // Settings
   settings: AcademicModeSettings;
-  
+
   // Statistics
   statistics: AcademicStatistics | null;
-  
+
   // UI state
   isLoading: boolean;
   error: string | null;
-  activeTab: 'search' | 'library' | 'collections' | 'analysis' | 'stats' | 'compare' | 'recommend' | 'smart';
-  
+  activeTab:
+    | 'search'
+    | 'library'
+    | 'collections'
+    | 'analysis'
+    | 'stats'
+    | 'compare'
+    | 'recommend'
+    | 'smart';
+
   // Search actions
   setSearchQuery: (query: string) => void;
   setSearchFilter: (filter: Partial<PaperSearchFilter>) => void;
   searchPapers: (query?: string) => Promise<void>;
   searchWithProvider: (provider: AcademicProviderType, query: string) => Promise<void>;
   clearSearchResults: () => void;
-  
+
   // Library actions
   addToLibrary: (paper: Paper, collectionId?: string) => Promise<LibraryPaper>;
   removeFromLibrary: (paperId: string) => Promise<void>;
   updatePaper: (paperId: string, updates: Partial<LibraryPaper>) => Promise<void>;
   getPaper: (paperId: string) => Promise<LibraryPaper | null>;
   refreshLibrary: () => Promise<void>;
-  
+
   // Collection actions
-  createCollection: (name: string, description?: string, color?: string) => Promise<PaperCollection>;
+  createCollection: (
+    name: string,
+    description?: string,
+    color?: string
+  ) => Promise<PaperCollection>;
   updateCollection: (collectionId: string, updates: Partial<PaperCollection>) => Promise<void>;
   deleteCollection: (collectionId: string) => Promise<void>;
   addToCollection: (paperId: string, collectionId: string) => Promise<void>;
   removeFromCollection: (paperId: string, collectionId: string) => Promise<void>;
   refreshCollections: () => Promise<void>;
-  
+
   // PDF actions
   downloadPdf: (paperId: string, pdfUrl: string) => Promise<string>;
   getPdfPath: (paperId: string) => Promise<string | null>;
   deletePdf: (paperId: string) => Promise<void>;
-  
+
   // Annotation actions
-  addAnnotation: (paperId: string, annotation: Omit<PaperAnnotation, 'id' | 'paperId' | 'createdAt' | 'updatedAt'>) => Promise<PaperAnnotation>;
+  addAnnotation: (
+    paperId: string,
+    annotation: Omit<PaperAnnotation, 'id' | 'paperId' | 'createdAt' | 'updatedAt'>
+  ) => Promise<PaperAnnotation>;
   updateAnnotation: (annotationId: string, updates: Partial<PaperAnnotation>) => Promise<void>;
   deleteAnnotation: (annotationId: string) => Promise<void>;
   getAnnotations: (paperId: string) => Promise<PaperAnnotation[]>;
-  
+
   // Citation/Reference actions
   getCitations: (paperId: string, provider: AcademicProviderType) => Promise<Paper[]>;
   getReferences: (paperId: string, provider: AcademicProviderType) => Promise<Paper[]>;
-  
+
   // Import/Export actions
-  importPapers: (data: string, format: string, options?: { mergeStrategy?: string; targetCollection?: string }) => Promise<ImportResult>;
-  exportPapers: (paperIds?: string[], collectionId?: string, format?: string) => Promise<AcademicExportResult>;
-  
+  importPapers: (
+    data: string,
+    format: string,
+    options?: { mergeStrategy?: string; targetCollection?: string }
+  ) => Promise<ImportResult>;
+  exportPapers: (
+    paperIds?: string[],
+    collectionId?: string,
+    format?: string
+  ) => Promise<AcademicExportResult>;
+
   // Provider actions
   getProviders: () => Promise<AcademicProviderConfig[]>;
   setProviderApiKey: (providerId: AcademicProviderType, apiKey: string | null) => Promise<void>;
   setProviderEnabled: (providerId: AcademicProviderType, enabled: boolean) => Promise<void>;
   testProvider: (providerId: AcademicProviderType) => Promise<boolean>;
-  
+
   // Statistics actions
   refreshStatistics: () => Promise<void>;
-  
+
   // Settings actions
   updateSettings: (settings: Partial<AcademicModeSettings>) => void;
-  
+
   // UI actions
-  setActiveTab: (tab: 'search' | 'library' | 'collections' | 'analysis' | 'stats' | 'compare' | 'recommend' | 'smart') => void;
+  setActiveTab: (
+    tab:
+      | 'search'
+      | 'library'
+      | 'collections'
+      | 'analysis'
+      | 'stats'
+      | 'compare'
+      | 'recommend'
+      | 'smart'
+  ) => void;
   setSelectedPaper: (paperId: string | null) => void;
   setSelectedCollection: (collectionId: string | null) => void;
   setViewMode: (mode: 'grid' | 'list' | 'table') => void;
   setSort: (sortBy: string, sortOrder: 'asc' | 'desc') => void;
   setError: (error: string | null) => void;
   clearError: () => void;
-  
+
   // Tag actions
   addTag: (paperId: string, tag: string) => Promise<void>;
   removeTag: (paperId: string, tag: string) => Promise<void>;
-  
+
   // Batch actions
   batchUpdateStatus: (paperIds: string[], status: PaperReadingStatus) => Promise<void>;
   batchAddToCollection: (paperIds: string[], collectionId: string) => Promise<void>;
@@ -139,16 +172,16 @@ interface AcademicState {
   togglePaperSelection: (paperId: string) => void;
   selectAllPapers: () => void;
   clearPaperSelection: () => void;
-  
+
   // Search history actions
   addSearchHistory: (query: string) => void;
   clearSearchHistory: () => void;
-  
+
   // Analysis history actions
   saveAnalysisResult: (paperId: string, result: PaperAnalysisResult) => void;
   getAnalysisHistory: (paperId: string) => PaperAnalysisResult[];
   clearAnalysisHistory: (paperId: string) => void;
-  
+
   // Reset
   reset: () => void;
 }
@@ -210,7 +243,7 @@ export const useAcademicStore = create<AcademicState>()(
       searchPapers: async (query) => {
         const state = get();
         const searchQuery = query ?? state.search.query;
-        
+
         if (!searchQuery.trim()) {
           set((state) => ({
             search: {
@@ -265,7 +298,11 @@ export const useAcademicStore = create<AcademicState>()(
         }));
 
         try {
-          const result = await invoke<{ papers: Paper[]; totalResults: number; searchTime: number }>('academic_search_provider', {
+          const result = await invoke<{
+            papers: Paper[];
+            totalResults: number;
+            searchTime: number;
+          }>('academic_search_provider', {
             providerId: provider,
             query,
             options: {
@@ -388,8 +425,10 @@ export const useAcademicStore = create<AcademicState>()(
       refreshLibrary: async () => {
         set({ isLoading: true, error: null });
         try {
-          const papers = await invoke<LibraryPaper[]>('academic_get_library_papers', { filter: null });
-          
+          const papers = await invoke<LibraryPaper[]>('academic_get_library_papers', {
+            filter: null,
+          });
+
           const papersMap: Record<string, LibraryPaper> = {};
           for (const paper of papers) {
             papersMap[paper.id] = paper;
@@ -495,7 +534,7 @@ export const useAcademicStore = create<AcademicState>()(
       refreshCollections: async () => {
         try {
           const collections = await invoke<PaperCollection[]>('academic_get_collections');
-          
+
           const collectionsMap: Record<string, PaperCollection> = {};
           for (const collection of collections) {
             collectionsMap[collection.id] = collection;
@@ -588,7 +627,9 @@ export const useAcademicStore = create<AcademicState>()(
 
       getAnnotations: async (paperId) => {
         try {
-          const annotations = await invoke<PaperAnnotation[]>('academic_get_annotations', { paperId });
+          const annotations = await invoke<PaperAnnotation[]>('academic_get_annotations', {
+            paperId,
+          });
           return annotations;
         } catch {
           return [];
@@ -724,31 +765,31 @@ export const useAcademicStore = create<AcademicState>()(
 
       // UI actions
       setActiveTab: (tab) => set({ activeTab: tab }),
-      
+
       setSelectedPaper: (paperId) => {
         set((state) => ({
           library: { ...state.library, selectedPaperId: paperId },
         }));
       },
-      
+
       setSelectedCollection: (collectionId) => {
         set((state) => ({
           library: { ...state.library, selectedCollectionId: collectionId },
         }));
       },
-      
+
       setViewMode: (mode) => {
         set((state) => ({
           library: { ...state.library, viewMode: mode },
         }));
       },
-      
+
       setSort: (sortBy, sortOrder) => {
         set((state) => ({
           library: { ...state.library, sortBy, sortOrder },
         }));
       },
-      
+
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),
 
@@ -757,24 +798,24 @@ export const useAcademicStore = create<AcademicState>()(
         const state = get();
         const paper = state.library.papers[paperId];
         if (!paper) return;
-        
+
         const currentTags = paper.tags || [];
         if (currentTags.includes(tag)) return;
-        
+
         const newTags = [...currentTags, tag];
         await get().updatePaper(paperId, { tags: newTags });
       },
-      
+
       removeTag: async (paperId, tag) => {
         const state = get();
         const paper = state.library.papers[paperId];
         if (!paper) return;
-        
+
         const currentTags = paper.tags || [];
-        const newTags = currentTags.filter(t => t !== tag);
+        const newTags = currentTags.filter((t) => t !== tag);
         await get().updatePaper(paperId, { tags: newTags });
       },
-      
+
       // Batch actions
       batchUpdateStatus: async (paperIds, status) => {
         set({ isLoading: true, error: null });
@@ -788,7 +829,7 @@ export const useAcademicStore = create<AcademicState>()(
           throw error;
         }
       },
-      
+
       batchAddToCollection: async (paperIds, collectionId) => {
         set({ isLoading: true, error: null });
         try {
@@ -801,7 +842,7 @@ export const useAcademicStore = create<AcademicState>()(
           throw error;
         }
       },
-      
+
       batchRemoveFromLibrary: async (paperIds) => {
         set({ isLoading: true, error: null });
         try {
@@ -817,18 +858,18 @@ export const useAcademicStore = create<AcademicState>()(
           throw error;
         }
       },
-      
+
       togglePaperSelection: (paperId) => {
         set((state) => {
           const selectedPaperIds = state.library.selectedPaperIds.includes(paperId)
-            ? state.library.selectedPaperIds.filter(id => id !== paperId)
+            ? state.library.selectedPaperIds.filter((id) => id !== paperId)
             : [...state.library.selectedPaperIds, paperId];
           return {
             library: { ...state.library, selectedPaperIds },
           };
         });
       },
-      
+
       selectAllPapers: () => {
         set((state) => ({
           library: {
@@ -837,31 +878,31 @@ export const useAcademicStore = create<AcademicState>()(
           },
         }));
       },
-      
+
       clearPaperSelection: () => {
         set((state) => ({
           library: { ...state.library, selectedPaperIds: [] },
         }));
       },
-      
+
       // Search history actions
       addSearchHistory: (query) => {
         if (!query.trim()) return;
         set((state) => {
-          const history = state.search.searchHistory.filter(q => q !== query);
+          const history = state.search.searchHistory.filter((q) => q !== query);
           const newHistory = [query, ...history].slice(0, 20);
           return {
             search: { ...state.search, searchHistory: newHistory },
           };
         });
       },
-      
+
       clearSearchHistory: () => {
         set((state) => ({
           search: { ...state.search, searchHistory: [] },
         }));
       },
-      
+
       // Analysis history actions
       saveAnalysisResult: (paperId, result) => {
         set((state) => {
@@ -878,11 +919,11 @@ export const useAcademicStore = create<AcademicState>()(
           };
         });
       },
-      
+
       getAnalysisHistory: (paperId) => {
         return get().library.analysisHistory[paperId] || [];
       },
-      
+
       clearAnalysisHistory: (paperId) => {
         set((state) => {
           const analysisHistory = { ...state.library.analysisHistory };
@@ -892,7 +933,7 @@ export const useAcademicStore = create<AcademicState>()(
           };
         });
       },
-      
+
       // Reset
       reset: () => set(initialState),
     }),

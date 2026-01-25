@@ -36,12 +36,9 @@ export function initProjectActivitySubscriber(): () => void {
 
       if (!prevProject) {
         // New project created
-        addActivity(
-          project.id,
-          'project_created',
-          getActivityDescription('project_created'),
-          { projectName: project.name }
-        );
+        addActivity(project.id, 'project_created', getActivityDescription('project_created'), {
+          projectName: project.name,
+        });
         continue;
       }
 
@@ -55,9 +52,7 @@ export function initProjectActivitySubscriber(): () => void {
       }
 
       // Check for session changes
-      const addedSessions = project.sessionIds.filter(
-        (id) => !prevProject.sessionIds.includes(id)
-      );
+      const addedSessions = project.sessionIds.filter((id) => !prevProject.sessionIds.includes(id));
       const removedSessions = prevProject.sessionIds.filter(
         (id) => !project.sessionIds.includes(id)
       );
@@ -121,8 +116,7 @@ export function initProjectActivitySubscriber(): () => void {
 
       // Check for tag changes
       const tagsChanged =
-        JSON.stringify(project.tags?.sort()) !==
-        JSON.stringify(prevProject.tags?.sort());
+        JSON.stringify(project.tags?.sort()) !== JSON.stringify(prevProject.tags?.sort());
       if (tagsChanged) {
         addActivity(
           project.id,
@@ -147,7 +141,8 @@ export function initProjectActivitySubscriber(): () => void {
         const changedFields: string[] = [];
         if (project.name !== prevProject.name) changedFields.push('name');
         if (project.description !== prevProject.description) changedFields.push('description');
-        if (project.customInstructions !== prevProject.customInstructions) changedFields.push('instructions');
+        if (project.customInstructions !== prevProject.customInstructions)
+          changedFields.push('instructions');
         if (project.defaultProvider !== prevProject.defaultProvider) changedFields.push('provider');
         if (project.defaultModel !== prevProject.defaultModel) changedFields.push('model');
         if (project.defaultMode !== prevProject.defaultMode) changedFields.push('mode');

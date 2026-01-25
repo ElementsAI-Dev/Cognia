@@ -14,31 +14,31 @@ import type {
 interface DesignerState {
   // Mode
   mode: DesignerMode;
-  
+
   // Selected element
   selectedElementId: string | null;
   hoveredElementId: string | null;
-  
+
   // Element tree (parsed from code)
   elementTree: DesignerElement | null;
   elementMap: Record<string, DesignerElement>;
-  
+
   // Viewport
   viewport: ViewportSize;
   zoom: number;
-  
+
   // Code sync
   code: string;
   isDirty: boolean;
-  
+
   // History for undo/redo
   history: DesignerHistoryEntry[];
   historyIndex: number;
-  
+
   // AI editing
   isAIEditing: boolean;
   aiEditPrompt: string;
-  
+
   // Panel states
   showElementTree: boolean;
   showStylePanel: boolean;
@@ -66,31 +66,31 @@ interface DesignerActions {
   insertElement: (parentId: string | null, element: DesignerElement, index?: number) => void;
   moveElement: (elementId: string, newParentId: string | null, index?: number) => void;
   duplicateElement: (elementId: string) => string | null;
-  
+
   // Viewport
   setViewport: (viewport: ViewportSize) => void;
   setZoom: (zoom: number) => void;
-  
+
   // Code
   setCode: (code: string, addToHistory?: boolean) => void;
   syncCodeFromElements: () => void;
   parseCodeToElements: (code: string) => void;
-  
+
   // History
   undo: () => void;
   redo: () => void;
   addHistoryEntry: (action: string, previousCode: string, newCode: string) => void;
-  
+
   // AI editing
   setAIEditing: (isEditing: boolean) => void;
   setAIEditPrompt: (prompt: string) => void;
-  
+
   // Panel states
   toggleElementTree: () => void;
   toggleStylePanel: () => void;
   toggleHistoryPanel: () => void;
   setActiveStyleCategory: (category: string) => void;
-  
+
   // Reset
   reset: () => void;
 }
@@ -118,13 +118,13 @@ const initialState: DesignerState = {
 // Helper to build element map from tree
 function buildElementMap(element: DesignerElement | null): Record<string, DesignerElement> {
   if (!element) return {};
-  
+
   const map: Record<string, DesignerElement> = { [element.id]: element };
-  
+
   for (const child of element.children) {
     Object.assign(map, buildElementMap(child));
   }
-  
+
   return map;
 }
 
@@ -135,22 +135,21 @@ function updateElementInTree(
   updates: Partial<DesignerElement>
 ): DesignerElement | null {
   if (!tree) return null;
-  
+
   if (tree.id === id) {
     return { ...tree, ...updates };
   }
-  
+
   return {
     ...tree,
-    children: tree.children.map((child) => updateElementInTree(child, id, updates)!).filter(Boolean),
+    children: tree.children
+      .map((child) => updateElementInTree(child, id, updates)!)
+      .filter(Boolean),
   };
 }
 
 // Helper to delete element from tree
-function deleteElementFromTree(
-  tree: DesignerElement | null,
-  id: string
-): DesignerElement | null {
+function deleteElementFromTree(tree: DesignerElement | null, id: string): DesignerElement | null {
   if (!tree) return null;
   if (tree.id === id) return null;
 
@@ -192,16 +191,17 @@ function insertElementInTree(
 
   if (tree.id === parentId) {
     const newChildren = [...tree.children];
-    const insertIndex = index !== undefined ? Math.min(index, newChildren.length) : newChildren.length;
+    const insertIndex =
+      index !== undefined ? Math.min(index, newChildren.length) : newChildren.length;
     newChildren.splice(insertIndex, 0, { ...element, parentId });
     return { ...tree, children: newChildren };
   }
 
   return {
     ...tree,
-    children: tree.children.map((child) =>
-      insertElementInTree(child, parentId, element, index)!
-    ).filter(Boolean),
+    children: tree.children
+      .map((child) => insertElementInTree(child, parentId, element, index)!)
+      .filter(Boolean),
   };
 }
 
@@ -232,7 +232,10 @@ function findParentInTree(tree: DesignerElement | null, id: string): DesignerEle
 }
 
 // Helper to deep clone element with new IDs
-function cloneElementWithNewIds(element: DesignerElement, newParentId: string | null): DesignerElement {
+function cloneElementWithNewIds(
+  element: DesignerElement,
+  newParentId: string | null
+): DesignerElement {
   const newId = nanoid();
   return {
     ...element,
@@ -280,7 +283,7 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
     const { elementMap, updateElement } = get();
     const element = elementMap[id];
     if (!element) return;
-    
+
     updateElement(id, {
       styles: { ...element.styles, ...styles },
     });
@@ -290,7 +293,7 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
     const { elementMap, updateElement } = get();
     const element = elementMap[id];
     if (!element) return;
-    
+
     updateElement(id, {
       attributes: { ...element.attributes, [key]: value },
     });
@@ -302,7 +305,13 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
   },
 
   deleteElement: (id) => {
-    const { elementTree, selectedElementId, code: previousCode, syncCodeFromElements, addHistoryEntry } = get();
+    const {
+      elementTree,
+      selectedElementId,
+      code: previousCode,
+      syncCodeFromElements,
+      addHistoryEntry,
+    } = get();
     const newTree = deleteElementFromTree(elementTree, id);
     const elementMap = buildElementMap(newTree);
     set({
@@ -427,18 +436,18 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
   // Code
   setCode: (code, addToHistory = true) => {
     const { code: previousCode, addHistoryEntry } = get();
-    
+
     if (addToHistory && previousCode !== code) {
       addHistoryEntry('Code change', previousCode, code);
     }
-    
+
     set({ code, isDirty: false });
   },
 
   syncCodeFromElements: () => {
     const { elementTree, code } = get();
     if (!elementTree) return;
-    
+
     // Convert element tree back to code
     const generatedCode = elementTreeToCode(elementTree, code);
     // Keep isDirty state - syncing code doesn't mean document is saved
@@ -457,7 +466,7 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
   undo: () => {
     const { history, historyIndex, setCode } = get();
     if (historyIndex < 0) return;
-    
+
     const entry = history[historyIndex];
     if (entry) {
       setCode(entry.previousCode, false);
@@ -468,7 +477,7 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
   redo: () => {
     const { history, historyIndex, setCode } = get();
     if (historyIndex >= history.length - 1) return;
-    
+
     const entry = history[historyIndex + 1];
     if (entry) {
       setCode(entry.newCode, false);
@@ -478,10 +487,10 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
 
   addHistoryEntry: (action, previousCode, newCode) => {
     const { history, historyIndex } = get();
-    
+
     // Remove any future history if we're not at the end
     const newHistory = history.slice(0, historyIndex + 1);
-    
+
     const entry: DesignerHistoryEntry = {
       id: nanoid(),
       timestamp: new Date(),
@@ -489,14 +498,14 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
       previousCode,
       newCode,
     };
-    
+
     newHistory.push(entry);
-    
+
     // Keep only last 50 entries
     if (newHistory.length > 50) {
       newHistory.shift();
     }
-    
+
     set({
       history: newHistory,
       historyIndex: newHistory.length - 1,
@@ -520,20 +529,21 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
 // Convert element tree back to React/HTML code
 function elementTreeToCode(element: DesignerElement, originalCode: string): string {
   // Check if original code is React (contains function/export)
-  const isReact = originalCode.includes('function') && 
+  const isReact =
+    originalCode.includes('function') &&
     (originalCode.includes('return') || originalCode.includes('=>'));
-  
+
   if (isReact) {
     // For React code, we need to regenerate the JSX
     const jsx = elementToJSX(element, 2);
-    
+
     // Try to find and replace the return statement content
     const returnMatch = originalCode.match(/return\s*\(\s*([\s\S]*?)\s*\);?\s*\}$/);
     if (returnMatch) {
       const beforeReturn = originalCode.slice(0, originalCode.lastIndexOf('return'));
       return `${beforeReturn}return (\n${jsx}\n  );\n}`;
     }
-    
+
     // Fallback: generate a simple component
     return `export default function App() {
   return (
@@ -541,7 +551,7 @@ ${jsx}
   );
 }`;
   }
-  
+
   // For plain HTML, just convert the element tree
   return elementToHTML(element, 0);
 }
@@ -550,15 +560,15 @@ ${jsx}
 function elementToJSX(element: DesignerElement, indent: number): string {
   const spaces = '  '.repeat(indent);
   const tag = element.tagName;
-  
+
   // Build attributes string
   const attrs: string[] = [];
-  
+
   // Add className
   if (element.className) {
     attrs.push(`className="${element.className}"`);
   }
-  
+
   // Add styles as inline style object
   if (Object.keys(element.styles).length > 0) {
     const styleEntries = Object.entries(element.styles)
@@ -566,7 +576,7 @@ function elementToJSX(element: DesignerElement, indent: number): string {
       .join(', ');
     attrs.push(`style={{ ${styleEntries} }}`);
   }
-  
+
   // Add other attributes
   for (const [key, value] of Object.entries(element.attributes)) {
     if (key === 'class') continue; // Already handled as className
@@ -574,23 +584,23 @@ function elementToJSX(element: DesignerElement, indent: number): string {
     const reactKey = key === 'for' ? 'htmlFor' : key;
     attrs.push(`${reactKey}="${value}"`);
   }
-  
+
   const attrString = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
-  
+
   // Self-closing tags
   const selfClosing = ['img', 'br', 'hr', 'input', 'meta', 'link'].includes(tag);
-  
+
   if (selfClosing && element.children.length === 0 && !element.textContent) {
     return `${spaces}<${tag}${attrString} />`;
   }
-  
+
   // Opening tag
   let result = `${spaces}<${tag}${attrString}>`;
-  
+
   // Handle text content and children
   const hasChildren = element.children.length > 0;
   const hasText = element.textContent && element.textContent.trim();
-  
+
   if (hasChildren) {
     result += '\n';
     for (const child of element.children) {
@@ -602,7 +612,7 @@ function elementToJSX(element: DesignerElement, indent: number): string {
   } else {
     result += `</${tag}>`;
   }
-  
+
   return result;
 }
 
@@ -610,15 +620,15 @@ function elementToJSX(element: DesignerElement, indent: number): string {
 function elementToHTML(element: DesignerElement, indent: number): string {
   const spaces = '  '.repeat(indent);
   const tag = element.tagName;
-  
+
   // Build attributes string
   const attrs: string[] = [];
-  
+
   // Add class
   if (element.className) {
     attrs.push(`class="${element.className}"`);
   }
-  
+
   // Add inline styles
   if (Object.keys(element.styles).length > 0) {
     const styleString = Object.entries(element.styles)
@@ -630,27 +640,27 @@ function elementToHTML(element: DesignerElement, indent: number): string {
       .join('; ');
     attrs.push(`style="${styleString}"`);
   }
-  
+
   // Add other attributes
   for (const [key, value] of Object.entries(element.attributes)) {
     if (key === 'class') continue;
     attrs.push(`${key}="${value}"`);
   }
-  
+
   const attrString = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
-  
+
   // Self-closing tags
   const selfClosing = ['img', 'br', 'hr', 'input', 'meta', 'link'].includes(tag);
-  
+
   if (selfClosing && element.children.length === 0 && !element.textContent) {
     return `${spaces}<${tag}${attrString} />`;
   }
-  
+
   let result = `${spaces}<${tag}${attrString}>`;
-  
+
   const hasChildren = element.children.length > 0;
   const hasText = element.textContent && element.textContent.trim();
-  
+
   if (hasChildren) {
     result += '\n';
     for (const child of element.children) {
@@ -662,29 +672,28 @@ function elementToHTML(element: DesignerElement, indent: number): string {
   } else {
     result += `</${tag}>`;
   }
-  
+
   return result;
 }
 
 // Enhanced parser that handles both HTML and React/JSX code
 function parseHTMLToElementTree(code: string): DesignerElement | null {
   if (typeof window === 'undefined') return null;
-  
+
   // Check if this is React code
-  const isReact = code.includes('function') && 
-    (code.includes('return') || code.includes('=>'));
-  
+  const isReact = code.includes('function') && (code.includes('return') || code.includes('=>'));
+
   if (isReact) {
     return parseReactToElementTree(code);
   }
-  
+
   // Fall back to HTML parsing
   const parser = new DOMParser();
   const doc = parser.parseFromString(code, 'text/html');
   const body = doc.body;
-  
+
   if (!body.firstElementChild) return null;
-  
+
   return domToDesignerElement(body.firstElementChild as HTMLElement, null);
 }
 
@@ -693,17 +702,17 @@ function parseReactToElementTree(code: string): DesignerElement | null {
   // Extract JSX from return statement
   const jsxContent = extractJSXFromReact(code);
   if (!jsxContent) return null;
-  
+
   // Convert JSX to parseable HTML-like structure
   const htmlLike = convertJSXToHTML(jsxContent);
-  
+
   // Parse as HTML
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlLike, 'text/html');
   const body = doc.body;
-  
+
   if (!body.firstElementChild) return null;
-  
+
   return domToDesignerElement(body.firstElementChild as HTMLElement, null);
 }
 
@@ -715,41 +724,55 @@ function extractJSXFromReact(code: string): string | null {
   if (returnMatch) {
     return returnMatch[1].trim();
   }
-  
+
   // Try arrow function with implicit return
   const arrowMatch = code.match(/=>\s*\(\s*([\s\S]*?)\s*\)\s*(?:;|$)/);
   if (arrowMatch) {
     return arrowMatch[1].trim();
   }
-  
+
   // Try arrow function with direct JSX
   const directArrowMatch = code.match(/=>\s*(<[\s\S]*?>)\s*(?:;|$)/);
   if (directArrowMatch) {
     return directArrowMatch[1].trim();
   }
-  
+
   return null;
 }
 
 // Convert JSX syntax to HTML-parseable format
 function convertJSXToHTML(jsx: string): string {
   let html = jsx;
-  
+
   // Replace className with class
   html = html.replace(/className=/g, 'class=');
-  
+
   // Replace htmlFor with for
   html = html.replace(/htmlFor=/g, 'for=');
-  
+
   // Handle self-closing tags that aren't valid in HTML
   html = html.replace(/<(\w+)([^>]*?)\/>/g, (_, tag, attrs) => {
-    const selfClosingTags = ['img', 'br', 'hr', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'source', 'track', 'wbr'];
+    const selfClosingTags = [
+      'img',
+      'br',
+      'hr',
+      'input',
+      'meta',
+      'link',
+      'area',
+      'base',
+      'col',
+      'embed',
+      'source',
+      'track',
+      'wbr',
+    ];
     if (selfClosingTags.includes(tag.toLowerCase())) {
       return `<${tag}${attrs}/>`;
     }
     return `<${tag}${attrs}></${tag}>`;
   });
-  
+
   // Remove JSX expressions { ... } - replace with placeholder text
   // But preserve style objects
   html = html.replace(/\{([^{}]*)\}/g, (match, content) => {
@@ -761,20 +784,20 @@ function convertJSXToHTML(jsx: string): string {
     // For other expressions, use placeholder
     return `[${content.trim().slice(0, 30)}]`;
   });
-  
+
   // Handle template literals in attributes
   html = html.replace(/=\{`([^`]*)`\}/g, '="$1"');
-  
+
   // Handle string literals in attributes
   html = html.replace(/=\{['"]([^'"]*)['"]\}/g, '="$1"');
-  
+
   // Handle boolean attributes
   html = html.replace(/=\{true\}/g, '');
   html = html.replace(/=\{false\}/g, '');
-  
+
   // Clean up any remaining curly braces in attributes
   html = html.replace(/=\{([^}]+)\}/g, '="$1"');
-  
+
   return html;
 }
 
@@ -788,36 +811,33 @@ function extractStyleString(styleContent: string): string {
   if (content.endsWith('}')) {
     content = content.slice(0, -1);
   }
-  
+
   // Parse simple key: value pairs
   const styles: string[] = [];
   const pairs = content.split(',');
-  
+
   for (const pair of pairs) {
     const colonIndex = pair.indexOf(':');
     if (colonIndex > 0) {
       let key = pair.slice(0, colonIndex).trim();
       let value = pair.slice(colonIndex + 1).trim();
-      
+
       // Convert camelCase to kebab-case
       key = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-      
+
       // Remove quotes from value
       value = value.replace(/['"]/g, '');
-      
+
       styles.push(`${key}: ${value}`);
     }
   }
-  
+
   return styles.join('; ');
 }
 
-function domToDesignerElement(
-  element: HTMLElement,
-  parentId: string | null
-): DesignerElement {
+function domToDesignerElement(element: HTMLElement, parentId: string | null): DesignerElement {
   const id = nanoid();
-  
+
   // Extract styles from style attribute
   const styles: Record<string, string> = {};
   const styleAttr = element.getAttribute('style');
@@ -831,7 +851,7 @@ function domToDesignerElement(
       }
     });
   }
-  
+
   // Extract attributes
   const attributes: Record<string, string> = {};
   for (const attr of Array.from(element.attributes)) {
@@ -839,7 +859,7 @@ function domToDesignerElement(
       attributes[attr.name] = attr.value;
     }
   }
-  
+
   // Get text content (only direct text, not from children)
   let textContent: string | undefined;
   for (const node of Array.from(element.childNodes)) {
@@ -848,7 +868,7 @@ function domToDesignerElement(
       break;
     }
   }
-  
+
   const designerElement: DesignerElement = {
     id,
     tagName: element.tagName.toLowerCase(),
@@ -859,14 +879,12 @@ function domToDesignerElement(
     children: [],
     parentId,
   };
-  
+
   // Parse children
   for (const child of Array.from(element.children)) {
-    designerElement.children.push(
-      domToDesignerElement(child as HTMLElement, id)
-    );
+    designerElement.children.push(domToDesignerElement(child as HTMLElement, id));
   }
-  
+
   return designerElement;
 }
 

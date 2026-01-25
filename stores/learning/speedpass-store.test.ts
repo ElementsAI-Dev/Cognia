@@ -4,15 +4,15 @@
 
 import { act } from '@testing-library/react';
 import { useSpeedPassStore } from './speedpass-store';
-import { 
-    TextbookChapter, 
-    TextbookKnowledgePoint, 
-    TextbookQuestion,
-    UserTextbook,
-    StartSpeedLearningInput,
-    SpeedStudySession,
-    Textbook,
-    Quiz
+import {
+  TextbookChapter,
+  TextbookKnowledgePoint,
+  TextbookQuestion,
+  UserTextbook,
+  StartSpeedLearningInput,
+  SpeedStudySession,
+  Textbook,
+  Quiz,
 } from '@/types/learning/speedpass';
 
 // Mock nanoid
@@ -44,7 +44,7 @@ Object.defineProperty(window, 'localStorage', {
 describe('SpeedPass Store', () => {
   beforeEach(() => {
     act(() => {
-        useSpeedPassStore.getState().reset();
+      useSpeedPassStore.getState().reset();
     });
     localStorageMock.clear();
     jest.clearAllMocks();
@@ -85,10 +85,10 @@ describe('SpeedPass Store', () => {
     });
 
     it('should not update profile if not set', () => {
-        act(() => {
-            useSpeedPassStore.getState().updateAcademicProfile({ grade: 2 });
-        });
-        expect(useSpeedPassStore.getState().academicProfile).toBeNull();
+      act(() => {
+        useSpeedPassStore.getState().updateAcademicProfile({ grade: 2 });
+      });
+      expect(useSpeedPassStore.getState().academicProfile).toBeNull();
     });
 
     it('should add enrolled course', () => {
@@ -130,35 +130,35 @@ describe('SpeedPass Store', () => {
   });
 
   describe('Universities, Majors, Courses Actions', () => {
-      it('should set universities', () => {
-          const universities = [{ id: 'u1', name: 'Uni 1' }];
-          act(() => {
-              useSpeedPassStore.getState().setUniversities(universities);
-          });
-          expect(useSpeedPassStore.getState().universities).toEqual(universities);
+    it('should set universities', () => {
+      const universities = [{ id: 'u1', name: 'Uni 1' }];
+      act(() => {
+        useSpeedPassStore.getState().setUniversities(universities);
       });
+      expect(useSpeedPassStore.getState().universities).toEqual(universities);
+    });
 
-      it('should set majors', () => {
-          const majors = [{ id: 'm1', code: '001', name: 'Major 1' }];
-          act(() => {
-              useSpeedPassStore.getState().setMajors(majors);
-          });
-          expect(useSpeedPassStore.getState().majors).toEqual(majors);
+    it('should set majors', () => {
+      const majors = [{ id: 'm1', code: '001', name: 'Major 1' }];
+      act(() => {
+        useSpeedPassStore.getState().setMajors(majors);
       });
+      expect(useSpeedPassStore.getState().majors).toEqual(majors);
+    });
 
-      it('should set courses', () => {
-          const courses = [{ id: 'c1', name: 'Course 1' }];
-          act(() => {
-              useSpeedPassStore.getState().setCourses(courses);
-          });
-          expect(useSpeedPassStore.getState().courses).toEqual(courses);
+    it('should set courses', () => {
+      const courses = [{ id: 'c1', name: 'Course 1' }];
+      act(() => {
+        useSpeedPassStore.getState().setCourses(courses);
       });
+      expect(useSpeedPassStore.getState().courses).toEqual(courses);
+    });
 
-      it('should add course', () => {
-          const course = { id: 'c2', name: 'Course 2' };
-          act(() => {
-               useSpeedPassStore.getState().addCourse(course);
-          });
+    it('should add course', () => {
+      const course = { id: 'c2', name: 'Course 2' };
+      act(() => {
+        useSpeedPassStore.getState().addCourse(course);
+      });
       expect(useSpeedPassStore.getState().courses).toContainEqual(course);
     });
   });
@@ -244,9 +244,9 @@ describe('SpeedPass Store', () => {
       let added: UserTextbook = {} as UserTextbook;
       act(() => {
         added = useSpeedPassStore.getState().addUserTextbook({
-            userId: 'user-1',
-            textbookId: 'tb-1',
-            source: 'matched' as const,
+          userId: 'user-1',
+          textbookId: 'tb-1',
+          source: 'matched' as const,
         });
         useSpeedPassStore.getState().removeUserTextbook(added.id);
       });
@@ -257,9 +257,9 @@ describe('SpeedPass Store', () => {
       let added: UserTextbook = {} as UserTextbook;
       act(() => {
         added = useSpeedPassStore.getState().addUserTextbook({
-            userId: 'user-1',
-            textbookId: 'tb-1',
-            source: 'matched' as const,
+          userId: 'user-1',
+          textbookId: 'tb-1',
+          source: 'matched' as const,
         });
         useSpeedPassStore.getState().updateUserTextbookProgress(added.id, 50);
       });
@@ -267,425 +267,425 @@ describe('SpeedPass Store', () => {
       expect(useSpeedPassStore.getState().userTextbooks[0].studyProgress).toBe(50);
     });
 
-     it('should add course textbook mapping', () => {
-        const mapping = {
-            universityId: 'u1',
-            courseId: 'c1',
-            courseName: 'Course 1',
-            textbookId: 'tb-1',
-            isPrimary: true,
-            usageCount: 10,
-            confirmedByUsers: 5
-        };
-        act(() => {
-            useSpeedPassStore.getState().addCourseTextbookMapping(mapping);
-        });
-        expect(useSpeedPassStore.getState().courseTextbookMappings).toHaveLength(1);
-        expect(useSpeedPassStore.getState().courseTextbookMappings[0].courseId).toBe('c1');
+    it('should add course textbook mapping', () => {
+      const mapping = {
+        universityId: 'u1',
+        courseId: 'c1',
+        courseName: 'Course 1',
+        textbookId: 'tb-1',
+        isPrimary: true,
+        usageCount: 10,
+        confirmedByUsers: 5,
+      };
+      act(() => {
+        useSpeedPassStore.getState().addCourseTextbookMapping(mapping);
+      });
+      expect(useSpeedPassStore.getState().courseTextbookMappings).toHaveLength(1);
+      expect(useSpeedPassStore.getState().courseTextbookMappings[0].courseId).toBe('c1');
     });
 
-     it('should get recommended textbooks', () => {
-         const tb1 = { ...mockTextbook, id: 'tb-1', name: 'TB 1' };
-         const tb2 = { ...mockTextbook, id: 'tb-2', name: 'TB 2' };
+    it('should get recommended textbooks', () => {
+      const tb1 = { ...mockTextbook, id: 'tb-1', name: 'TB 1' };
+      const tb2 = { ...mockTextbook, id: 'tb-2', name: 'TB 2' };
 
-         act(() => {
-             useSpeedPassStore.getState().addTextbook(tb1);
-             useSpeedPassStore.getState().addTextbook(tb2);
+      act(() => {
+        useSpeedPassStore.getState().addTextbook(tb1);
+        useSpeedPassStore.getState().addTextbook(tb2);
 
-             useSpeedPassStore.getState().addCourseTextbookMapping({
-                universityId: 'u1',
-                courseId: 'c1',
-                courseName: 'Course 1',
-                textbookId: 'tb-1',
-                isPrimary: true,
-                usageCount: 10,
-                confirmedByUsers: 5
-            });
+        useSpeedPassStore.getState().addCourseTextbookMapping({
+          universityId: 'u1',
+          courseId: 'c1',
+          courseName: 'Course 1',
+          textbookId: 'tb-1',
+          isPrimary: true,
+          usageCount: 10,
+          confirmedByUsers: 5,
+        });
 
-             useSpeedPassStore.getState().addCourseTextbookMapping({
-                universityId: 'u1',
-                courseId: 'c1',
-                courseName: 'Course 1',
-                textbookId: 'tb-2',
-                isPrimary: false,
-                usageCount: 5,
-                confirmedByUsers: 2
-            });
-         });
+        useSpeedPassStore.getState().addCourseTextbookMapping({
+          universityId: 'u1',
+          courseId: 'c1',
+          courseName: 'Course 1',
+          textbookId: 'tb-2',
+          isPrimary: false,
+          usageCount: 5,
+          confirmedByUsers: 2,
+        });
+      });
 
-         const recommended = useSpeedPassStore.getState().getRecommendedTextbooks('c1', 'u1');
-         expect(recommended).toHaveLength(2);
-         expect(recommended[0].id).toBe('tb-1'); // Is Primary comes first
-         expect(recommended[1].id).toBe('tb-2');
-     });
+      const recommended = useSpeedPassStore.getState().getRecommendedTextbooks('c1', 'u1');
+      expect(recommended).toHaveLength(2);
+      expect(recommended[0].id).toBe('tb-1'); // Is Primary comes first
+      expect(recommended[1].id).toBe('tb-2');
+    });
 
-     it('should set parse progress', () => {
-         const progress = {
-             textbookId: 'tb-1',
-             status: 'parsing' as const,
-             progress: 50
-         };
-         act(() => {
-             useSpeedPassStore.getState().setParseProgress(progress);
-         });
-         expect(useSpeedPassStore.getState().parseProgress).toEqual(progress);
-     });
+    it('should set parse progress', () => {
+      const progress = {
+        textbookId: 'tb-1',
+        status: 'parsing' as const,
+        progress: 50,
+      };
+      act(() => {
+        useSpeedPassStore.getState().setParseProgress(progress);
+      });
+      expect(useSpeedPassStore.getState().parseProgress).toEqual(progress);
+    });
   });
 
   describe('Tutorial and Study Session Actions', () => {
     const mockTextbookId = 'tb-1';
-    
+
     beforeEach(() => {
-       act(() => {
-           // Setup prerequisite data
-           useSpeedPassStore.getState().addTextbook({
-               id: mockTextbookId,
-               name: 'Test Textbook',
-               source: 'official',
-               isPublic: true,
-               usageCount: 0,
-               createdAt: new Date(),
-               updatedAt: new Date(),
-               parseStatus: 'completed'
-           } as Textbook);
-       });
+      act(() => {
+        // Setup prerequisite data
+        useSpeedPassStore.getState().addTextbook({
+          id: mockTextbookId,
+          name: 'Test Textbook',
+          source: 'official',
+          isPublic: true,
+          usageCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          parseStatus: 'completed',
+        } as Textbook);
+      });
     });
 
     it('should create tutorial', async () => {
-        const input: StartSpeedLearningInput = {
-            courseId: 'c1',
-            textbookId: mockTextbookId,
-            mode: 'speed'
-        };
+      const input: StartSpeedLearningInput = {
+        courseId: 'c1',
+        textbookId: mockTextbookId,
+        mode: 'speed',
+      };
 
-        await act(async () => {
-             await useSpeedPassStore.getState().createTutorial(input);
-        });
+      await act(async () => {
+        await useSpeedPassStore.getState().createTutorial(input);
+      });
 
-        const store = useSpeedPassStore.getState();
-        expect(store.currentTutorialId).toBeDefined();
-        const tutorial = store.tutorials[store.currentTutorialId!];
-        expect(tutorial).toBeDefined();
-        expect(tutorial.mode).toBe('speed');
-        expect(tutorial.textbookId).toBe(mockTextbookId);
+      const store = useSpeedPassStore.getState();
+      expect(store.currentTutorialId).toBeDefined();
+      const tutorial = store.tutorials[store.currentTutorialId!];
+      expect(tutorial).toBeDefined();
+      expect(tutorial.mode).toBe('speed');
+      expect(tutorial.textbookId).toBe(mockTextbookId);
     });
 
     it('should get tutorial', async () => {
-        const input: StartSpeedLearningInput = {
-            courseId: 'c1',
-            textbookId: mockTextbookId,
-            mode: 'speed'
-        };
+      const input: StartSpeedLearningInput = {
+        courseId: 'c1',
+        textbookId: mockTextbookId,
+        mode: 'speed',
+      };
 
-        await act(async () => {
-             await useSpeedPassStore.getState().createTutorial(input);
-        });
+      await act(async () => {
+        await useSpeedPassStore.getState().createTutorial(input);
+      });
 
-        const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
-        const tutorial = useSpeedPassStore.getState().getTutorial(tutorialId);
-        expect(tutorial).toBeDefined();
-        expect(tutorial?.id).toBe(tutorialId);
+      const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
+      const tutorial = useSpeedPassStore.getState().getTutorial(tutorialId);
+      expect(tutorial).toBeDefined();
+      expect(tutorial?.id).toBe(tutorialId);
     });
 
     it('should set current tutorial', async () => {
-         const input: StartSpeedLearningInput = {
-            courseId: 'c1',
-            textbookId: mockTextbookId,
-            mode: 'speed'
-        };
+      const input: StartSpeedLearningInput = {
+        courseId: 'c1',
+        textbookId: mockTextbookId,
+        mode: 'speed',
+      };
 
-        await act(async () => {
-             await useSpeedPassStore.getState().createTutorial(input);
-        });
-        
-        const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
-        
-        act(() => {
-            useSpeedPassStore.getState().setCurrentTutorial(null);
-        });
-        expect(useSpeedPassStore.getState().currentTutorialId).toBeNull();
+      await act(async () => {
+        await useSpeedPassStore.getState().createTutorial(input);
+      });
 
-        act(() => {
-            useSpeedPassStore.getState().setCurrentTutorial(tutorialId);
-        });
-        expect(useSpeedPassStore.getState().currentTutorialId).toBe(tutorialId);
+      const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
+
+      act(() => {
+        useSpeedPassStore.getState().setCurrentTutorial(null);
+      });
+      expect(useSpeedPassStore.getState().currentTutorialId).toBeNull();
+
+      act(() => {
+        useSpeedPassStore.getState().setCurrentTutorial(tutorialId);
+      });
+      expect(useSpeedPassStore.getState().currentTutorialId).toBe(tutorialId);
     });
 
     it('should delete tutorial', async () => {
-        const input: StartSpeedLearningInput = {
-            courseId: 'c1',
-            textbookId: mockTextbookId,
-            mode: 'speed'
-        };
+      const input: StartSpeedLearningInput = {
+        courseId: 'c1',
+        textbookId: mockTextbookId,
+        mode: 'speed',
+      };
 
-        await act(async () => {
-             await useSpeedPassStore.getState().createTutorial(input);
-        });
-        
-        const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
+      await act(async () => {
+        await useSpeedPassStore.getState().createTutorial(input);
+      });
 
-        act(() => {
-            useSpeedPassStore.getState().deleteTutorial(tutorialId);
-        });
+      const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
 
-        expect(useSpeedPassStore.getState().tutorials[tutorialId]).toBeUndefined();
-        expect(useSpeedPassStore.getState().currentTutorialId).toBeNull();
+      act(() => {
+        useSpeedPassStore.getState().deleteTutorial(tutorialId);
+      });
+
+      expect(useSpeedPassStore.getState().tutorials[tutorialId]).toBeUndefined();
+      expect(useSpeedPassStore.getState().currentTutorialId).toBeNull();
     });
 
     it('should start study session', async () => {
-        // Create tutorial first
-        const input: StartSpeedLearningInput = {
-            courseId: 'c1',
-            textbookId: mockTextbookId,
-            mode: 'speed'
-        };
-        await act(async () => {
-             await useSpeedPassStore.getState().createTutorial(input);
-        });
-        const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
+      // Create tutorial first
+      const input: StartSpeedLearningInput = {
+        courseId: 'c1',
+        textbookId: mockTextbookId,
+        mode: 'speed',
+      };
+      await act(async () => {
+        await useSpeedPassStore.getState().createTutorial(input);
+      });
+      const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
 
-        let session: SpeedStudySession = {} as SpeedStudySession;
-        act(() => {
-            session = useSpeedPassStore.getState().startStudySession(tutorialId);
-        });
-        
-        expect(session).toBeDefined();
-        expect(session.id).toBeDefined();
-        expect(session.status).toBe('active');
-        expect(useSpeedPassStore.getState().currentSessionId).toBe(session.id);
+      let session: SpeedStudySession = {} as SpeedStudySession;
+      act(() => {
+        session = useSpeedPassStore.getState().startStudySession(tutorialId);
+      });
+
+      expect(session).toBeDefined();
+      expect(session.id).toBeDefined();
+      expect(session.status).toBe('active');
+      expect(useSpeedPassStore.getState().currentSessionId).toBe(session.id);
     });
 
-     it('should pause and resume study session', async () => {
-         const input: StartSpeedLearningInput = {
-            courseId: 'c1',
-            textbookId: mockTextbookId,
-            mode: 'speed'
-        };
-        await act(async () => {
-             await useSpeedPassStore.getState().createTutorial(input);
-        });
-        const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
-        
-        let session: SpeedStudySession = {} as SpeedStudySession;
-        act(() => {
-            session = useSpeedPassStore.getState().startStudySession(tutorialId);
-        });
-        
-        act(() => {
-            useSpeedPassStore.getState().pauseStudySession(session.id);
-        });
-        expect(useSpeedPassStore.getState().studySessions[session.id].status).toBe('paused');
-        
-        act(() => {
-            useSpeedPassStore.getState().resumeStudySession(session.id);
-        });
-        expect(useSpeedPassStore.getState().studySessions[session.id].status).toBe('active');
-     });
+    it('should pause and resume study session', async () => {
+      const input: StartSpeedLearningInput = {
+        courseId: 'c1',
+        textbookId: mockTextbookId,
+        mode: 'speed',
+      };
+      await act(async () => {
+        await useSpeedPassStore.getState().createTutorial(input);
+      });
+      const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
 
-     it('should end study session', async () => {
-        const input: StartSpeedLearningInput = {
-            courseId: 'c1',
-            textbookId: mockTextbookId,
-            mode: 'speed'
-        };
-        await act(async () => {
-             await useSpeedPassStore.getState().createTutorial(input);
-        });
-        const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
-        
-        let session: SpeedStudySession = {} as SpeedStudySession;
-        act(() => {
-            session = useSpeedPassStore.getState().startStudySession(tutorialId);
-        });
+      let session: SpeedStudySession = {} as SpeedStudySession;
+      act(() => {
+        session = useSpeedPassStore.getState().startStudySession(tutorialId);
+      });
 
-        act(() => {
-            useSpeedPassStore.getState().endStudySession(session.id);
-        });
+      act(() => {
+        useSpeedPassStore.getState().pauseStudySession(session.id);
+      });
+      expect(useSpeedPassStore.getState().studySessions[session.id].status).toBe('paused');
 
-        const updatedSession = useSpeedPassStore.getState().studySessions[session.id];
-        expect(updatedSession.status).toBe('completed');
-        expect(updatedSession.endedAt).toBeDefined();
-     });
-     
-     it('should get active session', async () => {
-         const input: StartSpeedLearningInput = {
-            courseId: 'c1',
-            textbookId: mockTextbookId,
-            mode: 'speed'
-        };
-        await act(async () => {
-             await useSpeedPassStore.getState().createTutorial(input);
-        });
-        const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
-        
-        act(() => {
-            useSpeedPassStore.getState().startStudySession(tutorialId);
-        });
-        
-        const activeSession = useSpeedPassStore.getState().getActiveSession();
-        expect(activeSession).toBeDefined();
-        expect(activeSession?.status).toBe('active');
-     });
+      act(() => {
+        useSpeedPassStore.getState().resumeStudySession(session.id);
+      });
+      expect(useSpeedPassStore.getState().studySessions[session.id].status).toBe('active');
+    });
+
+    it('should end study session', async () => {
+      const input: StartSpeedLearningInput = {
+        courseId: 'c1',
+        textbookId: mockTextbookId,
+        mode: 'speed',
+      };
+      await act(async () => {
+        await useSpeedPassStore.getState().createTutorial(input);
+      });
+      const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
+
+      let session: SpeedStudySession = {} as SpeedStudySession;
+      act(() => {
+        session = useSpeedPassStore.getState().startStudySession(tutorialId);
+      });
+
+      act(() => {
+        useSpeedPassStore.getState().endStudySession(session.id);
+      });
+
+      const updatedSession = useSpeedPassStore.getState().studySessions[session.id];
+      expect(updatedSession.status).toBe('completed');
+      expect(updatedSession.endedAt).toBeDefined();
+    });
+
+    it('should get active session', async () => {
+      const input: StartSpeedLearningInput = {
+        courseId: 'c1',
+        textbookId: mockTextbookId,
+        mode: 'speed',
+      };
+      await act(async () => {
+        await useSpeedPassStore.getState().createTutorial(input);
+      });
+      const tutorialId = useSpeedPassStore.getState().currentTutorialId!;
+
+      act(() => {
+        useSpeedPassStore.getState().startStudySession(tutorialId);
+      });
+
+      const activeSession = useSpeedPassStore.getState().getActiveSession();
+      expect(activeSession).toBeDefined();
+      expect(activeSession?.status).toBe('active');
+    });
   });
 
   describe('Quiz Actions', () => {
-       const mockTextbookId = 'tb-1';
-       beforeEach(() => {
-           // Setup textbook with questions
-           act(() => {
-               useSpeedPassStore.getState().addTextbook({
-                   id: mockTextbookId,
-                   name: 'Test Textbook',
-                   source: 'official',
-                   isPublic: true,
-                   usageCount: 0,
-                   createdAt: new Date(),
-                   updatedAt: new Date(),
-                   parseStatus: 'completed'
-               } as Textbook);
+    const mockTextbookId = 'tb-1';
+    beforeEach(() => {
+      // Setup textbook with questions
+      act(() => {
+        useSpeedPassStore.getState().addTextbook({
+          id: mockTextbookId,
+          name: 'Test Textbook',
+          source: 'official',
+          isPublic: true,
+          usageCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          parseStatus: 'completed',
+        } as Textbook);
 
-               useSpeedPassStore.getState().setTextbookQuestions(mockTextbookId, [
-                   {
-                       id: 'q1',
-                       textbookId: mockTextbookId,
-                       sourceType: 'example',
-                       questionType: 'choice', 
-                       content: 'Question 1',
-                       solution: { answer: 'A', steps: [] },
-                       difficulty: 0.2,
-                       knowledgePointIds: ['kp1']
-                   } as unknown as TextbookQuestion,
-                   {
-                       id: 'q2',
-                       textbookId: mockTextbookId,
-                       sourceType: 'exercise',
-                       questionType: 'choice', 
-                       content: 'Question 2',
-                       solution: { answer: 'B', steps: [] },
-                       difficulty: 0.5,
-                       knowledgePointIds: ['kp1']
-                   } as unknown as TextbookQuestion
-               ]);
-           });
-       });
+        useSpeedPassStore.getState().setTextbookQuestions(mockTextbookId, [
+          {
+            id: 'q1',
+            textbookId: mockTextbookId,
+            sourceType: 'example',
+            questionType: 'choice',
+            content: 'Question 1',
+            solution: { answer: 'A', steps: [] },
+            difficulty: 0.2,
+            knowledgePointIds: ['kp1'],
+          } as unknown as TextbookQuestion,
+          {
+            id: 'q2',
+            textbookId: mockTextbookId,
+            sourceType: 'exercise',
+            questionType: 'choice',
+            content: 'Question 2',
+            solution: { answer: 'B', steps: [] },
+            difficulty: 0.5,
+            knowledgePointIds: ['kp1'],
+          } as unknown as TextbookQuestion,
+        ]);
+      });
+    });
 
-       it('should create quiz', () => {
-           let quiz: Quiz = {} as Quiz;
-           act(() => {
-               quiz = useSpeedPassStore.getState().createQuiz({
-                   textbookId: mockTextbookId,
-                   questionCount: 2
-               });
-           });
-           
-           expect(quiz).toBeDefined();
-           expect(quiz.questions).toHaveLength(2);
-           expect(useSpeedPassStore.getState().quizzes[quiz.id]).toBeDefined();
-           expect(useSpeedPassStore.getState().currentQuizId).toBe(quiz.id);
-       });
+    it('should create quiz', () => {
+      let quiz: Quiz = {} as Quiz;
+      act(() => {
+        quiz = useSpeedPassStore.getState().createQuiz({
+          textbookId: mockTextbookId,
+          questionCount: 2,
+        });
+      });
 
-       it('should start quiz', () => {
-            let quiz: Quiz = {} as Quiz;
-            act(() => {
-               quiz = useSpeedPassStore.getState().createQuiz({
-                   textbookId: mockTextbookId,
-                   questionCount: 1
-               });
-               useSpeedPassStore.getState().startQuiz(quiz.id);
-           });
-           
-           expect(useSpeedPassStore.getState().quizzes[quiz.id].startedAt).toBeDefined();
-       });
+      expect(quiz).toBeDefined();
+      expect(quiz.questions).toHaveLength(2);
+      expect(useSpeedPassStore.getState().quizzes[quiz.id]).toBeDefined();
+      expect(useSpeedPassStore.getState().currentQuizId).toBe(quiz.id);
+    });
 
-       it('should answer question', () => {
-           let quiz: Quiz = {} as Quiz;
-           act(() => {
-               quiz = useSpeedPassStore.getState().createQuiz({
-                   textbookId: mockTextbookId,
-                   questionCount: 1
-               });
-               useSpeedPassStore.getState().startQuiz(quiz.id);
-               useSpeedPassStore.getState().answerQuestion(quiz.id, 0, 'A'); // Correct answer for q1 is usually A if q1 picked? Random pick.
-               // We can't guarantee q1 is picked first due to shuffle, but we can check if answer is recorded.
-           });
-           
-           const updatedQuiz = useSpeedPassStore.getState().quizzes[quiz.id];
-           expect(updatedQuiz.questions[0].userAnswer).toBe('A');
-       });
+    it('should start quiz', () => {
+      let quiz: Quiz = {} as Quiz;
+      act(() => {
+        quiz = useSpeedPassStore.getState().createQuiz({
+          textbookId: mockTextbookId,
+          questionCount: 1,
+        });
+        useSpeedPassStore.getState().startQuiz(quiz.id);
+      });
 
-       it('should complete quiz', () => {
-            let quiz: Quiz = {} as Quiz;
-            act(() => {
-               quiz = useSpeedPassStore.getState().createQuiz({
-                   textbookId: mockTextbookId,
-                   questionCount: 2
-               });
-               useSpeedPassStore.getState().startQuiz(quiz.id);
-               useSpeedPassStore.getState().answerQuestion(quiz.id, 0, 'A');
-               useSpeedPassStore.getState().answerQuestion(quiz.id, 1, 'B');
-               useSpeedPassStore.getState().completeQuiz(quiz.id);
-           });
-           
-           const completedQuiz = useSpeedPassStore.getState().quizzes[quiz.id];
-           expect(completedQuiz.completedAt).toBeDefined();
-           expect(completedQuiz.totalScore).toBeDefined();
-       });
+      expect(useSpeedPassStore.getState().quizzes[quiz.id].startedAt).toBeDefined();
+    });
+
+    it('should answer question', () => {
+      let quiz: Quiz = {} as Quiz;
+      act(() => {
+        quiz = useSpeedPassStore.getState().createQuiz({
+          textbookId: mockTextbookId,
+          questionCount: 1,
+        });
+        useSpeedPassStore.getState().startQuiz(quiz.id);
+        useSpeedPassStore.getState().answerQuestion(quiz.id, 0, 'A'); // Correct answer for q1 is usually A if q1 picked? Random pick.
+        // We can't guarantee q1 is picked first due to shuffle, but we can check if answer is recorded.
+      });
+
+      const updatedQuiz = useSpeedPassStore.getState().quizzes[quiz.id];
+      expect(updatedQuiz.questions[0].userAnswer).toBe('A');
+    });
+
+    it('should complete quiz', () => {
+      let quiz: Quiz = {} as Quiz;
+      act(() => {
+        quiz = useSpeedPassStore.getState().createQuiz({
+          textbookId: mockTextbookId,
+          questionCount: 2,
+        });
+        useSpeedPassStore.getState().startQuiz(quiz.id);
+        useSpeedPassStore.getState().answerQuestion(quiz.id, 0, 'A');
+        useSpeedPassStore.getState().answerQuestion(quiz.id, 1, 'B');
+        useSpeedPassStore.getState().completeQuiz(quiz.id);
+      });
+
+      const completedQuiz = useSpeedPassStore.getState().quizzes[quiz.id];
+      expect(completedQuiz.completedAt).toBeDefined();
+      expect(completedQuiz.totalScore).toBeDefined();
+    });
   });
-  
+
   describe('Wrong Question Book Actions', () => {
-      it('should add wrong question', () => {
-          act(() => {
-              useSpeedPassStore.getState().addWrongQuestion('q1', 'tb1', 'Wrong Answer');
-          });
-          
-          const wrongQuestions = useSpeedPassStore.getState().wrongQuestions;
-          const record = Object.values(wrongQuestions)[0];
-          expect(record).toBeDefined();
-          expect(record.questionId).toBe('q1');
-          expect(record.attempts).toHaveLength(1);
+    it('should add wrong question', () => {
+      act(() => {
+        useSpeedPassStore.getState().addWrongQuestion('q1', 'tb1', 'Wrong Answer');
       });
 
-      it('should mark wrong question reviewed', () => {
-           let recordId: string;
-           act(() => {
-              useSpeedPassStore.getState().addWrongQuestion('q1', 'tb1', 'Wrong Answer');
-              const wrongQuestions = useSpeedPassStore.getState().wrongQuestions;
-              recordId = Object.values(wrongQuestions)[0].id;
-              useSpeedPassStore.getState().markWrongQuestionReviewed(recordId, true);
-           });
-           
-           const record = useSpeedPassStore.getState().wrongQuestions[recordId!];
-           expect(record.reviewCount).toBe(1);
+      const wrongQuestions = useSpeedPassStore.getState().wrongQuestions;
+      const record = Object.values(wrongQuestions)[0];
+      expect(record).toBeDefined();
+      expect(record.questionId).toBe('q1');
+      expect(record.attempts).toHaveLength(1);
+    });
+
+    it('should mark wrong question reviewed', () => {
+      let recordId: string;
+      act(() => {
+        useSpeedPassStore.getState().addWrongQuestion('q1', 'tb1', 'Wrong Answer');
+        const wrongQuestions = useSpeedPassStore.getState().wrongQuestions;
+        recordId = Object.values(wrongQuestions)[0].id;
+        useSpeedPassStore.getState().markWrongQuestionReviewed(recordId, true);
       });
+
+      const record = useSpeedPassStore.getState().wrongQuestions[recordId!];
+      expect(record.reviewCount).toBe(1);
+    });
   });
 
   describe('Statistics & Utility Actions', () => {
-      it('should update global stats', () => {
-          act(() => {
-              useSpeedPassStore.getState().updateGlobalStats({ sessionsCompleted: 10 });
-          });
-          expect(useSpeedPassStore.getState().globalStats.sessionsCompleted).toBe(10);
+    it('should update global stats', () => {
+      act(() => {
+        useSpeedPassStore.getState().updateGlobalStats({ sessionsCompleted: 10 });
       });
+      expect(useSpeedPassStore.getState().globalStats.sessionsCompleted).toBe(10);
+    });
 
-      it('should record study time', () => {
-           act(() => {
-              useSpeedPassStore.getState().recordStudyTime(60000); // 1 min
-          });
-          expect(useSpeedPassStore.getState().globalStats.totalStudyTimeMs).toBe(60000);
+    it('should record study time', () => {
+      act(() => {
+        useSpeedPassStore.getState().recordStudyTime(60000); // 1 min
       });
+      expect(useSpeedPassStore.getState().globalStats.totalStudyTimeMs).toBe(60000);
+    });
 
-      it('should set error', () => {
-          act(() => {
-              useSpeedPassStore.getState().setError('Test Error');
-          });
-          expect(useSpeedPassStore.getState().error).toBe('Test Error');
+    it('should set error', () => {
+      act(() => {
+        useSpeedPassStore.getState().setError('Test Error');
       });
+      expect(useSpeedPassStore.getState().error).toBe('Test Error');
+    });
 
-      it('should set loading', () => {
-          act(() => {
-              useSpeedPassStore.getState().setLoading(true);
-          });
-          expect(useSpeedPassStore.getState().isLoading).toBe(true);
+    it('should set loading', () => {
+      act(() => {
+        useSpeedPassStore.getState().setLoading(true);
       });
+      expect(useSpeedPassStore.getState().isLoading).toBe(true);
+    });
   });
 });

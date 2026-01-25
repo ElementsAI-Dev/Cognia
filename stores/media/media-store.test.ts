@@ -189,7 +189,7 @@ describe('useMediaStore', () => {
           duration: '10s',
           status: 'completed',
           progress: 100,
-          cost: 0.10,
+          cost: 0.1,
         });
       });
 
@@ -197,7 +197,7 @@ describe('useMediaStore', () => {
       expect(stats.totalImages).toBe(2);
       expect(stats.totalVideos).toBe(1);
       expect(stats.totalImageCost).toBe(0.08);
-      expect(stats.totalVideoCost).toBe(0.10);
+      expect(stats.totalVideoCost).toBe(0.1);
     });
   });
 

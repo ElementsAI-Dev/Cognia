@@ -46,7 +46,7 @@ function _rehydrateCanvasDocument(doc: CanvasDocument): CanvasDocument {
     ...doc,
     createdAt: ensureDate(doc.createdAt),
     updatedAt: ensureDate(doc.updatedAt),
-    versions: doc.versions?.map(v => ({
+    versions: doc.versions?.map((v) => ({
       ...v,
       createdAt: ensureDate(v.createdAt),
     })),
@@ -136,11 +136,19 @@ interface ArtifactActions {
   clearSuggestions: (documentId: string) => void;
 
   // Canvas version history
-  saveCanvasVersion: (documentId: string, description?: string, isAutoSave?: boolean) => CanvasDocumentVersion | null;
+  saveCanvasVersion: (
+    documentId: string,
+    description?: string,
+    isAutoSave?: boolean
+  ) => CanvasDocumentVersion | null;
   restoreCanvasVersion: (documentId: string, versionId: string) => void;
   deleteCanvasVersion: (documentId: string, versionId: string) => void;
   getCanvasVersions: (documentId: string) => CanvasDocumentVersion[];
-  compareVersions: (documentId: string, versionId1: string, versionId2: string) => { v1: string; v2: string } | null;
+  compareVersions: (
+    documentId: string,
+    versionId1: string,
+    versionId2: string
+  ) => { v1: string; v2: string } | null;
 
   // Analysis actions
   addAnalysisResult: (result: Omit<AnalysisResult, 'id' | 'createdAt'>) => AnalysisResult;
@@ -153,11 +161,11 @@ interface ArtifactActions {
 
   // Utility
   clearSessionData: (sessionId: string) => void;
-  
+
   // Batch operations
   deleteArtifacts: (ids: string[]) => void;
   duplicateArtifact: (id: string) => Artifact | null;
-  
+
   // Search and filter
   searchArtifacts: (query: string, sessionId?: string) => Artifact[];
   filterArtifactsByType: (type: ArtifactType, sessionId?: string) => Artifact[];
@@ -234,8 +242,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           getPluginEventHooks().dispatchArtifactDelete(id);
           return {
             artifacts: rest,
-            activeArtifactId:
-              state.activeArtifactId === id ? null : state.activeArtifactId,
+            activeArtifactId: state.activeArtifactId === id ? null : state.activeArtifactId,
           };
         });
       },
@@ -265,7 +272,8 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       // Auto-detection and creation
       autoCreateFromContent: async ({ sessionId, messageId, content, config }) => {
         // Import detection logic dynamically to avoid circular deps
-        const { detectArtifacts, DEFAULT_DETECTION_CONFIG } = await import('@/lib/ai/generation/artifact-detector');
+        const { detectArtifacts, DEFAULT_DETECTION_CONFIG } =
+          await import('@/lib/ai/generation/artifact-detector');
         const finalConfig = { ...DEFAULT_DETECTION_CONFIG, ...config };
         const detected: DetectedArtifact[] = detectArtifacts(content, finalConfig);
 
@@ -371,7 +379,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         const versions = get().artifactVersions[id];
         if (!versions) return [];
         return [...versions]
-          .map(v => ({ ...v, createdAt: ensureDate(v.createdAt) }))
+          .map((v) => ({ ...v, createdAt: ensureDate(v.createdAt) }))
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       },
 
@@ -629,7 +637,7 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         const doc = get().canvasDocuments[documentId];
         if (!doc || !doc.versions) return [];
         return [...doc.versions]
-          .map(v => ({ ...v, createdAt: ensureDate(v.createdAt) }))
+          .map((v) => ({ ...v, createdAt: ensureDate(v.createdAt) }))
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       },
 
@@ -679,12 +687,12 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         set((state) => {
           const artifacts = { ...state.artifacts };
           const artifactVersions = { ...state.artifactVersions };
-          
+
           for (const id of ids) {
             delete artifacts[id];
             delete artifactVersions[id];
           }
-          
+
           return {
             artifacts,
             artifactVersions,
@@ -755,25 +763,17 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       clearSessionData: (sessionId) => {
         set((state) => {
           const artifacts = Object.fromEntries(
-            Object.entries(state.artifacts).filter(
-              ([, a]) => a.sessionId !== sessionId
-            )
+            Object.entries(state.artifacts).filter(([, a]) => a.sessionId !== sessionId)
           );
           // Filter artifact versions - keep only versions for artifacts that still exist
           const artifactVersions = Object.fromEntries(
-            Object.entries(state.artifactVersions).filter(
-              ([id]) => artifacts[id]
-            )
+            Object.entries(state.artifactVersions).filter(([id]) => artifacts[id])
           );
           const canvasDocuments = Object.fromEntries(
-            Object.entries(state.canvasDocuments).filter(
-              ([, d]) => d.sessionId !== sessionId
-            )
+            Object.entries(state.canvasDocuments).filter(([, d]) => d.sessionId !== sessionId)
           );
           const analysisResults = Object.fromEntries(
-            Object.entries(state.analysisResults).filter(
-              ([, r]) => r.sessionId !== sessionId
-            )
+            Object.entries(state.analysisResults).filter(([, r]) => r.sessionId !== sessionId)
           );
 
           return {
@@ -782,13 +782,11 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
             canvasDocuments,
             analysisResults,
             activeArtifactId:
-              state.activeArtifactId &&
-              artifacts[state.activeArtifactId]
+              state.activeArtifactId && artifacts[state.activeArtifactId]
                 ? state.activeArtifactId
                 : null,
             activeCanvasId:
-              state.activeCanvasId &&
-              canvasDocuments[state.activeCanvasId]
+              state.activeCanvasId && canvasDocuments[state.activeCanvasId]
                 ? state.activeCanvasId
                 : null,
           };

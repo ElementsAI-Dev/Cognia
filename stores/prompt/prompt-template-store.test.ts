@@ -33,7 +33,9 @@ describe('usePromptTemplateStore', () => {
       act(() => {
         usePromptTemplateStore.getState().initializeDefaults();
       });
-      expect(usePromptTemplateStore.getState().templates).toHaveLength(DEFAULT_PROMPT_TEMPLATES.length);
+      expect(usePromptTemplateStore.getState().templates).toHaveLength(
+        DEFAULT_PROMPT_TEMPLATES.length
+      );
     });
   });
 
@@ -270,14 +272,16 @@ describe('usePromptTemplateStore', () => {
       });
 
       act(() => {
-        usePromptTemplateStore.getState().recordOptimization(
-          template!.id,
-          'Original content',
-          'Optimized content with improvements',
-          ['Improved clarity', 'Added structure'],
-          'concise',
-          'user'
-        );
+        usePromptTemplateStore
+          .getState()
+          .recordOptimization(
+            template!.id,
+            'Original content',
+            'Optimized content with improvements',
+            ['Improved clarity', 'Added structure'],
+            'concise',
+            'user'
+          );
       });
 
       const history = usePromptTemplateStore.getState().getOptimizationHistory(template!.id);
@@ -301,12 +305,11 @@ describe('usePromptTemplateStore', () => {
       // Record 25 optimizations
       for (let i = 0; i < 25; i++) {
         act(() => {
-          usePromptTemplateStore.getState().recordOptimization(
-            template!.id,
-            `Original ${i}`,
-            `Optimized ${i}`,
-            [`Suggestion ${i}`]
-          );
+          usePromptTemplateStore
+            .getState()
+            .recordOptimization(template!.id, `Original ${i}`, `Optimized ${i}`, [
+              `Suggestion ${i}`,
+            ]);
         });
       }
 
@@ -324,12 +327,9 @@ describe('usePromptTemplateStore', () => {
       });
 
       act(() => {
-        usePromptTemplateStore.getState().recordOptimization(
-          template!.id,
-          'Original',
-          'Optimized',
-          ['Suggestion']
-        );
+        usePromptTemplateStore
+          .getState()
+          .recordOptimization(template!.id, 'Original', 'Optimized', ['Suggestion']);
       });
 
       const updated = usePromptTemplateStore.getState().getTemplate(template!.id);
@@ -349,7 +349,8 @@ describe('usePromptTemplateStore', () => {
       act(() => {
         usePromptTemplateStore.getState().createTemplate({
           name: 'Good Template',
-          content: 'Please analyze the following data and provide a detailed summary with key insights.',
+          content:
+            'Please analyze the following data and provide a detailed summary with key insights.',
         });
       });
 
@@ -367,7 +368,8 @@ describe('usePromptTemplateStore', () => {
         });
         usePromptTemplateStore.getState().createTemplate({
           name: 'High Quality',
-          content: 'Please analyze the following code and provide detailed feedback on: 1) Code quality 2) Performance 3) Security considerations',
+          content:
+            'Please analyze the following code and provide detailed feedback on: 1) Code quality 2) Performance 3) Security considerations',
         });
       });
 

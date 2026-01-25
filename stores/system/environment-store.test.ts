@@ -80,11 +80,51 @@ describe('useEnvironmentStore', () => {
       const { result } = renderHook(() => useEnvironmentStore());
 
       const statuses: Record<EnvironmentTool, ToolStatus> = {
-        uv: { tool: 'uv', installed: true, status: 'installed', version: '1.0', path: null, error: null, lastChecked: null },
-        nvm: { tool: 'nvm', installed: true, status: 'installed', version: '0.39', path: null, error: null, lastChecked: null },
-        docker: { tool: 'docker', installed: false, status: 'not_installed', version: null, path: null, error: null, lastChecked: null },
-        podman: { tool: 'podman', installed: false, status: 'not_installed', version: null, path: null, error: null, lastChecked: null },
-        ffmpeg: { tool: 'ffmpeg', installed: true, status: 'installed', version: '6.0', path: null, error: null, lastChecked: null },
+        uv: {
+          tool: 'uv',
+          installed: true,
+          status: 'installed',
+          version: '1.0',
+          path: null,
+          error: null,
+          lastChecked: null,
+        },
+        nvm: {
+          tool: 'nvm',
+          installed: true,
+          status: 'installed',
+          version: '0.39',
+          path: null,
+          error: null,
+          lastChecked: null,
+        },
+        docker: {
+          tool: 'docker',
+          installed: false,
+          status: 'not_installed',
+          version: null,
+          path: null,
+          error: null,
+          lastChecked: null,
+        },
+        podman: {
+          tool: 'podman',
+          installed: false,
+          status: 'not_installed',
+          version: null,
+          path: null,
+          error: null,
+          lastChecked: null,
+        },
+        ffmpeg: {
+          tool: 'ffmpeg',
+          installed: true,
+          status: 'installed',
+          version: '6.0',
+          path: null,
+          error: null,
+          lastChecked: null,
+        },
       };
 
       act(() => {

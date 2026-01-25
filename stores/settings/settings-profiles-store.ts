@@ -103,9 +103,7 @@ export const useSettingsProfilesStore = create<SettingsProfilesState>()(
       updateProfile: (id, updates) => {
         set((state) => ({
           profiles: state.profiles.map((profile) =>
-            profile.id === id
-              ? { ...profile, ...updates, updatedAt: new Date() }
-              : profile
+            profile.id === id ? { ...profile, ...updates, updatedAt: new Date() } : profile
           ),
         }));
       },
@@ -120,9 +118,7 @@ export const useSettingsProfilesStore = create<SettingsProfilesState>()(
       renameProfile: (id, name) => {
         set((state) => ({
           profiles: state.profiles.map((profile) =>
-            profile.id === id
-              ? { ...profile, name, updatedAt: new Date() }
-              : profile
+            profile.id === id ? { ...profile, name, updatedAt: new Date() } : profile
           ),
         }));
       },
@@ -256,7 +252,9 @@ export const useSettingsProfilesStore = create<SettingsProfilesState>()(
         const profiles = Array.isArray(persistedProfiles)
           ? persistedProfiles.map((p) => ({
               ...p,
-              backgroundSettings: normalizeBackgroundSettings((p as SettingsProfile).backgroundSettings),
+              backgroundSettings: normalizeBackgroundSettings(
+                (p as SettingsProfile).backgroundSettings
+              ),
             }))
           : currentState.profiles;
 

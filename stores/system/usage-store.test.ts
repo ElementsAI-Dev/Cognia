@@ -185,7 +185,7 @@ describe('useUsageStore', () => {
       const providerUsage = useUsageStore.getState().getUsageByProvider();
       expect(providerUsage).toHaveLength(2);
 
-      const openaiUsage = providerUsage.find(p => p.provider === 'openai');
+      const openaiUsage = providerUsage.find((p) => p.provider === 'openai');
       expect(openaiUsage?.tokens).toBe(450);
       expect(openaiUsage?.requests).toBe(2);
     });

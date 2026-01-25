@@ -4,8 +4,8 @@
  * Zustand store for managing context awareness state.
  */
 
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type {
   FullContext,
   WindowInfo,
@@ -14,7 +14,7 @@ import type {
   BrowserContext,
   EditorContext,
   UiElement,
-} from "@/lib/native/context";
+} from '@/lib/native/context';
 
 export interface ContextStoreState {
   // Context data
@@ -128,7 +128,7 @@ export const useContextStore = create<ContextStore>()(
       reset: () => set(initialState),
     }),
     {
-      name: "cognia-context",
+      name: 'cognia-context',
       partialize: (state) => ({
         autoRefreshEnabled: state.autoRefreshEnabled,
         refreshIntervalMs: state.refreshIntervalMs,

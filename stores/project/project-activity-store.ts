@@ -64,18 +64,14 @@ export const useProjectActivityStore = create<ProjectActivityState>()(
 
         set((state) => {
           // Get existing activities for this project
-          const projectActivities = state.activities.filter(
-            (a) => a.projectId === projectId
-          );
-          const otherActivities = state.activities.filter(
-            (a) => a.projectId !== projectId
-          );
+          const projectActivities = state.activities.filter((a) => a.projectId === projectId);
+          const otherActivities = state.activities.filter((a) => a.projectId !== projectId);
 
           // Limit activities per project
-          const limitedProjectActivities = [
-            newActivity,
-            ...projectActivities,
-          ].slice(0, state.maxActivitiesPerProject);
+          const limitedProjectActivities = [newActivity, ...projectActivities].slice(
+            0,
+            state.maxActivitiesPerProject
+          );
 
           return {
             activities: [...limitedProjectActivities, ...otherActivities],
@@ -106,10 +102,7 @@ export const useProjectActivityStore = create<ProjectActivityState>()(
       partialize: (state) => ({
         activities: state.activities.map((a) => ({
           ...a,
-          timestamp:
-            a.timestamp instanceof Date
-              ? a.timestamp.toISOString()
-              : a.timestamp,
+          timestamp: a.timestamp instanceof Date ? a.timestamp.toISOString() : a.timestamp,
         })),
       }),
       onRehydrateStorage: () => (state) => {
@@ -133,15 +126,18 @@ export function getActivityDescription(
 ): string {
   const descriptions: Record<ActivityType, string | ((m?: Record<string, unknown>) => string)> = {
     project_created: 'Project created',
-    project_updated: (m) => m?.field ? `Updated ${m.field}` : 'Project settings updated',
+    project_updated: (m) => (m?.field ? `Updated ${m.field}` : 'Project settings updated'),
     project_archived: 'Project archived',
     project_unarchived: 'Project unarchived',
-    session_added: (m) => m?.sessionTitle ? `Added session: ${m.sessionTitle}` : 'Session added',
-    session_removed: (m) => m?.sessionTitle ? `Removed session: ${m.sessionTitle}` : 'Session removed',
-    knowledge_added: (m) => m?.fileName ? `Added file: ${m.fileName}` : 'Knowledge file added',
-    knowledge_removed: (m) => m?.fileName ? `Removed file: ${m.fileName}` : 'Knowledge file removed',
-    knowledge_updated: (m) => m?.fileName ? `Updated file: ${m.fileName}` : 'Knowledge file updated',
-    tags_updated: (m) => m?.tags ? `Tags: ${(m.tags as string[]).join(', ')}` : 'Tags updated',
+    session_added: (m) => (m?.sessionTitle ? `Added session: ${m.sessionTitle}` : 'Session added'),
+    session_removed: (m) =>
+      m?.sessionTitle ? `Removed session: ${m.sessionTitle}` : 'Session removed',
+    knowledge_added: (m) => (m?.fileName ? `Added file: ${m.fileName}` : 'Knowledge file added'),
+    knowledge_removed: (m) =>
+      m?.fileName ? `Removed file: ${m.fileName}` : 'Knowledge file removed',
+    knowledge_updated: (m) =>
+      m?.fileName ? `Updated file: ${m.fileName}` : 'Knowledge file updated',
+    tags_updated: (m) => (m?.tags ? `Tags: ${(m.tags as string[]).join(', ')}` : 'Tags updated'),
     settings_updated: 'Project settings updated',
   };
 

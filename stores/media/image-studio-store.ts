@@ -11,7 +11,7 @@ import type { ImageSize, ImageQuality, ImageStyle } from '@/lib/ai';
 /**
  * Editing tool types
  */
-export type EditingTool = 
+export type EditingTool =
   | 'select'
   | 'brush'
   | 'eraser'
@@ -107,7 +107,20 @@ export interface StudioImage {
  */
 export interface EditOperation {
   id: string;
-  type: 'generate' | 'edit' | 'variation' | 'crop' | 'rotate' | 'flip' | 'adjust' | 'mask' | 'upscale' | 'remove-bg' | 'filter' | 'text' | 'draw';
+  type:
+    | 'generate'
+    | 'edit'
+    | 'variation'
+    | 'crop'
+    | 'rotate'
+    | 'flip'
+    | 'adjust'
+    | 'mask'
+    | 'upscale'
+    | 'remove-bg'
+    | 'filter'
+    | 'text'
+    | 'draw';
   imageId: string;
   timestamp: number;
   description: string;
@@ -169,46 +182,46 @@ interface ImageStudioState {
   // Image gallery
   images: StudioImage[];
   selectedImageId: string | null;
-  
+
   // Current working image
   workingImageUrl: string | null;
   workingImageBase64: string | null;
   originalImageUrl: string | null;
-  
+
   // Mask state
   maskStrokes: MaskStroke[];
   maskBase64: string | null;
-  
+
   // Layers
   layers: EditorLayer[];
   activeLayerId: string | null;
-  
+
   // Adjustments
   adjustments: ImageAdjustments;
-  
+
   // Transform
   transform: ImageTransform;
-  
+
   // Crop
   cropRegion: CropRegion | null;
   aspectRatioLock: string | null; // '1:1', '16:9', '9:16', 'free'
-  
+
   // Settings
   generationSettings: GenerationSettings;
   brushSettings: BrushSettings;
   exportSettings: ExportSettings;
-  
+
   // View
   viewState: ViewState;
-  
+
   // History
   editHistory: EditOperation[];
   historyIndex: number;
-  
+
   // Prompt
   prompt: string;
   negativePrompt: string;
-  
+
   // UI state
   showSidebar: boolean;
   showSettings: boolean;
@@ -223,7 +236,9 @@ interface ImageStudioState {
   setError: (error: string | null) => void;
 
   // Actions - Images
-  addImage: (image: Omit<StudioImage, 'id' | 'timestamp' | 'isFavorite' | 'tags' | 'version'>) => string;
+  addImage: (
+    image: Omit<StudioImage, 'id' | 'timestamp' | 'isFavorite' | 'tags' | 'version'>
+  ) => string;
   updateImage: (id: string, updates: Partial<StudioImage>) => void;
   deleteImage: (id: string) => void;
   selectImage: (id: string | null) => void;
@@ -401,7 +416,8 @@ export const useImageStudioStore = create<ImageStudioState>()(
       // Actions - Tab & Tool
       setActiveTab: (tab) => set({ activeTab: tab }),
       setSelectedTool: (tool) => set({ selectedTool: tool }),
-      setProcessing: (isProcessing, message = '') => set({ isProcessing, processingMessage: message }),
+      setProcessing: (isProcessing, message = '') =>
+        set({ isProcessing, processingMessage: message }),
       setError: (error) => set({ error }),
 
       // Actions - Images
@@ -424,9 +440,7 @@ export const useImageStudioStore = create<ImageStudioState>()(
 
       updateImage: (id, updates) => {
         set((state) => ({
-          images: state.images.map((img) =>
-            img.id === id ? { ...img, ...updates } : img
-          ),
+          images: state.images.map((img) => (img.id === id ? { ...img, ...updates } : img)),
         }));
       },
 
@@ -450,9 +464,7 @@ export const useImageStudioStore = create<ImageStudioState>()(
       addTag: (id, tag) => {
         set((state) => ({
           images: state.images.map((img) =>
-            img.id === id && !img.tags.includes(tag)
-              ? { ...img, tags: [...img.tags, tag] }
-              : img
+            img.id === id && !img.tags.includes(tag) ? { ...img, tags: [...img.tags, tag] } : img
           ),
         }));
       },
@@ -460,9 +472,7 @@ export const useImageStudioStore = create<ImageStudioState>()(
       removeTag: (id, tag) => {
         set((state) => ({
           images: state.images.map((img) =>
-            img.id === id
-              ? { ...img, tags: img.tags.filter((t) => t !== tag) }
-              : img
+            img.id === id ? { ...img, tags: img.tags.filter((t) => t !== tag) } : img
           ),
         }));
       },
@@ -470,10 +480,11 @@ export const useImageStudioStore = create<ImageStudioState>()(
       getImageById: (id) => get().images.find((img) => img.id === id),
 
       // Actions - Working Image
-      setWorkingImage: (url, base64 = null) => set({
-        workingImageUrl: url,
-        workingImageBase64: base64,
-      }),
+      setWorkingImage: (url, base64 = null) =>
+        set({
+          workingImageUrl: url,
+          workingImageBase64: base64,
+        }),
 
       setOriginalImage: (url) => set({ originalImageUrl: url }),
 
@@ -523,9 +534,7 @@ export const useImageStudioStore = create<ImageStudioState>()(
 
       updateLayer: (id, updates) => {
         set((state) => ({
-          layers: state.layers.map((layer) =>
-            layer.id === id ? { ...layer, ...updates } : layer
-          ),
+          layers: state.layers.map((layer) => (layer.id === id ? { ...layer, ...updates } : layer)),
         }));
       },
 
@@ -779,9 +788,7 @@ export const selectSelectedImage = (state: ImageStudioState) =>
 export const selectFavoriteImages = (state: ImageStudioState) =>
   state.images.filter((img) => img.isFavorite);
 export const selectFilteredImages = (state: ImageStudioState) =>
-  state.filterFavorites
-    ? state.images.filter((img) => img.isFavorite)
-    : state.images;
+  state.filterFavorites ? state.images.filter((img) => img.isFavorite) : state.images;
 export const selectIsEditing = (state: ImageStudioState) =>
   state.activeTab === 'edit' || state.activeTab === 'adjust';
 export const selectHasUnsavedChanges = (state: ImageStudioState) =>

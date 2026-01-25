@@ -10,7 +10,7 @@ beforeEach(() => {
   const { result } = renderHook(() => useCustomThemeStore());
   act(() => {
     // Clear all themes
-    result.current.customThemes.forEach(theme => {
+    result.current.customThemes.forEach((theme) => {
       result.current.deleteTheme(theme.id);
     });
     result.current.selectTheme(null);
@@ -83,7 +83,7 @@ describe('useCustomThemeStore', () => {
         });
       });
 
-      const theme = result.current.customThemes.find(t => t.id === themeId);
+      const theme = result.current.customThemes.find((t) => t.id === themeId);
       expect(theme?.displayName).toBe('Updated Name');
       expect(theme?.isDark).toBe(false);
       expect(theme?.name).toBe('original'); // Name unchanged
@@ -112,7 +112,9 @@ describe('useCustomThemeStore', () => {
       });
 
       const newUpdatedAt = result.current.customThemes[0].updatedAt;
-      expect(new Date(newUpdatedAt).getTime()).toBeGreaterThanOrEqual(new Date(originalUpdatedAt).getTime());
+      expect(new Date(newUpdatedAt).getTime()).toBeGreaterThanOrEqual(
+        new Date(originalUpdatedAt).getTime()
+      );
     });
   });
 
@@ -186,7 +188,7 @@ describe('useCustomThemeStore', () => {
       expect(duplicateId).not.toBe(originalId);
       expect(result.current.customThemes).toHaveLength(2);
 
-      const duplicate = result.current.customThemes.find(t => t.id === duplicateId);
+      const duplicate = result.current.customThemes.find((t) => t.id === duplicateId);
       expect(duplicate?.name).toBe('Copied Theme');
       expect(duplicate?.displayName).toBe('Copied Theme');
       expect(duplicate?.isDark).toBe(true);
@@ -415,10 +417,23 @@ describe('createDefaultThemeTemplate', () => {
   it('should include all required color properties', () => {
     const template = createDefaultThemeTemplate('Test', true);
     const requiredColors = [
-      'background', 'foreground', 'comment', 'keyword', 'string',
-      'number', 'function', 'operator', 'property', 'className',
-      'constant', 'tag', 'attrName', 'attrValue', 'punctuation',
-      'selection', 'lineHighlight'
+      'background',
+      'foreground',
+      'comment',
+      'keyword',
+      'string',
+      'number',
+      'function',
+      'operator',
+      'property',
+      'className',
+      'constant',
+      'tag',
+      'attrName',
+      'attrValue',
+      'punctuation',
+      'selection',
+      'lineHighlight',
     ];
 
     for (const color of requiredColors) {

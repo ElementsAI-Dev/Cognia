@@ -92,21 +92,13 @@ interface JupyterActions {
   clearExecutionHistory: (sessionId?: string) => void;
 
   // Session-environment mappings
-  mapChatToJupyter: (
-    chatSessionId: string,
-    jupyterSessionId: string,
-    envPath: string
-  ) => void;
+  mapChatToJupyter: (chatSessionId: string, jupyterSessionId: string, envPath: string) => void;
   unmapChatSession: (chatSessionId: string) => void;
   getJupyterSessionForChat: (chatSessionId: string) => SessionEnvMapping | undefined;
 
   // Cells management
   setCells: (sessionId: string, cells: ExecutableCell[]) => void;
-  updateCell: (
-    sessionId: string,
-    cellIndex: number,
-    updates: Partial<ExecutableCell>
-  ) => void;
+  updateCell: (sessionId: string, cellIndex: number, updates: Partial<ExecutableCell>) => void;
   getCells: (sessionId: string) => ExecutableCell[];
 
   // Error handling
@@ -156,8 +148,7 @@ export const useJupyterStore = create<JupyterState & JupyterActions>()(
       removeSession: (sessionId) =>
         set((state) => ({
           sessions: state.sessions.filter((s) => s.id !== sessionId),
-          activeSessionId:
-            state.activeSessionId === sessionId ? null : state.activeSessionId,
+          activeSessionId: state.activeSessionId === sessionId ? null : state.activeSessionId,
           // Also remove from mappings
           sessionEnvMappings: state.sessionEnvMappings.filter(
             (m) => m.jupyterSessionId !== sessionId
@@ -166,9 +157,7 @@ export const useJupyterStore = create<JupyterState & JupyterActions>()(
 
       updateSession: (sessionId, updates) =>
         set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === sessionId ? { ...s, ...updates } : s
-          ),
+          sessions: state.sessions.map((s) => (s.id === sessionId ? { ...s, ...updates } : s)),
         })),
 
       setActiveSession: (sessionId) => set({ activeSessionId: sessionId }),
@@ -178,9 +167,7 @@ export const useJupyterStore = create<JupyterState & JupyterActions>()(
 
       updateKernelStatus: (kernelId, status) =>
         set((state) => ({
-          kernels: state.kernels.map((k) =>
-            k.id === kernelId ? { ...k, status } : k
-          ),
+          kernels: state.kernels.map((k) => (k.id === kernelId ? { ...k, status } : k)),
         })),
 
       // Execution state
@@ -190,8 +177,7 @@ export const useJupyterStore = create<JupyterState & JupyterActions>()(
           executingCellIndex: cellIndex,
         }),
 
-      setLastSandboxExecutionResult: (result) =>
-        set({ lastSandboxExecutionResult: result }),
+      setLastSandboxExecutionResult: (result) => set({ lastSandboxExecutionResult: result }),
 
       // Variables
       setVariables: (variables) => set({ variables }),
@@ -241,9 +227,7 @@ export const useJupyterStore = create<JupyterState & JupyterActions>()(
         })),
 
       getJupyterSessionForChat: (chatSessionId) => {
-        return get().sessionEnvMappings.find(
-          (m) => m.chatSessionId === chatSessionId
-        );
+        return get().sessionEnvMappings.find((m) => m.chatSessionId === chatSessionId);
       },
 
       // Cells management

@@ -12,11 +12,7 @@ export {
 
 export { useUsageStore } from './usage-store';
 
-export {
-  useRecentFilesStore,
-  selectRecentFiles,
-  type RecentFile,
-} from './recent-files-store';
+export { useRecentFilesStore, selectRecentFiles, type RecentFile } from './recent-files-store';
 
 export {
   useNativeStore,

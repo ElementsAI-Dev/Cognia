@@ -5,7 +5,13 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import type { ToolExecution, AgentToolStatus as ToolStatus } from '@/types/agent/tool';
-import type { AgentPlan, PlanStep, PlanStepStatus, CreatePlanInput, UpdatePlanInput } from '@/types/agent';
+import type {
+  AgentPlan,
+  PlanStep,
+  PlanStepStatus,
+  CreatePlanInput,
+  UpdatePlanInput,
+} from '@/types/agent';
 import type { SubAgent, CreateSubAgentInput, UpdateSubAgentInput } from '@/types/agent/sub-agent';
 import { DEFAULT_SUB_AGENT_CONFIG } from '@/types/agent/sub-agent';
 
@@ -131,9 +137,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
   updateToolExecution: (id, updates) =>
     set((state) => ({
-      toolExecutions: state.toolExecutions.map((t) =>
-        t.id === id ? { ...t, ...updates } : t
-      ),
+      toolExecutions: state.toolExecutions.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     })),
 
   completeToolExecution: (id, output) => {
@@ -286,9 +290,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
           ...state.plans,
           [planId]: {
             ...plan,
-            steps: plan.steps.map((s) =>
-              s.id === stepId ? { ...s, ...updates } : s
-            ),
+            steps: plan.steps.map((s) => (s.id === stepId ? { ...s, ...updates } : s)),
             updatedAt: new Date(),
           },
         },

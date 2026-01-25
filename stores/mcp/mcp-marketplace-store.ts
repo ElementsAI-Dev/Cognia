@@ -30,43 +30,43 @@ interface McpMarketplaceState {
   isLoading: boolean;
   error: string | null;
   lastFetched: number | null;
-  
+
   // Source-specific catalogs for caching
   sourceCatalogs: Record<McpMarketplaceSource, McpMarketplaceCatalog | null>;
   sourceLastFetched: Record<McpMarketplaceSource, number | null>;
-  
+
   // Installation tracking
   installingItems: Map<string, McpInstallStatus>;
   installErrors: Map<string, string>;
-  
+
   // Selected item for detail view
   selectedItem: McpMarketplaceItem | null;
   downloadDetails: McpDownloadResponse | null;
   isLoadingDetails: boolean;
-  
+
   // API Keys for sources that require them
   smitheryApiKey: string | null;
-  
+
   // Favorites
   favorites: Set<string>;
-  
+
   // Recently viewed
   recentlyViewed: string[];
-  
+
   // Search history
   searchHistory: string[];
-  
+
   // Pagination
   currentPage: number;
   itemsPerPage: number;
-  
+
   // View mode
   viewMode: 'grid' | 'list';
   showFavoritesOnly: boolean;
-  
+
   // Cache duration (5 minutes)
   cacheDuration: number;
-  
+
   // Actions
   fetchCatalog: (force?: boolean) => Promise<void>;
   fetchFromSource: (source: McpMarketplaceSource, force?: boolean) => Promise<void>;
@@ -77,28 +77,28 @@ interface McpMarketplaceState {
   setInstallStatus: (mcpId: string, status: McpInstallStatus, error?: string) => void;
   setSmitheryApiKey: (key: string | null) => void;
   clearError: () => void;
-  
+
   // Favorites actions
   toggleFavorite: (mcpId: string) => void;
   isFavorite: (mcpId: string) => boolean;
   setShowFavoritesOnly: (show: boolean) => void;
-  
+
   // Recently viewed actions
   addToRecentlyViewed: (mcpId: string) => void;
   getRecentlyViewedItems: () => McpMarketplaceItem[];
   clearRecentlyViewed: () => void;
-  
+
   // Search history actions
   addToSearchHistory: (query: string) => void;
   clearSearchHistory: () => void;
-  
+
   // Pagination actions
   setCurrentPage: (page: number) => void;
   setItemsPerPage: (count: number) => void;
-  
+
   // View actions
   setViewMode: (mode: 'grid' | 'list') => void;
-  
+
   // Computed
   getFilteredItems: () => McpMarketplaceItem[];
   getPaginatedItems: () => McpMarketplaceItem[];
@@ -149,7 +149,7 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
       fetchCatalog: async (force = false) => {
         const state = get();
         const source = state.filters.source || 'all';
-        
+
         // Check cache validity
         if (
           !force &&
@@ -194,7 +194,7 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
 
       fetchFromSource: async (source, force = false) => {
         const state = get();
-        
+
         // Check source-specific cache
         const lastFetched = state.sourceLastFetched[source];
         if (
@@ -239,7 +239,7 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
         const state = get();
         const updatedFilters = { ...state.filters, ...newFilters };
         set({ filters: updatedFilters, currentPage: 1 }); // Reset to page 1 on filter change
-        
+
         // If source changed, fetch from that source
         if (newFilters.source && newFilters.source !== state.filters.source) {
           get().fetchFromSource(newFilters.source);
@@ -382,12 +382,12 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
         const state = get();
         if (!state.catalog) return [];
         let items = filterMarketplaceItems(state.catalog.items, state.filters);
-        
+
         // Filter by favorites if enabled
         if (state.showFavoritesOnly) {
-          items = items.filter(item => state.favorites.has(item.mcpId));
+          items = items.filter((item) => state.favorites.has(item.mcpId));
         }
-        
+
         return items;
       },
 
@@ -424,7 +424,7 @@ export const useMcpMarketplaceStore = create<McpMarketplaceState>()(
         const state = get();
         if (!state.catalog) return 0;
         if (source === 'all') return state.catalog.items.length;
-        return state.catalog.items.filter(item => item.source === source).length;
+        return state.catalog.items.filter((item) => item.source === source).length;
       },
 
       getFavoritesCount: () => {

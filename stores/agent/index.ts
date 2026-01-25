@@ -1,6 +1,6 @@
 /**
  * Agent stores index
- * 
+ *
  * Note: Skills store has been moved to @/stores/skills
  */
 

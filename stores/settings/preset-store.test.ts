@@ -215,8 +215,8 @@ describe('usePresetStore', () => {
       });
 
       const presets = usePresetStore.getState().presets;
-      expect(presets.find(p => p.id === preset1!.id)?.isDefault).toBe(false);
-      expect(presets.find(p => p.id === preset2!.id)?.isDefault).toBe(true);
+      expect(presets.find((p) => p.id === preset1!.id)?.isDefault).toBe(false);
+      expect(presets.find((p) => p.id === preset2!.id)?.isDefault).toBe(true);
     });
   });
 
@@ -251,9 +251,15 @@ describe('usePresetStore', () => {
     it('should reorder presets by swapping positions', () => {
       let preset1, _preset2, preset3;
       act(() => {
-        preset1 = usePresetStore.getState().createPreset({ name: 'First', provider: 'openai', model: 'gpt-4' });
-        _preset2 = usePresetStore.getState().createPreset({ name: 'Second', provider: 'openai', model: 'gpt-4' });
-        preset3 = usePresetStore.getState().createPreset({ name: 'Third', provider: 'openai', model: 'gpt-4' });
+        preset1 = usePresetStore
+          .getState()
+          .createPreset({ name: 'First', provider: 'openai', model: 'gpt-4' });
+        _preset2 = usePresetStore
+          .getState()
+          .createPreset({ name: 'Second', provider: 'openai', model: 'gpt-4' });
+        preset3 = usePresetStore
+          .getState()
+          .createPreset({ name: 'Third', provider: 'openai', model: 'gpt-4' });
       });
 
       const activeId = preset3!.id;
@@ -360,7 +366,7 @@ describe('usePresetStore', () => {
         usePresetStore.getState().toggleFavorite(id);
       });
 
-      const favorites = usePresetStore.getState().presets.filter(p => p.isFavorite);
+      const favorites = usePresetStore.getState().presets.filter((p) => p.isFavorite);
       expect(favorites).toHaveLength(1);
       expect(favorites[0].id).toBe(id);
     });

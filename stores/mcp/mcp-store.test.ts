@@ -4,7 +4,12 @@
 
 import { useMcpStore } from './mcp-store';
 import { act } from '@testing-library/react';
-import type { McpServerConfig, McpServerState, McpServerStatus, ToolUsageRecord } from '@/types/mcp';
+import type {
+  McpServerConfig,
+  McpServerState,
+  McpServerStatus,
+  ToolUsageRecord,
+} from '@/types/mcp';
 import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
 
 // Mock Tauri environment
@@ -40,7 +45,11 @@ const createMockConfig = (name: string): McpServerConfig => ({
 });
 
 // Helper to create mock server state
-const createMockServerState = (id: string, name: string, status: McpServerStatus = { type: 'disconnected' }): McpServerState => ({
+const createMockServerState = (
+  id: string,
+  name: string,
+  status: McpServerStatus = { type: 'disconnected' }
+): McpServerState => ({
   id,
   name,
   config: createMockConfig(name),
@@ -212,7 +221,9 @@ describe('useMcpStore', () => {
       };
       mockInvoke.mockResolvedValueOnce(mockResult);
 
-      const result = await useMcpStore.getState().callTool('server-1', 'test-tool', { arg: 'value' });
+      const result = await useMcpStore
+        .getState()
+        .callTool('server-1', 'test-tool', { arg: 'value' });
 
       expect(mockInvoke).toHaveBeenCalledWith('mcp_call_tool', {
         serverId: 'server-1',
@@ -249,7 +260,9 @@ describe('useMcpStore', () => {
       };
       mockInvoke.mockResolvedValueOnce(mockPrompt);
 
-      const result = await useMcpStore.getState().getPrompt('server-1', 'greeting', { name: 'Test' });
+      const result = await useMcpStore
+        .getState()
+        .getPrompt('server-1', 'greeting', { name: 'Test' });
 
       expect(mockInvoke).toHaveBeenCalledWith('mcp_get_prompt', {
         serverId: 'server-1',

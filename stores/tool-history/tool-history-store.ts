@@ -1,6 +1,6 @@
 /**
  * Tool History Store - Zustand state management for tool/skill call history
- * 
+ *
  * Tracks tool usage, provides analytics, and enables history-based optimization
  */
 
@@ -54,7 +54,13 @@ interface ToolHistoryState {
   getAllStats: () => ToolUsageStats[];
 
   // Favorites & Pinning
-  toggleFavorite: (toolId: string, toolType: ToolType, toolName: string, serverId?: string, serverName?: string) => void;
+  toggleFavorite: (
+    toolId: string,
+    toolType: ToolType,
+    toolName: string,
+    serverId?: string,
+    serverName?: string
+  ) => void;
   togglePinned: (toolId: string) => void;
   setDisplayOrder: (toolId: string, order: number) => void;
   getFavorites: () => ToolUsageStats[];
@@ -86,16 +92,13 @@ function calculateSuccessRate(stats: ToolUsageStats): number {
 /**
  * Extract frequent prompts from history
  */
-function extractFrequentPrompts(
-  history: ToolCallRecord[],
-  limit: number = 5
-): FrequentPrompt[] {
+function extractFrequentPrompts(history: ToolCallRecord[], limit: number = 5): FrequentPrompt[] {
   const promptMap = new Map<string, { count: number; lastUsedAt: Date; successCount: number }>();
 
   for (const record of history) {
     const promptKey = truncatePrompt(record.prompt, 100);
     const existing = promptMap.get(promptKey);
-    
+
     if (existing) {
       existing.count++;
       if (record.calledAt > existing.lastUsedAt) {
@@ -128,14 +131,24 @@ function extractFrequentPrompts(
  * Simple text similarity (Jaccard index on words)
  */
 function textSimilarity(a: string, b: string): number {
-  const wordsA = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 2));
-  const wordsB = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 2));
-  
+  const wordsA = new Set(
+    a
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2)
+  );
+  const wordsB = new Set(
+    b
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2)
+  );
+
   if (wordsA.size === 0 || wordsB.size === 0) return 0;
-  
-  const intersection = new Set([...wordsA].filter(x => wordsB.has(x)));
+
+  const intersection = new Set([...wordsA].filter((x) => wordsB.has(x)));
   const union = new Set([...wordsA, ...wordsB]);
-  
+
   return intersection.size / union.size;
 }
 
@@ -169,7 +182,7 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
         set((state) => {
           // Add to history
           const newHistory = [newRecord, ...state.history];
-          
+
           // Trim if exceeds max
           if (newHistory.length > settings.maxRecords) {
             newHistory.splice(settings.maxRecords);
@@ -178,7 +191,7 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
           // Update usage stats
           const toolId = record.toolId;
           const existingStats = state.usageStats[toolId];
-          
+
           const updatedStats: ToolUsageStats = existingStats
             ? {
                 ...existingStats,
@@ -213,7 +226,7 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
       // Update a call's result
       updateToolCallResultStatus: (callId, result, output, errorMessage, duration) => {
         set((state) => {
-          const recordIndex = state.history.findIndex(r => r.id === callId);
+          const recordIndex = state.history.findIndex((r) => r.id === callId);
           if (recordIndex === -1) return state;
 
           const record = state.history[recordIndex];
@@ -233,13 +246,12 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
           const stats = state.usageStats[toolId];
           if (!stats) return { history: newHistory };
 
-          const toolHistory = newHistory.filter(r => r.toolId === toolId);
-          const successCount = toolHistory.filter(r => r.result === 'success').length;
-          const errorCount = toolHistory.filter(r => r.result === 'error').length;
-          const durations = toolHistory.filter(r => r.duration).map(r => r.duration!);
-          const avgDuration = durations.length > 0
-            ? durations.reduce((a, b) => a + b, 0) / durations.length
-            : 0;
+          const toolHistory = newHistory.filter((r) => r.toolId === toolId);
+          const successCount = toolHistory.filter((r) => r.result === 'success').length;
+          const errorCount = toolHistory.filter((r) => r.result === 'error').length;
+          const durations = toolHistory.filter((r) => r.duration).map((r) => r.duration!);
+          const avgDuration =
+            durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
 
           const updatedStats: ToolUsageStats = {
             ...stats,
@@ -259,7 +271,7 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
       // Delete a record
       deleteRecord: (id) => {
         set((state) => ({
-          history: state.history.filter(r => r.id !== id),
+          history: state.history.filter((r) => r.id !== id),
         }));
       },
 
@@ -275,7 +287,7 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
         cutoffDate.setDate(cutoffDate.getDate() - settings.retentionDays);
 
         set((state) => ({
-          history: state.history.filter(r => r.calledAt >= cutoffDate),
+          history: state.history.filter((r) => r.calledAt >= cutoffDate),
         }));
       },
 
@@ -285,34 +297,34 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
 
         if (filter) {
           if (filter.toolType) {
-            records = records.filter(r => r.toolType === filter.toolType);
+            records = records.filter((r) => r.toolType === filter.toolType);
           }
           if (filter.toolId) {
-            records = records.filter(r => r.toolId === filter.toolId);
+            records = records.filter((r) => r.toolId === filter.toolId);
           }
           if (filter.serverId) {
-            records = records.filter(r => r.serverId === filter.serverId);
+            records = records.filter((r) => r.serverId === filter.serverId);
           }
           if (filter.result) {
-            records = records.filter(r => r.result === filter.result);
+            records = records.filter((r) => r.result === filter.result);
           }
           if (filter.fromDate) {
-            records = records.filter(r => r.calledAt >= filter.fromDate!);
+            records = records.filter((r) => r.calledAt >= filter.fromDate!);
           }
           if (filter.toDate) {
-            records = records.filter(r => r.calledAt <= filter.toDate!);
+            records = records.filter((r) => r.calledAt <= filter.toDate!);
           }
           if (filter.sessionId) {
-            records = records.filter(r => r.sessionId === filter.sessionId);
+            records = records.filter((r) => r.sessionId === filter.sessionId);
           }
           if (filter.chatId) {
-            records = records.filter(r => r.chatId === filter.chatId);
+            records = records.filter((r) => r.chatId === filter.chatId);
           }
           if (filter.searchQuery) {
             const query = filter.searchQuery.toLowerCase();
-            records = records.filter(r =>
-              r.prompt.toLowerCase().includes(query) ||
-              r.toolName.toLowerCase().includes(query)
+            records = records.filter(
+              (r) =>
+                r.prompt.toLowerCase().includes(query) || r.toolName.toLowerCase().includes(query)
             );
           }
           if (filter.offset) {
@@ -328,8 +340,8 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
 
       // Get history for a specific tool
       getToolHistory: (toolId, limit = 50) => {
-        return get().history
-          .filter(r => r.toolId === toolId)
+        return get()
+          .history.filter((r) => r.toolId === toolId)
           .slice(0, limit);
       },
 
@@ -407,20 +419,20 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
 
       // Get favorites
       getFavorites: () => {
-        return Object.values(get().usageStats).filter(s => s.isFavorite);
+        return Object.values(get().usageStats).filter((s) => s.isFavorite);
       },
 
       // Get pinned tools
       getPinnedTools: () => {
         return Object.values(get().usageStats)
-          .filter(s => s.isPinned)
+          .filter((s) => s.isPinned)
           .sort((a, b) => (a.displayOrder ?? 999) - (b.displayOrder ?? 999));
       },
 
       // Get recently used tools
       getRecentTools: (limit = 10) => {
         return Object.values(get().usageStats)
-          .filter(s => s.lastUsedAt)
+          .filter((s) => s.lastUsedAt)
           .sort((a, b) => (b.lastUsedAt?.getTime() ?? 0) - (a.lastUsedAt?.getTime() ?? 0))
           .slice(0, limit);
       },
@@ -438,17 +450,15 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
 
         switch (sortOption) {
           case 'recent':
-            return stats.sort((a, b) => 
-              (b.lastUsedAt?.getTime() ?? 0) - (a.lastUsedAt?.getTime() ?? 0)
+            return stats.sort(
+              (a, b) => (b.lastUsedAt?.getTime() ?? 0) - (a.lastUsedAt?.getTime() ?? 0)
             );
           case 'frequent':
             return stats.sort((a, b) => b.totalCalls - a.totalCalls);
           case 'alphabetical':
             return stats.sort((a, b) => a.toolName.localeCompare(b.toolName));
           case 'success_rate':
-            return stats.sort((a, b) => 
-              calculateSuccessRate(b) - calculateSuccessRate(a)
-            );
+            return stats.sort((a, b) => calculateSuccessRate(b) - calculateSuccessRate(a));
           case 'custom':
             return stats.sort((a, b) => {
               // Pinned first
@@ -473,11 +483,11 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
         const suggestions: PromptOptimizationSuggestion[] = [];
 
         // Get tool history
-        const toolHistory = history.filter(r => r.toolId === toolId);
+        const toolHistory = history.filter((r) => r.toolId === toolId);
         if (toolHistory.length === 0) return [];
 
         // Get successful calls
-        const successfulCalls = toolHistory.filter(r => r.result === 'success');
+        const successfulCalls = toolHistory.filter((r) => r.result === 'success');
 
         // Suggestion 1: Most frequent successful prompts
         const stats = usageStats[toolId];
@@ -529,7 +539,7 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
         // Deduplicate and sort by confidence
         const seen = new Set<string>();
         return suggestions
-          .filter(s => {
+          .filter((s) => {
             const key = s.suggestedPrompt.slice(0, 50);
             if (seen.has(key)) return false;
             seen.add(key);
@@ -546,15 +556,17 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
 
         if (!currentInput || currentInput.length < 5) {
           // Return most frequent tools if no input
-          return get().getFrequentTools(limit).map(s => ({
-            toolId: s.toolId,
-            toolType: s.toolType,
-            toolName: s.toolName,
-            serverId: s.serverId,
-            serverName: s.serverName,
-            score: 0.5,
-            reason: 'frequent' as const,
-          }));
+          return get()
+            .getFrequentTools(limit)
+            .map((s) => ({
+              toolId: s.toolId,
+              toolType: s.toolType,
+              toolName: s.toolName,
+              serverId: s.serverId,
+              serverName: s.serverName,
+              score: 0.5,
+              reason: 'frequent' as const,
+            }));
         }
 
         // Find tools with similar prompts
@@ -590,9 +602,7 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
           }
         }
 
-        return recommendations
-          .sort((a, b) => b.score - a.score)
-          .slice(0, limit);
+        return recommendations.sort((a, b) => b.score - a.score).slice(0, limit);
       },
 
       // Update settings
@@ -617,11 +627,11 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
       onRehydrateStorage: () => (state) => {
         // Convert date strings back to Date objects
         if (state) {
-          state.history = state.history.map(r => ({
+          state.history = state.history.map((r) => ({
             ...r,
             calledAt: new Date(r.calledAt),
           }));
-          
+
           for (const stats of Object.values(state.usageStats)) {
             if (stats.lastUsedAt) {
               stats.lastUsedAt = new Date(stats.lastUsedAt);

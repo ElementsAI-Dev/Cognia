@@ -47,13 +47,17 @@ interface DocumentState {
   error: string | null;
 
   // Document CRUD
-  addDocument: (doc: Omit<StoredDocument, 'id' | 'version' | 'createdAt' | 'updatedAt' | 'isIndexed'>) => StoredDocument;
+  addDocument: (
+    doc: Omit<StoredDocument, 'id' | 'version' | 'createdAt' | 'updatedAt' | 'isIndexed'>
+  ) => StoredDocument;
   updateDocument: (id: string, updates: Partial<StoredDocument>) => void;
   deleteDocument: (id: string) => void;
   getDocument: (id: string) => StoredDocument | undefined;
 
   // Bulk operations
-  addDocuments: (docs: Omit<StoredDocument, 'id' | 'version' | 'createdAt' | 'updatedAt' | 'isIndexed'>[]) => StoredDocument[];
+  addDocuments: (
+    docs: Omit<StoredDocument, 'id' | 'version' | 'createdAt' | 'updatedAt' | 'isIndexed'>[]
+  ) => StoredDocument[];
   deleteDocuments: (ids: string[]) => void;
   clearAllDocuments: () => void;
 
@@ -259,9 +263,7 @@ export const useDocumentStore = create<DocumentState>()(
       markAsIndexed: (id, collectionId) => {
         set((state) => ({
           documents: state.documents.map((d) =>
-            d.id === id
-              ? { ...d, isIndexed: true, collectionId, updatedAt: new Date() }
-              : d
+            d.id === id ? { ...d, isIndexed: true, collectionId, updatedAt: new Date() } : d
           ),
         }));
       },
@@ -279,9 +281,7 @@ export const useDocumentStore = create<DocumentState>()(
       assignToProject: (documentId, projectId) => {
         set((state) => ({
           documents: state.documents.map((d) =>
-            d.id === documentId
-              ? { ...d, projectId, updatedAt: new Date() }
-              : d
+            d.id === documentId ? { ...d, projectId, updatedAt: new Date() } : d
           ),
         }));
       },
@@ -289,9 +289,7 @@ export const useDocumentStore = create<DocumentState>()(
       removeFromProject: (documentId) => {
         set((state) => ({
           documents: state.documents.map((d) =>
-            d.id === documentId
-              ? { ...d, projectId: undefined, updatedAt: new Date() }
-              : d
+            d.id === documentId ? { ...d, projectId: undefined, updatedAt: new Date() } : d
           ),
         }));
       },

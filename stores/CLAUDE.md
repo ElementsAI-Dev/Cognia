@@ -182,6 +182,7 @@ function MyComponent() {
 ## Changelog
 
 ### 2025-01-14
+
 - Initial module documentation created
 - Indexed 25+ store directories
 - Documented store patterns

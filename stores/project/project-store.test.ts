@@ -259,7 +259,9 @@ describe('useProjectStore', () => {
         useProjectStore.getState().addTag(projectId, 'tag1');
       });
 
-      expect(useProjectStore.getState().projects[0].tags?.filter(t => t === 'tag1')).toHaveLength(1);
+      expect(useProjectStore.getState().projects[0].tags?.filter((t) => t === 'tag1')).toHaveLength(
+        1
+      );
     });
 
     it('should remove tag', () => {

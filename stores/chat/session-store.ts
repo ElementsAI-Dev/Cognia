@@ -76,7 +76,11 @@ interface SessionState {
   getModeConfig: (mode: ChatMode) => ModeConfig;
   getRecentModes: (limit?: number) => ChatMode[];
 
-  createBranch: (sessionId: string, branchPointMessageId: string, name?: string) => ConversationBranch | null;
+  createBranch: (
+    sessionId: string,
+    branchPointMessageId: string,
+    name?: string
+  ) => ConversationBranch | null;
   switchBranch: (sessionId: string, branchId: string | null) => void;
   deleteBranch: (sessionId: string, branchId: string) => void;
   renameBranch: (sessionId: string, branchId: string, name: string) => void;
@@ -155,7 +159,8 @@ const MODE_CONFIGS: Record<ChatMode, ModeConfig> = {
     name: 'Learning',
     description: 'Interactive learning and tutoring',
     icon: 'GraduationCap',
-    defaultSystemPrompt: 'You are a patient tutor. Explain concepts clearly and check understanding.',
+    defaultSystemPrompt:
+      'You are a patient tutor. Explain concepts clearly and check understanding.',
     features: ['explanations', 'quizzes', 'adaptive-learning'],
   },
 };
@@ -185,25 +190,35 @@ export const useSessionStore = create<SessionState>()(
       deleteFolder: (id: string) => {
         set((state) => ({
           folders: state.folders.filter((f) => f.id !== id),
-          sessions: state.sessions.map((s) => (s.folderId === id ? { ...s, folderId: undefined, updatedAt: new Date() } : s)),
+          sessions: state.sessions.map((s) =>
+            s.folderId === id ? { ...s, folderId: undefined, updatedAt: new Date() } : s
+          ),
         }));
       },
 
       updateFolder: (id: string, updates: Partial<ChatFolder>) => {
         set((state) => ({
-          folders: state.folders.map((f) => (f.id === id ? { ...f, ...updates, updatedAt: new Date() } : f)),
+          folders: state.folders.map((f) =>
+            f.id === id ? { ...f, ...updates, updatedAt: new Date() } : f
+          ),
         }));
       },
 
       moveSessionToFolder: (sessionId: string, folderId: string | null) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => (s.id === sessionId ? { ...s, folderId: folderId || undefined, updatedAt: new Date() } : s)),
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
+              ? { ...s, folderId: folderId || undefined, updatedAt: new Date() }
+              : s
+          ),
         }));
       },
 
       setSessionCustomIcon: (sessionId: string, icon: string | undefined) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => (s.id === sessionId ? { ...s, customIcon: icon, updatedAt: new Date() } : s)),
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, customIcon: icon, updatedAt: new Date() } : s
+          ),
         }));
       },
 
@@ -236,7 +251,8 @@ export const useSessionStore = create<SessionState>()(
       deleteSession: (id) =>
         set((state) => {
           const newSessions = state.sessions.filter((s) => s.id !== id);
-          const newActiveId = state.activeSessionId === id ? newSessions[0]?.id || null : state.activeSessionId;
+          const newActiveId =
+            state.activeSessionId === id ? newSessions[0]?.id || null : state.activeSessionId;
 
           getPluginLifecycleHooks().dispatchOnSessionDelete(id);
 
@@ -245,7 +261,9 @@ export const useSessionStore = create<SessionState>()(
 
       updateSession: (id, updates) =>
         set((state) => ({
-          sessions: state.sessions.map((s) => s.id === id ? { ...s, ...updates, updatedAt: new Date() } : s),
+          sessions: state.sessions.map((s) =>
+            s.id === id ? { ...s, ...updates, updatedAt: new Date() } : s
+          ),
         })),
 
       setActiveSession: (id) =>
@@ -280,7 +298,9 @@ export const useSessionStore = create<SessionState>()(
 
       togglePinSession: (id) =>
         set((state) => ({
-          sessions: state.sessions.map((s) => s.id === id ? { ...s, pinned: !s.pinned, updatedAt: new Date() } : s),
+          sessions: state.sessions.map((s) =>
+            s.id === id ? { ...s, pinned: !s.pinned, updatedAt: new Date() } : s
+          ),
         })),
 
       deleteAllSessions: () => set({ sessions: [], activeSessionId: null }),
@@ -312,14 +332,15 @@ export const useSessionStore = create<SessionState>()(
         set((state) => {
           const currentSession = state.sessions.find((s) => s.id === currentSessionId);
 
-          const carriedContext = options?.carryContext && options?.summary && currentSession
-            ? {
-                fromSessionId: currentSessionId,
-                fromMode: currentSession.mode,
-                summary: options.summary,
-                carriedAt: new Date(),
-              }
-            : undefined;
+          const carriedContext =
+            options?.carryContext && options?.summary && currentSession
+              ? {
+                  fromSessionId: currentSessionId,
+                  fromMode: currentSession.mode,
+                  summary: options.summary,
+                  carriedAt: new Date(),
+                }
+              : undefined;
 
           const newSession: Session = {
             id: nanoid(),
@@ -329,7 +350,8 @@ export const useSessionStore = create<SessionState>()(
             provider: currentSession?.provider || DEFAULT_PROVIDER,
             model: currentSession?.model || DEFAULT_MODEL,
             mode: targetMode,
-            systemPrompt: MODE_CONFIGS[targetMode].defaultSystemPrompt || currentSession?.systemPrompt,
+            systemPrompt:
+              MODE_CONFIGS[targetMode].defaultSystemPrompt || currentSession?.systemPrompt,
             projectId: currentSession?.projectId,
             virtualEnvId: currentSession?.virtualEnvId,
             messageCount: 0,
@@ -401,14 +423,32 @@ export const useSessionStore = create<SessionState>()(
           isActive: true,
         };
         set((state) => ({
-          sessions: state.sessions.map((s) => s.id === sessionId ? { ...s, branches: [...(s.branches || []), branch], activeBranchId: branch.id, updatedAt: new Date() } : s),
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
+              ? {
+                  ...s,
+                  branches: [...(s.branches || []), branch],
+                  activeBranchId: branch.id,
+                  updatedAt: new Date(),
+                }
+              : s
+          ),
         }));
         return branch;
       },
 
       switchBranch: (sessionId, branchId) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => s.id === sessionId ? { ...s, activeBranchId: branchId || undefined, branches: s.branches?.map((b) => ({ ...b, isActive: b.id === branchId })), updatedAt: new Date() } : s),
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
+              ? {
+                  ...s,
+                  activeBranchId: branchId || undefined,
+                  branches: s.branches?.map((b) => ({ ...b, isActive: b.id === branchId })),
+                  updatedAt: new Date(),
+                }
+              : s
+          ),
         }));
       },
 
@@ -417,26 +457,47 @@ export const useSessionStore = create<SessionState>()(
           sessions: state.sessions.map((s) => {
             if (s.id !== sessionId) return s;
             const newBranches = (s.branches || []).filter((b) => b.id !== branchId);
-            return { ...s, branches: newBranches, activeBranchId: s.activeBranchId === branchId ? undefined : s.activeBranchId, updatedAt: new Date() };
+            return {
+              ...s,
+              branches: newBranches,
+              activeBranchId: s.activeBranchId === branchId ? undefined : s.activeBranchId,
+              updatedAt: new Date(),
+            };
           }),
         }));
       },
 
       renameBranch: (sessionId, branchId, name) => {
         set((state) => ({
-          sessions: state.sessions.map((s) => s.id === sessionId ? { ...s, branches: s.branches?.map((b) => b.id === branchId ? { ...b, name, updatedAt: new Date() } : b), updatedAt: new Date() } : s),
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
+              ? {
+                  ...s,
+                  branches: s.branches?.map((b) =>
+                    b.id === branchId ? { ...b, name, updatedAt: new Date() } : b
+                  ),
+                  updatedAt: new Date(),
+                }
+              : s
+          ),
         }));
       },
 
       getBranches: (sessionId) => get().sessions.find((s) => s.id === sessionId)?.branches || [],
-      getActiveBranchId: (sessionId) => get().sessions.find((s) => s.id === sessionId)?.activeBranchId,
+      getActiveBranchId: (sessionId) =>
+        get().sessions.find((s) => s.id === sessionId)?.activeBranchId,
 
       // Environment management
       setSessionEnvironment: (sessionId, envId, envPath) =>
         set((state) => ({
           sessions: state.sessions.map((s) =>
             s.id === sessionId
-              ? { ...s, virtualEnvId: envId || undefined, virtualEnvPath: envPath || undefined, updatedAt: new Date() }
+              ? {
+                  ...s,
+                  virtualEnvId: envId || undefined,
+                  virtualEnvPath: envPath || undefined,
+                  updatedAt: new Date(),
+                }
               : s
           ),
         })),
@@ -462,9 +523,7 @@ export const useSessionStore = create<SessionState>()(
       setViewMode: (sessionId, viewMode) =>
         set((state) => ({
           sessions: state.sessions.map((s) =>
-            s.id === sessionId
-              ? { ...s, viewMode, updatedAt: new Date() }
-              : s
+            s.id === sessionId ? { ...s, viewMode, updatedAt: new Date() } : s
           ),
         })),
 
@@ -479,7 +538,10 @@ export const useSessionStore = create<SessionState>()(
             s.id === sessionId
               ? {
                   ...s,
-                  flowCanvasState: { ...(s.flowCanvasState || DEFAULT_FLOW_CANVAS_STATE), ...updates },
+                  flowCanvasState: {
+                    ...(s.flowCanvasState || DEFAULT_FLOW_CANVAS_STATE),
+                    ...updates,
+                  },
                   updatedAt: new Date(),
                 }
               : s
@@ -569,9 +631,13 @@ export const useSessionStore = create<SessionState>()(
         })),
 
       clearAllSessions: () => set({ sessions: [], activeSessionId: null }),
-      importSessions: (sessions) => set((state) => ({ sessions: [...sessions, ...state.sessions] })),
+      importSessions: (sessions) =>
+        set((state) => ({ sessions: [...sessions, ...state.sessions] })),
       getSession: (id) => get().sessions.find((s) => s.id === id),
-      getActiveSession: () => { const { sessions, activeSessionId } = get(); return sessions.find((s) => s.id === activeSessionId); },
+      getActiveSession: () => {
+        const { sessions, activeSessionId } = get();
+        return sessions.find((s) => s.id === activeSessionId);
+      },
 
       // Goal management
       setGoal: (sessionId, input) => {
@@ -597,9 +663,7 @@ export const useSessionStore = create<SessionState>()(
         };
         set((state) => ({
           sessions: state.sessions.map((s) =>
-            s.id === sessionId
-              ? { ...s, goal, updatedAt: now }
-              : s
+            s.id === sessionId ? { ...s, goal, updatedAt: now } : s
           ),
         }));
         return goal;
@@ -626,9 +690,7 @@ export const useSessionStore = create<SessionState>()(
       clearGoal: (sessionId) =>
         set((state) => ({
           sessions: state.sessions.map((s) =>
-            s.id === sessionId
-              ? { ...s, goal: undefined, updatedAt: new Date() }
-              : s
+            s.id === sessionId ? { ...s, goal: undefined, updatedAt: new Date() } : s
           ),
         })),
 
@@ -736,7 +798,8 @@ export const useSessionStore = create<SessionState>()(
             );
             // Auto-calculate progress from steps
             const completedCount = steps.filter((step) => step.completed).length;
-            const progress = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
+            const progress =
+              steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
             return {
               ...s,
               goal: {
@@ -760,7 +823,8 @@ export const useSessionStore = create<SessionState>()(
               .map((step, index) => ({ ...step, order: index }));
             // Auto-calculate progress from remaining steps
             const completedCount = steps.filter((step) => step.completed).length;
-            const progress = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
+            const progress =
+              steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
             return {
               ...s,
               goal: {
@@ -781,12 +845,17 @@ export const useSessionStore = create<SessionState>()(
             const now = new Date();
             const steps = s.goal.steps.map((step) =>
               step.id === stepId
-                ? { ...step, completed: !step.completed, completedAt: !step.completed ? now : undefined }
+                ? {
+                    ...step,
+                    completed: !step.completed,
+                    completedAt: !step.completed ? now : undefined,
+                  }
                 : step
             );
             // Auto-calculate progress from steps
             const completedCount = steps.filter((step) => step.completed).length;
-            const progress = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
+            const progress =
+              steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
             // Auto-complete goal if all steps are completed
             const allCompleted = steps.length > 0 && steps.every((step) => step.completed);
             return {
@@ -836,21 +905,43 @@ export const useSessionStore = create<SessionState>()(
           ...s,
           createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
           updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
-          branches: s.branches?.map((b) => ({ ...b, createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt, updatedAt: b.updatedAt instanceof Date ? b.updatedAt.toISOString() : b.updatedAt })),
-          goal: s.goal ? {
-            ...s.goal,
-            createdAt: s.goal.createdAt instanceof Date ? s.goal.createdAt.toISOString() : s.goal.createdAt,
-            updatedAt: s.goal.updatedAt instanceof Date ? s.goal.updatedAt.toISOString() : s.goal.updatedAt,
-            completedAt: s.goal.completedAt instanceof Date ? s.goal.completedAt.toISOString() : s.goal.completedAt,
-            steps: s.goal.steps?.map((step) => ({
-              ...step,
-              createdAt: step.createdAt instanceof Date ? step.createdAt.toISOString() : step.createdAt,
-              completedAt: step.completedAt instanceof Date ? step.completedAt.toISOString() : step.completedAt,
-            })),
-          } : undefined,
+          branches: s.branches?.map((b) => ({
+            ...b,
+            createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
+            updatedAt: b.updatedAt instanceof Date ? b.updatedAt.toISOString() : b.updatedAt,
+          })),
+          goal: s.goal
+            ? {
+                ...s.goal,
+                createdAt:
+                  s.goal.createdAt instanceof Date
+                    ? s.goal.createdAt.toISOString()
+                    : s.goal.createdAt,
+                updatedAt:
+                  s.goal.updatedAt instanceof Date
+                    ? s.goal.updatedAt.toISOString()
+                    : s.goal.updatedAt,
+                completedAt:
+                  s.goal.completedAt instanceof Date
+                    ? s.goal.completedAt.toISOString()
+                    : s.goal.completedAt,
+                steps: s.goal.steps?.map((step) => ({
+                  ...step,
+                  createdAt:
+                    step.createdAt instanceof Date ? step.createdAt.toISOString() : step.createdAt,
+                  completedAt:
+                    step.completedAt instanceof Date
+                      ? step.completedAt.toISOString()
+                      : step.completedAt,
+                })),
+              }
+            : undefined,
         })),
         activeSessionId: state.activeSessionId,
-        modeHistory: state.modeHistory.map((h) => ({ ...h, timestamp: h.timestamp instanceof Date ? h.timestamp.toISOString() : h.timestamp })),
+        modeHistory: state.modeHistory.map((h) => ({
+          ...h,
+          timestamp: h.timestamp instanceof Date ? h.timestamp.toISOString() : h.timestamp,
+        })),
         folders: state.folders.map((f) => ({
           ...f,
           createdAt: f.createdAt instanceof Date ? f.createdAt.toISOString() : f.createdAt,
@@ -863,22 +954,35 @@ export const useSessionStore = create<SessionState>()(
             ...s,
             createdAt: new Date(s.createdAt),
             updatedAt: new Date(s.updatedAt),
-            branches: s.branches?.map((b) => ({ ...b, createdAt: new Date(b.createdAt), updatedAt: new Date(b.updatedAt) })),
-            goal: s.goal ? {
-              ...s.goal,
-              createdAt: new Date(s.goal.createdAt as unknown as string),
-              updatedAt: new Date(s.goal.updatedAt as unknown as string),
-              completedAt: s.goal.completedAt ? new Date(s.goal.completedAt as unknown as string) : undefined,
-              steps: s.goal.steps?.map((step) => ({
-                ...step,
-                createdAt: new Date(step.createdAt as unknown as string),
-                completedAt: step.completedAt ? new Date(step.completedAt as unknown as string) : undefined,
-              })),
-            } : undefined,
+            branches: s.branches?.map((b) => ({
+              ...b,
+              createdAt: new Date(b.createdAt),
+              updatedAt: new Date(b.updatedAt),
+            })),
+            goal: s.goal
+              ? {
+                  ...s.goal,
+                  createdAt: new Date(s.goal.createdAt as unknown as string),
+                  updatedAt: new Date(s.goal.updatedAt as unknown as string),
+                  completedAt: s.goal.completedAt
+                    ? new Date(s.goal.completedAt as unknown as string)
+                    : undefined,
+                  steps: s.goal.steps?.map((step) => ({
+                    ...step,
+                    createdAt: new Date(step.createdAt as unknown as string),
+                    completedAt: step.completedAt
+                      ? new Date(step.completedAt as unknown as string)
+                      : undefined,
+                  })),
+                }
+              : undefined,
           }));
         }
         if (state?.modeHistory) {
-          state.modeHistory = state.modeHistory.map((h) => ({ ...h, timestamp: new Date(h.timestamp as unknown as string) }));
+          state.modeHistory = state.modeHistory.map((h) => ({
+            ...h,
+            timestamp: new Date(h.timestamp as unknown as string),
+          }));
         }
         if (state?.folders) {
           state.folders = state.folders.map((f) => ({

@@ -251,8 +251,7 @@ export const useVirtualEnvStore = create<VirtualEnvState & VirtualEnvActions>()(
       },
 
       // Python versions
-      setAvailablePythonVersions: (availablePythonVersions) =>
-        set({ availablePythonVersions }),
+      setAvailablePythonVersions: (availablePythonVersions) => set({ availablePythonVersions }),
 
       // Health checks
       setHealthCheck: (envId, check) =>
@@ -369,8 +368,12 @@ export const selectEnvsByPythonVersion = (state: VirtualEnvState, version: strin
 export const selectRecentEnvs = (state: VirtualEnvState, limit = 5) =>
   [...state.environments]
     .sort((a, b) => {
-      const aTime = a.lastUsedAt ? new Date(a.lastUsedAt).getTime() : new Date(a.createdAt).getTime();
-      const bTime = b.lastUsedAt ? new Date(b.lastUsedAt).getTime() : new Date(b.createdAt).getTime();
+      const aTime = a.lastUsedAt
+        ? new Date(a.lastUsedAt).getTime()
+        : new Date(a.createdAt).getTime();
+      const bTime = b.lastUsedAt
+        ? new Date(b.lastUsedAt).getTime()
+        : new Date(b.createdAt).getTime();
       return bTime - aTime;
     })
     .slice(0, limit);
@@ -383,11 +386,9 @@ export const selectIsEnvSelected = (state: VirtualEnvState, id: string) =>
   state.selectedEnvIds.includes(id);
 
 // Hook selectors for better performance
-export const useFilteredEnvironments = () =>
-  useVirtualEnvStore(selectFilteredEnvironments);
+export const useFilteredEnvironments = () => useVirtualEnvStore(selectFilteredEnvironments);
 
-export const useSelectedEnvs = () =>
-  useVirtualEnvStore(selectSelectedEnvs);
+export const useSelectedEnvs = () => useVirtualEnvStore(selectSelectedEnvs);
 
 export const useEnvStats = () =>
   useVirtualEnvStore((state) => ({

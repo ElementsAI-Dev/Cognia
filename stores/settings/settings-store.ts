@@ -21,27 +21,79 @@ import {
   recordApiKeyError,
   getDefaultUsageStats,
 } from '@/lib/ai/infrastructure/api-key-rotation';
-import type { ColorThemePreset, UICustomization, BorderRadiusSize, SpacingSize, ShadowIntensity, BackgroundSettings, BackgroundImageFit, BackgroundImagePosition, BackgroundImageSource } from '@/lib/themes';
-import { DEFAULT_UI_CUSTOMIZATION, DEFAULT_BACKGROUND_SETTINGS, normalizeBackgroundSettings } from '@/lib/themes';
-import { deleteBackgroundImageAsset, saveBackgroundImageAsset } from '@/lib/themes/background-assets';
-import type { SearchProviderType, SearchProviderSettings, SourceVerificationSettings, SourceVerificationMode } from '@/types/search';
-import { DEFAULT_SEARCH_PROVIDER_SETTINGS, DEFAULT_SOURCE_VERIFICATION_SETTINGS } from '@/types/search';
+import type {
+  ColorThemePreset,
+  UICustomization,
+  BorderRadiusSize,
+  SpacingSize,
+  ShadowIntensity,
+  BackgroundSettings,
+  BackgroundImageFit,
+  BackgroundImagePosition,
+  BackgroundImageSource,
+} from '@/lib/themes';
+import {
+  DEFAULT_UI_CUSTOMIZATION,
+  DEFAULT_BACKGROUND_SETTINGS,
+  normalizeBackgroundSettings,
+} from '@/lib/themes';
+import {
+  deleteBackgroundImageAsset,
+  saveBackgroundImageAsset,
+} from '@/lib/themes/background-assets';
+import type {
+  SearchProviderType,
+  SearchProviderSettings,
+  SourceVerificationSettings,
+  SourceVerificationMode,
+} from '@/types/search';
+import {
+  DEFAULT_SEARCH_PROVIDER_SETTINGS,
+  DEFAULT_SOURCE_VERIFICATION_SETTINGS,
+} from '@/types/search';
 import type { SpeechSettings, SpeechLanguageCode, SpeechProvider } from '@/types/media/speech';
 import { DEFAULT_SPEECH_SETTINGS } from '@/types/media/speech';
-import type { CompressionSettings, CompressionStrategy, CompressionTrigger, CompressionModelConfig } from '@/types/system/compression';
+import type {
+  CompressionSettings,
+  CompressionStrategy,
+  CompressionTrigger,
+  CompressionModelConfig,
+} from '@/types/system/compression';
 import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/system/compression';
 import type { AutoDetectResult } from '@/lib/i18n/locale-auto-detect';
-import type { AutoRouterSettings, RoutingMode, RoutingStrategy, ModelTier } from '@/types/provider/auto-router';
+import type {
+  AutoRouterSettings,
+  RoutingMode,
+  RoutingStrategy,
+  ModelTier,
+} from '@/types/provider/auto-router';
 import { DEFAULT_AUTO_ROUTER_SETTINGS } from '@/types/provider/auto-router';
-import type { LoadBalancerSettings, LoadBalancingStrategy, ProviderWeight, CircuitBreakerSettings } from '@/types/provider/load-balancer';
+import type {
+  LoadBalancerSettings,
+  LoadBalancingStrategy,
+  ProviderWeight,
+  CircuitBreakerSettings,
+} from '@/types/provider/load-balancer';
 import { DEFAULT_LOAD_BALANCER_SETTINGS } from '@/types/provider/load-balancer';
-import type { ChatHistoryContextSettings, HistoryContextCompressionLevel } from '@/types/core/chat-history-context';
+import type {
+  ChatHistoryContextSettings,
+  HistoryContextCompressionLevel,
+} from '@/types/core/chat-history-context';
 import { DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS } from '@/types/core/chat-history-context';
 import type { TokenizerSettings, TokenizerProvider } from '@/types/system/tokenizer';
 import { DEFAULT_TOKENIZER_SETTINGS } from '@/types/system/tokenizer';
-import type { FeatureRoutingSettings, FeatureId, FeatureRoutingMode } from '@/types/routing/feature-router';
+import type {
+  FeatureRoutingSettings,
+  FeatureId,
+  FeatureRoutingMode,
+} from '@/types/routing/feature-router';
 import { DEFAULT_FEATURE_ROUTING_SETTINGS } from '@/types/routing/feature-router';
-import type { WelcomeSettings, CustomSuggestion, QuickAccessLink, WelcomeSectionVisibility } from '@/types/settings/welcome';
+import type {
+  WelcomeSettings,
+  CustomSuggestion,
+  QuickAccessLink,
+  WelcomeSectionVisibility,
+} from '@/types/settings/welcome';
 import { DEFAULT_WELCOME_SETTINGS } from '@/types/settings/welcome';
 import type { ChatMode } from '@/types/core';
 
@@ -166,7 +218,13 @@ const DEFAULT_THEME_SCHEDULE: ThemeScheduleSettings = {
 };
 
 // Response display settings types
-export type CodeTheme = 'github-dark' | 'github-light' | 'monokai' | 'dracula' | 'nord' | 'one-dark';
+export type CodeTheme =
+  | 'github-dark'
+  | 'github-light'
+  | 'monokai'
+  | 'dracula'
+  | 'nord'
+  | 'one-dark';
 export type FontFamily = 'system' | 'inter' | 'roboto' | 'fira-code' | 'jetbrains-mono';
 export type MessageBubbleStyle = 'default' | 'minimal' | 'bordered' | 'gradient';
 
@@ -262,7 +320,10 @@ export const DEFAULT_SIMPLIFIED_MODE_SETTINGS: SimplifiedModeSettings = {
 };
 
 // Preset configurations for simplified mode
-export const SIMPLIFIED_MODE_PRESETS: Record<SimplifiedModePreset, Partial<SimplifiedModeSettings>> = {
+export const SIMPLIFIED_MODE_PRESETS: Record<
+  SimplifiedModePreset,
+  Partial<SimplifiedModeSettings>
+> = {
   off: {
     enabled: false,
   },
@@ -341,7 +402,7 @@ interface SettingsState {
   // Language
   language: Language;
   setLanguage: (language: Language) => void;
-  
+
   // Locale auto-detection
   autoDetectLocale: boolean;
   setAutoDetectLocale: (enabled: boolean) => void;
@@ -369,10 +430,19 @@ interface SettingsState {
   // Multi-API Key management
   addApiKey: (providerId: string, apiKey: string) => void;
   removeApiKey: (providerId: string, apiKeyIndex: number) => void;
-  setApiKeyRotation: (providerId: string, enabled: boolean, strategy?: ApiKeyRotationStrategy) => void;
+  setApiKeyRotation: (
+    providerId: string,
+    enabled: boolean,
+    strategy?: ApiKeyRotationStrategy
+  ) => void;
   getActiveApiKey: (providerId: string) => string | undefined;
   rotateToNextApiKey: (providerId: string) => string | undefined;
-  recordApiKeyUsage: (providerId: string, apiKey: string, success: boolean, errorMessage?: string) => void;
+  recordApiKeyUsage: (
+    providerId: string,
+    apiKey: string,
+    success: boolean,
+    errorMessage?: string
+  ) => void;
   resetApiKeyStats: (providerId: string, apiKey: string) => void;
 
   // Custom providers
@@ -422,7 +492,10 @@ interface SettingsState {
 
   // Search preferences (Multi-provider)
   searchProviders: Record<SearchProviderType, SearchProviderSettings>;
-  setSearchProviderSettings: (providerId: SearchProviderType, settings: Partial<SearchProviderSettings>) => void;
+  setSearchProviderSettings: (
+    providerId: SearchProviderType,
+    settings: Partial<SearchProviderSettings>
+  ) => void;
   setSearchProviderApiKey: (providerId: SearchProviderType, apiKey: string) => void;
   setSearchProviderEnabled: (providerId: SearchProviderType, enabled: boolean) => void;
   setSearchProviderPriority: (providerId: SearchProviderType, priority: number) => void;
@@ -686,7 +759,11 @@ interface SettingsState {
   setWelcomeAvatarUrl: (url: string) => void;
   setWelcomeSectionVisibility: (visibility: Partial<WelcomeSectionVisibility>) => void;
   addWelcomeCustomSuggestion: (mode: ChatMode, suggestion: Omit<CustomSuggestion, 'id'>) => string;
-  updateWelcomeCustomSuggestion: (mode: ChatMode, id: string, updates: Partial<CustomSuggestion>) => void;
+  updateWelcomeCustomSuggestion: (
+    mode: ChatMode,
+    id: string,
+    updates: Partial<CustomSuggestion>
+  ) => void;
   removeWelcomeCustomSuggestion: (mode: ChatMode, id: string) => void;
   setWelcomeHideDefaultSuggestions: (hide: boolean) => void;
   setWelcomeQuickAccessLinks: (links: QuickAccessLink[]) => void;
@@ -1034,9 +1111,7 @@ export const useSettingsStore = create<SettingsState>()(
       },
       updateCustomTheme: (id, updates) =>
         set((state) => ({
-          customThemes: state.customThemes.map((t) =>
-            t.id === id ? { ...t, ...updates } : t
-          ),
+          customThemes: state.customThemes.map((t) => (t.id === id ? { ...t, ...updates } : t)),
         })),
       deleteCustomTheme: (id) =>
         set((state) => ({
@@ -1084,8 +1159,7 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           uiCustomization: { ...state.uiCustomization, chatMaxWidth },
         })),
-      resetUICustomization: () =>
-        set({ uiCustomization: DEFAULT_UI_CUSTOMIZATION }),
+      resetUICustomization: () => set({ uiCustomization: DEFAULT_UI_CUSTOMIZATION }),
 
       // Language actions
       setLanguage: (language) => set({ language }),
@@ -1095,7 +1169,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Custom Instructions actions
       setCustomInstructions: (customInstructions) => set({ customInstructions }),
-      setCustomInstructionsEnabled: (customInstructionsEnabled) => set({ customInstructionsEnabled }),
+      setCustomInstructionsEnabled: (customInstructionsEnabled) =>
+        set({ customInstructionsEnabled }),
       setAboutUser: (aboutUser) => set({ aboutUser }),
       setResponsePreferences: (responsePreferences) => set({ responsePreferences }),
 
@@ -1185,7 +1260,7 @@ export const useSettingsStore = create<SettingsState>()(
                 apiKeyUsageStats: remainingStats,
                 currentKeyIndex: newIndex,
                 // Update primary apiKey if the removed key was the primary
-                apiKey: settings.apiKey === keyToRemove ? (newKeys[0] || '') : settings.apiKey,
+                apiKey: settings.apiKey === keyToRemove ? newKeys[0] || '' : settings.apiKey,
               },
             },
           };
@@ -1241,7 +1316,12 @@ export const useSettingsStore = create<SettingsState>()(
       rotateToNextApiKey: (providerId) => {
         const state = get();
         const settings = state.providerSettings[providerId];
-        if (!settings || !settings.apiKeyRotationEnabled || !settings.apiKeys || settings.apiKeys.length <= 1) {
+        if (
+          !settings ||
+          !settings.apiKeyRotationEnabled ||
+          !settings.apiKeys ||
+          settings.apiKeys.length <= 1
+        ) {
           return settings?.apiKey;
         }
 
@@ -1456,7 +1536,9 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           sourceVerificationSettings: {
             ...state.sourceVerificationSettings,
-            trustedDomains: state.sourceVerificationSettings.trustedDomains.filter((d) => d !== domain),
+            trustedDomains: state.sourceVerificationSettings.trustedDomains.filter(
+              (d) => d !== domain
+            ),
           },
         })),
       addBlockedDomain: (domain) =>
@@ -1472,16 +1554,24 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           sourceVerificationSettings: {
             ...state.sourceVerificationSettings,
-            blockedDomains: state.sourceVerificationSettings.blockedDomains.filter((d) => d !== domain),
+            blockedDomains: state.sourceVerificationSettings.blockedDomains.filter(
+              (d) => d !== domain
+            ),
           },
         })),
       setAutoFilterLowCredibility: (autoFilterLowCredibility) =>
         set((state) => ({
-          sourceVerificationSettings: { ...state.sourceVerificationSettings, autoFilterLowCredibility },
+          sourceVerificationSettings: {
+            ...state.sourceVerificationSettings,
+            autoFilterLowCredibility,
+          },
         })),
       setEnableCrossValidation: (enableCrossValidation) =>
         set((state) => ({
-          sourceVerificationSettings: { ...state.sourceVerificationSettings, enableCrossValidation },
+          sourceVerificationSettings: {
+            ...state.sourceVerificationSettings,
+            enableCrossValidation,
+          },
         })),
 
       // Tool settings actions
@@ -1493,15 +1583,17 @@ export const useSettingsStore = create<SettingsState>()(
       setEnableCalculator: (enableCalculator) => set({ enableCalculator }),
       setEnableProcessTools: (enableProcessTools) => set({ enableProcessTools }),
 
-      addAlwaysAllowedTool: (toolName) => set((state) => ({
-        alwaysAllowedTools: state.alwaysAllowedTools.includes(toolName)
-          ? state.alwaysAllowedTools
-          : [...state.alwaysAllowedTools, toolName],
-      })),
+      addAlwaysAllowedTool: (toolName) =>
+        set((state) => ({
+          alwaysAllowedTools: state.alwaysAllowedTools.includes(toolName)
+            ? state.alwaysAllowedTools
+            : [...state.alwaysAllowedTools, toolName],
+        })),
 
-      removeAlwaysAllowedTool: (toolName) => set((state) => ({
-        alwaysAllowedTools: state.alwaysAllowedTools.filter(t => t !== toolName),
-      })),
+      removeAlwaysAllowedTool: (toolName) =>
+        set((state) => ({
+          alwaysAllowedTools: state.alwaysAllowedTools.filter((t) => t !== toolName),
+        })),
 
       isToolAlwaysAllowed: (toolName) => get().alwaysAllowedTools.includes(toolName),
 
@@ -1568,7 +1660,11 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setBackgroundPreset: (presetId) =>
         set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, presetId, source: presetId ? 'preset' : 'none' },
+          backgroundSettings: {
+            ...state.backgroundSettings,
+            presetId,
+            source: presetId ? 'preset' : 'none',
+          },
         })),
       setBackgroundFit: (fit) =>
         set((state) => ({
@@ -1580,11 +1676,17 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       setBackgroundOpacity: (opacity) =>
         set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, opacity: Math.min(100, Math.max(0, opacity)) },
+          backgroundSettings: {
+            ...state.backgroundSettings,
+            opacity: Math.min(100, Math.max(0, opacity)),
+          },
         })),
       setBackgroundBlur: (blur) =>
         set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, blur: Math.min(20, Math.max(0, blur)) },
+          backgroundSettings: {
+            ...state.backgroundSettings,
+            blur: Math.min(20, Math.max(0, blur)),
+          },
         })),
       setBackgroundOverlay: (overlayColor, overlayOpacity) =>
         set((state) => ({
@@ -1596,11 +1698,17 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       setBackgroundBrightness: (brightness) =>
         set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, brightness: Math.min(150, Math.max(50, brightness)) },
+          backgroundSettings: {
+            ...state.backgroundSettings,
+            brightness: Math.min(150, Math.max(50, brightness)),
+          },
         })),
       setBackgroundSaturation: (saturation) =>
         set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, saturation: Math.min(200, Math.max(0, saturation)) },
+          backgroundSettings: {
+            ...state.backgroundSettings,
+            saturation: Math.min(200, Math.max(0, saturation)),
+          },
         })),
       setBackgroundAttachment: (attachment) =>
         set((state) => ({
@@ -1612,15 +1720,24 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       setBackgroundAnimationSpeed: (animationSpeed) =>
         set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, animationSpeed: Math.min(10, Math.max(1, animationSpeed)) },
+          backgroundSettings: {
+            ...state.backgroundSettings,
+            animationSpeed: Math.min(10, Math.max(1, animationSpeed)),
+          },
         })),
       setBackgroundContrast: (contrast) =>
         set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, contrast: Math.min(150, Math.max(50, contrast)) },
+          backgroundSettings: {
+            ...state.backgroundSettings,
+            contrast: Math.min(150, Math.max(50, contrast)),
+          },
         })),
       setBackgroundGrayscale: (grayscale) =>
         set((state) => ({
-          backgroundSettings: { ...state.backgroundSettings, grayscale: Math.min(100, Math.max(0, grayscale)) },
+          backgroundSettings: {
+            ...state.backgroundSettings,
+            grayscale: Math.min(100, Math.max(0, grayscale)),
+          },
         })),
       resetBackgroundSettings: () =>
         set({ backgroundSettings: { ...DEFAULT_BACKGROUND_SETTINGS } }),
@@ -1634,8 +1751,10 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Advanced chat parameter actions
       setDefaultTopP: (defaultTopP) => set({ defaultTopP: Math.min(1, Math.max(0, defaultTopP)) }),
-      setDefaultFrequencyPenalty: (defaultFrequencyPenalty) => set({ defaultFrequencyPenalty: Math.min(2, Math.max(-2, defaultFrequencyPenalty)) }),
-      setDefaultPresencePenalty: (defaultPresencePenalty) => set({ defaultPresencePenalty: Math.min(2, Math.max(-2, defaultPresencePenalty)) }),
+      setDefaultFrequencyPenalty: (defaultFrequencyPenalty) =>
+        set({ defaultFrequencyPenalty: Math.min(2, Math.max(-2, defaultFrequencyPenalty)) }),
+      setDefaultPresencePenalty: (defaultPresencePenalty) =>
+        set({ defaultPresencePenalty: Math.min(2, Math.max(-2, defaultPresencePenalty)) }),
 
       // Keyboard shortcut actions
       setCustomShortcut: (id, keys) =>
@@ -1679,7 +1798,10 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       setTtsRate: (ttsRate) =>
         set((state) => ({
-          speechSettings: { ...state.speechSettings, ttsRate: Math.min(10, Math.max(0.1, ttsRate)) },
+          speechSettings: {
+            ...state.speechSettings,
+            ttsRate: Math.min(10, Math.max(0.1, ttsRate)),
+          },
         })),
       setTtsAutoPlay: (ttsAutoPlay) =>
         set((state) => ({
@@ -1707,21 +1829,21 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           compressionSettings: {
             ...state.compressionSettings,
-            tokenThreshold: Math.min(100, Math.max(10, tokenThreshold))
+            tokenThreshold: Math.min(100, Math.max(10, tokenThreshold)),
           },
         })),
       setCompressionMessageThreshold: (messageCountThreshold) =>
         set((state) => ({
           compressionSettings: {
             ...state.compressionSettings,
-            messageCountThreshold: Math.min(200, Math.max(5, messageCountThreshold))
+            messageCountThreshold: Math.min(200, Math.max(5, messageCountThreshold)),
           },
         })),
       setCompressionPreserveRecent: (preserveRecentMessages) =>
         set((state) => ({
           compressionSettings: {
             ...state.compressionSettings,
-            preserveRecentMessages: Math.min(50, Math.max(1, preserveRecentMessages))
+            preserveRecentMessages: Math.min(50, Math.max(1, preserveRecentMessages)),
           },
         })),
       setCompressionPreserveSystem: (preserveSystemMessages) =>
@@ -1732,14 +1854,14 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           compressionSettings: {
             ...state.compressionSettings,
-            compressionRatio: Math.min(0.9, Math.max(0.1, compressionRatio))
+            compressionRatio: Math.min(0.9, Math.max(0.1, compressionRatio)),
           },
         })),
       setCompressionModel: (modelConfig) =>
         set((state) => ({
           compressionSettings: {
             ...state.compressionSettings,
-            compressionModel: { ...state.compressionSettings.compressionModel, ...modelConfig }
+            compressionModel: { ...state.compressionSettings.compressionModel, ...modelConfig },
           },
         })),
       setCompressionNotification: (showCompressionNotification) =>
@@ -1774,16 +1896,16 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       setAutoRouterPreferredProviders: (preferredProviders) =>
         set((state) => ({
-          autoRouterSettings: { 
-            ...state.autoRouterSettings, 
-            preferredProviders: preferredProviders as ProviderName[] 
+          autoRouterSettings: {
+            ...state.autoRouterSettings,
+            preferredProviders: preferredProviders as ProviderName[],
           },
         })),
       setAutoRouterExcludedProviders: (excludedProviders) =>
         set((state) => ({
-          autoRouterSettings: { 
-            ...state.autoRouterSettings, 
-            excludedProviders: excludedProviders as ProviderName[] 
+          autoRouterSettings: {
+            ...state.autoRouterSettings,
+            excludedProviders: excludedProviders as ProviderName[],
           },
         })),
       setAutoRouterFallbackTier: (fallbackTier) =>
@@ -1816,9 +1938,9 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       setLoadBalancerFallbackOrder: (fallbackOrder) =>
         set((state) => ({
-          loadBalancerSettings: { 
-            ...state.loadBalancerSettings, 
-            fallbackOrder: fallbackOrder as LoadBalancerSettings['fallbackOrder']
+          loadBalancerSettings: {
+            ...state.loadBalancerSettings,
+            fallbackOrder: fallbackOrder as LoadBalancerSettings['fallbackOrder'],
           },
         })),
       setLoadBalancerAutoFailover: (autoFailover) =>
@@ -1862,14 +1984,14 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           chatHistoryContextSettings: {
             ...state.chatHistoryContextSettings,
-            recentSessionCount: Math.min(10, Math.max(1, recentSessionCount))
+            recentSessionCount: Math.min(10, Math.max(1, recentSessionCount)),
           },
         })),
       setChatHistoryContextTokenBudget: (maxTokenBudget) =>
         set((state) => ({
           chatHistoryContextSettings: {
             ...state.chatHistoryContextSettings,
-            maxTokenBudget: Math.min(2000, Math.max(100, maxTokenBudget))
+            maxTokenBudget: Math.min(2000, Math.max(100, maxTokenBudget)),
           },
         })),
       setChatHistoryContextCompressionLevel: (compressionLevel) =>
@@ -1888,7 +2010,7 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           chatHistoryContextSettings: {
             ...state.chatHistoryContextSettings,
-            minMessagesThreshold: Math.min(20, Math.max(1, minMessagesThreshold))
+            minMessagesThreshold: Math.min(20, Math.max(1, minMessagesThreshold)),
           },
         })),
       setChatHistoryContextIncludeTimestamps: (includeTimestamps) =>
@@ -1956,8 +2078,7 @@ export const useSettingsStore = create<SettingsState>()(
             contextWarningThreshold: Math.min(100, Math.max(50, contextWarningThreshold)),
           },
         })),
-      resetTokenizerSettings: () =>
-        set({ tokenizerSettings: { ...DEFAULT_TOKENIZER_SETTINGS } }),
+      resetTokenizerSettings: () => set({ tokenizerSettings: { ...DEFAULT_TOKENIZER_SETTINGS } }),
 
       // Safety Mode settings actions
       setSafetyModeSettings: (settings) =>
@@ -2131,7 +2252,9 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           featureRoutingSettings: {
             ...state.featureRoutingSettings,
-            disabledRoutes: state.featureRoutingSettings.disabledRoutes.filter((id) => id !== routeId),
+            disabledRoutes: state.featureRoutingSettings.disabledRoutes.filter(
+              (id) => id !== routeId
+            ),
           },
         })),
       updateRoutePreference: (routeId, delta) =>
@@ -2262,8 +2385,7 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           welcomeSettings: { ...state.welcomeSettings, maxSuggestionsPerMode },
         })),
-      resetWelcomeSettings: () =>
-        set({ welcomeSettings: { ...DEFAULT_WELCOME_SETTINGS } }),
+      resetWelcomeSettings: () => set({ welcomeSettings: { ...DEFAULT_WELCOME_SETTINGS } }),
 
       // Simplified Mode actions
       setSimplifiedModeSettings: (settings) =>
@@ -2353,100 +2475,100 @@ export const useSettingsStore = create<SettingsState>()(
         const tavilyApiKey = shouldStripSecrets ? '' : state.tavilyApiKey;
 
         return {
-        theme: state.theme,
-        colorTheme: state.colorTheme,
-        customThemes: state.customThemes,
-        activeCustomThemeId: state.activeCustomThemeId,
-        uiCustomization: state.uiCustomization,
-        themeSchedule: state.themeSchedule,
-        language: state.language,
-        autoDetectLocale: state.autoDetectLocale,
-        localeDetectionResult: state.localeDetectionResult,
-        detectedTimezone: state.detectedTimezone,
-        customInstructions: state.customInstructions,
-        customInstructionsEnabled: state.customInstructionsEnabled,
-        aboutUser: state.aboutUser,
-        responsePreferences: state.responsePreferences,
-        providerSettings,
-        customProviders,
-        defaultProvider: state.defaultProvider,
-        sidebarCollapsed: state.sidebarCollapsed,
-        streamingEnabled: state.streamingEnabled,
-        streamResponses: state.streamResponses,
-        sendOnEnter: state.sendOnEnter,
-        // Chat behavior
-        defaultTemperature: state.defaultTemperature,
-        defaultMaxTokens: state.defaultMaxTokens,
-        contextLength: state.contextLength,
-        autoTitleGeneration: state.autoTitleGeneration,
-        showModelInChat: state.showModelInChat,
-        enableMarkdownRendering: state.enableMarkdownRendering,
-        tavilyApiKey,
-        searchEnabled: state.searchEnabled,
-        searchMaxResults: state.searchMaxResults,
-        searchProviders,
-        defaultSearchProvider: state.defaultSearchProvider,
-        searchFallbackEnabled: state.searchFallbackEnabled,
-        defaultSearchSources: state.defaultSearchSources,
-        // Tool settings
-        enableFileTools: state.enableFileTools,
-        enableDocumentTools: state.enableDocumentTools,
-        enableCodeExecution: state.enableCodeExecution,
-        enableWebSearch: state.enableWebSearch,
-        enableRAGSearch: state.enableRAGSearch,
-        enableCalculator: state.enableCalculator,
-        // Response display
-        codeTheme: state.codeTheme,
-        codeFontFamily: state.codeFontFamily,
-        codeFontSize: state.codeFontSize,
-        showLineNumbers: state.showLineNumbers,
-        codeWordWrap: state.codeWordWrap,
-        enableSyntaxHighlight: state.enableSyntaxHighlight,
-        lineHeight: state.lineHeight,
-        enableMathRendering: state.enableMathRendering,
-        mathFontScale: state.mathFontScale,
-        mathDisplayAlignment: state.mathDisplayAlignment,
-        mathShowCopyButton: state.mathShowCopyButton,
-        enableMermaidDiagrams: state.enableMermaidDiagrams,
-        mermaidTheme: state.mermaidTheme,
-        enableVegaLiteCharts: state.enableVegaLiteCharts,
-        vegaLiteTheme: state.vegaLiteTheme,
-        compactMode: state.compactMode,
-        showTimestamps: state.showTimestamps,
-        showTokenCount: state.showTokenCount,
-        // Appearance enhancements
-        uiFontSize: state.uiFontSize,
-        messageBubbleStyle: state.messageBubbleStyle,
-        // Background settings
-        backgroundSettings: state.backgroundSettings,
-        // Advanced chat parameters
-        defaultTopP: state.defaultTopP,
-        defaultFrequencyPenalty: state.defaultFrequencyPenalty,
-        defaultPresencePenalty: state.defaultPresencePenalty,
-        // Keyboard shortcuts
-        customShortcuts: state.customShortcuts,
-        // Speech settings
-        speechSettings: state.speechSettings,
-        // Compression settings
-        compressionSettings: state.compressionSettings,
-        // Auto Router settings
-        autoRouterSettings: state.autoRouterSettings,
-        // Load Balancer settings
-        loadBalancerSettings: state.loadBalancerSettings,
-        // Chat History Context settings
-        chatHistoryContextSettings: state.chatHistoryContextSettings,
-        // Tokenizer settings
-        tokenizerSettings: state.tokenizerSettings,
-        // Safety Mode settings
-        safetyModeSettings: state.safetyModeSettings,
-        // Feature Routing settings
-        featureRoutingSettings: state.featureRoutingSettings,
-        // Observability settings
-        observabilitySettings: state.observabilitySettings,
-        // Welcome Settings
-        welcomeSettings: state.welcomeSettings,
-        // Onboarding
-        hasCompletedOnboarding: state.hasCompletedOnboarding,
+          theme: state.theme,
+          colorTheme: state.colorTheme,
+          customThemes: state.customThemes,
+          activeCustomThemeId: state.activeCustomThemeId,
+          uiCustomization: state.uiCustomization,
+          themeSchedule: state.themeSchedule,
+          language: state.language,
+          autoDetectLocale: state.autoDetectLocale,
+          localeDetectionResult: state.localeDetectionResult,
+          detectedTimezone: state.detectedTimezone,
+          customInstructions: state.customInstructions,
+          customInstructionsEnabled: state.customInstructionsEnabled,
+          aboutUser: state.aboutUser,
+          responsePreferences: state.responsePreferences,
+          providerSettings,
+          customProviders,
+          defaultProvider: state.defaultProvider,
+          sidebarCollapsed: state.sidebarCollapsed,
+          streamingEnabled: state.streamingEnabled,
+          streamResponses: state.streamResponses,
+          sendOnEnter: state.sendOnEnter,
+          // Chat behavior
+          defaultTemperature: state.defaultTemperature,
+          defaultMaxTokens: state.defaultMaxTokens,
+          contextLength: state.contextLength,
+          autoTitleGeneration: state.autoTitleGeneration,
+          showModelInChat: state.showModelInChat,
+          enableMarkdownRendering: state.enableMarkdownRendering,
+          tavilyApiKey,
+          searchEnabled: state.searchEnabled,
+          searchMaxResults: state.searchMaxResults,
+          searchProviders,
+          defaultSearchProvider: state.defaultSearchProvider,
+          searchFallbackEnabled: state.searchFallbackEnabled,
+          defaultSearchSources: state.defaultSearchSources,
+          // Tool settings
+          enableFileTools: state.enableFileTools,
+          enableDocumentTools: state.enableDocumentTools,
+          enableCodeExecution: state.enableCodeExecution,
+          enableWebSearch: state.enableWebSearch,
+          enableRAGSearch: state.enableRAGSearch,
+          enableCalculator: state.enableCalculator,
+          // Response display
+          codeTheme: state.codeTheme,
+          codeFontFamily: state.codeFontFamily,
+          codeFontSize: state.codeFontSize,
+          showLineNumbers: state.showLineNumbers,
+          codeWordWrap: state.codeWordWrap,
+          enableSyntaxHighlight: state.enableSyntaxHighlight,
+          lineHeight: state.lineHeight,
+          enableMathRendering: state.enableMathRendering,
+          mathFontScale: state.mathFontScale,
+          mathDisplayAlignment: state.mathDisplayAlignment,
+          mathShowCopyButton: state.mathShowCopyButton,
+          enableMermaidDiagrams: state.enableMermaidDiagrams,
+          mermaidTheme: state.mermaidTheme,
+          enableVegaLiteCharts: state.enableVegaLiteCharts,
+          vegaLiteTheme: state.vegaLiteTheme,
+          compactMode: state.compactMode,
+          showTimestamps: state.showTimestamps,
+          showTokenCount: state.showTokenCount,
+          // Appearance enhancements
+          uiFontSize: state.uiFontSize,
+          messageBubbleStyle: state.messageBubbleStyle,
+          // Background settings
+          backgroundSettings: state.backgroundSettings,
+          // Advanced chat parameters
+          defaultTopP: state.defaultTopP,
+          defaultFrequencyPenalty: state.defaultFrequencyPenalty,
+          defaultPresencePenalty: state.defaultPresencePenalty,
+          // Keyboard shortcuts
+          customShortcuts: state.customShortcuts,
+          // Speech settings
+          speechSettings: state.speechSettings,
+          // Compression settings
+          compressionSettings: state.compressionSettings,
+          // Auto Router settings
+          autoRouterSettings: state.autoRouterSettings,
+          // Load Balancer settings
+          loadBalancerSettings: state.loadBalancerSettings,
+          // Chat History Context settings
+          chatHistoryContextSettings: state.chatHistoryContextSettings,
+          // Tokenizer settings
+          tokenizerSettings: state.tokenizerSettings,
+          // Safety Mode settings
+          safetyModeSettings: state.safetyModeSettings,
+          // Feature Routing settings
+          featureRoutingSettings: state.featureRoutingSettings,
+          // Observability settings
+          observabilitySettings: state.observabilitySettings,
+          // Welcome Settings
+          welcomeSettings: state.welcomeSettings,
+          // Onboarding
+          hasCompletedOnboarding: state.hasCompletedOnboarding,
         };
       },
     }
@@ -2467,14 +2589,21 @@ export const selectBackgroundEnabled = (state: SettingsState) => state.backgroun
 export const selectAutoRouterSettings = (state: SettingsState) => state.autoRouterSettings;
 export const selectAutoRouterEnabled = (state: SettingsState) => state.autoRouterSettings.enabled;
 export const selectLoadBalancerSettings = (state: SettingsState) => state.loadBalancerSettings;
-export const selectLoadBalancerEnabled = (state: SettingsState) => state.loadBalancerSettings.enabled;
-export const selectLoadBalancingStrategy = (state: SettingsState) => state.loadBalancerSettings.strategy;
-export const selectCircuitBreakerSettings = (state: SettingsState) => state.loadBalancerSettings.circuitBreaker;
-export const selectChatHistoryContextSettings = (state: SettingsState) => state.chatHistoryContextSettings;
-export const selectChatHistoryContextEnabled = (state: SettingsState) => state.chatHistoryContextSettings.enabled;
+export const selectLoadBalancerEnabled = (state: SettingsState) =>
+  state.loadBalancerSettings.enabled;
+export const selectLoadBalancingStrategy = (state: SettingsState) =>
+  state.loadBalancerSettings.strategy;
+export const selectCircuitBreakerSettings = (state: SettingsState) =>
+  state.loadBalancerSettings.circuitBreaker;
+export const selectChatHistoryContextSettings = (state: SettingsState) =>
+  state.chatHistoryContextSettings;
+export const selectChatHistoryContextEnabled = (state: SettingsState) =>
+  state.chatHistoryContextSettings.enabled;
 export const selectTokenizerSettings = (state: SettingsState) => state.tokenizerSettings;
-export const selectTokenizerEnabled = (state: SettingsState) => state.tokenizerSettings.enablePreciseCounting;
+export const selectTokenizerEnabled = (state: SettingsState) =>
+  state.tokenizerSettings.enablePreciseCounting;
 export const selectFeatureRoutingSettings = (state: SettingsState) => state.featureRoutingSettings;
-export const selectFeatureRoutingEnabled = (state: SettingsState) => state.featureRoutingSettings.enabled;
+export const selectFeatureRoutingEnabled = (state: SettingsState) =>
+  state.featureRoutingSettings.enabled;
 export const selectWelcomeSettings = (state: SettingsState) => state.welcomeSettings;
 export const selectWelcomeEnabled = (state: SettingsState) => state.welcomeSettings.enabled;

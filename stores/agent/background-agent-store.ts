@@ -43,14 +43,26 @@ interface BackgroundAgentState {
   resumeQueue: () => void;
 
   // Steps
-  addStep: (agentId: string, step: Omit<BackgroundAgentStep, 'id' | 'stepNumber'>) => BackgroundAgentStep;
+  addStep: (
+    agentId: string,
+    step: Omit<BackgroundAgentStep, 'id' | 'stepNumber'>
+  ) => BackgroundAgentStep;
   updateStep: (agentId: string, stepId: string, updates: Partial<BackgroundAgentStep>) => void;
 
   // Logs
-  addLog: (agentId: string, level: BackgroundAgentLog['level'], message: string, source: BackgroundAgentLog['source'], data?: unknown) => void;
+  addLog: (
+    agentId: string,
+    level: BackgroundAgentLog['level'],
+    message: string,
+    source: BackgroundAgentLog['source'],
+    data?: unknown
+  ) => void;
 
   // Notifications
-  addNotification: (agentId: string, notification: Omit<BackgroundAgentNotification, 'id' | 'timestamp' | 'read'>) => void;
+  addNotification: (
+    agentId: string,
+    notification: Omit<BackgroundAgentNotification, 'id' | 'timestamp' | 'read'>
+  ) => void;
   markNotificationRead: (agentId: string, notificationId: string) => void;
   markAllNotificationsRead: (agentId?: string) => void;
 
@@ -150,7 +162,9 @@ export const useBackgroundAgentStore = create<BackgroundAgentState>((set, get) =
         ...(updates.config !== undefined && { config: { ...agent.config, ...updates.config } }),
         ...(updates.priority !== undefined && { priority: updates.priority }),
         ...(updates.tags !== undefined && { tags: updates.tags }),
-        ...(updates.metadata !== undefined && { metadata: { ...agent.metadata, ...updates.metadata } }),
+        ...(updates.metadata !== undefined && {
+          metadata: { ...agent.metadata, ...updates.metadata },
+        }),
       };
 
       return { agents: { ...state.agents, [id]: updated } };
@@ -302,7 +316,10 @@ export const useBackgroundAgentStore = create<BackgroundAgentState>((set, get) =
     }));
   },
 
-  addStep: (agentId: string, stepData: Omit<BackgroundAgentStep, 'id' | 'stepNumber'>): BackgroundAgentStep => {
+  addStep: (
+    agentId: string,
+    stepData: Omit<BackgroundAgentStep, 'id' | 'stepNumber'>
+  ): BackgroundAgentStep => {
     const agent = get().agents[agentId];
     const step: BackgroundAgentStep = {
       id: nanoid(),
@@ -373,7 +390,13 @@ export const useBackgroundAgentStore = create<BackgroundAgentState>((set, get) =
     });
   },
 
-  addLog: (agentId: string, level: BackgroundAgentLog['level'], message: string, source: BackgroundAgentLog['source'], data?: unknown): void => {
+  addLog: (
+    agentId: string,
+    level: BackgroundAgentLog['level'],
+    message: string,
+    source: BackgroundAgentLog['source'],
+    data?: unknown
+  ): void => {
     set((state) => {
       const agent = state.agents[agentId];
       if (!agent) return state;
@@ -403,7 +426,10 @@ export const useBackgroundAgentStore = create<BackgroundAgentState>((set, get) =
     });
   },
 
-  addNotification: (agentId: string, notificationData: Omit<BackgroundAgentNotification, 'id' | 'timestamp' | 'read'>): void => {
+  addNotification: (
+    agentId: string,
+    notificationData: Omit<BackgroundAgentNotification, 'id' | 'timestamp' | 'read'>
+  ): void => {
     set((state) => {
       const agent = state.agents[agentId];
       if (!agent) return state;
@@ -561,9 +587,7 @@ export const useBackgroundAgentStore = create<BackgroundAgentState>((set, get) =
 
       return {
         agents: updatedAgents,
-        selectedAgentId: updatedAgents[state.selectedAgentId ?? '']
-          ? state.selectedAgentId
-          : null,
+        selectedAgentId: updatedAgents[state.selectedAgentId ?? ''] ? state.selectedAgentId : null,
       };
     });
   },

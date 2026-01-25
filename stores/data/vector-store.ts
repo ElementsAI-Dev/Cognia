@@ -70,7 +70,9 @@ interface VectorState {
   getEmbeddingConfig: () => EmbeddingModelConfig;
 
   // Collection operations
-  addCollection: (collection: Omit<VectorCollection, 'id' | 'createdAt' | 'updatedAt' | 'documentCount'>) => VectorCollection;
+  addCollection: (
+    collection: Omit<VectorCollection, 'id' | 'createdAt' | 'updatedAt' | 'documentCount'>
+  ) => VectorCollection;
   updateCollection: (id: string, updates: Partial<VectorCollection>) => void;
   deleteCollection: (id: string) => void;
   getCollection: (id: string) => VectorCollection | undefined;
@@ -78,7 +80,10 @@ interface VectorState {
   getCollectionNames: () => string[];
 
   // Document operations
-  addDocuments: (collectionId: string, docs: Omit<VectorDocument, 'id' | 'collectionId' | 'createdAt'>[]) => void;
+  addDocuments: (
+    collectionId: string,
+    docs: Omit<VectorDocument, 'id' | 'collectionId' | 'createdAt'>[]
+  ) => void;
   removeDocuments: (collectionId: string, docIds: string[]) => void;
   getDocuments: (collectionId: string) => VectorDocument[];
   clearDocuments: (collectionId: string) => void;
@@ -175,7 +180,7 @@ export const useVectorStore = create<VectorState>()(
         set((state) => {
           const existingDocs = state.documents[collectionId] || [];
           const updatedDocs = [...existingDocs, ...newDocs];
-          
+
           return {
             documents: {
               ...state.documents,
@@ -194,7 +199,7 @@ export const useVectorStore = create<VectorState>()(
         set((state) => {
           const existingDocs = state.documents[collectionId] || [];
           const updatedDocs = existingDocs.filter((d) => !docIds.includes(d.id));
-          
+
           return {
             documents: {
               ...state.documents,
@@ -219,9 +224,7 @@ export const useVectorStore = create<VectorState>()(
             [collectionId]: [],
           },
           collections: state.collections.map((c) =>
-            c.id === collectionId
-              ? { ...c, documentCount: 0, updatedAt: new Date() }
-              : c
+            c.id === collectionId ? { ...c, documentCount: 0, updatedAt: new Date() } : c
           ),
         })),
 

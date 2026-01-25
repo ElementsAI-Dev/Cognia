@@ -92,9 +92,22 @@ export interface SkillSeekersActions {
   enhanceSkill: (input: EnhanceSkillInput) => Promise<void>;
   packageSkill: (input: PackageSkillInput) => Promise<string>;
 
-  quickGenerateWebsite: (url: string, name: string, autoEnhance?: boolean, autoInstall?: boolean) => Promise<string>;
-  quickGenerateGitHub: (repo: string, autoEnhance?: boolean, autoInstall?: boolean) => Promise<string>;
-  quickGeneratePreset: (presetName: string, autoEnhance?: boolean, autoInstall?: boolean) => Promise<string>;
+  quickGenerateWebsite: (
+    url: string,
+    name: string,
+    autoEnhance?: boolean,
+    autoInstall?: boolean
+  ) => Promise<string>;
+  quickGenerateGitHub: (
+    repo: string,
+    autoEnhance?: boolean,
+    autoInstall?: boolean
+  ) => Promise<string>;
+  quickGeneratePreset: (
+    presetName: string,
+    autoEnhance?: boolean,
+    autoInstall?: boolean
+  ) => Promise<string>;
 
   cancelJob: (jobId: string) => Promise<void>;
   resumeJob: (jobId: string) => Promise<void>;
@@ -158,7 +171,8 @@ export const useSkillSeekersStore = create<SkillSeekersStore>()(
       updateJob: (job) =>
         set((state) => ({
           jobs: { ...state.jobs, [job.id]: job },
-          activeJobId: job.status === 'running' || job.status === 'queued' ? job.id : state.activeJobId,
+          activeJobId:
+            job.status === 'running' || job.status === 'queued' ? job.id : state.activeJobId,
         })),
       removeJob: (jobId) =>
         set((state) => {
@@ -171,7 +185,8 @@ export const useSkillSeekersStore = create<SkillSeekersStore>()(
       setJobs: (jobs) =>
         set({
           jobs: jobs.reduce((acc, job) => ({ ...acc, [job.id]: job }), {}),
-          activeJobId: jobs.find((j) => j.status === 'running' || j.status === 'queued')?.id || null,
+          activeJobId:
+            jobs.find((j) => j.status === 'running' || j.status === 'queued')?.id || null,
         }),
 
       setPresets: (presets) => set({ presets }),
@@ -351,14 +366,20 @@ export const useSkillSeekersStore = create<SkillSeekersStore>()(
       quickGenerateWebsite: async (url, name, autoEnhance = false, autoInstall = false) => {
         set({ error: null });
         try {
-          const jobId = await skillSeekersApi.quickGenerateWebsite(url, name, autoEnhance, autoInstall);
+          const jobId = await skillSeekersApi.quickGenerateWebsite(
+            url,
+            name,
+            autoEnhance,
+            autoInstall
+          );
           await get().refreshJobs();
           set((state) => ({
             ui: { ...state.ui, generatorStep: 'progress' },
           }));
           return jobId;
         } catch (err) {
-          const message = err instanceof Error ? err.message : 'Failed to generate skill from website';
+          const message =
+            err instanceof Error ? err.message : 'Failed to generate skill from website';
           set({ error: message });
           throw err;
         }
@@ -374,7 +395,8 @@ export const useSkillSeekersStore = create<SkillSeekersStore>()(
           }));
           return jobId;
         } catch (err) {
-          const message = err instanceof Error ? err.message : 'Failed to generate skill from GitHub';
+          const message =
+            err instanceof Error ? err.message : 'Failed to generate skill from GitHub';
           set({ error: message });
           throw err;
         }
@@ -383,14 +405,19 @@ export const useSkillSeekersStore = create<SkillSeekersStore>()(
       quickGeneratePreset: async (presetName, autoEnhance = false, autoInstall = false) => {
         set({ error: null });
         try {
-          const jobId = await skillSeekersApi.quickGeneratePreset(presetName, autoEnhance, autoInstall);
+          const jobId = await skillSeekersApi.quickGeneratePreset(
+            presetName,
+            autoEnhance,
+            autoInstall
+          );
           await get().refreshJobs();
           set((state) => ({
             ui: { ...state.ui, generatorStep: 'progress' },
           }));
           return jobId;
         } catch (err) {
-          const message = err instanceof Error ? err.message : 'Failed to generate skill from preset';
+          const message =
+            err instanceof Error ? err.message : 'Failed to generate skill from preset';
           set({ error: message });
           throw err;
         }
@@ -472,7 +499,8 @@ export const selectPresetsByCategory = (state: SkillSeekersStore) => {
   });
   return categories;
 };
-export const selectGeneratedSkills = (state: SkillSeekersStore) => Object.values(state.generatedSkills);
+export const selectGeneratedSkills = (state: SkillSeekersStore) =>
+  Object.values(state.generatedSkills);
 export const selectGeneratedSkillById = (skillId: string) => (state: SkillSeekersStore) =>
   state.generatedSkills[skillId];
 export const selectLogs = (state: SkillSeekersStore) => state.logs;

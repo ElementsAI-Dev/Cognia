@@ -5,12 +5,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import type {
-  Project,
-  CreateProjectInput,
-  UpdateProjectInput,
-  KnowledgeFile,
-} from '@/types';
+import type { Project, CreateProjectInput, UpdateProjectInput, KnowledgeFile } from '@/types';
 import { getPluginEventHooks } from '@/lib/plugin/hooks-system';
 
 interface ProjectState {
@@ -31,7 +26,10 @@ interface ProjectState {
   getProjectForSession: (sessionId: string) => Project | undefined;
 
   // Knowledge base management
-  addKnowledgeFile: (projectId: string, file: Omit<KnowledgeFile, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addKnowledgeFile: (
+    projectId: string,
+    file: Omit<KnowledgeFile, 'id' | 'createdAt' | 'updatedAt'>
+  ) => void;
   removeKnowledgeFile: (projectId: string, fileId: string) => void;
   updateKnowledgeFile: (projectId: string, fileId: string, content: string) => void;
 
@@ -102,10 +100,7 @@ export const useProjectStore = create<ProjectState>()(
       deleteProject: (id) =>
         set((state) => {
           const newProjects = state.projects.filter((p) => p.id !== id);
-          const newActiveId =
-            state.activeProjectId === id
-              ? null
-              : state.activeProjectId;
+          const newActiveId = state.activeProjectId === id ? null : state.activeProjectId;
 
           getPluginEventHooks().dispatchProjectDelete(id);
 
@@ -137,11 +132,7 @@ export const useProjectStore = create<ProjectState>()(
         set((state) => {
           // Update lastAccessedAt when setting active project
           const updatedProjects = id
-            ? state.projects.map((p) =>
-                p.id === id
-                  ? { ...p, lastAccessedAt: new Date() }
-                  : p
-              )
+            ? state.projects.map((p) => (p.id === id ? { ...p, lastAccessedAt: new Date() } : p))
             : state.projects;
 
           if (state.activeProjectId !== id) {
@@ -233,10 +224,7 @@ export const useProjectStore = create<ProjectState>()(
             p.id === projectId
               ? {
                   ...p,
-                  knowledgeBase: [
-                    ...p.knowledgeBase,
-                    knowledgeFile,
-                  ],
+                  knowledgeBase: [...p.knowledgeBase, knowledgeFile],
                   updatedAt: new Date(),
                 }
               : p
@@ -406,7 +394,8 @@ export const useProjectStore = create<ProjectState>()(
           ...p,
           createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
           updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : p.updatedAt,
-          lastAccessedAt: p.lastAccessedAt instanceof Date ? p.lastAccessedAt.toISOString() : p.lastAccessedAt,
+          lastAccessedAt:
+            p.lastAccessedAt instanceof Date ? p.lastAccessedAt.toISOString() : p.lastAccessedAt,
           knowledgeBase: p.knowledgeBase.map((f) => ({
             ...f,
             createdAt: f.createdAt instanceof Date ? f.createdAt.toISOString() : f.createdAt,
