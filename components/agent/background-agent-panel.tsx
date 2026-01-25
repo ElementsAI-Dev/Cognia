@@ -134,6 +134,7 @@ function AgentCard({
     <div
       className={cn(
         'p-3 rounded-lg border cursor-pointer transition-all',
+        'bg-card/30 supports-[backdrop-filter]:bg-card/20 backdrop-blur-sm',
         'hover:border-primary/50 hover:shadow-sm',
         isSelected && 'border-primary bg-primary/5',
         isRunning && 'border-primary/50 shadow-sm'
@@ -298,7 +299,7 @@ function AgentLogsViewer({ logs, maxHeight = 300 }: { logs: BackgroundAgentLog[]
 
   return (
     <div className="border rounded-lg overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b">
+      <div className="flex items-center justify-between px-3 py-2 bg-muted/40 supports-[backdrop-filter]:bg-muted/30 border-b">
         <div className="flex items-center gap-2">
           <Terminal className="h-4 w-4" />
           <span className="text-sm font-medium">Logs</span>

@@ -107,7 +107,7 @@ export function SidebarUsageStats({ className, collapsed }: SidebarUsageStatsPro
       open={isOpen}
       onOpenChange={setIsOpen}
       className={cn(
-        'group/stats rounded-lg border border-border/50 bg-card/30',
+        'group-stats rounded-lg border border-border/50 bg-card/30',
         'hover:bg-accent/30 transition-colors',
         className
       )}

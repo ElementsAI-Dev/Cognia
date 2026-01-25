@@ -604,7 +604,7 @@ export default function SettingsPage() {
 
       <SidebarInset className="flex flex-col min-w-0 h-full overflow-hidden">
         {/* Header */}
-        <header className="flex h-12 shrink-0 items-center gap-3 border-b px-3 bg-background z-10">
+        <header className="flex h-12 shrink-0 items-center gap-3 border-b px-3 z-10">
           <SidebarTrigger />
           <Link href="/">
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">

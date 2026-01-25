@@ -240,6 +240,7 @@
       "installed": "Installed"
     },
     "category": {
+      "title": "Categories",
       "all": "All"
     },
     "detail": {
@@ -269,7 +270,8 @@
       "removeFromFavorites": "Remove from favorites",
       "copyPromptContent": "Copy prompt content",
       "sharePrompt": "Share prompt",
-      "installPrompt": "Install Prompt"
+      "installPrompt": "Install Prompt",
+      "installed": "Installed"
     }
   },
   "promptTemplate": {

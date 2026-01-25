@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
       '@tauri-apps/plugin-fs': './lib/stubs/tauri-stubs.ts',
       '@tauri-apps/plugin-dialog': './lib/stubs/tauri-stubs.ts',
       '@tauri-apps/plugin-shell': './lib/stubs/tauri-stubs.ts',
+      '@tauri-apps/api/event': './lib/stubs/tauri-stubs.ts',
       '@zilliz/milvus2-sdk-node': './lib/stubs/milvus-stub.ts',
       'monaco-editor': './lib/stubs/monaco-stub.ts',
     },

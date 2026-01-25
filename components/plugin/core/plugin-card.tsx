@@ -12,13 +12,7 @@ import type { Plugin, PluginCapability } from '@/types/plugin';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,12 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   MoreVertical,
   Settings,
@@ -52,6 +41,8 @@ import {
 } from 'lucide-react';
 import { InlineLoading } from '@/components/ui/loading-states';
 import { cn } from '@/lib/utils';
+import { useSettingsStore } from '@/stores';
+import { TRANSPARENCY_CONFIG } from '@/lib/constants/transparency';
 
 type PluginCardVariant = 'card' | 'compact';
 
@@ -96,6 +87,8 @@ export function PluginCard({
   const isError = status === 'error';
   const isLoading = status === 'loading' || status === 'enabling' || status === 'disabling';
   const [isFavorite, setIsFavorite] = useState(false);
+  const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
+  const isBackgroundActive = backgroundSettings.enabled && backgroundSettings.source !== 'none';
 
   // Get status styling
   const getStatusConfig = () => {
@@ -110,23 +103,28 @@ export function PluginCard({
     return (
       <div
         className={cn(
-          'group flex items-center gap-3 p-3 rounded-lg border bg-card transition-all duration-200',
+          'group flex items-center gap-3 p-3 rounded-lg border transition-all duration-200',
+          isBackgroundActive ? TRANSPARENCY_CONFIG.card : 'bg-card',
           'hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm',
           isError && 'border-destructive/50 hover:border-destructive'
         )}
       >
         {/* Plugin icon */}
-        <div className={cn(
-          'w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors',
-          isEnabled ? 'bg-primary/10' : 'bg-muted'
-        )}>
+        <div
+          className={cn(
+            'w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors',
+            isEnabled ? 'bg-primary/10' : 'bg-muted'
+          )}
+        >
           {capabilityIcons[manifest.capabilities[0]] || <Zap className="h-4 w-4" />}
         </div>
 
         {/* Plugin info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">{manifest.name}</span>
+            <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+              {manifest.name}
+            </span>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
               v{manifest.version}
             </Badge>
@@ -138,12 +136,8 @@ export function PluginCard({
             </Badge>
             {isLoading && <InlineLoading />}
           </div>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {manifest.description}
-          </p>
-          {error && (
-            <p className="text-[10px] text-destructive truncate mt-0.5">{error}</p>
-          )}
+          <p className="text-xs text-muted-foreground truncate mt-0.5">{manifest.description}</p>
+          {error && <p className="text-[10px] text-destructive truncate mt-0.5">{error}</p>}
         </div>
 
         {/* Capabilities - hidden on very small screens */}
@@ -152,7 +146,10 @@ export function PluginCard({
             <TooltipProvider key={cap}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge variant="secondary" className="text-[10px] gap-0.5 px-1.5 py-0 h-5 cursor-help">
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] gap-0.5 px-1.5 py-0 h-5 cursor-help"
+                  >
                     {capabilityIcons[cap]}
                     <span className="hidden lg:inline">{cap}</span>
                   </Badge>
@@ -209,9 +206,7 @@ export function PluginCard({
                 {t('configure')}
               </DropdownMenuItem>
               {manifest.homepage && (
-                <DropdownMenuItem
-                  onClick={() => window.open(manifest.homepage, '_blank')}
-                >
+                <DropdownMenuItem onClick={() => window.open(manifest.homepage, '_blank')}>
                   <ExternalLink className="h-4 w-4 mr-2" />
                   {t('homepage')}
                 </DropdownMenuItem>
@@ -230,24 +225,29 @@ export function PluginCard({
 
   // Card variant - default grid view
   const StatusIcon = statusConfig.icon;
-  
+
   return (
-    <Card className={cn(
-      'group relative overflow-hidden transition-all duration-200',
-      'hover:border-primary/50 hover:shadow-md hover:shadow-primary/5',
-      isError && 'border-destructive/50 hover:border-destructive'
-    )}>
+    <Card
+      className={cn(
+        'group relative overflow-hidden transition-all duration-200',
+        isBackgroundActive ? TRANSPARENCY_CONFIG.card : undefined,
+        'hover:border-primary/50 hover:shadow-md hover:shadow-primary/5',
+        isError && 'border-destructive/50 hover:border-destructive'
+      )}
+    >
       {/* Gradient overlay on hover */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-      
+
       <CardHeader className="relative p-3 sm:p-4 pb-2 sm:pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-3">
             {/* Plugin Icon */}
-            <div className={cn(
-              'w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors',
-              isEnabled ? 'bg-primary/10' : 'bg-muted'
-            )}>
+            <div
+              className={cn(
+                'w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors',
+                isEnabled ? 'bg-primary/10' : 'bg-muted'
+              )}
+            >
               <div className={cn('scale-125', isEnabled && 'text-primary')}>
                 {capabilityIcons[manifest.capabilities[0]] || <Zap className="h-5 w-5" />}
               </div>
@@ -295,18 +295,13 @@ export function PluginCard({
                   {t('configure')}
                 </DropdownMenuItem>
                 {manifest.homepage && (
-                  <DropdownMenuItem
-                    onClick={() => window.open(manifest.homepage, '_blank')}
-                  >
+                  <DropdownMenuItem onClick={() => window.open(manifest.homepage, '_blank')}>
                     <ExternalLink className="h-4 w-4 mr-2" />
                     {t('homepage')}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={onUninstall}
-                  className="text-destructive"
-                >
+                <DropdownMenuItem onClick={onUninstall} className="text-destructive">
                   <Trash2 className="h-4 w-4 mr-2" />
                   {t('uninstall')}
                 </DropdownMenuItem>
@@ -319,14 +314,17 @@ export function PluginCard({
         <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mb-3">
           {manifest.description}
         </p>
-        
+
         {/* Capabilities */}
         <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-3">
           {manifest.capabilities.slice(0, 4).map((cap) => (
             <TooltipProvider key={cap}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge variant="secondary" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1.5 sm:px-2 cursor-help">
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1.5 sm:px-2 cursor-help"
+                  >
                     {capabilityIcons[cap]}
                     <span className="hidden xs:inline">{cap}</span>
                   </Badge>
@@ -349,7 +347,9 @@ export function PluginCard({
           <div className="flex items-center gap-2">
             <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md', statusConfig.bg)}>
               <StatusIcon className={cn('h-3.5 w-3.5', statusConfig.color)} />
-              <span className={cn('text-[10px] sm:text-xs font-medium capitalize', statusConfig.color)}>
+              <span
+                className={cn('text-[10px] sm:text-xs font-medium capitalize', statusConfig.color)}
+              >
                 {status}
               </span>
             </div>
@@ -365,11 +365,13 @@ export function PluginCard({
 
         {/* Error message */}
         {error && (
-          <p className="text-[10px] sm:text-xs text-destructive mt-2 line-clamp-2 p-2 bg-destructive/10 rounded-md">{error}</p>
+          <p className="text-[10px] sm:text-xs text-destructive mt-2 line-clamp-2 p-2 bg-destructive/10 rounded-md">
+            {error}
+          </p>
         )}
 
         {/* Plugin stats */}
-        {(plugin.tools?.length || plugin.components?.length || plugin.modes?.length) ? (
+        {plugin.tools?.length || plugin.components?.length || plugin.modes?.length ? (
           <div className="flex items-center gap-2 sm:gap-4 mt-2 sm:mt-3 text-[10px] sm:text-xs text-muted-foreground">
             {plugin.tools && plugin.tools.length > 0 && (
               <span className="flex items-center gap-1">

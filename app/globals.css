@@ -1133,6 +1133,156 @@ html.has-bg-image [data-radix-scroll-area-viewport] {
   background-color: transparent !important;
 }
 
+/* Plugin settings page - transparent background */
+html.has-bg-image [data-plugin-settings] {
+  background-color: transparent !important;
+}
+
+html.has-bg-image [data-plugin-settings] > div {
+  background-color: transparent !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UI Component Theme Adaptation for Background Image Mode
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Popover, Dropdown, Select, Context Menu, HoverCard content */
+html.has-bg-image [data-slot="popover-content"],
+html.has-bg-image [data-slot="dropdown-menu-content"],
+html.has-bg-image [data-slot="dropdown-menu-sub-content"],
+html.has-bg-image [data-slot="select-content"],
+html.has-bg-image [data-slot="context-menu-content"],
+html.has-bg-image [data-slot="context-menu-sub-content"],
+html.has-bg-image [data-slot="hover-card-content"],
+html.has-bg-image [data-slot="command"] {
+  background-color: color-mix(in oklch, var(--popover) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Dialog and AlertDialog content */
+html.has-bg-image [data-slot="dialog-content"],
+html.has-bg-image [data-slot="alert-dialog-content"] {
+  background-color: color-mix(in oklch, var(--background) 90%, transparent) !important;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+/* Sheet content */
+html.has-bg-image [data-slot="sheet-content"] {
+  background-color: color-mix(in oklch, var(--background) 90%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Tooltip content */
+html.has-bg-image [data-slot="tooltip-content"] {
+  background-color: color-mix(in oklch, var(--popover) 90%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Card component */
+html.has-bg-image [data-slot="card"] {
+  background-color: color-mix(in oklch, var(--card) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Alert component */
+html.has-bg-image [data-slot="alert"] {
+  background-color: color-mix(in oklch, var(--card) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Tabs list */
+html.has-bg-image [data-slot="tabs-list"] {
+  background-color: color-mix(in oklch, var(--muted) 80%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Toast notifications */
+html.has-bg-image .toaster [data-sonner-toast],
+html.has-bg-image .toast {
+  background-color: color-mix(in oklch, var(--background) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Sidebar components - unified background support */
+html.has-bg-image [data-slot="sidebar"],
+html.has-bg-image [data-slot="sidebar-inner"] {
+  background-color: color-mix(in oklch, var(--sidebar) 80%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+html.has-bg-image [data-slot="sidebar-wrapper"] {
+  background-color: transparent !important;
+}
+
+/* Sidebar menu items hover state - semi-transparent */
+html.has-bg-image [data-slot="sidebar-menu-button"]:hover,
+html.has-bg-image [data-slot="sidebar-menu-button"][data-active="true"],
+html.has-bg-image [data-slot="sidebar-menu-sub-button"]:hover,
+html.has-bg-image [data-slot="sidebar-menu-sub-button"][data-active="true"] {
+  background-color: color-mix(in oklch, var(--sidebar-accent) 50%, transparent) !important;
+}
+
+/* Input components */
+html.has-bg-image [data-slot="input-group"] {
+  background-color: color-mix(in oklch, var(--background) 40%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Calendar */
+html.has-bg-image [data-slot="calendar"] {
+  background-color: color-mix(in oklch, var(--background) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Skeleton loading - reduce opacity for background visibility */
+html.has-bg-image [data-slot="skeleton"] {
+  background-color: color-mix(in oklch, var(--accent) 60%, transparent) !important;
+}
+
+/* Scroll area thumb */
+html.has-bg-image [data-slot="scroll-area-thumb"] {
+  background-color: color-mix(in oklch, var(--border) 80%, transparent) !important;
+}
+
+/* Chat input area */
+html.has-bg-image [data-chat-input] {
+  background-color: color-mix(in oklch, var(--background) 80%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Welcome page cards and sections */
+html.has-bg-image .welcome-card,
+html.has-bg-image [data-welcome-card] {
+  background-color: color-mix(in oklch, var(--card) 50%, transparent) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Collapsible widgets in sidebar */
+html.has-bg-image [data-slot="sidebar-stats"],
+html.has-bg-image [data-slot="sidebar-widget"] {
+  background-color: color-mix(in oklch, var(--card) 40%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Badge components */
+html.has-bg-image [data-slot="badge"] {
+  background-color: color-mix(in oklch, var(--secondary) 70%, transparent) !important;
+}
+
 /* Background attachment support */
 html.has-bg-image body::before {
   background-attachment: var(--bg-image-attachment, fixed);

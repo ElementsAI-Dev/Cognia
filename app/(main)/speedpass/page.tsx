@@ -225,7 +225,7 @@ function OverviewTab({ store }: OverviewTabProps) {
               </div>
               <Button>继续学习</Button>
             </div>
-            <Progress value={activeSession.progress} className="mt-4" />
+            <Progress value={activeSession.sectionsCompleted.length > 0 ? Math.min(activeSession.sectionsCompleted.length * 10, 100) : 0} className="mt-4" />
           </CardContent>
         </Card>
       )}

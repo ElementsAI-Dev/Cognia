@@ -112,6 +112,8 @@ export function AppSidebar() {
   const theme = useSettingsStore((state) => state.theme);
   const setTheme = useSettingsStore((state) => state.setTheme);
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+  const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
+  const isBackgroundActive = backgroundSettings.enabled && backgroundSettings.source !== 'none';
 
   const sessions = useSessionStore((state) => state.sessions);
   const folders = useSessionStore((state) => state.folders) || [];
@@ -352,7 +354,14 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" data-tour="sidebar">
+    <Sidebar
+      collapsible="icon"
+      data-tour="sidebar"
+      className={cn(
+        'transition-colors duration-300',
+        isBackgroundActive ? 'bg-sidebar/70 backdrop-blur-md border-r-white/10' : 'bg-sidebar'
+      )}
+    >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

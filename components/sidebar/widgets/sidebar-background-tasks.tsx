@@ -99,6 +99,7 @@ export function SidebarBackgroundTasks({ className, collapsed }: SidebarBackgrou
       onClick={() => openPanel()}
       className={cn(
         'w-full text-left px-3 py-2 rounded-lg border border-border/50',
+        'bg-card/30 supports-[backdrop-filter]:bg-card/20 backdrop-blur-sm',
         'hover:bg-accent/50 hover:border-accent transition-colors group',
         isPanelOpen && 'bg-accent/50 border-accent',
         className

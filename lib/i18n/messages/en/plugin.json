@@ -9,7 +9,9 @@
     "fromZip": "From ZIP",
     "fromGitUrl": "From Git URL",
     "createPlugin": "Create Plugin",
+    "description": "Manage AI extensions, tools, and integrations",
     "tabs": {
+      "myPlugins": "My Plugins",
       "installed": "Installed",
       "marketplace": "Marketplace",
       "analytics": "Analytics",
@@ -62,18 +64,27 @@
       "disabledCount": "{count} disabled"
     },
     "settingsTab": {
-      "title": "Plugin Settings",
+      "title": "General Settings",
       "description": "Configure global plugin system settings",
       "autoEnable": "Auto-enable plugins",
       "autoEnableDesc": "Automatically enable newly installed plugins",
       "configure": "Configure",
       "pluginDirectory": "Plugin directory",
       "open": "Open",
+      "runtime": "Runtime Environment",
+      "runtimeDesc": "Configure plugin execution environment",
       "pythonEnvironment": "Python environment",
       "pythonEnvironmentDesc": "Configure Python runtime for plugins",
+      "sandboxMode": "Sandbox mode",
+      "sandboxModeDesc": "Run plugins in isolated sandbox for security",
+      "cacheData": "Cache & Data",
+      "cacheDataDesc": "Manage plugin cache and stored data",
       "clearCache": "Clear plugin cache",
       "clearCacheDesc": "Remove cached plugin data and reload",
-      "clearCacheBtn": "Clear Cache"
+      "clearCacheBtn": "Clear Cache",
+      "resetPlugins": "Reset all plugins",
+      "resetPluginsDesc": "Uninstall all plugins and reset to default state",
+      "resetPluginsBtn": "Reset All"
     }
   },
   "pluginConfig": {

@@ -331,7 +331,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
 
   return (
     <>
-      <header className="flex h-12 sm:h-14 shrink-0 items-center justify-between border-b border-border/50 px-2 sm:px-4 bg-background/95 backdrop-blur-sm">
+      <header className="flex h-12 sm:h-14 shrink-0 items-center justify-between border-b border-border/50 px-2 sm:px-4 bg-background/90 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md">
         <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none">
           {/* Sidebar trigger - works on both mobile and desktop */}
           <SidebarTrigger className="-ml-1 shrink-0" />

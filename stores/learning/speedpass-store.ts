@@ -36,7 +36,7 @@ import { SPEED_LEARNING_MODES } from '@/types/learning/speedpass';
 // Store Interface
 // ============================================================================
 
-interface SpeedPassState {
+export interface SpeedPassState {
   // User Academic Profile
   academicProfile: UserAcademicProfile | null;
   universities: University[];

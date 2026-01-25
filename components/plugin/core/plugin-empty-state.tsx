@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { TRANSPARENCY_CONFIG } from '@/lib/constants/transparency';
 
 type EmptyStateVariant = 'no-plugins' | 'no-results' | 'no-enabled' | 'no-disabled';
 
@@ -31,6 +32,7 @@ interface PluginEmptyStateProps {
   onImportPlugin?: () => void;
   onClearFilters?: () => void;
   className?: string;
+  isBackgroundActive?: boolean;
 }
 
 const illustrations: Record<EmptyStateVariant, React.ReactNode> = {
@@ -81,46 +83,65 @@ export function PluginEmptyState({
   onImportPlugin,
   onClearFilters,
   className,
+  isBackgroundActive,
 }: PluginEmptyStateProps) {
   const t = useTranslations('pluginEmptyState');
+
+  // Shared styles for quick action buttons
+  const buttonBaseClass = cn(
+    'group flex flex-col items-center gap-2 p-4 rounded-xl border transition-all',
+    isBackgroundActive
+      ? TRANSPARENCY_CONFIG.interactive
+      : 'bg-card hover:border-primary/50 hover:bg-primary/5'
+  );
 
   const renderContent = () => {
     switch (variant) {
       case 'no-plugins':
         return (
           <>
-            <h3 className="text-lg sm:text-xl font-semibold mb-2">
-              {t('noPlugins.title')}
-            </h3>
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">{t('noPlugins.title')}</h3>
             <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
               {t('noPlugins.description')}
             </p>
-            
+
             {/* Quick Actions Grid */}
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 w-full max-w-lg mb-8">
               <button
                 onClick={onBrowseMarketplace}
-                className="group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all"
+                className={
+                  isBackgroundActive
+                    ? buttonBaseClass
+                    : 'group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all'
+                }
               >
                 <div className="p-2.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                   <Store className="h-5 w-5 text-primary" />
                 </div>
                 <span className="text-sm font-medium">{t('noPlugins.browseMarketplace')}</span>
               </button>
-              
+
               <button
                 onClick={onCreatePlugin}
-                className="group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all"
+                className={
+                  isBackgroundActive
+                    ? buttonBaseClass
+                    : 'group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all'
+                }
               >
                 <div className="p-2.5 rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
                   <Code2 className="h-5 w-5 text-emerald-500" />
                 </div>
                 <span className="text-sm font-medium">{t('noPlugins.createPlugin')}</span>
               </button>
-              
+
               <button
                 onClick={onImportPlugin}
-                className="group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-blue-500/50 hover:bg-blue-500/5 transition-all"
+                className={
+                  isBackgroundActive
+                    ? buttonBaseClass
+                    : 'group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-blue-500/50 hover:bg-blue-500/5 transition-all'
+                }
               >
                 <div className="p-2.5 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
                   <FolderOpen className="h-5 w-5 text-blue-500" />
@@ -140,16 +161,13 @@ export function PluginEmptyState({
       case 'no-results':
         return (
           <>
-            <h3 className="text-lg sm:text-xl font-semibold mb-2">
-              {t('noResults.title')}
-            </h3>
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">{t('noResults.title')}</h3>
             <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-              {searchQuery 
+              {searchQuery
                 ? t('noResults.searchDescription', { query: searchQuery })
-                : t('noResults.filterDescription')
-              }
+                : t('noResults.filterDescription')}
             </p>
-            
+
             <div className="flex flex-wrap gap-2 justify-center mb-6">
               {onClearFilters && (
                 <Button variant="outline" size="sm" onClick={onClearFilters}>
@@ -167,12 +185,7 @@ export function PluginEmptyState({
               <p className="text-xs text-muted-foreground mb-3">{t('noResults.suggestions')}</p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {['tools', 'themes', 'ai', 'code'].map((term) => (
-                  <Button
-                    key={term}
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs gap-1"
-                  >
+                  <Button key={term} variant="ghost" size="sm" className="h-7 text-xs gap-1">
                     <Search className="h-3 w-3" />
                     {term}
                   </Button>
@@ -185,13 +198,11 @@ export function PluginEmptyState({
       case 'no-enabled':
         return (
           <>
-            <h3 className="text-lg sm:text-xl font-semibold mb-2">
-              {t('noEnabled.title')}
-            </h3>
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">{t('noEnabled.title')}</h3>
             <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
               {t('noEnabled.description')}
             </p>
-            
+
             <Button onClick={onClearFilters}>
               {t('noEnabled.viewAll')}
               <ArrowRight className="h-4 w-4 ml-2" />
@@ -202,13 +213,11 @@ export function PluginEmptyState({
       case 'no-disabled':
         return (
           <>
-            <h3 className="text-lg sm:text-xl font-semibold mb-2">
-              {t('noDisabled.title')}
-            </h3>
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">{t('noDisabled.title')}</h3>
             <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
               {t('noDisabled.description')}
             </p>
-            
+
             <Button variant="outline" onClick={onClearFilters}>
               {t('noDisabled.viewAll')}
               <ArrowRight className="h-4 w-4 ml-2" />
@@ -219,13 +228,8 @@ export function PluginEmptyState({
   };
 
   return (
-    <div className={cn(
-      'flex flex-col items-center justify-center py-12 sm:py-16 px-4',
-      className
-    )}>
-      <div className="mb-6">
-        {illustrations[variant]}
-      </div>
+    <div className={cn('flex flex-col items-center justify-center py-12 sm:py-16 px-4', className)}>
+      <div className="mb-6">{illustrations[variant]}</div>
       {renderContent()}
     </div>
   );

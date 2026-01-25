@@ -1,5 +1,8 @@
 "use client";
 
+// Prevent static generation for this page (uses Tauri/browser APIs)
+export const dynamic = 'force-dynamic';
+
 /**
  * Region Selector Page
  * 
@@ -9,7 +12,9 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { emit, listen } from "@tauri-apps/api/event";
+
+// Type definition to avoid importing from @tauri-apps/api/event at build time
+type UnlistenFn = () => void;
 import { X, Check, Move, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -42,6 +47,7 @@ const RESIZE_HANDLES: { id: ResizeHandle; position: string; cursor: string }[] =
 ];
 
 export default function RegionSelectorPage() {
+  const [mounted, setMounted] = useState(false);
   const [screenInfo, setScreenInfo] = useState<ScreenInfo | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -58,11 +64,17 @@ export default function RegionSelectorPage() {
   const minWidth = 10;
   const minHeight = 10;
 
-  const handleCancel = useCallback(() => {
+  // Ensure component only renders on client side
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleCancel = useCallback(async () => {
+    const { emit } = await import("@tauri-apps/api/event");
     emit("region-selection-cancelled", {});
   }, []);
 
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = useCallback(async () => {
     if (selection && selection.width >= minWidth && selection.height >= minHeight) {
       // Convert to absolute screen coordinates if we have screen info
       const absoluteRegion: CaptureRegion = screenInfo
@@ -79,18 +91,29 @@ export default function RegionSelectorPage() {
             height: Math.round(selection.height),
           };
 
+      const { emit } = await import("@tauri-apps/api/event");
       emit("region-selected", absoluteRegion);
     }
   }, [selection, screenInfo]);
 
   // Listen for screen info from backend
   useEffect(() => {
-    const unlisten = listen<ScreenInfo>("region-selection-started", (event) => {
-      setScreenInfo(event.payload);
-    });
+    let unlistenFn: UnlistenFn | null = null;
+    let isMounted = true;
+
+    const setupListener = async () => {
+      const { listen } = await import("@tauri-apps/api/event");
+      if (!isMounted) return;
+      unlistenFn = await listen<ScreenInfo>("region-selection-started", (event) => {
+        setScreenInfo(event.payload);
+      });
+    };
+
+    setupListener();
 
     return () => {
-      unlisten.then((fn) => fn());
+      isMounted = false;
+      if (unlistenFn) unlistenFn();
     };
   }, []);
 
@@ -306,6 +329,11 @@ export default function RegionSelectorPage() {
 
   const isValidSelection =
     selection && selection.width >= minWidth && selection.height >= minHeight;
+
+  // Don't render during SSG - this page uses window APIs
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div

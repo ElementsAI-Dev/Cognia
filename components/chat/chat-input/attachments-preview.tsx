@@ -18,7 +18,7 @@ export function AttachmentsPreview({ attachments, onRemove, onPreview, removeLab
       {attachments.map((attachment) => (
         <div
           key={attachment.id}
-          className="group relative flex items-center gap-2 rounded-xl border border-border/50 bg-muted/50 px-3 py-2 cursor-pointer hover:bg-accent hover:border-accent transition-all duration-150"
+          className="group relative flex items-center gap-2 rounded-xl border border-border/50 bg-muted/40 supports-[backdrop-filter]:bg-muted/30 backdrop-blur-sm px-3 py-2 cursor-pointer hover:bg-accent/50 hover:border-accent transition-all duration-150"
           onClick={() => onPreview(attachment)}
         >
           {attachment.type === 'image' ? (

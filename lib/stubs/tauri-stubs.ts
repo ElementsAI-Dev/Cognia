@@ -111,3 +111,10 @@ export const Client = class {
     throw new Error('Tauri APIs are not available in this environment');
   }
 };
+
+// @tauri-apps/api/event stubs
+export const emit = notInTauriError;
+export const listen = async () => () => {};
+export const once = async () => () => {};
+export const emitTo = notInTauriError;
+export const TauriEvent = {};

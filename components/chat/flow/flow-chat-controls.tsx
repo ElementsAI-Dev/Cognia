@@ -100,7 +100,7 @@ function FlowChatControlsComponent({
     <Panel
       position="top-right"
       className={cn(
-        'flex items-center gap-1 p-1.5 bg-background/95 backdrop-blur-sm border rounded-lg shadow-sm',
+        'flex items-center gap-1 p-1.5 bg-background/90 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md border rounded-lg shadow-sm',
         className
       )}
     >

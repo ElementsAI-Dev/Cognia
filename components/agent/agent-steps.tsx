@@ -163,8 +163,9 @@ function StepItem({ step, index, compact = false, highlighted = false }: StepIte
       <div
         className={cn(
           'flex items-center gap-2 rounded-lg border border-border/50 px-3 py-2 transition-all duration-200',
-          step.status === 'running' && 'border-primary/50 bg-primary/5',
-          step.status === 'completed' && 'bg-muted/30',
+          'bg-card/30 supports-[backdrop-filter]:bg-card/20 backdrop-blur-sm',
+          step.status === 'running' && 'border-primary/50 bg-primary/10',
+          step.status === 'completed' && 'bg-muted/40',
           step.status === 'error' && 'border-destructive/50 bg-destructive/5',
           highlighted && 'ring-1 ring-primary/30'
         )}
@@ -182,9 +183,10 @@ function StepItem({ step, index, compact = false, highlighted = false }: StepIte
     <div
       className={cn(
         'flex items-start gap-3 rounded-xl border border-border/50 p-3 transition-all duration-200',
+        'bg-card/30 supports-[backdrop-filter]:bg-card/20 backdrop-blur-sm',
         'animate-in fade-in-0 slide-in-from-left-2',
-        step.status === 'running' && 'border-primary/50 bg-primary/5 shadow-sm shadow-primary/10',
-        step.status === 'completed' && 'bg-muted/30',
+        step.status === 'running' && 'border-primary/50 bg-primary/10 shadow-sm shadow-primary/10',
+        step.status === 'completed' && 'bg-muted/40',
         step.status === 'error' && 'border-destructive/50 bg-destructive/5',
         highlighted && 'ring-1 ring-primary/30'
       )}

@@ -133,7 +133,7 @@ export function SidebarRecentFiles({
               key={file.id}
               className={cn(
                 'group flex items-center gap-2 px-2 py-1.5 rounded-md',
-                'hover:bg-accent/50 transition-colors cursor-pointer'
+                'bg-card/20 supports-[backdrop-filter]:bg-card/10 hover:bg-accent/50 transition-colors cursor-pointer'
               )}
               onClick={() => handleFileClick(file)}
             >

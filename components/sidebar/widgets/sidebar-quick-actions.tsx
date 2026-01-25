@@ -135,7 +135,7 @@ export function SidebarQuickActions({
                   className={cn(
                     'flex items-center gap-2 px-2.5 py-2 rounded-md',
                     'text-sm text-muted-foreground hover:text-foreground',
-                    'border border-transparent hover:bg-accent/50 hover:border-border/50',
+                    'bg-card/30 supports-[backdrop-filter]:bg-card/20 border border-transparent hover:bg-accent/50 hover:border-border/50',
                     'transition-colors'
                   )}
                 >

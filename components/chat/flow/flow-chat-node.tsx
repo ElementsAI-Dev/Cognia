@@ -551,7 +551,7 @@ function FlowChatNodeComponent({
       </ScrollArea>
 
       {/* Quick action bar */}
-      <div className="flex items-center justify-between gap-1 px-2 py-1.5 border-t border-inherit bg-background/50">
+      <div className="flex items-center justify-between gap-1 px-2 py-1.5 border-t border-inherit bg-background/40 supports-[backdrop-filter]:bg-background/30">
         {/* Left side - bookmark */}
         <Tooltip>
           <TooltipTrigger asChild>

@@ -11,6 +11,7 @@ import {
   EdgeLabelRenderer,
   getBezierPath,
   MarkerType,
+  type EdgeMarker,
   type EdgeProps,
 } from '@xyflow/react';
 import { Badge } from '@/components/ui/badge';
@@ -110,7 +111,7 @@ function FlowChatEdgeComponent({
             width: 20,
             height: 20,
             color: (style?.stroke as string) || getMarkerColor(edgeType),
-          } as any
+          } satisfies EdgeMarker
         }
         className={cn(
           'transition-all duration-200',

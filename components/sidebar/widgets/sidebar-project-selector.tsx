@@ -120,7 +120,7 @@ export function SidebarProjectSelector({
             variant="ghost"
             size="sm"
             className={cn(
-              'w-full justify-between h-8 text-xs border border-border bg-transparent hover:bg-sidebar-accent',
+              'w-full justify-between h-8 text-xs border border-border/50 bg-card/30 supports-[backdrop-filter]:bg-card/20 hover:bg-sidebar-accent',
               filterProjectId && 'border-primary/50 bg-primary/5'
             )}
           >

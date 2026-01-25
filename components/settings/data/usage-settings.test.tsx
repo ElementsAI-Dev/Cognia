@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { UsageRecord } from '@/types/system/usage';
 import { UsageSettings } from './usage-settings';
 
 // Mock stores
@@ -53,7 +54,7 @@ jest.mock('@/types/system/usage', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, className }: any) => (
+  Button: ({ children, onClick, disabled, className }: React.ComponentProps<'button'>) => (
     <button onClick={onClick} disabled={disabled} className={className}>
       {children}
     </button>
@@ -61,7 +62,7 @@ jest.mock('@/components/ui/button', () => ({
 }));
 
 jest.mock('@/components/ui/input', () => ({
-  Input: ({ value, onChange, placeholder, className }: any) => (
+  Input: ({ value, onChange, placeholder, className }: React.ComponentProps<'input'>) => (
     <input value={value} onChange={onChange} placeholder={placeholder} className={className} />
   ),
 }));
@@ -112,29 +113,10 @@ describe('UsageSettings', () => {
     jest.clearAllMocks();
   });
 
-  const mockRecords = [
-    {
-      id: '1',
-      provider: 'openai',
-      model: 'gpt-4o',
-      tokens: { total: 8000 },
-      cost: 0.12,
-      createdAt: new Date('2024-01-01T10:00:00Z'),
-    },
-    {
-      id: '2',
-      provider: 'anthropic',
-      model: 'claude-3-sonnet',
-      tokens: { total: 2000 },
-      cost: 0.03,
-      createdAt: new Date('2024-01-01T11:00:00Z'),
-    },
-  ];
-
   // Modified mock to align with component's records-based calculation
   jest.mock('@/stores', () => ({
     useUsageStore: (
-      selector: (state: { records: UsageRecord[]; clearUsageRecords: jest.Mock }) => any
+      selector: (state: { records: UsageRecord[]; clearUsageRecords: jest.Mock }) => unknown
     ) => {
       const state = {
         records: [

@@ -144,7 +144,7 @@ function SuggestionCardComponent({
       variant="ghost"
       onClick={onClick}
       className={cn(
-        'group h-auto flex flex-col items-start text-left transition-all duration-200 hover:bg-accent hover:border-accent hover:shadow-md animate-in fade-in-0 slide-in-from-bottom-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm',
+        'group h-auto flex flex-col items-start text-left transition-all duration-200 hover:bg-accent/80 hover:border-accent hover:shadow-md animate-in fade-in-0 slide-in-from-bottom-4 rounded-xl border border-border/50 bg-card/60 supports-[backdrop-filter]:bg-card/50 backdrop-blur-md',
         compact ? 'gap-1 p-2.5' : 'gap-0.5 sm:gap-1.5 p-2 sm:p-3'
       )}
       style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'backwards' }}
@@ -414,7 +414,7 @@ export function WelcomeState({
               <Button key={link.id} asChild variant="ghost" className="h-auto p-0">
                 <Link
                   href={link.href}
-                  className="group flex items-center gap-2 p-2 sm:p-2.5 rounded-xl border border-border/50 bg-card/30 backdrop-blur-sm transition-all duration-200 hover:bg-accent hover:shadow-md"
+                  className="group flex items-center gap-2 p-2 sm:p-2.5 rounded-xl border border-border/50 bg-card/50 supports-[backdrop-filter]:bg-card/40 backdrop-blur-md transition-all duration-200 hover:bg-accent/80 hover:shadow-md"
                   style={{
                     borderColor:
                       link.color && link.color !== 'blue' ? `var(--${link.color}-500)` : undefined,

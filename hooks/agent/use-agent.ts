@@ -153,8 +153,8 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     }
 
     if (systemContext.file) {
-      if (systemContext.file.file_path) {
-        parts.push(`File: ${systemContext.file.file_path}`);
+      if (systemContext.file.path) {
+        parts.push(`File: ${systemContext.file.path}`);
       }
       if (systemContext.file.language) {
         parts.push(`Language: ${systemContext.file.language}`);

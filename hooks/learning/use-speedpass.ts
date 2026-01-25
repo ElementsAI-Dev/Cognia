@@ -23,8 +23,8 @@ import type {
   StartSpeedLearningInput,
   CreateQuizInput,
   UserAcademicProfile,
-  SPEED_LEARNING_MODES,
 } from '@/types/learning/speedpass';
+import { SPEED_LEARNING_MODES } from '@/types/learning/speedpass';
 
 // ============================================================================
 // Hook Return Type

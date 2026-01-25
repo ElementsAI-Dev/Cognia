@@ -55,6 +55,8 @@ import { useSessionStore, useSettingsStore, useWindowStore } from '@/stores';
 import { useWindowControls } from '@/hooks';
 import { useRouter } from 'next/navigation';
 import { isMainWindow } from '@/lib/native/utils';
+import { cn } from '@/lib/utils';
+import { TRANSPARENCY_CONFIG } from '@/lib/constants/transparency';
 import { registerTitleBarItem, useTitleBarRegistry } from './title-bar-registry';
 
 registerTitleBarItem({
@@ -170,6 +172,7 @@ export function TitleBar() {
   // Settings store
   const theme = useSettingsStore((state) => state.theme);
   const setTheme = useSettingsStore((state) => state.setTheme);
+  const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
   const createSession = useSessionStore((state) => state.createSession);
 
   // Setup Tauri-specific document classes
@@ -425,10 +428,17 @@ export function TitleBar() {
     </>
   );
 
+  const isBackgroundActive = backgroundSettings.enabled && backgroundSettings.source !== 'none';
+
   return (
     <div
       data-titlebar
-      className="fixed top-0 left-0 right-0 z-50 flex h-(--titlebar-height) select-none items-center bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-b border-border/40"
+      className={cn(
+        'fixed top-0 left-0 right-0 z-50 flex h-(--titlebar-height) select-none items-center border-b transition-all duration-300',
+        isBackgroundActive
+          ? TRANSPARENCY_CONFIG.container
+          : 'bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-border/40'
+      )}
       data-tauri-drag-region
       onMouseDown={shouldUseManualDrag ? handleDragMouseDown : undefined}
     >

@@ -179,6 +179,8 @@
     "cerebrasDescription": "定制 AI 芯片最快推理",
     "sambanova": "SambaNova",
     "sambanovaDescription": "企业 AI，提供免费额度",
+    "connected": "已连接",
+    "disconnected": "未连接",
     "cancel": "取消"
   },
   "reasoning": {

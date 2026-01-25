@@ -179,7 +179,9 @@
     "cerebras": "Cerebras",
     "cerebrasDescription": "Fastest inference with custom AI chips",
     "sambanova": "SambaNova",
-    "sambanovaDescription": "Enterprise AI with free tier"
+    "sambanovaDescription": "Enterprise AI with free tier",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
   },
   "reasoning": {
     "thinking": "Thinking...",

@@ -207,7 +207,7 @@ function WorkflowItem({
     <div
       className={cn(
         'group flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer',
-        'hover:bg-accent transition-colors'
+        'bg-card/20 supports-[backdrop-filter]:bg-card/10 hover:bg-accent/50 transition-colors'
       )}
       onClick={onOpen}
     >

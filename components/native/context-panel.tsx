@@ -196,7 +196,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p className="font-medium">{context.browser.browser_name}</p>
+                <p className="font-medium">{context.browser.browser}</p>
                 {context.browser.page_title && (
                   <p className="text-sm truncate">{context.browser.page_title}</p>
                 )}
@@ -221,12 +221,12 @@ export function ContextPanel({ className }: ContextPanelProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {context.file.file_name && (
-                  <p className="font-medium truncate">{context.file.file_name}</p>
+                {context.file.name && (
+                  <p className="font-medium truncate">{context.file.name}</p>
                 )}
-                {context.file.directory && (
+                {context.file.path && (
                   <p className="text-xs text-muted-foreground truncate">
-                    {context.file.directory}
+                    {context.file.path}
                   </p>
                 )}
                 <div className="flex items-center gap-2">

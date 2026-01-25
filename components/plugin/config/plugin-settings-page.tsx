@@ -1,7 +1,7 @@
 /**
  * Plugin Settings Page
  * Comprehensive plugin management interface with tabs for different sections
- * Enhanced with marketplace, favorites, quick actions, and improved responsiveness
+ * Refactored for consistency with other settings pages (MCP pattern)
  */
 
 'use client';
@@ -12,37 +12,25 @@ import {
   Puzzle,
   Plus,
   RefreshCw,
-  Settings2,
-  BarChart3,
-  Code2,
   FolderOpen,
-  Search,
-  Filter,
   LayoutGrid,
   List,
   Download,
   Upload,
-  Heart,
-  MoreHorizontal,
   Store,
-  Sparkles,
-  Shield,
   Zap,
   CheckCircle,
   AlertCircle,
-  Package,
-  Layers,
+  GitBranch,
+  Activity,
+  Code2,
+  Heart,
+  Settings2,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,8 +39,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+
 import { PluginList } from '../core/plugin-list';
 import { PluginEmptyState } from '../core/plugin-empty-state';
 import { PluginGroupedList } from '../core/plugin-grouped-list';
@@ -63,10 +56,17 @@ import { PluginHealth } from '../monitoring/plugin-health';
 import { PluginDependencyTree } from '../monitoring/plugin-dependency-tree';
 import { PluginConflicts } from '../monitoring/plugin-conflicts';
 import { PluginUpdates } from '../monitoring/plugin-updates';
+import {
+  PluginFilterBar,
+  type FilterStatus,
+  type FilterType,
+  type FilterCapability,
+  type SortOption,
+} from './plugin-filter-bar';
 import { PluginMarketplace, PluginDetailModal, type MarketplacePlugin } from '../marketplace';
 import { usePluginStore } from '@/stores/plugin';
 import { usePlugins } from '@/hooks/plugin';
-import type { PluginCapability, PluginType } from '@/types/plugin';
+import type { PluginCapability } from '@/types/plugin';
 import type { PluginScaffoldOptions } from '@/lib/plugin/templates';
 import { getPluginManager } from '@/lib/plugin';
 import { toast } from '@/components/ui/sonner';
@@ -80,8 +80,6 @@ import { cn } from '@/lib/utils';
 // =============================================================================
 
 type ViewMode = 'grid' | 'list';
-type SortOption = 'name' | 'recent' | 'status';
-type FilterOption = 'all' | 'enabled' | 'disabled' | 'error';
 
 interface PluginSettingsPageProps {
   className?: string;
@@ -93,93 +91,118 @@ interface PluginSettingsPageProps {
 
 export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
   const t = useTranslations('pluginSettings');
-  const { plugins, enabledPlugins, disabledPlugins, errorPlugins, initialized } = usePlugins();
-  const { pluginDirectory, scanPlugins, enablePlugin, disablePlugin, uninstallPlugin } = usePluginStore();
-  
-  const [activeTab, setActiveTab] = useState('installed');
+  const { plugins, enabledPlugins, errorPlugins, initialized } = usePlugins();
+  const { pluginDirectory, scanPlugins, enablePlugin, disablePlugin, uninstallPlugin } =
+    usePluginStore();
+
+  const [activeTab, setActiveTab] = useState('my-plugins');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('name');
-  const [filterBy, setFilterBy] = useState<FilterOption>('all');
-  const [typeFilter, setTypeFilter] = useState<PluginType | 'all'>('all');
-  const [capabilityFilter, setCapabilityFilter] = useState<PluginCapability | 'all'>('all');
+  const [_sortBy, _setSortBy] = useState<SortOption>('name');
+  const [filterBy, setFilterBy] = useState<FilterStatus>('all');
+  const [typeFilter, setTypeFilter] = useState<FilterType>('all');
+  const [capabilityFilter, setCapabilityFilter] = useState<FilterCapability>('all');
+  const [groupBy, _setGroupBy] = useState<'none' | 'type' | 'capability' | 'status'>('none');
+
   const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedMarketplacePlugin, setSelectedMarketplacePlugin] = useState<MarketplacePlugin | null>(null);
+  const [selectedMarketplacePlugin, setSelectedMarketplacePlugin] =
+    useState<MarketplacePlugin | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPlugins, setSelectedPlugins] = useState<Set<string>>(new Set());
-  const [groupBy, setGroupBy] = useState<'none' | 'type' | 'capability' | 'status'>('none');
 
   // Stats for hero section
   const totalTools = plugins.reduce((acc, p) => acc + (p.tools?.length || 0), 0);
-  const healthScore = errorPlugins.length === 0 ? 100 : Math.round((1 - errorPlugins.length / Math.max(plugins.length, 1)) * 100);
+  const healthScore =
+    errorPlugins.length === 0
+      ? 100
+      : Math.round((1 - errorPlugins.length / Math.max(plugins.length, 1)) * 100);
 
   // Filter and sort plugins
-  const filteredPlugins = plugins.filter(plugin => {
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch = 
-        plugin.manifest.name.toLowerCase().includes(query) ||
-        plugin.manifest.description?.toLowerCase().includes(query) ||
-        plugin.manifest.id.toLowerCase().includes(query);
-      if (!matchesSearch) return false;
-    }
+  const filteredPlugins = plugins
+    .filter((plugin) => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch =
+          plugin.manifest.name.toLowerCase().includes(query) ||
+          plugin.manifest.description?.toLowerCase().includes(query) ||
+          plugin.manifest.id.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
 
-    // Status filter
-    if (filterBy === 'enabled' && plugin.status !== 'enabled') return false;
-    if (filterBy === 'disabled' && plugin.status !== 'disabled' && plugin.status !== 'loaded') return false;
-    if (filterBy === 'error' && plugin.status !== 'error') return false;
+      // Status filter
+      if (filterBy === 'enabled' && plugin.status !== 'enabled') return false;
+      if (filterBy === 'disabled' && plugin.status !== 'disabled' && plugin.status !== 'loaded')
+        return false;
+      if (filterBy === 'error' && plugin.status !== 'error') return false;
 
-    // Type filter
-    if (typeFilter !== 'all' && plugin.manifest.type !== typeFilter) return false;
+      // Type filter
+      if (typeFilter !== 'all' && plugin.manifest.type !== typeFilter) return false;
 
-    // Capability filter
-    if (capabilityFilter !== 'all' && !plugin.manifest.capabilities.includes(capabilityFilter)) return false;
+      // Capability filter
+      // Note: strict typing might need adjustment if capabilities are complex strings
+      if (
+        capabilityFilter !== 'all' &&
+        !plugin.manifest.capabilities.includes(capabilityFilter as PluginCapability)
+      )
+        return false;
 
-    return true;
-  }).sort((a, b) => {
-    switch (sortBy) {
-      case 'name':
-        return a.manifest.name.localeCompare(b.manifest.name);
-      case 'recent':
-        return 0; // TODO: Add timestamp tracking to Plugin type
-      case 'status':
-        return a.status.localeCompare(b.status);
-      default:
-        return 0;
-    }
-  });
+      return true;
+    })
+    .sort((a, b) => {
+      switch (_sortBy) {
+        case 'name':
+          return a.manifest.name.localeCompare(b.manifest.name);
+        case 'recent':
+          return 0; // TODO: Add timestamp tracking
+        case 'status':
+          return a.status.localeCompare(b.status);
+        default:
+          return 0;
+      }
+    });
+
+  // Reset filters helper
+  const resetFilters = useCallback(() => {
+    setSearchQuery('');
+    setFilterBy('all');
+    setTypeFilter('all');
+    setCapabilityFilter('all');
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K - Focus search
+      // Cmd/Ctrl + K - Focus search (handled by FilterBar input internally mostly, but global works too)
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        const searchInput = document.getElementById('plugin-search');
-        searchInput?.focus();
+        // e.preventDefault(); // Let the FilterBar handle it or focus explicitly if needed
       }
       // Cmd/Ctrl + Shift + S - Toggle selection mode
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 's') {
         e.preventDefault();
-        setIsSelectionMode(prev => !prev);
+        setIsSelectionMode((prev) => !prev);
         if (isSelectionMode) setSelectedPlugins(new Set());
       }
-      // Escape - Exit selection mode or clear search
+      // Escape - Exit selection mode
       if (e.key === 'Escape') {
         if (isSelectionMode) {
           setIsSelectionMode(false);
           setSelectedPlugins(new Set());
-        } else if (searchQuery) {
-          setSearchQuery('');
         }
       }
       // Cmd/Ctrl + A - Select all (when in selection mode)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'a' && isSelectionMode && activeTab === 'installed') {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key === 'a' &&
+        isSelectionMode &&
+        activeTab === 'my-plugins'
+      ) {
         e.preventDefault();
-        setSelectedPlugins(new Set(filteredPlugins.map(p => p.manifest.id)));
+        setSelectedPlugins(new Set(filteredPlugins.map((p) => p.manifest.id)));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -265,334 +288,202 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
 
   const handleCreateComplete = useCallback(
     (_files: Map<string, string>, _options: PluginScaffoldOptions) => {
-      // In a real implementation, this would save files to the plugins directory
-      // For now, just show success and refresh
       handleRefresh();
     },
     [handleRefresh]
   );
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
-      {/* Header - Responsive */}
-      <div className="flex flex-col gap-3 p-4 border-b sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Puzzle className="h-5 w-5 sm:h-6 sm:w-6" />
-          <div>
-            <h1 className="text-lg font-semibold sm:text-xl">{t('title')}</h1>
-            <p className="text-xs text-muted-foreground sm:text-sm">
-              {t('enabledCount', { count: enabledPlugins.length })} · {t('installedCount', { count: plugins.length })}
-            </p>
-          </div>
-        </div>
-
-        {/* Desktop buttons */}
-        <div className="hidden sm:flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
-            {t('refresh')}
-          </Button>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                {t('import')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem>
-                <FolderOpen className="h-4 w-4 mr-2" />
-                {t('fromFolder')}
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Upload className="h-4 w-4 mr-2" />
-                {t('fromZip')}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleInstallFromGitUrl}>
-                <Code2 className="h-4 w-4 mr-2" />
-                {t('fromGitUrl')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button size="sm" onClick={() => setIsCreateWizardOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            {t('createPlugin')}
-          </Button>
-        </div>
-
-        {/* Mobile buttons */}
-        <div className="flex items-center gap-2 sm:hidden">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex-1"
-          >
-            <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
-            {t('refresh')}
-          </Button>
-          
-          <Button size="sm" onClick={() => setIsCreateWizardOpen(true)} className="flex-1">
-            <Plus className="h-4 w-4 mr-2" />
-            {t('createPlugin')}
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="px-2">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <FolderOpen className="h-4 w-4 mr-2" />
-                {t('fromFolder')}
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Upload className="h-4 w-4 mr-2" />
-                {t('fromZip')}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleInstallFromGitUrl}>
-                <Code2 className="h-4 w-4 mr-2" />
-                {t('fromGitUrl')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* Quick Stats Cards - Hero Section */}
-      <div className="grid grid-cols-2 gap-2 p-3 sm:p-4 sm:grid-cols-4 sm:gap-3 border-b bg-gradient-to-br from-primary/5 via-background to-background">
-        <Card className="group hover:border-primary/50 transition-colors">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('stats.installed')}</p>
-                <p className="text-xl sm:text-2xl font-bold">{plugins.length}</p>
-              </div>
-              <Package className="h-6 w-6 sm:h-8 sm:w-8 text-primary/50 group-hover:text-primary transition-colors" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="group hover:border-green-500/50 transition-colors">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('stats.enabled')}</p>
-                <p className="text-xl sm:text-2xl font-bold text-green-500">{enabledPlugins.length}</p>
-              </div>
-              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-500/50 group-hover:text-green-500 transition-colors" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="group hover:border-blue-500/50 transition-colors">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('stats.tools')}</p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-500">{totalTools}</p>
-              </div>
-              <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500/50 group-hover:text-blue-500 transition-colors" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="group hover:border-primary/50 transition-colors">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('stats.health')}</p>
-                <div className="flex items-center gap-2">
-                  <p className={cn('text-xl sm:text-2xl font-bold', healthScore >= 80 ? 'text-green-500' : healthScore >= 50 ? 'text-yellow-500' : 'text-red-500')}>
-                    {healthScore}%
-                  </p>
-                </div>
-              </div>
-              <Shield className={cn('h-6 w-6 sm:h-8 sm:w-8 transition-colors', healthScore >= 80 ? 'text-green-500/50 group-hover:text-green-500' : healthScore >= 50 ? 'text-yellow-500/50 group-hover:text-yellow-500' : 'text-red-500/50 group-hover:text-red-500')} />
-            </div>
-            {errorPlugins.length > 0 && (
-              <div className="mt-1 flex items-center gap-1 text-[10px] text-red-500">
-                <AlertCircle className="h-3 w-3" />
-                <span>{errorPlugins.length} errors</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabs - Responsive with horizontal scroll on mobile */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="border-b px-2 sm:px-4 overflow-x-auto scrollbar-none">
-          <TabsList className="h-10 sm:h-12 w-max sm:w-auto inline-flex">
-            <TabsTrigger value="installed" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
-              <Puzzle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline">{t('tabs.installed')}</span>
-              <span className="xs:hidden">插件</span>
-              <Badge variant="secondary" className="ml-1 text-xs">
+    <TooltipProvider delayDuration={300}>
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className={cn('space-y-4', className)}
+      >
+        {/* Tab Navigation - Consistent with MCP settings */}
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto gap-1 p-1">
+          <TabsTrigger value="my-plugins" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <Puzzle className="h-3.5 w-3.5" />
+            <span className="hidden xs:inline">{t('tabs.myPlugins')}</span>
+            <span className="xs:hidden">插件</span>
+            {plugins.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px] hidden sm:flex">
                 {plugins.length}
               </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="marketplace" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
-              <Store className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{t('tabs.marketplace')}</span>
-              <span className="sm:hidden">商店</span>
-              <Sparkles className="h-3 w-3 text-yellow-500 hidden sm:block" />
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
-              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{t('tabs.analytics')}</span>
-              <span className="sm:hidden">统计</span>
-            </TabsTrigger>
-            <TabsTrigger value="develop" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
-              <Code2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{t('tabs.develop')}</span>
-              <span className="sm:hidden">开发</span>
-            </TabsTrigger>
-            <TabsTrigger value="health" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
-              <Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{t('tabs.health')}</span>
-              <span className="sm:hidden">健康</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
-              <Settings2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{t('tabs.settings')}</span>
-              <span className="sm:hidden">设置</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="marketplace" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <Store className="h-3.5 w-3.5" />
+            <span className="hidden xs:inline">{t('tabs.marketplace')}</span>
+            <span className="xs:hidden">市场</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <Activity className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('tabs.analytics')}</span>
+            <span className="sm:hidden">分析</span>
+          </TabsTrigger>
+          <TabsTrigger value="develop" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <Code2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('tabs.develop')}</span>
+            <span className="sm:hidden">开发</span>
+          </TabsTrigger>
+          <TabsTrigger value="health" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <Heart className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('tabs.health')}</span>
+            <span className="sm:hidden">健康</span>
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <Settings2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('tabs.settings')}</span>
+            <span className="sm:hidden">设置</span>
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Installed Plugins Tab */}
-        <TabsContent value="installed" className="flex-1 flex flex-col m-0">
-          {/* Filters Bar - Responsive */}
-          <div className="flex flex-wrap items-center gap-2 p-3 sm:p-4 border-b bg-muted/30">
-            {/* Search - Full width on mobile */}
-            <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="plugin-search"
-                placeholder={t('filters.searchPlaceholder')}
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-9 pr-14 h-9"
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                <span>⌘</span><span>K</span>
+        {/* My Plugins Tab */}
+        <TabsContent value="my-plugins" className="space-y-4 mt-0">
+          {/* Header Alert - Consistent with MCP settings */}
+          <Alert className="bg-muted/30">
+            <Puzzle className="h-4 w-4" />
+            <AlertTitle className="text-sm">{t('title')}</AlertTitle>
+            <AlertDescription className="text-xs">
+              {t('description')}
+              {plugins.length > 0 && (
+                <span className="ml-1">
+                  {t('enabledCount', { count: enabledPlugins.length })} / {plugins.length}
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
+
+          {/* Quick Stats Bar */}
+          {plugins.length > 0 && (
+            <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="font-medium text-foreground">{healthScore}%</span>
+                <span className="hidden sm:inline">Health</span>
               </div>
+              <Separator orientation="vertical" className="h-4" />
+              <div className="flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5" />
+                <span className="font-medium text-foreground">{totalTools}</span>
+                <span className="hidden sm:inline">Tools</span>
+              </div>
+              {errorPlugins.length > 0 && (
+                <>
+                  <Separator orientation="vertical" className="h-4" />
+                  <div className="flex items-center gap-1.5 text-destructive">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    <span className="font-medium">{errorPlugins.length}</span>
+                    <span className="hidden sm:inline">Errors</span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Actions Bar */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" onClick={() => setIsCreateWizardOpen(true)}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                {t('createPlugin')}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-1.5" />
+                    {t('import')}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem>
+                    <FolderOpen className="h-4 w-4 mr-2" />
+                    {t('fromFolder')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Upload className="h-4 w-4 mr-2" />
+                    {t('fromZip')}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleInstallFromGitUrl}>
+                    <GitBranch className="h-4 w-4 mr-2" />
+                    {t('fromGitUrl')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                  >
+                    <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('refresh')}</TooltipContent>
+              </Tooltip>
             </div>
 
-            {/* Selection Mode Toggle */}
-            <Button
-              variant={isSelectionMode ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setIsSelectionMode(!isSelectionMode);
-                if (isSelectionMode) setSelectedPlugins(new Set());
-              }}
-              className="h-9 gap-1.5 hidden sm:flex"
-            >
-              <CheckCircle className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">{isSelectionMode ? t('filters.exitSelect') : t('filters.select')}</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Filter Bar */}
+              <PluginFilterBar
+                className="flex-1 sm:flex-initial"
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                statusFilter={filterBy}
+                onStatusFilterChange={setFilterBy}
+                typeFilter={typeFilter}
+                onTypeFilterChange={setTypeFilter}
+                capabilityFilter={capabilityFilter}
+                onCapabilityFilterChange={setCapabilityFilter}
+                onResetFilters={resetFilters}
+                activeCount={filteredPlugins.length}
+              />
 
-            {/* Filters group - Collapsible on mobile */}
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              <Select value={filterBy} onValueChange={v => setFilterBy(v as FilterOption)}>
-                <SelectTrigger className="h-9 w-[calc(50%-4px)] sm:w-[120px]">
-                  <Filter className="h-3.5 w-3.5 mr-1.5" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('filters.allStatus')}</SelectItem>
-                  <SelectItem value="enabled">{t('filters.enabled')}</SelectItem>
-                  <SelectItem value="disabled">{t('filters.disabled')}</SelectItem>
-                  <SelectItem value="error">{t('filters.error')}</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={typeFilter} onValueChange={v => setTypeFilter(v as PluginType | 'all')}>
-                <SelectTrigger className="h-9 w-[calc(50%-4px)] sm:w-[110px]">
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('filters.allTypes')}</SelectItem>
-                  <SelectItem value="frontend">{t('filters.frontend')}</SelectItem>
-                  <SelectItem value="python">{t('filters.python')}</SelectItem>
-                  <SelectItem value="hybrid">{t('filters.hybrid')}</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={capabilityFilter} onValueChange={v => setCapabilityFilter(v as PluginCapability | 'all')}>
-                <SelectTrigger className="h-9 w-[calc(50%-4px)] sm:w-[120px] hidden sm:flex">
-                  <SelectValue placeholder="Capability" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('filters.allCapabilities')}</SelectItem>
-                  <SelectItem value="tools">{t('filters.tools')}</SelectItem>
-                  <SelectItem value="components">{t('filters.components')}</SelectItem>
-                  <SelectItem value="modes">{t('filters.modes')}</SelectItem>
-                  <SelectItem value="commands">{t('filters.commands')}</SelectItem>
-                  <SelectItem value="hooks">{t('filters.hooks')}</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Group by dropdown */}
-              <Select value={groupBy} onValueChange={v => setGroupBy(v as 'none' | 'type' | 'capability' | 'status')}>
-                <SelectTrigger className="h-9 w-[calc(50%-4px)] sm:w-[110px] hidden sm:flex">
-                  <Layers className="h-3.5 w-3.5 mr-1.5" />
-                  <SelectValue placeholder="Group" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t('filters.noGroup')}</SelectItem>
-                  <SelectItem value="type">{t('filters.groupByType')}</SelectItem>
-                  <SelectItem value="capability">{t('filters.groupByCapability')}</SelectItem>
-                  <SelectItem value="status">{t('filters.groupByStatus')}</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* View mode toggle */}
-              <div className="flex items-center border rounded-md h-9 ml-auto sm:ml-0">
+              {/* View Mode Toggle */}
+              <div className="flex items-center border rounded-md h-8 bg-background">
                 <Button
                   variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                   size="sm"
-                  className="rounded-r-none h-full px-2.5"
+                  className="rounded-r-none h-7 w-7 p-0"
                   onClick={() => setViewMode('grid')}
                 >
-                  <LayoutGrid className="h-4 w-4" />
+                  <LayoutGrid className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                   size="sm"
-                  className="rounded-l-none h-full px-2.5"
+                  className="rounded-l-none h-7 w-7 p-0"
                   onClick={() => setViewMode('list')}
                 >
-                  <List className="h-4 w-4" />
+                  <List className="h-3.5 w-3.5" />
                 </Button>
               </div>
 
-              <Select value={sortBy} onValueChange={v => setSortBy(v as SortOption)}>
-                <SelectTrigger className="h-9 w-[calc(50%-4px)] sm:w-[110px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">{t('filters.sortByName')}</SelectItem>
-                  <SelectItem value="recent">{t('filters.sortByRecent')}</SelectItem>
-                  <SelectItem value="status">{t('filters.sortByStatus')}</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Selection Mode */}
+              <Button
+                variant={isSelectionMode ? 'secondary' : 'outline'}
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => {
+                  setIsSelectionMode(!isSelectionMode);
+                  if (isSelectionMode) setSelectedPlugins(new Set());
+                }}
+              >
+                <CheckCircle className={cn('h-3.5 w-3.5', isSelectionMode && 'text-primary')} />
+                <span className="hidden sm:inline">
+                  {isSelectionMode ? t('filters.exitSelect') : t('filters.select')}
+                </span>
+              </Button>
             </div>
           </div>
 
-          {/* Plugin List */}
-          <ScrollArea className="flex-1 p-3 sm:p-4">
+          {/* Plugin Grid/List */}
+          <div className="min-h-[300px]">
             {filteredPlugins.length === 0 ? (
               <PluginEmptyState
                 variant={
@@ -610,12 +501,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 onCreatePlugin={() => setIsCreateWizardOpen(true)}
                 onBrowseMarketplace={() => setActiveTab('marketplace')}
                 onImportPlugin={() => {}}
-                onClearFilters={() => {
-                  setSearchQuery('');
-                  setFilterBy('all');
-                  setTypeFilter('all');
-                  setCapabilityFilter('all');
-                }}
+                onClearFilters={resetFilters}
               />
             ) : groupBy !== 'none' ? (
               <PluginGroupedList
@@ -630,7 +516,6 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     } else {
                       void manager.enablePlugin(plugin.manifest.id);
                     }
-                    return;
                   } catch {
                     if (plugin.status === 'enabled') {
                       void disablePlugin(plugin.manifest.id);
@@ -644,7 +529,6 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                   try {
                     const manager = getPluginManager();
                     void manager.uninstallPlugin(plugin.manifest.id);
-                    return;
                   } catch {
                     void uninstallPlugin(plugin.manifest.id);
                   }
@@ -662,7 +546,6 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     } else {
                       void manager.enablePlugin(plugin.manifest.id);
                     }
-                    return;
                   } catch {
                     if (plugin.status === 'enabled') {
                       void disablePlugin(plugin.manifest.id);
@@ -676,36 +559,25 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                   try {
                     const manager = getPluginManager();
                     void manager.uninstallPlugin(plugin.manifest.id);
-                    return;
                   } catch {
                     void uninstallPlugin(plugin.manifest.id);
                   }
                 }}
                 enableSelection={isSelectionMode}
                 onBatchEnable={handleBatchEnable}
-                onBatchDisable={handleBatchDisable}
-                onBatchUninstall={handleBatchUninstall}
+                onBatchDisable={async () => {
+                  await handleBatchDisable();
+                }}
+                onBatchUninstall={async () => {
+                  await handleBatchUninstall();
+                }}
               />
             )}
-          </ScrollArea>
-
-          {/* Status Bar - Responsive */}
-          <div className="flex flex-col gap-1 px-3 py-2 border-t bg-muted/30 text-xs sm:text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-4">
-            <div className="flex items-center gap-2 sm:gap-4">
-              <span>{t('statusBar.pluginsShown', { count: filteredPlugins.length })}</span>
-              {errorPlugins.length > 0 && (
-                <Badge variant="destructive" className="text-xs">{t('statusBar.errors', { count: errorPlugins.length })}</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2 sm:gap-4">
-              <span>{t('statusBar.enabledCount', { count: enabledPlugins.length })}</span>
-              <span>{t('statusBar.disabledCount', { count: disabledPlugins.length })}</span>
-            </div>
           </div>
         </TabsContent>
 
         {/* Marketplace Tab */}
-        <TabsContent value="marketplace" className="flex-1 m-0 flex flex-col overflow-hidden">
+        <TabsContent value="marketplace" className="mt-0">
           <PluginMarketplace
             onInstall={async (pluginId) => {
               if (!detectTauri()) {
@@ -734,7 +606,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 await manager.installPlugin(selected, { type: 'local', name: pluginId });
                 await scanPlugins();
                 toast.success('Plugin installed');
-                setActiveTab('installed');
+                setActiveTab('my-plugins');
               } catch (error) {
                 toast.error('Plugin install failed');
                 console.error('Failed to install plugin:', error);
@@ -748,114 +620,162 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         </TabsContent>
 
         {/* Analytics Tab */}
-        <TabsContent value="analytics" className="flex-1 m-0 p-3 sm:p-4 flex flex-col overflow-hidden">
-          <PluginAnalytics className="flex-1 min-h-0" />
+        <TabsContent value="analytics" className="mt-0">
+          <PluginAnalytics />
         </TabsContent>
 
         {/* Develop Tab */}
-        <TabsContent value="develop" className="flex-1 m-0 flex flex-col overflow-hidden">
-          <PluginDevTools className="flex-1 min-h-0" />
+        <TabsContent value="develop" className="mt-0">
+          <PluginDevTools />
         </TabsContent>
 
-        {/* Health & Monitoring Tab */}
-        <TabsContent value="health" className="flex-1 m-0 p-3 sm:p-4 overflow-auto flex flex-col">
-          <div className="space-y-3 sm:space-y-4 flex-1">
-            {/* Updates Section - Stack on mobile */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <PluginUpdates autoCheck />
-              <PluginConflicts autoDetect />
-            </div>
-
-            {/* Health Monitoring */}
-            <PluginHealth autoRefresh refreshInterval={30000} />
-
-            {/* Dependency Tree */}
-            <PluginDependencyTree />
+        {/* Health Tab */}
+        <TabsContent value="health" className="space-y-4 mt-0">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <PluginUpdates autoCheck />
+            <PluginConflicts autoDetect />
           </div>
+          <PluginHealth autoRefresh refreshInterval={30000} />
+          <PluginDependencyTree />
         </TabsContent>
 
-        {/* Settings Tab - Better space utilization */}
-        <TabsContent value="settings" className="flex-1 m-0 p-3 sm:p-4 overflow-auto">
-          <div className="space-y-4 sm:space-y-6">
-            <div>
-              <h3 className="text-base sm:text-lg font-medium mb-2">{t('settingsTab.title')}</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+        {/* Settings Tab - Improved with consistent card patterns */}
+        <TabsContent value="settings" className="space-y-4 mt-0">
+          {/* General Settings */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">{t('settingsTab.title')}</CardTitle>
+              <CardDescription className="text-xs">
                 {t('settingsTab.description')}
-              </p>
-            </div>
-
-            {/* Settings Grid - 2 columns on large screens */}
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
-              <div className="flex flex-col gap-3 p-3 sm:p-4 border rounded-lg sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm sm:text-base">{t('settingsTab.autoEnable')}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Auto Enable Toggle */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">{t('settingsTab.autoEnable')}</Label>
+                  <p className="text-xs text-muted-foreground">
                     {t('settingsTab.autoEnableDesc')}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="self-start sm:self-center shrink-0">{t('settingsTab.configure')}</Button>
+                <Switch />
               </div>
 
-              <div className="flex flex-col gap-3 p-3 sm:p-4 border rounded-lg sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm sm:text-base">{t('settingsTab.pluginDirectory')}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground font-mono truncate">
+              {/* Plugin Directory */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3">
+                <div className="space-y-0.5 min-w-0 flex-1">
+                  <Label className="text-sm font-medium">{t('settingsTab.pluginDirectory')}</Label>
+                  <p className="text-xs text-muted-foreground font-mono truncate">
                     {pluginDirectory || '—'}
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="self-start sm:self-center shrink-0"
+                  className="shrink-0"
                   onClick={async () => {
                     if (!pluginDirectory) {
                       toast.error('Plugin directory is not available');
                       return;
                     }
-
                     const result = await openDirectory(pluginDirectory);
                     if (!result.success) {
                       toast.error(result.error || 'Failed to open directory');
                     }
                   }}
                 >
-                  <FolderOpen className="h-4 w-4 mr-2" />
+                  <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
                   {t('settingsTab.open')}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="flex flex-col gap-3 p-3 sm:p-4 border rounded-lg sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm sm:text-base">{t('settingsTab.pythonEnvironment')}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
+          {/* Runtime Settings */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">{t('settingsTab.runtime')}</CardTitle>
+              <CardDescription className="text-xs">
+                {t('settingsTab.runtimeDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Python Environment */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">{t('settingsTab.pythonEnvironment')}</Label>
+                  <p className="text-xs text-muted-foreground">
                     {t('settingsTab.pythonEnvironmentDesc')}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="self-start sm:self-center shrink-0">{t('settingsTab.configure')}</Button>
+                <Button variant="outline" size="sm" className="shrink-0">
+                  <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                  {t('settingsTab.configure')}
+                </Button>
               </div>
 
-              <div className="flex flex-col gap-3 p-3 sm:p-4 border rounded-lg sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm sm:text-base">{t('settingsTab.clearCache')}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
+              {/* Sandbox Mode */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">{t('settingsTab.sandboxMode')}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('settingsTab.sandboxModeDesc')}
+                  </p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Cache & Data */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">{t('settingsTab.cacheData')}</CardTitle>
+              <CardDescription className="text-xs">
+                {t('settingsTab.cacheDataDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Clear Cache */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">{t('settingsTab.clearCache')}</Label>
+                  <p className="text-xs text-muted-foreground">
                     {t('settingsTab.clearCacheDesc')}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="self-start sm:self-center shrink-0">{t('settingsTab.clearCacheBtn')}</Button>
+                <Button variant="outline" size="sm" className="shrink-0">
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  {t('settingsTab.clearCacheBtn')}
+                </Button>
               </div>
-            </div>
-          </div>
+
+              {/* Reset All Plugins */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-destructive/30 p-3 bg-destructive/5">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium text-destructive">
+                    {t('settingsTab.resetPlugins')}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('settingsTab.resetPluginsDesc')}
+                  </p>
+                </div>
+                <Button variant="destructive" size="sm" className="shrink-0">
+                  {t('settingsTab.resetPluginsBtn')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Create Wizard Dialog */}
+      {/* Dialogs */}
       <PluginCreateWizard
         open={isCreateWizardOpen}
         onOpenChange={setIsCreateWizardOpen}
         onComplete={handleCreateComplete}
       />
 
-      {/* Plugin Detail Modal */}
       <PluginDetailModal
         plugin={selectedMarketplacePlugin}
         open={isDetailModalOpen}
@@ -888,14 +808,14 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
             await scanPlugins();
             toast.success('Plugin installed');
             setIsDetailModalOpen(false);
-            setActiveTab('installed');
+            setActiveTab('my-plugins');
           } catch (error) {
             toast.error('Plugin install failed');
             console.error('Failed to install plugin:', error);
           }
         }}
       />
-    </div>
+    </TooltipProvider>
   );
 }
 

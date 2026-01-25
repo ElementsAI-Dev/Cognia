@@ -240,6 +240,7 @@
       "installed": "已安装"
     },
     "category": {
+      "title": "分类",
       "all": "全部"
     },
     "detail": {
@@ -269,7 +270,8 @@
       "removeFromFavorites": "取消收藏",
       "copyPromptContent": "复制提示内容",
       "sharePrompt": "分享提示",
-      "installPrompt": "安装提示"
+      "installPrompt": "安装提示",
+      "installed": "已安装"
     }
   },
   "promptTemplate": {

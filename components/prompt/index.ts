@@ -29,7 +29,7 @@ export {
   PromptMarketplaceBrowser,
   PromptMarketplaceCard,
   PromptMarketplaceDetail,
-  PromptMarketplaceCategoryNav,
+  PromptMarketplaceSidebar,
 } from './marketplace';
 
 // Template components

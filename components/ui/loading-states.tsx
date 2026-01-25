@@ -80,7 +80,7 @@ export function ThinkingIndicator({
   return (
     <div className={cn(
       'flex items-center gap-2 px-3 py-2 rounded-lg',
-      'bg-muted/50 border border-border/50',
+      'bg-muted/60 supports-[backdrop-filter]:bg-muted/50 backdrop-blur-sm border border-border/50',
       className
     )}>
       <span className={cn('animate-pulse', colors[variant])}>

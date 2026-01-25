@@ -694,7 +694,7 @@ export function ChatInput({
       ref={dropZoneRef}
       data-tour="chat-input"
       className={cn(
-        'border-t border-border/50 bg-background/95 backdrop-blur-sm p-4 transition-all duration-200',
+        'border-t border-border/50 bg-background/90 supports-[backdrop-filter]:bg-background/80 backdrop-blur-md p-4 transition-all duration-200',
         isDragging && 'bg-accent/50 border-primary'
       )}
       data-chat-input
@@ -723,7 +723,7 @@ export function ChatInput({
 
         <div
           ref={inputContainerRef}
-          className="relative flex items-end gap-2 rounded-2xl border border-input/50 bg-card p-2 shadow-md focus-within:shadow-lg focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-ring/10 transition-all duration-200"
+          className="relative flex items-end gap-2 rounded-2xl border border-input/50 bg-card/90 supports-[backdrop-filter]:bg-card/80 backdrop-blur-sm p-2 shadow-md focus-within:shadow-lg focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-ring/10 transition-all duration-200"
         >
           {/* Mention Popover */}
           <MentionPopover

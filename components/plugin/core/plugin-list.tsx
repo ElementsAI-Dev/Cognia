@@ -11,8 +11,8 @@ import type { Plugin } from '@/types/plugin';
 import { PluginCard } from './plugin-card';
 import { PluginQuickActions } from './plugin-quick-actions';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PluginEmptyState } from './plugin-empty-state';
 import { cn } from '@/lib/utils';
-import { Puzzle } from 'lucide-react';
 
 type ViewMode = 'grid' | 'list';
 
@@ -27,10 +27,11 @@ interface PluginListProps {
   onBatchEnable?: (pluginIds: string[]) => Promise<void>;
   onBatchDisable?: (pluginIds: string[]) => Promise<void>;
   onBatchUninstall?: (pluginIds: string[]) => Promise<void>;
+  isBackgroundActive?: boolean;
 }
 
-export function PluginList({
-  plugins,
+export function PluginList({ 
+  plugins, 
   viewMode = 'grid',
   onToggle,
   onConfigure,
@@ -40,12 +41,13 @@ export function PluginList({
   onBatchEnable,
   onBatchDisable,
   onBatchUninstall,
+  isBackgroundActive,
 }: PluginListProps) {
-  const t = useTranslations('pluginList');
+  const _t = useTranslations('pluginList');
   const [selectedPlugins, setSelectedPlugins] = useState<Set<string>>(new Set());
 
   const handleSelectPlugin = useCallback((pluginId: string, selected: boolean) => {
-    setSelectedPlugins(prev => {
+    setSelectedPlugins((prev) => {
       const next = new Set(prev);
       if (selected) {
         next.add(pluginId);
@@ -57,7 +59,7 @@ export function PluginList({
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    setSelectedPlugins(new Set(plugins.map(p => p.manifest.id)));
+    setSelectedPlugins(new Set(plugins.map((p) => p.manifest.id)));
   }, [plugins]);
 
   const handleDeselectAll = useCallback(() => {
@@ -84,17 +86,9 @@ export function PluginList({
       setSelectedPlugins(new Set());
     }
   }, [selectedPlugins, onBatchUninstall]);
-  
+
   if (plugins.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-muted-foreground">
-        <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-          <Puzzle className="h-8 w-8 opacity-50" />
-        </div>
-        <p className="text-base sm:text-lg font-medium">{t('noPlugins')}</p>
-        <p className="text-sm mt-1">{t('noPluginsDesc')}</p>
-      </div>
-    );
+    return <PluginEmptyState variant="no-plugins" isBackgroundActive={isBackgroundActive} />;
   }
 
   return (
@@ -125,7 +119,9 @@ export function PluginList({
             key={plugin.manifest.id}
             className={cn(
               'relative',
-              enableSelection && selectedPlugins.has(plugin.manifest.id) && 'ring-2 ring-primary rounded-lg'
+              enableSelection &&
+                selectedPlugins.has(plugin.manifest.id) &&
+                'ring-2 ring-primary rounded-lg'
             )}
           >
             {/* Selection checkbox overlay */}
@@ -133,7 +129,7 @@ export function PluginList({
               <div className="absolute top-2 left-2 z-10">
                 <Checkbox
                   checked={selectedPlugins.has(plugin.manifest.id)}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     handleSelectPlugin(plugin.manifest.id, checked as boolean)
                   }
                   className="bg-background border-2"
