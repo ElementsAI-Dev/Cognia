@@ -60,6 +60,9 @@ import { CanvasDocumentTabs } from './canvas-document-tabs';
 import { SuggestionItem } from './suggestion-item';
 import type { CanvasSuggestion } from '@/types';
 import { useCanvasCodeExecution, useCanvasDocuments, useCanvasSuggestions } from '@/hooks/canvas';
+import { useKeybindingStore } from '@/stores/canvas/keybinding-store';
+import { themeRegistry } from '@/lib/canvas/themes/theme-registry';
+import { CanvasErrorBoundary } from './canvas-error-boundary';
 import {
   executeCanvasAction,
   applyCanvasActionResult,
@@ -139,7 +142,7 @@ const TRANSLATE_LANGUAGES = [
   { value: 'arabic', label: 'العربية (Arabic)' },
 ];
 
-export function CanvasPanel() {
+function CanvasPanelContent() {
   const t = useTranslations('canvas');
   const panelOpen = useArtifactStore((state) => state.panelOpen);
   const panelView = useArtifactStore((state) => state.panelView);
@@ -317,7 +320,16 @@ export function CanvasPanel() {
     };
   }, []);
 
-  // Keyboard shortcuts handler
+  // Keybinding store integration
+  const getActionByKeybinding = useKeybindingStore((state) => state.getActionByKeybinding);
+
+  // Get Monaco theme from theme registry
+  const monacoTheme = useMemo(() => {
+    const editorTheme = theme === 'dark' ? themeRegistry.getTheme('vs-dark') : themeRegistry.getTheme('vs');
+    return editorTheme ? editorTheme.id : (theme === 'dark' ? 'vs-dark' : 'light');
+  }, [theme]);
+
+  // Keyboard shortcuts handler - uses keybinding store
   useEffect(() => {
     if (!panelOpen || panelView !== 'canvas' || !activeDocument) return;
 
@@ -326,7 +338,31 @@ export function CanvasPanel() {
       const isMod = e.metaKey || e.ctrlKey;
       if (!isMod || isProcessing) return;
 
-      // Map keys to action types
+      // Build key combo string
+      const parts: string[] = [];
+      if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey) parts.push('Shift');
+      const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+      if (!['Control', 'Alt', 'Shift', 'Meta'].includes(key)) {
+        parts.push(key);
+      }
+      const keyCombo = parts.join('+');
+
+      // Check keybinding store first
+      const boundAction = getActionByKeybinding(keyCombo);
+      if (boundAction && boundAction.startsWith('action.')) {
+        const actionType = boundAction.replace('action.', '');
+        const action = canvasActions.find(a => a.type === actionType);
+        if (action) {
+          e.preventDefault();
+          const event = new CustomEvent('canvas-action', { detail: action });
+          window.dispatchEvent(event);
+          return;
+        }
+      }
+
+      // Fallback to default key mapping
       const keyActionMap: Record<string, string> = {
         'r': 'review',
         'f': 'fix',
@@ -341,7 +377,6 @@ export function CanvasPanel() {
         const action = canvasActions.find(a => a.type === actionType);
         if (action) {
           e.preventDefault();
-          // Trigger the action via a custom event to avoid circular deps
           const event = new CustomEvent('canvas-action', { detail: action });
           window.dispatchEvent(event);
         }
@@ -350,7 +385,7 @@ export function CanvasPanel() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [panelOpen, panelView, isProcessing, activeDocument]);
+  }, [panelOpen, panelView, isProcessing, activeDocument, getActionByKeybinding]);
 
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
@@ -478,15 +513,8 @@ export function CanvasPanel() {
   }, [activeDocument, targetLanguage, handleAction]);
 
   const getEditorTheme = () => {
-    if (theme === 'dark') return 'vs-dark';
-    if (theme === 'light') return 'light';
-    // System theme
-    if (typeof window !== 'undefined') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'vs-dark'
-        : 'light';
-    }
-    return 'light';
+    // Use theme registry for editor theming
+    return monacoTheme;
   };
 
   const getLanguage = () => {
@@ -995,6 +1023,18 @@ export function CanvasPanel() {
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+export function CanvasPanel() {
+  return (
+    <CanvasErrorBoundary
+      onError={(error, errorInfo) => {
+        console.error('Canvas error caught:', error, errorInfo);
+      }}
+    >
+      <CanvasPanelContent />
+    </CanvasErrorBoundary>
   );
 }
 

@@ -995,44 +995,49 @@ export function ChatInput({
           )}
         </div>
 
-        <BottomToolbar
-          modelName={modelName}
-          webSearchEnabled={webSearchEnabled}
-          thinkingEnabled={thinkingEnabled}
-          streamingEnabled={streamingEnabled}
-          contextUsagePercent={contextUsagePercent}
-          onModelClick={onModelClick}
-          onWebSearchChange={onWebSearchChange}
-          onThinkingChange={onThinkingChange}
-          onStreamingChange={onStreamingChange}
-          onOpenAISettings={onOpenAISettings}
-          onOpenContextSettings={onOpenContextSettings}
-          onPresetChange={onPresetChange}
-          onCreatePreset={onCreatePreset}
-          onManagePresets={onManagePresets}
-          onSelectPrompt={(content) => onChange(value ? `${value}\n${content}` : content)}
-          onOpenWorkflowPicker={onOpenWorkflowPicker}
-          onOpenPromptOptimization={onOpenPromptOptimization}
-          hasActivePreset={hasActivePreset}
-          disabled={disabled}
-          isProcessing={isProcessing}
-        />
+        {/* Bottom Toolbar - hidden in focused/zen simplified modes */}
+        {!(isSimplifiedMode && (simplifiedModeSettings.preset === 'focused' || simplifiedModeSettings.preset === 'zen')) && (
+          <BottomToolbar
+            modelName={modelName}
+            webSearchEnabled={webSearchEnabled}
+            thinkingEnabled={thinkingEnabled}
+            streamingEnabled={streamingEnabled}
+            contextUsagePercent={contextUsagePercent}
+            onModelClick={onModelClick}
+            onWebSearchChange={onWebSearchChange}
+            onThinkingChange={onThinkingChange}
+            onStreamingChange={onStreamingChange}
+            onOpenAISettings={onOpenAISettings}
+            onOpenContextSettings={onOpenContextSettings}
+            onPresetChange={onPresetChange}
+            onCreatePreset={onCreatePreset}
+            onManagePresets={onManagePresets}
+            onSelectPrompt={(content) => onChange(value ? `${value}\n${content}` : content)}
+            onOpenWorkflowPicker={onOpenWorkflowPicker}
+            onOpenPromptOptimization={onOpenPromptOptimization}
+            hasActivePreset={hasActivePreset}
+            disabled={disabled}
+            isProcessing={isProcessing}
+          />
+        )}
 
-        {/* Helper text - simplified on small screens */}
-        <p className="mt-1 sm:mt-2 text-center text-[10px] sm:text-xs text-muted-foreground/70">
-          <span className="hidden sm:inline">
-            {sendOnEnter ? t('enterToSend') : t('clickToSend')}
-            {' • '}
-            <span>{t('dragDropFiles')}</span>
-            {isMcpAvailable && (
-              <>
-                {' • '}
-                <span className="text-primary/80">{t('typeAtForMcp')}</span>
-              </>
-            )}
-          </span>
-          <span className="sm:hidden">{sendOnEnter ? 'Enter ↵' : 'Click ➤'}</span>
-        </p>
+        {/* Helper text - hidden in focused/zen simplified modes */}
+        {!(isSimplifiedMode && (simplifiedModeSettings.preset === 'focused' || simplifiedModeSettings.preset === 'zen')) && (
+          <p className="mt-1 sm:mt-2 text-center text-[10px] sm:text-xs text-muted-foreground/70">
+            <span className="hidden sm:inline">
+              {sendOnEnter ? t('enterToSend') : t('clickToSend')}
+              {' • '}
+              <span>{t('dragDropFiles')}</span>
+              {isMcpAvailable && (
+                <>
+                  {' • '}
+                  <span className="text-primary/80">{t('typeAtForMcp')}</span>
+                </>
+              )}
+            </span>
+            <span className="sm:hidden">{sendOnEnter ? 'Enter ↵' : 'Click ➤'}</span>
+          </p>
+        )}
       </div>
 
       <PromptTemplateSelector

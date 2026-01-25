@@ -101,3 +101,88 @@ export {
 
 // Core RAG Service
 export * from './rag';
+
+// Query Cache
+export {
+  type RAGCacheConfig,
+  type CacheEntry,
+  type CacheStats,
+  LRUCache,
+  RAGQueryCache,
+  createRAGQueryCache,
+  createHighPerformanceCache,
+  createLightweightCache,
+} from './cache';
+
+// Embedding Batcher
+export {
+  type BatcherConfig,
+  type BatchRequest,
+  type BatcherStats,
+  EmbeddingBatcher,
+  batchGenerateEmbeddings,
+  createEmbeddingBatcher,
+  getGlobalBatcher,
+  resetGlobalBatcher,
+} from './embedding-batcher';
+
+// Dynamic Context Manager
+export {
+  type ContextManagerConfig,
+  type ContextBudget,
+  type ChunkWithScore,
+  type ContextSelectionResult,
+  DynamicContextManager,
+  createContextManager,
+  getModelContextLimits,
+} from './context-manager';
+
+// Adaptive Reranker
+export {
+  type RelevanceFeedback,
+  type FeedbackHistoryEntry,
+  type AdaptiveRerankerConfig,
+  type LearningStats,
+  AdaptiveReranker,
+  createAdaptiveReranker,
+  getGlobalAdaptiveReranker,
+  resetGlobalAdaptiveReranker,
+} from './adaptive-reranker';
+
+// Persistent Storage
+export {
+  type StoredDocument,
+  type StoredCollection,
+  type PersistentStorageConfig,
+  type ExportData,
+  PersistentRAGStorage,
+  createPersistentStorage,
+  isIndexedDBAvailable,
+  getStorageEstimate,
+} from './persistent-storage';
+
+// Collection Manager
+export {
+  type CollectionConfig,
+  type CollectionStats,
+  type CollectionInfo,
+  type CollectionManagerConfig,
+  RAGCollectionManager,
+  createCollectionManager,
+  getGlobalCollectionManager,
+  resetGlobalCollectionManager,
+} from './collection-manager';
+
+// Citation Formatter
+export {
+  type CitationStyle,
+  type CitationOptions,
+  type Citation,
+  type FormattedCitation,
+  formatCitations,
+  formatContextWithCitations,
+  generateReferenceList,
+  addInlineCitations,
+  CITATION_STYLE_INFO,
+  getAvailableCitationStyles,
+} from './citation-formatter';

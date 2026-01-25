@@ -320,6 +320,9 @@ export const DEFAULT_SIMPLIFIED_MODE_SETTINGS: SimplifiedModeSettings = {
 };
 
 // Preset configurations for simplified mode
+// - minimal: Light simplification, keeps most features
+// - focused: ChatGPT/Claude-like clean experience with simplified welcome
+// - zen: Ultra-minimal, distraction-free writing
 export const SIMPLIFIED_MODE_PRESETS: Record<
   SimplifiedModePreset,
   Partial<SimplifiedModeSettings>
@@ -328,6 +331,7 @@ export const SIMPLIFIED_MODE_PRESETS: Record<
     enabled: false,
   },
   minimal: {
+    // Light simplification - hides advanced controls but keeps core features
     enabled: true,
     hideAdvancedInputControls: true,
     hidePresetSelector: true,
@@ -335,16 +339,24 @@ export const SIMPLIFIED_MODE_PRESETS: Record<
     hideFeatureBadges: true,
   },
   focused: {
+    // ChatGPT/Claude-like: Clean centered welcome, simplified input
     enabled: true,
     hideAdvancedInputControls: true,
+    hideAttachmentButton: false, // Keep attachment for file uploads
+    hideWebSearchToggle: true,
+    hideThinkingToggle: true,
     hidePresetSelector: true,
     hideContextIndicator: true,
     hideFeatureBadges: true,
-    hideSuggestionDescriptions: true,
+    hideSuggestionDescriptions: false, // SimplifiedWelcome handles this
     hideQuickAccessLinks: true,
     autoHideSidebar: true,
+    hideMessageActions: false, // Keep core message actions
+    hideMessageTimestamps: true,
+    hideTokenCount: true,
   },
   zen: {
+    // Ultra-minimal: Maximum focus, minimal UI
     enabled: true,
     hideModelSelector: true,
     hideModeSelector: true,

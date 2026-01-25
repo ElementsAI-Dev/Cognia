@@ -41,6 +41,19 @@ import {
   mergeQueryResults,
   type ExpandedQuery,
 } from './query-expansion';
+import {
+  RAGQueryCache,
+  createRAGQueryCache,
+  type RAGCacheConfig,
+} from './cache';
+import {
+  DynamicContextManager,
+  createContextManager,
+} from './context-manager';
+import {
+  AdaptiveReranker,
+  createAdaptiveReranker,
+} from './adaptive-reranker';
 
 export interface RAGPipelineConfig {
   // Embedding configuration
@@ -85,6 +98,26 @@ export interface RAGPipelineConfig {
 
   // Chunking settings
   chunkingOptions?: Partial<ChunkingOptions>;
+
+  // Caching settings
+  cache?: {
+    enabled?: boolean;
+    maxSize?: number;
+    ttl?: number;
+    persistToIndexedDB?: boolean;
+  };
+
+  // Context management
+  dynamicContext?: {
+    enabled?: boolean;
+    maxTokens?: number;
+  };
+
+  // Adaptive reranking
+  adaptiveReranking?: {
+    enabled?: boolean;
+    feedbackWeight?: number;
+  };
 }
 
 export interface RAGPipelineContext {
@@ -99,6 +132,7 @@ export interface RAGPipelineContext {
     rerankingUsed: boolean;
     originalResultCount: number;
     finalResultCount: number;
+    cacheHit?: boolean;
   };
 }
 
@@ -127,6 +161,11 @@ export class RAGPipeline {
   private contextCache: ContextCache;
   private collections: Map<string, IndexedDocument[]> = new Map();
   private embeddingCache: Map<string, number[]> = new Map();
+  
+  // New optimization components
+  private queryCache: RAGQueryCache;
+  private contextManager: DynamicContextManager;
+  private adaptiveReranker: AdaptiveReranker;
 
   constructor(config: RAGPipelineConfig) {
     this.config = {
@@ -161,6 +200,20 @@ export class RAGPipeline {
         chunkSize: 1000,
         chunkOverlap: 200,
       },
+      cache: {
+        enabled: config.cache?.enabled ?? true,
+        maxSize: config.cache?.maxSize ?? 100,
+        ttl: config.cache?.ttl ?? 5 * 60 * 1000,
+        persistToIndexedDB: config.cache?.persistToIndexedDB ?? false,
+      },
+      dynamicContext: {
+        enabled: config.dynamicContext?.enabled ?? false,
+        maxTokens: config.dynamicContext?.maxTokens ?? 8000,
+      },
+      adaptiveReranking: {
+        enabled: config.adaptiveReranking?.enabled ?? false,
+        feedbackWeight: config.adaptiveReranking?.feedbackWeight ?? 0.3,
+      },
     };
 
     // Initialize hybrid search engine
@@ -173,6 +226,26 @@ export class RAGPipeline {
 
     // Initialize context cache
     this.contextCache = createContextCache(10000);
+
+    // Initialize query result cache
+    const cacheConfig: Partial<RAGCacheConfig> = {
+      enabled: config.cache?.enabled ?? true,
+      maxSize: config.cache?.maxSize ?? 100,
+      ttl: config.cache?.ttl ?? 5 * 60 * 1000,
+      persistToIndexedDB: config.cache?.persistToIndexedDB ?? false,
+    };
+    this.queryCache = createRAGQueryCache(cacheConfig);
+
+    // Initialize dynamic context manager
+    this.contextManager = createContextManager({
+      maxTokens: config.dynamicContext?.maxTokens ?? 8000,
+    });
+
+    // Initialize adaptive reranker
+    this.adaptiveReranker = createAdaptiveReranker({
+      enabled: config.adaptiveReranking?.enabled ?? false,
+      feedbackWeight: config.adaptiveReranking?.feedbackWeight ?? 0.3,
+    });
   }
 
   /**
@@ -299,9 +372,24 @@ export class RAGPipeline {
       rerankingUsed: false,
       originalResultCount: 0,
       finalResultCount: 0,
+      cacheHit: false,
     };
 
     try {
+      // Check cache first
+      if (this.config.cache.enabled) {
+        const cached = await this.queryCache.get(query, collectionName);
+        if (cached) {
+          return {
+            ...cached,
+            searchMetadata: {
+              ...cached.searchMetadata,
+              cacheHit: true,
+            },
+          };
+        }
+      }
+
       const collection = this.collections.get(collectionName);
       if (!collection || collection.length === 0) {
         return this.emptyContext(query, searchMetadata);
@@ -382,11 +470,23 @@ export class RAGPipeline {
       const topResults = filteredResults.slice(0, this.config.topK);
       searchMetadata.finalResultCount = topResults.length;
 
-      // Format context
-      const formattedContext = this.formatContext(topResults);
+      // Format context (use dynamic context manager if enabled)
+      let formattedContext: string;
+      if (this.config.dynamicContext.enabled) {
+        const optimalLength = this.contextManager.calculateOptimalContextLength(
+          query,
+          topResults,
+          this.config.dynamicContext.maxTokens
+        );
+        const selection = this.contextManager.selectOptimalChunks(topResults, optimalLength);
+        formattedContext = selection.formattedContext;
+      } else {
+        formattedContext = this.formatContext(topResults);
+      }
+      
       const totalTokensEstimate = Math.ceil(formattedContext.length / 4);
 
-      return {
+      const result: RAGPipelineContext = {
         documents: topResults,
         query,
         expandedQuery,
@@ -394,10 +494,45 @@ export class RAGPipeline {
         totalTokensEstimate,
         searchMetadata,
       };
+
+      // Store in cache
+      if (this.config.cache.enabled) {
+        await this.queryCache.set(query, collectionName, result);
+      }
+
+      return result;
     } catch (error) {
       console.error('Enhanced RAG retrieval error:', error);
       return this.emptyContext(query, searchMetadata);
     }
+  }
+
+  /**
+   * Record feedback for adaptive reranking
+   */
+  recordFeedback(
+    query: string,
+    resultId: string,
+    relevance: number,
+    action: 'click' | 'use' | 'dismiss' | 'explicit' = 'explicit'
+  ): void {
+    if (this.config.adaptiveReranking.enabled) {
+      this.adaptiveReranker.recordFeedback(query, resultId, relevance, action);
+    }
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats(): { hits: number; misses: number; hitRate: number; size: number } {
+    return this.queryCache.getStats();
+  }
+
+  /**
+   * Invalidate cache for a collection
+   */
+  invalidateCache(collectionName: string): number {
+    return this.queryCache.invalidateCollection(collectionName);
   }
 
   /**
@@ -537,6 +672,9 @@ export class RAGPipeline {
       this.embeddingCache.delete(id);
     }
 
+    // Invalidate query cache for this collection
+    this.queryCache.invalidateCollection(collectionName);
+
     return initialLength - filtered.length;
   }
 
@@ -553,6 +691,9 @@ export class RAGPipeline {
       }
     }
     this.collections.delete(collectionName);
+    
+    // Invalidate query cache for this collection
+    this.queryCache.invalidateCollection(collectionName);
   }
 
   /**

@@ -26,3 +26,16 @@ export {
   type UseMemoryProviderReturn,
   type PipelineResult,
 } from './use-memory-provider';
+
+// Progress tracking
+export {
+  useRAGProgress,
+  formatElapsedTime,
+  formatRemainingTime,
+  getStageInfo,
+  type RAGProgressStage,
+  type RAGProgress,
+  type RAGOperationStats,
+  type UseRAGProgressOptions,
+  type UseRAGProgressReturn,
+} from './use-rag-progress';

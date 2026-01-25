@@ -14,7 +14,15 @@
       "Bash(pnpm test:*)",
       "Bash(pnpm exec tsc:*)",
       "Bash(ls:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(done)",
+      "Bash(mkdir:*)",
+      "mcp__plugin_serena_serena__list_dir",
+      "mcp__plugin_serena_serena__activate_project",
+      "Bash(fi)",
+      "Bash(for dir in settings workflow plugin video-studio)",
+      "Bash(do echo \"\")",
+      "Bash(echo:*)"
     ]
   }
 }

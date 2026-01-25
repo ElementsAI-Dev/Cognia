@@ -57,3 +57,8 @@ export {
   type UseFeatureRoutingOptions,
   type UseFeatureRoutingReturn,
 } from './use-feature-routing';
+export {
+  useInputCompletionUnified,
+  type UseInputCompletionUnifiedOptions,
+  type UseInputCompletionUnifiedReturn,
+} from './use-input-completion-unified';

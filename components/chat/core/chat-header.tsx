@@ -167,6 +167,8 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
   // Simplified mode settings
   const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
   const isSimplifiedMode = simplifiedModeSettings.enabled;
+  const simplifiedPreset = simplifiedModeSettings.preset;
+  const isFocusedOrZen = isSimplifiedMode && (simplifiedPreset === 'focused' || simplifiedPreset === 'zen');
   const { generateChatSummary } = useSummary({
     useAI: !!openaiSettings?.apiKey,
     aiConfig: openaiSettings?.apiKey
@@ -431,8 +433,8 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Agent sub-mode selector - only shown in agent mode, hidden on small screens */}
-          {currentMode === 'agent' && (
+          {/* Agent sub-mode selector - only shown in agent mode, hidden in focused/zen modes */}
+          {currentMode === 'agent' && !isFocusedOrZen && (
             <div className="hidden sm:flex items-center gap-2">
               <Separator orientation="vertical" className="h-4" />
               <AgentModeSelector
@@ -443,46 +445,54 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
             </div>
           )}
 
-          {/* Preset selector - hidden on very small screens */}
-          <div className="hidden min-[400px]:flex items-center gap-2">
-            <Separator orientation="vertical" className="h-4" />
-            <PresetSelector
-              compact
-              onSelect={handlePresetSelect}
-              onCreateNew={() => setCreatePresetOpen(true)}
-              onManage={() => setManagePresetsOpen(true)}
-            />
-          </div>
+          {/* Preset selector - hidden in focused/zen modes */}
+          {!isFocusedOrZen && (
+            <div className="hidden min-[400px]:flex items-center gap-2">
+              <Separator orientation="vertical" className="h-4" />
+              <PresetSelector
+                compact
+                onSelect={handlePresetSelect}
+                onCreateNew={() => setCreatePresetOpen(true)}
+                onManage={() => setManagePresetsOpen(true)}
+              />
+            </div>
+          )}
 
-          {/* Branch selector (only shown when branches exist) - hidden on small screens */}
-          {session && (
+          {/* Branch selector - hidden in focused/zen modes */}
+          {session && !isFocusedOrZen && (
             <div className="hidden sm:block">
               <BranchSelector sessionId={session.id} compact />
             </div>
           )}
 
-          {/* Project selector - hidden on small screens */}
-          <div className="hidden md:flex items-center gap-2">
-            <Separator orientation="vertical" className="h-4" />
-            <ProjectSelector sessionId={session?.id} />
-          </div>
+          {/* Project selector - hidden in focused/zen modes */}
+          {!isFocusedOrZen && (
+            <div className="hidden md:flex items-center gap-2">
+              <Separator orientation="vertical" className="h-4" />
+              <ProjectSelector sessionId={session?.id} />
+            </div>
+          )}
 
-          {/* Virtual environment selector - hidden on small screens */}
-          <div className="hidden md:flex items-center gap-2">
-            <Separator orientation="vertical" className="h-4" />
-            <SessionEnvSelector sessionId={session?.id} compact />
-          </div>
+          {/* Virtual environment selector - hidden in focused/zen modes */}
+          {!isFocusedOrZen && (
+            <div className="hidden md:flex items-center gap-2">
+              <Separator orientation="vertical" className="h-4" />
+              <SessionEnvSelector sessionId={session?.id} compact />
+            </div>
+          )}
 
-          {/* Active skills indicator - hidden on small screens */}
-          <div className="hidden md:flex items-center gap-2">
-            <Separator orientation="vertical" className="h-4" />
-            <Link href="/skills">
-              <ActiveSkillsIndicator />
-            </Link>
-          </div>
+          {/* Active skills indicator - hidden in focused/zen modes */}
+          {!isFocusedOrZen && (
+            <div className="hidden md:flex items-center gap-2">
+              <Separator orientation="vertical" className="h-4" />
+              <Link href="/skills">
+                <ActiveSkillsIndicator />
+              </Link>
+            </div>
+          )}
 
-          {/* Session stats - compact view, hidden on small screens */}
-          {session && messages.length > 0 && (
+          {/* Session stats - hidden in focused/zen modes */}
+          {session && messages.length > 0 && !isFocusedOrZen && (
             <div className="hidden lg:flex items-center gap-2">
               <Separator orientation="vertical" className="h-4" />
               <SessionStats messages={messages} sessionCreatedAt={session.createdAt} compact />
@@ -492,8 +502,8 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
 
         {/* Right side actions */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* View mode toggle - List/Flow */}
-          {session && (
+          {/* View mode toggle - List/Flow - hidden in focused/zen modes */}
+          {session && !isFocusedOrZen && (
             <div className="flex items-center border rounded-md">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -524,8 +534,8 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
             </div>
           )}
 
-          {/* Background Agent Indicator */}
-          <BackgroundAgentIndicator />
+          {/* Background Agent Indicator - hidden in focused/zen modes */}
+          {!isFocusedOrZen && <BackgroundAgentIndicator />}
 
           {/* Designer button - hidden on small screens and in simplified mode */}
           {!isSimplifiedMode && (
@@ -601,48 +611,50 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
             </Popover>
           )}
 
-          {/* Panel toggle with dropdown for Canvas/Artifact selection - hidden on small screens */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant={panelOpen ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-8 w-8 sm:w-auto sm:gap-1.5 sm:px-2"
-              >
-                <PanelRight className="h-4 w-4" />
-                <ChevronDown className="hidden sm:block h-3 w-3 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>{t('sidePanel')}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => openPanel('canvas')}>
-                <PanelRight className="mr-2 h-4 w-4" />
-                <div className="flex-1">
-                  <span>{t('canvas')}</span>
-                  <p className="text-xs text-muted-foreground">{t('canvasDesc')}</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openPanel('artifact')}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                <div className="flex-1">
-                  <span>{t('artifacts')}</span>
-                  <p className="text-xs text-muted-foreground">{t('artifactsDesc')}</p>
-                </div>
-              </DropdownMenuItem>
-              {panelOpen && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={closePanel} className="text-muted-foreground">
-                    {t('closePanel')}
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Panel toggle with dropdown for Canvas/Artifact selection - hidden in focused/zen modes */}
+          {!isFocusedOrZen && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={panelOpen ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8 sm:w-auto sm:gap-1.5 sm:px-2"
+                >
+                  <PanelRight className="h-4 w-4" />
+                  <ChevronDown className="hidden sm:block h-3 w-3 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>{t('sidePanel')}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => openPanel('canvas')}>
+                  <PanelRight className="mr-2 h-4 w-4" />
+                  <div className="flex-1">
+                    <span>{t('canvas')}</span>
+                    <p className="text-xs text-muted-foreground">{t('canvasDesc')}</p>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openPanel('artifact')}>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  <div className="flex-1">
+                    <span>{t('artifacts')}</span>
+                    <p className="text-xs text-muted-foreground">{t('artifactsDesc')}</p>
+                  </div>
+                </DropdownMenuItem>
+                {panelOpen && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={closePanel} className="text-muted-foreground">
+                      {t('closePanel')}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
-          {/* Goal indicator button */}
-          {session && (
+          {/* Goal indicator button - hidden in focused/zen modes */}
+          {session && !isFocusedOrZen && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

@@ -334,3 +334,13 @@ export {
 
 // Input completion stores
 export { useInputCompletionStore } from './input-completion';
+
+// Canvas stores
+export {
+  useChunkedDocumentStore,
+  useKeybindingStore,
+  useCommentStore,
+  DEFAULT_KEYBINDINGS,
+  parseKeyEvent,
+  formatKeybinding,
+} from './canvas';

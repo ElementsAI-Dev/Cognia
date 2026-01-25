@@ -1,9 +1,10 @@
 /**
- * Media types - audio, video, speech, TTS, subtitles
+ * Media types - audio, video, speech, TTS, subtitles, video processing
  */
 
 export * from './audio';
 export * from './video';
+export * from './video-processing';
 // speech.ts has some exports that duplicate tts.ts - export non-conflicting items
 export {
   SPEECH_LANGUAGES,

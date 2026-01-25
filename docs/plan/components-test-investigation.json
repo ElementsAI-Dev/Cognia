@@ -1,0 +1,1134 @@
+{
+  "a2ui": {
+    "total": 9,
+    "tested": 9,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "a2ui\\academic": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "a2ui\\data": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "a2ui\\display": {
+    "total": 12,
+    "tested": 10,
+    "tested_percent": 83,
+    "missing": [
+      {
+        "name": "a2ui-animation",
+        "file": "a2ui\\display\\a2ui-animation.tsx"
+      },
+      {
+        "name": "a2ui-interactive-guide",
+        "file": "a2ui\\display\\a2ui-interactive-guide.tsx"
+      }
+    ]
+  },
+  "a2ui\\form": {
+    "total": 12,
+    "tested": 12,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "a2ui\\layout": {
+    "total": 7,
+    "tested": 7,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "academic": {
+    "total": 11,
+    "tested": 11,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "agent": {
+    "total": 13,
+    "tested": 10,
+    "tested_percent": 77,
+    "missing": [
+      {
+        "name": "a2ui-template-preview",
+        "file": "agent\\a2ui-template-preview.tsx"
+      },
+      {
+        "name": "sub-agent-node",
+        "file": "agent\\sub-agent-node.tsx"
+      },
+      {
+        "name": "sub-agent-template-selector",
+        "file": "agent\\sub-agent-template-selector.tsx"
+      }
+    ]
+  },
+  "artifacts": {
+    "total": 8,
+    "tested": 8,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "canvas": {
+    "total": 7,
+    "tested": 7,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat": {
+    "total": 1,
+    "tested": 1,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat-widget": {
+    "total": 10,
+    "tested": 10,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\chat-input": {
+    "total": 6,
+    "tested": 5,
+    "tested_percent": 83,
+    "missing": [
+      {
+        "name": "utils",
+        "file": "chat\\chat-input\\utils.tsx"
+      }
+    ]
+  },
+  "chat\\core": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\dialogs": {
+    "total": 11,
+    "tested": 11,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\flow": {
+    "total": 13,
+    "tested": 13,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\goal": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\message": {
+    "total": 4,
+    "tested": 4,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\message-parts": {
+    "total": 7,
+    "tested": 7,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\popovers": {
+    "total": 4,
+    "tested": 4,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\renderers": {
+    "total": 22,
+    "tested": 22,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\selectors": {
+    "total": 4,
+    "tested": 4,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\utils": {
+    "total": 8,
+    "tested": 8,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\welcome": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "chat\\workflow": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "designer\\ai": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "designer\\core": {
+    "total": 4,
+    "tested": 3,
+    "tested_percent": 75,
+    "missing": [
+      {
+        "name": "v0-designer",
+        "file": "designer\\core\\v0-designer.tsx"
+      }
+    ]
+  },
+  "designer\\dnd": {
+    "total": 6,
+    "tested": 6,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "designer\\editor": {
+    "total": 4,
+    "tested": 4,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "designer\\panels": {
+    "total": 7,
+    "tested": 7,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "designer\\preview": {
+    "total": 5,
+    "tested": 5,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "designer\\toolbar": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "document": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "export": {
+    "total": 6,
+    "tested": 6,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "git": {
+    "total": 7,
+    "tested": 7,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "image-studio": {
+    "total": 13,
+    "tested": 13,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "input-completion": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "jupyter": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "layout": {
+    "total": 17,
+    "tested": 9,
+    "tested_percent": 53,
+    "missing": [
+      {
+        "name": "background-renderer",
+        "file": "layout\\background-renderer.tsx"
+      },
+      {
+        "name": "debug-button",
+        "file": "layout\\debug-button.tsx"
+      },
+      {
+        "name": "empty-state",
+        "file": "layout\\empty-state.tsx"
+      },
+      {
+        "name": "mobile-bottom-nav",
+        "file": "layout\\mobile-bottom-nav.tsx"
+      },
+      {
+        "name": "network-status-indicator",
+        "file": "layout\\network-status-indicator.tsx"
+      },
+      {
+        "name": "resizable-panel",
+        "file": "layout\\resizable-panel.tsx"
+      },
+      {
+        "name": "split-view",
+        "file": "layout\\split-view.tsx"
+      },
+      {
+        "name": "title-bar-registry",
+        "file": "layout\\title-bar-registry.ts"
+      }
+    ]
+  },
+  "learning": {
+    "total": 14,
+    "tested": 14,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "mcp": {
+    "total": 7,
+    "tested": 6,
+    "tested_percent": 86,
+    "missing": [
+      {
+        "name": "mcp-prompts-panel",
+        "file": "mcp\\mcp-prompts-panel.tsx"
+      }
+    ]
+  },
+  "native": {
+    "total": 10,
+    "tested": 10,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "observability": {
+    "total": 7,
+    "tested": 7,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "onboarding": {
+    "total": 7,
+    "tested": 7,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "plugin\\config": {
+    "total": 4,
+    "tested": 3,
+    "tested_percent": 75,
+    "missing": [
+      {
+        "name": "plugin-filter-bar",
+        "file": "plugin\\config\\plugin-filter-bar.tsx"
+      }
+    ]
+  },
+  "plugin\\core": {
+    "total": 6,
+    "tested": 3,
+    "tested_percent": 50,
+    "missing": [
+      {
+        "name": "plugin-empty-state",
+        "file": "plugin\\core\\plugin-empty-state.tsx"
+      },
+      {
+        "name": "plugin-grouped-list",
+        "file": "plugin\\core\\plugin-grouped-list.tsx"
+      },
+      {
+        "name": "plugin-quick-actions",
+        "file": "plugin\\core\\plugin-quick-actions.tsx"
+      }
+    ]
+  },
+  "plugin\\dev": {
+    "total": 1,
+    "tested": 1,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "plugin\\extension": {
+    "total": 1,
+    "tested": 1,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "plugin\\marketplace": {
+    "total": 2,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "plugin-detail-modal",
+        "file": "plugin\\marketplace\\plugin-detail-modal.tsx"
+      },
+      {
+        "name": "plugin-marketplace",
+        "file": "plugin\\marketplace\\plugin-marketplace.tsx"
+      }
+    ]
+  },
+  "plugin\\marketplace\\components": {
+    "total": 10,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "collection-card",
+        "file": "plugin\\marketplace\\components\\collection-card.tsx"
+      },
+      {
+        "name": "featured-plugin-card",
+        "file": "plugin\\marketplace\\components\\featured-plugin-card.tsx"
+      },
+      {
+        "name": "marketplace-constants",
+        "file": "plugin\\marketplace\\components\\marketplace-constants.ts"
+      },
+      {
+        "name": "marketplace-empty-state",
+        "file": "plugin\\marketplace\\components\\marketplace-empty-state.tsx"
+      },
+      {
+        "name": "marketplace-loading-skeleton",
+        "file": "plugin\\marketplace\\components\\marketplace-loading-skeleton.tsx"
+      },
+      {
+        "name": "marketplace-stats-bar",
+        "file": "plugin\\marketplace\\components\\marketplace-stats-bar.tsx"
+      },
+      {
+        "name": "marketplace-types",
+        "file": "plugin\\marketplace\\components\\marketplace-types.ts"
+      },
+      {
+        "name": "plugin-grid-card",
+        "file": "plugin\\marketplace\\components\\plugin-grid-card.tsx"
+      },
+      {
+        "name": "plugin-list-item",
+        "file": "plugin\\marketplace\\components\\plugin-list-item.tsx"
+      },
+      {
+        "name": "trending-plugin-item",
+        "file": "plugin\\marketplace\\components\\trending-plugin-item.tsx"
+      }
+    ]
+  },
+  "plugin\\monitoring": {
+    "total": 6,
+    "tested": 6,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "plugin\\schema": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "ppt\\editor": {
+    "total": 5,
+    "tested": 5,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "ppt\\generation": {
+    "total": 3,
+    "tested": 2,
+    "tested_percent": 67,
+    "missing": [
+      {
+        "name": "ppt-generation-dialog",
+        "file": "ppt\\generation\\ppt-generation-dialog.tsx"
+      }
+    ]
+  },
+  "ppt\\preview": {
+    "total": 4,
+    "tested": 4,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "ppt\\rendering": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "ppt\\slideshow": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "ppt\\theme": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "ppt\\types": {
+    "total": 1,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "types",
+        "file": "ppt\\types\\types.ts"
+      }
+    ]
+  },
+  "ppt\\utils": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "presets": {
+    "total": 6,
+    "tested": 6,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "projects": {
+    "total": 9,
+    "tested": 9,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "prompt\\marketplace": {
+    "total": 4,
+    "tested": 3,
+    "tested_percent": 75,
+    "missing": [
+      {
+        "name": "prompt-marketplace-sidebar",
+        "file": "prompt\\marketplace\\prompt-marketplace-sidebar.tsx"
+      }
+    ]
+  },
+  "prompt\\optimization": {
+    "total": 6,
+    "tested": 5,
+    "tested_percent": 83,
+    "missing": [
+      {
+        "name": "prompt-optimization-hub",
+        "file": "prompt\\optimization\\prompt-optimization-hub.tsx"
+      }
+    ]
+  },
+  "prompt\\templates": {
+    "total": 6,
+    "tested": 6,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "providers\\ai": {
+    "total": 2,
+    "tested": 1,
+    "tested_percent": 50,
+    "missing": [
+      {
+        "name": "provider-icon",
+        "file": "providers\\ai\\provider-icon.tsx"
+      }
+    ]
+  },
+  "providers\\core": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "providers\\initializers": {
+    "total": 3,
+    "tested": 2,
+    "tested_percent": 67,
+    "missing": [
+      {
+        "name": "store-initializer",
+        "file": "providers\\initializers\\store-initializer.tsx"
+      }
+    ]
+  },
+  "providers\\media": {
+    "total": 1,
+    "tested": 1,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "providers\\native": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "providers\\network": {
+    "total": 1,
+    "tested": 1,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "sandbox": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "screen-recording": {
+    "total": 4,
+    "tested": 4,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "screenshot": {
+    "total": 6,
+    "tested": 6,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "search": {
+    "total": 1,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "source-verification-dialog",
+        "file": "search\\source-verification-dialog.tsx"
+      }
+    ]
+  },
+  "selection-toolbar": {
+    "total": 11,
+    "tested": 10,
+    "tested_percent": 91,
+    "missing": [
+      {
+        "name": "quick-actions",
+        "file": "selection-toolbar\\quick-actions.tsx"
+      }
+    ]
+  },
+  "settings\\agent": {
+    "total": 1,
+    "tested": 1,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "settings\\appearance": {
+    "total": 11,
+    "tested": 10,
+    "tested_percent": 91,
+    "missing": [
+      {
+        "name": "welcome-settings",
+        "file": "settings\\appearance\\welcome-settings.tsx"
+      }
+    ]
+  },
+  "settings\\chat": {
+    "total": 6,
+    "tested": 4,
+    "tested_percent": 67,
+    "missing": [
+      {
+        "name": "auto-router-settings",
+        "file": "settings\\chat\\auto-router-settings.tsx"
+      },
+      {
+        "name": "tokenizer-settings",
+        "file": "settings\\chat\\tokenizer-settings.tsx"
+      }
+    ]
+  },
+  "settings\\common": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "settings\\data": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "settings\\environment": {
+    "total": 8,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "clone-dialog",
+        "file": "settings\\environment\\clone-dialog.tsx"
+      },
+      {
+        "name": "create-env-dialog",
+        "file": "settings\\environment\\create-env-dialog.tsx"
+      },
+      {
+        "name": "env-card",
+        "file": "settings\\environment\\env-card.tsx"
+      },
+      {
+        "name": "env-var-row",
+        "file": "settings\\environment\\env-var-row.tsx"
+      },
+      {
+        "name": "packages-dialog",
+        "file": "settings\\environment\\packages-dialog.tsx"
+      },
+      {
+        "name": "project-config-card",
+        "file": "settings\\environment\\project-config-card.tsx"
+      },
+      {
+        "name": "requirements-dialog",
+        "file": "settings\\environment\\requirements-dialog.tsx"
+      },
+      {
+        "name": "tool-card",
+        "file": "settings\\environment\\tool-card.tsx"
+      }
+    ]
+  },
+  "settings\\mcp": {
+    "total": 5,
+    "tested": 5,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "settings\\mcp\\components": {
+    "total": 7,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "env-variables-form",
+        "file": "settings\\mcp\\components\\env-variables-form.tsx"
+      },
+      {
+        "name": "installation-preview",
+        "file": "settings\\mcp\\components\\installation-preview.tsx"
+      },
+      {
+        "name": "marketplace-card-skeleton",
+        "file": "settings\\mcp\\components\\marketplace-card-skeleton.tsx"
+      },
+      {
+        "name": "marketplace-card",
+        "file": "settings\\mcp\\components\\marketplace-card.tsx"
+      },
+      {
+        "name": "server-card-skeleton",
+        "file": "settings\\mcp\\components\\server-card-skeleton.tsx"
+      },
+      {
+        "name": "server-card",
+        "file": "settings\\mcp\\components\\server-card.tsx"
+      },
+      {
+        "name": "server-status-icon",
+        "file": "settings\\mcp\\components\\server-status-icon.tsx"
+      }
+    ]
+  },
+  "settings\\provider": {
+    "total": 14,
+    "tested": 14,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "settings\\rules": {
+    "total": 2,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "constants",
+        "file": "settings\\rules\\constants.tsx"
+      },
+      {
+        "name": "rules-editor",
+        "file": "settings\\rules\\rules-editor.tsx"
+      }
+    ]
+  },
+  "settings\\rules\\components": {
+    "total": 7,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "rules-editor-content",
+        "file": "settings\\rules\\components\\rules-editor-content.tsx"
+      },
+      {
+        "name": "rules-editor-footer",
+        "file": "settings\\rules\\components\\rules-editor-footer.tsx"
+      },
+      {
+        "name": "rules-editor-header",
+        "file": "settings\\rules\\components\\rules-editor-header.tsx"
+      },
+      {
+        "name": "rules-editor-mobile-toolbar",
+        "file": "settings\\rules\\components\\rules-editor-mobile-toolbar.tsx"
+      },
+      {
+        "name": "rules-editor-preview",
+        "file": "settings\\rules\\components\\rules-editor-preview.tsx"
+      },
+      {
+        "name": "rules-editor-tabs",
+        "file": "settings\\rules\\components\\rules-editor-tabs.tsx"
+      },
+      {
+        "name": "rules-editor-toolbar",
+        "file": "settings\\rules\\components\\rules-editor-toolbar.tsx"
+      }
+    ]
+  },
+  "settings\\shared": {
+    "total": 2,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "math-preview",
+        "file": "settings\\shared\\math-preview.tsx"
+      },
+      {
+        "name": "setting-tooltip",
+        "file": "settings\\shared\\setting-tooltip.tsx"
+      }
+    ]
+  },
+  "settings\\shortcuts": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "settings\\system": {
+    "total": 11,
+    "tested": 11,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "settings\\tools": {
+    "total": 8,
+    "tested": 7,
+    "tested_percent": 88,
+    "missing": [
+      {
+        "name": "skill-icons",
+        "file": "settings\\tools\\skill-icons.tsx"
+      }
+    ]
+  },
+  "settings\\vector": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "sidebar": {
+    "total": 3,
+    "tested": 2,
+    "tested_percent": 67,
+    "missing": [
+      {
+        "name": "sidebar-icon-picker",
+        "file": "sidebar\\sidebar-icon-picker.tsx"
+      }
+    ]
+  },
+  "sidebar\\sessions": {
+    "total": 4,
+    "tested": 3,
+    "tested_percent": 75,
+    "missing": [
+      {
+        "name": "session-group",
+        "file": "sidebar\\sessions\\session-group.tsx"
+      }
+    ]
+  },
+  "sidebar\\widgets": {
+    "total": 6,
+    "tested": 6,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "skills": {
+    "total": 14,
+    "tested": 14,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "skills\\skill-generator": {
+    "total": 1,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "skill-generator-panel",
+        "file": "skills\\skill-generator\\skill-generator-panel.tsx"
+      }
+    ]
+  },
+  "speedpass": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "video-studio": {
+    "total": 1,
+    "tested": 1,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "video-studio\\audio": {
+    "total": 3,
+    "tested": 2,
+    "tested_percent": 67,
+    "missing": [
+      {
+        "name": "video-waveform",
+        "file": "video-studio\\audio\\video-waveform.tsx"
+      }
+    ]
+  },
+  "video-studio\\common": {
+    "total": 5,
+    "tested": 4,
+    "tested_percent": 80,
+    "missing": [
+      {
+        "name": "project-settings-panel",
+        "file": "video-studio\\common\\project-settings-panel.tsx"
+      }
+    ]
+  },
+  "video-studio\\composition": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "video-studio\\editor": {
+    "total": 1,
+    "tested": 1,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "video-studio\\effects": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "video-studio\\export": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "video-studio\\generation": {
+    "total": 2,
+    "tested": 1,
+    "tested_percent": 50,
+    "missing": [
+      {
+        "name": "ai-generation-sidebar",
+        "file": "video-studio\\generation\\ai-generation-sidebar.tsx"
+      }
+    ]
+  },
+  "video-studio\\management": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "video-studio\\preview": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "video-studio\\recording": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "video-studio\\timeline": {
+    "total": 5,
+    "tested": 4,
+    "tested_percent": 80,
+    "missing": [
+      {
+        "name": "video-subtitle-track",
+        "file": "video-studio\\timeline\\video-subtitle-track.tsx"
+      }
+    ]
+  },
+  "workflow\\editor": {
+    "total": 2,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "node-preview-tooltip",
+        "file": "workflow\\editor\\node-preview-tooltip.tsx"
+      },
+      {
+        "name": "node-quick-config",
+        "file": "workflow\\editor\\node-quick-config.tsx"
+      }
+    ]
+  },
+  "workflow\\editor\\core": {
+    "total": 4,
+    "tested": 2,
+    "tested_percent": 50,
+    "missing": [
+      {
+        "name": "node-template-manager",
+        "file": "workflow\\editor\\core\\node-template-manager.tsx"
+      },
+      {
+        "name": "workflow-editor-panel",
+        "file": "workflow\\editor\\core\\workflow-editor-panel.tsx"
+      }
+    ]
+  },
+  "workflow\\editor\\debug": {
+    "total": 2,
+    "tested": 1,
+    "tested_percent": 50,
+    "missing": [
+      {
+        "name": "debug-panel",
+        "file": "workflow\\editor\\debug\\debug-panel.tsx"
+      }
+    ]
+  },
+  "workflow\\editor\\edges": {
+    "total": 2,
+    "tested": 2,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "workflow\\editor\\execution": {
+    "total": 3,
+    "tested": 2,
+    "tested_percent": 67,
+    "missing": [
+      {
+        "name": "workflow-execution-history-panel",
+        "file": "workflow\\editor\\execution\\workflow-execution-history-panel.tsx"
+      }
+    ]
+  },
+  "workflow\\editor\\nodes": {
+    "total": 17,
+    "tested": 17,
+    "tested_percent": 100,
+    "missing": []
+  },
+  "workflow\\editor\\panels": {
+    "total": 7,
+    "tested": 1,
+    "tested_percent": 14,
+    "missing": [
+      {
+        "name": "keyboard-shortcuts-panel",
+        "file": "workflow\\editor\\panels\\keyboard-shortcuts-panel.tsx"
+      },
+      {
+        "name": "node-config-panel",
+        "file": "workflow\\editor\\panels\\node-config-panel.tsx"
+      },
+      {
+        "name": "variable-manager-panel",
+        "file": "workflow\\editor\\panels\\variable-manager-panel.tsx"
+      },
+      {
+        "name": "version-history-panel",
+        "file": "workflow\\editor\\panels\\version-history-panel.tsx"
+      },
+      {
+        "name": "workflow-settings-panel",
+        "file": "workflow\\editor\\panels\\workflow-settings-panel.tsx"
+      },
+      {
+        "name": "workflow-trigger-panel",
+        "file": "workflow\\editor\\panels\\workflow-trigger-panel.tsx"
+      }
+    ]
+  },
+  "workflow\\editor\\search": {
+    "total": 2,
+    "tested": 1,
+    "tested_percent": 50,
+    "missing": [
+      {
+        "name": "node-search-command",
+        "file": "workflow\\editor\\search\\node-search-command.tsx"
+      }
+    ]
+  },
+  "workflow\\editor\\utils": {
+    "total": 3,
+    "tested": 0,
+    "tested_percent": 0,
+    "missing": [
+      {
+        "name": "node-preview-tooltip",
+        "file": "workflow\\editor\\utils\\node-preview-tooltip.tsx"
+      },
+      {
+        "name": "node-quick-config",
+        "file": "workflow\\editor\\utils\\node-quick-config.tsx"
+      },
+      {
+        "name": "node-template-manager",
+        "file": "workflow\\editor\\utils\\node-template-manager.tsx"
+      }
+    ]
+  },
+  "workflow\\marketplace": {
+    "total": 3,
+    "tested": 3,
+    "tested_percent": 100,
+    "missing": []
+  }
+}

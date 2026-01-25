@@ -33,3 +33,15 @@ export {
 } from './custom-theme-store';
 
 export { useSettingsProfilesStore, type SettingsProfile } from './settings-profiles-store';
+
+export {
+  useCompletionSettingsStore,
+  selectMentionEnabled,
+  selectSlashCommandsEnabled,
+  selectEmojiEnabled,
+  selectAICompletionEnabled,
+  selectAICompletionProvider,
+  selectMaxSuggestions,
+  selectGhostTextOpacity,
+  type CompletionSettingsState,
+} from './completion-settings-store';

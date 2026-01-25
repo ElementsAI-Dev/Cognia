@@ -58,3 +58,15 @@ export {
   type ScreenshotResult,
   type MonitorInfo as ScreenshotMonitorInfo,
 } from './screenshot-store';
+
+export {
+  useBatchEditStore,
+  selectActiveJob,
+  selectIsProcessing,
+  selectPresets,
+  selectJobs,
+  type BatchImage,
+  type BatchPreset,
+  type BatchJob,
+  type BatchEditState,
+} from './batch-edit-store';

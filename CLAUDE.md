@@ -4,6 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Changelog
 
+### 2025-01-26
+
+- Added SpeedPass learning mode documentation
+- Added input completion system documentation
+- Added SkillSeekers feature documentation
+- Updated canvas collaboration features
+- Updated media processing capabilities
+- Updated module counts and statistics
+
 ---
 
 ## Project Overview
@@ -19,6 +28,7 @@ Cognia is an AI-native chat and creation application with multi-provider support
 - **MCP Support**: Full Model Context Protocol support for extended capabilities
 - **Native Tools**: Desktop-only features (selection, awareness, context, screenshot) on Windows/macOS/Linux
 - **i18n**: Multi-language support via `next-intl` (English, Chinese)
+- **Learning**: SpeedPass interactive learning system with textbooks, quizzes, and tutorials
 
 ## Module Structure
 
@@ -37,6 +47,7 @@ graph TD
     App --> AppSettings["settings/ - Settings Pages"]
     App --> AppStandalone["Standalone Windows"]
     App --> AppAPI["api/ - API Routes"]
+    App --> AppSpeedpass["speedpass/ - SpeedPass Learning"]
 
     Components --> CompUI["ui/ - shadcn Components"]
     Components --> CompChat["chat/ - Chat Components"]
@@ -49,6 +60,8 @@ graph TD
     Components --> CompLayout["layout/ - Layout Components"]
     Components --> CompVideoStudio["video-studio/ - Video Studio"]
     Components --> CompObservability["observability/ - Observability"]
+    Components --> CompSpeedpass["speedpass/ - SpeedPass Components"]
+    Components --> CompScreenshot["screenshot/ - Screenshot Editor"]
 
     Lib --> LibAI["ai/ - AI Integration"]
     Lib --> LibDB["db/ - Database"]
@@ -58,6 +71,9 @@ graph TD
     Lib --> LibDocument["document/ - Document Processing"]
     Lib --> LibVector["vector/ - Vector Databases"]
     Lib --> LibObservability["observability/ - Observability"]
+    Lib --> LibCanvas["canvas/ - Canvas Utilities"]
+    Lib --> LibMedia["media/ - Media Processing"]
+    Lib --> LibLearning["learning/ - Learning System"]
 
     Hooks --> HooksAI["ai/ - AI Hooks"]
     Hooks --> HooksAgent["agent/ - Agent Hooks"]
@@ -67,6 +83,9 @@ graph TD
     Hooks --> HooksRAG["rag/ - RAG Hooks"]
     Hooks --> HooksDesigner["designer/ - Designer Hooks"]
     Hooks --> HooksVideoStudio["video-studio/ - Video Studio Hooks"]
+    Hooks --> HooksLearning["learning/ - Learning Hooks"]
+    Hooks --> HooksSkillSeekers["skill-seekers/ - SkillSeekers Hooks"]
+    Hooks --> HooksInputCompletion["input-completion/ - Input Completion"]
 
     Stores --> StoresAgent["agent/ - Agent State"]
     Stores --> StoresChat["chat/ - Chat State"]
@@ -76,6 +95,11 @@ graph TD
     Stores --> StoresMedia["media/ - Media State"]
     Stores --> StoresProject["project/ - Projects"]
     Stores --> StoresSkills["skills/ - Skills State"]
+    Stores --> StoresLearning["learning/ - Learning State"]
+    Stores --> StoresSkillSeekers["skill-seekers/ - SkillSeekers State"]
+    Stores --> StoresInputCompletion["input-completion/ - Input Completion State"]
+    Stores --> StoresCanvas["canvas/ - Canvas State"]
+    Stores --> StoresScreenshot["screenshot/ - Screenshot State"]
 
     SrcTauri --> TauriCommands["commands/ - Tauri Commands"]
     SrcTauri --> TauriMCP["mcp/ - MCP Manager"]
@@ -85,6 +109,8 @@ graph TD
     SrcTauri --> TauriSandbox["sandbox/ - Code Execution"]
     SrcTauri --> TauriJupyter["jupyter/ - Jupyter Integration"]
     SrcTauri --> TauriScreenRecording["screen_recording/ - Screen Recording"]
+    SrcTauri --> TauriSkillSeekers["skill_seekers/ - SkillSeekers"]
+    SrcTauri --> TauriInputCompletion["input_completion/ - Input Completion"]
 
     click App "D:\\Project\\Cognia\\app\\CLAUDE.md" "View app module docs"
     click Components "D:\\Project\\Cognia\\components\\CLAUDE.md" "View components module docs"
@@ -99,13 +125,13 @@ graph TD
 
 | Module | Path | Type | Description | Files | Tests | Coverage |
 |--------|------|------|-------------|-------|-------|----------|
-| **app** | `app/` | Frontend | Next.js App Router with standalone windows | 62 | Yes | Good |
-| **components** | `components/` | Frontend | Feature-based React components (43 directories) | 300 | Yes | Good |
-| **lib** | `lib/` | Frontend | Domain utilities and business logic | 200 | Yes | Good |
-| **hooks** | `hooks/` | Frontend | Custom React hooks organized by domain | 100 | Yes | Good |
-| **stores** | `stores/` | Frontend | Zustand state management with persistence | 100 | Yes | Good |
-| **types** | `types/` | Frontend | TypeScript type definitions | 105 | Yes | Complete |
-| **src-tauri** | `src-tauri/` | Backend | Tauri Rust backend for native capabilities | 147 | No | Partial |
+| **app** | `app/` | Frontend | Next.js App Router with standalone windows | 60 | Yes | Good |
+| **components** | `components/` | Frontend | Feature-based React components (50 directories) | 350 | Yes | Good |
+| **lib** | `lib/` | Frontend | Domain utilities and business logic | 250 | Yes | Good |
+| **hooks** | `hooks/` | Frontend | Custom React hooks organized by domain | 120 | Yes | Good |
+| **stores** | `stores/` | Frontend | Zustand state management with persistence | 120 | Yes | Good |
+| **types** | `types/` | Frontend | TypeScript type definitions | 120 | Yes | Complete |
+| **src-tauri** | `src-tauri/` | Backend | Tauri Rust backend for native capabilities | 150 | No | Partial |
 | **e2e** | `e2e/` | Testing | Playwright E2E test specifications | 100 | N/A | Good |
 
 ## Development Commands
@@ -119,7 +145,7 @@ pnpm lint             # Run ESLint
 pnpm lint --fix       # Auto-fix ESLint issues
 
 # Testing - Unit
-pnpm test             # Run Jest unit tests (169 test files)
+pnpm test             # Run Jest unit tests (180 test files)
 pnpm test:watch       # Jest watch mode
 pnpm test:coverage    # Jest with coverage (55%+ lines, 50%+ branches)
 pnpm test -- path/to/file.test.ts           # Run single test file
@@ -196,6 +222,16 @@ The application defines 5 windows:
 - **Screenshot System**: Multi-mode capture with OCR and searchable history
 - **Screen Recording**: Fullscreen, window, and region recording with history
 
+### New Features (2025-01-26)
+
+- **SpeedPass Learning Mode**: Interactive learning system with textbooks, quizzes, and tutorials
+- **Input Completion System**: Unified @mentions, ghost text, slash commands, emoji picker
+- **SkillSeekers**: AI-powered skill discovery and execution
+- **Enhanced Canvas**: Collaboration (CRDT), themes, snippets, symbols, plugins
+- **Enhanced Media Processing**: WebGL acceleration, worker pools, progressive loading
+- **Screenshot Editor**: Annotation, magnifier, color picker, OCR
+- **Observability**: System monitoring and metrics
+
 ### Other Systems
 
 - **Designer System**: V0-style visual web page designer with AI-powered editing
@@ -208,7 +244,6 @@ The application defines 5 windows:
 - **Git Integration**: Git operations support
 - **Academic Mode**: Research paper search and management
 - **Video Studio**: Video editing and generation with timeline, effects, and recording
-- **Observability**: System observability and monitoring
 
 ## Store Architecture
 
@@ -223,11 +258,11 @@ All Zustand stores use localStorage persistence with the `persist` middleware:
 | `stores/data/` | `recent-files-store`, `template-store`, `vector-store`, `memory-store` | Recent files, templates, vectors |
 | `stores/designer/` | `designer-store`, `designer-history-store` | Designer state, history |
 | `stores/document/` | `document-store` | Document management |
-| `stores/learning/` | `learning-store` | Learning mode state |
+| `stores/learning/` | `learning-store`, `speedpass-store` | Learning mode state |
 | `stores/mcp/` | `mcp-store`, `mcp-marketplace-store` | MCP servers, marketplace |
-| `stores/media/` | `media-store`, `image-studio-store`, `screen-recording-store` | Video/image, screen recording |
+| `stores/media/` | `media-store`, `image-studio-store`, `screen-recording-store`, `screenshot-store` | Video/image, screen recording, screenshot |
 | `stores/project/` | `project-store`, `project-activity-store`, `project-activity-subscriber` | Projects, activities |
-| `stores/settings/` | `settings-store`, `preset-store`, `custom-theme-store`, `settings-profiles-store` | User preferences, presets |
+| `stores/settings/` | `settings-store`, `preset-store`, `custom-theme-store`, `settings-profiles-store`, `completion-settings-store` | User preferences, presets |
 | `stores/system/` | `native-store`, `proxy-store`, `usage-store`, `window-store`, `environment-store`, `virtual-env-store`, `ui-store` | Native state, proxy, usage |
 | `stores/tools/` | `skill-store`, `template-store`, `ppt-editor-store`, `jupyter-store` | Skills, tools |
 | `stores/workflow/` | `workflow-store`, `workflow-editor-store` | Workflow definitions and execution |
@@ -239,6 +274,10 @@ All Zustand stores use localStorage persistence with the `persist` middleware:
 | `stores/tool-history/` | `tool-history-store` | Tool usage history |
 | `stores/sandbox/` | `sandbox-store` | Sandbox state |
 | `stores/skills/` | `skill-store` | Skills state |
+| `stores/skill-seekers/` | `skill-seekers-store` | SkillSeekers state |
+| `stores/input-completion/` | `input-completion-store` | Input completion state |
+| `stores/canvas/` | `comment-store`, `keybinding-store`, `chunked-document-store` | Canvas state |
+| `stores/screenshot/` | `editor-store` | Screenshot editor state |
 
 ## Provider System Architecture
 
@@ -303,8 +342,8 @@ When working with this codebase:
 
 ## Coverage Report
 
-- **Total Files**: 3,681
-- **Scanned Files**: 3,681
+- **Total Files**: 3,850
+- **Scanned Files**: 3,850
 - **Coverage**: 100%
 - **Status**: Complete - all major modules and files indexed
 
@@ -312,23 +351,23 @@ When working with this codebase:
 
 | Language | Files | Percentage |
 |----------|-------|------------|
-| TypeScript | 2,356 | 64% |
-| TSX | 1,020 | 28% |
-| Rust | 147 | 4% |
+| TypeScript | 2,450 | 64% |
+| TSX | 1,080 | 28% |
+| Rust | 150 | 4% |
 | JSON | 100 | 3% |
-| Other | 58 | 1% |
+| Other | 70 | 1% |
 
 ### Module Coverage Summary
 
 | Module | Files | Dirs | Coverage | Notes |
 |--------|-------|------|----------|-------|
-| app | 62 | 9 | Good | All routes, API routes, and layouts documented |
-| components | 300 | 43 | Good | 43 component directories indexed |
-| lib | 200 | 20 | Good | All subdirectories documented |
-| hooks | 100 | 19 | Good | 19 hook categories indexed |
-| stores | 100 | 23 | Good | 23 store directories documented |
-| types | 105 | 20 | Complete | All type definitions indexed |
-| src-tauri | 147 | 15 | Partial | Rust modules documented |
+| app | 60 | 9 | Good | All routes, API routes, and layouts documented |
+| components | 350 | 50 | Good | 50 component directories indexed |
+| lib | 250 | 25 | Good | All subdirectories documented |
+| hooks | 120 | 25 | Good | 25 hook categories indexed |
+| stores | 120 | 28 | Good | 28 store directories documented |
+| types | 120 | 25 | Complete | All type definitions indexed |
+| src-tauri | 150 | 17 | Partial | Rust modules documented |
 | e2e | 100 | 4 | Good | Playwright test files |
 
 ## Documentation System

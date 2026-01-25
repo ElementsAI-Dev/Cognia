@@ -44,6 +44,7 @@ import type { ChatMode } from '@/types';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { AgentModeSelector } from '@/components/agent';
 import { WelcomeA2UIDemo } from './welcome-a2ui-demo';
+import { SimplifiedWelcome } from './simplified-welcome';
 import { useSettingsStore } from '@/stores';
 import { DEFAULT_QUICK_ACCESS_LINKS } from '@/types/settings/welcome';
 
@@ -208,6 +209,8 @@ export function WelcomeState({
   const welcomeSettings = useSettingsStore((state) => state.welcomeSettings);
   const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
   const isSimplifiedMode = simplifiedModeSettings.enabled;
+  const currentPreset = simplifiedModeSettings.preset;
+
   const {
     sectionsVisibility,
     customSuggestions,
@@ -271,6 +274,18 @@ export function WelcomeState({
   // Get greeting and description (custom or default)
   const displayGreeting = customGreeting || t(`modes.${mode}.title`);
   const displayDescription = customDescription || t(`modes.${mode}.description`);
+
+  // Use SimplifiedWelcome for focused and zen presets (ChatGPT/Claude-like experience)
+  const useSimplifiedWelcome = isSimplifiedMode && (currentPreset === 'focused' || currentPreset === 'zen');
+  
+  if (useSimplifiedWelcome) {
+    return (
+      <SimplifiedWelcome
+        mode={mode}
+        onSuggestionClick={onSuggestionClick}
+      />
+    );
+  }
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-3 py-2 sm:px-4 sm:py-3 overflow-y-auto">
