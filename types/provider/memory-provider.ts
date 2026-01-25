@@ -2,7 +2,13 @@
  * Memory Provider Types - Support for multiple memory backends (local, mem0, etc.)
  */
 
-import type { Memory, MemoryType, MemoryScope, CreateMemoryInput, UpdateMemoryInput } from '../system/memory';
+import type {
+  Memory,
+  MemoryType,
+  MemoryScope,
+  CreateMemoryInput,
+  UpdateMemoryInput,
+} from '../system/memory';
 
 /**
  * Memory provider type

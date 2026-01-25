@@ -22,7 +22,7 @@ export const TTS_PROVIDERS: Record<TTSProvider, TTSProviderInfo> = {
   system: {
     id: 'system',
     name: 'System (Browser)',
-    description: 'Uses your browser\'s built-in speech synthesis',
+    description: "Uses your browser's built-in speech synthesis",
     requiresApiKey: false,
     supportsStreaming: true,
     maxTextLength: 32767,
@@ -65,7 +65,7 @@ export const OPENAI_TTS_VOICES = [
   { id: 'shimmer', name: 'Shimmer', description: 'Clear and pleasant' },
 ] as const;
 
-export type OpenAITTSVoice = typeof OPENAI_TTS_VOICES[number]['id'];
+export type OpenAITTSVoice = (typeof OPENAI_TTS_VOICES)[number]['id'];
 
 // OpenAI TTS models
 export const OPENAI_TTS_MODELS = [
@@ -73,7 +73,7 @@ export const OPENAI_TTS_MODELS = [
   { id: 'tts-1-hd', name: 'TTS-1 HD', description: 'High definition audio' },
 ] as const;
 
-export type OpenAITTSModel = typeof OPENAI_TTS_MODELS[number]['id'];
+export type OpenAITTSModel = (typeof OPENAI_TTS_MODELS)[number]['id'];
 
 // Gemini TTS voices (from the API docs)
 export const GEMINI_TTS_VOICES = [
@@ -109,7 +109,7 @@ export const GEMINI_TTS_VOICES = [
   { id: 'Sulafat', name: 'Sulafat', description: 'Warm' },
 ] as const;
 
-export type GeminiTTSVoice = typeof GEMINI_TTS_VOICES[number]['id'];
+export type GeminiTTSVoice = (typeof GEMINI_TTS_VOICES)[number]['id'];
 
 // Edge TTS popular voices
 export const EDGE_TTS_VOICES = [
@@ -144,29 +144,29 @@ export const EDGE_TTS_VOICES = [
   { id: 'es-ES-AlvaroNeural', name: 'Alvaro (Male)', language: 'es-ES', gender: 'Male' },
 ] as const;
 
-export type EdgeTTSVoice = typeof EDGE_TTS_VOICES[number]['id'];
+export type EdgeTTSVoice = (typeof EDGE_TTS_VOICES)[number]['id'];
 
 // TTS Settings interface (extends existing speech settings)
 export interface TTSSettings {
   // Provider configuration
   ttsProvider: TTSProvider;
-  
+
   // System (Browser) TTS settings
   systemVoice: string;
-  
+
   // OpenAI TTS settings
   openaiVoice: OpenAITTSVoice;
   openaiModel: OpenAITTSModel;
   openaiSpeed: number; // 0.25 - 4.0
-  
+
   // Gemini TTS settings
   geminiVoice: GeminiTTSVoice;
-  
+
   // Edge TTS settings
   edgeVoice: EdgeTTSVoice;
   edgeRate: string; // e.g., '+0%', '-10%', '+20%'
   edgePitch: string; // e.g., '+0Hz', '-10Hz', '+20Hz'
-  
+
   // Common settings
   ttsEnabled: boolean;
   ttsRate: number; // 0.1 - 10
@@ -178,23 +178,23 @@ export interface TTSSettings {
 // Default TTS settings
 export const DEFAULT_TTS_SETTINGS: TTSSettings = {
   ttsProvider: 'system',
-  
+
   // System
   systemVoice: '',
-  
+
   // OpenAI
   openaiVoice: 'alloy',
   openaiModel: 'tts-1',
   openaiSpeed: 1.0,
-  
+
   // Gemini
   geminiVoice: 'Kore',
-  
+
   // Edge
   edgeVoice: 'en-US-JennyNeural',
   edgeRate: '+0%',
   edgePitch: '+0Hz',
-  
+
   // Common
   ttsEnabled: false,
   ttsRate: 1.0,
@@ -255,7 +255,7 @@ export function getTTSError(type: TTSErrorType, details?: string): TTSError {
     'text-too-long': 'Text exceeds maximum length for this provider',
     'voice-not-found': 'Selected voice is not available',
     'audio-playback-error': 'Failed to play audio',
-    'cancelled': 'Speech synthesis was cancelled',
+    cancelled: 'Speech synthesis was cancelled',
   };
 
   return {
@@ -266,9 +266,9 @@ export function getTTSError(type: TTSErrorType, details?: string): TTSError {
 }
 
 // Helper to get voices by language
-export function getEdgeVoicesByLanguage(langCode: string): typeof EDGE_TTS_VOICES[number][] {
+export function getEdgeVoicesByLanguage(langCode: string): (typeof EDGE_TTS_VOICES)[number][] {
   const lang = langCode.split('-')[0];
-  return EDGE_TTS_VOICES.filter(v => v.language.startsWith(lang));
+  return EDGE_TTS_VOICES.filter((v) => v.language.startsWith(lang));
 }
 
 // Helper to check if provider requires API key

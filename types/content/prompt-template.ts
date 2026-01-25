@@ -4,20 +4,9 @@
 
 export type PromptTemplateSource = 'builtin' | 'user' | 'mcp' | 'imported';
 
-export type PromptTemplateTarget =
-  | 'chat'
-  | 'workflow'
-  | 'agent'
-  | 'ide-rules'
-  | 'mcp'
-  | 'project';
+export type PromptTemplateTarget = 'chat' | 'workflow' | 'agent' | 'ide-rules' | 'mcp' | 'project';
 
-export type PromptTemplateVariableType =
-  | 'text'
-  | 'multiline'
-  | 'number'
-  | 'boolean'
-  | 'select';
+export type PromptTemplateVariableType = 'text' | 'multiline' | 'number' | 'boolean' | 'select';
 
 export interface TemplateVariable {
   name: string;
@@ -167,17 +156,17 @@ export interface PromptTemplate {
   createdAt: Date;
   updatedAt: Date;
   lastUsedAt?: Date;
-  
+
   // Version history
   versionHistory?: PromptTemplateVersion[];
   currentVersion?: number;
-  
+
   // Feedback & Statistics
   stats?: PromptTemplateStats;
-  
+
   // A/B Testing
   activeABTest?: string;
-  
+
   // Optimization tracking
   isOptimized?: boolean;
   lastOptimizedContent?: string;
@@ -211,7 +200,9 @@ export const DEFAULT_PROMPT_TEMPLATE_CATEGORIES: string[] = [
   'custom',
 ];
 
-export const DEFAULT_PROMPT_TEMPLATES: Array<Omit<PromptTemplate, 'id' | 'createdAt' | 'updatedAt'>> = [
+export const DEFAULT_PROMPT_TEMPLATES: Array<
+  Omit<PromptTemplate, 'id' | 'createdAt' | 'updatedAt'>
+> = [
   {
     name: 'Code Review - Bug Finder',
     description: 'Review code for correctness issues, edge cases, and regressions.',
@@ -220,7 +211,12 @@ export const DEFAULT_PROMPT_TEMPLATES: Array<Omit<PromptTemplate, 'id' | 'create
     category: 'code-review',
     tags: ['code-review', 'bugs', 'quality'],
     variables: [
-      { name: 'context', description: 'Related requirements or tickets', required: false, type: 'multiline' },
+      {
+        name: 'context',
+        description: 'Related requirements or tickets',
+        required: false,
+        type: 'multiline',
+      },
       { name: 'code', description: 'Source code to review', required: true, type: 'multiline' },
     ],
     targets: ['chat', 'agent'],

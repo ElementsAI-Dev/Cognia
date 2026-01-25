@@ -3,17 +3,17 @@
  * Defines different agent sub-modes like web design, code generation, etc.
  */
 
-export type AgentModeType = 
-  | 'general'        // General purpose agent
-  | 'web-design'     // Web page designer mode
-  | 'code-gen'       // Code generation mode
-  | 'data-analysis'  // Data analysis mode
-  | 'writing'        // Writing assistant mode
-  | 'research'       // Research assistant mode
+export type AgentModeType =
+  | 'general' // General purpose agent
+  | 'web-design' // Web page designer mode
+  | 'code-gen' // Code generation mode
+  | 'data-analysis' // Data analysis mode
+  | 'writing' // Writing assistant mode
+  | 'research' // Research assistant mode
   | 'ppt-generation' // PPT/Presentation generation mode
-  | 'workflow'       // Workflow execution mode
-  | 'academic'       // Academic paper research mode
-  | 'custom';        // Custom user-defined mode
+  | 'workflow' // Workflow execution mode
+  | 'academic' // Academic paper research mode
+  | 'custom'; // Custom user-defined mode
 
 export interface AgentModeConfig {
   id: string;
@@ -243,10 +243,10 @@ When displaying results, use structured formats with clear headings, bullet poin
 
 // Get agent mode by ID
 export function getAgentMode(id: string): AgentModeConfig | undefined {
-  return BUILT_IN_AGENT_MODES.find(mode => mode.id === id);
+  return BUILT_IN_AGENT_MODES.find((mode) => mode.id === id);
 }
 
 // Get agent mode by type
 export function getAgentModeByType(type: AgentModeType): AgentModeConfig | undefined {
-  return BUILT_IN_AGENT_MODES.find(mode => mode.type === type);
+  return BUILT_IN_AGENT_MODES.find((mode) => mode.type === type);
 }

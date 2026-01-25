@@ -82,7 +82,7 @@ export const OLLAMA_EMBEDDING_MODELS = [
   'bge-large',
 ] as const;
 
-export type OllamaEmbeddingModel = typeof OLLAMA_EMBEDDING_MODELS[number];
+export type OllamaEmbeddingModel = (typeof OLLAMA_EMBEDDING_MODELS)[number];
 
 /**
  * Popular Ollama models for quick pull
@@ -126,11 +126,11 @@ export function formatPullProgress(progress: OllamaPullProgress): {
   if (!progress.total || !progress.completed) {
     return { percentage: 0, text: progress.status };
   }
-  
+
   const percentage = Math.round((progress.completed / progress.total) * 100);
   const completedStr = formatModelSize(progress.completed);
   const totalStr = formatModelSize(progress.total);
-  
+
   return {
     percentage,
     text: `${progress.status} - ${completedStr} / ${totalStr} (${percentage}%)`,

@@ -2,7 +2,7 @@
 
 /**
  * Interactive Animation Types
- * 
+ *
  * Shared type definitions for interactive animation components
  * used in the learning mode.
  */
@@ -22,13 +22,13 @@ export type AnimationPlaybackState = 'idle' | 'playing' | 'paused' | 'complete';
 /**
  * Element types for animation scenes
  */
-export type AnimationElementType = 
-  | 'shape'      // Geometric shapes (rect, circle, etc.)
-  | 'text'       // Text labels
-  | 'arrow'      // Directional arrows
-  | 'highlight'  // Highlight overlays
-  | 'image'      // Image elements
-  | 'group';     // Container for other elements
+export type AnimationElementType =
+  | 'shape' // Geometric shapes (rect, circle, etc.)
+  | 'text' // Text labels
+  | 'arrow' // Directional arrows
+  | 'highlight' // Highlight overlays
+  | 'image' // Image elements
+  | 'group'; // Container for other elements
 
 /**
  * Shape types for 'shape' elements
@@ -41,20 +41,20 @@ export type ShapeType = 'rect' | 'circle' | 'ellipse' | 'line' | 'path' | 'polyg
 export interface AnimationElement {
   id: string;
   type: AnimationElementType;
-  
+
   // Position and size
   x: number;
   y: number;
   width?: number;
   height?: number;
-  
+
   // Content
-  content?: string;           // For text elements
-  shapeType?: ShapeType;      // For shape elements
-  src?: string;               // For image elements
+  content?: string; // For text elements
+  shapeType?: ShapeType; // For shape elements
+  src?: string; // For image elements
   points?: [number, number][]; // For arrow/polygon elements
   children?: AnimationElement[]; // For group elements
-  
+
   // Styling
   fill?: string;
   stroke?: string;
@@ -63,16 +63,16 @@ export interface AnimationElement {
   fontSize?: number;
   fontWeight?: string | number;
   className?: string;
-  
+
   // Animation
   initial?: MotionProps['initial'];
   animate?: MotionProps['animate'];
   exit?: MotionProps['exit'];
   transition?: MotionProps['transition'];
-  
+
   // Interaction
   interactive?: boolean;
-  onClick?: string;           // Action identifier
+  onClick?: string; // Action identifier
   tooltip?: string;
   tooltipPosition?: 'top' | 'bottom' | 'left' | 'right';
 }
@@ -84,14 +84,14 @@ export interface AnimationStep {
   id: string;
   title: string;
   description?: string;
-  duration: number;           // Duration in milliseconds
-  
+  duration: number; // Duration in milliseconds
+
   // Elements to show in this step
   elements: AnimationElement[];
-  
+
   // Optional narration
   narration?: string;
-  
+
   // Audio cue (optional)
   audioUrl?: string;
 }
@@ -103,18 +103,18 @@ export interface AnimationScene {
   id: string;
   name: string;
   description?: string;
-  
+
   // Canvas dimensions
   width: number;
   height: number;
-  
+
   // Background
   backgroundColor?: string;
   backgroundImage?: string;
-  
+
   // Steps
   steps: AnimationStep[];
-  
+
   // Metadata
   category?: string;
   tags?: string[];
@@ -129,8 +129,8 @@ export interface PlaybackControls {
   currentStep: number;
   totalSteps: number;
   speed: AnimationSpeed;
-  progress: number;           // 0-100 percent
-  elapsedTime: number;        // Milliseconds
+  progress: number; // 0-100 percent
+  elapsedTime: number; // Milliseconds
   isLooping: boolean;
 }
 
@@ -140,7 +140,7 @@ export interface PlaybackControls {
 export interface AnimationContextValue {
   scene: AnimationScene | null;
   controls: PlaybackControls;
-  
+
   // Control methods
   play: () => void;
   pause: () => void;
@@ -150,10 +150,10 @@ export interface AnimationContextValue {
   goToStep: (stepIndex: number) => void;
   setSpeed: (speed: AnimationSpeed) => void;
   setLooping: (loop: boolean) => void;
-  
+
   // Element interaction
   onElementClick: (elementId: string, action?: string) => void;
-  
+
   // Reduced motion preference
   prefersReducedMotion: boolean;
 }
@@ -163,23 +163,23 @@ export interface AnimationContextValue {
  */
 export interface InteractiveAnimationProps {
   scene: AnimationScene;
-  
+
   // Playback options
   autoPlay?: boolean;
   loop?: boolean;
   initialSpeed?: AnimationSpeed;
-  
+
   // UI options
   showControls?: boolean;
   showProgress?: boolean;
   showStepInfo?: boolean;
   compact?: boolean;
-  
+
   // Callbacks
   onStepChange?: (step: number, stepData: AnimationStep) => void;
   onComplete?: () => void;
   onElementClick?: (elementId: string, action?: string) => void;
-  
+
   // Styling
   className?: string;
 }

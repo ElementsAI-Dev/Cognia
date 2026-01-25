@@ -1,6 +1,6 @@
 /**
  * Claude Skills Type Definitions
- * 
+ *
  * Skills are modular, self-contained packages that extend Claude's capabilities
  * by providing specialized knowledge, workflows, and tools.
  */
@@ -52,7 +52,7 @@ export type SkillStatus = 'enabled' | 'disabled' | 'error' | 'loading';
 /**
  * Skill category for organization
  */
-export type SkillCategory = 
+export type SkillCategory =
   | 'creative-design'
   | 'development'
   | 'enterprise'
@@ -251,7 +251,10 @@ export interface SkillPackage {
   /** Package format version */
   formatVersion: string;
   /** Skill data */
-  skill: Omit<Skill, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'isActive' | 'usageCount' | 'lastUsedAt'>;
+  skill: Omit<
+    Skill,
+    'id' | 'createdAt' | 'updatedAt' | 'status' | 'isActive' | 'usageCount' | 'lastUsedAt'
+  >;
   /** Export timestamp */
   exportedAt: string;
   /** Checksum for validation */

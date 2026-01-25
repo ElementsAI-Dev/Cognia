@@ -67,13 +67,7 @@ export interface OpenRouterApiKeyCreateResponse {
 import type { BYOKProvider } from './provider';
 export type { BYOKProvider };
 
-type _BYOKProviderInternal = 
-  | 'azure'
-  | 'bedrock'
-  | 'vertex'
-  | 'mistral'
-  | 'cohere'
-  | 'groq';
+type _BYOKProviderInternal = 'azure' | 'bedrock' | 'vertex' | 'mistral' | 'cohere' | 'groq';
 
 // Azure BYOK configuration
 export interface AzureBYOKConfig {
@@ -115,7 +109,7 @@ export interface VertexBYOKConfig {
 export type SimpleBYOKConfig = string;
 
 // Union type for all BYOK configurations
-export type BYOKConfig = 
+export type BYOKConfig =
   | SimpleBYOKConfig
   | AzureBYOKConfig
   | AzureBYOKConfig[]
@@ -204,24 +198,24 @@ export interface OpenRouterProviderSettings {
   apiKey?: string;
   defaultModel: string;
   enabled: boolean;
-  
+
   // OAuth state
   oauthConnected?: boolean;
   oauthExpiresAt?: number;
-  
+
   // Provisioning API key (different from regular API key)
   provisioningApiKey?: string;
-  
+
   // BYOK configurations
   byokKeys?: BYOKKeyEntry[];
-  
+
   // Provider ordering
   providerOrdering?: ProviderOrderingConfig;
-  
+
   // Cached credits info
   credits?: OpenRouterCredits;
   creditsLastFetched?: number;
-  
+
   // Model list cache
   cachedModels?: OpenRouterModel[];
   modelsLastFetched?: number;
@@ -257,7 +251,9 @@ export interface OpenRouterErrorResponse {
 // Helper Functions
 // ============================================================================
 
-export function isAzureBYOKConfig(config: BYOKConfig): config is AzureBYOKConfig | AzureBYOKConfig[] {
+export function isAzureBYOKConfig(
+  config: BYOKConfig
+): config is AzureBYOKConfig | AzureBYOKConfig[] {
   if (Array.isArray(config)) {
     return config.length > 0 && 'endpoint_url' in config[0];
   }
@@ -299,8 +295,4 @@ export const SIMPLE_BYOK_PROVIDERS: BYOKProvider[] = [
 ];
 
 // Providers that require complex configuration
-export const COMPLEX_BYOK_PROVIDERS: BYOKProvider[] = [
-  'azure',
-  'bedrock',
-  'vertex',
-];
+export const COMPLEX_BYOK_PROVIDERS: BYOKProvider[] = ['azure', 'bedrock', 'vertex'];

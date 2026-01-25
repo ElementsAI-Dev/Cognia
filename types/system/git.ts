@@ -27,12 +27,7 @@ export type GitRepoStatus =
   | 'error';
 
 /** Git operation status */
-export type GitOperationStatus =
-  | 'idle'
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'error';
+export type GitOperationStatus = 'idle' | 'pending' | 'running' | 'success' | 'error';
 
 /** Platform type */
 export type Platform = 'windows' | 'macos' | 'linux' | 'unknown';
@@ -497,12 +492,7 @@ export function getFileStatusIcon(status: GitFileStatus['status']): string {
 // ==================== Auto-commit Configuration ====================
 
 /** Auto-commit trigger types */
-export type AutoCommitTrigger =
-  | 'interval'
-  | 'session_end'
-  | 'message_count'
-  | 'export'
-  | 'manual';
+export type AutoCommitTrigger = 'interval' | 'session_end' | 'message_count' | 'export' | 'manual';
 
 /** Auto-commit configuration */
 export interface AutoCommitConfig {
@@ -538,20 +528,20 @@ export function generateAutoCommitMessage(
   }
 ): string {
   let message = config.commitMessageTemplate;
-  
+
   message = message.replace('{{action}}', context.action);
-  
+
   if (config.includeTimestamp) {
     message = message.replace('{{timestamp}}', new Date().toISOString());
   }
-  
+
   if (config.includeSessionTitle && context.sessionTitle) {
     message = message.replace('{{session}}', context.sessionTitle);
   }
-  
+
   if (context.messageCount !== undefined) {
     message = message.replace('{{messageCount}}', String(context.messageCount));
   }
-  
+
   return message;
 }

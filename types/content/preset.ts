@@ -142,7 +142,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     provider: 'openai',
     model: 'gpt-4o',
     mode: 'chat',
-    systemPrompt: 'You are a creative writing assistant. Help the user craft compelling stories, poems, and creative content. Be imaginative, use vivid language, and help develop interesting characters and plots.',
+    systemPrompt:
+      'You are a creative writing assistant. Help the user craft compelling stories, poems, and creative content. Be imaginative, use vivid language, and help develop interesting characters and plots.',
     temperature: 0.9,
   },
   {
@@ -153,7 +154,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     provider: 'anthropic',
     model: 'claude-sonnet-4-20250514',
     mode: 'chat',
-    systemPrompt: 'You are an expert programmer. Help the user write clean, efficient, and well-documented code. Explain your reasoning and suggest best practices. When providing code, include comments and handle edge cases.',
+    systemPrompt:
+      'You are an expert programmer. Help the user write clean, efficient, and well-documented code. Explain your reasoning and suggest best practices. When providing code, include comments and handle edge cases.',
     temperature: 0.3,
   },
   {
@@ -164,7 +166,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     provider: 'openai',
     model: 'o1',
     mode: 'agent',
-    systemPrompt: 'You are an expert at complex reasoning and analysis. Break down problems systematically, consider multiple perspectives, and provide well-reasoned conclusions.',
+    systemPrompt:
+      'You are an expert at complex reasoning and analysis. Break down problems systematically, consider multiple perspectives, and provide well-reasoned conclusions.',
     temperature: 0.5,
     thinkingEnabled: true,
   },
@@ -186,7 +189,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     provider: 'auto',
     model: 'gpt-4o',
     mode: 'research',
-    systemPrompt: 'You are a research assistant. Help the user find accurate information, cite sources when possible, and provide comprehensive analysis of topics.',
+    systemPrompt:
+      'You are a research assistant. Help the user find accurate information, cite sources when possible, and provide comprehensive analysis of topics.',
     temperature: 0.4,
     webSearchEnabled: true,
   },
@@ -198,7 +202,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     provider: 'auto',
     model: 'gpt-4o',
     mode: 'learning',
-    systemPrompt: 'You are an expert tutor. Help the user learn new concepts by breaking them down into understandable pieces, asking clarifying questions, providing examples, and testing understanding with practice problems.',
+    systemPrompt:
+      'You are an expert tutor. Help the user learn new concepts by breaking them down into understandable pieces, asking clarifying questions, providing examples, and testing understanding with practice problems.',
     temperature: 0.6,
   },
 ];

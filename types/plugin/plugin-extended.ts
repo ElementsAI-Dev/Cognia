@@ -1,12 +1,17 @@
 /**
  * Extended Plugin SDK Types
- * 
+ *
  * Additional API interfaces for the enhanced plugin system.
  * These extend the base plugin types with deeper integration capabilities.
  */
 
 import type { Session, CreateSessionInput, UpdateSessionInput, UIMessage } from '../core/session';
-import type { Project, CreateProjectInput, UpdateProjectInput, KnowledgeFile } from '../project/project';
+import type {
+  Project,
+  CreateProjectInput,
+  UpdateProjectInput,
+  KnowledgeFile,
+} from '../project/project';
 import type { Artifact, ArtifactLanguage } from '../artifact/artifact';
 import type { CanvasDocumentVersion, CanvasSuggestion } from '../artifact/artifact';
 import type { ChatMode } from '../core/session';
@@ -70,46 +75,54 @@ export interface MessageAttachment {
 export interface PluginSessionAPI {
   /** Get the currently active session */
   getCurrentSession: () => Session | null;
-  
+
   /** Get the current session ID */
   getCurrentSessionId: () => string | null;
-  
+
   /** Get a session by ID */
   getSession: (id: string) => Promise<Session | null>;
-  
+
   /** Create a new session */
   createSession: (options?: CreateSessionInput) => Promise<Session>;
-  
+
   /** Update a session */
   updateSession: (id: string, updates: UpdateSessionInput) => Promise<void>;
-  
+
   /** Switch to a different session */
   switchSession: (id: string) => Promise<void>;
-  
+
   /** Delete a session */
   deleteSession: (id: string) => Promise<void>;
-  
+
   /** List sessions with optional filtering */
   listSessions: (filter?: SessionFilter) => Promise<Session[]>;
-  
+
   /** Get messages for a session */
   getMessages: (sessionId: string, options?: MessageQueryOptions) => Promise<UIMessage[]>;
-  
+
   /** Add a message to a session */
-  addMessage: (sessionId: string, content: string, options?: SendMessageOptions) => Promise<UIMessage>;
-  
+  addMessage: (
+    sessionId: string,
+    content: string,
+    options?: SendMessageOptions
+  ) => Promise<UIMessage>;
+
   /** Update a message */
-  updateMessage: (sessionId: string, messageId: string, updates: Partial<UIMessage>) => Promise<void>;
-  
+  updateMessage: (
+    sessionId: string,
+    messageId: string,
+    updates: Partial<UIMessage>
+  ) => Promise<void>;
+
   /** Delete a message */
   deleteMessage: (sessionId: string, messageId: string) => Promise<void>;
-  
+
   /** Subscribe to session changes */
   onSessionChange: (handler: (session: Session | null) => void) => () => void;
-  
+
   /** Subscribe to message changes in a session */
   onMessagesChange: (sessionId: string, handler: (messages: UIMessage[]) => void) => () => void;
-  
+
   /** Get session statistics */
   getSessionStats: (sessionId: string) => Promise<SessionStats>;
 }
@@ -161,61 +174,61 @@ export interface ProjectFileInput {
 export interface PluginProjectAPI {
   /** Get the currently active project */
   getCurrentProject: () => Project | null;
-  
+
   /** Get the current project ID */
   getCurrentProjectId: () => string | null;
-  
+
   /** Get a project by ID */
   getProject: (id: string) => Promise<Project | null>;
-  
+
   /** Create a new project */
   createProject: (options: CreateProjectInput) => Promise<Project>;
-  
+
   /** Update a project */
   updateProject: (id: string, updates: UpdateProjectInput) => Promise<void>;
-  
+
   /** Delete a project */
   deleteProject: (id: string) => Promise<void>;
-  
+
   /** Set the active project */
   setActiveProject: (id: string | null) => Promise<void>;
-  
+
   /** List projects with optional filtering */
   listProjects: (filter?: ProjectFilter) => Promise<Project[]>;
-  
+
   /** Archive a project */
   archiveProject: (id: string) => Promise<void>;
-  
+
   /** Unarchive a project */
   unarchiveProject: (id: string) => Promise<void>;
-  
+
   /** Add a file to project knowledge base */
   addKnowledgeFile: (projectId: string, file: ProjectFileInput) => Promise<KnowledgeFile>;
-  
+
   /** Remove a file from project knowledge base */
   removeKnowledgeFile: (projectId: string, fileId: string) => Promise<void>;
-  
+
   /** Update a knowledge file */
   updateKnowledgeFile: (projectId: string, fileId: string, content: string) => Promise<void>;
-  
+
   /** Get all knowledge files for a project */
   getKnowledgeFiles: (projectId: string) => Promise<KnowledgeFile[]>;
-  
+
   /** Link a session to a project */
   linkSession: (projectId: string, sessionId: string) => Promise<void>;
-  
+
   /** Unlink a session from a project */
   unlinkSession: (projectId: string, sessionId: string) => Promise<void>;
-  
+
   /** Get all sessions for a project */
   getProjectSessions: (projectId: string) => Promise<string[]>;
-  
+
   /** Subscribe to project changes */
   onProjectChange: (handler: (project: Project | null) => void) => () => void;
-  
+
   /** Add a tag to a project */
   addTag: (projectId: string, tag: string) => Promise<void>;
-  
+
   /** Remove a tag from a project */
   removeTag: (projectId: string, tag: string) => Promise<void>;
 }
@@ -293,40 +306,48 @@ export interface CollectionStats {
 export interface PluginVectorAPI {
   /** Create a new collection */
   createCollection: (name: string, options?: CollectionOptions) => Promise<string>;
-  
+
   /** Delete a collection */
   deleteCollection: (name: string) => Promise<void>;
-  
+
   /** List all collections */
   listCollections: () => Promise<string[]>;
-  
+
   /** Get collection info */
   getCollectionInfo: (name: string) => Promise<CollectionStats>;
-  
+
   /** Add documents to a collection */
   addDocuments: (collection: string, docs: VectorDocument[]) => Promise<string[]>;
-  
+
   /** Update documents in a collection */
   updateDocuments: (collection: string, docs: VectorDocument[]) => Promise<void>;
-  
+
   /** Delete documents from a collection */
   deleteDocuments: (collection: string, ids: string[]) => Promise<void>;
-  
+
   /** Search documents in a collection */
-  search: (collection: string, query: string, options?: VectorSearchOptions) => Promise<VectorSearchResult[]>;
-  
+  search: (
+    collection: string,
+    query: string,
+    options?: VectorSearchOptions
+  ) => Promise<VectorSearchResult[]>;
+
   /** Search with a pre-computed embedding */
-  searchByEmbedding: (collection: string, embedding: number[], options?: VectorSearchOptions) => Promise<VectorSearchResult[]>;
-  
+  searchByEmbedding: (
+    collection: string,
+    embedding: number[],
+    options?: VectorSearchOptions
+  ) => Promise<VectorSearchResult[]>;
+
   /** Generate embedding for text */
   embed: (text: string) => Promise<number[]>;
-  
+
   /** Generate embeddings for multiple texts */
   embedBatch: (texts: string[]) => Promise<number[][]>;
-  
+
   /** Get document count in a collection */
   getDocumentCount: (collection: string) => Promise<number>;
-  
+
   /** Clear all documents in a collection */
   clearCollection: (collection: string) => Promise<void>;
 }
@@ -343,14 +364,14 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 /**
  * Color theme preset
  */
-export type ColorThemePreset = 
-  | 'default' 
-  | 'ocean' 
-  | 'forest' 
-  | 'sunset' 
-  | 'lavender' 
-  | 'rose' 
-  | 'slate' 
+export type ColorThemePreset =
+  | 'default'
+  | 'ocean'
+  | 'forest'
+  | 'sunset'
+  | 'lavender'
+  | 'rose'
+  | 'slate'
   | 'amber';
 
 /**
@@ -402,46 +423,46 @@ export interface ThemeState {
 export interface PluginThemeAPI {
   /** Get current theme state */
   getTheme: () => ThemeState;
-  
+
   /** Get current theme mode */
   getMode: () => ThemeMode;
-  
+
   /** Get resolved theme mode (light or dark) */
   getResolvedMode: () => 'light' | 'dark';
-  
+
   /** Set theme mode */
   setMode: (mode: ThemeMode) => void;
-  
+
   /** Get current color preset */
   getColorPreset: () => ColorThemePreset;
-  
+
   /** Set color preset */
   setColorPreset: (preset: ColorThemePreset) => void;
-  
+
   /** Get all color presets */
   getAvailablePresets: () => ColorThemePreset[];
-  
+
   /** Get current theme colors */
   getColors: () => ThemeColors;
-  
+
   /** Register a custom theme */
   registerCustomTheme: (theme: Omit<CustomTheme, 'id'>) => string;
-  
+
   /** Update a custom theme */
   updateCustomTheme: (id: string, updates: Partial<CustomTheme>) => void;
-  
+
   /** Delete a custom theme */
   deleteCustomTheme: (id: string) => void;
-  
+
   /** Get all custom themes */
   getCustomThemes: () => CustomTheme[];
-  
+
   /** Activate a custom theme */
   activateCustomTheme: (id: string) => void;
-  
+
   /** Subscribe to theme changes */
   onThemeChange: (handler: (theme: ThemeState) => void) => () => void;
-  
+
   /** Apply CSS variables for a component (scoped styling) */
   applyScopedColors: (element: HTMLElement, colors: Partial<ThemeColors>) => () => void;
 }
@@ -453,12 +474,12 @@ export interface PluginThemeAPI {
 /**
  * Export format types
  */
-export type ExportFormat = 
-  | 'markdown' 
-  | 'json' 
-  | 'html' 
-  | 'animated-html' 
-  | 'pdf' 
+export type ExportFormat =
+  | 'markdown'
+  | 'json'
+  | 'html'
+  | 'animated-html'
+  | 'pdf'
   | 'text'
   | 'docx'
   | 'csv';
@@ -519,25 +540,25 @@ export interface ExportResult {
 export interface PluginExportAPI {
   /** Export a session */
   exportSession: (sessionId: string, options: ExportOptions) => Promise<ExportResult>;
-  
+
   /** Export a project */
   exportProject: (projectId: string, options: ExportOptions) => Promise<ExportResult>;
-  
+
   /** Export messages */
   exportMessages: (messages: UIMessage[], options: ExportOptions) => Promise<ExportResult>;
-  
+
   /** Download an export result */
   download: (result: ExportResult, filename?: string) => void;
-  
+
   /** Register a custom exporter */
   registerExporter: (exporter: CustomExporter) => () => void;
-  
+
   /** Get available export formats */
   getAvailableFormats: () => ExportFormat[];
-  
+
   /** Get custom exporters */
   getCustomExporters: () => CustomExporter[];
-  
+
   /** Generate filename for export */
   generateFilename: (title: string, extension: string) => string;
 }
@@ -562,31 +583,31 @@ export type TranslationParams = Record<string, string | number | boolean>;
 export interface PluginI18nAPI {
   /** Get current locale */
   getCurrentLocale: () => Locale;
-  
+
   /** Get available locales */
   getAvailableLocales: () => Locale[];
-  
+
   /** Get locale display name */
   getLocaleName: (locale: Locale) => string;
-  
+
   /** Translate a key */
   t: (key: string, params?: TranslationParams) => string;
-  
+
   /** Register plugin translations */
   registerTranslations: (locale: Locale, translations: Record<string, string>) => void;
-  
+
   /** Check if a translation key exists */
   hasTranslation: (key: string) => boolean;
-  
+
   /** Subscribe to locale changes */
   onLocaleChange: (handler: (locale: Locale) => void) => () => void;
-  
+
   /** Format date according to locale */
   formatDate: (date: Date, options?: Intl.DateTimeFormatOptions) => string;
-  
+
   /** Format number according to locale */
   formatNumber: (number: number, options?: Intl.NumberFormatOptions) => string;
-  
+
   /** Format relative time */
   formatRelativeTime: (date: Date) => string;
 }
@@ -637,55 +658,55 @@ export interface CanvasSelection {
 export interface PluginCanvasAPI {
   /** Get current canvas document */
   getCurrentDocument: () => PluginCanvasDocument | null;
-  
+
   /** Get a canvas document by ID */
   getDocument: (id: string) => PluginCanvasDocument | null;
-  
+
   /** Create a new canvas document */
   createDocument: (options: CreateCanvasDocumentOptions) => Promise<string>;
-  
+
   /** Update a canvas document */
   updateDocument: (id: string, updates: Partial<PluginCanvasDocument>) => void;
-  
+
   /** Delete a canvas document */
   deleteDocument: (id: string) => void;
-  
+
   /** Open a canvas document */
   openDocument: (id: string) => void;
-  
+
   /** Close the canvas panel */
   closeCanvas: () => void;
-  
+
   /** Get current selection in canvas */
   getSelection: () => CanvasSelection | null;
-  
+
   /** Set selection in canvas */
   setSelection: (start: number, end: number) => void;
-  
+
   /** Insert text at cursor position */
   insertText: (text: string) => void;
-  
+
   /** Replace selected text */
   replaceSelection: (text: string) => void;
-  
+
   /** Get document content */
   getContent: (id?: string) => string;
-  
+
   /** Set document content */
   setContent: (content: string, id?: string) => void;
-  
+
   /** Save a version of the document */
   saveVersion: (id: string, description?: string) => Promise<string>;
-  
+
   /** Restore a version */
   restoreVersion: (documentId: string, versionId: string) => void;
-  
+
   /** Get all versions of a document */
   getVersions: (id: string) => CanvasDocumentVersion[];
-  
+
   /** Subscribe to canvas changes */
   onCanvasChange: (handler: (doc: PluginCanvasDocument | null) => void) => () => void;
-  
+
   /** Subscribe to content changes */
   onContentChange: (handler: (content: string) => void) => () => void;
 }
@@ -723,31 +744,31 @@ export interface ArtifactFilter {
 export interface PluginArtifactAPI {
   /** Get active artifact */
   getActiveArtifact: () => Artifact | null;
-  
+
   /** Get an artifact by ID */
   getArtifact: (id: string) => Artifact | null;
-  
+
   /** Create a new artifact */
   createArtifact: (options: CreateArtifactOptions) => Promise<string>;
-  
+
   /** Update an artifact */
   updateArtifact: (id: string, updates: Partial<Artifact>) => void;
-  
+
   /** Delete an artifact */
   deleteArtifact: (id: string) => void;
-  
+
   /** List artifacts */
   listArtifacts: (filter?: ArtifactFilter) => Artifact[];
-  
+
   /** Open artifact panel with specific artifact */
   openArtifact: (id: string) => void;
-  
+
   /** Close artifact panel */
   closeArtifact: () => void;
-  
+
   /** Subscribe to artifact changes */
   onArtifactChange: (handler: (artifact: Artifact | null) => void) => () => void;
-  
+
   /** Register a custom artifact renderer */
   registerRenderer: (type: string, renderer: ArtifactRenderer) => () => void;
 }
@@ -809,24 +830,27 @@ export interface Notification {
 export interface PluginNotificationCenterAPI {
   /** Create a notification */
   create: (options: NotificationOptions) => string;
-  
+
   /** Update a notification */
   update: (id: string, updates: Partial<NotificationOptions>) => void;
-  
+
   /** Dismiss a notification */
   dismiss: (id: string) => void;
-  
+
   /** Dismiss all notifications */
   dismissAll: () => void;
-  
+
   /** Get all active notifications */
   getAll: () => Notification[];
-  
+
   /** Subscribe to notification actions */
   onAction: (handler: (id: string, action: string) => void) => () => void;
-  
+
   /** Create a progress notification */
-  createProgress: (title: string, message: string) => {
+  createProgress: (
+    title: string,
+    message: string
+  ) => {
     id: string;
     update: (progress: number, message?: string) => void;
     complete: (message?: string) => void;
@@ -903,22 +927,22 @@ export interface AIProviderDefinition {
 export interface PluginAIProviderAPI {
   /** Register a custom AI provider */
   registerProvider: (provider: AIProviderDefinition) => () => void;
-  
+
   /** Get available models */
   getAvailableModels: () => AIModel[];
-  
+
   /** Get models for a specific provider */
   getProviderModels: (providerId: string) => AIModel[];
-  
+
   /** Chat with a model */
   chat: (messages: AIChatMessage[], options?: AIChatOptions) => AsyncIterable<AIChatChunk>;
-  
+
   /** Generate embeddings */
   embed: (texts: string[]) => Promise<number[][]>;
-  
+
   /** Get current default model */
   getDefaultModel: () => string;
-  
+
   /** Get current default provider */
   getDefaultProvider: () => string;
 }
@@ -993,10 +1017,10 @@ export interface PluginExtensionAPI {
     component: React.ComponentType<ExtensionProps>,
     options?: ExtensionOptions
   ) => () => void;
-  
+
   /** Get all extensions for a point */
   getExtensions: (point: ExtensionPoint) => ExtensionRegistration[];
-  
+
   /** Check if extensions exist for a point */
   hasExtensions: (point: ExtensionPoint) => boolean;
 }
@@ -1036,16 +1060,16 @@ export type ExtendedPluginPermission =
 export interface PluginPermissionAPI {
   /** Check if plugin has a permission */
   hasPermission: (permission: ExtendedPluginPermission) => boolean;
-  
+
   /** Request a permission from user */
   requestPermission: (permission: ExtendedPluginPermission, reason?: string) => Promise<boolean>;
-  
+
   /** Get all granted permissions */
   getGrantedPermissions: () => ExtendedPluginPermission[];
-  
+
   /** Check multiple permissions */
   hasAllPermissions: (permissions: ExtendedPluginPermission[]) => boolean;
-  
+
   /** Check if any permission is granted */
   hasAnyPermission: (permissions: ExtendedPluginPermission[]) => boolean;
 }
@@ -1060,37 +1084,37 @@ export interface PluginPermissionAPI {
 export interface ExtendedPluginContext {
   /** Session management API */
   session: PluginSessionAPI;
-  
+
   /** Project management API */
   project: PluginProjectAPI;
-  
+
   /** Vector/RAG API */
   vector: PluginVectorAPI;
-  
+
   /** Theme customization API */
   theme: PluginThemeAPI;
-  
+
   /** Export API */
   export: PluginExportAPI;
-  
+
   /** Internationalization API */
   i18n: PluginI18nAPI;
-  
+
   /** Canvas editing API */
   canvas: PluginCanvasAPI;
-  
+
   /** Artifact management API */
   artifact: PluginArtifactAPI;
-  
+
   /** Notification center API */
   notifications: PluginNotificationCenterAPI;
-  
+
   /** AI provider API */
   ai: PluginAIProviderAPI;
-  
+
   /** UI extension points API */
   extensions: PluginExtensionAPI;
-  
+
   /** Permission management API */
   permissions: PluginPermissionAPI;
 }

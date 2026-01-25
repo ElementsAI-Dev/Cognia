@@ -15,22 +15,22 @@ export type ChatViewMode = 'list' | 'flow';
 /**
  * Node type identifiers for ReactFlow
  */
-export type FlowChatNodeType = 
-  | 'user'        // User message node
-  | 'assistant'   // Assistant response node
-  | 'system'      // System message node
-  | 'branch'      // Branch point indicator
-  | 'reference'   // Reference/citation node
-  | 'parallel';   // Parallel generation group
+export type FlowChatNodeType =
+  | 'user' // User message node
+  | 'assistant' // Assistant response node
+  | 'system' // System message node
+  | 'branch' // Branch point indicator
+  | 'reference' // Reference/citation node
+  | 'parallel'; // Parallel generation group
 
 /**
  * Edge type identifiers for ReactFlow
  */
-export type FlowChatEdgeType = 
-  | 'conversation'  // Normal conversation flow
-  | 'branch'        // Branch connection
-  | 'reference'     // Reference connection
-  | 'parallel';     // Parallel generation connection
+export type FlowChatEdgeType =
+  | 'conversation' // Normal conversation flow
+  | 'branch' // Branch connection
+  | 'reference' // Reference connection
+  | 'parallel'; // Parallel generation connection
 
 /**
  * Node collapse state
@@ -307,26 +307,26 @@ export const DEFAULT_FLOW_CANVAS_STATE: FlowChatCanvasState = {
 /**
  * Node action types
  */
-export type NodeAction = 
-  | 'follow-up'      // Continue conversation from this node
-  | 'regenerate'     // Regenerate AI response
-  | 'branch'         // Create a new branch from this node
-  | 'copy'           // Copy node content
-  | 'delete'         // Delete node and subsequent
-  | 'reference'      // Reference this node in input
-  | 'parallel'       // Generate parallel responses with different models
-  | 'collapse'       // Collapse/expand node
-  | 'edit'           // Edit message content
-  | 'bookmark'       // Bookmark the message
-  | 'add-tag'        // Add tag to node
-  | 'remove-tag'     // Remove tag from node
-  | 'add-to-group'   // Add node to a group
+export type NodeAction =
+  | 'follow-up' // Continue conversation from this node
+  | 'regenerate' // Regenerate AI response
+  | 'branch' // Create a new branch from this node
+  | 'copy' // Copy node content
+  | 'delete' // Delete node and subsequent
+  | 'reference' // Reference this node in input
+  | 'parallel' // Generate parallel responses with different models
+  | 'collapse' // Collapse/expand node
+  | 'edit' // Edit message content
+  | 'bookmark' // Bookmark the message
+  | 'add-tag' // Add tag to node
+  | 'remove-tag' // Remove tag from node
+  | 'add-to-group' // Add node to a group
   | 'remove-from-group' // Remove node from group
   | 'add-to-compare' // Add node to comparison view
-  | 'rate'           // Rate the response quality
-  | 'add-note'       // Add annotation/note
-  | 'view-media'     // View media in lightbox
-  | 'download-media';// Download media attachment
+  | 'rate' // Rate the response quality
+  | 'add-note' // Add annotation/note
+  | 'view-media' // View media in lightbox
+  | 'download-media'; // Download media attachment
 
 /**
  * Node action handler parameters

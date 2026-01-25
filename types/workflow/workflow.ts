@@ -9,13 +9,13 @@ import type { z } from 'zod';
  * Available workflow types
  */
 export type WorkflowType =
-  | 'ppt-generation'      // PowerPoint/Presentation generation
-  | 'report-generation'   // Report document generation
-  | 'code-project'        // Code project scaffolding
-  | 'data-analysis'       // Data analysis workflow
-  | 'content-creation'    // General content creation
-  | 'research'            // Research and summarization
-  | 'custom';             // Custom user-defined workflow
+  | 'ppt-generation' // PowerPoint/Presentation generation
+  | 'report-generation' // Report document generation
+  | 'code-project' // Code project scaffolding
+  | 'data-analysis' // Data analysis workflow
+  | 'content-creation' // General content creation
+  | 'research' // Research and summarization
+  | 'custom'; // Custom user-defined workflow
 
 /**
  * Workflow step status
@@ -208,22 +208,22 @@ export interface WorkflowTemplate {
  * PPT slide layout types
  */
 export type PPTSlideLayout =
-  | 'title'           // Title slide
-  | 'title-content'   // Title with content
-  | 'two-column'      // Two column layout
-  | 'image-left'      // Image on left, content on right
-  | 'image-right'     // Image on right, content on left
-  | 'full-image'      // Full background image
-  | 'comparison'      // Side by side comparison
-  | 'quote'           // Quote/testimonial
-  | 'bullets'         // Bullet points
-  | 'numbered'        // Numbered list
-  | 'section'         // Section divider
-  | 'blank'           // Blank slide
-  | 'chart'           // Chart/graph slide
-  | 'table'           // Table slide
-  | 'timeline'        // Timeline layout
-  | 'closing';        // Closing/thank you slide
+  | 'title' // Title slide
+  | 'title-content' // Title with content
+  | 'two-column' // Two column layout
+  | 'image-left' // Image on left, content on right
+  | 'image-right' // Image on right, content on left
+  | 'full-image' // Full background image
+  | 'comparison' // Side by side comparison
+  | 'quote' // Quote/testimonial
+  | 'bullets' // Bullet points
+  | 'numbered' // Numbered list
+  | 'section' // Section divider
+  | 'blank' // Blank slide
+  | 'chart' // Chart/graph slide
+  | 'table' // Table slide
+  | 'timeline' // Timeline layout
+  | 'closing'; // Closing/thank you slide
 
 /**
  * PPT theme definition
@@ -612,29 +612,56 @@ export const DEFAULT_PPT_THEMES: PPTTheme[] = [
  * Get default theme by ID
  */
 export function getDefaultPPTTheme(themeId: string): PPTTheme {
-  return DEFAULT_PPT_THEMES.find(t => t.id === themeId) || DEFAULT_PPT_THEMES[0];
+  return DEFAULT_PPT_THEMES.find((t) => t.id === themeId) || DEFAULT_PPT_THEMES[0];
 }
 
 /**
  * Slide layout metadata
  */
-export const SLIDE_LAYOUT_INFO: Record<PPTSlideLayout, { name: string; description: string; icon: string }> = {
-  'title': { name: 'Title Slide', description: 'Opening slide with title and subtitle', icon: 'Type' },
-  'title-content': { name: 'Title + Content', description: 'Title with main content area', icon: 'FileText' },
-  'two-column': { name: 'Two Columns', description: 'Side by side content columns', icon: 'Columns' },
-  'image-left': { name: 'Image Left', description: 'Image on left, content on right', icon: 'ImageIcon' },
-  'image-right': { name: 'Image Right', description: 'Content on left, image on right', icon: 'ImageIcon' },
+export const SLIDE_LAYOUT_INFO: Record<
+  PPTSlideLayout,
+  { name: string; description: string; icon: string }
+> = {
+  title: {
+    name: 'Title Slide',
+    description: 'Opening slide with title and subtitle',
+    icon: 'Type',
+  },
+  'title-content': {
+    name: 'Title + Content',
+    description: 'Title with main content area',
+    icon: 'FileText',
+  },
+  'two-column': {
+    name: 'Two Columns',
+    description: 'Side by side content columns',
+    icon: 'Columns',
+  },
+  'image-left': {
+    name: 'Image Left',
+    description: 'Image on left, content on right',
+    icon: 'ImageIcon',
+  },
+  'image-right': {
+    name: 'Image Right',
+    description: 'Content on left, image on right',
+    icon: 'ImageIcon',
+  },
   'full-image': { name: 'Full Image', description: 'Full background image', icon: 'Image' },
-  'comparison': { name: 'Comparison', description: 'Compare two items side by side', icon: 'GitCompare' },
-  'quote': { name: 'Quote', description: 'Featured quote or testimonial', icon: 'Quote' },
-  'bullets': { name: 'Bullet Points', description: 'List of bullet points', icon: 'List' },
-  'numbered': { name: 'Numbered List', description: 'Numbered step list', icon: 'ListOrdered' },
-  'section': { name: 'Section Divider', description: 'Section break slide', icon: 'Minus' },
-  'blank': { name: 'Blank', description: 'Empty slide for custom content', icon: 'Square' },
-  'chart': { name: 'Chart', description: 'Data visualization chart', icon: 'BarChart' },
-  'table': { name: 'Table', description: 'Data table layout', icon: 'Table' },
-  'timeline': { name: 'Timeline', description: 'Timeline or process flow', icon: 'Clock' },
-  'closing': { name: 'Closing', description: 'Thank you or closing slide', icon: 'CheckCircle' },
+  comparison: {
+    name: 'Comparison',
+    description: 'Compare two items side by side',
+    icon: 'GitCompare',
+  },
+  quote: { name: 'Quote', description: 'Featured quote or testimonial', icon: 'Quote' },
+  bullets: { name: 'Bullet Points', description: 'List of bullet points', icon: 'List' },
+  numbered: { name: 'Numbered List', description: 'Numbered step list', icon: 'ListOrdered' },
+  section: { name: 'Section Divider', description: 'Section break slide', icon: 'Minus' },
+  blank: { name: 'Blank', description: 'Empty slide for custom content', icon: 'Square' },
+  chart: { name: 'Chart', description: 'Data visualization chart', icon: 'BarChart' },
+  table: { name: 'Table', description: 'Data table layout', icon: 'Table' },
+  timeline: { name: 'Timeline', description: 'Timeline or process flow', icon: 'Clock' },
+  closing: { name: 'Closing', description: 'Thank you or closing slide', icon: 'CheckCircle' },
 };
 
 /**
@@ -657,7 +684,10 @@ export function createEmptyPresentation(title: string, theme?: PPTTheme): PPTPre
 /**
  * Create empty slide
  */
-export function createEmptySlide(layout: PPTSlideLayout = 'title-content', order: number = 0): PPTSlide {
+export function createEmptySlide(
+  layout: PPTSlideLayout = 'title-content',
+  order: number = 0
+): PPTSlide {
   return {
     id: `slide-${Date.now()}-${order}`,
     order,
@@ -735,7 +765,14 @@ export interface PPTEnhancedOutlineItem extends PPTOutlineItem {
   imageSuggestion?: string;
   imageStyle?: string;
   dataVisualization?: {
-    type: 'bar-chart' | 'line-chart' | 'pie-chart' | 'table' | 'timeline' | 'flowchart' | 'comparison';
+    type:
+      | 'bar-chart'
+      | 'line-chart'
+      | 'pie-chart'
+      | 'table'
+      | 'timeline'
+      | 'flowchart'
+      | 'comparison';
     data?: Record<string, unknown>;
     description?: string;
   };
@@ -915,14 +952,14 @@ export const DEFAULT_IMAGE_CONFIG: PPTImageGenerationConfig = {
  * Image style descriptions for prompt generation
  */
 export const IMAGE_STYLE_PROMPTS: Record<PPTImageStyle, string> = {
-  'photorealistic': 'photorealistic, high detail, professional photography, natural lighting',
-  'illustration': 'digital illustration, clean lines, vibrant colors, modern style',
-  'minimalist': 'minimalist design, simple shapes, clean background, elegant',
-  'corporate': 'professional business style, clean and modern, corporate aesthetic',
-  'artistic': 'artistic interpretation, creative, expressive, unique visual style',
-  'infographic': 'infographic style, data visualization, icons, clean layout',
+  photorealistic: 'photorealistic, high detail, professional photography, natural lighting',
+  illustration: 'digital illustration, clean lines, vibrant colors, modern style',
+  minimalist: 'minimalist design, simple shapes, clean background, elegant',
+  corporate: 'professional business style, clean and modern, corporate aesthetic',
+  artistic: 'artistic interpretation, creative, expressive, unique visual style',
+  infographic: 'infographic style, data visualization, icons, clean layout',
   'icon-based': 'flat icons, simple graphics, vector style, clean design',
-  'abstract': 'abstract art, geometric shapes, modern art style, conceptual',
-  'diagram': 'technical diagram, schematic style, clear labels, professional',
+  abstract: 'abstract art, geometric shapes, modern art style, conceptual',
+  diagram: 'technical diagram, schematic style, clear labels, professional',
   '3d-render': '3D rendered, realistic materials, professional lighting, high quality render',
 };

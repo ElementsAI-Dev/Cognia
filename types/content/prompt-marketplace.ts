@@ -3,7 +3,11 @@
  * Types for the prompt marketplace feature - browsing, sharing, and installing community prompts
  */
 
-import type { PromptTemplateSource, PromptTemplateTarget, TemplateVariable } from './prompt-template';
+import type {
+  PromptTemplateSource,
+  PromptTemplateTarget,
+  TemplateVariable,
+} from './prompt-template';
 
 /**
  * Marketplace prompt categories
@@ -109,39 +113,39 @@ export interface MarketplacePrompt {
   tags: string[];
   variables: TemplateVariable[];
   targets: PromptTemplateTarget[];
-  
+
   // Author & Origin
   author: PromptAuthor;
   source: PromptTemplateSource | 'marketplace';
   qualityTier: PromptQualityTier;
-  
+
   // Versioning
   version: string;
   versions: PromptVersion[];
-  
+
   // Statistics
   stats: PromptUsageStats;
   rating: PromptRating;
-  
+
   // Reviews (paginated separately)
   reviewCount: number;
-  
+
   // Metadata
   icon?: string;
   color?: string;
   previewImage?: string;
   exampleOutput?: string;
-  
+
   // Compatibility
   compatibleModels?: string[];
   recommendedModels?: string[];
   minTokens?: number;
-  
+
   // Flags
   isOfficial?: boolean;
   isFeatured?: boolean;
   isNSFW?: boolean;
-  
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -283,12 +287,15 @@ export const MARKETPLACE_CATEGORIES: Array<{
 /**
  * Quality tier display info
  */
-export const QUALITY_TIER_INFO: Record<PromptQualityTier, {
-  name: string;
-  icon: string;
-  color: string;
-  description: string;
-}> = {
+export const QUALITY_TIER_INFO: Record<
+  PromptQualityTier,
+  {
+    name: string;
+    icon: string;
+    color: string;
+    description: string;
+  }
+> = {
   community: {
     name: 'Community',
     icon: '👥',
@@ -318,10 +325,14 @@ export const QUALITY_TIER_INFO: Record<PromptQualityTier, {
 /**
  * Sample marketplace prompts for initial data
  */
-export const SAMPLE_MARKETPLACE_PROMPTS: Omit<MarketplacePrompt, 'id' | 'createdAt' | 'updatedAt'>[] = [
+export const SAMPLE_MARKETPLACE_PROMPTS: Omit<
+  MarketplacePrompt,
+  'id' | 'createdAt' | 'updatedAt'
+>[] = [
   {
     name: 'Code Review Expert',
-    description: 'Comprehensive code review with security, performance, and best practices analysis',
+    description:
+      'Comprehensive code review with security, performance, and best practices analysis',
     content: `You are an expert code reviewer. Analyze the provided code for:
 
 1. **Security Issues**: SQL injection, XSS, authentication flaws
@@ -340,8 +351,19 @@ Provide a structured review with severity levels (Critical/High/Medium/Low) and 
     tags: ['code-review', 'security', 'performance', 'best-practices'],
     variables: [
       { name: 'code', description: 'The code to review', required: true, type: 'multiline' },
-      { name: 'language', description: 'Programming language', required: true, type: 'text', defaultValue: 'TypeScript' },
-      { name: 'context', description: 'Additional context about the codebase', required: false, type: 'multiline' },
+      {
+        name: 'language',
+        description: 'Programming language',
+        required: true,
+        type: 'text',
+        defaultValue: 'TypeScript',
+      },
+      {
+        name: 'context',
+        description: 'Additional context about the codebase',
+        required: false,
+        type: 'multiline',
+      },
     ],
     targets: ['chat', 'agent'],
     author: {
@@ -393,12 +415,47 @@ Begin the story:`,
     category: 'creative',
     tags: ['storytelling', 'creative-writing', 'fiction', 'narrative'],
     variables: [
-      { name: 'genre', description: 'Story genre', required: true, type: 'select', options: ['Fantasy', 'Sci-Fi', 'Mystery', 'Romance', 'Horror', 'Adventure'] },
+      {
+        name: 'genre',
+        description: 'Story genre',
+        required: true,
+        type: 'select',
+        options: ['Fantasy', 'Sci-Fi', 'Mystery', 'Romance', 'Horror', 'Adventure'],
+      },
       { name: 'setting', description: 'Where the story takes place', required: true, type: 'text' },
-      { name: 'character', description: 'Main character description', required: true, type: 'text' },
-      { name: 'theme', description: 'Central theme or message', required: false, type: 'text', defaultValue: 'Growth and discovery' },
-      { name: 'tone', description: 'Story tone', required: false, type: 'select', options: ['Light', 'Dark', 'Humorous', 'Serious', 'Whimsical'], defaultValue: 'Engaging' },
-      { name: 'length', description: 'Approximate length', required: false, type: 'select', options: ['Flash fiction (500 words)', 'Short story (1500 words)', 'Long story (3000+ words)'], defaultValue: 'Short story (1500 words)' },
+      {
+        name: 'character',
+        description: 'Main character description',
+        required: true,
+        type: 'text',
+      },
+      {
+        name: 'theme',
+        description: 'Central theme or message',
+        required: false,
+        type: 'text',
+        defaultValue: 'Growth and discovery',
+      },
+      {
+        name: 'tone',
+        description: 'Story tone',
+        required: false,
+        type: 'select',
+        options: ['Light', 'Dark', 'Humorous', 'Serious', 'Whimsical'],
+        defaultValue: 'Engaging',
+      },
+      {
+        name: 'length',
+        description: 'Approximate length',
+        required: false,
+        type: 'select',
+        options: [
+          'Flash fiction (500 words)',
+          'Short story (1500 words)',
+          'Long story (3000+ words)',
+        ],
+        defaultValue: 'Short story (1500 words)',
+      },
     ],
     targets: ['chat'],
     author: {

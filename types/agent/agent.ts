@@ -76,10 +76,10 @@ export interface AgentExecutionContext {
 
 export const PLAN_REFINEMENT_PROMPTS: Record<PlanRefinementRequest['refinementType'], string> = {
   optimize: `Analyze the given plan and optimize it for efficiency. Combine redundant steps, parallelize independent tasks where possible, and ensure the most efficient execution order. Maintain the original goals while reducing complexity.`,
-  
+
   simplify: `Simplify the given plan by breaking down complex steps into smaller, more manageable tasks. Remove unnecessary complexity while ensuring all original objectives are still achievable.`,
-  
+
   expand: `Expand the given plan with more detailed steps. Add intermediate checkpoints, validation steps, and error handling considerations. Make the plan more comprehensive and robust.`,
-  
+
   reorder: `Analyze the dependencies between steps and reorder them for optimal execution. Ensure prerequisites are completed before dependent steps, and group related tasks together.`,
 };

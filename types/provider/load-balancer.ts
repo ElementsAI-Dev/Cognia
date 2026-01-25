@@ -9,12 +9,12 @@ import type { ProviderName } from './provider';
  * Load balancing strategy types
  */
 export type LoadBalancingStrategy =
-  | 'round-robin'      // Cycles through providers in order
-  | 'weighted'         // Distributes based on provider weights
+  | 'round-robin' // Cycles through providers in order
+  | 'weighted' // Distributes based on provider weights
   | 'least-connections' // Routes to provider with fewest active requests
-  | 'latency-based'    // Routes to fastest responding provider
-  | 'adaptive'         // Combines multiple factors for optimal routing
-  | 'priority';        // Follows configured priority order with fallback
+  | 'latency-based' // Routes to fastest responding provider
+  | 'adaptive' // Combines multiple factors for optimal routing
+  | 'priority'; // Follows configured priority order with fallback
 
 /**
  * Provider weight configuration for weighted strategy
@@ -44,34 +44,34 @@ export interface CircuitBreakerSettings {
 export interface LoadBalancerSettings {
   /** Enable load balancing */
   enabled: boolean;
-  
+
   /** Load balancing strategy */
   strategy: LoadBalancingStrategy;
-  
+
   /** Provider weights for weighted strategy */
   weights: ProviderWeight[];
-  
+
   /** Enable sticky sessions (route same user to same provider) */
   stickySession: boolean;
-  
+
   /** Session TTL in ms (default: 5 minutes) */
   sessionTtl: number;
-  
+
   /** Fallback providers in order of preference */
   fallbackOrder: ProviderName[];
-  
+
   /** Minimum success rate to consider provider healthy (0-1) */
   minSuccessRate: number;
-  
+
   /** Maximum latency to consider provider responsive (ms) */
   maxLatency: number;
-  
+
   /** Circuit breaker settings */
   circuitBreaker: CircuitBreakerSettings;
-  
+
   /** Enable automatic failover to next provider on failure */
   autoFailover: boolean;
-  
+
   /** Maximum retry attempts for failover */
   maxRetries: number;
 }

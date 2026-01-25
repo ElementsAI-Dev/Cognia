@@ -8,7 +8,7 @@ export type PageSize = 'a4' | 'a3' | 'a5' | 'letter' | 'legal' | 'custom';
 export type PageOrientation = 'portrait' | 'landscape';
 
 export interface PageDimensions {
-  width: number;  // in mm
+  width: number; // in mm
   height: number; // in mm
 }
 
@@ -23,10 +23,10 @@ export const PAGE_SIZES: Record<PageSize, PageDimensions> = {
 
 // Margin definitions
 export interface PageMargins {
-  top: number;    // in mm
+  top: number; // in mm
   bottom: number; // in mm
-  left: number;   // in mm
-  right: number;  // in mm
+  left: number; // in mm
+  right: number; // in mm
   header?: number; // header distance from edge
   footer?: number; // footer distance from edge
   gutter?: number; // gutter margin for binding
@@ -43,13 +43,13 @@ export const MARGIN_PRESETS: Record<string, PageMargins> = {
 // Font settings
 export interface FontSettings {
   name: string;
-  size: number;        // in points
+  size: number; // in points
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
   strike?: boolean;
-  color?: string;      // hex color
-  highlight?: string;  // highlight color
+  color?: string; // hex color
+  highlight?: string; // highlight color
 }
 
 export const FONT_FAMILIES = [
@@ -72,7 +72,9 @@ export const FONT_FAMILIES = [
   'FangSong',
 ] as const;
 
-export const FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72] as const;
+export const FONT_SIZES = [
+  8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72,
+] as const;
 
 // Paragraph settings
 export type TextAlignment = 'left' | 'center' | 'right' | 'justify';
@@ -80,13 +82,13 @@ export type LineSpacingRule = 'auto' | 'atLeast' | 'exact' | 'multiple';
 
 export interface ParagraphSettings {
   alignment?: TextAlignment;
-  lineSpacing?: number;      // in lines (1, 1.5, 2) or points
+  lineSpacing?: number; // in lines (1, 1.5, 2) or points
   lineSpacingRule?: LineSpacingRule;
-  spaceBefore?: number;      // space before paragraph in points
-  spaceAfter?: number;       // space after paragraph in points
-  firstLineIndent?: number;  // first line indent in mm
-  leftIndent?: number;       // left indent in mm
-  rightIndent?: number;      // right indent in mm
+  spaceBefore?: number; // space before paragraph in points
+  spaceAfter?: number; // space after paragraph in points
+  firstLineIndent?: number; // first line indent in mm
+  leftIndent?: number; // left indent in mm
+  rightIndent?: number; // right indent in mm
 }
 
 export const LINE_SPACING_PRESETS = {
@@ -131,8 +133,8 @@ export type TableBorderStyle = 'none' | 'single' | 'double' | 'dotted' | 'dashed
 
 export interface TableBorder {
   style: TableBorderStyle;
-  width: number;  // in points
-  color: string;  // hex color
+  width: number; // in points
+  color: string; // hex color
 }
 
 export interface TableCellStyle {
@@ -248,7 +250,7 @@ export interface SectionSettings {
 export interface TableOfContentsSettings {
   enabled: boolean;
   title?: string;
-  levels?: number;        // 1-9, how many heading levels to include
+  levels?: number; // 1-9, how many heading levels to include
   showPageNumbers?: boolean;
   rightAlignPageNumbers?: boolean;
   tabLeader?: 'none' | 'dot' | 'hyphen' | 'underscore';
@@ -262,32 +264,32 @@ export interface WordDocumentOptions {
   subject?: string;
   keywords?: string[];
   description?: string;
-  
+
   // Page setup
   pageSize?: PageSize;
   customPageSize?: PageDimensions;
   orientation?: PageOrientation;
   margins?: PageMargins;
-  
+
   // Default font
   defaultFont?: Partial<FontSettings>;
-  
+
   // Default paragraph
   defaultParagraph?: Partial<ParagraphSettings>;
-  
+
   // Styles
   styles?: Partial<DocumentStyles>;
-  
+
   // Header/Footer
   header?: HeaderFooterSettings;
   footer?: HeaderFooterSettings;
-  
+
   // Table of Contents
   tableOfContents?: TableOfContentsSettings;
-  
+
   // Table style
   tableStyle?: TableStyle;
-  
+
   // Content options
   includeMetadata?: boolean;
   includeTimestamps?: boolean;
@@ -295,7 +297,7 @@ export interface WordDocumentOptions {
   showThinkingProcess?: boolean;
   showToolCalls?: boolean;
   includeCoverPage?: boolean;
-  
+
   // Theme
   theme?: 'light' | 'dark';
 }
@@ -324,7 +326,7 @@ export const DEFAULT_DOCUMENT_OPTIONS: WordDocumentOptions = {
 };
 
 // Document content block types
-export type DocumentBlockType = 
+export type DocumentBlockType =
   | 'paragraph'
   | 'heading'
   | 'list'
@@ -370,7 +372,7 @@ export interface TableBlock extends DocumentBlock {
 
 export interface ImageBlock extends DocumentBlock {
   type: 'image';
-  src: string;  // base64 or URL
+  src: string; // base64 or URL
   alt?: string;
   width?: number;
   height?: number;

@@ -165,7 +165,9 @@ export function isServerConnected(status: McpServerStatus): boolean {
 }
 
 /** Check if server has an error */
-export function isServerError(status: McpServerStatus): status is { type: 'error'; message: string } {
+export function isServerError(
+  status: McpServerStatus
+): status is { type: 'error'; message: string } {
   return status.type === 'error';
 }
 
@@ -269,7 +271,11 @@ export interface ServerMentionItem extends BaseMentionItem {
 }
 
 /** Union type for all mention items */
-export type MentionItem = ToolMentionItem | ResourceMentionItem | PromptMentionItem | ServerMentionItem;
+export type MentionItem =
+  | ToolMentionItem
+  | ResourceMentionItem
+  | PromptMentionItem
+  | ServerMentionItem;
 
 /** Selected mention in the input */
 export interface SelectedMention {
@@ -376,16 +382,18 @@ export function createServerMention(
 }
 
 /** Parse mention text to extract server and tool info */
-export function parseMentionText(text: string): { serverId?: string; name?: string; type?: MentionType } | null {
+export function parseMentionText(
+  text: string
+): { serverId?: string; name?: string; type?: MentionType } | null {
   // Format: @server:tool_name or @server:resource:uri or @server:prompt:name
   const match = text.match(/^@([^:]+):(?:(resource|prompt):)?(.+)$/);
   if (!match) return null;
-  
+
   const [, serverId, typeStr, name] = match;
   let type: MentionType = 'tool';
   if (typeStr === 'resource') type = 'resource';
   else if (typeStr === 'prompt') type = 'prompt';
-  
+
   return { serverId, name, type };
 }
 
@@ -494,10 +502,20 @@ export interface LogMessageNotification {
 }
 
 /** Log level */
-export type LogLevel = 'debug' | 'info' | 'notice' | 'warning' | 'error' | 'critical' | 'alert' | 'emergency';
+export type LogLevel =
+  | 'debug'
+  | 'info'
+  | 'notice'
+  | 'warning'
+  | 'error'
+  | 'critical'
+  | 'alert'
+  | 'emergency';
 
 /** Resource list changed notification */
-export interface ResourceListChanged { readonly _tag?: 'ResourceListChanged' }
+export interface ResourceListChanged {
+  readonly _tag?: 'ResourceListChanged';
+}
 
 /** Resource updated notification */
 export interface ResourceUpdatedNotification {
@@ -505,10 +523,14 @@ export interface ResourceUpdatedNotification {
 }
 
 /** Tools list changed notification */
-export interface ToolsListChanged { readonly _tag?: 'ToolsListChanged' }
+export interface ToolsListChanged {
+  readonly _tag?: 'ToolsListChanged';
+}
 
 /** Prompts list changed notification */
-export interface PromptsListChanged { readonly _tag?: 'PromptsListChanged' }
+export interface PromptsListChanged {
+  readonly _tag?: 'PromptsListChanged';
+}
 
 /** Cancelled notification */
 export interface CancelledNotification {
@@ -673,4 +695,3 @@ export interface ScoredTool {
     priorityBoost: number;
   };
 }
-

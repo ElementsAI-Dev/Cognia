@@ -64,7 +64,7 @@ export interface KnowledgeMap {
 // Mind Map Types
 // ============================================================================
 
-export type MindMapNodeType = 
+export type MindMapNodeType =
   | 'root'
   | 'concept'
   | 'section'
@@ -137,7 +137,7 @@ export interface MindMapTheme {
 // PDF Conversion Types
 // ============================================================================
 
-export type PDFElementType = 
+export type PDFElementType =
   | 'text'
   | 'heading'
   | 'paragraph'
@@ -255,7 +255,7 @@ export interface PDFDocumentMetadata {
 // Knowledge Map Annotation Types
 // ============================================================================
 
-export type KnowledgeAnnotationType = 
+export type KnowledgeAnnotationType =
   | 'highlight'
   | 'note'
   | 'question'
@@ -439,18 +439,19 @@ export function convertCodemapToKnowledgeMap(codemap: CodemapFileFormat): Knowle
     stableId: codemap.stableId,
     metadata: {
       cascadeId: codemap.metadata.cascadeId,
-      generationSource: codemap.metadata.generationSource as KnowledgeMapMetadata['generationSource'],
+      generationSource: codemap.metadata
+        .generationSource as KnowledgeMapMetadata['generationSource'],
       generationTimestamp: codemap.metadata.generationTimestamp,
       mode: codemap.metadata.mode as 'FAST' | 'DETAILED' | 'COMPREHENSIVE',
       originalPrompt: codemap.metadata.originalPrompt,
     },
     title: codemap.title,
     description: codemap.description,
-    traces: codemap.traces.map(trace => ({
+    traces: codemap.traces.map((trace) => ({
       id: trace.id,
       title: trace.title,
       description: trace.description,
-      locations: trace.locations.map(loc => ({
+      locations: trace.locations.map((loc) => ({
         id: loc.id,
         path: loc.path,
         lineNumber: loc.lineNumber,
@@ -481,11 +482,11 @@ export function convertKnowledgeMapToCodemap(knowledgeMap: KnowledgeMap): Codema
     },
     title: knowledgeMap.title,
     description: knowledgeMap.description,
-    traces: knowledgeMap.traces.map(trace => ({
+    traces: knowledgeMap.traces.map((trace) => ({
       id: trace.id,
       title: trace.title,
       description: trace.description,
-      locations: trace.locations.map(loc => ({
+      locations: trace.locations.map((loc) => ({
         id: loc.id,
         path: loc.path,
         lineNumber: loc.lineNumber,

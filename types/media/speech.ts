@@ -20,7 +20,7 @@ export const SPEECH_LANGUAGES = [
   { code: 'hi-IN', name: 'हिन्दी', flag: '🇮🇳' },
 ] as const;
 
-export type SpeechLanguageCode = typeof SPEECH_LANGUAGES[number]['code'];
+export type SpeechLanguageCode = (typeof SPEECH_LANGUAGES)[number]['code'];
 
 // Speech recognition provider types
 export type SpeechProvider = 'system' | 'openai';
@@ -38,7 +38,7 @@ export const OPENAI_TTS_VOICES = [
   { id: 'shimmer', name: 'Shimmer', description: 'Clear and pleasant' },
 ] as const;
 
-export type OpenAITTSVoice = typeof OPENAI_TTS_VOICES[number]['id'];
+export type OpenAITTSVoice = (typeof OPENAI_TTS_VOICES)[number]['id'];
 
 // Gemini TTS voices
 export const GEMINI_TTS_VOICES = [
@@ -56,7 +56,7 @@ export const GEMINI_TTS_VOICES = [
   { id: 'Sulafat', name: 'Sulafat', description: 'Warm' },
 ] as const;
 
-export type GeminiTTSVoice = typeof GEMINI_TTS_VOICES[number]['id'];
+export type GeminiTTSVoice = (typeof GEMINI_TTS_VOICES)[number]['id'];
 
 // Edge TTS popular voices
 export const EDGE_TTS_VOICES = [
@@ -78,7 +78,7 @@ export const EDGE_TTS_VOICES = [
   { id: 'ko-KR-InJoonNeural', name: 'InJoon (Male)', language: 'ko-KR', gender: 'Male' },
 ] as const;
 
-export type EdgeTTSVoice = typeof EDGE_TTS_VOICES[number]['id'];
+export type EdgeTTSVoice = (typeof EDGE_TTS_VOICES)[number]['id'];
 
 // Speech recognition settings interface
 export interface SpeechSettings {
@@ -90,7 +90,7 @@ export interface SpeechSettings {
   sttInterimResults: boolean;
   sttAutoSend: boolean;
   sttAutoStopSilence: number; // milliseconds of silence before auto-stop (0 = disabled)
-  
+
   // TTS (Text-to-Speech) settings
   ttsEnabled: boolean;
   ttsProvider: TTSProvider;
@@ -99,15 +99,15 @@ export interface SpeechSettings {
   ttsPitch: number; // 0 - 2
   ttsVolume: number; // 0 - 1
   ttsAutoPlay: boolean; // Auto-play AI responses
-  
+
   // OpenAI TTS settings
   openaiTtsVoice: OpenAITTSVoice;
   openaiTtsModel: 'tts-1' | 'tts-1-hd';
   openaiTtsSpeed: number; // 0.25 - 4.0
-  
+
   // Gemini TTS settings
   geminiTtsVoice: GeminiTTSVoice;
-  
+
   // Edge TTS settings
   edgeTtsVoice: EdgeTTSVoice;
   edgeTtsRate: string; // e.g., '+0%', '-10%', '+20%'
@@ -124,7 +124,7 @@ export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = {
   sttInterimResults: true,
   sttAutoSend: false,
   sttAutoStopSilence: 3000,
-  
+
   // TTS defaults
   ttsEnabled: false,
   ttsProvider: 'system',
@@ -133,15 +133,15 @@ export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = {
   ttsPitch: 1.0,
   ttsVolume: 1.0,
   ttsAutoPlay: false,
-  
+
   // OpenAI TTS defaults
   openaiTtsVoice: 'alloy',
   openaiTtsModel: 'tts-1',
   openaiTtsSpeed: 1.0,
-  
+
   // Gemini TTS defaults
   geminiTtsVoice: 'Kore',
-  
+
   // Edge TTS defaults
   edgeTtsVoice: 'zh-CN-XiaoxiaoNeural',
   edgeTtsRate: '+0%',
@@ -204,7 +204,10 @@ export interface SpeechError {
 }
 
 // Speech error messages
-export const SPEECH_ERROR_MESSAGES: Record<SpeechErrorType, { message: string; recoverable: boolean }> = {
+export const SPEECH_ERROR_MESSAGES: Record<
+  SpeechErrorType,
+  { message: string; recoverable: boolean }
+> = {
   'not-supported': {
     message: 'Speech recognition is not supported in this browser.',
     recoverable: false,
@@ -221,11 +224,11 @@ export const SPEECH_ERROR_MESSAGES: Record<SpeechErrorType, { message: string; r
     message: 'Microphone permission was denied. Please allow microphone access.',
     recoverable: false,
   },
-  'network': {
+  network: {
     message: 'Network error occurred during speech recognition.',
     recoverable: true,
   },
-  'aborted': {
+  aborted: {
     message: 'Speech recognition was aborted.',
     recoverable: true,
   },

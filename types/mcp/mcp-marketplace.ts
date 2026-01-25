@@ -135,19 +135,10 @@ export interface McpMarketplaceFilters {
 }
 
 /** Sort options for marketplace */
-export type McpMarketplaceSortOption = 
-  | 'popular' 
-  | 'newest' 
-  | 'stars' 
-  | 'downloads' 
-  | 'name';
+export type McpMarketplaceSortOption = 'popular' | 'newest' | 'stars' | 'downloads' | 'name';
 
 /** Installation status for marketplace items */
-export type McpInstallStatus = 
-  | 'not_installed'
-  | 'installing'
-  | 'installed'
-  | 'error';
+export type McpInstallStatus = 'not_installed' | 'installing' | 'installed' | 'error';
 
 /** Extended marketplace item with installation state */
 export interface McpMarketplaceItemWithStatus extends McpMarketplaceItem {
@@ -193,7 +184,7 @@ export const DEFAULT_MARKETPLACE_FILTERS: McpMarketplaceFilters = {
 /** Get source display name */
 export function getSourceName(source: McpMarketplaceSource): string {
   if (source === 'all') return 'All Sources';
-  const config = MARKETPLACE_SOURCES.find(s => s.id === source);
+  const config = MARKETPLACE_SOURCES.find((s) => s.id === source);
   return config?.name || source;
 }
 

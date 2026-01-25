@@ -78,7 +78,15 @@ export interface ExportableImage {
 // Image Editor Panel Types
 // ============================================================================
 
-export type EditorMode = 'mask' | 'crop' | 'adjust' | 'upscale' | 'remove-bg' | 'text' | 'draw' | 'filters';
+export type EditorMode =
+  | 'mask'
+  | 'crop'
+  | 'adjust'
+  | 'upscale'
+  | 'remove-bg'
+  | 'text'
+  | 'draw'
+  | 'filters';
 
 // ============================================================================
 // Text Overlay Types
@@ -106,7 +114,13 @@ export interface TextLayerConfig {
 // Drawing Tools Types
 // ============================================================================
 
-export type DrawingShapeType = 'freehand' | 'rectangle' | 'circle' | 'arrow' | 'line' | 'highlighter';
+export type DrawingShapeType =
+  | 'freehand'
+  | 'rectangle'
+  | 'circle'
+  | 'arrow'
+  | 'line'
+  | 'highlighter';
 
 export interface DrawingShapeConfig {
   id: string;

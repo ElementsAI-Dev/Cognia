@@ -159,21 +159,10 @@ export interface CreateSessionOptions {
 }
 
 /** Kernel action types for UI */
-export type KernelAction =
-  | 'start'
-  | 'stop'
-  | 'restart'
-  | 'interrupt'
-  | 'execute'
-  | 'clear';
+export type KernelAction = 'start' | 'stop' | 'restart' | 'interrupt' | 'execute' | 'clear';
 
 /** Kernel event types */
-export type KernelEventType =
-  | 'status'
-  | 'output'
-  | 'error'
-  | 'cell-output'
-  | 'variables-updated';
+export type KernelEventType = 'status' | 'output' | 'error' | 'cell-output' | 'variables-updated';
 
 /** Kernel event payload */
 export interface KernelEvent {
@@ -195,9 +184,7 @@ export function getTextOutput(result: KernelSandboxExecutionResult): string {
     return result.stdout;
   }
   if (result.displayData.length > 0) {
-    const textData = result.displayData.find(
-      (d) => d.mimeType === 'text/plain'
-    );
+    const textData = result.displayData.find((d) => d.mimeType === 'text/plain');
     if (textData) {
       return textData.data;
     }
@@ -228,10 +215,7 @@ export function formatExecutionError(error: ExecutionError): string {
 }
 
 /** Helper to create a default session */
-export function createDefaultSession(
-  name: string,
-  envPath: string
-): Partial<JupyterSession> {
+export function createDefaultSession(name: string, envPath: string): Partial<JupyterSession> {
   return {
     name,
     envPath,

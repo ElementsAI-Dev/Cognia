@@ -1,6 +1,6 @@
 /**
  * Shortcut Types
- * 
+ *
  * Centralized type definitions for shortcut management and conflict detection
  */
 
@@ -41,18 +41,18 @@ export interface ShortcutMetadata {
 /**
  * Conflict resolution strategy
  */
-export type ConflictResolutionMode = 
-  | 'warn'           // Show warning but allow registration
-  | 'block'          // Block registration on conflict
-  | 'auto-resolve';  // Automatically unregister old and register new
+export type ConflictResolutionMode =
+  | 'warn' // Show warning but allow registration
+  | 'block' // Block registration on conflict
+  | 'auto-resolve'; // Automatically unregister old and register new
 
 /**
  * Conflict resolution action
  */
-export type ConflictResolution = 
-  | 'keep-existing'  // Keep the existing shortcut
-  | 'use-new'        // Use the new shortcut
-  | 'cancel';        // Cancel the operation
+export type ConflictResolution =
+  | 'keep-existing' // Keep the existing shortcut
+  | 'use-new' // Use the new shortcut
+  | 'cancel'; // Cancel the operation
 
 /**
  * Shortcut registration options

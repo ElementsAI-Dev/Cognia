@@ -113,15 +113,7 @@ export interface SelectionRegion {
   height: number;
 }
 
-export type ResizeHandle =
-  | 'nw'
-  | 'n'
-  | 'ne'
-  | 'e'
-  | 'se'
-  | 's'
-  | 'sw'
-  | 'w';
+export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 export interface Point {
   x: number;

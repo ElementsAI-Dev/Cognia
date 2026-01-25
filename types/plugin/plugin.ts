@@ -1,13 +1,17 @@
 /**
  * Plugin System Type Definitions
- * 
+ *
  * Comprehensive type system for Cognia's plugin architecture supporting:
  * - Frontend (TypeScript/React) plugins
  * - Python plugins (via PyO3)
  * - Hybrid plugins combining both
  */
 
-import type { A2UIComponent, A2UIComponentType as _A2UIComponentType, A2UISurfaceType } from '../artifact/a2ui';
+import type {
+  A2UIComponent,
+  A2UIComponentType as _A2UIComponentType,
+  A2UISurfaceType,
+} from '../artifact/a2ui';
 import type { AgentModeConfig } from '../agent/agent-mode';
 import type { Skill as _Skill } from '../system/skill';
 
@@ -18,76 +22,76 @@ import type { Skill as _Skill } from '../system/skill';
 /**
  * Plugin type - determines the runtime environment
  */
-export type PluginType = 
-  | 'frontend'    // JavaScript/TypeScript plugin running in renderer
-  | 'python'      // Python plugin running via PyO3
-  | 'hybrid';     // Combination of frontend and Python components
+export type PluginType =
+  | 'frontend' // JavaScript/TypeScript plugin running in renderer
+  | 'python' // Python plugin running via PyO3
+  | 'hybrid'; // Combination of frontend and Python components
 
 /**
  * Plugin capabilities - what the plugin can provide
  */
 export type PluginCapability =
-  | 'tools'       // Provides Agent tools
-  | 'components'  // Provides A2UI components
-  | 'modes'       // Provides Agent modes
-  | 'skills'      // Provides Skills
-  | 'themes'      // Provides UI themes
-  | 'commands'    // Provides slash commands
-  | 'hooks'       // Provides lifecycle hooks
-  | 'processors'  // Provides message processors
-  | 'providers'   // Provides AI model providers
-  | 'exporters'   // Provides export formats
-  | 'importers'   // Provides import handlers
-  | 'a2ui'        // A2UI integration
-  | 'python';     // Python runtime capability
+  | 'tools' // Provides Agent tools
+  | 'components' // Provides A2UI components
+  | 'modes' // Provides Agent modes
+  | 'skills' // Provides Skills
+  | 'themes' // Provides UI themes
+  | 'commands' // Provides slash commands
+  | 'hooks' // Provides lifecycle hooks
+  | 'processors' // Provides message processors
+  | 'providers' // Provides AI model providers
+  | 'exporters' // Provides export formats
+  | 'importers' // Provides import handlers
+  | 'a2ui' // A2UI integration
+  | 'python'; // Python runtime capability
 
 /**
  * Plugin status in the lifecycle
  */
-export type PluginStatus = 
-  | 'discovered'  // Found but not loaded
-  | 'installed'   // Downloaded/copied to plugins directory
-  | 'loading'     // Currently loading
-  | 'loaded'      // Loaded but not enabled
-  | 'enabling'    // Currently enabling
-  | 'enabled'     // Active and running
-  | 'disabling'   // Currently disabling
-  | 'disabled'    // Loaded but inactive
-  | 'unloading'   // Currently unloading
-  | 'error'       // Error state
-  | 'updating';   // Being updated
+export type PluginStatus =
+  | 'discovered' // Found but not loaded
+  | 'installed' // Downloaded/copied to plugins directory
+  | 'loading' // Currently loading
+  | 'loaded' // Loaded but not enabled
+  | 'enabling' // Currently enabling
+  | 'enabled' // Active and running
+  | 'disabling' // Currently disabling
+  | 'disabled' // Loaded but inactive
+  | 'unloading' // Currently unloading
+  | 'error' // Error state
+  | 'updating'; // Being updated
 
 /**
  * Plugin source - where the plugin came from
  */
-export type PluginSource = 
-  | 'builtin'     // Bundled with the app
-  | 'local'       // Installed from local directory
+export type PluginSource =
+  | 'builtin' // Bundled with the app
+  | 'local' // Installed from local directory
   | 'marketplace' // Downloaded from marketplace
-  | 'git'         // Cloned from git repository
-  | 'dev';        // Development mode (hot reload enabled)
+  | 'git' // Cloned from git repository
+  | 'dev'; // Development mode (hot reload enabled)
 
 /**
  * Permission types that plugins can request
  */
 export type PluginPermission =
-  | 'filesystem:read'      // Read files
-  | 'filesystem:write'     // Write files
-  | 'network:fetch'        // Make HTTP requests
-  | 'network:websocket'    // WebSocket connections
-  | 'clipboard:read'       // Read clipboard
-  | 'clipboard:write'      // Write clipboard
-  | 'notification'         // Show notifications
-  | 'shell:execute'        // Execute shell commands
-  | 'process:spawn'        // Spawn processes
-  | 'database:read'        // Read from database
-  | 'database:write'       // Write to database
-  | 'settings:read'        // Read settings
-  | 'settings:write'       // Modify settings
-  | 'session:read'         // Read chat sessions
-  | 'session:write'        // Modify chat sessions
-  | 'agent:control'        // Control agent execution
-  | 'python:execute';      // Execute Python code
+  | 'filesystem:read' // Read files
+  | 'filesystem:write' // Write files
+  | 'network:fetch' // Make HTTP requests
+  | 'network:websocket' // WebSocket connections
+  | 'clipboard:read' // Read clipboard
+  | 'clipboard:write' // Write clipboard
+  | 'notification' // Show notifications
+  | 'shell:execute' // Execute shell commands
+  | 'process:spawn' // Spawn processes
+  | 'database:read' // Read from database
+  | 'database:write' // Write to database
+  | 'settings:read' // Read settings
+  | 'settings:write' // Modify settings
+  | 'session:read' // Read chat sessions
+  | 'session:write' // Modify chat sessions
+  | 'agent:control' // Control agent execution
+  | 'python:execute'; // Execute Python code
 
 // =============================================================================
 // Plugin Manifest
@@ -99,103 +103,103 @@ export type PluginPermission =
 export interface PluginManifest {
   /** Unique plugin identifier (reverse domain notation recommended) */
   id: string;
-  
+
   /** Human-readable name */
   name: string;
-  
+
   /** Semantic version (semver) */
   version: string;
-  
+
   /** Plugin description */
   description: string;
-  
+
   /** Author information */
   author?: {
     name: string;
     email?: string;
     url?: string;
   };
-  
+
   /** Homepage/documentation URL */
   homepage?: string;
-  
+
   /** Repository URL */
   repository?: string;
-  
+
   /** License identifier (SPDX) */
   license?: string;
-  
+
   /** Plugin type */
   type: PluginType;
-  
+
   /** Capabilities this plugin provides */
   capabilities: PluginCapability[];
-  
+
   /** Keywords for search/discovery */
   keywords?: string[];
-  
+
   /** Icon (Lucide icon name or data URL) */
   icon?: string;
-  
+
   /** Preview images */
   screenshots?: string[];
-  
+
   // Entry Points
   /** Main entry point for frontend code */
   main?: string;
-  
+
   /** Entry point for Python code */
   pythonMain?: string;
-  
+
   /** Style entry point (CSS) */
   styles?: string;
-  
+
   // Dependencies
   /** Plugin dependencies */
   dependencies?: Record<string, string>;
-  
+
   /** Host application version requirements */
   engines?: {
     cognia?: string;
     node?: string;
     python?: string;
   };
-  
+
   /** Python package dependencies */
   pythonDependencies?: string[];
-  
+
   // Configuration
   /** JSON Schema for plugin configuration */
   configSchema?: PluginConfigSchema;
-  
+
   /** Default configuration values */
   defaultConfig?: Record<string, unknown>;
-  
+
   // Permissions
   /** Required permissions */
   permissions?: PluginPermission[];
-  
+
   /** Optional permissions (requested at runtime) */
   optionalPermissions?: PluginPermission[];
-  
+
   // A2UI Integration
   /** Custom A2UI components provided */
   a2uiComponents?: A2UIPluginComponentDef[];
-  
+
   /** A2UI surface templates provided */
   a2uiTemplates?: A2UITemplateDef[];
-  
+
   // Agent Integration
   /** Agent tools provided */
   tools?: PluginToolDef[];
-  
+
   /** Agent modes provided */
   modes?: PluginModeDef[];
-  
+
   // Activation
   /** Activation events - when to load the plugin */
   activationEvents?: PluginActivationEvent[];
-  
+
   /** Whether plugin should be loaded at startup */
   activateOnStartup?: boolean;
 }
@@ -248,25 +252,25 @@ export type PluginActivationEvent =
 export interface A2UIPluginComponentDef {
   /** Component type name */
   type: string;
-  
+
   /** Display name */
   name: string;
-  
+
   /** Description */
   description?: string;
-  
+
   /** Category for organization */
   category?: 'layout' | 'form' | 'display' | 'data' | 'custom';
-  
+
   /** Icon (Lucide name) */
   icon?: string;
-  
+
   /** JSON Schema for component props */
   propsSchema?: Record<string, unknown>;
-  
+
   /** Whether component supports children */
   supportsChildren?: boolean;
-  
+
   /** Default props */
   defaultProps?: Record<string, unknown>;
 }
@@ -277,31 +281,31 @@ export interface A2UIPluginComponentDef {
 export interface A2UITemplateDef {
   /** Template ID */
   id: string;
-  
+
   /** Display name */
   name: string;
-  
+
   /** Description */
   description?: string;
-  
+
   /** Template category */
   category?: string;
-  
+
   /** Icon */
   icon?: string;
-  
+
   /** Surface type */
   surfaceType: A2UISurfaceType;
-  
+
   /** Preview image */
   preview?: string;
-  
+
   /** Component tree */
   components: A2UIComponent[];
-  
+
   /** Initial data model */
   dataModel?: Record<string, unknown>;
-  
+
   /** Tags for search */
   tags?: string[];
 }
@@ -312,13 +316,13 @@ export interface A2UITemplateDef {
 export interface PluginA2UIComponent {
   /** Component type (used in A2UI spec) */
   type: string;
-  
+
   /** Plugin that provides this component */
   pluginId: string;
-  
+
   /** React component */
   component: React.ComponentType<A2UIPluginComponentProps>;
-  
+
   /** Component metadata */
   metadata: A2UIPluginComponentDef;
 }
@@ -329,22 +333,22 @@ export interface PluginA2UIComponent {
 export interface A2UIPluginComponentProps {
   /** Component definition */
   component: A2UIComponent;
-  
+
   /** Surface ID */
   surfaceId: string;
-  
+
   /** Data model */
   dataModel: Record<string, unknown>;
-  
+
   /** Action handler */
   onAction: (action: string, data?: Record<string, unknown>) => void;
-  
+
   /** Data change handler */
   onDataChange: (path: string, value: unknown) => void;
-  
+
   /** Child renderer */
   renderChild: (componentId: string) => React.ReactNode;
-  
+
   /** Plugin context */
   pluginContext: PluginContext;
 }
@@ -359,16 +363,16 @@ export interface A2UIPluginComponentProps {
 export interface PluginToolDef {
   /** Tool name */
   name: string;
-  
+
   /** Description for AI */
   description: string;
-  
+
   /** Category */
   category?: string;
-  
+
   /** Whether tool requires user approval */
   requiresApproval?: boolean;
-  
+
   /** JSON Schema for parameters */
   parametersSchema: Record<string, unknown>;
 }
@@ -379,13 +383,13 @@ export interface PluginToolDef {
 export interface PluginTool {
   /** Tool name */
   name: string;
-  
+
   /** Plugin that provides this tool */
   pluginId: string;
-  
+
   /** Tool definition */
   definition: PluginToolDef;
-  
+
   /** Execute function */
   execute: (args: Record<string, unknown>, context: PluginToolContext) => Promise<unknown>;
 }
@@ -396,16 +400,16 @@ export interface PluginTool {
 export interface PluginToolContext {
   /** Current session ID */
   sessionId?: string;
-  
+
   /** Current message ID */
   messageId?: string;
-  
+
   /** Plugin configuration */
   config: Record<string, unknown>;
-  
+
   /** Report progress */
   reportProgress?: (progress: number, message?: string) => void;
-  
+
   /** Abort signal */
   signal?: AbortSignal;
 }
@@ -420,25 +424,25 @@ export interface PluginToolContext {
 export interface PluginModeDef {
   /** Mode ID */
   id: string;
-  
+
   /** Display name */
   name: string;
-  
+
   /** Description */
   description: string;
-  
+
   /** Icon (Lucide name) */
   icon: string;
-  
+
   /** System prompt */
   systemPrompt?: string;
-  
+
   /** Available tools */
   tools?: string[];
-  
+
   /** Output format */
   outputFormat?: 'text' | 'code' | 'html' | 'react' | 'markdown';
-  
+
   /** Whether preview is enabled */
   previewEnabled?: boolean;
 }
@@ -457,30 +461,30 @@ export interface PluginHooks {
   onDisable?: () => Promise<void> | void;
   onUnload?: () => Promise<void> | void;
   onConfigChange?: (config: Record<string, unknown>) => void;
-  
+
   // A2UI hooks
   onA2UISurfaceCreate?: (surfaceId: string, type: A2UISurfaceType) => void;
   onA2UISurfaceDestroy?: (surfaceId: string) => void;
   onA2UIAction?: (action: PluginA2UIAction) => void | Promise<void>;
   onA2UIDataChange?: (change: PluginA2UIDataChange) => void;
-  
+
   // Agent hooks
   onAgentStart?: (agentId: string, config: Record<string, unknown>) => void;
   onAgentStep?: (agentId: string, step: PluginAgentStep) => void;
   onAgentToolCall?: (agentId: string, tool: string, args: unknown) => unknown | Promise<unknown>;
   onAgentComplete?: (agentId: string, result: unknown) => void;
   onAgentError?: (agentId: string, error: Error) => void;
-  
+
   // Message hooks
   onMessageSend?: (message: PluginMessage) => PluginMessage | Promise<PluginMessage>;
   onMessageReceive?: (message: PluginMessage) => PluginMessage | Promise<PluginMessage>;
   onMessageRender?: (message: PluginMessage) => React.ReactNode | null;
-  
+
   // Session hooks
   onSessionCreate?: (sessionId: string) => void;
   onSessionSwitch?: (sessionId: string) => void;
   onSessionDelete?: (sessionId: string) => void;
-  
+
   // Command hooks
   onCommand?: (command: string, args: string[]) => boolean | Promise<boolean>;
 }
@@ -525,22 +529,22 @@ export interface PluginMessage {
 export interface PluginCommand {
   /** Command ID (plugin-prefixed) */
   id: string;
-  
+
   /** Display name */
   name: string;
-  
+
   /** Description */
   description?: string;
-  
+
   /** Icon */
   icon?: string;
-  
+
   /** Keyboard shortcut */
   shortcut?: string;
-  
+
   /** Whether command is enabled */
   enabled?: boolean | (() => boolean);
-  
+
   /** Execute handler */
   execute: (args?: Record<string, unknown>) => void | Promise<void>;
 }
@@ -555,61 +559,61 @@ export interface PluginCommand {
 export interface PluginContext {
   /** Plugin ID */
   pluginId: string;
-  
+
   /** Plugin directory path */
   pluginPath: string;
-  
+
   /** Plugin configuration */
   config: Record<string, unknown>;
-  
+
   /** Logger */
   logger: PluginLogger;
-  
+
   /** Storage API */
   storage: PluginStorage;
-  
+
   /** Event emitter */
   events: PluginEventEmitter;
-  
+
   /** UI API */
   ui: PluginUIAPI;
-  
+
   /** A2UI API */
   a2ui: PluginA2UIAPI;
-  
+
   /** Agent API */
   agent: PluginAgentAPI;
-  
+
   /** Settings API */
   settings: PluginSettingsAPI;
-  
+
   /** Python API (if hybrid plugin) */
   python?: PluginPythonAPI;
-  
+
   /** Network API for HTTP requests */
   network: PluginNetworkAPI;
-  
+
   /** File System API */
   fs: PluginFileSystemAPI;
-  
+
   /** Clipboard API */
   clipboard: PluginClipboardAPI;
-  
+
   /** Shell API for command execution */
   shell: PluginShellAPI;
-  
+
   /** Database API */
   db: PluginDatabaseAPI;
-  
+
   /** Keyboard Shortcuts API */
   shortcuts: PluginShortcutsAPI;
-  
+
   /** Context Menu API */
   contextMenu: PluginContextMenuAPI;
-  
+
   /** Window API */
   window: PluginWindowAPI;
-  
+
   /** Secrets API for secure storage */
   secrets: PluginSecretsAPI;
 }
@@ -740,19 +744,35 @@ export interface PluginNetworkAPI {
   /** Make a GET request */
   get: <T>(url: string, options?: NetworkRequestOptions) => Promise<NetworkResponse<T>>;
   /** Make a POST request */
-  post: <T>(url: string, body?: unknown, options?: NetworkRequestOptions) => Promise<NetworkResponse<T>>;
+  post: <T>(
+    url: string,
+    body?: unknown,
+    options?: NetworkRequestOptions
+  ) => Promise<NetworkResponse<T>>;
   /** Make a PUT request */
-  put: <T>(url: string, body?: unknown, options?: NetworkRequestOptions) => Promise<NetworkResponse<T>>;
+  put: <T>(
+    url: string,
+    body?: unknown,
+    options?: NetworkRequestOptions
+  ) => Promise<NetworkResponse<T>>;
   /** Make a DELETE request */
   delete: <T>(url: string, options?: NetworkRequestOptions) => Promise<NetworkResponse<T>>;
   /** Make a PATCH request */
-  patch: <T>(url: string, body?: unknown, options?: NetworkRequestOptions) => Promise<NetworkResponse<T>>;
+  patch: <T>(
+    url: string,
+    body?: unknown,
+    options?: NetworkRequestOptions
+  ) => Promise<NetworkResponse<T>>;
   /** Generic fetch with full control */
   fetch: <T>(url: string, options?: NetworkRequestOptions) => Promise<NetworkResponse<T>>;
   /** Download a file */
   download: (url: string, destPath: string, options?: DownloadOptions) => Promise<DownloadResult>;
   /** Upload a file */
-  upload: (url: string, filePath: string, options?: UploadOptions) => Promise<NetworkResponse<unknown>>;
+  upload: (
+    url: string,
+    filePath: string,
+    options?: UploadOptions
+  ) => Promise<NetworkResponse<unknown>>;
 }
 
 export interface NetworkRequestOptions {
@@ -1019,7 +1039,7 @@ export interface ContextMenuItem {
   disabled?: boolean | ((context: ContextMenuClickContext) => boolean);
 }
 
-export type ContextMenuContext = 
+export type ContextMenuContext =
   | 'chat:message'
   | 'chat:input'
   | 'artifact'
@@ -1116,43 +1136,43 @@ export interface PluginSecretsAPI {
 export interface Plugin {
   /** Plugin manifest */
   manifest: PluginManifest;
-  
+
   /** Current status */
   status: PluginStatus;
-  
+
   /** Plugin source */
   source: PluginSource;
-  
+
   /** Installation path */
   path: string;
-  
+
   /** Current configuration */
   config: Record<string, unknown>;
-  
+
   /** Error message if status is 'error' */
   error?: string;
-  
+
   /** Hooks implementation */
   hooks?: PluginHooks;
-  
+
   /** Registered tools */
   tools?: PluginTool[];
-  
+
   /** Registered components */
   components?: PluginA2UIComponent[];
-  
+
   /** Registered modes */
   modes?: AgentModeConfig[];
-  
+
   /** Registered commands */
   commands?: PluginCommand[];
-  
+
   /** Installation timestamp */
   installedAt?: Date;
-  
+
   /** Last enabled timestamp */
   enabledAt?: Date;
-  
+
   /** Last update timestamp */
   updatedAt?: Date;
 }
@@ -1167,19 +1187,19 @@ export interface Plugin {
 export interface PluginStoreState {
   /** All registered plugins */
   plugins: Record<string, Plugin>;
-  
+
   /** Plugin load order */
   loadOrder: string[];
-  
+
   /** Currently loading plugins */
   loading: Set<string>;
-  
+
   /** Plugin errors */
   errors: Record<string, string>;
-  
+
   /** Whether plugin system is initialized */
   initialized: boolean;
-  
+
   /** Plugin directory path */
   pluginDirectory: string;
 }

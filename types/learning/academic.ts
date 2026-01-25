@@ -39,7 +39,7 @@ export interface AcademicProviderConfig {
 }
 
 export const DEFAULT_ACADEMIC_PROVIDERS: Record<AcademicProviderType, AcademicProviderConfig> = {
-  'arxiv': {
+  arxiv: {
     providerId: 'arxiv',
     name: 'arXiv',
     description: 'Open-access archive for scholarly articles in physics, mathematics, CS, and more',
@@ -71,10 +71,10 @@ export const DEFAULT_ACADEMIC_PROVIDERS: Record<AcademicProviderType, AcademicPr
       openAccess: true,
     },
   },
-  'core': {
+  core: {
     providerId: 'core',
     name: 'CORE',
-    description: 'World\'s largest collection of open access research papers',
+    description: "World's largest collection of open access research papers",
     baseUrl: 'https://api.core.ac.uk/v3',
     enabled: true,
     rateLimit: { requestsPerSecond: 10 },
@@ -87,7 +87,7 @@ export const DEFAULT_ACADEMIC_PROVIDERS: Record<AcademicProviderType, AcademicPr
       openAccess: true,
     },
   },
-  'openalex': {
+  openalex: {
     providerId: 'openalex',
     name: 'OpenAlex',
     description: 'Open catalog of scholarly papers, authors, and institutions',
@@ -103,7 +103,7 @@ export const DEFAULT_ACADEMIC_PROVIDERS: Record<AcademicProviderType, AcademicPr
       openAccess: true,
     },
   },
-  'dblp': {
+  dblp: {
     providerId: 'dblp',
     name: 'DBLP',
     description: 'Computer science bibliography database',
@@ -119,7 +119,7 @@ export const DEFAULT_ACADEMIC_PROVIDERS: Record<AcademicProviderType, AcademicPr
       openAccess: false,
     },
   },
-  'unpaywall': {
+  unpaywall: {
     providerId: 'unpaywall',
     name: 'Unpaywall',
     description: 'Find free versions of research papers',
@@ -135,7 +135,7 @@ export const DEFAULT_ACADEMIC_PROVIDERS: Record<AcademicProviderType, AcademicPr
       openAccess: true,
     },
   },
-  'openreview': {
+  openreview: {
     providerId: 'openreview',
     name: 'OpenReview',
     description: 'Open peer review platform for scientific papers',
@@ -218,7 +218,7 @@ export interface Paper {
   id: string;
   providerId: AcademicProviderType;
   externalId: string; // Provider-specific ID
-  
+
   // Basic metadata
   title: string;
   abstract?: string;
@@ -231,26 +231,26 @@ export interface Paper {
   volume?: string;
   issue?: string;
   pages?: string;
-  
+
   // Classification
   categories?: string[];
   keywords?: string[];
   fieldsOfStudy?: string[];
-  
+
   // Metrics
   citationCount?: number;
   referenceCount?: number;
   influentialCitationCount?: number;
-  
+
   // URLs and access
   urls: PaperUrl[];
   pdfUrl?: string;
   openAccessUrl?: string;
   isOpenAccess?: boolean;
-  
+
   // External IDs
   metadata: PaperMetadata;
-  
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -297,28 +297,28 @@ export interface LibraryPaper extends Paper {
   libraryId: string;
   addedAt: Date;
   lastAccessedAt?: Date;
-  
+
   // Organization
   collections?: string[];
   tags?: string[];
-  
+
   // Reading progress
   readingStatus: PaperReadingStatus;
   priority: PaperPriority;
   readingProgress?: number; // 0-100
-  
+
   // User data
   userRating?: number; // 1-5
   userNotes?: string;
   annotations?: PaperAnnotation[];
   notes?: PaperNote[];
-  
+
   // Local storage
   localPdfPath?: string;
   localFullTextPath?: string;
   hasCachedPdf?: boolean;
   hasCachedFullText?: boolean;
-  
+
   // AI analysis
   aiSummary?: string;
   aiKeyInsights?: string[];
@@ -388,11 +388,14 @@ export interface PaperSearchResult {
 export interface AggregatedSearchResult {
   papers: Paper[];
   totalResults: number;
-  providerResults: Record<AcademicProviderType, {
-    count: number;
-    success: boolean;
-    error?: string;
-  }>;
+  providerResults: Record<
+    AcademicProviderType,
+    {
+      count: number;
+      success: boolean;
+      error?: string;
+    }
+  >;
   searchTime: number;
 }
 
@@ -449,20 +452,20 @@ export interface AcademicLearningSession {
   topic: string;
   papers: string[]; // Paper IDs
   currentPaperId?: string;
-  
+
   // Learning state
   phase: AcademicLearningPhase;
   progress: number;
-  
+
   // Learning path
   learningObjectives?: string[];
   conceptsToLearn?: AcademicConcept[];
   questionsAnswered?: AcademicQuestion[];
-  
+
   // Session data
   notes?: string;
   insights?: string[];
-  
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -470,14 +473,14 @@ export interface AcademicLearningSession {
 }
 
 export type AcademicLearningPhase =
-  | 'overview'        // Getting paper overview
-  | 'background'      // Understanding prerequisites
-  | 'deep-dive'       // Detailed study
-  | 'methodology'     // Understanding methods
-  | 'analysis'        // Analyzing findings
-  | 'synthesis'       // Connecting ideas
-  | 'application'     // Practical applications
-  | 'review'          // Review and consolidation
+  | 'overview' // Getting paper overview
+  | 'background' // Understanding prerequisites
+  | 'deep-dive' // Detailed study
+  | 'methodology' // Understanding methods
+  | 'analysis' // Analyzing findings
+  | 'synthesis' // Connecting ideas
+  | 'application' // Practical applications
+  | 'review' // Review and consolidation
   | 'completed';
 
 export interface AcademicConcept {
@@ -549,33 +552,36 @@ export interface AcademicExportResult {
 
 export interface AcademicModeSettings {
   // Provider settings
-  providers: Record<AcademicProviderType, {
-    enabled: boolean;
-    apiKey?: string;
-    priority: number;
-  }>;
+  providers: Record<
+    AcademicProviderType,
+    {
+      enabled: boolean;
+      apiKey?: string;
+      priority: number;
+    }
+  >;
   defaultProviders: AcademicProviderType[];
-  
+
   // Search settings
   defaultSearchLimit: number;
   aggregateSearch: boolean;
   preferOpenAccess: boolean;
-  
+
   // Download settings
   autoDownloadPdf: boolean;
   pdfStoragePath?: string;
   maxStorageSize?: number; // MB
-  
+
   // Analysis settings
   defaultAnalysisDepth: 'brief' | 'standard' | 'detailed';
   autoAnalyzeOnAdd: boolean;
   preferredLanguage: string;
-  
+
   // Learning settings
   enableGuidedLearning: boolean;
   learningDifficulty: 'beginner' | 'intermediate' | 'advanced';
   enableSpacedRepetition: boolean;
-  
+
   // UI settings
   defaultView: 'grid' | 'list' | 'table';
   showCitationCounts: boolean;
@@ -584,13 +590,13 @@ export interface AcademicModeSettings {
 
 export const DEFAULT_ACADEMIC_SETTINGS: AcademicModeSettings = {
   providers: {
-    'arxiv': { enabled: true, priority: 1 },
+    arxiv: { enabled: true, priority: 1 },
     'semantic-scholar': { enabled: true, priority: 2 },
-    'core': { enabled: true, priority: 3 },
-    'openalex': { enabled: true, priority: 4 },
-    'dblp': { enabled: true, priority: 5 },
-    'unpaywall': { enabled: true, priority: 6 },
-    'openreview': { enabled: true, priority: 7 },
+    core: { enabled: true, priority: 3 },
+    openalex: { enabled: true, priority: 4 },
+    dblp: { enabled: true, priority: 5 },
+    unpaywall: { enabled: true, priority: 6 },
+    openreview: { enabled: true, priority: 7 },
     'huggingface-papers': { enabled: true, priority: 8 },
   },
   defaultProviders: ['arxiv', 'semantic-scholar', 'core'],
@@ -618,20 +624,20 @@ export interface AcademicStatistics {
   totalCollections: number;
   totalAnnotations: number;
   totalNotes: number;
-  
+
   papersByStatus: Record<PaperReadingStatus, number>;
   papersByProvider: Record<AcademicProviderType, number>;
   papersByYear: Record<number, number>;
   papersByCategory: Record<string, number>;
-  
+
   readingStreak: number;
   papersReadThisWeek: number;
   papersReadThisMonth: number;
   averageReadingTime?: number;
-  
+
   topAuthors: { name: string; count: number }[];
   topVenues: { name: string; count: number }[];
   topKeywords: { keyword: string; count: number }[];
-  
+
   lastUpdated: Date;
 }

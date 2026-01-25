@@ -56,7 +56,14 @@ export type A2UIChartType = 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'radar
 /**
  * Button variants
  */
-export type A2UIButtonVariant = 'default' | 'primary' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link';
+export type A2UIButtonVariant =
+  | 'default'
+  | 'primary'
+  | 'secondary'
+  | 'destructive'
+  | 'outline'
+  | 'ghost'
+  | 'link';
 
 /**
  * Alert variants
@@ -66,7 +73,15 @@ export type A2UIAlertVariant = 'default' | 'info' | 'success' | 'warning' | 'err
 /**
  * Text variants
  */
-export type A2UITextVariant = 'body' | 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'caption' | 'code' | 'label';
+export type A2UITextVariant =
+  | 'body'
+  | 'heading1'
+  | 'heading2'
+  | 'heading3'
+  | 'heading4'
+  | 'caption'
+  | 'code'
+  | 'label';
 
 // =============================================================================
 // Data Binding Types (JSON Pointer RFC 6901)

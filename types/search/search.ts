@@ -372,62 +372,63 @@ export const SEARCH_PROVIDERS: Record<SearchProviderType, SearchProviderConfig> 
 /**
  * Default search provider settings
  */
-export const DEFAULT_SEARCH_PROVIDER_SETTINGS: Record<SearchProviderType, SearchProviderSettings> = {
-  tavily: {
-    providerId: 'tavily',
-    apiKey: '',
-    enabled: false,
-    priority: 1,
-  },
-  perplexity: {
-    providerId: 'perplexity',
-    apiKey: '',
-    enabled: false,
-    priority: 2,
-  },
-  exa: {
-    providerId: 'exa',
-    apiKey: '',
-    enabled: false,
-    priority: 3,
-  },
-  searchapi: {
-    providerId: 'searchapi',
-    apiKey: '',
-    enabled: false,
-    priority: 4,
-  },
-  serpapi: {
-    providerId: 'serpapi',
-    apiKey: '',
-    enabled: false,
-    priority: 5,
-  },
-  bing: {
-    providerId: 'bing',
-    apiKey: '',
-    enabled: false,
-    priority: 6,
-  },
-  google: {
-    providerId: 'google',
-    apiKey: '',
-    enabled: false,
-    priority: 7,
-  },
-  brave: {
-    providerId: 'brave',
-    apiKey: '',
-    enabled: false,
-    priority: 8,
-  },
-  'google-ai': {
-    providerId: 'google-ai',
-    apiKey: '',
-    enabled: false,
-    priority: 9,
-  },
-};
+export const DEFAULT_SEARCH_PROVIDER_SETTINGS: Record<SearchProviderType, SearchProviderSettings> =
+  {
+    tavily: {
+      providerId: 'tavily',
+      apiKey: '',
+      enabled: false,
+      priority: 1,
+    },
+    perplexity: {
+      providerId: 'perplexity',
+      apiKey: '',
+      enabled: false,
+      priority: 2,
+    },
+    exa: {
+      providerId: 'exa',
+      apiKey: '',
+      enabled: false,
+      priority: 3,
+    },
+    searchapi: {
+      providerId: 'searchapi',
+      apiKey: '',
+      enabled: false,
+      priority: 4,
+    },
+    serpapi: {
+      providerId: 'serpapi',
+      apiKey: '',
+      enabled: false,
+      priority: 5,
+    },
+    bing: {
+      providerId: 'bing',
+      apiKey: '',
+      enabled: false,
+      priority: 6,
+    },
+    google: {
+      providerId: 'google',
+      apiKey: '',
+      enabled: false,
+      priority: 7,
+    },
+    brave: {
+      providerId: 'brave',
+      apiKey: '',
+      enabled: false,
+      priority: 8,
+    },
+    'google-ai': {
+      providerId: 'google-ai',
+      apiKey: '',
+      enabled: false,
+      priority: 9,
+    },
+  };
 
 /**
  * Get enabled providers sorted by priority
@@ -446,13 +447,15 @@ export function getEnabledProviders(
 export function validateApiKey(provider: SearchProviderType, apiKey: string): boolean {
   const config = SEARCH_PROVIDERS[provider];
   if (!config) return false;
-  
+
   if (!apiKey || apiKey.trim() === '') return false;
-  
+
   if (config.apiKeyPrefix) {
-    return apiKey.startsWith(config.apiKeyPrefix) && apiKey.length > config.apiKeyPrefix.length + 10;
+    return (
+      apiKey.startsWith(config.apiKeyPrefix) && apiKey.length > config.apiKeyPrefix.length + 10
+    );
   }
-  
+
   return apiKey.length >= 10;
 }
 

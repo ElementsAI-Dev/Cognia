@@ -1,6 +1,6 @@
 /**
  * Summary and Diagram Generation Type Definitions
- * 
+ *
  * Types for summarizing chat conversations and agent executions,
  * and generating Mermaid diagrams for visualization.
  */
@@ -17,56 +17,56 @@ export type SummaryScope = 'all' | 'selected' | 'range';
 /**
  * Summary style - tone and approach
  */
-export type SummaryStyle = 
-  | 'professional'  // Formal, business-appropriate
-  | 'concise'       // Brief, to-the-point
-  | 'detailed'      // Comprehensive with context
-  | 'academic'      // Scholarly, analytical
-  | 'casual';       // Informal, conversational
+export type SummaryStyle =
+  | 'professional' // Formal, business-appropriate
+  | 'concise' // Brief, to-the-point
+  | 'detailed' // Comprehensive with context
+  | 'academic' // Scholarly, analytical
+  | 'casual'; // Informal, conversational
 
 /**
  * Key point category for classification
  */
-export type KeyPointCategory = 
-  | 'question'      // User questions
-  | 'answer'        // Assistant answers
-  | 'decision'      // Decisions made
-  | 'action'        // Action items
-  | 'insight'       // Key insights
-  | 'code'          // Code-related points
-  | 'tool'          // Tool usage
-  | 'summary'       // General summary point
-  | 'issue'         // Problems or issues
-  | 'solution';     // Solutions provided
+export type KeyPointCategory =
+  | 'question' // User questions
+  | 'answer' // Assistant answers
+  | 'decision' // Decisions made
+  | 'action' // Action items
+  | 'insight' // Key insights
+  | 'code' // Code-related points
+  | 'tool' // Tool usage
+  | 'summary' // General summary point
+  | 'issue' // Problems or issues
+  | 'solution'; // Solutions provided
 
 /**
  * Summary template type
  */
-export type SummaryTemplate = 
+export type SummaryTemplate =
   | 'default'
-  | 'meeting'       // Meeting notes style
-  | 'technical'     // Technical discussion
-  | 'learning'      // Learning session
-  | 'debugging';    // Debug session
+  | 'meeting' // Meeting notes style
+  | 'technical' // Technical discussion
+  | 'learning' // Learning session
+  | 'debugging'; // Debug session
 
 /**
  * Diagram type for visualization
  */
-export type DiagramType = 
-  | 'flowchart'      // General flow diagram
-  | 'sequence'       // Sequence diagram for conversations
-  | 'timeline'       // Gantt-style timeline
-  | 'mindmap'        // Mind map of topics
-  | 'stateDiagram';  // State transitions
+export type DiagramType =
+  | 'flowchart' // General flow diagram
+  | 'sequence' // Sequence diagram for conversations
+  | 'timeline' // Gantt-style timeline
+  | 'mindmap' // Mind map of topics
+  | 'stateDiagram'; // State transitions
 
 /**
  * Summary format options
  */
-export type SummaryFormat = 
-  | 'brief'          // Short summary (1-2 paragraphs)
-  | 'detailed'       // Detailed summary with sections
-  | 'bullets'        // Bullet point list
-  | 'structured';    // Structured with key topics
+export type SummaryFormat =
+  | 'brief' // Short summary (1-2 paragraphs)
+  | 'detailed' // Detailed summary with sections
+  | 'bullets' // Bullet point list
+  | 'structured'; // Structured with key topics
 
 /**
  * Message range for selective summarization

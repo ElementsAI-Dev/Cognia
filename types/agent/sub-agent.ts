@@ -57,14 +57,14 @@ export function createCancellationToken(): CancellationToken {
  * SubAgent execution status
  */
 export type SubAgentStatus =
-  | 'pending'      // Waiting to be started
-  | 'queued'       // In execution queue
-  | 'running'      // Currently executing
-  | 'waiting'      // Waiting for dependency or approval
-  | 'completed'    // Successfully completed
-  | 'failed'       // Execution failed
-  | 'cancelled'    // Cancelled by user or parent
-  | 'timeout';     // Execution timed out
+  | 'pending' // Waiting to be started
+  | 'queued' // In execution queue
+  | 'running' // Currently executing
+  | 'waiting' // Waiting for dependency or approval
+  | 'completed' // Successfully completed
+  | 'failed' // Execution failed
+  | 'cancelled' // Cancelled by user or parent
+  | 'timeout'; // Execution timed out
 
 /**
  * SubAgent priority levels
@@ -74,9 +74,9 @@ export type SubAgentPriority = 'critical' | 'high' | 'normal' | 'low' | 'backgro
 /**
  * SubAgent execution mode
  */
-export type SubAgentExecutionMode = 
-  | 'sequential'   // Execute one after another
-  | 'parallel'     // Execute simultaneously
+export type SubAgentExecutionMode =
+  | 'sequential' // Execute one after another
+  | 'parallel' // Execute simultaneously
   | 'conditional'; // Execute based on conditions
 
 /**
@@ -331,11 +331,14 @@ export const DEFAULT_SUB_AGENT_CONFIG: SubAgentConfig = {
 /**
  * SubAgent status display configuration
  */
-export const SUB_AGENT_STATUS_CONFIG: Record<SubAgentStatus, {
-  label: string;
-  color: string;
-  icon: string;
-}> = {
+export const SUB_AGENT_STATUS_CONFIG: Record<
+  SubAgentStatus,
+  {
+    label: string;
+    color: string;
+    icon: string;
+  }
+> = {
   pending: { label: 'Pending', color: 'text-muted-foreground', icon: 'Circle' },
   queued: { label: 'Queued', color: 'text-blue-500', icon: 'Clock' },
   running: { label: 'Running', color: 'text-primary', icon: 'Loader2' },
@@ -349,11 +352,14 @@ export const SUB_AGENT_STATUS_CONFIG: Record<SubAgentStatus, {
 /**
  * SubAgent priority display configuration
  */
-export const SUB_AGENT_PRIORITY_CONFIG: Record<SubAgentPriority, {
-  label: string;
-  color: string;
-  weight: number;
-}> = {
+export const SUB_AGENT_PRIORITY_CONFIG: Record<
+  SubAgentPriority,
+  {
+    label: string;
+    color: string;
+    weight: number;
+  }
+> = {
   critical: { label: 'Critical', color: 'text-red-500', weight: 5 },
   high: { label: 'High', color: 'text-orange-500', weight: 4 },
   normal: { label: 'Normal', color: 'text-blue-500', weight: 3 },
@@ -427,9 +433,7 @@ export const BUILT_IN_SUBAGENT_TEMPLATES: SubAgentTemplate[] = [
       timeout: 180000,
       priority: 'normal',
     },
-    variables: [
-      { name: 'topic', description: 'Research topic', required: true },
-    ],
+    variables: [{ name: 'topic', description: 'Research topic', required: true }],
     icon: 'Search',
     isBuiltIn: true,
   },
@@ -438,15 +442,14 @@ export const BUILT_IN_SUBAGENT_TEMPLATES: SubAgentTemplate[] = [
     name: 'Code Review',
     description: 'Review code for bugs, performance issues, and best practices',
     category: 'coding',
-    taskTemplate: 'Review the following code and provide detailed feedback on bugs, performance, and best practices:\n\n{{code}}',
+    taskTemplate:
+      'Review the following code and provide detailed feedback on bugs, performance, and best practices:\n\n{{code}}',
     config: {
       maxSteps: 5,
       timeout: 120000,
       priority: 'high',
     },
-    variables: [
-      { name: 'code', description: 'Code to review', required: true },
-    ],
+    variables: [{ name: 'code', description: 'Code to review', required: true }],
     icon: 'Code',
     isBuiltIn: true,
   },
@@ -463,9 +466,18 @@ export const BUILT_IN_SUBAGENT_TEMPLATES: SubAgentTemplate[] = [
       temperature: 0.8,
     },
     variables: [
-      { name: 'contentType', description: 'Type of content (article, blog post, etc.)', required: true },
+      {
+        name: 'contentType',
+        description: 'Type of content (article, blog post, etc.)',
+        required: true,
+      },
       { name: 'topic', description: 'Topic to write about', required: true },
-      { name: 'requirements', description: 'Additional requirements', required: false, defaultValue: 'None' },
+      {
+        name: 'requirements',
+        description: 'Additional requirements',
+        required: false,
+        defaultValue: 'None',
+      },
     ],
     icon: 'FileText',
     isBuiltIn: true,
@@ -475,7 +487,8 @@ export const BUILT_IN_SUBAGENT_TEMPLATES: SubAgentTemplate[] = [
     name: 'Data Analyzer',
     description: 'Analyze data and extract insights',
     category: 'analysis',
-    taskTemplate: 'Analyze the following data and provide key insights:\n\n{{data}}\n\nFocus on: {{focusAreas}}',
+    taskTemplate:
+      'Analyze the following data and provide key insights:\n\n{{data}}\n\nFocus on: {{focusAreas}}',
     config: {
       maxSteps: 10,
       timeout: 240000,
@@ -483,7 +496,12 @@ export const BUILT_IN_SUBAGENT_TEMPLATES: SubAgentTemplate[] = [
     },
     variables: [
       { name: 'data', description: 'Data to analyze', required: true },
-      { name: 'focusAreas', description: 'Areas to focus on', required: false, defaultValue: 'trends, patterns, anomalies' },
+      {
+        name: 'focusAreas',
+        description: 'Areas to focus on',
+        required: false,
+        defaultValue: 'trends, patterns, anomalies',
+      },
     ],
     icon: 'BarChart',
     isBuiltIn: true,

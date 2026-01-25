@@ -2,7 +2,7 @@
  * Document Management Types
  */
 
-export type DocumentType = 
+export type DocumentType =
   | 'markdown'
   | 'code'
   | 'text'

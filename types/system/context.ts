@@ -1,6 +1,6 @@
 /**
  * Context types for Dynamic Context Discovery
- * 
+ *
  * This module defines types for the context file system (ContextFS)
  * which provides file-based abstractions for:
  * - Long tool output persistence
@@ -13,13 +13,13 @@
 /**
  * Context file categories for organized storage
  */
-export type ContextCategory = 
-  | 'tool-output'    // Long tool/MCP/shell outputs
-  | 'history'        // Chat history for summarization recovery
-  | 'mcp'            // MCP tool descriptions and status
-  | 'skills'         // Agent skill definitions
-  | 'terminal'       // Terminal session outputs
-  | 'temp';          // Temporary working files
+export type ContextCategory =
+  | 'tool-output' // Long tool/MCP/shell outputs
+  | 'history' // Chat history for summarization recovery
+  | 'mcp' // MCP tool descriptions and status
+  | 'skills' // Agent skill definitions
+  | 'terminal' // Terminal session outputs
+  | 'temp'; // Temporary working files
 
 /**
  * Metadata for a context file

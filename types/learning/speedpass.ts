@@ -1,6 +1,6 @@
 /**
  * SpeedPass Learning Platform Type Definitions
- * 
+ *
  * Types for exam preparation with textbook matching, knowledge extraction,
  * speed learning tutorials, and intelligent question banks.
  */
@@ -50,21 +50,21 @@ export interface UserAcademicProfile {
 // Textbook Types
 // ============================================================================
 
-export type TextbookParseStatus = 
-  | 'pending' 
-  | 'uploading' 
-  | 'parsing' 
+export type TextbookParseStatus =
+  | 'pending'
+  | 'uploading'
+  | 'parsing'
   | 'extracting_chapters'
   | 'extracting_knowledge_points'
   | 'extracting_questions'
-  | 'completed' 
+  | 'completed'
   | 'failed';
 
 export type TextbookSource = 'official' | 'user_upload' | 'community' | 'crawl';
 
 export interface Textbook {
   id: string;
-  
+
   // Basic metadata
   name: string;
   author: string;
@@ -72,33 +72,33 @@ export interface Textbook {
   edition?: string;
   isbn?: string;
   coverUrl?: string;
-  
+
   // Content info
   totalPages?: number;
   totalChapters?: number;
   totalKnowledgePoints?: number;
   totalExamples?: number;
   totalExercises?: number;
-  
+
   // Storage
   pdfUrl?: string;
   originalFileSize?: number; // bytes
-  
+
   // Parsing status
   parseStatus: TextbookParseStatus;
   parseProgress?: number; // 0-100
   parseError?: string;
-  
+
   // Source & ownership
   source: TextbookSource;
   uploaderId?: string;
   isPublic: boolean;
-  
+
   // Usage stats
   usageCount: number;
   rating?: number; // 1-5
   ratingCount?: number;
-  
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -109,22 +109,22 @@ export interface TextbookChapter {
   id: string;
   textbookId: string;
   parentId?: string; // For nested chapters (sections)
-  
+
   // Structure
   chapterNumber: string; // e.g., "2", "2.3", "2.3.1"
   title: string;
   level: number; // 1 = chapter, 2 = section, 3 = subsection
   orderIndex: number;
-  
+
   // Page info
   pageStart: number;
   pageEnd: number;
-  
+
   // Content counts
   knowledgePointCount: number;
   exampleCount: number;
   exerciseCount: number;
-  
+
   // Summary
   summary?: string;
 }
@@ -133,15 +133,15 @@ export interface TextbookChapter {
 // Knowledge Point Types
 // ============================================================================
 
-export type KnowledgePointType = 
-  | 'definition'   // 定义
-  | 'theorem'      // 定理
-  | 'formula'      // 公式
-  | 'concept'      // 概念
-  | 'method'       // 方法
-  | 'property'     // 性质
-  | 'corollary'    // 推论
-  | 'lemma';       // 引理
+export type KnowledgePointType =
+  | 'definition' // 定义
+  | 'theorem' // 定理
+  | 'formula' // 公式
+  | 'concept' // 概念
+  | 'method' // 方法
+  | 'property' // 性质
+  | 'corollary' // 推论
+  | 'lemma'; // 引理
 
 export type KnowledgePointImportance = 'critical' | 'high' | 'medium' | 'low';
 
@@ -149,38 +149,38 @@ export interface TextbookKnowledgePoint {
   id: string;
   textbookId: string;
   chapterId: string;
-  
+
   // Content
   title: string;
   content: string;
   summary?: string;
-  
+
   // Classification
   type: KnowledgePointType;
   importance: KnowledgePointImportance;
   difficulty: number; // 0-1
-  
+
   // Formulas (LaTeX)
   formulas?: string[];
-  
+
   // Location
   pageNumber: number;
-  
+
   // Relations
   prerequisites?: string[]; // IDs of prerequisite knowledge points
   relatedKnowledgePoints?: string[];
-  
+
   // Examples & exercises linked to this knowledge point
   relatedExampleIds?: string[];
   relatedExerciseIds?: string[];
-  
+
   // AI extraction confidence
   extractionConfidence: number; // 0-1
   verified: boolean;
-  
+
   // Vector embedding for semantic search
   vectorEmbedding?: number[];
-  
+
   // Tags for filtering
   tags?: string[];
 }
@@ -189,18 +189,18 @@ export interface TextbookKnowledgePoint {
 // Question Types (Examples & Exercises)
 // ============================================================================
 
-export type QuestionSourceType = 
-  | 'example'      // 课本例题
-  | 'exercise'     // 章节习题
-  | 'review'       // 复习题
-  | 'exam'         // 真题
+export type QuestionSourceType =
+  | 'example' // 课本例题
+  | 'exercise' // 章节习题
+  | 'review' // 复习题
+  | 'exam' // 真题
   | 'ai_generated'; // AI生成
 
-export type QuestionType = 
-  | 'choice'       // 选择题
-  | 'fill_blank'   // 填空题
-  | 'calculation'  // 计算题
-  | 'proof'        // 证明题
+export type QuestionType =
+  | 'choice' // 选择题
+  | 'fill_blank' // 填空题
+  | 'calculation' // 计算题
+  | 'proof' // 证明题
   | 'short_answer' // 简答题
   | 'comprehensive'; // 综合题
 
@@ -221,21 +221,21 @@ export interface TextbookQuestion {
   id: string;
   textbookId: string;
   chapterId: string;
-  
+
   // Source info
   sourceType: QuestionSourceType;
   questionNumber: string; // e.g., "例5", "习题2.1第3题"
   pageNumber: number;
-  
+
   // Question content
   content: string;
   contentImages?: string[]; // Image URLs
   formulas?: string[]; // LaTeX formulas in question
-  
+
   // Question classification
   questionType: QuestionType;
   options?: QuestionOption[]; // For choice questions
-  
+
   // Solution
   solution?: {
     steps: SolutionStep[];
@@ -243,28 +243,28 @@ export interface TextbookQuestion {
     answerImages?: string[];
   };
   hasSolution: boolean;
-  
+
   // AI-generated solution (if original has no solution)
   aiGeneratedSolution?: {
     steps: SolutionStep[];
     answer: string;
     confidence: number;
   };
-  
+
   // Classification
   difficulty: number; // 0-1
   knowledgePointIds: string[];
-  
+
   // Exam relevance
   examFrequency?: number; // 0-1, how often this type appears in exams
   isHighFrequency?: boolean;
-  
+
   // Similar questions
   similarQuestionIds?: string[];
-  
+
   // Learning value rating
   learningValue: 'essential' | 'recommended' | 'optional';
-  
+
   // Extraction info
   extractionConfidence: number;
   verified: boolean;
@@ -281,17 +281,17 @@ export interface CourseTextbookMapping {
   courseId: string;
   courseName: string;
   textbookId: string;
-  
+
   // Priority
   isPrimary: boolean; // Main textbook for this course
-  
+
   // Usage stats
   usageCount: number;
   confirmedByUsers: number;
-  
+
   // Semester info
   semester?: number;
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -307,11 +307,11 @@ export interface UserTextbook {
   userId: string;
   textbookId: string;
   courseId?: string;
-  
+
   source: UserTextbookSource;
   addedAt: Date;
   lastAccessedAt?: Date;
-  
+
   // Study progress
   studyProgress?: number; // 0-100
   chaptersStudied?: string[];
@@ -329,7 +329,7 @@ export interface TeacherKeyPointInput {
   inputType: TeacherKeyPointInputType;
   courseId: string;
   textbookId?: string;
-  
+
   // Input data
   fileData?: string; // Base64 encoded
   fileFormat?: 'jpg' | 'png' | 'pdf' | 'docx';
@@ -341,14 +341,14 @@ export interface MatchedKnowledgePoint {
   teacherNote: string;
   matchedKnowledgePoint: TextbookKnowledgePoint;
   matchConfidence: number;
-  
+
   // Textbook location
   chapter: {
     number: string;
     title: string;
   };
   pageRange: string; // e.g., "P23-P35"
-  
+
   // Related content
   relatedDefinitions?: string[];
   relatedFormulas?: number;
@@ -365,14 +365,14 @@ export interface TeacherKeyPointResult {
   status: 'success' | 'partial' | 'failed';
   matchedPoints: MatchedKnowledgePoint[];
   unmatchedNotes: string[];
-  
+
   // Coverage summary
   textbookCoverage: {
     chaptersInvolved: number[];
     totalExamples: number;
     totalExercises: number;
   };
-  
+
   // Study plan suggestion
   studyPlanSuggestion: {
     totalKnowledgePoints: number;
@@ -386,9 +386,9 @@ export interface TeacherKeyPointResult {
 // Speed Learning Modes
 // ============================================================================
 
-export type SpeedLearningMode = 
-  | 'extreme'   // 极速模式 1-2h - 及格(60分)
-  | 'speed'     // 速成模式 2-4h - 中等(70-80分)
+export type SpeedLearningMode =
+  | 'extreme' // 极速模式 1-2h - 及格(60分)
+  | 'speed' // 速成模式 2-4h - 中等(70-80分)
   | 'comprehensive'; // 全面模式 6-12h - 高分(85+)
 
 export interface SpeedLearningModeConfig {
@@ -398,17 +398,17 @@ export interface SpeedLearningModeConfig {
     min: number; // hours
     max: number;
   };
-  
+
   // Content coverage
   coverageStrategy: 'critical_only' | 'critical_and_related' | 'full';
-  
+
   // Question strategy
   exampleCount: {
     min: number;
     max: number;
   };
   includeExercises: boolean;
-  
+
   // Tutorial depth
   tutorialDepth: 'brief' | 'standard' | 'detailed';
 }
@@ -451,10 +451,10 @@ export interface TutorialSection {
   id: string;
   knowledgePointId: string;
   orderIndex: number;
-  
+
   // Importance level (from teacher key points)
   importanceLevel: 'critical' | 'important' | 'supplementary';
-  
+
   // Content sections
   textbookLocation: {
     textbookName: string;
@@ -462,21 +462,21 @@ export interface TutorialSection {
     section: string;
     pageRange: string;
   };
-  
+
   // Original textbook content
   originalContent: string;
-  
+
   // Speed learning summary
   quickSummary: string;
   keyPoints: string[];
-  
+
   // Formulas to memorize
   mustKnowFormulas: Array<{
     formula: string; // LaTeX
     explanation: string;
     pageNumber: number;
   }>;
-  
+
   // Examples from textbook
   examples: Array<{
     questionId: string;
@@ -484,18 +484,18 @@ export interface TutorialSection {
     difficulty: 'easy' | 'medium' | 'hard';
     pageNumber: number;
   }>;
-  
+
   // Exercises to practice
   recommendedExercises: Array<{
     questionId: string;
     number: string;
     difficulty: 'easy' | 'medium' | 'hard';
   }>;
-  
+
   // Common mistakes & tips
   commonMistakes: string[];
   memoryTips?: string[];
-  
+
   // Estimated study time
   estimatedMinutes: number;
 }
@@ -505,31 +505,31 @@ export interface SpeedLearningTutorial {
   userId: string;
   courseId: string;
   textbookId: string;
-  
+
   // Tutorial settings
   mode: SpeedLearningMode;
   createdAt: Date;
-  
+
   // Source data
   teacherKeyPointIds: string[];
-  
+
   // Tutorial content
   title: string;
   overview: string;
   sections: TutorialSection[];
-  
+
   // Time estimates
   totalEstimatedMinutes: number;
   actualTimeSpentMinutes?: number;
-  
+
   // Progress
   completedSectionIds: string[];
   currentSectionId?: string;
   progress: number; // 0-100
-  
+
   // Quiz at the end
   finalQuizId?: string;
-  
+
   // Completion
   completedAt?: Date;
   finalScore?: number;
@@ -543,22 +543,22 @@ export interface SpeedStudySession {
   id: string;
   tutorialId: string;
   userId: string;
-  
+
   // Session info
   startedAt: Date;
   endedAt?: Date;
   pausedAt?: Date;
   totalPausedMs: number;
-  
+
   // Progress
   sectionsCompleted: string[];
   currentSectionId?: string;
   questionsAttempted: number;
   questionsCorrect: number;
-  
+
   // Time tracking
   timeSpentMs: number;
-  
+
   // Session state
   status: 'active' | 'paused' | 'completed' | 'abandoned';
 }
@@ -567,11 +567,11 @@ export interface SpeedStudySession {
 // Question Bank & Quiz
 // ============================================================================
 
-export type QuestionBankSource = 
-  | 'textbook_example'  // 课本例题 60%
+export type QuestionBankSource =
+  | 'textbook_example' // 课本例题 60%
   | 'textbook_exercise' // 课本习题 20%
-  | 'past_exam'         // 历年真题 15%
-  | 'ai_generated';     // AI生成 5%
+  | 'past_exam' // 历年真题 15%
+  | 'ai_generated'; // AI生成 5%
 
 export interface QuestionBankConfig {
   mode: SpeedLearningMode;
@@ -612,13 +612,13 @@ export interface QuizQuestion {
   id: string;
   sourceQuestion: TextbookQuestion;
   source: QuestionBankSource;
-  
+
   // User's answer
   userAnswer?: string;
   isCorrect?: boolean;
   attemptedAt?: Date;
   timeSpentMs?: number;
-  
+
   // Hints used
   hintsUsed: number;
   hintsAvailable: number;
@@ -629,26 +629,26 @@ export interface Quiz {
   tutorialId?: string;
   sessionId?: string;
   userId: string;
-  
+
   // Quiz config
   title: string;
   knowledgePointIds: string[];
   questionCount: number;
   timeLimit?: number; // minutes
-  
+
   // Questions
   questions: QuizQuestion[];
   currentQuestionIndex: number;
-  
+
   // Progress
   startedAt?: Date;
   completedAt?: Date;
-  
+
   // Results
   totalScore?: number;
   maxScore?: number;
   accuracy?: number; // 0-100
-  
+
   // For wrong question book
   wrongQuestionIds?: string[];
 }
@@ -662,7 +662,7 @@ export interface WrongQuestionRecord {
   userId: string;
   questionId: string;
   textbookId: string;
-  
+
   // Attempt history
   attempts: Array<{
     attemptedAt: Date;
@@ -670,19 +670,19 @@ export interface WrongQuestionRecord {
     isCorrect: boolean;
     timeSpentMs: number;
   }>;
-  
+
   // Learning status
   status: 'new' | 'reviewing' | 'mastered';
   reviewCount: number;
   lastReviewedAt?: Date;
   nextReviewAt?: Date;
-  
+
   // Notes
   userNotes?: string;
-  
+
   // Related practice
   similarQuestionsRecommended?: string[];
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -696,20 +696,20 @@ export interface StudyReport {
   sessionId?: string;
   tutorialId?: string;
   userId: string;
-  
+
   // Time
   generatedAt: Date;
   studyPeriod: {
     start: Date;
     end: Date;
   };
-  
+
   // Overall stats
   totalTimeSpentMinutes: number;
   knowledgePointsCovered: number;
   questionsPracticed: number;
   accuracy: number; // 0-100
-  
+
   // Strengths & weaknesses
   strengthAreas: Array<{
     knowledgePointId: string;
@@ -722,14 +722,14 @@ export interface StudyReport {
     accuracy: number;
     recommendedExercises: string[];
   }>;
-  
+
   // Predictions
   predictedScore?: {
     min: number;
     max: number;
     confidence: number;
   };
-  
+
   // Recommendations
   nextSteps: string[];
   recommendedExercises: string[];
@@ -748,7 +748,7 @@ export interface CreateTextbookInput {
   isbn?: string;
   courseId?: string;
   universityId?: string;
-  
+
   // File upload
   fileType: 'pdf' | 'images';
   fileData: string | string[]; // Base64 or array of base64 images
@@ -782,24 +782,24 @@ export interface CreateQuizInput {
 export interface SpeedPassState {
   // User profile
   academicProfile?: UserAcademicProfile;
-  
+
   // Textbooks
   userTextbooks: UserTextbook[];
   currentTextbook?: Textbook;
-  
+
   // Current study session
   currentTutorial?: SpeedLearningTutorial;
   currentSession?: SpeedStudySession;
   currentQuiz?: Quiz;
-  
+
   // Wrong question book
   wrongQuestions: WrongQuestionRecord[];
-  
+
   // Statistics
   totalStudyTimeMinutes: number;
   sessionsCompleted: number;
   averageAccuracy: number;
-  
+
   // Loading states
   isLoading: boolean;
   parseProgress?: {

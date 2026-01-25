@@ -4,7 +4,12 @@
  */
 
 // WebSocket connection state
-export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error' | 'reconnecting';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'error'
+  | 'reconnecting';
 
 // WebSocket message event
 export interface WebSocketMessage<T = unknown> {

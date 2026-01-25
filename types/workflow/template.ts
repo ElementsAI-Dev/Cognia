@@ -1,6 +1,6 @@
 /**
  * Workflow Template Data Models
- * 
+ *
  * Type definitions for workflow templates, categories, and marketplace features
  */
 

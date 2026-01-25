@@ -75,19 +75,19 @@ export interface CompilerSettings {
   cppCompiler?: 'g++' | 'clang++';
   /** Enable all warnings */
   enableWarnings?: boolean;
-  
+
   // Rust settings
   /** Rust edition */
   rustEdition?: RustEdition;
   /** Build in release mode */
   rustRelease?: boolean;
-  
-  // Python settings  
+
+  // Python settings
   /** Unbuffered output (-u flag) */
   pythonUnbuffered?: boolean;
   /** Optimize bytecode (-O flag) */
   pythonOptimize?: boolean;
-  
+
   // General settings
   /** Custom additional arguments */
   customArgs?: string[];
@@ -198,10 +198,7 @@ export const DEFAULT_SANDBOX_CONFIG: BackendSandboxConfig = {
 };
 
 /** Language display information */
-export const LANGUAGE_INFO: Record<
-  string,
-  { name: string; icon: string; color: string }
-> = {
+export const LANGUAGE_INFO: Record<string, { name: string; icon: string; color: string }> = {
   python: { name: 'Python', icon: '🐍', color: '#3776ab' },
   javascript: { name: 'JavaScript', icon: '📜', color: '#f7df1e' },
   typescript: { name: 'TypeScript', icon: '📘', color: '#3178c6' },

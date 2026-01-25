@@ -1,6 +1,6 @@
 /**
  * Video Generation type definitions
- * 
+ *
  * Supports AI video generation providers:
  * - Google Veo (veo-3, veo-3.1)
  * - OpenAI Sora
@@ -8,35 +8,15 @@
 
 export type VideoProvider = 'google-veo' | 'openai-sora';
 
-export type VideoModel = 
-  | 'veo-3'
-  | 'veo-3.1'
-  | 'sora-1'
-  | 'sora-turbo';
+export type VideoModel = 'veo-3' | 'veo-3.1' | 'sora-1' | 'sora-turbo';
 
-export type VideoResolution = 
-  | '480p'
-  | '720p'
-  | '1080p'
-  | '4k';
+export type VideoResolution = '480p' | '720p' | '1080p' | '4k';
 
-export type VideoAspectRatio = 
-  | '16:9'
-  | '9:16'
-  | '1:1'
-  | '4:3'
-  | '3:4'
-  | '21:9';
+export type VideoAspectRatio = '16:9' | '9:16' | '1:1' | '4:3' | '3:4' | '21:9';
 
-export type VideoDuration = 
-  | '5s'
-  | '10s'
-  | '15s'
-  | '20s'
-  | '30s'
-  | '60s';
+export type VideoDuration = '5s' | '10s' | '15s' | '20s' | '30s' | '60s';
 
-export type VideoStyle = 
+export type VideoStyle =
   | 'cinematic'
   | 'documentary'
   | 'animation'
@@ -46,12 +26,7 @@ export type VideoStyle =
   | 'artistic'
   | 'commercial';
 
-export type VideoStatus = 
-  | 'pending'
-  | 'processing'
-  | 'completed'
-  | 'failed'
-  | 'cancelled';
+export type VideoStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
 export interface VideoGenerationOptions {
   /** Text prompt describing the video to generate */
@@ -215,7 +190,7 @@ export const VIDEO_PROVIDERS: Record<VideoProvider, VideoProviderConfig> = {
     apiKeyRequired: true,
     baseURLRequired: false,
     defaultModel: 'veo-3.1',
-    description: 'Google\'s state-of-the-art video generation model',
+    description: "Google's state-of-the-art video generation model",
     website: 'https://deepmind.google/technologies/veo/',
     docsUrl: 'https://cloud.google.com/vertex-ai/docs/generative-ai/video/overview',
     models: [
@@ -253,7 +228,7 @@ export const VIDEO_PROVIDERS: Record<VideoProvider, VideoProviderConfig> = {
     apiKeyRequired: true,
     baseURLRequired: false,
     defaultModel: 'sora-1',
-    description: 'OpenAI\'s video generation model',
+    description: "OpenAI's video generation model",
     website: 'https://openai.com/sora',
     docsUrl: 'https://platform.openai.com/docs/api-reference/videos',
     models: [
@@ -268,7 +243,7 @@ export const VIDEO_PROVIDERS: Record<VideoProvider, VideoProviderConfig> = {
         supportsImageToVideo: true,
         supportsAudio: false,
         supportsEnhancedPrompt: true,
-        pricing: { perSecond: 0.10, currency: 'USD' },
+        pricing: { perSecond: 0.1, currency: 'USD' },
       },
       {
         id: 'sora-turbo',
@@ -374,13 +349,13 @@ export function getResolutionDimensions(
 
   const height = baseHeights[resolution];
   const ratio = aspectRatios[aspectRatio];
-  
+
   // For vertical videos, swap the calculation
   if (ratio < 1) {
     const width = height;
     return { width, height: Math.round(width / ratio) };
   }
-  
+
   return {
     width: Math.round(height * ratio),
     height,

@@ -1,6 +1,6 @@
 /**
  * Learning Mode Type Definitions
- * 
+ *
  * Types for the Socratic Method-based learning mode that provides
  * step-by-step guided learning through questioning and discovery.
  */
@@ -20,14 +20,14 @@ export type LearningDurationType = 'quick' | 'journey';
  * Learning category for classification
  */
 export type LearningCategory =
-  | 'concept'           // Understanding a concept
-  | 'problem-solving'   // Solving a specific problem
-  | 'skill'             // Learning a skill
-  | 'language'          // Programming/human language
-  | 'framework'         // Framework or library
-  | 'domain'            // Domain knowledge
-  | 'project'           // Project-based learning
-  | 'certification'     // Certification preparation
+  | 'concept' // Understanding a concept
+  | 'problem-solving' // Solving a specific problem
+  | 'skill' // Learning a skill
+  | 'language' // Programming/human language
+  | 'framework' // Framework or library
+  | 'domain' // Domain knowledge
+  | 'project' // Project-based learning
+  | 'certification' // Certification preparation
   | 'other';
 
 /**
@@ -52,7 +52,15 @@ export interface LearningMilestone {
 export interface LearningResource {
   id: string;
   title: string;
-  type: 'article' | 'video' | 'book' | 'course' | 'documentation' | 'exercise' | 'project' | 'other';
+  type:
+    | 'article'
+    | 'video'
+    | 'book'
+    | 'course'
+    | 'documentation'
+    | 'exercise'
+    | 'project'
+    | 'other';
   url?: string;
   notes?: string;
   completed: boolean;
@@ -65,32 +73,32 @@ export interface LearningResource {
 export interface LearningPath {
   id: string;
   sessionId: string; // Reference to chat session
-  
+
   // Path metadata
   title: string;
   description?: string;
   category: LearningCategory;
   estimatedDuration: LearningPathDuration;
-  
+
   // Structure
   milestones: LearningMilestone[];
   currentMilestoneId?: string;
-  
+
   // Progress
   overallProgress: number; // 0-100
   startedAt: Date;
   lastActivityAt: Date;
   completedAt?: Date;
   targetCompletionDate?: Date;
-  
+
   // Learning schedule
   schedule?: LearningSchedule;
-  
+
   // Metrics
   totalTimeSpentMs: number;
   sessionsCompleted: number;
   streakDays: number;
-  
+
   // AI-generated recommendations
   nextSteps?: string[];
   suggestedResources?: LearningResource[];
@@ -99,10 +107,10 @@ export interface LearningPath {
 /**
  * Estimated duration for learning path
  */
-export type LearningPathDuration = 
-  | 'days'      // 1-7 days
-  | 'weeks'     // 1-4 weeks
-  | 'months'    // 1-6 months
+export type LearningPathDuration =
+  | 'days' // 1-7 days
+  | 'weeks' // 1-4 weeks
+  | 'months' // 1-6 months
   | 'long-term'; // 6+ months
 
 /**
@@ -150,12 +158,12 @@ export interface LearningTypeDetectionResult {
 /**
  * Learning phases following the Socratic Method workflow
  */
-export type LearningPhase = 
-  | 'clarification'    // Understanding the problem and learning goals
-  | 'deconstruction'   // Breaking down into sub-questions
-  | 'questioning'      // Strategic questioning for each sub-question
-  | 'feedback'         // Progressive feedback based on responses
-  | 'summary';         // Summarization and elevation of learning
+export type LearningPhase =
+  | 'clarification' // Understanding the problem and learning goals
+  | 'deconstruction' // Breaking down into sub-questions
+  | 'questioning' // Strategic questioning for each sub-question
+  | 'feedback' // Progressive feedback based on responses
+  | 'summary'; // Summarization and elevation of learning
 
 /**
  * Status of a learning sub-question
@@ -292,48 +300,48 @@ export interface LearningGoal {
 export interface LearningSession {
   id: string;
   sessionId: string; // Reference to the chat session
-  
+
   // Learning type (short-term vs long-term)
   durationType: LearningDurationType;
   category: LearningCategory;
   learningPathId?: string; // Reference to learning path for journey type
-  
+
   // Topic and goals
   topic: string;
   backgroundKnowledge?: string;
   learningGoals: LearningGoal[];
-  
+
   // Current state
   currentPhase: LearningPhase;
   currentSubQuestionId?: string;
-  
+
   // Sub-questions for deconstruction
   subQuestions: LearningSubQuestion[];
-  
+
   // Progress tracking
   progress: number; // 0-100
   totalHintsProvided: number;
-  
+
   // Timestamps
   startedAt: Date;
   lastActivityAt: Date;
   completedAt?: Date;
-  
+
   // Final summary
   finalSummary?: string;
   keyTakeaways?: string[];
-  
+
   // Enhanced features
   notes: LearningNote[];
   concepts: KnowledgeConcept[];
   statistics: LearningStatistics;
   reviewItems: ReviewItem[];
-  
+
   // Adaptive learning
   currentDifficulty: DifficultyLevel;
   preferredStyle?: LearningStyle;
   adaptiveAdjustments: number; // How many times difficulty was adjusted
-  
+
   // Engagement metrics
   engagementScore: number; // 0-100
   consecutiveCorrect: number;
@@ -376,27 +384,27 @@ export interface LearningModeConfig {
   // Hint settings
   maxHintsPerQuestion: number;
   hintDelayMessages: number; // Number of failed attempts before offering hint
-  
+
   // Feedback settings
   enableProgressiveHints: boolean;
   enableEncouragement: boolean;
-  
+
   // Summary settings
   autoGenerateSummary: boolean;
   includeKeyTakeaways: boolean;
-  
+
   // Adaptive learning settings
   enableAdaptiveDifficulty: boolean;
   difficultyAdjustThreshold: number; // Number of correct/incorrect before adjusting
-  
+
   // Spaced repetition settings
   enableSpacedRepetition: boolean;
   defaultReviewIntervalDays: number;
-  
+
   // Note-taking settings
   enableAutoNotes: boolean;
   autoHighlightInsights: boolean;
-  
+
   // AI analysis settings
   enableAIAnalysis: boolean;
   analysisDepth: 'basic' | 'standard' | 'deep';
@@ -455,7 +463,10 @@ export interface LearningAchievement {
 /**
  * Achievement definitions
  */
-export const LEARNING_ACHIEVEMENTS: Record<string, Omit<LearningAchievement, 'id' | 'earnedAt' | 'progress' | 'maxProgress'>> = {
+export const LEARNING_ACHIEVEMENTS: Record<
+  string,
+  Omit<LearningAchievement, 'id' | 'earnedAt' | 'progress' | 'maxProgress'>
+> = {
   first_session: {
     type: 'explorer',
     name: 'First Steps',
@@ -497,11 +508,14 @@ export const LEARNING_ACHIEVEMENTS: Record<string, Omit<LearningAchievement, 'id
 /**
  * Phase descriptions for UI display
  */
-export const LEARNING_PHASE_INFO: Record<LearningPhase, {
-  title: string;
-  description: string;
-  icon: string;
-}> = {
+export const LEARNING_PHASE_INFO: Record<
+  LearningPhase,
+  {
+    title: string;
+    description: string;
+    icon: string;
+  }
+> = {
   clarification: {
     title: 'Clarification',
     description: 'Understanding your problem and learning goals',

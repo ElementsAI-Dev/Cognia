@@ -1,6 +1,6 @@
 /**
  * Subtitle Types - Type definitions for video subtitle processing
- * 
+ *
  * Supports formats:
  * - SRT (SubRip Text)
  * - VTT (WebVTT)
@@ -287,7 +287,7 @@ export function formatSrtTimestamp(ms: number): string {
   const minutes = Math.floor((ms % 3600000) / 60000);
   const seconds = Math.floor((ms % 60000) / 1000);
   const milliseconds = ms % 1000;
-  
+
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
 }
 
@@ -299,7 +299,7 @@ export function formatVttTimestamp(ms: number): string {
   const minutes = Math.floor((ms % 3600000) / 60000);
   const seconds = Math.floor((ms % 60000) / 1000);
   const milliseconds = ms % 1000;
-  
+
   if (hours > 0) {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
   }
@@ -312,7 +312,7 @@ export function formatVttTimestamp(ms: number): string {
 export function parseSrtTimestamp(timestamp: string): number {
   const match = timestamp.match(/(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/);
   if (!match) return 0;
-  
+
   const [, hours, minutes, seconds, ms] = match;
   return (
     parseInt(hours, 10) * 3600000 +
@@ -328,8 +328,11 @@ export function parseSrtTimestamp(timestamp: string): number {
 export function parseVttTimestamp(timestamp: string): number {
   // VTT can have MM:SS.mmm or HH:MM:SS.mmm
   const parts = timestamp.split(':');
-  let hours = 0, minutes = 0, seconds = 0, ms = 0;
-  
+  let hours = 0,
+    minutes = 0,
+    seconds = 0,
+    ms = 0;
+
   if (parts.length === 3) {
     hours = parseInt(parts[0], 10);
     minutes = parseInt(parts[1], 10);
@@ -342,7 +345,7 @@ export function parseVttTimestamp(timestamp: string): number {
     seconds = parseInt(secParts[0], 10);
     ms = parseInt(secParts[1] || '0', 10);
   }
-  
+
   return hours * 3600000 + minutes * 60000 + seconds * 1000 + ms;
 }
 
@@ -350,11 +353,13 @@ export function parseVttTimestamp(timestamp: string): number {
  * Convert subtitle track to SRT format string
  */
 export function toSrtString(track: SubtitleTrack): string {
-  return track.cues.map((cue, index) => {
-    const startTime = formatSrtTimestamp(cue.startTime);
-    const endTime = formatSrtTimestamp(cue.endTime);
-    return `${index + 1}\n${startTime} --> ${endTime}\n${cue.text}\n`;
-  }).join('\n');
+  return track.cues
+    .map((cue, index) => {
+      const startTime = formatSrtTimestamp(cue.startTime);
+      const endTime = formatSrtTimestamp(cue.endTime);
+      return `${index + 1}\n${startTime} --> ${endTime}\n${cue.text}\n`;
+    })
+    .join('\n');
 }
 
 /**
@@ -362,12 +367,14 @@ export function toSrtString(track: SubtitleTrack): string {
  */
 export function toVttString(track: SubtitleTrack): string {
   const header = 'WEBVTT\n\n';
-  const cues = track.cues.map(cue => {
-    const startTime = formatVttTimestamp(cue.startTime);
-    const endTime = formatVttTimestamp(cue.endTime);
-    return `${cue.id}\n${startTime} --> ${endTime}\n${cue.text}\n`;
-  }).join('\n');
-  
+  const cues = track.cues
+    .map((cue) => {
+      const startTime = formatVttTimestamp(cue.startTime);
+      const endTime = formatVttTimestamp(cue.endTime);
+      return `${cue.id}\n${startTime} --> ${endTime}\n${cue.text}\n`;
+    })
+    .join('\n');
+
   return header + cues;
 }
 
@@ -375,7 +382,7 @@ export function toVttString(track: SubtitleTrack): string {
  * Get plain text from subtitle track
  */
 export function getPlainText(track: SubtitleTrack): string {
-  return track.cues.map(cue => cue.text).join('\n');
+  return track.cues.map((cue) => cue.text).join('\n');
 }
 
 /**
@@ -383,14 +390,14 @@ export function getPlainText(track: SubtitleTrack): string {
  */
 export function mergeCues(cues: SubtitleCue[], maxGapMs: number = 1000): SubtitleCue[] {
   if (cues.length === 0) return [];
-  
+
   const merged: SubtitleCue[] = [];
   let current = { ...cues[0] };
-  
+
   for (let i = 1; i < cues.length; i++) {
     const cue = cues[i];
     const gap = cue.startTime - current.endTime;
-    
+
     if (gap <= maxGapMs && current.speaker === cue.speaker) {
       current.endTime = cue.endTime;
       current.text += ' ' + cue.text;
@@ -399,7 +406,7 @@ export function mergeCues(cues: SubtitleCue[], maxGapMs: number = 1000): Subtitl
       current = { ...cue };
     }
   }
-  
+
   merged.push(current);
   return merged;
 }

@@ -1,6 +1,6 @@
 /**
  * Tool History Type Definitions
- * 
+ *
  * Types for tracking tool/skill call history and usage analytics
  * to enable intelligent prompt optimization and quick access.
  */
@@ -208,12 +208,12 @@ export interface ToolHistoryFilter {
 /**
  * Sort options for tool lists
  */
-export type ToolSortOption = 
-  | 'recent'      // Most recently used first
-  | 'frequent'    // Most frequently used first
+export type ToolSortOption =
+  | 'recent' // Most recently used first
+  | 'frequent' // Most frequently used first
   | 'alphabetical' // A-Z by name
   | 'success_rate' // Highest success rate first
-  | 'custom';      // User-defined order (pinned first, then favorites)
+  | 'custom'; // User-defined order (pinned first, then favorites)
 
 /**
  * Helper to create a tool ID
@@ -228,17 +228,19 @@ export function createToolId(type: ToolType, identifier: string, serverId?: stri
 /**
  * Parse a tool ID back to components
  */
-export function parseToolId(toolId: string): { type: ToolType; identifier: string; serverId?: string } | null {
+export function parseToolId(
+  toolId: string
+): { type: ToolType; identifier: string; serverId?: string } | null {
   const mcpMatch = toolId.match(/^mcp:([^:]+):(.+)$/);
   if (mcpMatch) {
     return { type: 'mcp', serverId: mcpMatch[1], identifier: mcpMatch[2] };
   }
-  
+
   const skillMatch = toolId.match(/^skill:(.+)$/);
   if (skillMatch) {
     return { type: 'skill', identifier: skillMatch[1] };
   }
-  
+
   return null;
 }
 

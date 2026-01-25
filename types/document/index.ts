@@ -5,7 +5,7 @@
 export * from './document';
 export * from './document-formatting';
 // rag.ts imports DocumentChunk from document.ts, no duplicate
-export { 
+export {
   type ChunkingStrategy,
   type ChunkingOptions,
   type ChunkingResult,

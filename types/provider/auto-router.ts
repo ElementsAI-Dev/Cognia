@@ -10,12 +10,12 @@ import type { AgentModeType } from '../agent/agent-mode';
 export type RoutingMode = 'rule-based' | 'llm-based' | 'hybrid';
 
 // Routing strategy - what to optimize for
-export type RoutingStrategy = 
-  | 'quality'      // Always use the best model available
-  | 'cost'         // Minimize cost while maintaining quality
-  | 'speed'        // Prioritize fast response times
-  | 'balanced'     // Balance between quality, cost, and speed
-  | 'adaptive';    // Learn from user feedback
+export type RoutingStrategy =
+  | 'quality' // Always use the best model available
+  | 'cost' // Minimize cost while maintaining quality
+  | 'speed' // Prioritize fast response times
+  | 'balanced' // Balance between quality, cost, and speed
+  | 'adaptive'; // Learn from user feedback
 
 // Model tier for routing decisions
 export type ModelTier = 'fast' | 'balanced' | 'powerful' | 'reasoning';
@@ -24,7 +24,7 @@ export type ModelTier = 'fast' | 'balanced' | 'powerful' | 'reasoning';
 export type TaskComplexity = 'simple' | 'moderate' | 'complex' | 'expert';
 
 // Task categories for specialized routing
-export type TaskCategory = 
+export type TaskCategory =
   | 'general'
   | 'coding'
   | 'analysis'
@@ -101,28 +101,28 @@ export interface TierModelEntry {
 export interface AutoRouterSettings {
   // Enable/disable auto routing
   enabled: boolean;
-  
+
   // Routing mode preference
   routingMode: RoutingMode;
-  
+
   // Routing strategy
   strategy: RoutingStrategy;
-  
+
   // Show routing decisions in UI
   showRoutingIndicator: boolean;
-  
+
   // Allow user to override routing decisions
   allowOverride: boolean;
-  
+
   // Preferred providers (priority order)
   preferredProviders: ProviderName[];
-  
+
   // Excluded providers (never use)
   excludedProviders: ProviderName[];
-  
+
   // Cost limit per request (in USD cents)
   maxCostPerRequest?: number;
-  
+
   // Custom tier overrides
   customTierModels?: {
     fast?: TierModelEntry[];
@@ -130,14 +130,14 @@ export interface AutoRouterSettings {
     powerful?: TierModelEntry[];
     reasoning?: TierModelEntry[];
   };
-  
+
   // Router model for LLM-based routing
   routerModel?: RouterModelConfig;
-  
+
   // Cache routing decisions
   enableCache: boolean;
   cacheTTL: number; // seconds
-  
+
   // Fallback behavior
   fallbackTier: ModelTier;
   fallbackProvider?: ProviderName;
@@ -186,20 +186,20 @@ export interface RoutingContext {
   sessionId?: string;
   messageCount?: number;
   previousModels?: string[];
-  
+
   // Agent mode context
   agentMode?: AgentModeType;
   agentTools?: string[];
-  
+
   // Attachment context
   hasImages?: boolean;
   hasDocuments?: boolean;
   hasCode?: boolean;
-  
+
   // User preferences
   userPreferredProvider?: ProviderName;
   userPreferredTier?: ModelTier;
-  
+
   // Performance hints
   preferFastResponse?: boolean;
   preferHighQuality?: boolean;

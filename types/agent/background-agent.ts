@@ -11,16 +11,16 @@ import type { ProviderName } from '../provider/provider';
  * Background agent execution status
  */
 export type BackgroundAgentStatus =
-  | 'idle'         // Not started
-  | 'queued'       // Waiting in queue
+  | 'idle' // Not started
+  | 'queued' // Waiting in queue
   | 'initializing' // Setting up execution
-  | 'running'      // Currently executing
-  | 'paused'       // Paused by user
-  | 'waiting'      // Waiting for user input or approval
-  | 'completed'    // Successfully completed
-  | 'failed'       // Execution failed
-  | 'cancelled'    // Cancelled by user
-  | 'timeout';     // Execution timed out
+  | 'running' // Currently executing
+  | 'paused' // Paused by user
+  | 'waiting' // Waiting for user input or approval
+  | 'completed' // Successfully completed
+  | 'failed' // Execution failed
+  | 'cancelled' // Cancelled by user
+  | 'timeout'; // Execution timed out
 
 /**
  * Background agent notification type
@@ -375,12 +375,15 @@ export const DEFAULT_BACKGROUND_AGENT_CONFIG: BackgroundAgentConfig = {
 /**
  * Background agent status display configuration
  */
-export const BACKGROUND_AGENT_STATUS_CONFIG: Record<BackgroundAgentStatus, {
-  label: string;
-  color: string;
-  icon: string;
-  animate?: boolean;
-}> = {
+export const BACKGROUND_AGENT_STATUS_CONFIG: Record<
+  BackgroundAgentStatus,
+  {
+    label: string;
+    color: string;
+    icon: string;
+    animate?: boolean;
+  }
+> = {
   idle: { label: 'Idle', color: 'text-muted-foreground', icon: 'Circle' },
   queued: { label: 'Queued', color: 'text-blue-500', icon: 'Clock' },
   initializing: { label: 'Initializing', color: 'text-blue-500', icon: 'Loader2', animate: true },
@@ -409,25 +412,25 @@ export function serializeBackgroundAgent(agent: BackgroundAgent): string {
       pausedAt: agent.executionState.pausedAt?.toISOString(),
       resumedAt: agent.executionState.resumedAt?.toISOString(),
     },
-    logs: agent.logs.map(log => ({
+    logs: agent.logs.map((log) => ({
       ...log,
       timestamp: log.timestamp.toISOString(),
     })),
-    notifications: agent.notifications.map(n => ({
+    notifications: agent.notifications.map((n) => ({
       ...n,
       timestamp: n.timestamp.toISOString(),
     })),
-    steps: agent.steps.map(step => ({
+    steps: agent.steps.map((step) => ({
       ...step,
       startedAt: step.startedAt?.toISOString(),
       completedAt: step.completedAt?.toISOString(),
     })),
-    subAgents: agent.subAgents.map(sa => ({
+    subAgents: agent.subAgents.map((sa) => ({
       ...sa,
       createdAt: sa.createdAt.toISOString(),
       startedAt: sa.startedAt?.toISOString(),
       completedAt: sa.completedAt?.toISOString(),
-      logs: sa.logs.map(log => ({
+      logs: sa.logs.map((log) => ({
         ...log,
         timestamp: log.timestamp.toISOString(),
       })),
@@ -449,8 +452,12 @@ export function deserializeBackgroundAgent(data: string): BackgroundAgent {
     executionState: {
       ...parsed.executionState,
       lastActivity: new Date(parsed.executionState.lastActivity),
-      pausedAt: parsed.executionState.pausedAt ? new Date(parsed.executionState.pausedAt) : undefined,
-      resumedAt: parsed.executionState.resumedAt ? new Date(parsed.executionState.resumedAt) : undefined,
+      pausedAt: parsed.executionState.pausedAt
+        ? new Date(parsed.executionState.pausedAt)
+        : undefined,
+      resumedAt: parsed.executionState.resumedAt
+        ? new Date(parsed.executionState.resumedAt)
+        : undefined,
     },
     logs: parsed.logs.map((log: Record<string, unknown>) => ({
       ...log,
@@ -470,7 +477,7 @@ export function deserializeBackgroundAgent(data: string): BackgroundAgent {
       createdAt: new Date(sa.createdAt as string),
       startedAt: sa.startedAt ? new Date(sa.startedAt as string) : undefined,
       completedAt: sa.completedAt ? new Date(sa.completedAt as string) : undefined,
-      logs: (sa.logs as Array<Record<string, unknown>>).map(log => ({
+      logs: (sa.logs as Array<Record<string, unknown>>).map((log) => ({
         ...log,
         timestamp: new Date(log.timestamp as string),
       })),

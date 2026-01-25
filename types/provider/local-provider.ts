@@ -8,7 +8,7 @@ import type { ProviderName } from './provider';
 /**
  * Local provider IDs - all frameworks that run models locally
  */
-export type LocalProviderName = 
+export type LocalProviderName =
   | 'ollama'
   | 'lmstudio'
   | 'llamacpp'
@@ -25,8 +25,16 @@ export type LocalProviderName =
  */
 export function isLocalProviderName(name: ProviderName): name is LocalProviderName {
   const localProviders: LocalProviderName[] = [
-    'ollama', 'lmstudio', 'llamacpp', 'llamafile', 'vllm',
-    'localai', 'jan', 'textgenwebui', 'koboldcpp', 'tabbyapi',
+    'ollama',
+    'lmstudio',
+    'llamacpp',
+    'llamafile',
+    'vllm',
+    'localai',
+    'jan',
+    'textgenwebui',
+    'koboldcpp',
+    'tabbyapi',
   ];
   return localProviders.includes(name as LocalProviderName);
 }

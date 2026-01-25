@@ -1,6 +1,6 @@
 /**
  * Feature Router Types
- * 
+ *
  * Type definitions for the intelligent feature routing system
  * that detects user intent and navigates to appropriate feature pages.
  */
@@ -28,13 +28,13 @@ export type FeatureId =
  * Feature category for grouping related features
  */
 export type FeatureCategory =
-  | 'creation'      // Video, Image, Designer, PPT
-  | 'research'      // Academic
-  | 'automation'    // Workflows
-  | 'management'    // Projects, Skills
-  | 'system'        // Settings, Native Tools
-  | 'development'   // Git, Observability
-  | 'chat';         // Main chat
+  | 'creation' // Video, Image, Designer, PPT
+  | 'research' // Academic
+  | 'automation' // Workflows
+  | 'management' // Projects, Skills
+  | 'system' // Settings, Native Tools
+  | 'development' // Git, Observability
+  | 'chat'; // Main chat
 
 /**
  * Routing mode for intent detection

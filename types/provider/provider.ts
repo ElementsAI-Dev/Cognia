@@ -4,21 +4,21 @@
 
 export type ProviderType = 'cloud' | 'local';
 
-export type ProviderName = 
+export type ProviderName =
   // Cloud providers
-  | 'openai' 
-  | 'anthropic' 
-  | 'google' 
-  | 'deepseek' 
-  | 'groq' 
-  | 'mistral' 
-  | 'xai' 
-  | 'togetherai' 
-  | 'openrouter' 
-  | 'cohere' 
-  | 'fireworks' 
-  | 'cerebras' 
-  | 'sambanova' 
+  | 'openai'
+  | 'anthropic'
+  | 'google'
+  | 'deepseek'
+  | 'groq'
+  | 'mistral'
+  | 'xai'
+  | 'togetherai'
+  | 'openrouter'
+  | 'cohere'
+  | 'fireworks'
+  | 'cerebras'
+  | 'sambanova'
   // Local providers
   | 'ollama'
   | 'lmstudio'
@@ -182,7 +182,7 @@ export interface BYOKKeyEntry {
   name?: string;
 }
 
-export type BYOKProvider = 
+export type BYOKProvider =
   | 'openai'
   | 'anthropic'
   | 'google'
@@ -1161,10 +1161,7 @@ export interface EnhancedProvider {
   isCustom: boolean;
 }
 
-export function getModelConfig(
-  providerId: string,
-  modelId: string
-): ModelConfig | undefined {
+export function getModelConfig(providerId: string, modelId: string): ModelConfig | undefined {
   const provider = PROVIDERS[providerId];
   return provider?.models.find((m) => m.id === modelId);
 }

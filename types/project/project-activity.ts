@@ -3,7 +3,7 @@
  * Types for project activity history and timeline
  */
 
-export type ActivityType = 
+export type ActivityType =
   | 'session_created'
   | 'session_added'
   | 'session_removed'

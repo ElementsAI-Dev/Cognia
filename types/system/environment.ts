@@ -144,7 +144,8 @@ export const TOOL_INFO: Record<EnvironmentTool, ToolInfo> = {
   ffmpeg: {
     id: 'ffmpeg',
     name: 'FFmpeg',
-    description: 'Complete, cross-platform solution for recording, converting, and streaming audio and video',
+    description:
+      'Complete, cross-platform solution for recording, converting, and streaming audio and video',
     icon: '🎬',
     category: 'media_tool',
     website: 'https://ffmpeg.org/',
@@ -201,9 +202,7 @@ export const INSTALL_COMMANDS: Record<EnvironmentTool, InstallCommands> = {
     },
     macos: {
       check: 'command -v nvm',
-      install: [
-        'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash',
-      ],
+      install: ['curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash'],
       postInstall: [
         'export NVM_DIR="$HOME/.nvm"',
         '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"',
@@ -211,9 +210,7 @@ export const INSTALL_COMMANDS: Record<EnvironmentTool, InstallCommands> = {
     },
     linux: {
       check: 'command -v nvm',
-      install: [
-        'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash',
-      ],
+      install: ['curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash'],
       postInstall: [
         'export NVM_DIR="$HOME/.nvm"',
         '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"',
@@ -238,10 +235,7 @@ export const INSTALL_COMMANDS: Record<EnvironmentTool, InstallCommands> = {
     },
     linux: {
       check: 'docker --version',
-      install: [
-        'curl -fsSL https://get.docker.com | sh',
-        'sudo usermod -aG docker $USER',
-      ],
+      install: ['curl -fsSL https://get.docker.com | sh', 'sudo usermod -aG docker $USER'],
       postInstall: ['sudo systemctl enable docker', 'sudo systemctl start docker'],
     },
   },
@@ -278,9 +272,7 @@ export const INSTALL_COMMANDS: Record<EnvironmentTool, InstallCommands> = {
     },
     linux: {
       check: 'ffmpeg -version',
-      install: [
-        'sudo apt-get update && sudo apt-get install -y ffmpeg',
-      ],
+      install: ['sudo apt-get update && sudo apt-get install -y ffmpeg'],
     },
   },
 };
@@ -483,7 +475,15 @@ export const ENV_PRESETS: EnvPresetTemplate[] = [
     type: 'python',
     pythonVersion: '3.11',
     packages: {
-      python: ['fastapi', 'uvicorn', 'httpx', 'pydantic', 'python-jose', 'passlib', 'strawberry-graphql'],
+      python: [
+        'fastapi',
+        'uvicorn',
+        'httpx',
+        'pydantic',
+        'python-jose',
+        'passlib',
+        'strawberry-graphql',
+      ],
     },
   },
   {
@@ -584,7 +584,10 @@ export function createDefaultVirtualEnvInfo(name: string, path: string): Virtual
 }
 
 /** Create default project env config */
-export function createDefaultProjectEnvConfig(projectPath: string, projectName: string): ProjectEnvConfig {
+export function createDefaultProjectEnvConfig(
+  projectPath: string,
+  projectName: string
+): ProjectEnvConfig {
   return {
     id: `proj-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     projectPath,
@@ -633,20 +636,20 @@ export function parseRequirements(content: string): RequirementEntry[] {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    
+
     // Skip empty lines and comments
     if (!trimmed || trimmed.startsWith('#')) continue;
-    
+
     // Handle editable installs
     if (trimmed.startsWith('-e ') || trimmed.startsWith('--editable ')) {
       const url = trimmed.replace(/^(-e |--editable )/, '').trim();
       entries.push({ name: url, isEditable: true, url });
       continue;
     }
-    
+
     // Skip options like -r, --index-url, etc.
     if (trimmed.startsWith('-')) continue;
-    
+
     // Parse package spec
     const entry = parsePackageSpec(trimmed);
     if (entry) entries.push(entry);
@@ -658,11 +661,11 @@ export function parseRequirements(content: string): RequirementEntry[] {
 /** Parse a single package specification */
 export function parsePackageSpec(spec: string): RequirementEntry | null {
   // Handle inline comments
-  const [specPart, comment] = spec.split('#').map(s => s.trim());
+  const [specPart, comment] = spec.split('#').map((s) => s.trim());
   if (!specPart) return null;
 
   // Handle environment markers (e.g., ; python_version >= "3.8")
-  const [pkgPart, markers] = specPart.split(';').map(s => s.trim());
+  const [pkgPart, markers] = specPart.split(';').map((s) => s.trim());
   if (!pkgPart) return null;
 
   // Handle extras (e.g., package[extra1,extra2])
@@ -673,7 +676,7 @@ export function parsePackageSpec(spec: string): RequirementEntry | null {
 
   if (extrasMatch) {
     name = extrasMatch[1];
-    extras = extrasMatch[2].split(',').map(e => e.trim());
+    extras = extrasMatch[2].split(',').map((e) => e.trim());
     versionPart = extrasMatch[3];
   } else {
     // Match version operators: ==, >=, <=, !=, ~=, >, <
@@ -697,10 +700,13 @@ export function parsePackageSpec(spec: string): RequirementEntry | null {
 }
 
 /** Generate requirements.txt content */
-export function generateRequirements(packages: PackageInfo[], options?: {
-  pinVersions?: boolean;
-  includeComments?: boolean;
-}): string {
+export function generateRequirements(
+  packages: PackageInfo[],
+  options?: {
+    pinVersions?: boolean;
+    includeComments?: boolean;
+  }
+): string {
   const { pinVersions = true, includeComments = true } = options || {};
   const lines: string[] = [];
 
@@ -764,8 +770,8 @@ export interface PackageDiff {
 /** Compare two package lists */
 export function comparePackages(first: PackageInfo[], second: PackageInfo[]): PackageDiff[] {
   const diffs: PackageDiff[] = [];
-  const firstMap = new Map(first.map(p => [p.name.toLowerCase(), p]));
-  const secondMap = new Map(second.map(p => [p.name.toLowerCase(), p]));
+  const firstMap = new Map(first.map((p) => [p.name.toLowerCase(), p]));
+  const secondMap = new Map(second.map((p) => [p.name.toLowerCase(), p]));
   const allNames = new Set([...firstMap.keys(), ...secondMap.keys()]);
 
   for (const name of allNames) {
@@ -897,7 +903,7 @@ export function filterEnvironments(
   if (options.search) {
     const search = options.search.toLowerCase();
     result = result.filter(
-      env =>
+      (env) =>
         env.name.toLowerCase().includes(search) ||
         env.path.toLowerCase().includes(search) ||
         env.pythonVersion?.toLowerCase().includes(search)
@@ -906,28 +912,25 @@ export function filterEnvironments(
 
   // Type filter
   if (options.types?.length) {
-    result = result.filter(env => options.types!.includes(env.type));
+    result = result.filter((env) => options.types!.includes(env.type));
   }
 
   // Status filter
   if (options.status?.length) {
-    result = result.filter(env => options.status!.includes(env.status));
+    result = result.filter((env) => options.status!.includes(env.status));
   }
 
   // Python version filter
   if (options.pythonVersions?.length) {
     result = result.filter(
-      env =>
-        env.pythonVersion &&
-        options.pythonVersions!.some(v => env.pythonVersion!.startsWith(v))
+      (env) =>
+        env.pythonVersion && options.pythonVersions!.some((v) => env.pythonVersion!.startsWith(v))
     );
   }
 
   // Has project filter
   if (options.hasProject !== undefined) {
-    result = result.filter(
-      env => (env.projectPath !== null) === options.hasProject
-    );
+    result = result.filter((env) => (env.projectPath !== null) === options.hasProject);
   }
 
   // Sorting
@@ -953,7 +956,12 @@ export function filterEnvironments(
             if (!match) return 0;
             const value = parseFloat(match[1]);
             const unit = match[2].toUpperCase();
-            const multipliers: Record<string, number> = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 };
+            const multipliers: Record<string, number> = {
+              B: 1,
+              KB: 1024,
+              MB: 1024 ** 2,
+              GB: 1024 ** 3,
+            };
             return value * (multipliers[unit] || 1);
           };
           return order * (parseSize(a.size) - parseSize(b.size));

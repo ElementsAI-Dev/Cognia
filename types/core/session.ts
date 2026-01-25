@@ -89,7 +89,7 @@ export interface Session {
   enableResearch?: boolean;
   webSearchEnabled?: boolean;
   thinkingEnabled?: boolean;
-  
+
   // Response mode (streaming vs blocking)
   // undefined = use global setting, true = streaming, false = blocking
   streamingEnabled?: boolean;

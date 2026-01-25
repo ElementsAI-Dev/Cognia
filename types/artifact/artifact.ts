@@ -4,15 +4,15 @@
  */
 
 export type ArtifactType =
-  | 'code'           // Code snippets (React, HTML, CSS, JS, Python, etc.)
-  | 'document'       // Markdown documents
-  | 'svg'            // SVG graphics
-  | 'html'           // Full HTML pages
-  | 'react'          // React components (for live preview)
-  | 'mermaid'        // Mermaid diagrams
-  | 'chart'          // Data visualizations
-  | 'math'           // LaTeX math expressions
-  | 'jupyter';       // Jupyter notebooks (.ipynb)
+  | 'code' // Code snippets (React, HTML, CSS, JS, Python, etc.)
+  | 'document' // Markdown documents
+  | 'svg' // SVG graphics
+  | 'html' // Full HTML pages
+  | 'react' // React components (for live preview)
+  | 'mermaid' // Mermaid diagrams
+  | 'chart' // Data visualizations
+  | 'math' // LaTeX math expressions
+  | 'jupyter'; // Jupyter notebooks (.ipynb)
 
 export type ArtifactLanguage =
   | 'javascript'
@@ -113,15 +113,15 @@ export interface CanvasSuggestion {
 
 export interface CanvasAction {
   type:
-    | 'review'       // Review code/text
-    | 'fix'          // Fix issues
-    | 'explain'      // Explain selection
-    | 'improve'      // Improve quality
-    | 'translate'    // Translate to another language
-    | 'simplify'     // Simplify content
-    | 'expand'       // Expand/elaborate
-    | 'format'       // Format/beautify
-    | 'run';         // Execute code (Python)
+    | 'review' // Review code/text
+    | 'fix' // Fix issues
+    | 'explain' // Explain selection
+    | 'improve' // Improve quality
+    | 'translate' // Translate to another language
+    | 'simplify' // Simplify content
+    | 'expand' // Expand/elaborate
+    | 'format' // Format/beautify
+    | 'run'; // Execute code (Python)
   label: string;
   icon: string;
   shortcut?: string;

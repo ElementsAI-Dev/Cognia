@@ -1,6 +1,6 @@
 /**
  * Token Usage types and utilities
- * 
+ *
  * Unified token usage tracking across the application.
  * Field naming follows AI SDK convention (inputTokens/outputTokens)
  * with aliases for backward compatibility (prompt/completion).
@@ -51,7 +51,7 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
   'gpt-4-turbo': { input: 10, output: 30 },
   'gpt-3.5-turbo': { input: 0.5, output: 1.5 },
-  'o1': { input: 15, output: 60 },
+  o1: { input: 15, output: 60 },
   'o1-mini': { input: 3, output: 12 },
 
   // Anthropic
@@ -82,18 +82,15 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
   // Ollama (local, free)
   'llama3.2': { input: 0, output: 0 },
   'llama3.1': { input: 0, output: 0 },
-  'mistral': { input: 0, output: 0 },
-  'mixtral': { input: 0, output: 0 },
+  mistral: { input: 0, output: 0 },
+  mixtral: { input: 0, output: 0 },
   'qwen2.5': { input: 0, output: 0 },
 };
 
 /**
  * Calculate cost from token usage
  */
-export function calculateCost(
-  model: string,
-  tokens: TokenUsage
-): number {
+export function calculateCost(model: string, tokens: TokenUsage): number {
   const pricing = MODEL_PRICING[model];
   if (!pricing) return 0;
 
@@ -135,7 +132,7 @@ export function normalizeTokenUsage(usage: {
   return {
     prompt,
     completion,
-    total: usage.total ?? (prompt + completion),
+    total: usage.total ?? prompt + completion,
     inputTokens: prompt,
     outputTokens: completion,
   };

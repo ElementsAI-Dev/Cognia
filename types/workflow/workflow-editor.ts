@@ -112,7 +112,16 @@ export interface ConditionalNodeData extends BaseNodeData {
   nodeType: 'conditional';
   condition: string;
   conditionType: 'expression' | 'ai' | 'comparison';
-  comparisonOperator?: '==' | '!=' | '>' | '<' | '>=' | '<=' | 'contains' | 'startsWith' | 'endsWith';
+  comparisonOperator?:
+    | '=='
+    | '!='
+    | '>'
+    | '<'
+    | '>='
+    | '<='
+    | 'contains'
+    | 'startsWith'
+    | 'endsWith';
   comparisonValue?: string;
   trueBranch?: string;
   falseBranch?: string;
@@ -1218,7 +1227,7 @@ export function calculateWorkflowStatistics(
   records: WorkflowExecutionRecord[]
 ): WorkflowStatistics {
   const workflowRecords = records.filter((r) => r.workflowId === workflowId);
-  
+
   if (workflowRecords.length === 0) {
     return {
       workflowId,
@@ -1248,12 +1257,10 @@ export function calculateWorkflowStatistics(
     successfulExecutions: successful.length,
     failedExecutions: failed.length,
     cancelledExecutions: cancelled.length,
-    successRate: workflowRecords.length > 0 
-      ? (successful.length / workflowRecords.length) * 100 
-      : 0,
-    averageDuration: durations.length > 0 
-      ? durations.reduce((a, b) => a + b, 0) / durations.length 
-      : 0,
+    successRate:
+      workflowRecords.length > 0 ? (successful.length / workflowRecords.length) * 100 : 0,
+    averageDuration:
+      durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0,
     minDuration: durations.length > 0 ? Math.min(...durations) : 0,
     maxDuration: durations.length > 0 ? Math.max(...durations) : 0,
     lastExecutedAt: sortedRecords[0]?.startedAt,
