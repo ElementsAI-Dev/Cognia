@@ -202,7 +202,7 @@ export interface CompletionEvent {
 }
 
 /** Completion context for AI suggestions */
-export interface CompletionContext {
+export interface ChatCompletionContext {
   input: string;
   cursorPosition: number;
   previousMessages?: string[];

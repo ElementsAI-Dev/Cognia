@@ -25,6 +25,7 @@ export type SettingsSection =
   | 'sandbox'
   | 'git'
   | 'safety'
-  | 'observability';
+  | 'observability'
+  | 'tray';
 
 export type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';

@@ -129,6 +129,11 @@ describe('SelectionToolbar', () => {
         autoHideDelay: 0,
         pinnedActions: ['explain', 'translate', 'summarize', 'copy', 'send-to-chat'],
         customShortcuts: {} as Record<string, string>,
+        toolbarMode: 'full' as const,
+        quickActions: ['translate', 'explain', 'summarize', 'copy'],
+        actionGroups: [],
+        activePreset: null,
+        presets: [],
       },
       retryAction: jest.fn(),
       showToolbar: jest.fn(),
@@ -707,6 +712,124 @@ describe('SelectionToolbar', () => {
       expect(screen.getByText('Sentence')).toBeInTheDocument();
       expect(screen.getByText('Paragraph')).toBeInTheDocument();
       expect(screen.getByText('Smart')).toBeInTheDocument();
+    });
+  });
+
+  describe('compact mode', () => {
+    const mockToggleToolbarMode = jest.fn();
+
+    beforeEach(() => {
+      mockUseSelectionStore.mockReturnValue({
+        selections: [],
+        isMultiSelectMode: false,
+        references: [],
+        toggleMultiSelectMode: mockToggleMultiSelectMode,
+        addSelection: mockAddSelection,
+        removeSelection: mockRemoveSelection,
+        clearSelections: mockClearSelections,
+        addReference: mockAddReference,
+        removeReference: mockRemoveReference,
+        clearReferences: mockClearReferences,
+        getCombinedText: mockGetCombinedText,
+        config: {
+          toolbarMode: 'full',
+          quickActions: ['translate', 'explain', 'summarize', 'copy'],
+        },
+        toggleToolbarMode: mockToggleToolbarMode,
+      } as unknown as ReturnType<typeof useSelectionStore>);
+    });
+
+    it('renders compact mode toggle button', () => {
+      render(<SelectionToolbar />);
+      expect(screen.getByRole('button', { name: 'Compact Mode' })).toBeInTheDocument();
+    });
+
+    it('calls toggleToolbarMode when compact mode button is clicked', async () => {
+      render(<SelectionToolbar />);
+
+      const compactButton = screen.getByRole('button', { name: 'Compact Mode' });
+      await act(async () => {
+        fireEvent.click(compactButton);
+      });
+
+      expect(mockToggleToolbarMode).toHaveBeenCalled();
+    });
+
+    it('hides selection mode selector in compact mode', () => {
+      mockUseSelectionStore.mockReturnValue({
+        ...mockUseSelectionStore(),
+        config: {
+          toolbarMode: 'compact',
+          quickActions: ['translate', 'explain', 'summarize', 'copy'],
+        },
+        toggleToolbarMode: mockToggleToolbarMode,
+      } as unknown as ReturnType<typeof useSelectionStore>);
+
+      render(<SelectionToolbar />);
+
+      expect(screen.queryByRole('button', { name: 'Selection Mode' })).not.toBeInTheDocument();
+    });
+
+    it('hides multi-select button in compact mode', () => {
+      mockUseSelectionStore.mockReturnValue({
+        ...mockUseSelectionStore(),
+        config: {
+          toolbarMode: 'compact',
+          quickActions: ['translate', 'explain', 'summarize', 'copy'],
+        },
+        toggleToolbarMode: mockToggleToolbarMode,
+      } as unknown as ReturnType<typeof useSelectionStore>);
+
+      render(<SelectionToolbar />);
+
+      expect(screen.queryByRole('button', { name: 'Multi-Select' })).not.toBeInTheDocument();
+    });
+
+    it('hides more actions button in compact mode', () => {
+      mockUseSelectionStore.mockReturnValue({
+        ...mockUseSelectionStore(),
+        config: {
+          toolbarMode: 'compact',
+          quickActions: ['translate', 'explain', 'summarize', 'copy'],
+        },
+        toggleToolbarMode: mockToggleToolbarMode,
+      } as unknown as ReturnType<typeof useSelectionStore>);
+
+      render(<SelectionToolbar />);
+
+      expect(screen.queryByRole('button', { name: 'More Actions' })).not.toBeInTheDocument();
+    });
+
+    it('shows all buttons in full mode', () => {
+      mockUseSelectionStore.mockReturnValue({
+        ...mockUseSelectionStore(),
+        config: {
+          toolbarMode: 'full',
+          quickActions: ['translate', 'explain', 'summarize', 'copy'],
+        },
+        toggleToolbarMode: mockToggleToolbarMode,
+      } as unknown as ReturnType<typeof useSelectionStore>);
+
+      render(<SelectionToolbar />);
+
+      expect(screen.getByRole('button', { name: 'Selection Mode' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Multi-Select' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'More Actions' })).toBeInTheDocument();
+    });
+
+    it('always shows close button regardless of mode', () => {
+      mockUseSelectionStore.mockReturnValue({
+        ...mockUseSelectionStore(),
+        config: {
+          toolbarMode: 'compact',
+          quickActions: ['translate', 'explain', 'summarize', 'copy'],
+        },
+        toggleToolbarMode: mockToggleToolbarMode,
+      } as unknown as ReturnType<typeof useSelectionStore>);
+
+      render(<SelectionToolbar />);
+
+      expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
     });
   });
 });

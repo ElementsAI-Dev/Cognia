@@ -122,6 +122,10 @@ describe('SmartCollections', () => {
     // Refresh additional methods
     refreshLibrary: jest.fn(),
     refreshCollections: jest.fn(),
+    // PPT Generation
+    generatePresentationFromPaper: jest.fn(),
+    generatePPTOutline: jest.fn(),
+    isGeneratingPPT: false,
   };
 
   beforeEach(() => {

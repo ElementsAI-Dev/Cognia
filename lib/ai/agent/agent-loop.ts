@@ -1,5 +1,11 @@
 /**
  * Agent Loop - Higher-level agent orchestration with planning
+ * 
+ * Features:
+ * - Task planning and breakdown
+ * - Multi-step execution
+ * - Cancellation support
+ * - Progress tracking
  */
 
 import { executeAgent, type AgentTool } from './agent-executor';
@@ -8,9 +14,32 @@ import type { ProviderName } from '../core/client';
 export interface AgentTask {
   id: string;
   description: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   result?: string;
   error?: string;
+}
+
+/**
+ * Cancellation token for agent loop
+ */
+export interface AgentLoopCancellationToken {
+  isCancelled: boolean;
+  cancel: () => void;
+  onCancel?: () => void;
+}
+
+/**
+ * Create a cancellation token for agent loop
+ */
+export function createAgentLoopCancellationToken(): AgentLoopCancellationToken {
+  const token: AgentLoopCancellationToken = {
+    isCancelled: false,
+    cancel: () => {
+      token.isCancelled = true;
+      token.onCancel?.();
+    },
+  };
+  return token;
 }
 
 export interface AgentLoopConfig {
@@ -22,9 +51,13 @@ export interface AgentLoopConfig {
   maxStepsPerTask?: number;
   maxTotalSteps?: number;
   planningEnabled?: boolean;
+  /** Cancellation token to stop the loop */
+  cancellationToken?: AgentLoopCancellationToken;
   onTaskStart?: (task: AgentTask) => void;
   onTaskComplete?: (task: AgentTask) => void;
   onProgress?: (progress: { completed: number; total: number; currentTask?: string }) => void;
+  /** Called when the loop is cancelled */
+  onCancel?: (tasks: AgentTask[]) => void;
 }
 
 export interface AgentLoopResult {
@@ -34,6 +67,8 @@ export interface AgentLoopResult {
   duration: number;
   finalSummary?: string;
   error?: string;
+  /** Whether the loop was cancelled */
+  cancelled?: boolean;
 }
 
 /**
@@ -96,16 +131,47 @@ export async function executeAgentLoop(
     maxStepsPerTask = 5,
     maxTotalSteps = 20,
     planningEnabled = true,
+    cancellationToken,
     onTaskStart,
     onTaskComplete,
     onProgress,
+    onCancel,
   } = config;
 
   const startTime = Date.now();
   const tasks: AgentTask[] = [];
   let totalSteps = 0;
 
+  // Helper to check cancellation
+  const checkCancellation = (): boolean => {
+    return cancellationToken?.isCancelled ?? false;
+  };
+
+  // Helper to handle cancellation
+  const handleCancellation = (): AgentLoopResult => {
+    // Mark remaining pending tasks as cancelled
+    tasks.forEach((t) => {
+      if (t.status === 'pending' || t.status === 'running') {
+        t.status = 'cancelled';
+      }
+    });
+    onCancel?.(tasks);
+    return {
+      success: false,
+      tasks,
+      totalSteps,
+      duration: Date.now() - startTime,
+      error: 'Agent loop cancelled',
+      cancelled: true,
+    };
+  };
+
   try {
+    // Check cancellation before starting
+    if (checkCancellation()) {
+      return handleCancellation();
+    }
+
     // Step 1: Planning (if enabled)
     let subtasks: string[] = [task];
 
@@ -118,6 +184,11 @@ export async function executeAgentLoop(
         temperature: 0.3,
         maxSteps: 1,
       });
+
+      // Check cancellation after planning
+      if (checkCancellation()) {
+        return handleCancellation();
+      }
 
       if (planningResult.success && planningResult.finalResponse) {
         const parsed = parsePlanningResponse(planningResult.finalResponse);
@@ -141,6 +212,11 @@ export async function executeAgentLoop(
     const results: string[] = [];
 
     for (let i = 0; i < tasks.length; i++) {
+      // Check cancellation before each task
+      if (checkCancellation()) {
+        return handleCancellation();
+      }
+
       const currentTask = tasks[i];
 
       // Check if we've exceeded max total steps
@@ -166,6 +242,12 @@ export async function executeAgentLoop(
         tools,
         maxSteps: maxStepsPerTask,
       });
+
+      // Check cancellation after task execution
+      if (checkCancellation()) {
+        currentTask.status = 'cancelled';
+        return handleCancellation();
+      }
 
       totalSteps += taskResult.totalSteps;
 
@@ -232,22 +314,60 @@ export async function executeAgentLoop(
 }
 
 /**
- * Create a reusable agent loop instance
+ * Create a reusable agent loop instance with cancellation support
  */
 export function createAgentLoop(baseConfig: Omit<AgentLoopConfig, 'provider' | 'model' | 'apiKey'>) {
+  let currentCancellationToken: AgentLoopCancellationToken | null = null;
+
   return {
+    /**
+     * Execute the agent loop with the given task
+     */
     execute: async (
       task: string,
       providerConfig: { provider: ProviderName; model: string; apiKey: string; baseURL?: string }
     ) => {
+      // Create new cancellation token for this execution
+      currentCancellationToken = createAgentLoopCancellationToken();
+
       return executeAgentLoop(task, {
         ...baseConfig,
         ...providerConfig,
+        cancellationToken: currentCancellationToken,
       });
     },
+
+    /**
+     * Cancel the currently running agent loop
+     */
+    cancel: () => {
+      if (currentCancellationToken) {
+        currentCancellationToken.cancel();
+      }
+    },
+
+    /**
+     * Check if there's an active cancellation token
+     */
+    isRunning: () => {
+      return currentCancellationToken !== null && !currentCancellationToken.isCancelled;
+    },
+
+    /**
+     * Add a tool to the agent loop
+     */
     addTool: (name: string, tool: AgentTool) => {
       baseConfig.tools = baseConfig.tools || {};
       baseConfig.tools[name] = tool;
+    },
+
+    /**
+     * Remove a tool from the agent loop
+     */
+    removeTool: (name: string) => {
+      if (baseConfig.tools) {
+        delete baseConfig.tools[name];
+      }
     },
   };
 }

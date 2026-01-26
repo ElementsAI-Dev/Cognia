@@ -760,4 +760,124 @@ describe('BackgroundAgentManager - Enhanced Features', () => {
       expect(manager.getQueueState().currentlyRunning).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe('shutdown', () => {
+    it('pauses queue during shutdown', async () => {
+      const result = await manager.shutdown({ timeoutMs: 100 });
+
+      expect(result.success).toBe(true);
+      expect(manager.getQueueState().isPaused).toBe(true);
+    });
+
+    it('returns shutdown statistics', async () => {
+      const result = await manager.shutdown({ timeoutMs: 100 });
+
+      expect(result).toHaveProperty('success');
+      expect(result).toHaveProperty('completedAgents');
+      expect(result).toHaveProperty('cancelledAgents');
+      expect(result).toHaveProperty('savedCheckpoints');
+      expect(result).toHaveProperty('duration');
+      expect(Array.isArray(result.completedAgents)).toBe(true);
+      expect(Array.isArray(result.cancelledAgents)).toBe(true);
+      expect(Array.isArray(result.savedCheckpoints)).toBe(true);
+    });
+
+    it('cancels running agents when forceCancel is true', async () => {
+      const agent = manager.createAgent({
+        sessionId: 's1',
+        name: 'Running Agent',
+        task: 'Task',
+      });
+      agent.status = 'running';
+
+      const result = await manager.shutdown({
+        timeoutMs: 50,
+        forceCancel: true,
+      });
+
+      expect(result.cancelledAgents).toContain(agent.id);
+    });
+
+    it('saves checkpoints when saveCheckpoints is true', async () => {
+      const agent = manager.createAgent({
+        sessionId: 's1',
+        name: 'Running Agent',
+        task: 'Task',
+      });
+      agent.status = 'running';
+
+      const result = await manager.shutdown({
+        timeoutMs: 50,
+        saveCheckpoints: true,
+      });
+
+      expect(result.savedCheckpoints).toContain(agent.id);
+    });
+
+    it('does not save checkpoints when saveCheckpoints is false', async () => {
+      const agent = manager.createAgent({
+        sessionId: 's1',
+        name: 'Running Agent',
+        task: 'Task',
+      });
+      agent.status = 'running';
+
+      const result = await manager.shutdown({
+        timeoutMs: 50,
+        saveCheckpoints: false,
+        forceCancel: true,
+      });
+
+      expect(result.savedCheckpoints).toHaveLength(0);
+    });
+
+    it('emits manager:shutdown event', async () => {
+      const emitter = getBackgroundAgentEventEmitter();
+      const shutdownHandler = jest.fn();
+      const unsubscribe = emitter.on('manager:shutdown', shutdownHandler);
+
+      await manager.shutdown({ timeoutMs: 100 });
+
+      expect(shutdownHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          completedAgents: expect.any(Array),
+          cancelledAgents: expect.any(Array),
+          savedCheckpoints: expect.any(Array),
+          duration: expect.any(Number),
+        })
+      );
+
+      unsubscribe();
+    });
+
+    it('persists state during shutdown', async () => {
+      manager.createAgent({
+        sessionId: 's1',
+        name: 'Persist Agent',
+        task: 'Task',
+        config: { persistState: true },
+      });
+
+      await manager.shutdown({ timeoutMs: 100 });
+
+      // Should have persisted to localStorage
+      const stored = localStorage.getItem('cognia-background-agents');
+      expect(stored).not.toBeNull();
+    });
+
+    it('waits for agents to complete before timeout', async () => {
+      // Create an agent that completes quickly
+      const agent = manager.createAgent({
+        sessionId: 's1',
+        name: 'Quick Agent',
+        task: 'Task',
+      });
+      agent.status = 'completed';
+
+      const result = await manager.shutdown({ timeoutMs: 1000 });
+
+      // Should complete quickly since agent is already done
+      expect(result.duration).toBeLessThan(1000);
+    });
+  });
 });

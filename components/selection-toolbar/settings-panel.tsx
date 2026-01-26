@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { useSelectionStore } from "@/stores/context";
+import { useSelectionStore, selectToolbarMode } from "@/stores/context";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -164,8 +164,9 @@ function SettingsSection({ title, description, icon: Icon, children, defaultOpen
 
 export function SelectionToolbarSettings() {
   const t = useTranslations("settingsPanel");
-  const { config, isEnabled, updateConfig, setEnabled, resetConfig } =
+  const { config, isEnabled, updateConfig, setEnabled, resetConfig, toggleToolbarMode } =
     useSelectionStore();
+  const toolbarMode = useSelectionStore(selectToolbarMode);
   const [_activeSection, _setActiveSection] = useState<SettingsSection>("general");
 
   const applyPreset = (preset: typeof PRESETS[0]) => {
@@ -335,6 +336,20 @@ export function SelectionToolbarSettings() {
             <Switch
               checked={config.showShortcuts}
               onCheckedChange={(checked) => updateConfig({ showShortcuts: checked })}
+            />
+          </div>
+
+          {/* Compact Mode */}
+          <div className="flex items-center justify-between py-2">
+            <div className="space-y-0.5">
+              <Label className="text-sm">{t("compactMode")}</Label>
+              <p className="text-xs text-muted-foreground">
+                {t("compactModeDesc")}
+              </p>
+            </div>
+            <Switch
+              checked={toolbarMode === 'compact'}
+              onCheckedChange={() => toggleToolbarMode()}
             />
           </div>
 

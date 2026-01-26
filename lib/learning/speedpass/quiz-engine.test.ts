@@ -17,7 +17,7 @@ import {
   recommendSimilarQuestions,
 } from './quiz-engine';
 import { createMockQuestion, createMockQuizQuestion } from './test-helpers';
-import type { TextbookQuestion, Quiz, QuizQuestion, WrongQuestionRecord } from '@/types/learning/speedpass';
+import type { TextbookQuestion, Quiz, QuizQuestion as _QuizQuestion, WrongQuestionRecord } from '@/types/learning/speedpass';
 
 describe('quiz-engine', () => {
   describe('compareAnswers', () => {

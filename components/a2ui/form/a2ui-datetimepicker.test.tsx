@@ -8,7 +8,7 @@ import { A2UIDateTimePicker } from './a2ui-datetimepicker';
 import type { A2UIDateTimePickerComponent } from '@/types/artifact/a2ui';
 
 // Mock the context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: jest.fn(() => ({
     resolveString: jest.fn((value) => (typeof value === 'string' ? value : '')),
   })),
@@ -90,7 +90,7 @@ describe('A2UIDateTimePicker', () => {
 
   describe('value handling', () => {
     it('should format ISO value for datetime-local input', () => {
-      const mockUseA2UIContext = jest.requireMock('../../a2ui-context').useA2UIContext;
+      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
       mockUseA2UIContext.mockReturnValue({
         resolveString: jest.fn(() => '2024-01-15T14:30:00.000Z'),
       });

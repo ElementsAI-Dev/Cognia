@@ -119,6 +119,10 @@ describe('AcademicChatPanel', () => {
     // Base hook re-exports
     addToLibrary: mockAddToLibrary,
     setSearchQuery: jest.fn(),
+    // PPT Generation
+    generatePresentationFromPaper: jest.fn(),
+    generatePPTOutline: jest.fn(),
+    isGeneratingPPT: false,
   };
 
   beforeEach(() => {

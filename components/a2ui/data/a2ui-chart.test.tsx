@@ -8,7 +8,7 @@ import { A2UIChart } from './a2ui-chart';
 import type { A2UIChartComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: {},
   }),

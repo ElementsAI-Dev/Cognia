@@ -90,6 +90,48 @@ export interface ToolCallManagerStats {
 }
 
 /**
+ * Detailed tool call metrics for observability
+ */
+export interface ToolCallMetrics {
+  /** Basic stats */
+  stats: ToolCallManagerStats;
+  /** Total tool calls ever enqueued */
+  totalEnqueued: number;
+  /** Total tool calls timed out */
+  totalTimeouts: number;
+  /** Total tool calls cancelled */
+  totalCancelled: number;
+  /** Average execution time in ms */
+  avgExecutionTime: number;
+  /** Min execution time in ms */
+  minExecutionTime: number;
+  /** Max execution time in ms */
+  maxExecutionTime: number;
+  /** P50 execution time in ms */
+  p50ExecutionTime: number;
+  /** P95 execution time in ms */
+  p95ExecutionTime: number;
+  /** P99 execution time in ms */
+  p99ExecutionTime: number;
+  /** Execution times by tool name */
+  executionTimesByTool: Record<string, {
+    count: number;
+    avgTime: number;
+    minTime: number;
+    maxTime: number;
+    totalTime: number;
+  }>;
+  /** Error counts by tool name */
+  errorsByTool: Record<string, number>;
+  /** Success rate percentage */
+  successRate: number;
+  /** Throughput (completions per minute) */
+  throughputPerMinute: number;
+  /** Manager uptime in ms */
+  uptimeMs: number;
+}
+
+/**
  * Flush result containing all pending tool results
  */
 export interface FlushResult {
@@ -123,6 +165,15 @@ export class ToolCallManager {
   private isProcessing = false;
   private cancellationToken: CancellationToken;
 
+  // Metrics tracking
+  private startTime: number = Date.now();
+  private totalEnqueued: number = 0;
+  private totalTimeouts: number = 0;
+  private totalCancelled: number = 0;
+  private executionTimes: number[] = [];
+  private executionTimesByTool: Map<string, number[]> = new Map();
+  private errorsByTool: Map<string, number> = new Map();
+
   constructor(config: Partial<ToolCallManagerConfig> = {}) {
     this.config = { ...DEFAULT_TOOL_CALL_MANAGER_CONFIG, ...config };
     this.cancellationToken = config.cancellationToken ?? createCancellationToken();
@@ -140,6 +191,118 @@ export class ToolCallManager {
       pending: this.pendingResults.size,
       maxConcurrent: this.config.maxConcurrent,
     };
+  }
+
+  /**
+   * Get detailed metrics for observability
+   */
+  getMetrics(): ToolCallMetrics {
+    const stats = this.getStats();
+    const uptimeMs = Date.now() - this.startTime;
+
+    // Calculate percentiles
+    const sortedTimes = [...this.executionTimes].sort((a, b) => a - b);
+    const getPercentile = (p: number): number => {
+      if (sortedTimes.length === 0) return 0;
+      const index = Math.ceil((p / 100) * sortedTimes.length) - 1;
+      return sortedTimes[Math.max(0, index)] ?? 0;
+    };
+
+    // Calculate per-tool metrics
+    const executionTimesByTool: ToolCallMetrics['executionTimesByTool'] = {};
+    for (const [toolName, times] of this.executionTimesByTool.entries()) {
+      if (times.length > 0) {
+        const totalTime = times.reduce((a, b) => a + b, 0);
+        executionTimesByTool[toolName] = {
+          count: times.length,
+          avgTime: totalTime / times.length,
+          minTime: Math.min(...times),
+          maxTime: Math.max(...times),
+          totalTime,
+        };
+      }
+    }
+
+    // Convert error map to object
+    const errorsByTool: Record<string, number> = {};
+    for (const [toolName, count] of this.errorsByTool.entries()) {
+      errorsByTool[toolName] = count;
+    }
+
+    // Calculate success rate
+    const totalFinished = this.completedCalls.length + this.failedCalls.length;
+    const successRate = totalFinished > 0 
+      ? (this.completedCalls.length / totalFinished) * 100 
+      : 100;
+
+    // Calculate throughput (completions per minute)
+    const uptimeMinutes = uptimeMs / 60000;
+    const throughputPerMinute = uptimeMinutes > 0 
+      ? this.completedCalls.length / uptimeMinutes 
+      : 0;
+
+    return {
+      stats,
+      totalEnqueued: this.totalEnqueued,
+      totalTimeouts: this.totalTimeouts,
+      totalCancelled: this.totalCancelled,
+      avgExecutionTime: sortedTimes.length > 0 
+        ? sortedTimes.reduce((a, b) => a + b, 0) / sortedTimes.length 
+        : 0,
+      minExecutionTime: sortedTimes.length > 0 ? sortedTimes[0] : 0,
+      maxExecutionTime: sortedTimes.length > 0 ? sortedTimes[sortedTimes.length - 1] : 0,
+      p50ExecutionTime: getPercentile(50),
+      p95ExecutionTime: getPercentile(95),
+      p99ExecutionTime: getPercentile(99),
+      executionTimesByTool,
+      errorsByTool,
+      successRate,
+      throughputPerMinute,
+      uptimeMs,
+    };
+  }
+
+  /**
+   * Record execution time for metrics
+   */
+  private recordExecutionTime(toolName: string, durationMs: number): void {
+    this.executionTimes.push(durationMs);
+    
+    // Keep only last 1000 samples for memory efficiency
+    if (this.executionTimes.length > 1000) {
+      this.executionTimes.shift();
+    }
+
+    // Record per-tool times
+    if (!this.executionTimesByTool.has(toolName)) {
+      this.executionTimesByTool.set(toolName, []);
+    }
+    const toolTimes = this.executionTimesByTool.get(toolName)!;
+    toolTimes.push(durationMs);
+    if (toolTimes.length > 100) {
+      toolTimes.shift();
+    }
+  }
+
+  /**
+   * Record error for metrics
+   */
+  private recordError(toolName: string): void {
+    const current = this.errorsByTool.get(toolName) ?? 0;
+    this.errorsByTool.set(toolName, current + 1);
+  }
+
+  /**
+   * Reset metrics (but not state)
+   */
+  resetMetrics(): void {
+    this.startTime = Date.now();
+    this.totalEnqueued = 0;
+    this.totalTimeouts = 0;
+    this.totalCancelled = 0;
+    this.executionTimes = [];
+    this.executionTimesByTool.clear();
+    this.errorsByTool.clear();
   }
 
   /**
@@ -191,6 +354,9 @@ export class ToolCallManager {
       // Add to queue (sorted by priority)
       this.queue.push(task);
       this.queue.sort((a, b) => a.priority - b.priority);
+
+      // Track metrics
+      this.totalEnqueued++;
 
       // Update tool call status
       toolCall.status = 'pending';
@@ -337,6 +503,12 @@ export class ToolCallManager {
       // Track completed
       this.completedCalls.push(toolCall);
 
+      // Record metrics
+      if (toolCall.startedAt && toolCall.completedAt) {
+        const duration = toolCall.completedAt.getTime() - toolCall.startedAt.getTime();
+        this.recordExecutionTime(toolCall.name, duration);
+      }
+
       // Notify result
       this.config.onToolResult?.(toolCall);
 
@@ -368,6 +540,12 @@ export class ToolCallManager {
 
       // Track failed
       this.failedCalls.push(toolCall);
+
+      // Record error metrics
+      this.recordError(toolCall.name);
+      if (isTimeout) {
+        this.totalTimeouts++;
+      }
 
       // Notify error
       this.config.onToolError?.(toolCall, err);

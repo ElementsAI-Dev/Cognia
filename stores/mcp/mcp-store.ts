@@ -20,6 +20,7 @@ import type {
   ToolSelectionResult,
 } from '@/types/mcp';
 import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
+import { getToolCacheManager } from '@/lib/mcp/tool-cache';
 
 /**
  * Active tool call tracking for parallel execution
@@ -195,6 +196,8 @@ export const useMcpStore = create<McpState>((set, get) => ({
     try {
       const servers = await invoke<McpServerState[]>('mcp_get_servers');
       set({ servers, isLoading: false });
+      // Invalidate tool cache when servers change
+      getToolCacheManager().invalidate();
     } catch (error) {
       set({ error: String(error), isLoading: false });
     }
@@ -272,9 +275,18 @@ export const useMcpStore = create<McpState>((set, get) => ({
   },
 
   getAllTools: async () => {
+    const cache = getToolCacheManager();
+    const cached = cache.get('all');
+    if (cached) {
+      return cached;
+    }
+
     const result = await invoke<Array<[string, McpTool]>>('mcp_get_all_tools');
     if (!Array.isArray(result)) return [];
-    return result.map(([serverId, tool]) => ({ serverId, tool }));
+
+    const tools = result.map(([serverId, tool]) => ({ serverId, tool }));
+    cache.set('all', tools);
+    return tools;
   },
 
   reloadConfig: async () => {
@@ -288,7 +300,9 @@ export const useMcpStore = create<McpState>((set, get) => ({
   },
 
   pingServer: async (serverId) => {
-    return invoke<number>('mcp_ping_server', { serverId });
+    // Returns latency in milliseconds (u64 from Rust)
+    const latency = await invoke<number>('mcp_ping_server', { serverId });
+    return latency;
   },
 
   setLogLevel: async (serverId, level) => {

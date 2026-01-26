@@ -8,7 +8,7 @@ import { A2UIRadioGroup } from './a2ui-radio';
 import type { A2UIRadioGroupComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: {},
     resolveString: (value: string | { path: string }) =>

@@ -133,6 +133,10 @@ describe('PaperComparison', () => {
     clearError: jest.fn(),
     reset: jest.fn(),
     searchWithProvider: jest.fn(),
+    // PPT Generation
+    generatePresentationFromPaper: jest.fn(),
+    generatePPTOutline: jest.fn(),
+    isGeneratingPPT: false,
   };
 
   beforeEach(() => {

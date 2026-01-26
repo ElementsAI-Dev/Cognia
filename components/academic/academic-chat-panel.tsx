@@ -17,6 +17,7 @@ import {
   ArrowRight,
   ChevronUp,
   FileText,
+  Presentation,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,7 @@ const QUICK_ACTIONS = [
   { id: 'summarize', label: 'Summarize', icon: FileText, prompt: 'Summarize this paper: ' },
   { id: 'compare', label: 'Compare', icon: ArrowRight, prompt: 'Compare these papers: ' },
   { id: 'explain', label: 'Explain Simply', icon: Sparkles, prompt: 'Explain in simple terms: ' },
+  { id: 'ppt', label: 'Generate PPT', icon: Presentation, prompt: '' },
 ];
 
 const SUGGESTED_QUERIES = [
@@ -66,7 +68,14 @@ export function AcademicChatPanel({
   initialQuery,
   className,
 }: AcademicChatPanelProps) {
-  const { searchPapers, analyzePaperWithAI, isAnalyzing, addToLibrary } = useAcademic();
+  const { 
+    searchPapers, 
+    analyzePaperWithAI, 
+    isAnalyzing, 
+    addToLibrary,
+    generatePresentationFromPaper,
+    isGeneratingPPT,
+  } = useAcademic();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState(initialQuery || '');
@@ -203,10 +212,56 @@ export function AcademicChatPanel({
     [input, isLoading, handleSearch, handleAnalyze, selectedPapers, addMessage]
   );
 
+  const handleGeneratePPT = useCallback(
+    async (papers: Paper[]) => {
+      if (papers.length === 0) {
+        addMessage('assistant', 'Please select at least one paper to generate a presentation.');
+        return;
+      }
+
+      setIsLoading(true);
+      addMessage('user', `Generate presentation from: ${papers.map(p => p.title).join(', ')}`);
+
+      try {
+        const result = await generatePresentationFromPaper(papers, {
+          style: 'academic',
+          slideCount: 15,
+          generateImages: true,
+          includeNotes: true,
+        });
+
+        if (result.success && result.presentation) {
+          addMessage(
+            'assistant',
+            `✅ Successfully generated presentation: **${result.presentation.title}**\n\n` +
+            `- ${result.presentation.totalSlides} slides created\n` +
+            `- Style: Academic\n` +
+            `- Includes speaker notes\n\n` +
+            `You can now view and edit the presentation in the PPT editor.`
+          );
+        } else {
+          addMessage('assistant', `Failed to generate presentation: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error) {
+        addMessage(
+          'assistant',
+          `Error generating presentation: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [generatePresentationFromPaper, addMessage]
+  );
+
   const handleQuickAction = useCallback((action: (typeof QUICK_ACTIONS)[0]) => {
+    if (action.id === 'ppt') {
+      handleGeneratePPT(selectedPapers);
+      return;
+    }
     setInput(action.prompt);
     inputRef.current?.focus();
-  }, []);
+  }, [handleGeneratePPT, selectedPapers]);
 
   const handleSuggestedQuery = useCallback(
     (query: string) => {
@@ -410,10 +465,23 @@ export function AcademicChatPanel({
                 size="sm"
                 variant="outline"
                 onClick={() => selectedPapers[0] && handleAnalyze(selectedPapers[0], 'summary')}
-                disabled={isLoading}
+                disabled={isLoading || isGeneratingPPT}
               >
                 <Brain className="h-3 w-3 mr-1" />
                 Analyze
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleGeneratePPT(selectedPapers)}
+                disabled={isLoading || isGeneratingPPT || selectedPapers.length === 0}
+              >
+                {isGeneratingPPT ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <Presentation className="h-3 w-3 mr-1" />
+                )}
+                Generate PPT
               </Button>
               <Button size="sm" variant="outline" onClick={() => setSelectedPapers([])}>
                 Clear

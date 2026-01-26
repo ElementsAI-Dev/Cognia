@@ -309,6 +309,11 @@ pub fn run() {
             app.manage(assistant_bubble_window);
             log::info!("Assistant bubble window manager initialized");
 
+            // Initialize Tray Config State
+            let tray_config_state = commands::system::tray::TrayConfigState::default();
+            app.manage(tray_config_state);
+            log::info!("Tray config state initialized");
+
             // Register global shortcut for chat widget toggle
             let app_handle_for_shortcut = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -928,6 +933,7 @@ pub fn run() {
             commands::system::proxy::proxy_get_system,
             commands::system::proxy::proxy_check_port,
             commands::system::proxy::proxy_get_clash_info,
+            commands::system::proxy::proxy_http_request,
             // Screen recording commands
             commands::media::screen_recording::recording_get_status,
             commands::media::screen_recording::recording_get_duration,
@@ -1077,6 +1083,19 @@ pub fn run() {
             commands::system::process::process_set_enabled,
             commands::system::process::process_search,
             commands::system::process::process_top_memory,
+            // Tray commands
+            commands::system::tray::tray_get_state,
+            commands::system::tray::tray_get_config,
+            commands::system::tray::tray_set_config,
+            commands::system::tray::tray_set_display_mode,
+            commands::system::tray::tray_toggle_display_mode,
+            commands::system::tray::tray_set_item_visibility,
+            commands::system::tray::tray_set_compact_items,
+            commands::system::tray::tray_update_tooltip,
+            commands::system::tray::tray_set_busy,
+            commands::system::tray::tray_refresh_menu,
+            commands::system::tray::tray_get_default_compact_items,
+            commands::system::tray::tray_get_all_item_ids,
             // Academic mode commands
             commands::academic::academic_search,
             commands::academic::academic_search_provider,

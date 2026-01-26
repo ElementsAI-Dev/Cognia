@@ -8,7 +8,7 @@ import { A2UISwitch, A2UISwitchComponent } from './a2ui-switch';
 import type { A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: {},
     resolveBoolean: (value: boolean | { path: string }) =>

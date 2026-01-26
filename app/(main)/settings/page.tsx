@@ -101,6 +101,7 @@ import {
   SandboxSettings,
   GitSettings,
   SafetySettings,
+  TraySettings,
 } from '@/components/settings';
 import { ObservabilitySettings } from '@/components/observability';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
@@ -517,6 +518,13 @@ export default function SettingsPage() {
               description: t('descGit'),
               group: 'system' as const,
             },
+            {
+              id: 'tray' as const,
+              label: '系统托盘',
+              icon: <Monitor className="h-4 w-4" />,
+              description: '配置系统托盘菜单显示模式和内容',
+              group: 'system' as const,
+            },
           ]
         : []),
     ],
@@ -580,6 +588,8 @@ export default function SettingsPage() {
         return <SandboxSettings />;
       case 'git':
         return <GitSettings />;
+      case 'tray':
+        return <TraySettings />;
       case 'safety':
         return <SafetySettings />;
       case 'observability':

@@ -40,7 +40,8 @@ export type BackgroundAgentEventType =
   | 'tool:result'
   | 'queue:paused'
   | 'queue:resumed'
-  | 'queue:updated';
+  | 'queue:updated'
+  | 'manager:shutdown';
 
 /**
  * Event payload types
@@ -70,6 +71,12 @@ export interface BackgroundAgentEventPayloads {
   'queue:paused': { reason?: string };
   'queue:resumed': Record<string, never>;
   'queue:updated': { queueLength: number; running: number; maxConcurrent: number };
+  'manager:shutdown': {
+    completedAgents: string[];
+    cancelledAgents: string[];
+    savedCheckpoints: string[];
+    duration: number;
+  };
 }
 
 /**

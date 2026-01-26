@@ -501,3 +501,116 @@ describe('proxyFetch', () => {
     expect(typeof proxyFetch).toBe('function');
   });
 });
+
+describe('Tauri proxy routing', () => {
+  const mockInvoke = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFetch.mockResolvedValue(new MockResponse('ok'));
+
+    // Simulate Tauri environment
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+
+    // Mock Tauri invoke
+    jest.mock('@tauri-apps/api/core', () => ({
+      invoke: mockInvoke,
+    }));
+  });
+
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  });
+
+  it('detects Tauri environment', () => {
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+
+    // In Tauri environment, createProxyFetch should attempt to use Tauri backend
+    expect('__TAURI_INTERNALS__' in window).toBe(true);
+  });
+
+  it('falls back to regular fetch when not in Tauri', async () => {
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+
+    mockGetState.mockReturnValue({
+      config: {
+        enabled: true,
+        mode: 'manual',
+        manual: { url: 'http://proxy:8080' },
+      },
+    });
+
+    const fetch = createProxyFetch();
+    await fetch('https://example.com');
+
+    expect(mockFetch).toHaveBeenCalledWith('https://example.com', {});
+  });
+
+  it('handles proxy URL parsing for Tauri backend', () => {
+    mockGetState.mockReturnValue({
+      config: {
+        enabled: true,
+        mode: 'manual',
+        manual: { url: 'http://127.0.0.1:7890' },
+      },
+    });
+
+    const config = getProxyConfig();
+
+    expect(config.enabled).toBe(true);
+    expect(config.host).toBe('127.0.0.1');
+    expect(config.port).toBe(7890);
+  });
+
+  it('handles SOCKS5 proxy URL', () => {
+    mockGetState.mockReturnValue({
+      config: {
+        enabled: true,
+        mode: 'manual',
+        manual: { url: 'socks5://127.0.0.1:1080' },
+      },
+    });
+
+    const config = getProxyConfig();
+
+    expect(config.enabled).toBe(true);
+    expect(config.protocol).toBe('socks5');
+    expect(config.port).toBe(1080);
+  });
+});
+
+describe('Timeout handling', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  });
+
+  it('aborts fetch on timeout', async () => {
+    jest.useFakeTimers();
+
+    mockFetch.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(new MockResponse('delayed')), 10000);
+        })
+    );
+
+    const fetch = createProxyFetch();
+    const fetchPromise = fetch('https://example.com', { timeout: 100 });
+
+    jest.advanceTimersByTime(150);
+
+    await expect(fetchPromise).rejects.toThrow();
+
+    jest.useRealTimers();
+  });
+
+  it('completes fetch before timeout', async () => {
+    mockFetch.mockResolvedValue(new MockResponse('quick'));
+
+    const fetch = createProxyFetch();
+    const result = await fetch('https://example.com', { timeout: 5000 });
+
+    expect(result).toBeDefined();
+  });
+});

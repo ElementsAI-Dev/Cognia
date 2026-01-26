@@ -11,3 +11,4 @@ export { SpeechSettings } from './speech-settings';
 export { SandboxSettings } from './sandbox-settings';
 export { SearchSettings } from './search-settings';
 export { GitSettings } from './git-settings';
+export { TraySettings } from './tray-settings';

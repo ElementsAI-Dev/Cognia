@@ -103,6 +103,7 @@ export {
   SandboxSettings,
   SearchSettings,
   GitSettings,
+  TraySettings,
 } from './system';
 
 // Shortcuts settings

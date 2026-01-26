@@ -10,7 +10,14 @@
  * - preview/  - Preview components (DesignerPreview, ResponsiveControls, etc.)
  * - toolbar/  - Toolbar components (DesignerToolbar, InlineTextEditor, etc.)
  * - dnd/      - Drag and drop system
+ * 
+ * Performance optimizations:
+ * - Heavy components use React.lazy() for code splitting
+ * - Element tree supports virtualization for 1000+ elements
+ * - Monaco editor has preloading and progress tracking
  */
+
+import { lazy } from 'react';
 
 // Core components
 export { DesignerPanel } from './core';
@@ -31,6 +38,7 @@ export { SandboxErrorBoundary, useErrorBoundaryReset, useConsoleErrorInterceptor
 // Panel components
 export { StylePanel } from './panels';
 export { ElementTree } from './panels';
+export { ElementTreeVirtual } from './panels';
 export { ElementActionsPopover } from './panels';
 export { VersionHistoryPanel } from './panels';
 export { ComponentLibrary } from './panels';
@@ -51,6 +59,15 @@ export { KeyboardShortcuts, useDesignerShortcuts } from './toolbar';
 
 // DnD exports
 export { DesignerDndProvider, useDesignerDnd, useDesignerDndStrict } from './dnd';
+
+// Lazy-loaded components for code splitting (heavy components)
+export const LazyDesignerPanel = lazy(() => import('./core/designer-panel'));
+export const LazyComponentLibrary = lazy(() => import('./panels/component-library'));
+export const LazyVersionHistoryPanel = lazy(() => import('./panels/version-history-panel'));
+export const LazyAIChatPanel = lazy(() => import('./ai/ai-chat-panel'));
+export const LazyAISuggestionsPanel = lazy(() => import('./ai/ai-suggestions-panel'));
+export const LazyStylePanel = lazy(() => import('./panels/style-panel'));
+export const LazyMonacoEditor = lazy(() => import('./editor/monaco-sandpack-editor'));
 
 // Re-export submodule namespaces for direct access
 export * as CoreComponents from './core';

@@ -302,6 +302,183 @@ pub enum PluginError {
     
     #[error("Dependency error: {0}")]
     Dependency(String),
+    
+    #[error("Network error: {0}")]
+    Network(String),
+    
+    #[error("Signature verification failed: {0}")]
+    SignatureVerification(String),
+    
+    #[error("Version mismatch: {0}")]
+    VersionMismatch(String),
+}
+
+// =============================================================================
+// Marketplace Types
+// =============================================================================
+
+/// Marketplace configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MarketplaceConfig {
+    #[serde(rename = "registryUrl")]
+    pub registry_url: String,
+    #[serde(rename = "cacheTimeout")]
+    pub cache_timeout: u64,
+    #[serde(rename = "verifySignatures")]
+    pub verify_signatures: bool,
+}
+
+impl Default for MarketplaceConfig {
+    fn default() -> Self {
+        Self {
+            registry_url: "https://plugins.cognia.app/api/v1".to_string(),
+            cache_timeout: 300000, // 5 minutes
+            verify_signatures: true,
+        }
+    }
+}
+
+/// Plugin registry entry from marketplace
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginRegistryEntry {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub author: String,
+    pub version: String,
+    #[serde(rename = "latestVersion")]
+    pub latest_version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repository: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub homepage: Option<String>,
+    pub downloads: u64,
+    pub rating: f64,
+    #[serde(rename = "ratingCount")]
+    pub rating_count: u64,
+    pub tags: Vec<String>,
+    pub categories: Vec<String>,
+    pub manifest: PluginManifest,
+    #[serde(rename = "publishedAt")]
+    pub published_at: String,
+    #[serde(rename = "updatedAt")]
+    pub updated_at: String,
+    pub verified: bool,
+    pub featured: bool,
+    #[serde(rename = "downloadUrl", skip_serializing_if = "Option::is_none")]
+    pub download_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checksum: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
+}
+
+/// Marketplace search options
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MarketplaceSearchOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    #[serde(rename = "sortBy", skip_serializing_if = "Option::is_none")]
+    pub sort_by: Option<String>,
+    #[serde(rename = "sortOrder", skip_serializing_if = "Option::is_none")]
+    pub sort_order: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verified: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub featured: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<u32>,
+}
+
+/// Marketplace search result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MarketplaceSearchResult {
+    pub plugins: Vec<PluginRegistryEntry>,
+    pub total: u64,
+    #[serde(rename = "hasMore")]
+    pub has_more: bool,
+}
+
+/// Plugin version info
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginVersionInfo {
+    pub version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub changelog: Option<String>,
+    #[serde(rename = "publishedAt")]
+    pub published_at: String,
+    #[serde(rename = "minAppVersion", skip_serializing_if = "Option::is_none")]
+    pub min_app_version: Option<String>,
+    #[serde(rename = "downloadUrl")]
+    pub download_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checksum: Option<String>,
+}
+
+/// Installation progress event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstallationProgress {
+    #[serde(rename = "pluginId")]
+    pub plugin_id: String,
+    pub stage: InstallationStage,
+    pub progress: f64,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// Installation stage
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum InstallationStage {
+    Downloading,
+    Extracting,
+    Verifying,
+    Installing,
+    Configuring,
+    Complete,
+    Error,
+}
+
+// =============================================================================
+// File Watcher Types (for Hot Reload)
+// =============================================================================
+
+/// File change event type
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum FileChangeType {
+    Create,
+    Modify,
+    Delete,
+    Rename,
+}
+
+/// File change event for plugin hot reload
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginFileChangeEvent {
+    #[serde(rename = "type")]
+    pub change_type: FileChangeType,
+    pub path: String,
+    #[serde(rename = "pluginId", skip_serializing_if = "Option::is_none")]
+    pub plugin_id: Option<String>,
+    pub timestamp: u64,
+}
+
+/// Watcher configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WatcherConfig {
+    pub paths: Vec<String>,
+    #[serde(rename = "debounceMs")]
+    pub debounce_ms: u64,
+    #[serde(rename = "recursive")]
+    pub recursive: bool,
 }
 
 impl serde::Serialize for PluginError {

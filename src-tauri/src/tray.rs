@@ -873,14 +873,82 @@ pub fn update_tray_icon(app: &AppHandle, state: TrayIconState) {
 }
 
 /// Refresh the tray menu (useful after state changes)
-#[allow(dead_code)]
 pub fn refresh_tray_menu(app: &AppHandle) {
+    use crate::commands::system::tray::{TrayConfigState, TrayDisplayMode};
+
+    // Check if we should use compact mode
+    let use_compact = if let Some(config_state) = app.try_state::<TrayConfigState>() {
+        let config = config_state.config.read();
+        config.display_mode == TrayDisplayMode::Compact
+    } else {
+        false
+    };
+
     if let Some(tray) = app.tray_by_id("main-tray") {
-        if let Ok(menu) = create_tray_menu(app) {
+        let menu_result = if use_compact {
+            create_compact_tray_menu(app)
+        } else {
+            create_tray_menu(app)
+        };
+
+        if let Ok(menu) = menu_result {
             let _ = tray.set_menu(Some(menu));
-            log::debug!("Tray menu refreshed");
+            log::debug!(
+                "Tray menu refreshed (mode: {})",
+                if use_compact { "compact" } else { "full" }
+            );
         }
     }
+}
+
+/// Creates a compact system tray menu with essential items only
+fn create_compact_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
+    // AI Assistant
+    let chat_widget_item = MenuItem::with_id(
+        app,
+        "toggle-chat-widget",
+        "🤖 AI 助手\t\tCtrl+Shift+Space",
+        true,
+        None::<&str>,
+    )?;
+
+    // Region Screenshot
+    let screenshot_region = MenuItem::with_id(
+        app,
+        "screenshot-region",
+        "✂️ 区域截图\t\tCtrl+Shift+A",
+        true,
+        None::<&str>,
+    )?;
+
+    // Clipboard History
+    let clipboard_history = MenuItem::with_id(
+        app,
+        "clipboard-history",
+        "📋 剪贴板历史\t\tCtrl+Shift+V",
+        true,
+        None::<&str>,
+    )?;
+
+    // Open Settings
+    let open_settings = MenuItem::with_id(app, "open-settings", "⚙️ 打开设置", true, None::<&str>)?;
+
+    // Quit
+    let quit_item = MenuItem::with_id(app, "quit", "🚪 退出 Cognia", true, None::<&str>)?;
+
+    // Build compact menu
+    Menu::with_items(
+        app,
+        &[
+            &chat_widget_item,
+            &screenshot_region,
+            &clipboard_history,
+            &PredefinedMenuItem::separator(app)?,
+            &open_settings,
+            &PredefinedMenuItem::separator(app)?,
+            &quit_item,
+        ],
+    )
 }
 
 /// Sync selection enabled checkbox with actual state

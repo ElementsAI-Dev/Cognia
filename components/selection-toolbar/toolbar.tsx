@@ -24,6 +24,7 @@ import {
   X,
   GripVertical,
   Maximize2,
+  Minimize2,
   Type,
   AlignLeft,
   AlignJustify,
@@ -52,7 +53,7 @@ import { LanguageSelector } from "./language-selector";
 import { SelectionAction, ActionDefinition, ActionCategory, SelectionMode } from "@/types";
 import { useTTS } from "@/hooks/media/use-tts";
 import { useSelectionToolbar } from '@/hooks/ui';
-import { useSelectionStore } from "@/stores/context";
+import { useSelectionStore, selectToolbarMode, selectQuickActions } from "@/stores/context";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -265,7 +266,13 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
     removeReference,
     clearReferences,
     getCombinedText,
+    toggleToolbarMode,
   } = useSelectionStore();
+
+  // Toolbar mode from store
+  const toolbarMode = useSelectionStore(selectToolbarMode);
+  const quickActions = useSelectionStore(selectQuickActions);
+  const isCompactMode = toolbarMode === 'compact';
 
   // Get pinned actions
   const pinnedSource = config.pinnedActions?.length ? config.pinnedActions : DEFAULT_PINNED;
@@ -565,7 +572,20 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
             <GripVertical className="w-3 h-3 text-white" />
           </div>
 
-          {/* Selection Mode Selector */}
+          {/* Compact/Full Mode Toggle */}
+          <ToolbarButton
+            icon={isCompactMode ? Maximize2 : Minimize2}
+            label={isCompactMode ? t("expandToolbar") : t("compactToolbar")}
+            description={isCompactMode ? t("expandToolbarDesc") : t("compactToolbarDesc")}
+            size="sm"
+            onClick={toggleToolbarMode}
+            isActive={isCompactMode}
+          />
+
+          <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
+
+          {/* Selection Mode Selector - Hidden in compact mode */}
+          {!isCompactMode && (
           <Popover open={showModeSelector} onOpenChange={setShowModeSelector}>
             <PopoverTrigger asChild>
               <div>
@@ -601,12 +621,73 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
               ))}
             </PopoverContent>
           </Popover>
+          )}
 
-          {/* Divider */}
-          <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
+          {/* Divider - only in full mode */}
+          {!isCompactMode && (
+            <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
+          )}
 
-          {/* Primary Actions */}
-          {pinnedActions.map(({ action, icon, labelKey, shortcut, descKey }) => (
+          {/* Quick Actions - Shown in compact mode only */}
+          {isCompactMode && (
+            <>
+              {quickActions.map((actionName) => {
+                const actionDef = ALL_ACTIONS.find((a) => a.action === actionName);
+                if (!actionDef) return null;
+                const { action, icon, labelKey, shortcut, descKey } = actionDef;
+                return action === "translate" ? (
+                  <div key={action} className="flex items-center">
+                    <ToolbarButton
+                      icon={icon}
+                      label={t(labelKey)}
+                      shortcut={shortcut}
+                      description={t(descKey)}
+                      isActive={state.activeAction === action}
+                      isLoading={state.isLoading && state.activeAction === action}
+                      onClick={() => handleAction(action)}
+                      disabled={state.isLoading}
+                    />
+                    <LanguageSelector
+                      selectedLanguage={config.targetLanguage}
+                      onLanguageChange={(lang) => handleTranslateWithLanguage(lang)}
+                      onQuickTranslate={handleTranslateWithLanguage}
+                      detectedLanguage={detectedLanguage}
+                      disabled={state.isLoading}
+                      compact
+                    />
+                  </div>
+                ) : (
+                  <ToolbarButton
+                    key={action}
+                    icon={icon}
+                    label={t(labelKey)}
+                    shortcut={shortcut}
+                    description={t(descKey)}
+                    isActive={state.activeAction === action}
+                    isLoading={state.isLoading && state.activeAction === action}
+                    onClick={() => handleAction(action)}
+                    disabled={state.isLoading}
+                    variant={action === "send-to-chat" ? "primary" : "default"}
+                  />
+                );
+              })}
+              
+              {/* Send to Chat in compact mode */}
+              <ToolbarButton
+                icon={MessageSquare}
+                label={t("actionSendToChat")}
+                shortcut="↵"
+                description={t("actionSendToChatDesc")}
+                isActive={state.activeAction === "send-to-chat"}
+                onClick={() => handleAction("send-to-chat")}
+                disabled={state.isLoading}
+                variant="primary"
+              />
+            </>
+          )}
+
+          {/* Primary Actions - Shown in full mode only */}
+          {!isCompactMode && pinnedActions.map(({ action, icon, labelKey, shortcut, descKey }) => (
             action === "translate" ? (
               // Translate button with language selector
               <div key={action} className="flex items-center">
@@ -645,134 +726,138 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
             )
           ))}
 
-          {/* TTS Read Aloud Button */}
-          <ToolbarButton
-            icon={Volume2}
-            label={t("readAloud")}
-            shortcut="V"
-            description={isSpeaking ? t("stopReading") : t("readAloudDesc")}
-            isActive={isSpeaking}
-            onClick={() => {
-              if (isSpeaking) {
-                stopTTS();
-              } else {
-                const textToRead = state.result || state.selectedText;
-                if (textToRead) handleSpeak(textToRead);
-              }
-            }}
-            disabled={!state.selectedText && !state.result}
-          />
+          {/* Full mode only: TTS, Multi-Select, References, More, Utility panels */}
+          {!isCompactMode && (
+            <>
+              {/* TTS Read Aloud Button */}
+              <ToolbarButton
+                icon={Volume2}
+                label={t("readAloud")}
+                shortcut="V"
+                description={isSpeaking ? t("stopReading") : t("readAloudDesc")}
+                isActive={isSpeaking}
+                onClick={() => {
+                  if (isSpeaking) {
+                    stopTTS();
+                  } else {
+                    const textToRead = state.result || state.selectedText;
+                    if (textToRead) handleSpeak(textToRead);
+                  }
+                }}
+                disabled={!state.selectedText && !state.result}
+              />
 
-          {/* Divider */}
-          <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
+              {/* Divider */}
+              <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
 
-          {/* Multi-Select Toggle */}
-          <ToolbarButton
-            icon={Layers}
-            label={t("multiSelect")}
-            description={isMultiSelectMode ? t("exitMultiSelect") : t("multiSelectDesc")}
-            shortcut="M"
-            isActive={isMultiSelectMode}
-            badge={selections.length > 0 ? selections.length : undefined}
-            onClick={() => {
-              if (isMultiSelectMode && state.selectedText) {
-                // Add current selection when exiting
-                addSelection(state.selectedText, state.position);
-              }
-              toggleMultiSelectMode();
-            }}
-            variant={isMultiSelectMode ? "primary" : "default"}
-          />
+              {/* Multi-Select Toggle */}
+              <ToolbarButton
+                icon={Layers}
+                label={t("multiSelect")}
+                description={isMultiSelectMode ? t("exitMultiSelect") : t("multiSelectDesc")}
+                shortcut="M"
+                isActive={isMultiSelectMode}
+                badge={selections.length > 0 ? selections.length : undefined}
+                onClick={() => {
+                  if (isMultiSelectMode && state.selectedText) {
+                    addSelection(state.selectedText, state.position);
+                  }
+                  toggleMultiSelectMode();
+                }}
+                variant={isMultiSelectMode ? "primary" : "default"}
+              />
 
-          {/* Add Reference */}
-          <ToolbarButton
-            icon={Link2}
-            label={t("addReference")}
-            description={t("addReferenceDesc")}
-            badge={references.length > 0 ? references.length : undefined}
-            onClick={() => setShowReferences(!showReferences)}
-            isActive={showReferences}
-          />
+              {/* Add Reference */}
+              <ToolbarButton
+                icon={Link2}
+                label={t("addReference")}
+                description={t("addReferenceDesc")}
+                badge={references.length > 0 ? references.length : undefined}
+                onClick={() => setShowReferences(!showReferences)}
+                isActive={showReferences}
+              />
 
-          {/* Divider */}
-          <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
+              {/* Divider */}
+              <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
 
-          {/* More Options */}
-          <ToolbarButton
-            icon={MoreHorizontal}
-            label={t("moreActions")}
-            description={t("moreActionsDesc")}
-            onClick={() => setShowMoreMenu(!showMoreMenu)}
-            isActive={showMoreMenu}
-          />
+              {/* More Options */}
+              <ToolbarButton
+                icon={MoreHorizontal}
+                label={t("moreActions")}
+                description={t("moreActionsDesc")}
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                isActive={showMoreMenu}
+              />
 
-          {/* Divider */}
-          <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
+              {/* Divider */}
+              <Separator orientation="vertical" className="h-6 bg-white/6 mx-0.5" />
 
-          {/* Templates */}
-          <ToolbarButton
-            icon={StickyNote}
-            label={t("templates")}
-            shortcut="P"
-            description={t("templatesDesc")}
-            size="sm"
-            onClick={() => togglePanel('templates')}
-            isActive={showTemplatesPanel}
-          />
+              {/* Templates */}
+              <ToolbarButton
+                icon={StickyNote}
+                label={t("templates")}
+                shortcut="P"
+                description={t("templatesDesc")}
+                size="sm"
+                onClick={() => togglePanel('templates')}
+                isActive={showTemplatesPanel}
+              />
 
-          {/* Clipboard History */}
-          <ToolbarButton
-            icon={ClipboardList}
-            label={t("clipboard")}
-            shortcut="B"
-            description={t("clipboardDesc")}
-            size="sm"
-            onClick={() => togglePanel('clipboard')}
-            isActive={showClipboardPanel}
-          />
+              {/* Clipboard History */}
+              <ToolbarButton
+                icon={ClipboardList}
+                label={t("clipboard")}
+                shortcut="B"
+                description={t("clipboardDesc")}
+                size="sm"
+                onClick={() => togglePanel('clipboard')}
+                isActive={showClipboardPanel}
+              />
 
-          {/* OCR */}
-          <ToolbarButton
-            icon={Type}
-            label={t("ocr")}
-            shortcut="O"
-            description={t("ocrDesc")}
-            size="sm"
-            onClick={() => togglePanel('ocr')}
-            isActive={showOCRPanel}
-          />
+              {/* OCR */}
+              <ToolbarButton
+                icon={Type}
+                label={t("ocr")}
+                shortcut="O"
+                description={t("ocrDesc")}
+                size="sm"
+                onClick={() => togglePanel('ocr')}
+                isActive={showOCRPanel}
+              />
 
-          {/* History */}
-          <ToolbarButton
-            icon={Clock}
-            label={t("history")}
-            shortcut="H"
-            description={t("historyDesc")}
-            size="sm"
-            onClick={() => togglePanel('history')}
-            isActive={showHistoryPanel}
-            badge={history?.length > 0 ? history.length : undefined}
-          />
+              {/* History */}
+              <ToolbarButton
+                icon={Clock}
+                label={t("history")}
+                shortcut="H"
+                description={t("historyDesc")}
+                size="sm"
+                onClick={() => togglePanel('history')}
+                isActive={showHistoryPanel}
+                badge={history?.length > 0 ? history.length : undefined}
+              />
 
-          {/* Keyboard Shortcuts Help */}
-          <ToolbarButton
-            icon={Keyboard}
-            label={t("shortcuts")}
-            shortcut="?"
-            description={t("shortcutsDesc")}
-            size="sm"
-            onClick={() => togglePanel('shortcuts')}
-            isActive={showShortcutHints}
-          />
+              {/* Keyboard Shortcuts Help */}
+              <ToolbarButton
+                icon={Keyboard}
+                label={t("shortcuts")}
+                shortcut="?"
+                description={t("shortcutsDesc")}
+                size="sm"
+                onClick={() => togglePanel('shortcuts')}
+                isActive={showShortcutHints}
+              />
 
-          {/* Expand/Fullscreen */}
-          <ToolbarButton
-            icon={Maximize2}
-            label={t("expand")}
-            description={t("expandDesc")}
-            size="sm"
-            onClick={() => setShowExpandedView(true)}
-          />
+              {/* Expand/Fullscreen */}
+              <ToolbarButton
+                icon={Maximize2}
+                label={t("expand")}
+                description={t("expandDesc")}
+                size="sm"
+                onClick={() => setShowExpandedView(true)}
+              />
+            </>
+          )}
 
           {/* Close */}
           <ToolbarButton

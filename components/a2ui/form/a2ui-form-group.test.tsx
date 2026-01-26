@@ -7,7 +7,7 @@ import { render, screen } from '@testing-library/react';
 import { A2UIFormGroup, type A2UIFormGroupComponent } from './a2ui-form-group';
 
 // Mock the child renderer
-jest.mock('../../a2ui-renderer', () => ({
+jest.mock('../a2ui-renderer', () => ({
   A2UIChildRenderer: ({ childIds }: { childIds: string[] }) => (
     <div data-testid="child-renderer">{childIds.join(', ')}</div>
   ),

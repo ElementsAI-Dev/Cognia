@@ -1,0 +1,59 @@
+{
+  "id": "basic-tool-example",
+  "name": "Basic Tool Example",
+  "version": "1.0.0",
+  "description": "A simple example demonstrating how to create plugin tools",
+  "type": "frontend",
+  "capabilities": ["tools"],
+  "author": {
+    "name": "Cognia Team",
+    "email": "plugins@cognia.app"
+  },
+  "main": "index.ts",
+  "tools": [
+    {
+      "name": "calculate",
+      "description": "Perform basic math calculations",
+      "parametersSchema": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["add", "subtract", "multiply", "divide"],
+            "description": "The math operation to perform"
+          },
+          "a": {
+            "type": "number",
+            "description": "First operand"
+          },
+          "b": {
+            "type": "number",
+            "description": "Second operand"
+          }
+        },
+        "required": ["operation", "a", "b"]
+      }
+    },
+    {
+      "name": "format_text",
+      "description": "Format text in various ways",
+      "parametersSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The text to format"
+          },
+          "format": {
+            "type": "string",
+            "enum": ["uppercase", "lowercase", "titlecase", "reverse"],
+            "description": "The format to apply"
+          }
+        },
+        "required": ["text", "format"]
+      }
+    }
+  ],
+  "permissions": [],
+  "keywords": ["example", "tools", "calculator", "text"]
+}

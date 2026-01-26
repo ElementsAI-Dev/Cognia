@@ -8,7 +8,7 @@ import { A2UITable } from './a2ui-table';
 import type { A2UITableComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: {},
   }),

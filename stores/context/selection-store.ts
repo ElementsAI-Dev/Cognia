@@ -8,6 +8,10 @@ import {
   SelectionItem,
   ReferenceResource,
   DEFAULT_SELECTION_CONFIG,
+  ToolbarMode,
+  ActionGroup,
+  ActionGroupConfig,
+  ToolbarPreset,
 } from '@/types';
 
 export interface SelectionHistoryItem {
@@ -115,6 +119,16 @@ export interface SelectionActions {
   ) => TranslationMemoryEntry | null;
   incrementTranslationUsage: (id: string) => void;
   clearTranslationMemory: () => void;
+  // Toolbar mode actions
+  setToolbarMode: (mode: ToolbarMode) => void;
+  toggleToolbarMode: () => void;
+  updateQuickActions: (actions: SelectionAction[]) => void;
+  toggleActionGroup: (groupId: ActionGroup) => void;
+  updateActionGroups: (groups: ActionGroupConfig[]) => void;
+  // Preset actions
+  savePreset: (preset: Omit<ToolbarPreset, 'id'>) => void;
+  loadPreset: (presetId: string) => void;
+  deletePreset: (presetId: string) => void;
 }
 
 type SelectionStore = SelectionState & SelectionActions;
@@ -441,6 +455,81 @@ export const useSelectionStore = create<SelectionStore>()(
         set({
           translationMemory: [],
         }),
+
+      // Toolbar mode actions
+      setToolbarMode: (mode: ToolbarMode) =>
+        set((state) => ({
+          config: { ...state.config, toolbarMode: mode },
+        })),
+
+      toggleToolbarMode: () =>
+        set((state) => ({
+          config: {
+            ...state.config,
+            toolbarMode: state.config.toolbarMode === 'full' ? 'compact' : 'full',
+          },
+        })),
+
+      updateQuickActions: (actions: SelectionAction[]) =>
+        set((state) => ({
+          config: { ...state.config, quickActions: actions },
+        })),
+
+      toggleActionGroup: (groupId: ActionGroup) =>
+        set((state) => ({
+          config: {
+            ...state.config,
+            actionGroups: state.config.actionGroups.map((g) =>
+              g.id === groupId ? { ...g, expanded: !g.expanded } : g
+            ),
+          },
+        })),
+
+      updateActionGroups: (groups: ActionGroupConfig[]) =>
+        set((state) => ({
+          config: { ...state.config, actionGroups: groups },
+        })),
+
+      // Preset actions
+      savePreset: (preset: Omit<ToolbarPreset, 'id'>) =>
+        set((state) => {
+          const newPreset: ToolbarPreset = {
+            ...preset,
+            id: `preset-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          };
+          return {
+            config: {
+              ...state.config,
+              presets: [...state.config.presets, newPreset],
+              activePreset: newPreset.id,
+            },
+          };
+        }),
+
+      loadPreset: (presetId: string) =>
+        set((state) => {
+          const preset = state.config.presets.find((p) => p.id === presetId);
+          if (!preset) return state;
+          return {
+            config: {
+              ...state.config,
+              toolbarMode: preset.mode,
+              quickActions: preset.quickActions,
+              actionGroups: preset.groups,
+              activePreset: presetId,
+            },
+          };
+        }),
+
+      deletePreset: (presetId: string) =>
+        set((state) => ({
+          config: {
+            ...state.config,
+            presets: state.config.presets.filter((p) => p.id !== presetId),
+            activePreset:
+              state.config.activePreset === presetId ? null : state.config.activePreset,
+          },
+        })),
     }),
     {
       name: 'selection-toolbar-storage',
@@ -494,3 +583,11 @@ export const selectSelectionsCount = (state: SelectionState) => state.selections
 // Reference selectors
 export const selectReferences = (state: SelectionState) => state.references;
 export const selectReferencesCount = (state: SelectionState) => state.references.length;
+
+// Toolbar mode selectors
+export const selectToolbarMode = (state: SelectionState) => state.config.toolbarMode;
+export const selectQuickActions = (state: SelectionState) => state.config.quickActions;
+export const selectActionGroups = (state: SelectionState) => state.config.actionGroups;
+export const selectActivePreset = (state: SelectionState) => state.config.activePreset;
+export const selectPresets = (state: SelectionState) => state.config.presets;
+export const selectIsCompactMode = (state: SelectionState) => state.config.toolbarMode === 'compact';

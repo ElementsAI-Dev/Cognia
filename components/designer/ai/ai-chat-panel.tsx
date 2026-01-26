@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
+import { nanoid } from 'nanoid';
 import { useTranslations } from 'next-intl';
 import {
   Send,
@@ -100,6 +101,7 @@ export function AIChatPanel({
     if (!message.trim() || isProcessing) return;
 
     const userMessage: AIConversationMessage = {
+      id: nanoid(),
       role: 'user',
       content: message,
       timestamp: new Date(),
@@ -121,6 +123,7 @@ export function AIChatPanel({
 
       if (result.success && result.response) {
         const assistantMessage: AIConversationMessage = {
+          id: nanoid(),
           role: 'assistant',
           content: result.response,
           timestamp: new Date(),
@@ -148,25 +151,27 @@ export function AIChatPanel({
     setIsProcessing(true);
     setError(null);
 
-    const userMessage: AIConversationMessage = {
+    const quickUserMessage: AIConversationMessage = {
+      id: nanoid(),
       role: 'user',
       content: prompt,
       timestamp: new Date(),
     };
-    setConversation((prev) => [...prev, userMessage]);
+    setConversation((prev) => [...prev, quickUserMessage]);
 
     try {
       const config = getConfig();
       const result = await executeDesignerAIEdit(prompt, code, config);
 
       if (result.success && result.code) {
-        const assistantMessage: AIConversationMessage = {
+        const quickAssistantMessage: AIConversationMessage = {
+          id: nanoid(),
           role: 'assistant',
           content: 'Done! I\'ve applied the changes.',
           timestamp: new Date(),
           codeSnapshot: result.code,
         };
-        setConversation((prev) => [...prev, assistantMessage]);
+        setConversation((prev) => [...prev, quickAssistantMessage]);
         onCodeChange(result.code);
       } else {
         setError(result.error || 'Quick action failed');

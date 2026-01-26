@@ -8,7 +8,7 @@ import { A2UITimePicker } from './a2ui-timepicker';
 import type { A2UITimePickerComponent } from '@/types/artifact/a2ui';
 
 // Mock the context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: jest.fn(() => ({
     resolveString: jest.fn((value) => (typeof value === 'string' ? value : '')),
   })),
@@ -90,7 +90,7 @@ describe('A2UITimePicker', () => {
 
   describe('value handling', () => {
     it('should display provided value', () => {
-      const mockUseA2UIContext = jest.requireMock('../../a2ui-context').useA2UIContext;
+      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
       mockUseA2UIContext.mockReturnValue({
         resolveString: jest.fn(() => '14:30'),
       });

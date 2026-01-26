@@ -256,17 +256,17 @@ pub async fn mcp_test_connection(
         .unwrap_or(false))
 }
 
-/// Ping an MCP server to check connectivity
+/// Ping an MCP server to check connectivity and measure latency
 #[tauri::command]
 pub async fn mcp_ping_server(
     manager: State<'_, McpManager>,
     server_id: String,
-) -> Result<bool, McpErrorInfo> {
-    let servers = manager.get_all_servers().await;
-    let server = servers.iter().find(|s| s.id == server_id);
-    Ok(server
-        .map(|s| matches!(s.status, McpServerStatus::Connected))
-        .unwrap_or(false))
+) -> Result<u64, McpErrorInfo> {
+    log::debug!("Command: mcp_ping_server, server='{}'", server_id);
+    manager
+        .ping_server(&server_id)
+        .await
+        .map_err(|e| (&e).into())
 }
 
 /// Set MCP server log level

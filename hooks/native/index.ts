@@ -31,3 +31,4 @@ export {
   type RecordingMode,
 } from './use-screen-recording';
 export { useSelectionSettings, type UseSelectionSettingsReturn } from './use-selection-settings';
+export { useTray, type UseTrayReturn } from './use-tray';

@@ -20,6 +20,7 @@ import type {
   ScoredTool,
 } from '@/types/mcp';
 import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
+import { createClassifiedError } from '@/lib/mcp/error-handler';
 
 /**
  * Configuration for MCP tool adapter
@@ -221,11 +222,15 @@ export function convertMcpToolToAgentTool(
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'MCP tool execution failed';
+        const classifiedError = createClassifiedError(errorMessage);
         onError?.(error instanceof Error ? error : new Error(errorMessage), serverId, mcpTool.name);
         
         return {
           success: false,
-          error: errorMessage,
+          error: classifiedError.userMessage,
+          errorType: classifiedError.type,
+          isRetryable: classifiedError.isRetryable,
+          recoverySteps: classifiedError.recoverySteps,
           serverId,
           serverName,
           toolName: mcpTool.name,

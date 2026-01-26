@@ -1268,6 +1268,127 @@ export class BackgroundAgentManager {
   }
 
   /**
+   * Gracefully shutdown the manager
+   * 
+   * This method:
+   * 1. Pauses queue processing
+   * 2. Creates checkpoints for running agents
+   * 3. Waits for graceful completion or timeout
+   * 4. Persists state
+   * 
+   * @param options Shutdown options
+   * @returns Promise that resolves when shutdown is complete
+   */
+  async shutdown(options: {
+    /** Maximum time to wait for agents to complete in ms (default: 30000) */
+    timeoutMs?: number;
+    /** Force cancel running agents after timeout (default: true) */
+    forceCancel?: boolean;
+    /** Save checkpoints for running agents (default: true) */
+    saveCheckpoints?: boolean;
+  } = {}): Promise<{
+    success: boolean;
+    completedAgents: string[];
+    cancelledAgents: string[];
+    savedCheckpoints: string[];
+    duration: number;
+  }> {
+    const {
+      timeoutMs = 30000,
+      forceCancel = true,
+      saveCheckpoints = true,
+    } = options;
+
+    const startTime = Date.now();
+    const completedAgents: string[] = [];
+    const cancelledAgents: string[] = [];
+    const savedCheckpoints: string[] = [];
+
+    // 1. Pause queue processing
+    this.pauseQueue();
+    this.stopHealthCheck();
+
+    // 2. Get running agents
+    const runningAgents = this.getRunningAgents();
+
+    // 3. Create checkpoints for running agents if requested
+    if (saveCheckpoints) {
+      for (const agent of runningAgents) {
+        try {
+          this.createCheckpoint(agent);
+          savedCheckpoints.push(agent.id);
+        } catch (error) {
+          console.warn(`Failed to create checkpoint for agent ${agent.id}:`, error);
+        }
+      }
+    }
+
+    // 4. Wait for agents to complete or timeout
+    const waitPromises = runningAgents.map(async (agent) => {
+      return new Promise<void>((resolve) => {
+        const checkCompletion = () => {
+          const currentAgent = this.getAgent(agent.id);
+          if (!currentAgent || 
+              currentAgent.status === 'completed' || 
+              currentAgent.status === 'failed' ||
+              currentAgent.status === 'cancelled') {
+            completedAgents.push(agent.id);
+            resolve();
+            return true;
+          }
+          return false;
+        };
+
+        // Check immediately
+        if (checkCompletion()) return;
+
+        // Set up interval to check periodically
+        const interval = setInterval(() => {
+          if (checkCompletion()) {
+            clearInterval(interval);
+          }
+        }, 500);
+
+        // Set up timeout
+        setTimeout(() => {
+          clearInterval(interval);
+          resolve(); // Resolve anyway after timeout
+        }, timeoutMs);
+      });
+    });
+
+    await Promise.all(waitPromises);
+
+    // 5. Force cancel remaining running agents if requested
+    if (forceCancel) {
+      const stillRunning = this.getRunningAgents();
+      for (const agent of stillRunning) {
+        this.cancelAgent(agent.id);
+        cancelledAgents.push(agent.id);
+      }
+    }
+
+    // 6. Persist state
+    this.persistState();
+
+    // 7. Emit shutdown event
+    this.eventEmitter.emit('manager:shutdown', {
+      completedAgents,
+      cancelledAgents,
+      savedCheckpoints,
+      duration: Date.now() - startTime,
+    });
+
+    return {
+      success: true,
+      completedAgents,
+      cancelledAgents,
+      savedCheckpoints,
+      duration: Date.now() - startTime,
+    };
+  }
+
+  /**
    * Get aggregated statistics for all agents
    */
   getAggregatedStatistics(): {

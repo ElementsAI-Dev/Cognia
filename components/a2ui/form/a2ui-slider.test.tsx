@@ -8,7 +8,7 @@ import { A2UISlider } from './a2ui-slider';
 import type { A2UISliderComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: { volume: 50 },
     resolveNumber: (value: number | { path: string }) => {

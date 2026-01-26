@@ -8,7 +8,7 @@ import { A2UIProgress } from './a2ui-progress';
 import type { A2UIProgressComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: { progress: 50 },
     resolveNumber: (value: number | { path: string }) => {

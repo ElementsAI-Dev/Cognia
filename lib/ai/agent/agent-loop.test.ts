@@ -6,8 +6,10 @@ import { z } from 'zod';
 import {
   executeAgentLoop,
   createAgentLoop,
+  createAgentLoopCancellationToken,
   type AgentLoopConfig,
   type AgentTask,
+  type AgentLoopCancellationToken as _AgentLoopCancellationToken,
 } from './agent-loop';
 import type { AgentTool } from './agent-executor';
 
@@ -377,5 +379,186 @@ describe('AgentTask interface', () => {
     };
 
     expect(task.error).toBe('Something went wrong');
+  });
+
+  it('supports cancelled status', () => {
+    const task: AgentTask = {
+      id: 'task-1',
+      description: 'Cancelled task',
+      status: 'cancelled',
+    };
+
+    expect(task.status).toBe('cancelled');
+  });
+});
+
+describe('createAgentLoopCancellationToken', () => {
+  it('creates a cancellation token', () => {
+    const token = createAgentLoopCancellationToken();
+
+    expect(token).toBeDefined();
+    expect(token.isCancelled).toBe(false);
+    expect(typeof token.cancel).toBe('function');
+  });
+
+  it('can be cancelled', () => {
+    const token = createAgentLoopCancellationToken();
+
+    expect(token.isCancelled).toBe(false);
+    token.cancel();
+    expect(token.isCancelled).toBe(true);
+  });
+
+  it('calls onCancel callback when cancelled', () => {
+    const token = createAgentLoopCancellationToken();
+    const onCancel = jest.fn();
+    token.onCancel = onCancel;
+
+    token.cancel();
+
+    expect(onCancel).toHaveBeenCalled();
+  });
+});
+
+describe('executeAgentLoop cancellation', () => {
+  const baseConfig: AgentLoopConfig = {
+    provider: 'openai',
+    model: 'gpt-4o',
+    apiKey: 'test-key',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('cancels before starting if token is already cancelled', async () => {
+    const token = createAgentLoopCancellationToken();
+    token.cancel();
+
+    const result = await executeAgentLoop('Task', {
+      ...baseConfig,
+      cancellationToken: token,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.cancelled).toBe(true);
+    expect(result.error).toBe('Agent loop cancelled');
+  });
+
+  it('cancels during planning phase', async () => {
+    const token = createAgentLoopCancellationToken();
+
+    mockExecuteAgent.mockImplementation(async () => {
+      // Cancel during planning
+      token.cancel();
+      return {
+        success: true,
+        finalResponse: '1. Task 1\n2. Task 2',
+        totalSteps: 1,
+      };
+    });
+
+    const result = await executeAgentLoop('Multi-task', {
+      ...baseConfig,
+      planningEnabled: true,
+      cancellationToken: token,
+    });
+
+    expect(result.cancelled).toBe(true);
+  });
+
+  it('calls onCancel callback with tasks', async () => {
+    const token = createAgentLoopCancellationToken();
+    const onCancel = jest.fn();
+
+    mockExecuteAgent
+      .mockResolvedValueOnce({
+        success: true,
+        finalResponse: '1. Task 1\n2. Task 2\n3. Task 3',
+        totalSteps: 1,
+      })
+      .mockImplementation(async () => {
+        token.cancel();
+        return { success: true, finalResponse: 'Done', totalSteps: 1 };
+      });
+
+    await executeAgentLoop('Multi-task', {
+      ...baseConfig,
+      planningEnabled: true,
+      cancellationToken: token,
+      onCancel,
+    });
+
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it('marks remaining tasks as cancelled', async () => {
+    const token = createAgentLoopCancellationToken();
+
+    mockExecuteAgent
+      .mockResolvedValueOnce({
+        success: true,
+        finalResponse: '1. Task 1\n2. Task 2\n3. Task 3',
+        totalSteps: 1,
+      })
+      .mockImplementationOnce(async () => {
+        return { success: true, finalResponse: 'Done 1', totalSteps: 1 };
+      })
+      .mockImplementationOnce(async () => {
+        token.cancel();
+        return { success: true, finalResponse: 'Done 2', totalSteps: 1 };
+      });
+
+    const result = await executeAgentLoop('Multi-task', {
+      ...baseConfig,
+      planningEnabled: true,
+      cancellationToken: token,
+    });
+
+    expect(result.cancelled).toBe(true);
+    expect(result.tasks.some((t) => t.status === 'cancelled')).toBe(true);
+  });
+});
+
+describe('createAgentLoop with cancellation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('exposes cancel method', () => {
+    const loop = createAgentLoop({});
+
+    expect(loop.cancel).toBeDefined();
+    expect(typeof loop.cancel).toBe('function');
+  });
+
+  it('exposes isRunning method', () => {
+    const loop = createAgentLoop({});
+
+    expect(loop.isRunning).toBeDefined();
+    expect(typeof loop.isRunning).toBe('function');
+  });
+
+  it('exposes removeTool method', () => {
+    const loop = createAgentLoop({});
+
+    expect(loop.removeTool).toBeDefined();
+    expect(typeof loop.removeTool).toBe('function');
+  });
+
+  it('can remove added tool', () => {
+    const loop = createAgentLoop({});
+    const tool: AgentTool = {
+      name: 'test_tool',
+      description: 'Test',
+      parameters: z.object({}),
+      execute: jest.fn(),
+    };
+
+    loop.addTool('test_tool', tool);
+    loop.removeTool('test_tool');
+
+    // No error should occur
+    expect(loop).toBeDefined();
   });
 });

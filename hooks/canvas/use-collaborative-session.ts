@@ -166,7 +166,7 @@ export function useCollaborativeSession(
     }
 
     return newSession.id;
-  }, [mergedConfig.websocketUrl, createLocalParticipant, handleCollaborationEvent]);
+  }, [mergedConfig.websocketUrl, createLocalParticipant, handleCollaborationEvent, getParticipantId]);
 
   const disconnect = useCallback(() => {
     if (providerRef.current) {
@@ -215,12 +215,12 @@ export function useCollaborativeSession(
   const getContent = useCallback((): string | null => {
     if (!sessionIdRef.current) return null;
     return storeRef.current.getDocumentContent(sessionIdRef.current);
-  }, [getParticipantId]);
+  }, []);
 
   const shareSession = useCallback((): string | null => {
     if (!sessionIdRef.current) return null;
     return storeRef.current.serializeState(sessionIdRef.current);
-  }, [getParticipantId]);
+  }, []);
 
   const joinSession = useCallback(async (sessionId: string): Promise<void> => {
     const store = storeRef.current;

@@ -292,11 +292,199 @@ impl PluginManager {
     }
 
     /// Install from marketplace
-    async fn install_from_marketplace(&self, _id: &str) -> PluginResult<PluginScanResult> {
-        // TODO: Implement marketplace download
-        Err(PluginError::InvalidManifest(
-            "Marketplace installation not yet implemented".to_string()
-        ))
+    async fn install_from_marketplace(&self, id: &str) -> PluginResult<PluginScanResult> {
+        log::info!("Installing plugin from marketplace: {}", id);
+        
+        // Fetch plugin info from marketplace registry
+        let registry_entry = self.fetch_plugin_from_registry(id).await?;
+        
+        // Get download URL
+        let download_url = registry_entry.download_url.as_ref()
+            .or(registry_entry.repository.as_ref())
+            .ok_or_else(|| PluginError::Network(
+                format!("No download URL available for plugin: {}", id)
+            ))?;
+        
+        // Check if plugin already exists
+        let dest_path = self.plugin_dir.join(&registry_entry.id);
+        if dest_path.exists() {
+            return Err(PluginError::AlreadyExists(registry_entry.id.clone()));
+        }
+        
+        // If it's a git URL, use git clone
+        if download_url.ends_with(".git") || download_url.contains("github.com") || download_url.contains("gitlab.com") {
+            return self.install_from_git(download_url).await;
+        }
+        
+        // Otherwise download as archive
+        let temp_dir = tempfile::tempdir()?;
+        let archive_path = temp_dir.path().join("plugin.zip");
+        
+        // Download the archive
+        self.download_file(download_url, &archive_path).await?;
+        
+        // Verify checksum if provided
+        if let Some(checksum) = &registry_entry.checksum {
+            self.verify_checksum(&archive_path, checksum)?;
+        }
+        
+        // Extract the archive
+        let extract_dir = temp_dir.path().join("extracted");
+        self.extract_archive(&archive_path, &extract_dir)?;
+        
+        // Find manifest in extracted files
+        let manifest_file = Self::find_manifest_file(&extract_dir)?;
+        let plugin_root = manifest_file
+            .parent()
+            .ok_or_else(|| PluginError::InvalidManifest("Invalid manifest path".to_string()))?;
+        
+        let manifest = self.parse_manifest(&manifest_file)?;
+        
+        // Copy to plugin directory
+        self.copy_dir_recursive(plugin_root, &dest_path)?;
+        
+        log::info!("Successfully installed plugin from marketplace: {}", id);
+        
+        Ok(PluginScanResult {
+            manifest,
+            path: dest_path.to_string_lossy().to_string(),
+        })
+    }
+    
+    /// Fetch plugin info from marketplace registry
+    async fn fetch_plugin_from_registry(&self, id: &str) -> PluginResult<PluginRegistryEntry> {
+        let config = MarketplaceConfig::default();
+        let url = format!("{}/plugins/{}", config.registry_url, id);
+        
+        log::debug!("Fetching plugin info from: {}", url);
+        
+        // Create HTTP client
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| PluginError::Network(format!("Failed to create HTTP client: {}", e)))?;
+        
+        let response = client
+            .get(&url)
+            .header("User-Agent", "Cognia-Plugin-Manager/1.0")
+            .send()
+            .await
+            .map_err(|e| PluginError::Network(format!("Failed to fetch plugin info: {}", e)))?;
+        
+        if !response.status().is_success() {
+            return Err(PluginError::Network(format!(
+                "Failed to fetch plugin info: HTTP {}",
+                response.status()
+            )));
+        }
+        
+        let entry: PluginRegistryEntry = response
+            .json()
+            .await
+            .map_err(|e| PluginError::Network(format!("Failed to parse plugin info: {}", e)))?;
+        
+        Ok(entry)
+    }
+    
+    /// Download a file from URL
+    async fn download_file(&self, url: &str, dest: &Path) -> PluginResult<()> {
+        log::debug!("Downloading file from: {} to: {:?}", url, dest);
+        
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(300))
+            .build()
+            .map_err(|e| PluginError::Network(format!("Failed to create HTTP client: {}", e)))?;
+        
+        let response = client
+            .get(url)
+            .header("User-Agent", "Cognia-Plugin-Manager/1.0")
+            .send()
+            .await
+            .map_err(|e| PluginError::Network(format!("Failed to download file: {}", e)))?;
+        
+        if !response.status().is_success() {
+            return Err(PluginError::Network(format!(
+                "Failed to download file: HTTP {}",
+                response.status()
+            )));
+        }
+        
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|e| PluginError::Network(format!("Failed to read response: {}", e)))?;
+        
+        std::fs::write(dest, &bytes)?;
+        
+        Ok(())
+    }
+    
+    /// Verify file checksum (SHA-256)
+    fn verify_checksum(&self, file: &Path, expected: &str) -> PluginResult<()> {
+        use sha2::{Sha256, Digest};
+        
+        let content = std::fs::read(file)?;
+        let mut hasher = Sha256::new();
+        hasher.update(&content);
+        let result = hasher.finalize();
+        let actual = format!("{:x}", result);
+        
+        if actual != expected.to_lowercase() {
+            return Err(PluginError::SignatureVerification(format!(
+                "Checksum mismatch: expected {}, got {}",
+                expected, actual
+            )));
+        }
+        
+        Ok(())
+    }
+    
+    /// Extract ZIP archive
+    fn extract_archive(&self, archive: &Path, dest: &Path) -> PluginResult<()> {
+        log::debug!("Extracting archive: {:?} to: {:?}", archive, dest);
+        
+        let file = std::fs::File::open(archive)?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|e| PluginError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Failed to open ZIP archive: {}", e)
+            )))?;
+        
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i)
+                .map_err(|e| PluginError::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Failed to read ZIP entry: {}", e)
+                )))?;
+            
+            let outpath = match file.enclosed_name() {
+                Some(path) => dest.join(path),
+                None => continue,
+            };
+            
+            if file.name().ends_with('/') {
+                std::fs::create_dir_all(&outpath)?;
+            } else {
+                if let Some(parent) = outpath.parent() {
+                    if !parent.exists() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                }
+                let mut outfile = std::fs::File::create(&outpath)?;
+                std::io::copy(&mut file, &mut outfile)?;
+            }
+            
+            // Set permissions on Unix
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Some(mode) = file.unix_mode() {
+                    std::fs::set_permissions(&outpath, std::fs::Permissions::from_mode(mode))?;
+                }
+            }
+        }
+        
+        Ok(())
     }
 
     /// Copy directory recursively
@@ -431,4 +619,319 @@ impl PluginManager {
         plugins.values().cloned().collect()
     }
 
+    // ===========================================================================
+    // Marketplace Methods
+    // ===========================================================================
+
+    /// Search plugins in marketplace
+    pub async fn search_marketplace(&self, options: MarketplaceSearchOptions) -> PluginResult<MarketplaceSearchResult> {
+        let config = MarketplaceConfig::default();
+        let mut url = format!("{}/plugins/search", config.registry_url);
+        
+        // Build query parameters
+        let mut params = Vec::new();
+        if let Some(query) = &options.query {
+            params.push(format!("q={}", urlencoding::encode(query)));
+        }
+        if let Some(category) = &options.category {
+            params.push(format!("category={}", urlencoding::encode(category)));
+        }
+        if let Some(tags) = &options.tags {
+            params.push(format!("tags={}", tags.join(",")));
+        }
+        if let Some(sort_by) = &options.sort_by {
+            params.push(format!("sort={}", sort_by));
+        }
+        if let Some(sort_order) = &options.sort_order {
+            params.push(format!("order={}", sort_order));
+        }
+        if let Some(verified) = options.verified {
+            params.push(format!("verified={}", verified));
+        }
+        if let Some(featured) = options.featured {
+            params.push(format!("featured={}", featured));
+        }
+        if let Some(limit) = options.limit {
+            params.push(format!("limit={}", limit));
+        }
+        if let Some(offset) = options.offset {
+            params.push(format!("offset={}", offset));
+        }
+        
+        if !params.is_empty() {
+            url = format!("{}?{}", url, params.join("&"));
+        }
+        
+        log::debug!("Searching marketplace: {}", url);
+        
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| PluginError::Network(format!("Failed to create HTTP client: {}", e)))?;
+        
+        let response = client
+            .get(&url)
+            .header("User-Agent", "Cognia-Plugin-Manager/1.0")
+            .send()
+            .await
+            .map_err(|e| PluginError::Network(format!("Failed to search marketplace: {}", e)))?;
+        
+        if !response.status().is_success() {
+            return Err(PluginError::Network(format!(
+                "Marketplace search failed: HTTP {}",
+                response.status()
+            )));
+        }
+        
+        let result: MarketplaceSearchResult = response
+            .json()
+            .await
+            .map_err(|e| PluginError::Network(format!("Failed to parse search results: {}", e)))?;
+        
+        Ok(result)
+    }
+
+    /// Get plugin details from marketplace
+    pub async fn get_marketplace_plugin(&self, plugin_id: &str) -> PluginResult<PluginRegistryEntry> {
+        self.fetch_plugin_from_registry(plugin_id).await
+    }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+    use std::fs;
+
+    fn create_test_manifest() -> PluginManifest {
+        PluginManifest {
+            id: "test-plugin".to_string(),
+            name: "Test Plugin".to_string(),
+            version: "1.0.0".to_string(),
+            description: "A test plugin".to_string(),
+            plugin_type: PluginType::Frontend,
+            capabilities: vec![PluginCapability::Tools],
+            author: None,
+            homepage: None,
+            repository: None,
+            license: None,
+            keywords: None,
+            icon: None,
+            main: Some("index.js".to_string()),
+            python_main: None,
+            styles: None,
+            dependencies: None,
+            engines: None,
+            python_dependencies: None,
+            permissions: None,
+            optional_permissions: None,
+            config_schema: None,
+            default_config: None,
+            a2ui_components: None,
+            tools: None,
+            modes: None,
+            activate_on_startup: None,
+        }
+    }
+
+    #[test]
+    fn test_plugin_manager_new() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        // Plugin directory should be created
+        assert!(temp_dir.path().exists());
+    }
+
+    #[test]
+    fn test_parse_manifest_valid() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        // Create a valid manifest file
+        let manifest = create_test_manifest();
+        let manifest_path = temp_dir.path().join("plugin.json");
+        let manifest_json = serde_json::to_string_pretty(&manifest).unwrap();
+        fs::write(&manifest_path, manifest_json).unwrap();
+        
+        // Parse the manifest
+        let result = manager.parse_manifest(&manifest_path);
+        assert!(result.is_ok());
+        
+        let parsed = result.unwrap();
+        assert_eq!(parsed.id, "test-plugin");
+        assert_eq!(parsed.name, "Test Plugin");
+        assert_eq!(parsed.version, "1.0.0");
+    }
+
+    #[test]
+    fn test_parse_manifest_invalid_json() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        // Create an invalid manifest file
+        let manifest_path = temp_dir.path().join("plugin.json");
+        fs::write(&manifest_path, "{ invalid json }").unwrap();
+        
+        // Parse should fail
+        let result = manager.parse_manifest(&manifest_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_manifest_valid() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        let manifest = create_test_manifest();
+        let result = manager.validate_manifest(&manifest);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_manifest_empty_id() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        let mut manifest = create_test_manifest();
+        manifest.id = "".to_string();
+        
+        let result = manager.validate_manifest(&manifest);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_manifest_empty_name() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        let mut manifest = create_test_manifest();
+        manifest.name = "".to_string();
+        
+        let result = manager.validate_manifest(&manifest);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_manifest_invalid_version() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        let mut manifest = create_test_manifest();
+        manifest.version = "invalid".to_string();
+        
+        let result = manager.validate_manifest(&manifest);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_copy_dir_recursive() {
+        let src_dir = tempdir().unwrap();
+        let dst_dir = tempdir().unwrap();
+        
+        // Create test structure
+        fs::write(src_dir.path().join("file1.txt"), "content1").unwrap();
+        fs::create_dir(src_dir.path().join("subdir")).unwrap();
+        fs::write(src_dir.path().join("subdir/file2.txt"), "content2").unwrap();
+        
+        // Copy
+        let result = PluginManager::copy_dir_recursive_impl(
+            src_dir.path(),
+            &dst_dir.path().join("dest")
+        );
+        assert!(result.is_ok());
+        
+        // Verify
+        assert!(dst_dir.path().join("dest/file1.txt").exists());
+        assert!(dst_dir.path().join("dest/subdir/file2.txt").exists());
+    }
+
+    #[test]
+    fn test_find_manifest_file() {
+        let temp_dir = tempdir().unwrap();
+        
+        // Create plugin.json
+        fs::write(temp_dir.path().join("plugin.json"), "{}").unwrap();
+        
+        let result = PluginManager::find_manifest_file(temp_dir.path());
+        assert!(result.is_ok());
+        assert!(result.unwrap().ends_with("plugin.json"));
+    }
+
+    #[test]
+    fn test_find_manifest_file_package_json() {
+        let temp_dir = tempdir().unwrap();
+        
+        // Create package.json with cognia field
+        let package_json = r#"{"name": "test", "cognia": {"plugin": true}}"#;
+        fs::write(temp_dir.path().join("package.json"), package_json).unwrap();
+        
+        let result = PluginManager::find_manifest_file(temp_dir.path());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_find_manifest_file_not_found() {
+        let temp_dir = tempdir().unwrap();
+        
+        let result = PluginManager::find_manifest_file(temp_dir.path());
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_scan_plugins_empty() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        let result = manager.scan_plugins().await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_scan_plugins_with_plugin() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        // Create a plugin directory with manifest
+        let plugin_dir = temp_dir.path().join("my-plugin");
+        fs::create_dir(&plugin_dir).unwrap();
+        
+        let manifest = create_test_manifest();
+        let manifest_json = serde_json::to_string_pretty(&manifest).unwrap();
+        fs::write(plugin_dir.join("plugin.json"), manifest_json).unwrap();
+        
+        let result = manager.scan_plugins().await;
+        assert!(result.is_ok());
+        
+        let plugins = result.unwrap();
+        assert_eq!(plugins.len(), 1);
+        assert_eq!(plugins[0].manifest.id, "test-plugin");
+    }
+
+    #[tokio::test]
+    async fn test_get_all_plugins_empty() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        let plugins = manager.get_all_plugins().await;
+        assert!(plugins.is_empty());
+    }
+
+    #[test]
+    fn test_marketplace_config_default() {
+        let config = MarketplaceConfig::default();
+        assert_eq!(config.registry_url, "https://plugins.cognia.app/api/v1");
+        assert_eq!(config.cache_timeout, 300000);
+        assert!(config.verify_signatures);
+    }
+
+    #[test]
+    fn test_marketplace_search_options_default() {
+        let options = MarketplaceSearchOptions::default();
+        assert!(options.query.is_none());
+        assert!(options.category.is_none());
+        assert!(options.limit.is_none());
+    }
+}
+

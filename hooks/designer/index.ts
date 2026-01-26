@@ -21,3 +21,28 @@ export {
   type GenerateSuggestionsOptions,
   type UsePPTAIReturn,
 } from './use-ppt-ai';
+export {
+  useElementTreeVisibility,
+  type VirtualElementTreeNode,
+} from './use-element-tree-visibility';
+export {
+  useSandpackBundler,
+  type BundlerProgress,
+  type UseSandpackBundlerOptions,
+  type UseSandpackBundlerReturn,
+} from './use-sandpack-bundler';
+export {
+  useAIConversation,
+  type UseAIConversationOptions,
+  type UseAIConversationReturn,
+} from './use-ai-conversation';
+export {
+  useDesignerAIConfig,
+  type UseDesignerAIConfigReturn,
+} from './use-designer-ai-config';
+export {
+  useAISuggestions,
+  type SuggestionType,
+  type UseAISuggestionsOptions,
+  type UseAISuggestionsReturn,
+} from './use-ai-suggestions';

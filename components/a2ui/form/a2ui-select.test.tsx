@@ -8,7 +8,7 @@ import { A2UISelect } from './a2ui-select';
 import type { A2UISelectComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: {},
     resolveString: (value: string | { path: string }) => 

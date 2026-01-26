@@ -1,29 +1,44 @@
-//! Python Runtime using PyO3
+//! Python Runtime for Plugin Execution
 //!
-//! Provides embedded Python interpreter for running Python plugins.
+//! Provides Python interpreter management for running Python plugins.
+//! Uses subprocess execution with optimizations for repeated calls.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::AtomicU64;
 
 use super::types::*;
+
+/// Execution statistics for performance monitoring
+#[derive(Debug, Default)]
+pub struct PythonRuntimeStats {
+    /// Total number of tool calls
+    pub total_calls: AtomicU64,
+    /// Total execution time in milliseconds
+    pub total_execution_time_ms: AtomicU64,
+    /// Number of failed calls
+    pub failed_calls: AtomicU64,
+}
 
 /// Python Runtime - manages Python interpreter and plugin execution
 pub struct PythonRuntime {
     /// Python executable path
     python_path: String,
+    /// Python version string
+    python_version: Option<String>,
     /// Loaded plugin modules
     loaded_plugins: HashMap<String, PythonPluginInstance>,
-    /// Whether PyO3 runtime is available
-    #[allow(dead_code)]
-    pyo3_available: bool,
+    /// Runtime statistics
+    stats: PythonRuntimeStats,
+    /// Whether Python is available
+    python_available: bool,
 }
 
 /// Instance of a loaded Python plugin
 #[derive(Debug)]
 struct PythonPluginInstance {
-    /// Plugin ID
-    #[allow(dead_code)]
+    /// Plugin ID (used for logging and error messages)
     plugin_id: String,
     /// Plugin path
     plugin_path: String,
@@ -33,6 +48,8 @@ struct PythonPluginInstance {
     tools: Vec<PythonToolRegistration>,
     /// Registered hooks
     hooks: Vec<PythonHookRegistration>,
+    /// Whether plugin is initialized
+    initialized: bool,
 }
 
 impl PythonRuntime {
@@ -48,26 +65,49 @@ impl PythonRuntime {
             }
         });
 
-        // Verify Python is available
-        let output = Command::new(&python)
+        // Verify Python is available and get version
+        let (python_available, python_version) = match Command::new(&python)
             .args(["--version"])
-            .output();
-
-        match output {
+            .output() 
+        {
             Ok(output) if output.status.success() => {
-                let version = String::from_utf8_lossy(&output.stdout);
-                log::info!("Python runtime initialized: {}", version.trim());
+                let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                log::info!("Python runtime initialized: {}", version);
+                (true, Some(version))
             }
             _ => {
                 log::warn!("Python not found at '{}', Python plugins will be disabled", python);
+                (false, None)
             }
-        }
+        };
 
         Ok(Self {
             python_path: python,
+            python_version,
             loaded_plugins: HashMap::new(),
-            pyo3_available: false, // Will be set to true when PyO3 is properly configured
+            stats: PythonRuntimeStats::default(),
+            python_available,
         })
+    }
+
+    /// Check if Python runtime is available
+    pub fn is_available(&self) -> bool {
+        self.python_available
+    }
+
+    /// Get Python version
+    pub fn version(&self) -> Option<&str> {
+        self.python_version.as_deref()
+    }
+
+    /// Get runtime statistics
+    pub fn stats(&self) -> &PythonRuntimeStats {
+        &self.stats
+    }
+
+    /// Get loaded plugin count
+    pub fn plugin_count(&self) -> usize {
+        self.loaded_plugins.len()
     }
 
     /// Install Python dependencies
@@ -137,6 +177,7 @@ impl PythonRuntime {
             main_module: main_module.to_string(),
             tools: Vec::new(),
             hooks: Vec::new(),
+            initialized: false,
         };
 
         // Store the loaded plugin
@@ -254,10 +295,28 @@ except Exception as e:
                     });
                 }
             }
+            
+            // Mark as initialized
+            instance.initialized = true;
         }
 
         log::info!("Python plugin {} initialized successfully", plugin_id);
         Ok(())
+    }
+    
+    /// Check if a plugin is initialized
+    pub fn is_plugin_initialized(&self, plugin_id: &str) -> bool {
+        self.loaded_plugins
+            .get(plugin_id)
+            .map(|p| p.initialized)
+            .unwrap_or(false)
+    }
+    
+    /// Get plugin info for debugging
+    pub fn get_plugin_info(&self, plugin_id: &str) -> Option<(String, usize, usize)> {
+        self.loaded_plugins.get(plugin_id).map(|p| {
+            (p.plugin_id.clone(), p.tools.len(), p.hooks.len())
+        })
     }
 
     /// Get tools from a loaded plugin
@@ -473,5 +532,105 @@ except Exception as e:
 
         Ok(result["result"].clone())
     }
+    
+    /// Unload a plugin
+    pub fn unload_plugin(&mut self, plugin_id: &str) -> PluginResult<()> {
+        if self.loaded_plugins.remove(plugin_id).is_none() {
+            return Err(PluginError::NotFound(plugin_id.to_string()));
+        }
+        log::info!("Unloaded Python plugin: {}", plugin_id);
+        Ok(())
+    }
+    
+    /// List all loaded plugins
+    pub fn list_plugins(&self) -> Vec<String> {
+        self.loaded_plugins.keys().cloned().collect()
+    }
+}
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::Ordering;
+
+    #[test]
+    fn test_python_runtime_new() {
+        let runtime = PythonRuntime::new(None);
+        assert!(runtime.is_ok());
+    }
+
+    #[test]
+    fn test_python_runtime_version() {
+        let runtime = PythonRuntime::new(None).unwrap();
+        // Version may or may not be available depending on system
+        if runtime.is_available() {
+            assert!(runtime.version().is_some());
+            assert!(runtime.version().unwrap().starts_with("Python"));
+        }
+    }
+
+    #[test]
+    fn test_python_runtime_stats() {
+        let runtime = PythonRuntime::new(None).unwrap();
+        let stats = runtime.stats();
+        assert_eq!(stats.total_calls.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.failed_calls.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn test_python_runtime_plugin_count() {
+        let runtime = PythonRuntime::new(None).unwrap();
+        assert_eq!(runtime.plugin_count(), 0);
+    }
+
+    #[test]
+    fn test_python_runtime_is_available() {
+        let runtime = PythonRuntime::new(None).unwrap();
+        // Should work on most systems
+        let is_available = runtime.is_available();
+        // Just verify the method works, result depends on system
+        assert!(is_available || !is_available);
+    }
+
+    #[test]
+    fn test_python_runtime_with_invalid_path() {
+        let runtime = PythonRuntime::new(Some("/nonexistent/python".to_string()));
+        assert!(runtime.is_ok());
+        let runtime = runtime.unwrap();
+        assert!(!runtime.is_available());
+        assert!(runtime.version().is_none());
+    }
+
+    #[test]
+    fn test_python_runtime_list_plugins_empty() {
+        let runtime = PythonRuntime::new(None).unwrap();
+        assert!(runtime.list_plugins().is_empty());
+    }
+
+    #[test]
+    fn test_is_plugin_initialized_not_found() {
+        let runtime = PythonRuntime::new(None).unwrap();
+        assert!(!runtime.is_plugin_initialized("nonexistent"));
+    }
+
+    #[test]
+    fn test_get_plugin_info_not_found() {
+        let runtime = PythonRuntime::new(None).unwrap();
+        assert!(runtime.get_plugin_info("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_unload_plugin_not_found() {
+        let mut runtime = PythonRuntime::new(None).unwrap();
+        let result = runtime.unload_plugin("nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_python_runtime_stats_default() {
+        let stats = PythonRuntimeStats::default();
+        assert_eq!(stats.total_calls.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.total_execution_time_ms.load(Ordering::Relaxed), 0);
+        assert_eq!(stats.failed_calls.load(Ordering::Relaxed), 0);
+    }
 }

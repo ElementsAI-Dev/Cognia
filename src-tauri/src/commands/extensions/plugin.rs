@@ -210,9 +210,114 @@ pub async fn plugin_show_notification(
     Ok(())
 }
 
+// =============================================================================
+// File Watcher Commands (for Hot Reload)
+// =============================================================================
+
+use crate::plugin::PluginWatcher;
+
+/// Plugin watcher state
+pub struct PluginWatcherState(pub Arc<RwLock<PluginWatcher>>);
+
+/// Start watching plugin directories for changes
+#[tauri::command]
+pub async fn plugin_watch_start(
+    app_handle: tauri::AppHandle,
+    state: State<'_, PluginWatcherState>,
+    paths: Vec<String>,
+) -> Result<(), String> {
+    let mut watcher = state.0.write().await;
+    
+    // Convert paths to (path, plugin_id) tuples
+    // The plugin_id is derived from the directory name
+    let paths_with_ids: Vec<(String, Option<String>)> = paths
+        .into_iter()
+        .map(|p| {
+            let plugin_id = std::path::Path::new(&p)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_string());
+            (p, plugin_id)
+        })
+        .collect();
+    
+    watcher.start_watching(app_handle, paths_with_ids)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Stop watching plugin directories
+#[tauri::command]
+pub async fn plugin_watch_stop(
+    state: State<'_, PluginWatcherState>,
+) -> Result<(), String> {
+    let mut watcher = state.0.write().await;
+    watcher.stop_watching().await.map_err(|e| e.to_string())
+}
+
+/// Check if watcher is active
+#[tauri::command]
+pub async fn plugin_watch_is_active(
+    state: State<'_, PluginWatcherState>,
+) -> Result<bool, String> {
+    let watcher = state.0.read().await;
+    Ok(watcher.is_watching())
+}
+
+/// Add a path to watch
+#[tauri::command]
+pub async fn plugin_watch_add_path(
+    state: State<'_, PluginWatcherState>,
+    path: String,
+) -> Result<(), String> {
+    let mut watcher = state.0.write().await;
+    watcher.watch_path(&path).map_err(|e| e.to_string())
+}
+
+/// Remove a path from watching
+#[tauri::command]
+pub async fn plugin_watch_remove_path(
+    state: State<'_, PluginWatcherState>,
+    path: String,
+) -> Result<(), String> {
+    let mut watcher = state.0.write().await;
+    watcher.unwatch_path(&path).map_err(|e| e.to_string())
+}
+
+// =============================================================================
+// Marketplace Commands
+// =============================================================================
+
+use crate::plugin::{MarketplaceSearchOptions, MarketplaceSearchResult, PluginRegistryEntry};
+
+/// Search plugins in marketplace
+#[tauri::command]
+pub async fn plugin_marketplace_search(
+    state: State<'_, PluginManagerState>,
+    options: MarketplaceSearchOptions,
+) -> Result<MarketplaceSearchResult, String> {
+    let manager = state.0.read().await;
+    manager.search_marketplace(options).await.map_err(|e| e.to_string())
+}
+
+/// Get plugin details from marketplace
+#[tauri::command]
+pub async fn plugin_marketplace_get(
+    state: State<'_, PluginManagerState>,
+    plugin_id: String,
+) -> Result<PluginRegistryEntry, String> {
+    let manager = state.0.read().await;
+    manager.get_marketplace_plugin(&plugin_id).await.map_err(|e| e.to_string())
+}
+
 /// Create plugin manager state
 pub fn create_plugin_manager(app_data_dir: PathBuf) -> PluginManagerState {
     let plugin_dir = app_data_dir.join("plugins");
     let manager = PluginManager::new(plugin_dir);
     PluginManagerState(Arc::new(RwLock::new(manager)))
+}
+
+/// Create plugin watcher state
+pub fn create_plugin_watcher() -> PluginWatcherState {
+    PluginWatcherState(Arc::new(RwLock::new(PluginWatcher::new())))
 }

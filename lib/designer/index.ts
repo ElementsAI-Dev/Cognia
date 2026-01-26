@@ -114,3 +114,51 @@ export {
   getTailwindExternalResources,
   generateStyleInjectionScript,
 } from './tailwind-config';
+
+export {
+  type AIConversation,
+  type CodeDiff,
+  type ConversationStreamUpdate,
+  createConversation,
+  addUserMessage,
+  continueConversation as continueAIConversation,
+  streamConversation,
+  getConversationSummary,
+  clearConversationHistory,
+} from './ai-conversation';
+
+export {
+  type CodePattern,
+  type AccessibilityIssue,
+  type ResponsiveIssue,
+  type CodeAnalysisResult,
+  detectPatternsSimple,
+  detectAccessibilityIssues,
+  detectResponsiveIssues,
+  analyzeCodeWithAI,
+  analyzeCodeLocal,
+} from './ai-analyzer';
+
+export {
+  type ComponentVariant,
+  type ComponentGenerationRequest,
+  type GenerationResult,
+  type StyleType,
+  type ComponentTemplateKey,
+  generateComponent,
+  generateComponentVariants,
+  generateVariantFromCode,
+  generateComponentWithFeatures,
+  generateFromTemplate,
+  COMPONENT_TEMPLATES,
+} from './ai-generator';
+
+export * from './collaboration';
+
+export * from './plugins';
+
+export {
+  parseComponentToElement,
+  isContainerElement,
+  isSelfClosingElement,
+} from './element-parser';

@@ -8,7 +8,7 @@ import { A2UIDatePicker } from './a2ui-datepicker';
 import type { A2UIDatePickerComponent } from '@/types/artifact/a2ui';
 
 // Mock the context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: jest.fn(() => ({
     resolveString: jest.fn((value) => (typeof value === 'string' ? value : '')),
     resolveBoolean: jest.fn((value, defaultVal) => (typeof value === 'boolean' ? value : defaultVal)),
@@ -129,7 +129,7 @@ describe('A2UIDatePicker', () => {
 
   describe('disabled state', () => {
     it('should disable button when disabled is true', () => {
-      const mockUseA2UIContext = jest.requireMock('../../a2ui-context').useA2UIContext;
+      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
       mockUseA2UIContext.mockReturnValue({
         resolveString: jest.fn(() => ''),
         resolveBoolean: jest.fn(() => true),

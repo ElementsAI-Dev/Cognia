@@ -1,5 +1,11 @@
 import { LucideIcon } from 'lucide-react';
 
+// Toolbar display mode
+export type ToolbarMode = 'full' | 'compact';
+
+// Action grouping for organized layout
+export type ActionGroup = 'primary' | 'writing' | 'code' | 'utility';
+
 export type SelectionAction =
   | 'explain'
   | 'translate'
@@ -42,6 +48,32 @@ export interface ActionDefinition {
   shortcut?: string;
   category: ActionCategory;
   description?: string;
+}
+
+// Action group configuration for collapsible sections
+export interface ActionGroupConfig {
+  id: ActionGroup;
+  expanded: boolean;
+  order: number;
+}
+
+// Custom action configuration for user preferences
+export interface CustomActionConfig {
+  action: SelectionAction;
+  enabled: boolean;
+  order: number;
+  group: ActionGroup;
+  customShortcut?: string;
+}
+
+// Preset for saving toolbar configurations
+export interface ToolbarPreset {
+  id: string;
+  name: string;
+  mode: ToolbarMode;
+  quickActions: SelectionAction[];
+  customActions: CustomActionConfig[];
+  groups: ActionGroupConfig[];
 }
 
 export type TextType = 'text' | 'code' | 'url' | 'email' | 'path' | 'number' | 'date';
@@ -112,7 +144,29 @@ export interface SelectionConfig {
   autoHideDelay: number;
   pinnedActions: SelectionAction[];
   customShortcuts: Record<SelectionAction, string>;
+  // New fields for enhanced toolbar
+  toolbarMode: ToolbarMode;
+  quickActions: SelectionAction[];
+  actionGroups: ActionGroupConfig[];
+  activePreset: string | null;
+  presets: ToolbarPreset[];
 }
+
+// Default action groups configuration
+export const DEFAULT_ACTION_GROUPS: ActionGroupConfig[] = [
+  { id: 'primary', expanded: true, order: 0 },
+  { id: 'writing', expanded: false, order: 1 },
+  { id: 'code', expanded: false, order: 2 },
+  { id: 'utility', expanded: false, order: 3 },
+];
+
+// Default quick actions for compact mode
+export const DEFAULT_QUICK_ACTIONS: SelectionAction[] = [
+  'translate',
+  'explain',
+  'summarize',
+  'copy',
+];
 
 export const DEFAULT_SELECTION_CONFIG: SelectionConfig = {
   enabled: false,
@@ -147,6 +201,12 @@ export const DEFAULT_SELECTION_CONFIG: SelectionConfig = {
     shorten: '',
     'knowledge-map': 'K',
   },
+  // New fields for enhanced toolbar
+  toolbarMode: 'full',
+  quickActions: DEFAULT_QUICK_ACTIONS,
+  actionGroups: DEFAULT_ACTION_GROUPS,
+  activePreset: null,
+  presets: [],
 };
 
 export interface ToolbarTheme {

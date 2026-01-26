@@ -10,6 +10,7 @@
 import { generateText, generateObject } from 'ai';
 import { z } from 'zod';
 import { getProviderModel, type ProviderName } from '@/lib/ai/core/client';
+import type { AIConversationMessage } from './ai-conversation';
 
 export interface DesignerAIConfig {
   provider: ProviderName;
@@ -261,12 +262,9 @@ export interface AISuggestion {
   priority: 'low' | 'medium' | 'high';
 }
 
-export interface AIConversationMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  codeSnapshot?: string;
-}
+// Re-export AIConversationMessage from ai-conversation for backward compatibility
+// The canonical definition is in ai-conversation.ts which includes additional fields
+export type { AIConversationMessage } from './ai-conversation';
 
 /**
  * System prompts for different AI operations

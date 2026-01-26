@@ -8,7 +8,7 @@ import { A2UIImage } from './a2ui-image';
 import type { A2UIImageComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: {},
     resolveString: (value: string | { path: string }) =>

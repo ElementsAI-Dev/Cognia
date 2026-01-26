@@ -55,39 +55,39 @@ jest.mock('@/lib/a2ui/catalog', () => ({
 }));
 
 // Mock layout components
-jest.mock('./components/layout/a2ui-row', () => ({
+jest.mock('./layout/a2ui-row', () => ({
   A2UIRow: ({ component }: A2UIComponentProps) => (
     <div data-testid="a2ui-row" data-component-id={component.id}>Row</div>
   ),
 }));
 
-jest.mock('./components/layout/a2ui-column', () => ({
+jest.mock('./layout/a2ui-column', () => ({
   A2UIColumn: ({ component }: A2UIComponentProps) => (
     <div data-testid="a2ui-column" data-component-id={component.id}>Column</div>
   ),
 }));
 
-jest.mock('./components/layout/a2ui-card', () => ({
+jest.mock('./layout/a2ui-card', () => ({
   A2UICard: ({ component }: A2UIComponentProps) => (
     <div data-testid="a2ui-card" data-component-id={component.id}>Card</div>
   ),
 }));
 
-jest.mock('./components/layout/a2ui-divider', () => ({
+jest.mock('./layout/a2ui-divider', () => ({
   A2UIDivider: () => <hr data-testid="a2ui-divider" />,
 }));
 
-jest.mock('./components/layout/a2ui-spacer', () => ({
+jest.mock('./layout/a2ui-spacer', () => ({
   A2UISpacer: () => <div data-testid="a2ui-spacer" />,
 }));
 
-jest.mock('./components/layout/a2ui-dialog', () => ({
+jest.mock('./layout/a2ui-dialog', () => ({
   A2UIDialog: ({ component }: A2UIComponentProps) => (
     <div data-testid="a2ui-dialog" data-component-id={component.id}>Dialog</div>
   ),
 }));
 
-jest.mock('./components/layout/a2ui-fallback', () => ({
+jest.mock('./layout/a2ui-fallback', () => ({
   A2UIFallback: ({ component }: A2UIComponentProps) => (
     <div data-testid="a2ui-fallback" data-component-id={component.id}>
       Unknown: {component.component}
@@ -96,91 +96,91 @@ jest.mock('./components/layout/a2ui-fallback', () => ({
 }));
 
 // Mock display components
-jest.mock('./components/display/a2ui-text', () => ({
+jest.mock('./display/a2ui-text', () => ({
   A2UIText: ({ component }: A2UIComponentProps) => (
     <span data-testid="a2ui-text" data-component-id={component.id}>Text</span>
   ),
 }));
 
-jest.mock('./components/display/a2ui-alert', () => ({
+jest.mock('./display/a2ui-alert', () => ({
   A2UIAlert: ({ component }: A2UIComponentProps) => (
     <div data-testid="a2ui-alert" data-component-id={component.id}>Alert</div>
   ),
 }));
 
-jest.mock('./components/display/a2ui-progress', () => ({
+jest.mock('./display/a2ui-progress', () => ({
   A2UIProgress: () => <div data-testid="a2ui-progress" />,
 }));
 
-jest.mock('./components/display/a2ui-badge', () => ({
+jest.mock('./display/a2ui-badge', () => ({
   A2UIBadge: () => <span data-testid="a2ui-badge" />,
 }));
 
-jest.mock('./components/display/a2ui-image', () => ({
+jest.mock('./display/a2ui-image', () => ({
   A2UIImage: () => <div data-testid="a2ui-image" role="img" />,
 }));
 
-jest.mock('./components/display/a2ui-icon', () => ({
+jest.mock('./display/a2ui-icon', () => ({
   A2UIIcon: () => <span data-testid="a2ui-icon" />,
 }));
 
-jest.mock('./components/display/a2ui-link', () => ({
+jest.mock('./display/a2ui-link', () => ({
   A2UILink: () => <a data-testid="a2ui-link" href="#" />,
 }));
 
 // Mock form components
-jest.mock('./components/form/a2ui-button', () => ({
+jest.mock('./form/a2ui-button', () => ({
   A2UIButton: ({ component }: A2UIComponentProps) => (
     <button data-testid="a2ui-button" data-component-id={component.id}>Button</button>
   ),
 }));
 
-jest.mock('./components/form/a2ui-textfield', () => ({
+jest.mock('./form/a2ui-textfield', () => ({
   A2UITextField: () => <input data-testid="a2ui-textfield" />,
 }));
 
-jest.mock('./components/form/a2ui-textarea', () => ({
+jest.mock('./form/a2ui-textarea', () => ({
   A2UITextArea: () => <textarea data-testid="a2ui-textarea" />,
 }));
 
-jest.mock('./components/form/a2ui-select', () => ({
+jest.mock('./form/a2ui-select', () => ({
   A2UISelect: () => <select data-testid="a2ui-select" />,
 }));
 
-jest.mock('./components/form/a2ui-checkbox', () => ({
+jest.mock('./form/a2ui-checkbox', () => ({
   A2UICheckbox: () => <input type="checkbox" data-testid="a2ui-checkbox" />,
 }));
 
-jest.mock('./components/form/a2ui-radio', () => ({
+jest.mock('./form/a2ui-radio', () => ({
   A2UIRadioGroup: () => <div data-testid="a2ui-radio" />,
 }));
 
-jest.mock('./components/form/a2ui-slider', () => ({
+jest.mock('./form/a2ui-slider', () => ({
   A2UISlider: () => <input type="range" data-testid="a2ui-slider" />,
 }));
 
-jest.mock('./components/form/a2ui-datepicker', () => ({
+jest.mock('./form/a2ui-datepicker', () => ({
   A2UIDatePicker: () => <input type="date" data-testid="a2ui-datepicker" />,
 }));
 
-jest.mock('./components/form/a2ui-timepicker', () => ({
+jest.mock('./form/a2ui-timepicker', () => ({
   A2UITimePicker: () => <input type="time" data-testid="a2ui-timepicker" />,
 }));
 
-jest.mock('./components/form/a2ui-datetimepicker', () => ({
+jest.mock('./form/a2ui-datetimepicker', () => ({
   A2UIDateTimePicker: () => <input type="datetime-local" data-testid="a2ui-datetimepicker" />,
 }));
 
 // Mock data components
-jest.mock('./components/data/a2ui-chart', () => ({
+jest.mock('./data/a2ui-chart', () => ({
   A2UIChart: () => <div data-testid="a2ui-chart" />,
 }));
 
-jest.mock('./components/data/a2ui-table', () => ({
+jest.mock('./data/a2ui-table', () => ({
   A2UITable: () => <table data-testid="a2ui-table" />,
 }));
 
-jest.mock('./components/data/a2ui-list', () => ({
+jest.mock('./data/a2ui-list', () => ({
   A2UIList: () => <ul data-testid="a2ui-list" />,
 }));
 

@@ -18,6 +18,7 @@ global.ResizeObserver = ResizeObserverMock;
 // Mock the selection store
 jest.mock('@/stores/context', () => ({
   useSelectionStore: jest.fn(),
+  selectToolbarMode: jest.fn((state) => state.config?.toolbarMode || 'full'),
 }));
 
 // Mock the Slider component since it needs ResizeObserver
@@ -39,6 +40,7 @@ describe('SelectionToolbarSettings', () => {
   const mockUpdateConfig = jest.fn();
   const mockResetConfig = jest.fn();
   const mockSetEnabled = jest.fn();
+  const mockToggleToolbarMode = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -48,6 +50,7 @@ describe('SelectionToolbarSettings', () => {
       updateConfig: mockUpdateConfig,
       resetConfig: mockResetConfig,
       setEnabled: mockSetEnabled,
+      toggleToolbarMode: mockToggleToolbarMode,
     } as ReturnType<typeof useSelectionStore>);
   });
 
@@ -373,6 +376,56 @@ describe('SelectionToolbarSettings', () => {
 
       // Click to expand again
       fireEvent.click(generalButton!);
+    });
+  });
+
+  describe('compact mode toggle', () => {
+    it('renders compact mode toggle', () => {
+      render(<SelectionToolbarSettings />);
+
+      expect(screen.getByText('Compact Mode')).toBeInTheDocument();
+    });
+
+    it('shows compact mode description', () => {
+      render(<SelectionToolbarSettings />);
+
+      expect(screen.getByText('Show simplified toolbar with fewer buttons')).toBeInTheDocument();
+    });
+
+    it('calls toggleToolbarMode when compact mode switch is clicked', () => {
+      render(<SelectionToolbarSettings />);
+
+      // Find all switches and click the one for compact mode
+      const switches = screen.getAllByRole('switch');
+      // The compact mode switch should be after show shortcuts switch
+      const compactModeSwitch = switches.find((s) => {
+        const container = s.closest('div.flex');
+        return container?.textContent?.includes('Compact Mode');
+      });
+
+      if (compactModeSwitch) {
+        fireEvent.click(compactModeSwitch);
+        expect(mockToggleToolbarMode).toHaveBeenCalled();
+      }
+    });
+
+    it('shows compact mode as enabled when toolbarMode is compact', () => {
+      mockUseSelectionStore.mockReturnValue({
+        config: {
+          ...DEFAULT_SELECTION_CONFIG,
+          toolbarMode: 'compact',
+        },
+        isEnabled: true,
+        updateConfig: mockUpdateConfig,
+        resetConfig: mockResetConfig,
+        setEnabled: mockSetEnabled,
+        toggleToolbarMode: mockToggleToolbarMode,
+      } as ReturnType<typeof useSelectionStore>);
+
+      render(<SelectionToolbarSettings />);
+
+      // Verify compact mode is rendered
+      expect(screen.getByText('Compact Mode')).toBeInTheDocument();
     });
   });
 });

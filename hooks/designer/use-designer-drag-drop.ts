@@ -6,8 +6,8 @@
  */
 
 import { useCallback, useState, useRef } from 'react';
-import { nanoid } from 'nanoid';
 import { useDesignerStore } from '@/stores/designer';
+import { parseComponentToElement } from '@/lib/designer/element-parser';
 import type { DesignerElement } from '@/types/designer';
 
 // Drag data types
@@ -25,31 +25,6 @@ export interface DragData {
 export interface DropPosition {
   parentId: string | null;
   index?: number;
-}
-
-// Parse component code to create a DesignerElement
-function parseComponentToElement(code: string, parentId: string | null): DesignerElement {
-  // Simple parser for common HTML/JSX patterns
-  const tagMatch = code.match(/<(\w+)/);
-  const tagName = tagMatch?.[1]?.toLowerCase() || 'div';
-
-  const classMatch = code.match(/className=["']([^"']+)["']/);
-  const className = classMatch?.[1] || '';
-
-  // Extract text content
-  const textMatch = code.match(/>([^<]+)</);
-  const textContent = textMatch?.[1]?.trim();
-
-  return {
-    id: nanoid(),
-    tagName,
-    className,
-    textContent,
-    attributes: {},
-    styles: {},
-    children: [],
-    parentId,
-  };
 }
 
 export interface UseDesignerDragDropReturn {

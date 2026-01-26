@@ -92,3 +92,22 @@ export {
   type VirtualEnvState,
   type VirtualEnvActions,
 } from './virtual-env-store';
+
+export {
+  useTrayStore,
+  selectTrayConfig,
+  selectTrayDisplayMode,
+  selectTrayState,
+  selectTrayIconState,
+  selectTrayMenuItems,
+  selectTrayIsSynced,
+  selectCompactModeItems,
+  useTrayConfig,
+  useTrayDisplayMode,
+  useTrayStateHook,
+  useTrayIconState,
+  useTrayMenuItems,
+  type TrayStoreState,
+  type TrayStoreActions,
+} from './tray-store';
+

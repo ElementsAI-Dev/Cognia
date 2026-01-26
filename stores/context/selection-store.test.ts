@@ -13,13 +13,33 @@ import {
   selectResult,
   selectError,
   selectHistory,
+  selectSelectionMode,
+  selectIsStreaming,
+  selectStreamingResult,
+  selectFavoriteHistory,
+  selectRecentHistory,
+  selectHistoryByAction,
+  selectTranslationMemory,
+  selectRecentTranslations,
+  selectMostUsedTranslations,
+  selectSelections,
+  selectIsMultiSelectMode,
+  selectSelectionsCount,
+  selectReferences,
+  selectReferencesCount,
+  selectToolbarMode,
+  selectQuickActions,
+  selectActionGroups,
+  selectActivePreset,
+  selectPresets,
+  selectIsCompactMode,
 } from './selection-store';
 
-// Mock crypto.randomUUID
-const mockUUID = 'test-uuid-1234';
+// Mock crypto.randomUUID with incrementing IDs
+let uuidCounter = 0;
 Object.defineProperty(global, 'crypto', {
   value: {
-    randomUUID: () => mockUUID,
+    randomUUID: () => `test-uuid-${++uuidCounter}`,
   },
 });
 
@@ -97,11 +117,12 @@ describe('useSelectionStore', () => {
       const { result } = renderHook(() => useSelectionStore());
 
       act(() => {
-        result.current.updateConfig({ enabled: false, minTextLength: 100 });
+        result.current.updateConfig({ enabled: true, minTextLength: 100 });
         result.current.resetConfig();
       });
 
-      expect(result.current.config.enabled).toBe(true);
+      // DEFAULT_SELECTION_CONFIG has enabled: false
+      expect(result.current.config.enabled).toBe(false);
       expect(result.current.config.minTextLength).toBe(1);
     });
   });
@@ -274,11 +295,11 @@ describe('useSelectionStore', () => {
 
       expect(result.current.history).toHaveLength(1);
       expect(result.current.history[0]).toMatchObject({
-        id: mockUUID,
         text: 'selected text',
         action: 'explain',
         result: 'explanation',
       });
+      expect(result.current.history[0].id).toMatch(/^test-uuid-\d+$/);
       expect(result.current.history[0].timestamp).toBeDefined();
     });
 
@@ -960,6 +981,602 @@ describe('useSelectionStore', () => {
       });
 
       expect(result.current.translationMemory.length).toBeLessThanOrEqual(500);
+    });
+  });
+
+  describe('setSelectionMode', () => {
+    it('should set selection mode', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setSelectionMode('word');
+      });
+
+      expect(result.current.selectionMode).toBe('word');
+
+      act(() => {
+        result.current.setSelectionMode('auto');
+      });
+
+      expect(result.current.selectionMode).toBe('auto');
+    });
+  });
+
+  describe('setShowMoreMenu', () => {
+    it('should set show more menu state', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setShowMoreMenu(true);
+      });
+
+      expect(result.current.showMoreMenu).toBe(true);
+
+      act(() => {
+        result.current.setShowMoreMenu(false);
+      });
+
+      expect(result.current.showMoreMenu).toBe(false);
+    });
+  });
+
+  describe('removeFromHistory', () => {
+    it('should remove item from history by id', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addToHistory({ text: 'text1', action: 'explain', result: 'r1' });
+        result.current.addToHistory({ text: 'text2', action: 'translate', result: 'r2' });
+      });
+
+      const idToRemove = result.current.history[0].id;
+
+      act(() => {
+        result.current.removeFromHistory(idToRemove);
+      });
+
+      expect(result.current.history).toHaveLength(1);
+      expect(result.current.history[0].text).toBe('text1');
+    });
+
+    it('should do nothing if id not found', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addToHistory({ text: 'text1', action: 'explain', result: 'r1' });
+        result.current.removeFromHistory('non-existent-id');
+      });
+
+      expect(result.current.history).toHaveLength(1);
+    });
+  });
+
+  describe('setFeedback', () => {
+    it('should set feedback for action', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setFeedback('action-1', true);
+      });
+
+      expect(result.current.feedbackGiven['action-1']).toBe(true);
+
+      act(() => {
+        result.current.setFeedback('action-2', false);
+      });
+
+      expect(result.current.feedbackGiven['action-2']).toBe(false);
+    });
+
+    it('should overwrite existing feedback', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setFeedback('action-1', true);
+        result.current.setFeedback('action-1', false);
+      });
+
+      expect(result.current.feedbackGiven['action-1']).toBe(false);
+    });
+  });
+
+  describe('showToolbar with options', () => {
+    it('should set sourceApp and textType from options', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.showToolbar('code snippet', 100, 200, {
+          sourceApp: 'VSCode',
+          textType: 'code',
+        });
+      });
+
+      expect(result.current.sourceApp).toBe('VSCode');
+      expect(result.current.textType).toBe('code');
+    });
+
+    it('should set null for missing options', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.showToolbar('text', 0, 0);
+      });
+
+      expect(result.current.sourceApp).toBeNull();
+      expect(result.current.textType).toBeNull();
+    });
+  });
+
+  describe('toolbar mode actions', () => {
+    it('should set toolbar mode', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setToolbarMode('compact');
+      });
+
+      expect(result.current.config.toolbarMode).toBe('compact');
+
+      act(() => {
+        result.current.setToolbarMode('full');
+      });
+
+      expect(result.current.config.toolbarMode).toBe('full');
+    });
+
+    it('should toggle toolbar mode', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setToolbarMode('full');
+        result.current.toggleToolbarMode();
+      });
+
+      expect(result.current.config.toolbarMode).toBe('compact');
+
+      act(() => {
+        result.current.toggleToolbarMode();
+      });
+
+      expect(result.current.config.toolbarMode).toBe('full');
+    });
+
+    it('should update quick actions', () => {
+      const { result } = renderHook(() => useSelectionStore());
+      const newActions = ['explain', 'translate', 'summarize'] as const;
+
+      act(() => {
+        result.current.updateQuickActions([...newActions]);
+      });
+
+      expect(result.current.config.quickActions).toEqual([...newActions]);
+    });
+
+    it('should toggle action group', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      // Get initial state of first group
+      const initialExpanded = result.current.config.actionGroups[0]?.expanded;
+      const groupId = result.current.config.actionGroups[0]?.id;
+
+      if (groupId) {
+        act(() => {
+          result.current.toggleActionGroup(groupId);
+        });
+
+        const group = result.current.config.actionGroups.find((g) => g.id === groupId);
+        expect(group?.expanded).toBe(!initialExpanded);
+      }
+    });
+
+    it('should update action groups', () => {
+      const { result } = renderHook(() => useSelectionStore());
+      const newGroups = [
+        { id: 'writing' as const, expanded: true, order: 0 },
+        { id: 'code' as const, expanded: false, order: 1 },
+      ];
+
+      act(() => {
+        result.current.updateActionGroups(newGroups);
+      });
+
+      expect(result.current.config.actionGroups).toEqual(newGroups);
+    });
+  });
+
+  describe('preset actions', () => {
+    it('should save preset', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.savePreset({
+          name: 'My Preset',
+          mode: 'compact',
+          quickActions: ['explain', 'translate'],
+          customActions: [],
+          groups: [{ id: 'writing', expanded: true, order: 0 }],
+        });
+      });
+
+      expect(result.current.config.presets).toHaveLength(1);
+      expect(result.current.config.presets[0].name).toBe('My Preset');
+      expect(result.current.config.presets[0].id).toBeDefined();
+      expect(result.current.config.activePreset).toBe(result.current.config.presets[0].id);
+    });
+
+    it('should load preset', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.savePreset({
+          name: 'Test Preset',
+          mode: 'compact',
+          quickActions: ['summarize'],
+          customActions: [],
+          groups: [{ id: 'code', expanded: false, order: 0 }],
+        });
+      });
+
+      const presetId = result.current.config.presets[0].id;
+
+      // Change some settings
+      act(() => {
+        result.current.setToolbarMode('full');
+        result.current.updateQuickActions(['explain']);
+      });
+
+      // Load preset
+      act(() => {
+        result.current.loadPreset(presetId);
+      });
+
+      expect(result.current.config.toolbarMode).toBe('compact');
+      expect(result.current.config.quickActions).toEqual(['summarize']);
+      expect(result.current.config.activePreset).toBe(presetId);
+    });
+
+    it('should not change state when loading non-existent preset', () => {
+      const { result } = renderHook(() => useSelectionStore());
+      const originalMode = result.current.config.toolbarMode;
+
+      act(() => {
+        result.current.loadPreset('non-existent-preset');
+      });
+
+      expect(result.current.config.toolbarMode).toBe(originalMode);
+    });
+
+    it('should delete preset', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.savePreset({
+          name: 'Preset 1',
+          mode: 'full',
+          quickActions: [],
+          customActions: [],
+          groups: [],
+        });
+        result.current.savePreset({
+          name: 'Preset 2',
+          mode: 'compact',
+          quickActions: [],
+          customActions: [],
+          groups: [],
+        });
+      });
+
+      const presetToDelete = result.current.config.presets[0].id;
+
+      act(() => {
+        result.current.deletePreset(presetToDelete);
+      });
+
+      expect(result.current.config.presets).toHaveLength(1);
+      expect(result.current.config.presets[0].name).toBe('Preset 2');
+    });
+
+    it('should clear activePreset when deleting active preset', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.savePreset({
+          name: 'Active Preset',
+          mode: 'full',
+          quickActions: [],
+          customActions: [],
+          groups: [],
+        });
+      });
+
+      const activePresetId = result.current.config.activePreset;
+
+      act(() => {
+        result.current.deletePreset(activePresetId!);
+      });
+
+      expect(result.current.config.activePreset).toBeNull();
+    });
+  });
+
+  describe('additional selectors', () => {
+    it('selectSelectionMode should return selectionMode', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setSelectionMode('paragraph');
+      });
+
+      expect(selectSelectionMode(result.current)).toBe('paragraph');
+    });
+
+    it('selectIsStreaming should return isStreaming', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setStreaming(true);
+      });
+
+      expect(selectIsStreaming(result.current)).toBe(true);
+    });
+
+    it('selectStreamingResult should return streamingResult', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setStreaming(true);
+        result.current.appendStreamingResult('test content');
+      });
+
+      expect(selectStreamingResult(result.current)).toBe('test content');
+    });
+
+    it('selectFavoriteHistory should return only favorite items', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.clearHistory();
+        result.current.addToHistory({ text: 'text1', action: 'explain', result: 'r1' });
+        result.current.addToHistory({ text: 'text2', action: 'translate', result: 'r2' });
+      });
+
+      const firstItemId = result.current.history[1].id;
+
+      act(() => {
+        result.current.toggleFavorite(firstItemId);
+      });
+
+      const favorites = selectFavoriteHistory(result.current);
+      expect(favorites).toHaveLength(1);
+      expect(favorites[0].text).toBe('text1');
+    });
+
+    it('selectRecentHistory should return limited history', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        for (let i = 0; i < 20; i++) {
+          result.current.addToHistory({
+            text: `text ${i}`,
+            action: 'explain',
+            result: `result ${i}`,
+          });
+        }
+      });
+
+      const recent5 = selectRecentHistory(result.current, 5);
+      expect(recent5).toHaveLength(5);
+      expect(recent5[0].text).toBe('text 19');
+
+      const recent10 = selectRecentHistory(result.current);
+      expect(recent10).toHaveLength(10);
+    });
+
+    it('selectHistoryByAction should filter by action', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addToHistory({ text: 't1', action: 'explain', result: 'r1' });
+        result.current.addToHistory({ text: 't2', action: 'translate', result: 'r2' });
+        result.current.addToHistory({ text: 't3', action: 'explain', result: 'r3' });
+      });
+
+      const explainHistory = selectHistoryByAction(result.current, 'explain');
+      expect(explainHistory).toHaveLength(2);
+      explainHistory.forEach((item) => {
+        expect(item.action).toBe('explain');
+      });
+    });
+
+    it('selectTranslationMemory should return translation memory', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.clearTranslationMemory();
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '你好',
+        });
+      });
+
+      const memory = selectTranslationMemory(result.current);
+      expect(memory).toHaveLength(1);
+    });
+
+    it('selectRecentTranslations should return limited translations', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        for (let i = 0; i < 20; i++) {
+          result.current.addTranslationMemory({
+            sourceText: `text ${i}`,
+            sourceLanguage: 'en',
+            targetLanguage: 'zh-CN',
+            translation: `翻译 ${i}`,
+          });
+        }
+      });
+
+      const recent = selectRecentTranslations(result.current, 5);
+      expect(recent).toHaveLength(5);
+    });
+
+    it('selectMostUsedTranslations should return sorted by usage', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addTranslationMemory({
+          sourceText: 'Hello',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '你好',
+        });
+        result.current.addTranslationMemory({
+          sourceText: 'World',
+          sourceLanguage: 'en',
+          targetLanguage: 'zh-CN',
+          translation: '世界',
+        });
+      });
+
+      const worldId = result.current.translationMemory.find(
+        (tm) => tm.sourceText === 'World'
+      )?.id;
+
+      act(() => {
+        if (worldId) {
+          result.current.incrementTranslationUsage(worldId);
+          result.current.incrementTranslationUsage(worldId);
+        }
+      });
+
+      const mostUsed = selectMostUsedTranslations(result.current, 2);
+      expect(mostUsed[0].sourceText).toBe('World');
+      expect(mostUsed[0].usageCount).toBeGreaterThan(mostUsed[1].usageCount);
+    });
+
+    it('selectSelections should return selections', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addSelection('text1', { x: 0, y: 0 });
+      });
+
+      expect(selectSelections(result.current)).toHaveLength(1);
+    });
+
+    it('selectIsMultiSelectMode should return isMultiSelectMode', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.toggleMultiSelectMode();
+      });
+
+      expect(selectIsMultiSelectMode(result.current)).toBe(true);
+    });
+
+    it('selectSelectionsCount should return selections count', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.addSelection('text1', { x: 0, y: 0 });
+        result.current.addSelection('text2', { x: 0, y: 0 });
+      });
+
+      expect(selectSelectionsCount(result.current)).toBe(2);
+    });
+
+    it('selectReferences should return references', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.clearReferences();
+        result.current.addReference({ type: 'note', title: 'Note', content: 'content' });
+      });
+
+      expect(selectReferences(result.current)).toHaveLength(1);
+    });
+
+    it('selectReferencesCount should return references count', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.clearReferences();
+        result.current.addReference({ type: 'note', title: 'Note 1', content: 'c1' });
+        result.current.addReference({ type: 'file', title: 'File 1', content: 'c2' });
+      });
+
+      expect(selectReferencesCount(result.current)).toBe(2);
+    });
+
+    it('selectToolbarMode should return toolbarMode', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setToolbarMode('compact');
+      });
+
+      expect(selectToolbarMode(result.current)).toBe('compact');
+    });
+
+    it('selectQuickActions should return quickActions', () => {
+      const { result } = renderHook(() => useSelectionStore());
+      expect(selectQuickActions(result.current)).toBe(result.current.config.quickActions);
+    });
+
+    it('selectActionGroups should return actionGroups', () => {
+      const { result } = renderHook(() => useSelectionStore());
+      expect(selectActionGroups(result.current)).toBe(result.current.config.actionGroups);
+    });
+
+    it('selectActivePreset should return activePreset', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.savePreset({
+          name: 'Test',
+          mode: 'full',
+          quickActions: [],
+          customActions: [],
+          groups: [],
+        });
+      });
+
+      expect(selectActivePreset(result.current)).toBe(result.current.config.activePreset);
+    });
+
+    it('selectPresets should return presets', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.savePreset({
+          name: 'Test',
+          mode: 'full',
+          quickActions: [],
+          customActions: [],
+          groups: [],
+        });
+      });
+
+      expect(selectPresets(result.current)).toBe(result.current.config.presets);
+    });
+
+    it('selectIsCompactMode should return true when compact', () => {
+      const { result } = renderHook(() => useSelectionStore());
+
+      act(() => {
+        result.current.setToolbarMode('compact');
+      });
+
+      expect(selectIsCompactMode(result.current)).toBe(true);
+
+      act(() => {
+        result.current.setToolbarMode('full');
+      });
+
+      expect(selectIsCompactMode(result.current)).toBe(false);
     });
   });
 });

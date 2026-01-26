@@ -20,7 +20,7 @@ function getComponentFiles(dir, excludeDirs = ['ai-elements', 'ui']) {
         const stat = fs.statSync(fullPath);
 
         if (stat.isDirectory()) {
-          const relativePath = path.relative(componentsDir, fullPath);
+          const _relativePath = path.relative(componentsDir, fullPath);
           const dirName = path.basename(fullPath);
           if (!excludeDirs.includes(dirName) && !dirName.startsWith('.') && dirName !== 'node_modules') {
             walk(fullPath);
@@ -32,7 +32,7 @@ function getComponentFiles(dir, excludeDirs = ['ai-elements', 'ui']) {
           }
         }
       }
-    } catch (err) {
+    } catch (_err) {
       // Skip directories we can't read
     }
   }
@@ -62,7 +62,7 @@ function getTestFiles(dir) {
           files.push(relativePath);
         }
       }
-    } catch (err) {
+    } catch (_err) {
       // Skip directories we can't read
     }
   }

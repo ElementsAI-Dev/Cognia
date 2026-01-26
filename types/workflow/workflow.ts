@@ -242,6 +242,104 @@ export interface PPTTheme {
 }
 
 /**
+ * Animation effect types for PPT elements
+ */
+export type PPTAnimationEffect =
+  | 'none'
+  | 'fade'
+  | 'fade-in'
+  | 'fade-out'
+  | 'slide-left'
+  | 'slide-right'
+  | 'slide-up'
+  | 'slide-down'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'bounce'
+  | 'rotate'
+  | 'flip'
+  | 'grow'
+  | 'shrink'
+  | 'pulse'
+  | 'shake'
+  | 'swing'
+  | 'wipe-left'
+  | 'wipe-right'
+  | 'wipe-up'
+  | 'wipe-down'
+  | 'split-horizontal'
+  | 'split-vertical'
+  | 'blinds-horizontal'
+  | 'blinds-vertical'
+  | 'checkerboard'
+  | 'dissolve'
+  | 'wheel'
+  | 'random-bars'
+  | 'typewriter';
+
+/**
+ * Animation timing function
+ */
+export type PPTAnimationTiming =
+  | 'linear'
+  | 'ease'
+  | 'ease-in'
+  | 'ease-out'
+  | 'ease-in-out'
+  | 'bounce'
+  | 'elastic';
+
+/**
+ * Animation trigger type
+ */
+export type PPTAnimationTrigger =
+  | 'on-click'
+  | 'with-previous'
+  | 'after-previous'
+  | 'on-enter'
+  | 'on-exit';
+
+/**
+ * Animation configuration for an element
+ */
+export interface PPTAnimation {
+  /** Animation effect type */
+  effect: PPTAnimationEffect;
+  /** Duration in milliseconds */
+  duration: number;
+  /** Delay before animation starts (ms) */
+  delay?: number;
+  /** Animation timing function */
+  timing?: PPTAnimationTiming;
+  /** How the animation is triggered */
+  trigger?: PPTAnimationTrigger;
+  /** Direction for directional animations */
+  direction?: 'normal' | 'reverse' | 'alternate';
+  /** Number of times to repeat (0 = infinite) */
+  iterations?: number;
+  /** Animation order within the slide */
+  order?: number;
+}
+
+/**
+ * Slide transition configuration
+ */
+export interface PPTSlideTransition {
+  /** Transition effect */
+  effect: PPTAnimationEffect;
+  /** Transition duration in milliseconds */
+  duration: number;
+  /** Timing function */
+  timing?: PPTAnimationTiming;
+  /** Sound to play during transition */
+  sound?: string;
+  /** Advance slide automatically after duration */
+  advanceAfter?: number;
+  /** Advance on mouse click */
+  advanceOnClick?: boolean;
+}
+
+/**
  * PPT slide element
  */
 export interface PPTSlideElement {
@@ -256,6 +354,12 @@ export interface PPTSlideElement {
   };
   style?: Record<string, string>;
   metadata?: Record<string, unknown>;
+  /** Enter animation */
+  enterAnimation?: PPTAnimation;
+  /** Exit animation */
+  exitAnimation?: PPTAnimation;
+  /** Emphasis animation (while on screen) */
+  emphasisAnimation?: PPTAnimation;
 }
 
 /**
@@ -273,7 +377,10 @@ export interface PPTSlide {
   elements: PPTSlideElement[];
   backgroundImage?: string;
   backgroundColor?: string;
-  transition?: string;
+  /** Slide transition configuration */
+  transition?: PPTSlideTransition;
+  /** Legacy transition string (deprecated) */
+  transitionLegacy?: string;
   metadata?: Record<string, unknown>;
 }
 

@@ -27,6 +27,7 @@ export {
   type ImageExportResult,
 } from './image-export';
 export * from './agent-demo-export';
+export * from './pptx-export';
 
 export interface ExportData {
   session: Session;

@@ -674,4 +674,80 @@ describe('useAcademic', () => {
       expect(history).toEqual(historyData);
     });
   });
+
+  describe('PPT Generation Operations', () => {
+    it('should expose generatePresentationFromPaper function', () => {
+      const { result } = renderHook(() => useAcademic());
+
+      expect(typeof result.current.generatePresentationFromPaper).toBe('function');
+    });
+
+    it('should expose generatePPTOutline function', () => {
+      const { result } = renderHook(() => useAcademic());
+
+      expect(typeof result.current.generatePPTOutline).toBe('function');
+    });
+
+    it('should expose isGeneratingPPT state', () => {
+      const { result } = renderHook(() => useAcademic());
+
+      expect(result.current.isGeneratingPPT).toBe(false);
+    });
+
+    it('should generate presentation from papers', async () => {
+      const paper = createMockPaper('1');
+      const { result } = renderHook(() => useAcademic());
+
+      const pptResult = await act(async () => {
+        return result.current.generatePresentationFromPaper([paper]);
+      });
+
+      expect(pptResult).toBeDefined();
+      expect(pptResult!.success).toBe(true);
+      expect(pptResult!.presentation).toBeDefined();
+    });
+
+    it('should generate PPT outline from papers', async () => {
+      const paper = createMockPaper('1');
+      const { result } = renderHook(() => useAcademic());
+
+      const outlineResult = await act(async () => {
+        return result.current.generatePPTOutline([paper]);
+      });
+
+      expect(outlineResult).toBeDefined();
+      expect(outlineResult!.success).toBe(true);
+      expect(outlineResult!.outline).toBeDefined();
+    });
+
+    it('should accept presentation options', async () => {
+      const paper = createMockPaper('1');
+      const { result } = renderHook(() => useAcademic());
+
+      const pptResult = await act(async () => {
+        return result.current.generatePresentationFromPaper([paper], {
+          style: 'conference',
+          slideCount: 10,
+          audienceLevel: 'expert',
+          language: 'en',
+        });
+      });
+
+      expect(pptResult!.success).toBe(true);
+    });
+
+    it('should handle multiple papers for comparison', async () => {
+      const paper1 = createMockPaper('1');
+      const paper2 = createMockPaper('2');
+      const { result } = renderHook(() => useAcademic());
+
+      const pptResult = await act(async () => {
+        return result.current.generatePresentationFromPaper([paper1, paper2]);
+      });
+
+      expect(pptResult!.success).toBe(true);
+      expect(pptResult!.presentation?.metadata?.paperIds).toContain('1');
+      expect(pptResult!.presentation?.metadata?.paperIds).toContain('2');
+    });
+  });
 });

@@ -1,0 +1,48 @@
+{
+  "id": "python-plugin-example",
+  "name": "Python Plugin Example",
+  "version": "1.0.0",
+  "description": "A simple example demonstrating how to create a Python plugin",
+  "type": "python",
+  "capabilities": ["tools"],
+  "author": {
+    "name": "Cognia Team",
+    "email": "plugins@cognia.app"
+  },
+  "pythonMain": "main.py",
+  "pythonDependencies": [
+    "requests>=2.28.0"
+  ],
+  "tools": [
+    {
+      "name": "fetch_weather",
+      "description": "Fetch current weather for a city",
+      "parametersSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "The city name to get weather for"
+          }
+        },
+        "required": ["city"]
+      }
+    },
+    {
+      "name": "count_words",
+      "description": "Count words in text",
+      "parametersSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The text to count words in"
+          }
+        },
+        "required": ["text"]
+      }
+    }
+  ],
+  "permissions": ["network:fetch"],
+  "keywords": ["example", "python", "weather", "text"]
+}

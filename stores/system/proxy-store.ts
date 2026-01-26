@@ -22,6 +22,23 @@ import type {
 } from '@/types/system/proxy';
 import { createDefaultProxyConfig, createDefaultProxyStatus } from '@/types/system/proxy';
 
+/** Health check result */
+export interface ProxyHealthCheckResult {
+  healthy: boolean;
+  latency?: number;
+  error?: string;
+  timestamp: string;
+}
+
+/** Health monitoring state */
+export interface ProxyHealthState {
+  isMonitoring: boolean;
+  lastCheck?: ProxyHealthCheckResult;
+  checkHistory: ProxyHealthCheckResult[];
+  consecutiveFailures: number;
+  avgLatency: number;
+}
+
 export interface ProxyState {
   // Configuration
   config: ProxyConfig;
@@ -32,6 +49,9 @@ export interface ProxyState {
   // Detection
   detectedProxies: DetectedProxy[];
   detectionStatus: DetectionStatus;
+
+  // Health Monitoring
+  health: ProxyHealthState;
 
   // UI State
   isDetecting: boolean;
@@ -70,15 +90,29 @@ export interface ProxyActions {
   setError: (error: string | null) => void;
   clearError: () => void;
 
+  // Health Monitoring
+  setHealthMonitoring: (monitoring: boolean) => void;
+  recordHealthCheck: (result: ProxyHealthCheckResult) => void;
+  clearHealthHistory: () => void;
+  resetHealth: () => void;
+
   // Reset
   reset: () => void;
 }
+
+const initialHealthState: ProxyHealthState = {
+  isMonitoring: false,
+  checkHistory: [],
+  consecutiveFailures: 0,
+  avgLatency: 0,
+};
 
 const initialState: ProxyState = {
   config: createDefaultProxyConfig(),
   status: createDefaultProxyStatus(),
   detectedProxies: [],
   detectionStatus: 'idle',
+  health: initialHealthState,
   isDetecting: false,
   isTesting: false,
   isApplying: false,
@@ -161,6 +195,54 @@ export const useProxyStore = create<ProxyState & ProxyActions>()(
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),
 
+      // Health monitoring
+      setHealthMonitoring: (isMonitoring) =>
+        set((state) => ({
+          health: { ...state.health, isMonitoring },
+        })),
+
+      recordHealthCheck: (result) =>
+        set((state) => {
+          const MAX_HISTORY = 100;
+          const newHistory = [result, ...state.health.checkHistory].slice(0, MAX_HISTORY);
+          const consecutiveFailures = result.healthy
+            ? 0
+            : state.health.consecutiveFailures + 1;
+
+          // Calculate average latency from successful checks
+          const successfulChecks = newHistory.filter((r) => r.healthy && r.latency);
+          const avgLatency =
+            successfulChecks.length > 0
+              ? successfulChecks.reduce((sum, r) => sum + (r.latency || 0), 0) /
+                successfulChecks.length
+              : 0;
+
+          return {
+            health: {
+              ...state.health,
+              lastCheck: result,
+              checkHistory: newHistory,
+              consecutiveFailures,
+              avgLatency,
+            },
+          };
+        }),
+
+      clearHealthHistory: () =>
+        set((state) => ({
+          health: {
+            ...state.health,
+            checkHistory: [],
+            consecutiveFailures: 0,
+            avgLatency: 0,
+          },
+        })),
+
+      resetHealth: () =>
+        set({
+          health: initialHealthState,
+        }),
+
       reset: () => set(initialState),
     }),
     {
@@ -181,6 +263,8 @@ export const useProxyEnabled = () => useProxyStore((state) => state.config.enabl
 export const useDetectedProxies = () => useProxyStore((state) => state.detectedProxies);
 export const useProxyDetecting = () => useProxyStore((state) => state.isDetecting);
 export const useProxyTesting = () => useProxyStore((state) => state.isTesting);
+export const useProxyHealth = () => useProxyStore((state) => state.health);
+export const useProxyHealthMonitoring = () => useProxyStore((state) => state.health.isMonitoring);
 
 /** Get the currently active proxy URL */
 export function getActiveProxyUrl(state: ProxyState): string | null {

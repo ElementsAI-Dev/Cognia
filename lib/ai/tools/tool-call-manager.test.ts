@@ -10,6 +10,7 @@ import {
   resetGlobalToolCallManager,
   DEFAULT_TOOL_CALL_MANAGER_CONFIG,
   type ToolCallManagerConfig,
+  type ToolCallMetrics as _ToolCallMetrics,
 } from './tool-call-manager';
 
 describe('ToolCallManager', () => {
@@ -521,6 +522,176 @@ describe('ToolCallManager', () => {
       expect(pending.length).toBe(1);
       expect(pending[0].toolCallId).toBe('pending-info');
       expect(['pending', 'running']).toContain(pending[0].status);
+    });
+  });
+
+  describe('getMetrics', () => {
+    it('should return metrics with basic stats', () => {
+      const metrics = manager.getMetrics();
+
+      expect(metrics).toHaveProperty('stats');
+      expect(metrics).toHaveProperty('totalEnqueued');
+      expect(metrics).toHaveProperty('totalTimeouts');
+      expect(metrics).toHaveProperty('totalCancelled');
+      expect(metrics).toHaveProperty('avgExecutionTime');
+      expect(metrics).toHaveProperty('successRate');
+      expect(metrics).toHaveProperty('throughputPerMinute');
+      expect(metrics).toHaveProperty('uptimeMs');
+    });
+
+    it('should track totalEnqueued', async () => {
+      const toolCall = {
+        id: 'enqueue-test',
+        name: 'testTool',
+        args: {},
+        status: 'pending' as const,
+        startedAt: new Date(),
+      };
+
+      const executor = jest.fn().mockResolvedValue({ success: true });
+
+      await manager.enqueue(toolCall, executor, { blocking: true });
+
+      const metrics = manager.getMetrics();
+      expect(metrics.totalEnqueued).toBe(1);
+    });
+
+    it('should calculate success rate', async () => {
+      const successToolCall = {
+        id: 'success-test',
+        name: 'successTool',
+        args: {},
+        status: 'pending' as const,
+        startedAt: new Date(),
+      };
+
+      const executor = jest.fn().mockResolvedValue({ success: true });
+      await manager.enqueue(successToolCall, executor, { blocking: true });
+
+      const metrics = manager.getMetrics();
+      expect(metrics.successRate).toBe(100);
+    });
+
+    it('should track execution times by tool', async () => {
+      const toolCall = {
+        id: 'time-test',
+        name: 'timedTool',
+        args: {},
+        status: 'pending' as const,
+        startedAt: new Date(),
+      };
+
+      const executor = jest.fn().mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve('done'), 50))
+      );
+
+      await manager.enqueue(toolCall, executor, { blocking: true });
+
+      const metrics = manager.getMetrics();
+      expect(metrics.executionTimesByTool).toHaveProperty('timedTool');
+      expect(metrics.executionTimesByTool['timedTool'].count).toBe(1);
+    });
+
+    it('should track errors by tool', async () => {
+      const toolCall = {
+        id: 'error-test',
+        name: 'errorTool',
+        args: {},
+        status: 'pending' as const,
+        startedAt: new Date(),
+      };
+
+      const executor = jest.fn().mockRejectedValue(new Error('Test error'));
+
+      try {
+        await manager.enqueue(toolCall, executor, { blocking: true });
+      } catch {
+        // Expected
+      }
+
+      const metrics = manager.getMetrics();
+      expect(metrics.errorsByTool).toHaveProperty('errorTool');
+      expect(metrics.errorsByTool['errorTool']).toBe(1);
+    });
+
+    it('should track timeouts', async () => {
+      const toolCall = {
+        id: 'timeout-test',
+        name: 'slowTool',
+        args: {},
+        status: 'pending' as const,
+        startedAt: new Date(),
+      };
+
+      const slowExecutor = jest.fn().mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve('done'), 5000))
+      );
+
+      try {
+        await manager.enqueue(toolCall, slowExecutor, { blocking: true, timeout: 50 });
+      } catch {
+        // Expected timeout
+      }
+
+      const metrics = manager.getMetrics();
+      expect(metrics.totalTimeouts).toBe(1);
+    });
+
+    it('should calculate percentiles', async () => {
+      const executor = jest.fn().mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve('done'), 10))
+      );
+
+      // Execute multiple tool calls
+      for (let i = 0; i < 5; i++) {
+        const toolCall = {
+          id: `percentile-test-${i}`,
+          name: 'percentileTool',
+          args: {},
+          status: 'pending' as const,
+          startedAt: new Date(),
+        };
+        await manager.enqueue(toolCall, executor, { blocking: true });
+      }
+
+      const metrics = manager.getMetrics();
+      expect(metrics.p50ExecutionTime).toBeGreaterThanOrEqual(0);
+      expect(metrics.p95ExecutionTime).toBeGreaterThanOrEqual(0);
+      expect(metrics.p99ExecutionTime).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('resetMetrics', () => {
+    it('should reset all metrics', async () => {
+      const toolCall = {
+        id: 'reset-test',
+        name: 'testTool',
+        args: {},
+        status: 'pending' as const,
+        startedAt: new Date(),
+      };
+
+      const executor = jest.fn().mockResolvedValue({ success: true });
+      await manager.enqueue(toolCall, executor, { blocking: true });
+
+      manager.resetMetrics();
+
+      const metrics = manager.getMetrics();
+      expect(metrics.totalEnqueued).toBe(0);
+      expect(metrics.totalTimeouts).toBe(0);
+      expect(metrics.totalCancelled).toBe(0);
+    });
+
+    it('should reset uptime', async () => {
+      const beforeReset = manager.getMetrics().uptimeMs;
+
+      // Wait a bit
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      manager.resetMetrics();
+
+      const afterReset = manager.getMetrics().uptimeMs;
+      expect(afterReset).toBeLessThan(beforeReset + 100);
     });
   });
 });

@@ -38,6 +38,8 @@
     "showDelayDesc": "Delay before showing the toolbar after text selection",
     "showKeyboardShortcuts": "Show Keyboard Shortcuts",
     "showKeyboardShortcutsDesc": "Display shortcut hints in tooltips",
+    "compactMode": "Compact Mode",
+    "compactModeDesc": "Show simplified toolbar with fewer buttons",
     "streamingResponse": "Streaming Response",
     "streamingResponseDesc": "Show results as they are generated",
     "appearance": "Appearance",
@@ -223,7 +225,11 @@
     "categoryAi": "AI",
     "categoryEdit": "Edit",
     "categoryCode": "Code",
-    "categoryUtility": "Utility"
+    "categoryUtility": "Utility",
+    "compactToolbar": "Compact Mode",
+    "compactToolbarDesc": "Show simplified toolbar with fewer buttons",
+    "expandToolbar": "Full Mode",
+    "expandToolbarDesc": "Show complete toolbar with all features"
   },
   "selectionHistory": {
     "history": "History",

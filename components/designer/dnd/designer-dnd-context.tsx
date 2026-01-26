@@ -19,12 +19,9 @@ import {
   type DragOverEvent,
   type UniqueIdentifier,
 } from '@dnd-kit/core';
-import {
-  sortableKeyboardCoordinates,
-} from '@dnd-kit/sortable';
-import { nanoid } from 'nanoid';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useDesignerStore } from '@/stores/designer';
-import type { DesignerElement } from '@/types/designer';
+import { parseComponentToElement, isContainerElement } from '@/lib/designer/element-parser';
 import type { DragItem } from '@/types';
 
 // Re-export types for backward compatibility
@@ -62,29 +59,6 @@ export function useDesignerDndStrict() {
 
 interface DesignerDndProviderProps {
   children: ReactNode;
-}
-
-// Parse component code to create a DesignerElement
-function parseComponentToElement(code: string, parentId: string | null): DesignerElement {
-  const tagMatch = code.match(/<(\w+)/);
-  const tagName = tagMatch?.[1]?.toLowerCase() || 'div';
-
-  const classMatch = code.match(/className=["']([^"']+)["']/);
-  const className = classMatch?.[1] || '';
-
-  const textMatch = code.match(/>([^<]+)</);
-  const textContent = textMatch?.[1]?.trim();
-
-  return {
-    id: nanoid(),
-    tagName,
-    className,
-    textContent,
-    attributes: {},
-    styles: {},
-    children: [],
-    parentId,
-  };
 }
 
 export function DesignerDndProvider({ children }: DesignerDndProviderProps) {
@@ -161,8 +135,7 @@ export function DesignerDndProvider({ children }: DesignerDndProviderProps) {
         const targetElement = elementMap[targetId];
 
         // Check if target can accept children (is a container element)
-        const containerTags = ['div', 'section', 'article', 'main', 'aside', 'header', 'footer', 'nav', 'ul', 'ol', 'form'];
-        const isContainer = containerTags.includes(targetElement.tagName.toLowerCase());
+        const isContainer = isContainerElement(targetElement.tagName);
 
         if (isContainer) {
           // Insert as last child of target element
@@ -226,8 +199,7 @@ export function DesignerDndProvider({ children }: DesignerDndProviderProps) {
         }
       } else {
         // Different parent - move to new parent's container or as sibling
-        const containerTags = ['div', 'section', 'article', 'main', 'aside', 'header', 'footer', 'nav', 'ul', 'ol', 'form'];
-        const isContainer = containerTags.includes(overElement.tagName.toLowerCase());
+        const isContainer = isContainerElement(overElement.tagName);
 
         if (isContainer) {
           // Drop into the container as last child

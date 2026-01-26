@@ -8,7 +8,7 @@ import { A2UIList } from './a2ui-list';
 import type { A2UIListComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: {},
   }),
@@ -23,7 +23,7 @@ jest.mock('@/lib/a2ui/data-model', () => ({
 }));
 
 // Mock the A2UI renderer
-jest.mock('../../a2ui-renderer', () => ({
+jest.mock('../a2ui-renderer', () => ({
   A2UIChildRenderer: ({ childIds }: { childIds: string[] }) => (
     <div data-testid="children">{childIds.join(',')}</div>
   ),

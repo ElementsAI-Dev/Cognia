@@ -1,13 +1,12 @@
 /**
  * Workflow Executor - Executes workflows step by step
  * 
- * Handles step orchestration, dependency resolution, and state management
+ * Handles step orchestration, dependency resolution, and state management.
+ * Step-specific execution logic has been extracted to step-executors/ modules.
  */
 
-import { generateText } from 'ai';
 import { nanoid } from 'nanoid';
-import { getProviderModel, type ProviderName } from '../core/client';
-import { getGlobalToolRegistry } from '../tools/registry';
+import type { ProviderName } from '../core/client';
 import { getGlobalWorkflowRegistry } from './registry';
 import type {
   WorkflowDefinition,
@@ -17,6 +16,21 @@ import type {
   WorkflowLog,
   WorkflowStepDefinition,
 } from '@/types/workflow';
+
+// Import step executors from extracted modules
+import {
+  executeAIStep,
+  executeToolStep,
+  executeConditionalStep,
+  executeCodeStep,
+  executeTransformStep,
+  executeLoopStep,
+  executeWebhookStep,
+  executeDelayStep,
+  executeMergeStep,
+  executeSubworkflowStep,
+  setExecuteWorkflowFn,
+} from './step-executors';
 
 export interface WorkflowExecutorConfig {
   provider: ProviderName;
@@ -262,378 +276,6 @@ async function executeStep(
 }
 
 /**
- * Execute an AI-based step
- */
-async function executeAIStep(
-  step: WorkflowStepDefinition,
-  input: Record<string, unknown>,
-  config: WorkflowExecutorConfig
-): Promise<unknown> {
-  const modelInstance = getProviderModel(
-    config.provider,
-    config.model,
-    config.apiKey,
-    config.baseURL
-  );
-
-  // Build prompt with input context
-  let prompt = step.aiPrompt || '';
-  for (const [key, value] of Object.entries(input)) {
-    prompt = prompt.replace(`{{${key}}}`, String(value));
-  }
-
-  const result = await generateText({
-    model: modelInstance,
-    prompt,
-    temperature: config.temperature || 0.7,
-  });
-
-  return {
-    text: result.text,
-    usage: result.usage,
-  };
-}
-
-/**
- * Execute a tool-based step
- */
-async function executeToolStep(
-  step: WorkflowStepDefinition,
-  input: Record<string, unknown>
-): Promise<unknown> {
-  if (!step.toolName) {
-    throw new Error('Tool step requires toolName');
-  }
-
-  const registry = getGlobalToolRegistry();
-  const toolDef = registry.get(step.toolName);
-
-  if (!toolDef) {
-    throw new Error(`Tool not found: ${step.toolName}`);
-  }
-
-  const toolFn = toolDef.create({});
-  return toolFn(input);
-}
-
-/**
- * Execute a conditional step
- */
-async function executeConditionalStep(
-  step: WorkflowStepDefinition,
-  input: Record<string, unknown>,
-  _execution: WorkflowExecution
-): Promise<unknown> {
-  if (!step.condition) {
-    return input;
-  }
-
-  // Simple condition evaluation
-  // In a real implementation, this could use a proper expression parser
-  try {
-    const conditionFn = new Function(...Object.keys(input), `return ${step.condition}`);
-    const result = conditionFn(...Object.values(input));
-    return { conditionResult: result, ...input };
-  } catch (_error) {
-    throw new Error(`Failed to evaluate condition: ${step.condition}`);
-  }
-}
-
-/**
- * Execute a code step - runs JavaScript/TypeScript code
- */
-async function executeCodeStep(
-  step: WorkflowStepDefinition,
-  input: Record<string, unknown>
-): Promise<unknown> {
-  if (!step.code) {
-    throw new Error('Code step requires code');
-  }
-
-  try {
-    // Create a sandboxed function with input as context
-    const asyncFn = new Function(
-      'input',
-      `return (async () => { ${step.code} })()`
-    );
-    const result = await asyncFn(input);
-    return typeof result === 'object' ? result : { result };
-  } catch (error) {
-    throw new Error(`Code execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-/**
- * Execute a transform step - transforms data using expression
- */
-async function executeTransformStep(
-  step: WorkflowStepDefinition,
-  input: Record<string, unknown>
-): Promise<unknown> {
-  if (!step.expression) {
-    return input;
-  }
-
-  try {
-    const data = input.data || input;
-    
-    switch (step.transformType) {
-      case 'map': {
-        if (!Array.isArray(data)) {
-          throw new Error('Map transform requires array input');
-        }
-        const mapFn = new Function('item', 'index', `return ${step.expression}`);
-        return { result: data.map((item, index) => mapFn(item, index)) };
-      }
-      case 'filter': {
-        if (!Array.isArray(data)) {
-          throw new Error('Filter transform requires array input');
-        }
-        const filterFn = new Function('item', 'index', `return ${step.expression}`);
-        return { result: data.filter((item, index) => filterFn(item, index)) };
-      }
-      case 'reduce': {
-        if (!Array.isArray(data)) {
-          throw new Error('Reduce transform requires array input');
-        }
-        const reduceFn = new Function('acc', 'item', 'index', `return ${step.expression}`);
-        return { result: data.reduce((acc, item, index) => reduceFn(acc, item, index), null) };
-      }
-      case 'sort': {
-        if (!Array.isArray(data)) {
-          throw new Error('Sort transform requires array input');
-        }
-        const sortFn = new Function('a', 'b', `return ${step.expression}`);
-        return { result: [...data].sort((a, b) => sortFn(a, b)) };
-      }
-      case 'custom':
-      default: {
-        const customFn = new Function('data', 'input', `return ${step.expression}`);
-        return { result: customFn(data, input) };
-      }
-    }
-  } catch (error) {
-    throw new Error(`Transform failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-/**
- * Execute a loop step - iterates over collection or condition
- */
-async function executeLoopStep(
-  step: WorkflowStepDefinition,
-  input: Record<string, unknown>,
-  _execution: WorkflowExecution,
-  _config: WorkflowExecutorConfig,
-  _callbacks: WorkflowExecutorCallbacks
-): Promise<unknown> {
-  const maxIterations = step.maxIterations || 100;
-  const results: unknown[] = [];
-  
-  switch (step.loopType) {
-    case 'forEach': {
-      const collection = step.collection ? input[step.collection] : input.collection;
-      if (!Array.isArray(collection)) {
-        throw new Error('forEach loop requires array collection');
-      }
-      for (let i = 0; i < Math.min(collection.length, maxIterations); i++) {
-        results.push({ [step.iteratorVariable || 'item']: collection[i], index: i });
-      }
-      break;
-    }
-    case 'times': {
-      for (let i = 0; i < maxIterations; i++) {
-        results.push({ [step.iteratorVariable || 'index']: i });
-      }
-      break;
-    }
-    case 'while': {
-      if (!step.condition) {
-        throw new Error('while loop requires condition');
-      }
-      let iteration = 0;
-      let conditionResult = true;
-      while (conditionResult && iteration < maxIterations) {
-        try {
-          const conditionFn = new Function('iteration', 'input', `return ${step.condition}`);
-          conditionResult = conditionFn(iteration, input);
-          if (conditionResult) {
-            results.push({ [step.iteratorVariable || 'iteration']: iteration });
-            iteration++;
-          }
-        } catch {
-          break;
-        }
-      }
-      break;
-    }
-  }
-
-  return { iterations: results, count: results.length };
-}
-
-/**
- * Execute a webhook step - makes HTTP request
- */
-async function executeWebhookStep(
-  step: WorkflowStepDefinition,
-  input: Record<string, unknown>
-): Promise<unknown> {
-  if (!step.webhookUrl) {
-    throw new Error('Webhook step requires webhookUrl');
-  }
-
-  try {
-    // Replace placeholders in URL and body
-    let url = step.webhookUrl;
-    let body = step.body || '';
-    
-    for (const [key, value] of Object.entries(input)) {
-      url = url.replace(`{{${key}}}`, String(value));
-      body = body.replace(`{{${key}}}`, String(value));
-    }
-
-    const response = await fetch(url, {
-      method: step.method || 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...step.headers,
-      },
-      body: step.method !== 'GET' ? body : undefined,
-    });
-
-    const responseText = await response.text();
-    let responseData: unknown;
-    
-    try {
-      responseData = JSON.parse(responseText);
-    } catch {
-      responseData = responseText;
-    }
-
-    return {
-      status: response.status,
-      statusText: response.statusText,
-      data: responseData,
-      headers: Object.fromEntries(response.headers.entries()),
-    };
-  } catch (error) {
-    throw new Error(`Webhook request failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-/**
- * Execute a delay step - waits for specified duration
- */
-async function executeDelayStep(
-  step: WorkflowStepDefinition
-): Promise<unknown> {
-  switch (step.delayType) {
-    case 'fixed': {
-      const ms = step.delayMs || 1000;
-      await new Promise(resolve => setTimeout(resolve, ms));
-      return { delayed: ms };
-    }
-    case 'until': {
-      if (step.untilTime) {
-        const targetTime = new Date(step.untilTime).getTime();
-        const now = Date.now();
-        if (targetTime > now) {
-          await new Promise(resolve => setTimeout(resolve, targetTime - now));
-        }
-      }
-      return { delayed: true, until: step.untilTime };
-    }
-    case 'cron':
-    default:
-      // Cron expressions would need a proper scheduler - just pass through for now
-      return { delayed: false, reason: 'Cron scheduling not supported in immediate execution' };
-  }
-}
-
-/**
- * Execute a merge step - combines multiple inputs
- */
-async function executeMergeStep(
-  step: WorkflowStepDefinition,
-  input: Record<string, unknown>
-): Promise<unknown> {
-  const inputs = Object.values(input);
-  
-  switch (step.mergeStrategy) {
-    case 'concat': {
-      // Concatenate arrays
-      const arrays = inputs.filter(Array.isArray);
-      return { result: arrays.flat() };
-    }
-    case 'merge': {
-      // Deep merge objects
-      return { result: Object.assign({}, ...inputs.filter(v => typeof v === 'object' && v !== null)) };
-    }
-    case 'first': {
-      return { result: inputs[0] };
-    }
-    case 'last': {
-      return { result: inputs[inputs.length - 1] };
-    }
-    case 'custom':
-    default: {
-      // Return all inputs as-is
-      return { result: input };
-    }
-  }
-}
-
-/**
- * Execute a subworkflow step - runs another workflow
- */
-async function executeSubworkflowStep(
-  step: WorkflowStepDefinition,
-  input: Record<string, unknown>,
-  config: WorkflowExecutorConfig,
-  callbacks: WorkflowExecutorCallbacks
-): Promise<unknown> {
-  if (!step.workflowId) {
-    throw new Error('Subworkflow step requires workflowId');
-  }
-
-  // Map inputs according to inputMapping
-  const subworkflowInput: Record<string, unknown> = {};
-  if (step.inputMapping) {
-    for (const [targetKey, sourceKey] of Object.entries(step.inputMapping)) {
-      subworkflowInput[targetKey] = input[sourceKey];
-    }
-  } else {
-    Object.assign(subworkflowInput, input);
-  }
-
-  // Execute the subworkflow
-  const result = await executeWorkflow(
-    step.workflowId,
-    `sub-${Date.now()}`,
-    subworkflowInput,
-    config,
-    callbacks
-  );
-
-  if (!result.success) {
-    throw new Error(`Subworkflow failed: ${result.error}`);
-  }
-
-  // Map outputs according to outputMapping
-  const output: Record<string, unknown> = {};
-  if (step.outputMapping && result.output) {
-    for (const [targetKey, sourceKey] of Object.entries(step.outputMapping)) {
-      output[targetKey] = result.output[sourceKey];
-    }
-  } else {
-    Object.assign(output, result.output);
-  }
-
-  return output;
-}
-
-/**
  * Calculate workflow progress
  */
 function calculateProgress(execution: WorkflowExecution): number {
@@ -827,3 +469,6 @@ export function cancelWorkflow(execution: WorkflowExecution): void {
     addLog(execution, 'info', 'Workflow cancelled');
   }
 }
+
+// Initialize subworkflow executor with executeWorkflow reference
+setExecuteWorkflowFn(executeWorkflow);

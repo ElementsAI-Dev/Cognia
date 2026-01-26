@@ -18,3 +18,4 @@ export * from './selection-toolbar';
 export * from './skill';
 export * from './jupyter';
 export * from './tokenizer';
+export * from './tray';

@@ -12,9 +12,11 @@ import {
   useDetectedProxies,
   useProxyDetecting,
   useProxyTesting,
+  useProxyHealth,
+  useProxyHealthMonitoring,
   getActiveProxyUrl,
 } from './proxy-store';
-import type { ProxyState } from './proxy-store';
+import type { ProxyState, ProxyHealthCheckResult } from './proxy-store';
 import type { DetectedProxy, ProxyTestResult } from '@/types/system/proxy';
 
 describe('useProxyStore', () => {
@@ -517,5 +519,237 @@ describe('Selector Hooks', () => {
 
     const { result } = renderHook(() => useProxyTesting());
     expect(result.current).toBe(true);
+  });
+
+  it('useProxyHealth returns health state', () => {
+    const { result } = renderHook(() => useProxyHealth());
+    expect(result.current).toBeDefined();
+    expect(result.current.isMonitoring).toBe(false);
+    expect(result.current.checkHistory).toEqual([]);
+  });
+
+  it('useProxyHealthMonitoring returns monitoring state', () => {
+    const store = renderHook(() => useProxyStore());
+    act(() => {
+      store.result.current.setHealthMonitoring(true);
+    });
+
+    const { result } = renderHook(() => useProxyHealthMonitoring());
+    expect(result.current).toBe(true);
+  });
+});
+
+describe('Health Monitoring', () => {
+  beforeEach(() => {
+    const { result } = renderHook(() => useProxyStore());
+    act(() => {
+      result.current.reset();
+    });
+  });
+
+  describe('Initial Health State', () => {
+    it('has correct initial health state', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      expect(result.current.health).toBeDefined();
+      expect(result.current.health.isMonitoring).toBe(false);
+      expect(result.current.health.checkHistory).toEqual([]);
+      expect(result.current.health.consecutiveFailures).toBe(0);
+      expect(result.current.health.avgLatency).toBe(0);
+    });
+  });
+
+  describe('setHealthMonitoring', () => {
+    it('sets monitoring state to true', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      act(() => {
+        result.current.setHealthMonitoring(true);
+      });
+
+      expect(result.current.health.isMonitoring).toBe(true);
+    });
+
+    it('sets monitoring state to false', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      act(() => {
+        result.current.setHealthMonitoring(true);
+      });
+
+      act(() => {
+        result.current.setHealthMonitoring(false);
+      });
+
+      expect(result.current.health.isMonitoring).toBe(false);
+    });
+  });
+
+  describe('recordHealthCheck', () => {
+    it('records successful health check', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      const healthCheck: ProxyHealthCheckResult = {
+        healthy: true,
+        latency: 100,
+        timestamp: new Date().toISOString(),
+      };
+
+      act(() => {
+        result.current.recordHealthCheck(healthCheck);
+      });
+
+      expect(result.current.health.lastCheck).toEqual(healthCheck);
+      expect(result.current.health.checkHistory).toHaveLength(1);
+      expect(result.current.health.consecutiveFailures).toBe(0);
+    });
+
+    it('records failed health check and increments failures', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      const healthCheck: ProxyHealthCheckResult = {
+        healthy: false,
+        error: 'Connection refused',
+        timestamp: new Date().toISOString(),
+      };
+
+      act(() => {
+        result.current.recordHealthCheck(healthCheck);
+      });
+
+      expect(result.current.health.consecutiveFailures).toBe(1);
+    });
+
+    it('resets consecutive failures on success', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      // Record failures
+      act(() => {
+        result.current.recordHealthCheck({
+          healthy: false,
+          error: 'Error 1',
+          timestamp: new Date().toISOString(),
+        });
+        result.current.recordHealthCheck({
+          healthy: false,
+          error: 'Error 2',
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      expect(result.current.health.consecutiveFailures).toBe(2);
+
+      // Record success
+      act(() => {
+        result.current.recordHealthCheck({
+          healthy: true,
+          latency: 50,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      expect(result.current.health.consecutiveFailures).toBe(0);
+    });
+
+    it('calculates average latency from successful checks', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      act(() => {
+        result.current.recordHealthCheck({
+          healthy: true,
+          latency: 100,
+          timestamp: new Date().toISOString(),
+        });
+        result.current.recordHealthCheck({
+          healthy: true,
+          latency: 200,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      expect(result.current.health.avgLatency).toBe(150);
+    });
+
+    it('limits history to 100 entries', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      act(() => {
+        for (let i = 0; i < 110; i++) {
+          result.current.recordHealthCheck({
+            healthy: true,
+            latency: i,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      });
+
+      expect(result.current.health.checkHistory.length).toBe(100);
+    });
+  });
+
+  describe('clearHealthHistory', () => {
+    it('clears health history', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      act(() => {
+        result.current.recordHealthCheck({
+          healthy: true,
+          latency: 100,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      act(() => {
+        result.current.clearHealthHistory();
+      });
+
+      expect(result.current.health.checkHistory).toEqual([]);
+      expect(result.current.health.consecutiveFailures).toBe(0);
+      expect(result.current.health.avgLatency).toBe(0);
+    });
+
+    it('preserves monitoring state when clearing', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      act(() => {
+        result.current.setHealthMonitoring(true);
+        result.current.recordHealthCheck({
+          healthy: true,
+          latency: 100,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      act(() => {
+        result.current.clearHealthHistory();
+      });
+
+      expect(result.current.health.isMonitoring).toBe(true);
+    });
+  });
+
+  describe('resetHealth', () => {
+    it('resets health to initial state', () => {
+      const { result } = renderHook(() => useProxyStore());
+
+      act(() => {
+        result.current.setHealthMonitoring(true);
+        result.current.recordHealthCheck({
+          healthy: true,
+          latency: 100,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      act(() => {
+        result.current.resetHealth();
+      });
+
+      expect(result.current.health.isMonitoring).toBe(false);
+      expect(result.current.health.checkHistory).toEqual([]);
+      expect(result.current.health.consecutiveFailures).toBe(0);
+      expect(result.current.health.avgLatency).toBe(0);
+      expect(result.current.health.lastCheck).toBeUndefined();
+    });
   });
 });

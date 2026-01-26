@@ -8,7 +8,7 @@ import { A2UIDialog } from './a2ui-dialog';
 import type { A2UIDialogComponent } from '@/types/artifact/a2ui';
 
 // Mock the context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: jest.fn(() => ({
     resolveString: jest.fn((value) => (typeof value === 'string' ? value : '')),
     resolveBoolean: jest.fn((value, defaultVal) => (typeof value === 'boolean' ? value : defaultVal)),
@@ -17,7 +17,7 @@ jest.mock('../../a2ui-context', () => ({
 }));
 
 // Mock the child renderer
-jest.mock('../../a2ui-renderer', () => ({
+jest.mock('../a2ui-renderer', () => ({
   A2UIChildRenderer: ({ childIds }: { childIds: string[] }) => (
     <div data-testid="child-renderer">{childIds.join(', ')}</div>
   ),
@@ -58,7 +58,7 @@ describe('A2UIDialog', () => {
     });
 
     it('should render dialog when open is true', () => {
-      const mockUseA2UIContext = jest.requireMock('../../a2ui-context').useA2UIContext;
+      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
       mockUseA2UIContext.mockReturnValue({
         resolveString: jest.fn((value) => (typeof value === 'string' ? value : '')),
         resolveBoolean: jest.fn(() => true),
@@ -77,7 +77,7 @@ describe('A2UIDialog', () => {
     });
 
     it('should render title when provided', () => {
-      const mockUseA2UIContext = jest.requireMock('../../a2ui-context').useA2UIContext;
+      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
       mockUseA2UIContext.mockReturnValue({
         resolveString: jest.fn((value) => value),
         resolveBoolean: jest.fn(() => true),
@@ -96,7 +96,7 @@ describe('A2UIDialog', () => {
     });
 
     it('should render description when provided', () => {
-      const mockUseA2UIContext = jest.requireMock('../../a2ui-context').useA2UIContext;
+      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
       mockUseA2UIContext.mockReturnValue({
         resolveString: jest.fn((value) => value),
         resolveBoolean: jest.fn(() => true),
@@ -121,7 +121,7 @@ describe('A2UIDialog', () => {
 
   describe('children rendering', () => {
     it('should render children when provided', () => {
-      const mockUseA2UIContext = jest.requireMock('../../a2ui-context').useA2UIContext;
+      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
       mockUseA2UIContext.mockReturnValue({
         resolveString: jest.fn((value) => value),
         resolveBoolean: jest.fn(() => true),
@@ -146,7 +146,7 @@ describe('A2UIDialog', () => {
 
   describe('actions rendering', () => {
     it('should render actions when provided', () => {
-      const mockUseA2UIContext = jest.requireMock('../../a2ui-context').useA2UIContext;
+      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
       mockUseA2UIContext.mockReturnValue({
         resolveString: jest.fn((value) => value),
         resolveBoolean: jest.fn(() => true),

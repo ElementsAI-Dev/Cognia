@@ -8,7 +8,7 @@ import { A2UICard } from './a2ui-card';
 import type { A2UICardComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: {},
     resolveString: (value: string | { path: string }) =>
@@ -19,7 +19,7 @@ jest.mock('../../a2ui-context', () => ({
 }));
 
 // Mock the A2UI renderer
-jest.mock('../../a2ui-renderer', () => ({
+jest.mock('../a2ui-renderer', () => ({
   A2UIChildRenderer: ({ childIds }: { childIds: string[] }) => (
     <div data-testid="children">{childIds.join(',')}</div>
   ),

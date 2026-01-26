@@ -8,7 +8,7 @@ import { A2UIColumn } from './a2ui-column';
 import type { A2UIColumnComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI renderer
-jest.mock('../../a2ui-renderer', () => ({
+jest.mock('../a2ui-renderer', () => ({
   A2UIChildRenderer: ({ childIds }: { childIds: string[] }) => (
     <div data-testid="children">{childIds.join(',')}</div>
   ),

@@ -21,7 +21,14 @@ import type {
   PaperAnalysisType,
   PaperReadingStatus,
   PaperAnalysisResult,
+  PaperToPPTOptions,
+  PaperPPTOutlineItem,
 } from '@/types/learning/academic';
+import {
+  executePaperToPPT,
+  executePaperToPPTOutline,
+} from '@/lib/ai/tools/academic-ppt-tool';
+import type { PPTPresentation } from '@/types/workflow';
 
 type SupportedAcademicProvider =
   | 'arxiv'
@@ -195,6 +202,26 @@ export interface UseAcademicReturn {
   refresh: () => Promise<void>;
   refreshLibrary: () => Promise<void>;
   refreshCollections: () => Promise<void>;
+
+  // PPT Generation
+  generatePresentationFromPaper: (
+    papers: Paper[],
+    options?: Partial<Omit<PaperToPPTOptions, 'papers'>>
+  ) => Promise<{
+    success: boolean;
+    presentation?: PPTPresentation;
+    outline?: PaperPPTOutlineItem[];
+    error?: string;
+  }>;
+  generatePPTOutline: (
+    papers: Paper[],
+    options?: Partial<Omit<PaperToPPTOptions, 'papers'>>
+  ) => Promise<{
+    success: boolean;
+    outline?: PaperPPTOutlineItem[];
+    error?: string;
+  }>;
+  isGeneratingPPT: boolean;
 }
 
 export function useAcademic(options: UseAcademicOptions = {}): UseAcademicReturn {
@@ -214,6 +241,7 @@ export function useAcademic(options: UseAcademicOptions = {}): UseAcademicReturn
   const [lastSearchResult, setLastSearchResult] = useState<AcademicSearchResult | null>(null);
   const [lastAnalysisResult, setLastAnalysisResult] = useState<AcademicAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isGeneratingPPT, setIsGeneratingPPT] = useState(false);
 
   // Computed values
   const libraryPapers = useMemo(() => {
@@ -663,6 +691,88 @@ export function useAcademic(options: UseAcademicOptions = {}): UseAcademicReturn
     ]);
   }, [academicStore]);
 
+  /**
+   * Generate a full PPT presentation from papers
+   */
+  const generatePresentationFromPaper = useCallback(
+    async (
+      papers: Paper[],
+      options?: Partial<Omit<PaperToPPTOptions, 'papers'>>
+    ) => {
+      setIsGeneratingPPT(true);
+      try {
+        const input = {
+          papers: papers.map(p => ({
+            id: p.id,
+            title: p.title,
+            abstract: p.abstract,
+            authors: p.authors,
+            year: p.year,
+            venue: p.venue,
+          })),
+          style: options?.style || 'academic',
+          slideCount: options?.slideCount || 15,
+          audienceLevel: options?.audienceLevel || 'graduate',
+          language: options?.language || 'en',
+          includeSections: options?.includeSections,
+          generateImages: options?.generateImages ?? true,
+          imageStyle: options?.imageStyle || 'diagram',
+          includeNotes: options?.includeNotes ?? true,
+          includeCitations: options?.includeCitations ?? true,
+          includeReferences: options?.includeReferences ?? true,
+          customInstructions: options?.customInstructions,
+        };
+
+        const result = executePaperToPPT(input);
+        return result;
+      } finally {
+        setIsGeneratingPPT(false);
+      }
+    },
+    []
+  );
+
+  /**
+   * Generate only the outline from papers (for preview)
+   */
+  const generatePPTOutline = useCallback(
+    async (
+      papers: Paper[],
+      options?: Partial<Omit<PaperToPPTOptions, 'papers'>>
+    ) => {
+      setIsGeneratingPPT(true);
+      try {
+        const input = {
+          papers: papers.map(p => ({
+            id: p.id,
+            title: p.title,
+            abstract: p.abstract,
+            authors: p.authors,
+            year: p.year,
+            venue: p.venue,
+          })),
+          style: options?.style || 'academic',
+          slideCount: options?.slideCount || 15,
+          audienceLevel: options?.audienceLevel || 'graduate',
+          language: options?.language || 'en',
+          includeSections: options?.includeSections,
+          generateImages: options?.generateImages ?? true,
+          imageStyle: options?.imageStyle || 'diagram',
+          includeNotes: options?.includeNotes ?? true,
+          includeCitations: options?.includeCitations ?? true,
+          includeReferences: options?.includeReferences ?? true,
+          customInstructions: options?.customInstructions,
+        };
+
+        const result = executePaperToPPTOutline(input);
+        return result;
+      } finally {
+        setIsGeneratingPPT(false);
+      }
+    },
+    []
+  );
+
   return {
     // Search state
     searchQuery: academicStore.search.query,
@@ -770,6 +880,11 @@ export function useAcademic(options: UseAcademicOptions = {}): UseAcademicReturn
     refresh,
     refreshLibrary: academicStore.refreshLibrary,
     refreshCollections: academicStore.refreshCollections,
+
+    // PPT Generation
+    generatePresentationFromPaper,
+    generatePPTOutline,
+    isGeneratingPPT,
   };
 }
 

@@ -520,10 +520,7 @@ pub fn proxy_check_port(host: String, port: u16) -> bool {
 pub async fn proxy_get_clash_info(api_port: u16) -> Result<serde_json::Value, String> {
     let url = format!("http://127.0.0.1:{}", api_port);
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = crate::http::HTTP_CLIENT_QUICK.clone();
 
     // Get version
     let version_resp = client
@@ -548,6 +545,94 @@ pub async fn proxy_get_clash_info(api_port: u16) -> Result<serde_json::Value, St
         "configs": configs,
         "apiUrl": url,
     }))
+}
+
+/// HTTP request input for proxied requests
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProxiedRequestInput {
+    pub url: String,
+    pub method: Option<String>,
+    pub body: Option<String>,
+    pub headers: Option<std::collections::HashMap<String, String>>,
+    pub proxy_url: Option<String>,
+    pub timeout_secs: Option<u64>,
+}
+
+/// HTTP response output
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProxiedRequestOutput {
+    pub status: u16,
+    pub body: String,
+    pub headers: std::collections::HashMap<String, String>,
+}
+
+/// Make an HTTP request through proxy
+/// 
+/// This command allows the frontend to make HTTP requests that actually
+/// go through the configured proxy, unlike browser fetch which ignores
+/// application proxy settings.
+#[tauri::command]
+pub async fn proxy_http_request(input: ProxiedRequestInput) -> Result<ProxiedRequestOutput, String> {
+    let client = if let Some(ref proxy_url) = input.proxy_url {
+        crate::http::create_client_with_proxy(proxy_url, input.timeout_secs)
+            .map_err(|e| format!("Failed to create proxy client: {}", e))?
+    } else {
+        crate::http::HTTP_CLIENT.clone()
+    };
+
+    let method = input.method.as_deref().unwrap_or("GET").to_uppercase();
+    
+    let mut request = match method.as_str() {
+        "GET" => client.get(&input.url),
+        "POST" => client.post(&input.url),
+        "PUT" => client.put(&input.url),
+        "DELETE" => client.delete(&input.url),
+        "PATCH" => client.patch(&input.url),
+        "HEAD" => client.head(&input.url),
+        _ => return Err(format!("Unsupported HTTP method: {}", method)),
+    };
+
+    // Add headers
+    if let Some(headers) = input.headers {
+        for (key, value) in headers {
+            request = request.header(&key, &value);
+        }
+    }
+
+    // Add body for methods that support it
+    if let Some(body) = input.body {
+        if matches!(method.as_str(), "POST" | "PUT" | "PATCH") {
+            request = request.body(body);
+        }
+    }
+
+    let response = request.send().await.map_err(|e| {
+        if e.is_timeout() {
+            "Request timeout".to_string()
+        } else if e.is_connect() {
+            format!("Connection failed: {}", e)
+        } else {
+            e.to_string()
+        }
+    })?;
+
+    let status = response.status().as_u16();
+    
+    // Collect response headers
+    let mut resp_headers = std::collections::HashMap::new();
+    for (key, value) in response.headers().iter() {
+        if let Ok(v) = value.to_str() {
+            resp_headers.insert(key.as_str().to_string(), v.to_string());
+        }
+    }
+
+    let body = response.text().await.map_err(|e| e.to_string())?;
+
+    Ok(ProxiedRequestOutput {
+        status,
+        body,
+        headers: resp_headers,
+    })
 }
 
 #[cfg(test)]

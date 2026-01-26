@@ -153,6 +153,16 @@ function extractKeywords(content: string): string[] {
 }
 
 /**
+ * Image generation result type
+ */
+type ImageGenResult = { 
+  imageUrl?: string; 
+  imageBase64?: string; 
+  revisedPrompt?: string; 
+  error?: string;
+};
+
+/**
  * Generate image using OpenAI DALL-E
  */
 async function generateWithOpenAI(
@@ -160,7 +170,7 @@ async function generateWithOpenAI(
   config: PPTImageGenerationConfig,
   apiKey: string,
   baseURL?: string
-): Promise<{ imageUrl?: string; imageBase64?: string; revisedPrompt?: string; error?: string }> {
+): Promise<ImageGenResult> {
   try {
     const endpoint = baseURL 
       ? `${baseURL}/images/generations`
@@ -200,6 +210,168 @@ async function generateWithOpenAI(
 }
 
 /**
+ * Generate image using Google Imagen (Vertex AI)
+ */
+async function generateWithGoogleImagen(
+  prompt: string,
+  config: PPTImageGenerationConfig,
+  apiKey: string
+): Promise<ImageGenResult> {
+  try {
+    // Google Imagen API endpoint (requires Vertex AI setup)
+    const endpoint = 'https://us-central1-aiplatform.googleapis.com/v1/projects/YOUR_PROJECT/locations/us-central1/publishers/google/models/imagegeneration:predict';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        instances: [{ prompt }],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: config.size === '1024x1024' ? '1:1' : '16:9',
+          negativePrompt: 'blurry, low quality, text, watermark',
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      return { error: error.error?.message || `Google Imagen API error: ${response.status}` };
+    }
+
+    const data = await response.json();
+    const imageData = data.predictions?.[0];
+
+    if (imageData?.bytesBase64Encoded) {
+      return {
+        imageBase64: `data:image/png;base64,${imageData.bytesBase64Encoded}`,
+      };
+    }
+
+    return { error: 'No image data returned from Google Imagen' };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to generate image with Google Imagen' };
+  }
+}
+
+/**
+ * Generate image using Stability AI (Stable Diffusion)
+ */
+async function generateWithStabilityAI(
+  prompt: string,
+  config: PPTImageGenerationConfig,
+  apiKey: string
+): Promise<ImageGenResult> {
+  try {
+    const endpoint = 'https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image';
+
+    // Map size to Stability AI dimensions
+    const dimensions = {
+      '1024x1024': { width: 1024, height: 1024 },
+      '1024x1792': { width: 1024, height: 1792 },
+      '1792x1024': { width: 1792, height: 1024 },
+    };
+    const size = dimensions[config.size as keyof typeof dimensions] || dimensions['1792x1024'];
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        text_prompts: [
+          { text: prompt, weight: 1 },
+          { text: 'blurry, low quality, text, watermark, ugly', weight: -1 },
+        ],
+        cfg_scale: 7,
+        width: size.width,
+        height: size.height,
+        samples: 1,
+        steps: config.quality === 'high' ? 50 : 30,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }));
+      return { error: error.message || `Stability AI API error: ${response.status}` };
+    }
+
+    const data = await response.json();
+    const imageData = data.artifacts?.[0];
+
+    if (imageData?.base64) {
+      return {
+        imageBase64: `data:image/png;base64,${imageData.base64}`,
+      };
+    }
+
+    return { error: 'No image data returned from Stability AI' };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to generate image with Stability AI' };
+  }
+}
+
+/**
+ * Generate image using local Stable Diffusion (ComfyUI/Automatic1111)
+ */
+async function generateWithLocalSD(
+  prompt: string,
+  config: PPTImageGenerationConfig,
+  baseURL: string
+): Promise<ImageGenResult> {
+  try {
+    // Automatic1111 API endpoint
+    const endpoint = `${baseURL}/sdapi/v1/txt2img`;
+
+    const dimensions = {
+      '1024x1024': { width: 1024, height: 1024 },
+      '1024x1792': { width: 1024, height: 1792 },
+      '1792x1024': { width: 1792, height: 1024 },
+    };
+    const size = dimensions[config.size as keyof typeof dimensions] || dimensions['1792x1024'];
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        negative_prompt: 'blurry, low quality, text, watermark, ugly',
+        width: size.width,
+        height: size.height,
+        steps: config.quality === 'high' ? 30 : 20,
+        cfg_scale: 7,
+        sampler_name: 'DPM++ 2M Karras',
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      return { error: error.detail || `Local SD API error: ${response.status}` };
+    }
+
+    const data = await response.json();
+    const imageData = data.images?.[0];
+
+    if (imageData) {
+      return {
+        imageBase64: `data:image/png;base64,${imageData}`,
+      };
+    }
+
+    return { error: 'No image data returned from local Stable Diffusion' };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to generate image with local SD' };
+  }
+}
+
+/**
  * Generate a single slide image
  */
 export async function generateSlideImage(
@@ -221,7 +393,15 @@ export async function generateSlideImage(
     case 'openai':
       result = await generateWithOpenAI(prompt, request.config, apiKey, baseURL);
       break;
-    // Add more providers here as needed
+    case 'google':
+      result = await generateWithGoogleImagen(prompt, request.config, apiKey);
+      break;
+    case 'stability':
+      result = await generateWithStabilityAI(prompt, request.config, apiKey);
+      break;
+    case 'local':
+      result = await generateWithLocalSD(prompt, request.config, baseURL || 'http://127.0.0.1:7860');
+      break;
     default:
       result = { error: `Unsupported provider: ${request.config.provider}` };
   }

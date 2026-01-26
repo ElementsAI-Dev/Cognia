@@ -4,11 +4,102 @@
  * Provides a fetch wrapper that routes requests through configured proxy.
  * Works in both browser and Tauri environments.
  *
- * Note: In browser environments, proxy is handled by the browser/system.
- * In Tauri desktop, we use environment variables or custom fetch.
+ * In browser environments, proxy is handled by the browser/system.
+ * In Tauri desktop, we use the Rust backend for actual proxied requests.
  */
 
+import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@/lib/native/utils';
 import { useProxyStore, getActiveProxyUrl } from '@/stores/system';
+
+/** Input for proxied HTTP request via Tauri */
+interface ProxiedRequestInput {
+  url: string;
+  method?: string;
+  body?: string;
+  headers?: Record<string, string>;
+  proxy_url?: string;
+  timeout_secs?: number;
+}
+
+/** Output from proxied HTTP request via Tauri */
+interface ProxiedRequestOutput {
+  status: number;
+  body: string;
+  headers: Record<string, string>;
+}
+
+/**
+ * Make an HTTP request through the Tauri backend with proxy support
+ */
+async function tauriProxiedFetch(
+  input: RequestInfo | URL,
+  init?: ProxyFetchOptions,
+  proxyUrl?: string | null
+): Promise<Response> {
+  const url = typeof input === 'string' ? input : input.toString();
+  const method = init?.method || 'GET';
+  const timeoutSecs = init?.timeout ? Math.ceil(init.timeout / 1000) : undefined;
+
+  // Convert headers to Record<string, string>
+  const headers: Record<string, string> = {};
+  if (init?.headers) {
+    if (init.headers instanceof Headers) {
+      init.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+    } else if (Array.isArray(init.headers)) {
+      init.headers.forEach(([key, value]) => {
+        headers[key] = value;
+      });
+    } else {
+      Object.assign(headers, init.headers);
+    }
+  }
+
+  // Get body as string
+  let body: string | undefined;
+  if (init?.body) {
+    if (typeof init.body === 'string') {
+      body = init.body;
+    } else if (init.body instanceof ArrayBuffer) {
+      body = new TextDecoder().decode(init.body);
+    } else if (init.body instanceof Blob) {
+      body = await init.body.text();
+    } else {
+      body = JSON.stringify(init.body);
+    }
+  }
+
+  try {
+    const result = await invoke<ProxiedRequestOutput>('proxy_http_request', {
+      input: {
+        url,
+        method,
+        body,
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
+        proxy_url: proxyUrl || undefined,
+        timeout_secs: timeoutSecs,
+      } as ProxiedRequestInput,
+    });
+
+    // Convert headers back to Headers object
+    const responseHeaders = new Headers();
+    for (const [key, value] of Object.entries(result.headers)) {
+      responseHeaders.set(key, value);
+    }
+
+    // Create a Response object
+    return new Response(result.body, {
+      status: result.status,
+      headers: responseHeaders,
+    });
+  } catch (error) {
+    // If Tauri command fails, throw a proper error
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Proxy request failed: ${message}`);
+  }
+}
 
 export interface ProxyFetchOptions extends RequestInit {
   /** Skip proxy for this request */
@@ -79,8 +170,9 @@ export function getProxyConfig(): {
 
 /**
  * Create a fetch function with proxy support
- * This is primarily for documentation - actual proxy handling
- * depends on the environment (browser vs Tauri)
+ * 
+ * In browser: Uses system/browser proxy settings
+ * In Tauri: Routes through Rust backend for actual proxy support
  */
 export function createProxyFetch(customProxyUrl?: string) {
   return async (
@@ -109,15 +201,18 @@ export function createProxyFetch(customProxyUrl?: string) {
       return fetch(input, fetchInit);
     }
 
-    // In Tauri environment, we set proxy via environment variables
-    // or use the Rust backend for proxied requests
-    if (proxyUrl) {
+    // In Tauri environment, use the Rust backend for actual proxy support
+    if (isTauri()) {
       // Log proxy usage in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[Proxy] Routing request through: ${proxyUrl}`);
+      if (process.env.NODE_ENV === 'development' && proxyUrl) {
+        console.log(`[Proxy] Routing request through Tauri: ${proxyUrl}`);
       }
+
+      // Use Tauri backend for proxied requests
+      return tauriProxiedFetch(input, { ...fetchInit, timeout }, proxyUrl);
     }
 
+    // Fallback to regular fetch (shouldn't normally reach here)
     if (timeout) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);

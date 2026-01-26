@@ -8,7 +8,7 @@ import { A2UITextField } from './a2ui-textfield';
 import type { A2UITextFieldComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
-jest.mock('../../a2ui-context', () => ({
+jest.mock('../a2ui-context', () => ({
   useA2UIContext: () => ({
     dataModel: { name: 'John' },
     resolveString: (value: string | { path: string }) => {
