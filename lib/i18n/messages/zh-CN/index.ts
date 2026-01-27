@@ -33,6 +33,8 @@ import misc from './misc.json';
 import learning from './learning.json';
 import plugin from './plugin.json';
 import document from './document.json';
+import tray from './tray.json';
+import chatWidget from './chatWidget.json';
 
 const messages = {
   ...common,
@@ -66,8 +68,9 @@ const messages = {
   ...misc,
   ...learning,
   ...plugin,
-  ...plugin,
-  ...document
+  ...document,
+  ...tray,
+  ...chatWidget
 };
 
 export default messages;

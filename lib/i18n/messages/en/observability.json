@@ -1,0 +1,130 @@
+{
+  "observability": {
+    "title": "Observability",
+    "description": "Track AI operations, view traces, and analyze costs with Langfuse and OpenTelemetry",
+    "close": "Close",
+    "noData": "No data",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+
+    "timeRange": {
+      "1h": "Last 1 hour",
+      "24h": "Last 24 hours",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "lastHour": "Last Hour",
+      "last24Hours": "Last 24 Hours",
+      "last7Days": "Last 7 Days",
+      "last30Days": "Last 30 Days"
+    },
+
+    "button": {
+      "label": "Observability",
+      "tooltipTitle": "Observability Dashboard",
+      "tooltipDisabledHint": "Enable in settings to view traces"
+    },
+
+    "dashboard": {
+      "title": "Observability Dashboard",
+      "disabledTitle": "Observability Disabled",
+      "disabledDescription": "Enable observability in settings to track AI operations, view traces, and analyze costs.",
+      "totalRequests": "Total Requests",
+      "avgLatency": "Avg Latency",
+      "totalCost": "Total Cost",
+      "errorRate": "Error Rate",
+      "recentTraces": "Recent Traces",
+      "noTraces": "No traces yet. Start using AI features to see traces here.",
+      "selectTrace": "Select a trace to view details",
+      "traceRunning": "Running...",
+      "tabs": {
+        "traces": "Traces",
+        "metrics": "Metrics",
+        "costs": "Cost Analysis"
+      }
+    },
+
+    "costAnalysis": {
+      "title": "Cost Analysis",
+      "noData": "No cost data available",
+      "totalCost": "Total Cost",
+      "costPerRequest": "Cost per Request",
+      "costPer1kTokens": "Cost per 1K Tokens",
+      "projectedMonthly": "Projected Monthly",
+      "costByProvider": "Cost by Provider",
+      "costBreakdown": "Cost Breakdown",
+      "apiCosts": "API Costs",
+      "costBreakdownDesc": "Based on {requests} requests using {tokens} tokens",
+      "totalRequests": "Total Requests",
+      "totalTokens": "Total Tokens",
+      "avgTokensPerRequest": "Avg Tokens/Request",
+      "percentOfTotal": "{percent}% of total"
+    },
+
+    "metrics": {
+      "title": "Metrics Overview",
+      "noData": "No metrics data available",
+      "totalRequests": "Total Requests",
+      "totalTokens": "Total Tokens",
+      "avgLatency": "Avg Latency",
+      "errorRate": "Error Rate",
+      "latencyPercentiles": "Latency Percentiles",
+      "p50": "P50",
+      "p90": "P90",
+      "p99": "P99",
+      "requestsByProvider": "Requests by Provider",
+      "requestsByModel": "Requests by Model",
+      "tokensByProvider": "Tokens by Provider"
+    },
+
+    "traceViewer": {
+      "traceId": "Trace ID:",
+      "sessionId": "Session:",
+      "started": "Started:",
+      "duration": "Duration:",
+      "provider": "Provider:",
+      "model": "Model:",
+      "spanTree": "Span Tree",
+      "noSpans": "No spans recorded",
+      "metadata": "Metadata",
+      "openInLangfuse": "Open in Langfuse",
+      "input": "Input",
+      "output": "Output",
+      "tokenUsage": {
+        "prompt": "Prompt:",
+        "completion": "Completion:",
+        "total": "Total:",
+        "cost": "Cost:"
+      }
+    },
+
+    "settings": {
+      "title": "Observability",
+      "description": "Track AI operations, view traces, and analyze costs with Langfuse and OpenTelemetry",
+      "testConnection": "Test Connection",
+      "testingConnection": "Testing connection...",
+      "connectionSuccess": "Connection successful!",
+      "connectionFailed": "Connection failed",
+      "configureKeysFirst": "Please configure API keys first",
+      "getApiKeys": "Get API Keys",
+      "langfuse": {
+        "title": "Langfuse Integration",
+        "description": "AI-specific observability for tracing, evaluation, and analytics",
+        "hostUrl": "Host URL",
+        "hostUrlPlaceholder": "https://cloud.langfuse.com",
+        "publicKey": "Public Key",
+        "publicKeyPlaceholder": "pk-lf-...",
+        "secretKey": "Secret Key",
+        "secretKeyPlaceholder": "sk-lf-..."
+      },
+      "otel": {
+        "title": "OpenTelemetry",
+        "description": "Standard distributed tracing for infrastructure observability",
+        "endpoint": "OTLP Endpoint",
+        "endpointPlaceholder": "http://localhost:4318/v1/traces",
+        "endpointHint": "OTLP HTTP endpoint for sending traces (e.g., Jaeger, Zipkin, or OTEL Collector)",
+        "serviceName": "Service Name",
+        "serviceNamePlaceholder": "cognia-ai"
+      }
+    }
+  }
+}

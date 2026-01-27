@@ -402,7 +402,7 @@ export function SearchSettings() {
                     <div className="px-3 pb-3 space-y-3 border-t pt-3">
                       {/* API Key */}
                       <div className="space-y-1.5">
-                        <Label htmlFor={`${providerId}-key`} className="text-xs">API Key</Label>
+                        <Label htmlFor={`${providerId}-key`} className="text-xs">{t('apiKey')}</Label>
                         <div className="flex gap-2">
                           <div className="relative flex-1">
                             <Input
@@ -477,25 +477,25 @@ export function SearchSettings() {
                       {/* Features */}
                       <div className="flex flex-wrap gap-1">
                         {config.features.aiAnswer && (
-                          <Badge variant="secondary">AI Answer</Badge>
+                          <Badge variant="secondary">{t('features.aiAnswer')}</Badge>
                         )}
                         {config.features.newsSearch && (
-                          <Badge variant="secondary">News</Badge>
+                          <Badge variant="secondary">{t('features.news')}</Badge>
                         )}
                         {config.features.imageSearch && (
-                          <Badge variant="secondary">Images</Badge>
+                          <Badge variant="secondary">{t('features.images')}</Badge>
                         )}
                         {config.features.academicSearch && (
-                          <Badge variant="secondary">Academic</Badge>
+                          <Badge variant="secondary">{t('features.academic')}</Badge>
                         )}
                         {config.features.recencyFilter && (
-                          <Badge variant="secondary">Recency Filter</Badge>
+                          <Badge variant="secondary">{t('features.recencyFilter')}</Badge>
                         )}
                         {config.features.domainFilter && (
-                          <Badge variant="secondary">Domain Filter</Badge>
+                          <Badge variant="secondary">{t('features.domainFilter')}</Badge>
                         )}
                         {config.features.contentExtraction && (
-                          <Badge variant="secondary">Content Extraction</Badge>
+                          <Badge variant="secondary">{t('features.contentExtraction')}</Badge>
                         )}
                       </div>
 

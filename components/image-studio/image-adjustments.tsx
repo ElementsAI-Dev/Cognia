@@ -12,6 +12,7 @@
  */
 
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -125,6 +126,9 @@ export function ImageAdjustmentsPanel({
   onCancel,
   className,
 }: ImageAdjustmentsProps) {
+  const t = useTranslations('imageStudio.imageAdjustments');
+  const tc = useTranslations('imageStudio.common');
+
   // Refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -483,7 +487,7 @@ export function ImageAdjustmentsPanel({
         {!imageLoaded && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="animate-pulse text-muted-foreground">
-              Loading image...
+              {tc('loadingImage')}
             </div>
           </div>
         )}
@@ -492,7 +496,7 @@ export function ImageAdjustmentsPanel({
       {/* Controls panel */}
       <div className="w-72 flex flex-col border rounded-lg">
         <div className="p-3 border-b flex items-center justify-between">
-          <h3 className="font-medium text-sm">Adjustments</h3>
+          <h3 className="font-medium text-sm">{t('title')}</h3>
           <Button
             variant="ghost"
             size="sm"
@@ -500,7 +504,7 @@ export function ImageAdjustmentsPanel({
             disabled={!hasChanges}
           >
             <RotateCcw className="h-4 w-4 mr-1" />
-            Reset
+            {tc('reset')}
           </Button>
         </div>
 
@@ -508,7 +512,7 @@ export function ImageAdjustmentsPanel({
           <div className="p-4 space-y-6">
             {/* Filter presets */}
             <div className="space-y-2">
-              <Label className="text-xs font-medium">Presets</Label>
+              <Label className="text-xs font-medium">{t('presets')}</Label>
               <div className="grid grid-cols-3 gap-1">
                 {FILTER_PRESETS.map((preset) => (
                   <Button
@@ -529,7 +533,7 @@ export function ImageAdjustmentsPanel({
             {/* Basic adjustments */}
             <div className="space-y-4">
               <AdjustmentControl
-                label="Brightness"
+                label={t('brightness')}
                 icon={<Sun className="h-4 w-4" />}
                 value={adjustments.brightness}
                 min={-100}
@@ -539,7 +543,7 @@ export function ImageAdjustmentsPanel({
               />
 
               <AdjustmentControl
-                label="Contrast"
+                label={t('contrast')}
                 icon={<Contrast className="h-4 w-4" />}
                 value={adjustments.contrast}
                 min={-100}
@@ -549,7 +553,7 @@ export function ImageAdjustmentsPanel({
               />
 
               <AdjustmentControl
-                label="Saturation"
+                label={t('saturation')}
                 icon={<Droplets className="h-4 w-4" />}
                 value={adjustments.saturation}
                 min={-100}
@@ -559,7 +563,7 @@ export function ImageAdjustmentsPanel({
               />
 
               <AdjustmentControl
-                label="Hue"
+                label={t('hue')}
                 icon={<Palette className="h-4 w-4" />}
                 value={adjustments.hue}
                 min={-180}
@@ -574,7 +578,7 @@ export function ImageAdjustmentsPanel({
             {/* Effects */}
             <div className="space-y-4">
               <AdjustmentControl
-                label="Blur"
+                label={t('blur')}
                 icon={<CircleDot className="h-4 w-4" />}
                 value={adjustments.blur}
                 min={0}
@@ -585,7 +589,7 @@ export function ImageAdjustmentsPanel({
               />
 
               <AdjustmentControl
-                label="Sharpen"
+                label={t('sharpen')}
                 icon={<Sparkles className="h-4 w-4" />}
                 value={adjustments.sharpen}
                 min={0}
@@ -601,11 +605,11 @@ export function ImageAdjustmentsPanel({
         <div className="p-3 border-t flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onCancel}>
             <X className="h-4 w-4 mr-1" />
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button className="flex-1" onClick={handleApply}>
             <Check className="h-4 w-4 mr-1" />
-            Apply
+            {t('apply')}
           </Button>
         </div>
       </div>

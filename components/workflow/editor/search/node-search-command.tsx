@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useReactFlow } from '@xyflow/react';
 import {
   CommandDialog,
@@ -77,6 +78,7 @@ interface Command {
 }
 
 export function NodeSearchCommand() {
+  const t = useTranslations('workflowEditor');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -115,7 +117,7 @@ export function NodeSearchCommand() {
   const commands: Command[] = useMemo(() => [
     {
       id: 'save',
-      label: 'Save Workflow',
+      label: t('saveWorkflow'),
       icon: Save,
       shortcut: ['Ctrl', 'S'],
       action: () => { void saveWorkflow(); setOpen(false); },
@@ -123,7 +125,7 @@ export function NodeSearchCommand() {
     },
     {
       id: 'new',
-      label: 'New Workflow',
+      label: t('newWorkflow'),
       icon: Plus,
       shortcut: ['Ctrl', 'N'],
       action: () => { createWorkflow(); setOpen(false); },
@@ -131,7 +133,7 @@ export function NodeSearchCommand() {
     },
     {
       id: 'undo',
-      label: 'Undo',
+      label: t('undo'),
       icon: Undo2,
       shortcut: ['Ctrl', 'Z'],
       action: () => { undo(); setOpen(false); },
@@ -139,7 +141,7 @@ export function NodeSearchCommand() {
     },
     {
       id: 'redo',
-      label: 'Redo',
+      label: t('redo'),
       icon: Redo2,
       shortcut: ['Ctrl', 'Shift', 'Z'],
       action: () => { redo(); setOpen(false); },
@@ -147,7 +149,7 @@ export function NodeSearchCommand() {
     },
     {
       id: 'delete',
-      label: 'Delete Selection',
+      label: t('deleteSelection'),
       icon: Trash2,
       shortcut: ['Delete'],
       action: () => { if (selectedNodes.length) deleteNodes(selectedNodes); setOpen(false); },
@@ -155,7 +157,7 @@ export function NodeSearchCommand() {
     },
     {
       id: 'autoLayout',
-      label: 'Auto Layout',
+      label: t('autoLayout'),
       icon: LayoutGrid,
       shortcut: ['Ctrl', 'L'],
       action: () => { autoLayout(); setOpen(false); },
@@ -163,7 +165,7 @@ export function NodeSearchCommand() {
     },
     {
       id: 'run',
-      label: isExecuting ? 'Stop Workflow' : 'Run Workflow',
+      label: isExecuting ? t('stop') : t('runWorkflow'),
       icon: isExecuting ? Square : Play,
       shortcut: ['F5'],
       action: () => { 
@@ -175,7 +177,7 @@ export function NodeSearchCommand() {
     },
     {
       id: 'togglePalette',
-      label: 'Toggle Node Palette',
+      label: t('toggleNodePalette'),
       icon: FolderOpen,
       shortcut: ['Ctrl', 'B'],
       action: () => { toggleNodePalette(); setOpen(false); },
@@ -183,7 +185,7 @@ export function NodeSearchCommand() {
     },
     {
       id: 'toggleConfig',
-      label: 'Toggle Config Panel',
+      label: t('toggleConfigPanel'),
       icon: Settings,
       shortcut: ['Ctrl', 'I'],
       action: () => { toggleConfigPanel(); setOpen(false); },
@@ -191,14 +193,14 @@ export function NodeSearchCommand() {
     },
     {
       id: 'toggleMinimap',
-      label: 'Toggle Minimap',
+      label: t('toggleMinimap'),
       icon: Target,
       shortcut: ['Ctrl', 'M'],
       action: () => { toggleMinimap(); setOpen(false); },
       category: 'view',
     },
   ], [
-    saveWorkflow, createWorkflow, undo, redo, deleteNodes, selectedNodes,
+    t, saveWorkflow, createWorkflow, undo, redo, deleteNodes, selectedNodes,
     autoLayout, toggleNodePalette, toggleConfigPanel, toggleMinimap,
     startExecution, cancelExecution, isExecuting
   ]);
@@ -262,16 +264,16 @@ export function NodeSearchCommand() {
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput
-        placeholder="Search nodes, commands..."
+        placeholder={t('searchNodesCommands')}
         value={search}
         onValueChange={setSearch}
       />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>{t('noResultsFound')}</CommandEmpty>
 
         {/* Nodes */}
         {filteredNodes.length > 0 && (
-          <CommandGroup heading="Nodes">
+          <CommandGroup heading={t('nodes')}>
             {filteredNodes.slice(0, 10).map((node) => {
               const nodeType = node.type as WorkflowNodeType;
               const Icon = NODE_ICONS[nodeType] || Workflow;
@@ -319,7 +321,7 @@ export function NodeSearchCommand() {
 
         {/* Actions */}
         {filteredCommands.filter(c => c.category === 'action').length > 0 && (
-          <CommandGroup heading="Actions">
+          <CommandGroup heading={t('actions')}>
             {filteredCommands
               .filter(c => c.category === 'action')
               .map((command) => (
@@ -338,7 +340,7 @@ export function NodeSearchCommand() {
 
         {/* View */}
         {filteredCommands.filter(c => c.category === 'view').length > 0 && (
-          <CommandGroup heading="View">
+          <CommandGroup heading={t('viewMenu')}>
             {filteredCommands
               .filter(c => c.category === 'view')
               .map((command) => (

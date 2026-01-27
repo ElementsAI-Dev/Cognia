@@ -12,6 +12,7 @@ export const dynamic = 'force-dynamic';
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useTranslations } from 'next-intl';
 
 // Type definition to avoid importing from @tauri-apps/api/event at build time
 type UnlistenFn = () => void;
@@ -47,6 +48,7 @@ const RESIZE_HANDLES: { id: ResizeHandle; position: string; cursor: string }[] =
 ];
 
 export default function RegionSelectorPage() {
+  const t = useTranslations('regionSelector');
   const [mounted, setMounted] = useState(false);
   const [screenInfo, setScreenInfo] = useState<ScreenInfo | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -349,11 +351,11 @@ export default function RegionSelectorPage() {
       <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur rounded-lg px-4 py-2 shadow-lg border pointer-events-none">
         <p className="text-sm text-center">
           {selection && selection.width > 0
-            ? "拖拽移动 • 拖动手柄调整大小"
-            : "点击并拖拽以选择区域"}
+            ? t('instructions.dragToMove')
+            : t('instructions.clickAndDrag')}
         </p>
         <p className="text-xs text-muted-foreground text-center mt-1">
-          ESC 取消 • Enter 确认 • 方向键微调 • Shift+方向键 10px • Ctrl+方向键 调整大小
+          {t('shortcuts')}
         </p>
       </div>
 
@@ -469,7 +471,7 @@ export default function RegionSelectorPage() {
           className="bg-background/95 backdrop-blur"
         >
           <X className="h-4 w-4 mr-2" />
-          取消
+          {t('cancel')}
         </Button>
 
         <Button
@@ -479,7 +481,7 @@ export default function RegionSelectorPage() {
           className={cn("bg-background/95 backdrop-blur", showMagnifier && "bg-primary/20")}
         >
           <ZoomIn className="h-4 w-4 mr-2" />
-          放大镜 (M)
+          {t('magnifier')}
         </Button>
 
         {isValidSelection && (
@@ -489,7 +491,7 @@ export default function RegionSelectorPage() {
             className="bg-primary text-primary-foreground"
           >
             <Check className="h-4 w-4 mr-2" />
-            确认选区
+            {t('confirm')}
           </Button>
         )}
       </div>

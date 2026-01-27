@@ -46,6 +46,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 interface StashEntry {
@@ -219,37 +225,44 @@ export function GitStashPanel({
                       )}
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                        <Play className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => handlePop(stash.index)}
-                        disabled={isOperating}
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        {t('pop')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleApply(stash.index)}
-                        disabled={isOperating}
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        {t('apply')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => confirmDrop(stash.index)}
-                        disabled={isOperating}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        {t('drop')}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <DropdownMenu>
+                        <TooltipTrigger asChild>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                              <Play className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>{t('actionsTooltip')}</TooltipContent>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handlePop(stash.index)}
+                            disabled={isOperating}
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            {t('pop')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleApply(stash.index)}
+                            disabled={isOperating}
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            {t('apply')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => confirmDrop(stash.index)}
+                            disabled={isOperating}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {t('drop')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               ))}
             </div>

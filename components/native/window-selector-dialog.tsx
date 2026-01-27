@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AppWindow,
   Search,
@@ -118,14 +119,19 @@ export function WindowSelectorDialog({
               className="pl-9"
             />
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={fetchWindows}
-            disabled={isLoading}
-          >
-            <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={fetchWindows}
+                disabled={isLoading}
+              >
+                <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('refresh')}</TooltipContent>
+          </Tooltip>
         </div>
 
         <ScrollArea className="flex-1 min-h-0 border rounded-md">

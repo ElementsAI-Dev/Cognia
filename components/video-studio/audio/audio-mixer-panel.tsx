@@ -12,8 +12,10 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -74,6 +76,7 @@ export function AudioMixerPanel({
   onMasterMuteToggle,
   className,
 }: AudioMixerPanelProps) {
+  const t = useTranslations('audioMixer');
   const [expandedTrack, setExpandedTrack] = useState<string | null>(null);
 
   const handleVolumeChange = useCallback(
@@ -108,7 +111,7 @@ export function AudioMixerPanel({
       <div className="flex items-center justify-between p-3 border-b">
         <h3 className="font-medium flex items-center gap-2">
           <Headphones className="h-4 w-4" />
-          Audio Mixer
+          {t('title')}
         </h3>
       </div>
 
@@ -118,7 +121,7 @@ export function AudioMixerPanel({
           {tracks.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Music className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No audio tracks</p>
+              <p className="text-sm">{t('noTracks')}</p>
             </div>
           ) : (
             tracks.map((track) => {
@@ -126,14 +129,15 @@ export function AudioMixerPanel({
               const isExpanded = expandedTrack === track.id;
 
               return (
-                <div
+                <Card
                   key={track.id}
                   className={cn(
-                    'border rounded-lg p-3 transition-colors',
+                    'transition-colors',
                     track.muted && 'opacity-50',
                     track.solo && 'ring-1 ring-yellow-500'
                   )}
                 >
+                  <CardContent className="p-3">
                   {/* Track header */}
                   <div className="flex items-center gap-2 mb-2">
                     <Icon className="h-4 w-4 text-muted-foreground" />
@@ -160,7 +164,7 @@ export function AudioMixerPanel({
                           )}
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>{track.muted ? 'Unmute' : 'Mute'}</TooltipContent>
+                      <TooltipContent>{track.muted ? t('unmute') : t('mute')}</TooltipContent>
                     </Tooltip>
 
                     {/* Solo button */}
@@ -175,7 +179,7 @@ export function AudioMixerPanel({
                           <span className="text-xs font-bold">S</span>
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>{track.solo ? 'Unsolo' : 'Solo'}</TooltipContent>
+                      <TooltipContent>{track.solo ? t('unsolo') : t('solo')}</TooltipContent>
                     </Tooltip>
                   </div>
 
@@ -212,7 +216,7 @@ export function AudioMixerPanel({
                       {/* Pan control */}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <Label className="text-xs">Pan</Label>
+                          <Label className="text-xs">{t('pan')}</Label>
                           <span className="text-xs text-muted-foreground font-mono">
                             {formatPan(track.pan)}
                           </span>
@@ -226,14 +230,15 @@ export function AudioMixerPanel({
                           className="w-full"
                         />
                         <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>L</span>
-                          <span>C</span>
-                          <span>R</span>
+                          <span>{t('left')}</span>
+                          <span>{t('center')}</span>
+                          <span>{t('right')}</span>
                         </div>
                       </div>
                     </div>
                   )}
-                </div>
+                  </CardContent>
+                </Card>
               );
             })
           )}
@@ -243,7 +248,7 @@ export function AudioMixerPanel({
       {/* Master volume */}
       <div className="p-3 border-t bg-muted/30">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-sm font-medium">Master</span>
+          <span className="text-sm font-medium">{t('master')}</span>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -259,7 +264,7 @@ export function AudioMixerPanel({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{masterMuted ? 'Unmute' : 'Mute'}</TooltipContent>
+            <TooltipContent>{masterMuted ? t('unmute') : t('mute')}</TooltipContent>
           </Tooltip>
         </div>
         <div className="flex items-center gap-2">

@@ -202,14 +202,17 @@
       "placeholder": "搜索提示...",
       "results": "搜索结果",
       "noResults": "未找到提示",
-      "clearFilters": "清除筛选"
+      "clearFilters": "清除筛选",
+      "clearSearch": "清除搜索",
+      "matchingFilters": "符合筛选条件"
     },
     "sort": {
       "placeholder": "排序方式",
       "downloads": "下载最多",
       "rating": "评分最高",
       "trending": "热门趋势",
-      "newest": "最新发布"
+      "newest": "最新",
+      "name": "名称"
     },
     "filters": {
       "title": "筛选",
@@ -226,22 +229,96 @@
       "allPrompts": "全部提示",
       "installedPrompts": "已安装的提示",
       "favoritePrompts": "收藏的提示",
-      "recentlyViewed": "最近浏览"
+      "recentlyViewed": "最近浏览",
+      "installedDesc": "您已安装的提示",
+      "favoritesDesc": "您收藏的提示",
+      "recentDesc": "您最近浏览的提示"
+    },
+    "updates": {
+      "available": "个更新可用",
+      "checking": "检查中...",
+      "checkForUpdates": "检查更新",
+      "updated": "已更新",
+      "updateFailed": "更新失败"
+    },
+    "collections": {
+      "title": "合集",
+      "featured": "精选",
+      "promptsInCollection": "{count} 个提示",
+      "more": "更多",
+      "curatedBy": "策展人",
+      "viewCollection": "查看合集",
+      "noCollections": "暂无合集",
+      "exploreCollections": "探索精选提示合集"
+    },
+    "pagination": {
+      "loadMore": "加载更多",
+      "showing": "显示 {count} / {total}",
+      "endOfList": "已到达底部"
     },
     "empty": {
       "noInstalled": "暂无已安装的提示",
+      "noInstalledTitle": "无已安装的提示",
       "noFavorites": "暂无收藏的提示",
+      "noFavoritesTitle": "暂无收藏",
       "noRecent": "暂无最近浏览的提示",
+      "noRecentTitle": "无最近提示",
+      "noCollections": "暂无合集",
       "browseMarketplace": "浏览市场"
     },
     "card": {
       "install": "安装",
       "installing": "安装中...",
-      "installed": "已安装"
+      "installed": "已安装",
+      "uninstall": "卸载",
+      "viewDetails": "查看详情",
+      "update": "更新",
+      "verifiedCreator": "认证创作者"
+    },
+    "view": {
+      "gridView": "网格视图",
+      "listView": "列表视图"
     },
     "category": {
       "title": "分类",
       "all": "全部"
+    },
+    "importExport": {
+      "title": "导入 / 导出",
+      "description": "导出已安装的提示或从文件导入提示",
+      "export": "导出",
+      "import": "导入",
+      "exportDesc": "导出 {count} 个已安装的提示",
+      "copy": "复制",
+      "copied": "已复制！",
+      "download": "下载",
+      "noPromptsToExport": "无可导出的提示。请先安装一些提示。",
+      "selectFile": "选择文件",
+      "orPasteJson": "或在下方粘贴 JSON",
+      "pasteJsonHere": "在此粘贴提示 JSON...",
+      "importButton": "导入提示",
+      "importing": "导入中...",
+      "importComplete": "导入完成",
+      "importFailed": "导入失败",
+      "imported": "已导入",
+      "skipped": "已跳过",
+      "invalidFormat": "无效的文件格式",
+      "parseError": "解析 JSON 失败",
+      "failedToImport": "导入失败"
+    },
+    "author": {
+      "back": "返回",
+      "verified": "已认证",
+      "prompts": "提示",
+      "totalDownloads": "总下载量",
+      "avgRating": "平均评分",
+      "promptsByAuthor": "此作者的提示",
+      "noPrompts": "此作者暂无提示",
+      "sort": {
+        "downloads": "下载量",
+        "rating": "评分",
+        "newest": "最新"
+      }
     },
     "detail": {
       "ratings": "评分",
@@ -271,7 +348,33 @@
       "copyPromptContent": "复制提示内容",
       "sharePrompt": "分享提示",
       "installPrompt": "安装提示",
-      "installed": "已安装"
+      "installed": "已安装",
+      "installing": "安装中...",
+      "uninstall": "卸载",
+      "uninstalling": "卸载中...",
+      "uninstallSuccess": "提示卸载成功",
+      "uninstallFailed": "卸载提示失败",
+      "uninstallConfirmTitle": "卸载提示",
+      "uninstallConfirmDesc": "确定要卸载「{name}」吗？这将从已安装的提示中移除它。",
+      "cancel": "取消",
+      "tryPrompt": "试用提示",
+      "preview": "预览",
+      "previewPrompt": "预览提示",
+      "fillVariables": "填写以下变量以预览提示",
+      "generatedPrompt": "生成的提示",
+      "testWithAI": "使用 AI 测试",
+      "testing": "测试中...",
+      "testResult": "测试结果",
+      "copyResult": "复制结果",
+      "sendToChat": "发送到聊天",
+      "reviewSubmitted": "评价提交成功！",
+      "reviewFailed": "提交评价失败",
+      "submitting": "提交中...",
+      "alreadyReviewed": "您已经评价过此提示",
+      "userReviews": "用户评价",
+      "helpful": "有帮助",
+      "runTestHint": "运行测试以查看 AI 响应",
+      "copyToClipboard": "复制到剪贴板"
     }
   },
   "promptTemplate": {
@@ -297,14 +400,18 @@
       "delete": "删除",
       "noContent": "暂无内容",
       "usedCount": "已使用 {count} 次",
-      "useTemplate": "使用模板"
+      "useTemplate": "使用模板",
+      "builtIn": "内置",
+      "targetTooltip": "目标上下文"
     },
     "selector": {
       "title": "插入提示模板",
+      "description": "选择要使用的模板",
       "searchPlaceholder": "搜索模板",
       "noTemplates": "未找到模板",
       "templatesGroup": "模板",
-      "close": "关闭"
+      "close": "关闭",
+      "usageCount": "使用次数"
     },
     "editor": {
       "name": "名称",

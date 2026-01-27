@@ -42,6 +42,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 import { useSessionStore, useSettingsStore, useArtifactStore } from '@/stores';
 import { db } from '@/lib/db';
 import { BatchExportDialog } from '@/components/export';
@@ -228,28 +229,26 @@ export function DataSettings() {
               <div className="rounded-lg border p-2 text-center bg-muted/30">
                 <HardDrive className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-0.5" />
                 <div className="text-base font-bold">{getStorageEstimate()}</div>
-                <span className="text-[9px] text-muted-foreground">LocalStorage</span>
+                <span className="text-[9px] text-muted-foreground">{t('localStorage')}</span>
               </div>
               <div className="rounded-lg border p-2 text-center bg-muted/30">
                 <Database className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-0.5" />
                 <div className="text-base font-bold">
                   {storageInfo ? formatBytes(storageInfo.used) : 'N/A'}
                 </div>
-                <span className="text-[9px] text-muted-foreground">IndexedDB</span>
+                <span className="text-[9px] text-muted-foreground">{t('indexedDB')}</span>
               </div>
             </div>
             {storageInfo && (
               <div>
                 <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                  <span>Usage</span>
+                  <span>{t('usage')}</span>
                   <span>{formatBytes(storageInfo.used)} / {formatBytes(storageInfo.quota)}</span>
                 </div>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all"
-                    style={{ width: `${Math.min((storageInfo.used / storageInfo.quota) * 100, 100)}%` }}
-                  />
-                </div>
+                <Progress 
+                  value={Math.min((storageInfo.used / storageInfo.quota) * 100, 100)} 
+                  className="h-1.5"
+                />
               </div>
             )}
           </CardContent>

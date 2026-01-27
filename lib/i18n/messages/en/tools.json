@@ -101,6 +101,9 @@
     "configureSettings": "Configure the MCP server connection settings.",
     "envKeyPlaceholder": "KEY",
     "envValuePlaceholder": "value",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "removeEnvVar": "Remove environment variable",
     "connected": "Connected",
     "disconnected": "Disconnected",
     "connecting": "Connecting...",
@@ -147,12 +150,20 @@
     "removeServer": "Remove server",
     "removeServerConfirmation": "Are you sure you want to remove this MCP server? This action cannot be undone.",
     "showTools": "Show tools",
+    "toolsCount": "{count} tools",
+    "resourcesCount": "{count} resources",
+    "promptsCount": "{count} prompts",
     "tools": "tools",
     "resources": "resources",
     "prompts": "prompts",
     "toolsTooltip": "Functions the AI can call",
     "resourcesTooltip": "Data sources available",
     "promptsTooltip": "Prompt templates",
+    "statusConnected": "Server connected and ready",
+    "statusConnecting": "Connecting to server...",
+    "statusReconnecting": "Reconnecting to server...",
+    "statusError": "Connection error",
+    "statusDisconnected": "Server disconnected",
     "myServers": "My Servers",
     "marketplace": "Marketplace"
   },
@@ -281,6 +292,8 @@
     "trustedDomains": "Trusted Domains",
     "blockedDomains": "Blocked Domains",
     "removeDomain": "Remove {domain}",
-    "autoFilterWarning": "Auto-filter is enabled. Sources below {percentage}% credibility will be automatically excluded."
+    "autoFilterWarning": "Auto-filter is enabled. Sources below {percentage}% credibility will be automatically excluded.",
+    "trustedDomainPlaceholder": "example.com",
+    "blockedDomainPlaceholder": "spam-site.com"
   }
 }

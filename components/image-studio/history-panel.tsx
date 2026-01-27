@@ -11,6 +11,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -144,6 +145,7 @@ export function HistoryPanel({
   canRedo,
   className,
 }: HistoryPanelProps) {
+  const t = useTranslations('imageStudio.historyPanel');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const handleEntryClick = useCallback(
@@ -161,9 +163,9 @@ export function HistoryPanel({
       <div className="p-3 border-b flex items-center justify-between">
         <div className="flex items-center gap-2">
           <History className="h-4 w-4" aria-hidden="true" />
-          <h3 className="font-medium text-sm" id="history-panel-title">History</h3>
+          <h3 className="font-medium text-sm">{t('title')}</h3>
           <span className="text-xs text-muted-foreground">
-            ({entries.length} {entries.length === 1 ? 'step' : 'steps'})
+            ({entries.length === 1 ? t('steps', { count: entries.length }) : t('stepsPlural', { count: entries.length })})
           </span>
         </div>
 
@@ -180,7 +182,7 @@ export function HistoryPanel({
                 <Undo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+            <TooltipContent>{t('undo')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -195,7 +197,7 @@ export function HistoryPanel({
                 <Redo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
+            <TooltipContent>{t('redo')}</TooltipContent>
           </Tooltip>
 
           <AlertDialog>
@@ -211,13 +213,13 @@ export function HistoryPanel({
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Clear History?</AlertDialogTitle>
+                <AlertDialogTitle>{t('clearHistoryTitle')}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete all history entries. This action cannot be undone.
+                  {t('clearHistoryDescription')}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                 <AlertDialogAction onClick={onClear}>Clear History</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -231,8 +233,8 @@ export function HistoryPanel({
           {entries.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No history yet</p>
-              <p className="text-xs">Your edits will appear here</p>
+              <p className="text-sm">{t('noHistory')}</p>
+              <p className="text-xs text-muted-foreground">{t('editsWillAppear')}</p>
             </div>
           ) : (
             <div className="relative">
@@ -279,14 +281,19 @@ export function HistoryPanel({
                           <span className={cn('text-sm font-medium', isAfterCurrent && 'text-muted-foreground')}>
                             {OPERATION_LABELS[entry.type]}
                           </span>
-                          {isCurrent && (
-                            <Badge variant="secondary" className="text-xs">Current</Badge>
+                          {index === currentIndex && (
+                            <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                              {t('current')}
+                            </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">{entry.description}</p>
+                        <p className="text-xs text-muted-foreground">{entry.description}</p>
                         <p className="text-xs text-muted-foreground/60 mt-0.5">
                           {formatTime(entry.timestamp)}
                         </p>
+                        <span className="text-xs text-muted-foreground">
+                          {t('stepOf', { current: index + 1, total: entries.length })}
+                        </span>
                       </div>
 
                       {/* Thumbnail */}

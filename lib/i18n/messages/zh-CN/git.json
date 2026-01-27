@@ -1,6 +1,28 @@
 {
   "git": {
     "repository": "仓库",
+    "pageTitle": "Git",
+    "pageDescription": "版本控制管理",
+    "repositoryPath": "仓库路径",
+    "repositoryPathPlaceholder": "输入仓库路径...",
+    "openRepository": "打开仓库",
+    "change": "更改",
+    "selectRepository": "选择 Git 仓库",
+    "repositoryOverview": "仓库概览",
+    "useSidebarHint": "使用侧边栏管理您的 Git 仓库",
+    "quickTips": "快捷提示",
+    "tipChangesTab": "使用「更改」选项卡暂存和提交文件",
+    "tipBranchesTab": "在「分支」选项卡中切换分支",
+    "tipHistoryTab": "在「历史」选项卡中查看提交记录",
+    "tipPushPull": "使用快捷操作按钮推送和拉取",
+    "keyboardShortcuts": "键盘快捷键",
+    "shortcutStageAll": "暂存所有更改",
+    "shortcutQuickCommit": "快速提交",
+    "shortcutPush": "推送",
+    "shortcutPull": "拉取",
+    "settingsHint": "在以下位置配置 Git 设置、自动提交等",
+    "settingsLink": "设置 → Git",
+    "section": "部分。",
     "checking": "检查 Git 安装状态...",
     "notInstalled": {
       "title": "Git 未安装",
@@ -166,7 +188,11 @@
       "commit": "提交",
       "push": "推送",
       "pull": "拉取",
-      "fetch": "获取"
+      "fetch": "获取",
+      "commitTooltip": "提交所有更改到仓库",
+      "pushTooltip": "推送提交到远程仓库",
+      "pullTooltip": "从远程仓库拉取更改",
+      "fetchTooltip": "从远程获取最新更改"
     },
     "commitDialog": {
       "title": "提交更改",

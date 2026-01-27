@@ -51,7 +51,6 @@ import {
 } from '@/components/providers';
 import { ObservabilityInitializer } from '@/components/observability';
 import { LocaleInitializer } from '@/components/providers/initializers';
-import { ChatAssistantContainer } from '@/components/chat-widget';
 import { useChatWidgetStore } from '@/stores/chat';
 import { getWindowLabel, isTauri as detectTauri, WINDOW_LABELS } from '@/lib/native/utils';
 
@@ -87,18 +86,10 @@ async function ensurePluginSystemInitialized(): Promise<void> {
 }
 
 function ChatAssistantContainerGate() {
-  const [mounted, setMounted] = useState(false);
-  const [isTauri, setIsTauri] = useState(false);
-
-  useIsomorphicLayoutEffect(() => {
-    setMounted(true);
-    setIsTauri(detectTauri());
-  }, []);
-
+  // AI assistant bubble is a desktop-only feature.
+  // In web mode, this feature is not needed and should be hidden by default.
   // Desktop uses the dedicated Tauri assistant bubble window.
-  if (!mounted || isTauri) return null;
-
-  return <ChatAssistantContainer tauriOnly={false} />;
+  return null;
 }
 
 function ChatWidgetNativeSync() {

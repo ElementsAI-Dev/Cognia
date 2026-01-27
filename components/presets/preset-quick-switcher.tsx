@@ -9,6 +9,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Layers, ChevronDown, Star, Check, Plus, Settings2, Heart, GripVertical, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Popover,
   PopoverContent,
@@ -170,7 +171,7 @@ export function PresetQuickSwitcher({
     setOpen(false);
     
     // Show toast notification
-    toast.success(`Switched to ${preset.name}`);
+    toast.success(t('switchedTo', { name: preset.name }));
   };
 
   const hasActivePreset = !!currentPreset;
@@ -228,21 +229,23 @@ export function PresetQuickSwitcher({
           </div>
           {/* Search input */}
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground z-10" />
+            <Input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="w-full h-8 pl-7 pr-7 text-sm rounded-md border border-input bg-transparent placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="h-8 pl-7 pr-7 text-sm"
             />
             {searchQuery && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
               >
                 <X className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -435,7 +438,7 @@ function PresetItem({ preset, isActive, onSelect, onToggleFavorite, isDragging, 
               ? 'text-rose-500 hover:bg-rose-500/10' 
               : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-rose-500 hover:bg-rose-500/10'
           )}
-          title={preset.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          title={preset.isFavorite ? t('removeFromFavoritesTitle') : t('addToFavoritesTitle')}
         >
           <Heart className={cn('h-3.5 w-3.5', preset.isFavorite && 'fill-current')} />
         </button>

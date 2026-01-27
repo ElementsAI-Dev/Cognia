@@ -31,6 +31,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Card,
   CardContent,
   CardDescription,
@@ -256,7 +262,8 @@ export const DesignerCard = memo(function DesignerCard({
 
   // Default variant - full card with thumbnail preview
   return (
-    <Card
+    <TooltipProvider>
+      <Card
       className={cn(
         'group cursor-pointer transition-all hover:shadow-md hover:border-primary/50',
         selected && 'ring-2 ring-primary border-primary',
@@ -364,15 +371,20 @@ export const DesignerCard = memo(function DesignerCard({
 
           {showActions && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t('more')}</TooltipContent>
+              </Tooltip>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onPreview?.(template)}>
                   <Eye className="h-4 w-4 mr-2" />
@@ -414,6 +426,7 @@ export const DesignerCard = memo(function DesignerCard({
         </CardDescription>
       </CardContent>
     </Card>
+    </TooltipProvider>
   );
 });
 

@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   X,
   Plus,
@@ -47,6 +48,7 @@ interface PaperComparisonProps {
 }
 
 export function PaperComparison({ className }: PaperComparisonProps) {
+  const t = useTranslations('academic.paperComparison');
   const { libraryPapers } = useAcademic();
   const [selectedPapers, setSelectedPapers] = useState<LibraryPaper[]>([]);
   const [isSelectOpen, setIsSelectOpen] = useState(false);
@@ -120,10 +122,10 @@ export function PaperComparison({ className }: PaperComparisonProps) {
           <div>
             <h3 className="font-semibold flex items-center gap-2">
               <ArrowLeftRight className="h-5 w-5" />
-              Paper Comparison
+              {t('title')}
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Compare up to 4 papers side by side
+              {t('description')}
             </p>
           </div>
 
@@ -131,18 +133,18 @@ export function PaperComparison({ className }: PaperComparisonProps) {
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" disabled={selectedPapers.length >= 4}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Paper
+                {t('addPaper')}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>Select Paper to Compare</DialogTitle>
-                <DialogDescription>Choose a paper from your library</DialogDescription>
+                <DialogTitle>{t('addPaper')}</DialogTitle>
+                <DialogDescription>{t('searchPapers')}</DialogDescription>
               </DialogHeader>
               <Command className="border rounded-lg">
-                <CommandInput placeholder="Search papers..." />
+                <CommandInput placeholder={t('searchPapers')} />
                 <CommandList>
-                  <CommandEmpty>No papers found.</CommandEmpty>
+                  <CommandEmpty>{t('noPapersFound')}</CommandEmpty>
                   <CommandGroup>
                     {availablePapers.map((paper) => (
                       <CommandItem
@@ -174,8 +176,8 @@ export function PaperComparison({ className }: PaperComparisonProps) {
         {selectedPapers.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full py-12 text-center">
             <ArrowLeftRight className="h-12 w-12 text-muted-foreground/50 mb-4" />
-            <p className="text-muted-foreground">Select papers to compare</p>
-            <p className="text-sm text-muted-foreground mt-1">Add 2-4 papers from your library</p>
+            <p className="text-muted-foreground">{t('emptyState')}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('emptyStateHint')}</p>
           </div>
         ) : (
           <div className="p-4 space-y-6">
@@ -246,7 +248,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                   className="min-w-[280px] h-48 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
                 >
                   <Plus className="h-8 w-8 mb-2" />
-                  <span>Add Paper</span>
+                  <span>{t('addPaper')}</span>
                 </button>
               )}
             </div>
@@ -260,7 +262,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Common Research Fields
+                        {t('commonResearchFields')}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -280,7 +282,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Quote className="h-4 w-4" />
-                      Citation Comparison
+                      {t('citationComparison')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -311,7 +313,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
-                      Abstract Comparison
+                      {t('abstractComparison')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -325,7 +327,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                         <div key={paper.id} className="space-y-2">
                           <h4 className="font-medium text-sm line-clamp-1">{paper.title}</h4>
                           <p className="text-xs text-muted-foreground line-clamp-6">
-                            {paper.abstract || 'No abstract available'}
+                            {paper.abstract || t('noAbstract')}
                           </p>
                         </div>
                       ))}
@@ -338,7 +340,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Tag className="h-4 w-4" />
-                      Feature Matrix
+                      {t('featureMatrix')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -346,7 +348,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b">
-                            <th className="text-left py-2 pr-4">Feature</th>
+                            <th className="text-left py-2 pr-4">{t('feature')}</th>
                             {selectedPapers.map((p) => (
                               <th key={p.id} className="text-center py-2 px-2">
                                 <span className="line-clamp-1 max-w-[120px]">
@@ -358,7 +360,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                         </thead>
                         <tbody>
                           <tr className="border-b">
-                            <td className="py-2 pr-4">Open Access</td>
+                            <td className="py-2 pr-4">{t('openAccess')}</td>
                             {selectedPapers.map((p) => (
                               <td key={p.id} className="text-center py-2">
                                 {p.isOpenAccess ? (
@@ -370,7 +372,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                             ))}
                           </tr>
                           <tr className="border-b">
-                            <td className="py-2 pr-4">PDF Available</td>
+                            <td className="py-2 pr-4">{t('pdfAvailable')}</td>
                             {selectedPapers.map((p) => (
                               <td key={p.id} className="text-center py-2">
                                 {p.pdfUrl || p.hasCachedPdf ? (

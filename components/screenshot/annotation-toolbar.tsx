@@ -6,6 +6,7 @@
  * Toolbar with annotation tools for screenshot editor.
  */
 
+import { useTranslations } from 'next-intl';
 import {
   Square,
   Circle,
@@ -50,19 +51,18 @@ interface AnnotationToolbarProps {
 interface ToolButton {
   id: AnnotationTool;
   icon: React.ComponentType<{ className?: string }>;
-  label: string;
   shortcut?: string;
 }
 
-const tools: ToolButton[] = [
-  { id: 'rectangle', icon: Square, label: '矩形', shortcut: 'R' },
-  { id: 'ellipse', icon: Circle, label: '椭圆', shortcut: 'O' },
-  { id: 'arrow', icon: ArrowRight, label: '箭头', shortcut: 'A' },
-  { id: 'freehand', icon: Pencil, label: '画笔', shortcut: 'P' },
-  { id: 'text', icon: Type, label: '文字', shortcut: 'T' },
-  { id: 'blur', icon: Grid3X3, label: '马赛克', shortcut: 'M' },
-  { id: 'highlight', icon: Highlighter, label: '高亮', shortcut: 'H' },
-  { id: 'marker', icon: Hash, label: '序号', shortcut: 'N' },
+const toolDefinitions: ToolButton[] = [
+  { id: 'rectangle', icon: Square, shortcut: 'R' },
+  { id: 'ellipse', icon: Circle, shortcut: 'O' },
+  { id: 'arrow', icon: ArrowRight, shortcut: 'A' },
+  { id: 'freehand', icon: Pencil, shortcut: 'P' },
+  { id: 'text', icon: Type, shortcut: 'T' },
+  { id: 'blur', icon: Grid3X3, shortcut: 'M' },
+  { id: 'highlight', icon: Highlighter, shortcut: 'H' },
+  { id: 'marker', icon: Hash, shortcut: 'N' },
 ];
 
 export function AnnotationToolbar({
@@ -81,6 +81,8 @@ export function AnnotationToolbar({
   onSave,
   className,
 }: AnnotationToolbarProps) {
+  const t = useTranslations('screenshot');
+
   return (
     <div
       className={cn(
@@ -90,7 +92,7 @@ export function AnnotationToolbar({
     >
       {/* Annotation Tools */}
       <div className="flex items-center gap-0.5">
-        {tools.map(({ id, icon: Icon, label, shortcut }) => (
+        {toolDefinitions.map(({ id, icon: Icon, shortcut }) => (
           <Tooltip key={id}>
             <TooltipTrigger asChild>
               <Button
@@ -104,7 +106,7 @@ export function AnnotationToolbar({
             </TooltipTrigger>
             <TooltipContent>
               <p>
-                {label}
+                {t(`tools.${id}`)}
                 {shortcut && <span className="ml-1 text-muted-foreground">({shortcut})</span>}
               </p>
             </TooltipContent>
@@ -139,7 +141,7 @@ export function AnnotationToolbar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>撤销 (Ctrl+Z)</p>
+            <p>{t('actions.undo')} ({t('shortcuts.undo')})</p>
           </TooltipContent>
         </Tooltip>
 
@@ -156,7 +158,7 @@ export function AnnotationToolbar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>重做 (Ctrl+Y)</p>
+            <p>{t('actions.redo')} ({t('shortcuts.redo')})</p>
           </TooltipContent>
         </Tooltip>
 
@@ -172,7 +174,7 @@ export function AnnotationToolbar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>清除标注</p>
+            <p>{t('actions.clear')}</p>
           </TooltipContent>
         </Tooltip>
       </div>
@@ -188,7 +190,7 @@ export function AnnotationToolbar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>复制到剪贴板 (Ctrl+C)</p>
+            <p>{t('actions.copy')} ({t('shortcuts.copy')})</p>
           </TooltipContent>
         </Tooltip>
 
@@ -199,7 +201,7 @@ export function AnnotationToolbar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>保存 (Ctrl+S)</p>
+            <p>{t('actions.save')} ({t('shortcuts.save')})</p>
           </TooltipContent>
         </Tooltip>
 
@@ -210,12 +212,12 @@ export function AnnotationToolbar({
           onClick={onCancel}
         >
           <X className="h-4 w-4 mr-1" />
-          取消
+          {t('actions.cancel')}
         </Button>
 
         <Button variant="default" size="sm" className="h-8 px-3" onClick={onConfirm}>
           <Check className="h-4 w-4 mr-1" />
-          完成
+          {t('actions.confirm')}
         </Button>
       </div>
     </div>

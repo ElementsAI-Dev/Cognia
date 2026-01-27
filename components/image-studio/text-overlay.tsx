@@ -12,6 +12,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,6 +123,9 @@ export function TextOverlay({
   onCancel,
   className,
 }: TextOverlayProps) {
+  const t = useTranslations('imageStudio.textOverlay');
+  const tc = useTranslations('imageStudio.common');
+
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -399,7 +403,7 @@ export function TextOverlay({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Type className="h-5 w-5" />
-            <h3 className="font-medium">Text Overlay</h3>
+            <h3 className="font-medium">{t('title')}</h3>
           </div>
           <div className="text-sm text-muted-foreground">
             {imageSize.width} × {imageSize.height}
@@ -423,7 +427,7 @@ export function TextOverlay({
           />
           {!imageLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Loading image...</div>
+              <div className="animate-pulse text-muted-foreground">{tc('loadingImage')}</div>
             </div>
           )}
         </div>
@@ -432,16 +436,16 @@ export function TextOverlay({
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={handleReset}>
             <RotateCcw className="h-4 w-4 mr-1" />
-            Reset
+            {tc('reset')}
           </Button>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={onCancel}>
               <X className="h-4 w-4 mr-1" />
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button onClick={handleApply}>
               <Check className="h-4 w-4 mr-1" />
-              Apply
+              {tc('apply')}
             </Button>
           </div>
         </div>
@@ -450,7 +454,7 @@ export function TextOverlay({
       {/* Controls panel */}
       <div className="w-72 flex flex-col border rounded-lg">
         <div className="p-3 border-b flex items-center justify-between">
-          <h3 className="font-medium text-sm">Text Layers</h3>
+          <h3 className="font-medium text-sm">{t('textLayers')}</h3>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={addLayer}>
             <Plus className="h-4 w-4" />
           </Button>
@@ -484,7 +488,7 @@ export function TextOverlay({
                       <EyeOff className="h-3 w-3 text-muted-foreground" />
                     )}
                   </Button>
-                  <span className="flex-1 text-sm truncate">{layer.text || 'Empty'}</span>
+                  <span className="flex-1 text-sm truncate">{layer.text || t('empty')}</span>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -518,17 +522,17 @@ export function TextOverlay({
 
                 {/* Text input */}
                 <div className="space-y-2">
-                  <Label className="text-xs">Text</Label>
+                  <Label className="text-xs">{t('text')}</Label>
                   <Input
                     value={selectedLayer.text}
                     onChange={(e) => updateLayer(selectedLayer.id, { text: e.target.value })}
-                    placeholder="Enter text..."
+                    placeholder={t('enterText')}
                   />
                 </div>
 
                 {/* Font family */}
                 <div className="space-y-2">
-                  <Label className="text-xs">Font</Label>
+                  <Label className="text-xs">{t('font')}</Label>
                   <Select
                     value={selectedLayer.fontFamily}
                     onValueChange={(v) => updateLayer(selectedLayer.id, { fontFamily: v })}
@@ -549,7 +553,7 @@ export function TextOverlay({
                 {/* Font size */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Size</Label>
+                    <Label className="text-xs">{t('size')}</Label>
                     <span className="text-xs text-muted-foreground">{selectedLayer.fontSize}px</span>
                   </div>
                   <Slider
@@ -578,7 +582,7 @@ export function TextOverlay({
                         <Bold className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Bold</TooltipContent>
+                    <TooltipContent>{t('bold')}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -595,7 +599,7 @@ export function TextOverlay({
                         <Italic className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Italic</TooltipContent>
+                    <TooltipContent>{t('italic')}</TooltipContent>
                   </Tooltip>
                   <Separator orientation="vertical" className="h-6 mx-1" />
                   <Tooltip>
@@ -609,7 +613,7 @@ export function TextOverlay({
                         <AlignLeft className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Align Left</TooltipContent>
+                    <TooltipContent>{t('alignLeft')}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -622,7 +626,7 @@ export function TextOverlay({
                         <AlignCenter className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Align Center</TooltipContent>
+                    <TooltipContent>{t('alignCenter')}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -635,13 +639,13 @@ export function TextOverlay({
                         <AlignRight className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Align Right</TooltipContent>
+                    <TooltipContent>{t('alignRight')}</TooltipContent>
                   </Tooltip>
                 </div>
 
                 {/* Color */}
                 <div className="space-y-2">
-                  <Label className="text-xs">Color</Label>
+                  <Label className="text-xs">{t('color')}</Label>
                   <div className="flex items-center gap-1 flex-wrap">
                     {PRESET_COLORS.map((color) => (
                       <button
@@ -666,7 +670,7 @@ export function TextOverlay({
                 {/* Opacity */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Opacity</Label>
+                    <Label className="text-xs">{t('opacity')}</Label>
                     <span className="text-xs text-muted-foreground">{selectedLayer.opacity}%</span>
                   </div>
                   <Slider
@@ -681,7 +685,7 @@ export function TextOverlay({
                 {/* Rotation */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Rotation</Label>
+                    <Label className="text-xs">{t('rotation')}</Label>
                     <span className="text-xs text-muted-foreground">{selectedLayer.rotation}°</span>
                   </div>
                   <Slider
@@ -697,7 +701,7 @@ export function TextOverlay({
                 <div className="space-y-2">
                   <Label className="text-xs flex items-center gap-1">
                     <Move className="h-3 w-3" />
-                    Position
+                    {t('position')}
                   </Label>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
@@ -728,7 +732,7 @@ export function TextOverlay({
                 {/* Shadow */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Shadow</Label>
+                    <Label className="text-xs">{t('shadow')}</Label>
                     <Button
                       variant={selectedLayer.shadowEnabled ? 'secondary' : 'outline'}
                       size="sm"
@@ -739,7 +743,7 @@ export function TextOverlay({
                         })
                       }
                     >
-                      {selectedLayer.shadowEnabled ? 'On' : 'Off'}
+                      {selectedLayer.shadowEnabled ? tc('on') : tc('off')}
                     </Button>
                   </div>
                   {selectedLayer.shadowEnabled && (

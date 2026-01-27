@@ -112,7 +112,8 @@ interface VariableManagerPanelProps {
 }
 
 export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
-  const _t = useTranslations('workflowEditor');
+  const t = useTranslations('workflowEditor');
+  const tCommon = useTranslations('common');
   const { 
     currentWorkflow, 
     setWorkflowVariable, 
@@ -281,11 +282,11 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => copyVariableReference(variable.name)}>
               <Copy className="h-4 w-4 mr-2" />
-              Copy Reference
+              {t('copyReference')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleEditVariable(variable)}>
               <Edit2 className="h-4 w-4 mr-2" />
-              Edit
+              {t('editVariable')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -293,7 +294,7 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
               className="text-destructive"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+              {t('delete')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -312,10 +313,10 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Variable className="h-5 w-5" />
-            Variables
+            {t('variables')}
           </SheetTitle>
           <SheetDescription>
-            Manage workflow variables and their mappings
+            {t('manageVariables')}
           </SheetDescription>
         </SheetHeader>
 
@@ -325,7 +326,7 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search variables..."
+                placeholder={t('searchVariables')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 h-9"
@@ -348,8 +349,8 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
             {variables.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Variable className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No variables defined</p>
-                <p className="text-xs mt-1">Click + to add a variable</p>
+                <p className="text-sm">{t('noVariables')}</p>
+                <p className="text-xs mt-1">{t('addVariable')}</p>
               </div>
             ) : (
               <Accordion type="multiple" defaultValue={['global', 'local']} className="space-y-2">
@@ -358,7 +359,7 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
                     <AccordionTrigger className="py-2 text-sm">
                       <div className="flex items-center gap-2">
                         <Globe className="h-4 w-4" />
-                        Global Variables
+                        {t('globalVariables')}
                         <Badge variant="secondary" className="ml-auto">
                           {groupedVariables.global.length}
                         </Badge>
@@ -375,7 +376,7 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
                     <AccordionTrigger className="py-2 text-sm">
                       <div className="flex items-center gap-2">
                         <Lock className="h-4 w-4" />
-                        Local Variables
+                        {t('localVariables')}
                         <Badge variant="secondary" className="ml-auto">
                           {groupedVariables.local.length}
                         </Badge>
@@ -394,10 +395,10 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
           <div className="p-3 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-2 text-xs font-medium mb-1">
               <AlertCircle className="h-3.5 w-3.5" />
-              How to use variables
+              {t('howToUseVariables')}
             </div>
             <p className="text-xs text-muted-foreground">
-              Reference variables in prompts using <code className="bg-muted px-1 rounded">{'{{variableName}}'}</code>
+              {t('howToUseVariables')}
             </p>
           </div>
         </div>
@@ -407,30 +408,30 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
-                {editingVariable ? 'Edit Variable' : 'Add Variable'}
+                {editingVariable ? t('editVariable') : t('addVariable')}
               </DialogTitle>
               <DialogDescription>
                 {editingVariable 
-                  ? 'Update the variable configuration'
-                  : 'Create a new workflow variable'
+                  ? t('editVariable')
+                  : t('addVariable')
                 }
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Name</Label>
+                <Label>{t('variableName')}</Label>
                 <Input
                   value={newVariable.name}
                   onChange={(e) => setNewVariable(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="variableName"
+                  placeholder={t('variableNamePlaceholder')}
                   className="font-mono"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Type</Label>
+                  <Label>{t('variableType')}</Label>
                   <Select
                     value={newVariable.type}
                     onValueChange={(value) => setNewVariable(prev => ({ ...prev, type: value as VariableType }))}
@@ -450,7 +451,7 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Scope</Label>
+                  <Label>{t('variableScope')}</Label>
                   <Select
                     value={newVariable.scope}
                     onValueChange={(value) => setNewVariable(prev => ({ ...prev, scope: value as 'global' | 'local' }))}
@@ -467,21 +468,21 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Default Value</Label>
+                <Label>{t('defaultValue')}</Label>
                 <Input
                   type={newVariable.isSecret ? 'password' : 'text'}
                   value={newVariable.defaultValue}
                   onChange={(e) => setNewVariable(prev => ({ ...prev, defaultValue: e.target.value }))}
-                  placeholder="Enter default value..."
+                  placeholder={t('defaultValue')}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label>{t('description')}</Label>
                 <Textarea
                   value={newVariable.description}
                   onChange={(e) => setNewVariable(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="What is this variable for?"
+                  placeholder={t('description')}
                   rows={2}
                 />
               </div>
@@ -493,7 +494,7 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
                   ) : (
                     <Unlock className="h-4 w-4 text-muted-foreground" />
                   )}
-                  <span className="text-sm">Secret value</span>
+                  <span className="text-sm">{t('secretValue')}</span>
                 </div>
                 <Button
                   variant={newVariable.isSecret ? 'default' : 'outline'}
@@ -507,10 +508,10 @@ export function VariableManagerPanel({ className }: VariableManagerPanelProps) {
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                Cancel
+                {tCommon('cancel')}
               </Button>
               <Button onClick={handleSaveVariable} disabled={!newVariable.name?.trim()}>
-                {editingVariable ? 'Update' : 'Create'}
+                {editingVariable ? tCommon('save') : tCommon('create')}
               </Button>
             </DialogFooter>
           </DialogContent>

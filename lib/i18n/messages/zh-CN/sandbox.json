@@ -26,7 +26,17 @@
       "timeout": "超时",
       "empty": "暂无执行历史",
       "clearConfirmTitle": "清除执行历史",
-      "clearConfirmDescription": "确定要清除所有执行历史吗？此操作无法撤销。"
+      "clearConfirmDescription": "确定要清除所有执行历史吗？此操作无法撤销。",
+      "exportTooltip": "导出历史为 JSON",
+      "copyCode": "复制代码",
+      "previous": "上一页",
+      "next": "下一页",
+      "page": "第 {page} 页",
+      "refresh": "刷新",
+      "clearHistory": "清除历史",
+      "favorite": "切换收藏",
+      "loadCode": "加载代码",
+      "deleteExecution": "删除记录"
     },
     "snippets": {
       "title": "代码片段",
@@ -48,7 +58,14 @@
       "tags": "标签",
       "tagsPlaceholder": "输入标签，用逗号分隔",
       "template": "模板",
-      "empty": "暂无代码片段"
+      "empty": "暂无代码片段",
+      "run": "运行片段",
+      "editSnippet": "编辑片段",
+      "deleteSnippet": "删除片段",
+      "deleteConfirmTitle": "删除代码片段",
+      "deleteConfirmDescription": "确定要删除此代码片段吗？此操作无法撤销。",
+      "markAsTemplate": "标记为模板",
+      "refresh": "刷新片段"
     }
   },
   "sandboxPanel": {

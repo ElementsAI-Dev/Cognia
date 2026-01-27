@@ -8,6 +8,7 @@
  */
 
 import React, { useRef, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 // =====================
@@ -96,14 +97,14 @@ const DEFAULT_COLORS = [
 // Helper Functions
 // =====================
 
-function normalizeData(data: ChartData | ChartDataPoint[]): ChartData {
+function normalizeData(data: ChartData | ChartDataPoint[], defaultLabel: string = 'Data'): ChartData {
   if (Array.isArray(data) && data.length > 0 && 'label' in data[0]) {
     // Convert ChartDataPoint[] to ChartData
     const points = data as ChartDataPoint[];
     return {
       labels: points.map(p => p.label),
       datasets: [{
-        label: 'Data',
+        label: defaultLabel,
         data: points.map(p => p.value),
         color: points[0]?.color,
       }],
@@ -379,9 +380,10 @@ export function ChartElement({
   theme,
   className,
 }: ChartElementProps) {
+  const t = useTranslations('pptChart');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const normalizedData = useMemo(() => normalizeData(data), [data]);
+  const normalizedData = useMemo(() => normalizeData(data, t('data')), [data, t]);
   const colors = useMemo(
     () => options.colors || DEFAULT_COLORS,
     [options.colors]

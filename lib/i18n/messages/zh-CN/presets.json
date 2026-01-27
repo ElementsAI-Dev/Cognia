@@ -137,6 +137,24 @@
     "exportSuccess": "预设导出成功",
     "importSuccess": "成功导入 {count} 个预设",
     "optimizeSuccess": "提示词优化成功！",
-    "generatePromptsSuccess": "快捷提示生成成功！"
+    "generatePromptsSuccess": "快捷提示生成成功！",
+    "insertTemplate": "插入模板",
+    "switchedTo": "已切换到 {name}",
+    "removeFromFavoritesTitle": "从收藏移除",
+    "addToFavoritesTitle": "添加到收藏",
+    "removePrompt": "移除提示",
+    "errors": {
+      "noApiKey": "请先在设置中配置 API 密钥。",
+      "generateFailed": "生成预设失败",
+      "generateFailedRetry": "生成预设失败，请重试。",
+      "optimizeFailed": "优化提示词失败",
+      "optimizeFailedRetry": "优化提示词失败，请重试。",
+      "generatePromptsFailed": "生成提示词失败",
+      "generatePromptsFailedRetry": "生成提示词失败，请重试。",
+      "nameRequired": "请输入预设名称",
+      "modelRequired": "请选择模型",
+      "invalidFileFormat": "预设文件格式无效",
+      "parseFileFailed": "解析预设文件失败"
+    }
   }
 }

@@ -23,7 +23,7 @@ import {
 import { SpotlightOverlay } from './spotlight-overlay';
 import { TourTooltip, type TooltipPosition } from './tour-tooltip';
 import { Confetti } from './confetti';
-import { useTourKeyboard } from './use-tour-keyboard';
+import { useTourKeyboard, type KeyboardHints } from './use-tour-keyboard';
 
 export interface TourStep {
   id: string;
@@ -165,7 +165,14 @@ export function OnboardingTour({
     handleSkip();
   }, [handleSkip]);
 
-  // Keyboard navigation
+  // Keyboard navigation with i18n hints
+  const keyboardHints: KeyboardHints = {
+    next: t('keyboardHints.next'),
+    previous: t('keyboardHints.previous'),
+    skip: t('keyboardHints.skip'),
+    complete: t('keyboardHints.complete'),
+  };
+
   useTourKeyboard({
     isActive: isVisible,
     onNext: handleNext,
@@ -174,6 +181,7 @@ export function OnboardingTour({
     onClose: handleClose,
     isFirst,
     isLast,
+    keyboardHints,
   });
 
   // Get translated content
@@ -236,6 +244,7 @@ export function OnboardingTour({
           skipLabel={t('skipTour')}
           completeLabel={t('complete')}
           stepLabel={t('step')}
+          closeTourLabel={t('closeTour')}
           icon={step.icon}
           isMobile={isMobile}
         />
@@ -250,16 +259,12 @@ export const mainTourSteps: TourStep[] = [
     id: 'welcome',
     titleKey: 'welcomeTitle',
     descriptionKey: 'welcomeDesc',
-    title: 'Welcome to Cognia',
-    description: 'Your AI-powered assistant for chat, code, research, and learning. Let me show you around!',
     icon: <Sparkles className="h-5 w-5" />,
   },
   {
     id: 'modes',
     titleKey: 'modesTitle',
     descriptionKey: 'modesDesc',
-    title: 'Multiple Modes',
-    description: 'Switch between Chat, Agent, Research, and Learning modes depending on your task.',
     targetSelector: '[data-tour="mode-selector"]',
     position: 'bottom',
     highlight: true,
@@ -269,8 +274,6 @@ export const mainTourSteps: TourStep[] = [
     id: 'sidebar',
     titleKey: 'sidebarTitle',
     descriptionKey: 'sidebarDesc',
-    title: 'Session Management',
-    description: 'All your conversations are saved here. Search, organize, and pin your favorites.',
     targetSelector: '[data-tour="sidebar"]',
     position: 'right',
     highlight: true,
@@ -280,8 +283,6 @@ export const mainTourSteps: TourStep[] = [
     id: 'input',
     titleKey: 'inputTitle',
     descriptionKey: 'inputDesc',
-    title: 'Start Chatting',
-    description: 'Type your message, attach files, use voice input, or mention @tools for special actions.',
     targetSelector: '[data-tour="chat-input"]',
     position: 'top',
     highlight: true,
@@ -291,8 +292,6 @@ export const mainTourSteps: TourStep[] = [
     id: 'complete',
     titleKey: 'completeTitle',
     descriptionKey: 'completeDesc',
-    title: 'You\'re All Set!',
-    description: 'Explore the settings for more customization options. Happy chatting!',
     icon: <Settings className="h-5 w-5" />,
   },
 ];

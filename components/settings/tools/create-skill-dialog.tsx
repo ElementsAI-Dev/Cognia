@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -31,6 +32,7 @@ import {
 import { getAllTemplates, getTemplateById } from '@/lib/skills/templates';
 import { toHyphenCase } from '@/lib/skills/parser';
 import { SKILL_CATEGORY_ICONS } from './skill-icons';
+import { SKILL_CATEGORY_KEYS } from '@/lib/settings/tools';
 import type { SkillCategory, CreateSkillInput } from '@/types/system/skill';
 import type { useTranslations } from 'next-intl';
 
@@ -114,7 +116,8 @@ export function CreateSkillDialog({
           </TabsList>
 
           <TabsContent value="template" className="space-y-4">
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+            <ScrollArea className="h-48">
+            <div className="grid grid-cols-2 gap-2">
               {templates.map((template) => (
                 <Card
                   key={template.id}
@@ -135,6 +138,7 @@ export function CreateSkillDialog({
                 </Card>
               ))}
             </div>
+            </ScrollArea>
           </TabsContent>
 
           <TabsContent value="blank" className="space-y-4">
@@ -148,7 +152,7 @@ export function CreateSkillDialog({
               <Label htmlFor="name">{t('name')}</Label>
               <Input
                 id="name"
-                placeholder="my-skill-name"
+                placeholder={t('skillNamePlaceholder') || 'my-skill-name'}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -165,7 +169,7 @@ export function CreateSkillDialog({
                     <SelectItem key={key} value={key}>
                       <div className="flex items-center gap-2">
                         {SKILL_CATEGORY_ICONS[key]}
-                        {key}
+                        {t(`categories.${SKILL_CATEGORY_KEYS[key]}`)}
                       </div>
                     </SelectItem>
                   ))}
@@ -190,7 +194,7 @@ export function CreateSkillDialog({
             <Label htmlFor="content">{t('skillInstructions')}</Label>
             <Textarea
               id="content"
-              placeholder="# My Skill&#10;&#10;## When to Use&#10;&#10;## Instructions&#10;&#10;..."
+              placeholder={t('contentPlaceholder') || '# My Skill\n\n## When to Use\n\n## Instructions\n\n...'}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={12}

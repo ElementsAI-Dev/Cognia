@@ -70,7 +70,7 @@ interface CLIProxyAPISettingsProps {
 }
 
 export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
-  const _t = useTranslations('providers');
+  const t = useTranslations('providers');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const updateProviderSettings = useSettingsStore((state) => state.updateProviderSettings);
 
@@ -197,17 +197,17 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Server className="h-4 w-4 text-blue-500" />
-              <CardTitle className="text-sm">Server Status</CardTitle>
+              <CardTitle className="text-sm">{t('serverStatus')}</CardTitle>
               {connectionStatus === 'connected' && (
                 <Badge variant="default" className="bg-green-600 text-xs">
                   <Check className="h-3 w-3 mr-1" />
-                  Connected
+                  {t('connected')}
                 </Badge>
               )}
               {connectionStatus === 'error' && (
                 <Badge variant="destructive" className="text-xs">
                   <AlertCircle className="h-3 w-3 mr-1" />
-                  Error
+                  {t('status.error')}
                 </Badge>
               )}
             </div>
@@ -234,7 +234,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
           ) : connectionStatus === 'connected' ? (
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-muted-foreground">Endpoint</p>
+                <p className="text-muted-foreground">{t('endpoint')}</p>
                 <div className="flex items-center gap-2">
                   <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
                     {host}:{port}
@@ -256,7 +256,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        {copiedUrl ? 'Copied!' : 'Copy API URL'}
+                        {copiedUrl ? t('copied') : t('copyApiUrl')}
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -264,14 +264,14 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
               </div>
               {connectionLatency && (
                 <div>
-                  <p className="text-muted-foreground">Latency</p>
+                  <p className="text-muted-foreground">{t('latency')}</p>
                   <p className="font-medium text-green-600">{connectionLatency}ms</p>
                 </div>
               )}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Click refresh to test connection
+              {t('clickRefreshToTest')}
             </p>
           )}
         </CardContent>
@@ -283,7 +283,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <LayoutDashboard className="h-4 w-4 text-purple-500" />
-              <CardTitle className="text-sm">Management WebUI</CardTitle>
+              <CardTitle className="text-sm">{t('managementWebUI')}</CardTitle>
             </div>
             <Button
               variant="outline"
@@ -292,11 +292,11 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
               disabled={connectionStatus !== 'connected'}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
-              Open WebUI
+              {t('openWebUI')}
             </Button>
           </div>
           <CardDescription className="text-xs">
-            Access the CLIProxyAPI management dashboard to configure providers, view logs, and monitor usage
+            {t('webUIDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="py-2">
@@ -322,7 +322,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <List className="h-4 w-4" />
-                  <CardTitle className="text-sm">Available Models</CardTitle>
+                  <CardTitle className="text-sm">{t('availableModels')}</CardTitle>
                   {availableModels.length > 0 && (
                     <Badge variant="secondary" className="ml-2">
                       {availableModels.length}
@@ -353,7 +353,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
                 </div>
               </div>
               <CardDescription className="text-xs">
-                Models available through your CLIProxyAPI server
+                {t('modelsAvailableThrough')}
               </CardDescription>
             </CardHeader>
           </CollapsibleTrigger>
@@ -385,7 +385,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  Click refresh to load available models
+                  {t('clickRefreshToLoad')}
                 </p>
               )}
             </CardContent>
@@ -401,7 +401,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Settings2 className="h-4 w-4" />
-                  <CardTitle className="text-sm">Server Configuration</CardTitle>
+                  <CardTitle className="text-sm">{t('serverConfiguration')}</CardTitle>
                 </div>
                 {isAdvancedOpen ? (
                   <ChevronUp className="h-4 w-4" />
@@ -410,7 +410,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
                 )}
               </div>
               <CardDescription className="text-xs">
-                Configure server host, port, and advanced settings
+                {t('configDescription')}
               </CardDescription>
             </CardHeader>
           </CollapsibleTrigger>
@@ -419,7 +419,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
               {/* Host and Port */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="cliproxy-host" className="text-xs">Host</Label>
+                  <Label htmlFor="cliproxy-host" className="text-xs">{t('host')}</Label>
                   <Input
                     id="cliproxy-host"
                     placeholder="localhost"
@@ -430,7 +430,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="cliproxy-port" className="text-xs">Port</Label>
+                  <Label htmlFor="cliproxy-port" className="text-xs">{t('port')}</Label>
                   <Input
                     id="cliproxy-port"
                     type="number"
@@ -447,7 +447,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
 
               {/* Routing Strategy */}
               <div className="space-y-2">
-                <Label htmlFor="routing-strategy" className="text-xs">Routing Strategy</Label>
+                <Label htmlFor="routing-strategy" className="text-xs">{t('routingStrategy')}</Label>
                 <Select
                   value={cliProxyAPISettings.routingStrategy || 'round-robin'}
                   onValueChange={(value) =>
@@ -460,12 +460,12 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
                     <SelectValue placeholder="Select strategy" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="round-robin">Round Robin</SelectItem>
-                    <SelectItem value="fill-first">Fill First</SelectItem>
+                    <SelectItem value="round-robin">{t('roundRobin')}</SelectItem>
+                    <SelectItem value="fill-first">{t('fillFirst')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  How credentials are selected when multiple match a request
+                  {t('routingHint')}
                 </p>
               </div>
 
@@ -474,7 +474,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
               {/* Retry Settings */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="request-retry" className="text-xs">Request Retries</Label>
+                  <Label htmlFor="request-retry" className="text-xs">{t('requestRetries')}</Label>
                   <Input
                     id="request-retry"
                     type="number"
@@ -486,7 +486,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="max-retry-interval" className="text-xs">Max Retry Interval (s)</Label>
+                  <Label htmlFor="max-retry-interval" className="text-xs">{t('maxRetryInterval')}</Label>
                   <Input
                     id="max-retry-interval"
                     type="number"
@@ -503,12 +503,12 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
 
               {/* Quota Exceeded Behavior */}
               <div className="space-y-3">
-                <Label className="text-xs font-medium">Quota Exceeded Behavior</Label>
+                <Label className="text-xs font-medium">{t('quotaExceeded')}</Label>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="switch-project" className="text-xs">Auto-switch Project</Label>
+                    <Label htmlFor="switch-project" className="text-xs">{t('autoSwitchProject')}</Label>
                     <p className="text-xs text-muted-foreground">
-                      Switch to another project when quota is exceeded
+                      {t('routingHint')}
                     </p>
                   </div>
                   <Switch
@@ -521,9 +521,9 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="switch-preview" className="text-xs">Auto-switch to Preview Model</Label>
+                    <Label htmlFor="switch-preview" className="text-xs">{t('autoSwitchPreview')}</Label>
                     <p className="text-xs text-muted-foreground">
-                      Switch to preview model when quota is exceeded
+                      {t('routingHint')}
                     </p>
                   </div>
                   <Switch
@@ -541,7 +541,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
               {/* Streaming Settings */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="keepalive-seconds" className="text-xs">Keepalive Interval (s)</Label>
+                  <Label htmlFor="keepalive-seconds" className="text-xs">{t('keepaliveInterval')}</Label>
                   <Input
                     id="keepalive-seconds"
                     type="number"
@@ -555,7 +555,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="bootstrap-retries" className="text-xs">Bootstrap Retries</Label>
+                  <Label htmlFor="bootstrap-retries" className="text-xs">{t('bootstrapRetries')}</Label>
                   <Input
                     id="bootstrap-retries"
                     type="number"
@@ -574,18 +574,18 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
 
               {/* Management Key */}
               <div className="space-y-2">
-                <Label htmlFor="management-key" className="text-xs">Management Key (Optional)</Label>
+                <Label htmlFor="management-key" className="text-xs">{t('managementKey')}</Label>
                 <Input
                   id="management-key"
                   type="password"
-                  placeholder="Enter management key for WebUI access"
+                  placeholder={t('managementKeyPlaceholder')}
                   value={cliProxyAPISettings.managementKey || ''}
                   onChange={(e) =>
                     updateCLIProxyAPISettings({ managementKey: e.target.value })
                   }
                 />
                 <p className="text-xs text-muted-foreground">
-                  Required for accessing management endpoints and WebUI configuration
+                  {t('managementKeyHint')}
                 </p>
               </div>
 
@@ -597,7 +597,7 @@ export function CLIProxyAPISettings({ className }: CLIProxyAPISettingsProps) {
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-primary hover:underline"
                 >
-                  View full configuration documentation <ExternalLink className="h-3 w-3" />
+                  {t('viewDocumentation')} <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             </CardContent>

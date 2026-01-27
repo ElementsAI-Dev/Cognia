@@ -85,6 +85,84 @@
       "currentStreak": "Current Streak",
       "achievements": "Achievements"
     },
+    "speedpass": {
+      "page": {
+        "title": "Speed Learning",
+        "subtitle": "Smart textbook learning · Efficient exam prep",
+        "settings": "Settings",
+        "addTextbook": "Add Textbook",
+        "tabs": {
+          "overview": "Overview",
+          "textbooks": "Textbooks",
+          "tutorials": "Tutorials",
+          "quiz": "Quiz",
+          "wrongBook": "Wrong Book",
+          "analytics": "Analytics"
+        },
+        "stats": {
+          "totalStudyTime": "Total Study Time",
+          "textbookCount": "Textbooks",
+          "accuracy": "Accuracy",
+          "quizzesCompleted": "Quizzes Completed",
+          "tutorials": "tutorials",
+          "questions": "questions",
+          "sessions": "sessions",
+          "daysStreak": "days streak"
+        },
+        "modes": {
+          "rapid": {
+            "title": "Rapid Mode",
+            "description": "1-2 hours to master core exam points",
+            "duration": "1-2h"
+          },
+          "intensive": {
+            "title": "Intensive Mode",
+            "description": "2-4 hours systematic study of key content",
+            "duration": "2-4h"
+          },
+          "comprehensive": {
+            "title": "Comprehensive Mode",
+            "description": "6-12 hours in-depth study of all content",
+            "duration": "6-12h"
+          }
+        },
+        "activeSession": "Active Learning Session",
+        "completedSections": "Completed {count} sections",
+        "continueLearning": "Continue Learning",
+        "recentActivity": "Recent Activity",
+        "recentActivityDesc": "Continue your learning progress",
+        "noLearningRecords": "No learning records yet",
+        "addTextbookToStart": "Add textbook to start learning",
+        "progress": "Progress",
+        "continue": "Continue",
+        "textbooksTitle": "Textbook Library",
+        "textbooksDesc": "Manage your textbooks and learning materials",
+        "noTextbooks": "No textbooks yet",
+        "uploadPdfOrAdd": "Upload PDF textbook or add online textbook",
+        "tutorialsTitle": "Learning Tutorials",
+        "tutorialsDesc": "Speed learning tutorials based on textbooks",
+        "noTutorials": "No tutorials yet",
+        "addTextbookFirst": "Add textbook first, then generate speed tutorials",
+        "quizTitle": "Practice Quiz",
+        "quizDesc": "Smart question bank, precise practice",
+        "startPractice": "Start Practice",
+        "selectFromExamples": "Select from textbook examples and exercises",
+        "startQuiz": "Start Quiz",
+        "wrongBookTitle": "Wrong Book",
+        "wrongBookDesc": "Record and review wrong answers",
+        "noWrongQuestions": "No wrong questions",
+        "wrongQuestionsAutoRecord": "Wrong answers will be recorded automatically",
+        "wrongQuestionsCount": "{count} wrong questions to review",
+        "startReview": "Start Review",
+        "analyticsTitle": "Learning Report",
+        "analyticsDesc": "View learning data and progress trends",
+        "noData": "No data yet",
+        "startLearningForReport": "Start learning to generate reports",
+        "hours": "hours",
+        "minutes": "minutes",
+        "hoursMinutes": "{hours}h{minutes}m"
+      }
+    },
     "notes": {
       "title": "Learning Notes",
       "placeholder": "Write a note about what you've learned...",
@@ -434,6 +512,17 @@
     }
   },
   "academic": {
+    "title": "Academic Research",
+    "description": "Search, manage, and analyze academic papers",
+    "tabs": {
+      "search": "Search",
+      "library": "Library",
+      "statistics": "Statistics",
+      "compare": "Compare",
+      "discover": "Discover",
+      "smart": "Smart",
+      "ai": "AI"
+    },
     "knowledgeMap": {
       "title": "Knowledge Map",
       "create": "Create",
@@ -508,6 +597,233 @@
       "navigateToLocation": "Navigate to Location",
       "children": "Children",
       "andMore": "and {count} more..."
+    },
+    "chatPanel": {
+      "title": "Academic Research Assistant",
+      "selected": "selected",
+      "quickActions": "Quick Actions",
+      "tryAsking": "Try asking...",
+      "showLess": "Show less",
+      "showMore": "Show {count} more results",
+      "analyzing": "Analyzing paper...",
+      "searching": "Searching...",
+      "selectedPapers": "Selected Papers",
+      "analyze": "Analyze",
+      "generatePPT": "Generate PPT",
+      "clear": "Clear",
+      "placeholder": "Search for papers or ask a research question...",
+      "addedToLibrary": "Added \"{title}\" to your library.",
+      "actions": {
+        "search": "Search Papers",
+        "summarize": "Summarize",
+        "compare": "Compare",
+        "explain": "Explain Simply",
+        "generatePPT": "Generate PPT"
+      },
+      "prompts": {
+        "search": "Find papers about ",
+        "summarize": "Summarize this paper: ",
+        "compare": "Compare these papers: ",
+        "explain": "Explain in simple terms: ",
+        "generatePPT": "Generate a presentation about: "
+      }
+    },
+    "stats": {
+      "totalPapers": "Total Papers",
+      "completed": "Completed",
+      "currentlyReading": "Currently Reading",
+      "collections": "Collections",
+      "paperCollections": "Paper collections",
+      "readingProgress": "Reading Progress",
+      "readingStatusBreakdown": "Your overall reading status breakdown",
+      "unread": "Unread",
+      "reading": "Reading",
+      "archived": "Archived",
+      "topResearchFields": "Top Research Fields",
+      "noFieldsData": "No fields data available yet",
+      "paperSources": "Paper Sources",
+      "engagementMetrics": "Engagement Metrics",
+      "avgReadingTime": "Avg. Reading Time",
+      "notesPerPaper": "Notes per Paper",
+      "annotationRate": "Annotation Rate",
+      "citationTracking": "Citation Tracking"
+    },
+    "citationGraph": {
+      "title": "Citation Network",
+      "influentialCitation": "Influential citation",
+      "citations": "citations",
+      "viewDetails": "View Details",
+      "semanticScholar": "Semantic Scholar",
+      "loading": "Loading citation network...",
+      "error": "Failed to load citation network",
+      "retry": "Retry",
+      "emptyState": "Select a paper to view its citation network",
+      "emptyStateHint": "Citations and references will appear here",
+      "papers": "papers",
+      "influentialOnly": "Influential only",
+      "refresh": "Refresh",
+      "tabs": {
+        "citations": "Citations",
+        "references": "References"
+      },
+      "noCitations": "No citations found",
+      "noReferences": "No references found"
+    },
+    "paperComparison": {
+      "title": "Paper Comparison",
+      "description": "Compare up to 4 papers side by side",
+      "addPaper": "Add Paper",
+      "searchPapers": "Search papers...",
+      "noPapersFound": "No papers found.",
+      "emptyState": "Add papers to compare",
+      "emptyStateHint": "Select papers from your library to compare them side by side",
+      "commonResearchFields": "Common Research Fields",
+      "citationComparison": "Citation Comparison",
+      "abstractComparison": "Abstract Comparison",
+      "noAbstract": "No abstract available",
+      "featureMatrix": "Feature Matrix",
+      "feature": "Feature",
+      "year": "Year",
+      "citations": "Citations",
+      "openAccess": "Open Access",
+      "pdfAvailable": "PDF Available",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "paperSearch": {
+      "placeholder": "Search papers by title, author, or keywords...",
+      "providers": "Providers",
+      "yearFrom": "Year From",
+      "openAccessOnly": "Open Access only",
+      "search": "Search",
+      "noResults": "No papers found. Try adjusting your search or filters.",
+      "emptyState": "Search for academic papers across multiple sources",
+      "emptyStateHint": "Supports arXiv, Semantic Scholar, CORE, and more",
+      "foundPapers": "Found {count} papers",
+      "citations": "citations",
+      "addToLibrary": "Add to Library"
+    },
+    "paperRecommendations": {
+      "title": "Recommendations",
+      "description": "Discover papers based on your library",
+      "refresh": "Refresh",
+      "emptyState": "No recommendations available",
+      "emptyStateHint": "Add more papers to your library or search for papers",
+      "tabs": {
+        "related": "Related",
+        "trending": "Trending",
+        "byAuthors": "By Authors"
+      }
+    },
+    "smartCollections": {
+      "title": "Smart Collections",
+      "description": "Auto-organize papers based on rules and topics",
+      "generating": "Generating...",
+      "generateCollections": "Generate Collections",
+      "creatingProgress": "Creating collections... {progress}%",
+      "smartRules": "Smart Rules",
+      "papers": "papers",
+      "detectedTopics": "Detected Topics",
+      "noTopicsHint": "Add more papers to detect common topics",
+      "howItWorks": "How it works",
+      "howItWorksSteps": {
+        "step1": "Enable the rules you want to use",
+        "step2": "Click \"Generate Collections\" to create collections",
+        "step3": "Papers will be automatically added based on criteria",
+        "step4": "Topic collections are created from common fields"
+      },
+      "rules": {
+        "recent": {
+          "name": "Recent Papers",
+          "description": "Papers from the last 2 years"
+        },
+        "highlyCited": {
+          "name": "Highly Cited",
+          "description": "Papers with 100+ citations"
+        },
+        "openAccess": {
+          "name": "Open Access",
+          "description": "Freely accessible papers"
+        },
+        "favorites": {
+          "name": "Favorites",
+          "description": "Papers rated 4 stars or higher"
+        },
+        "unread": {
+          "name": "Reading Queue",
+          "description": "Papers marked as unread"
+        }
+      }
+    },
+    "paperDetail": {
+      "citations": "citations",
+      "copyDOI": "Click to copy DOI",
+      "openAccess": "Open Access",
+      "pdfCached": "PDF Cached",
+      "openPDF": "Open PDF",
+      "downloadPDF": "Download PDF",
+      "viewSource": "View Source",
+      "copyCitation": "Copy Citation",
+      "startLearning": "Start Learning",
+      "tabs": {
+        "overview": "Overview",
+        "notes": "Notes",
+        "analysis": "Analysis"
+      },
+      "abstract": "Abstract",
+      "showLess": "Show less",
+      "showMore": "Show more",
+      "fieldsOfStudy": "Fields of Study",
+      "readingStatus": "Reading Status",
+      "status": {
+        "unread": "Unread",
+        "reading": "Reading",
+        "completed": "Completed",
+        "archived": "Archived"
+      },
+      "collections": "Collections",
+      "addToCollection": "+ Add to collection",
+      "tags": "Tags",
+      "personalNotes": "Personal Notes",
+      "notesPlaceholder": "Add your notes about this paper...",
+      "aiAnalysis": "AI Analysis",
+      "analyze": "Analyze",
+      "analyzing": "Analyzing...",
+      "noAnalysis": "No analysis available yet",
+      "analyzeHint": "Click 'Analyze' to get AI-powered insights about this paper"
+    },
+    "paperLibrary": {
+      "collections": "Collections",
+      "createCollection": "Create Collection",
+      "createCollectionDescription": "Create a new collection to organize your papers",
+      "collectionName": "Collection name",
+      "cancel": "Cancel",
+      "create": "Create",
+      "allPapers": "All Papers",
+      "searchPapers": "Search papers...",
+      "export": "Export",
+      "status": {
+        "all": "All",
+        "unread": "Unread",
+        "reading": "Reading",
+        "completed": "Completed",
+        "archived": "Archived"
+      },
+      "select": "Select",
+      "exitSelection": "Exit Selection",
+      "selected": "selected",
+      "selectAll": "Select All",
+      "setStatus": "Set Status",
+      "addToCollection": "Add to Collection",
+      "noCollections": "No collections",
+      "remove": "Remove",
+      "emptyState": "No papers in your library",
+      "emptyStateHint": "Search and add papers to get started",
+      "viewDetails": "View Details",
+      "markAsReading": "Mark as Reading",
+      "markAsCompleted": "Mark as Completed",
+      "downloadPDF": "Download PDF",
+      "removeFromLibrary": "Remove from Library"
     }
   },
   "flowChat": {

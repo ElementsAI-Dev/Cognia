@@ -6,6 +6,11 @@ import { render, screen } from '@testing-library/react';
 import { TemplatePreview } from './template-preview';
 import type { WorkflowTemplate } from '@/types/workflow/template';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({
@@ -43,6 +48,30 @@ jest.mock('@/components/ui/badge', () => ({
 
 jest.mock('@/components/ui/separator', () => ({
   Separator: () => <hr data-testid="separator" />,
+}));
+
+jest.mock('@/components/ui/card', () => ({
+  Card: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="card" className={className}>{children}</div>
+  ),
+  CardContent: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="card-content" className={className}>{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/scroll-area', () => ({
+  ScrollArea: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="scroll-area" className={className}>{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="tooltip-content">{children}</div>
+  ),
+  TooltipProvider: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
 jest.mock('@/components/ui/tabs', () => ({

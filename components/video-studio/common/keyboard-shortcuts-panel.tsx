@@ -11,6 +11,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,13 +66,13 @@ export interface KeyboardShortcutsPanelProps {
   className?: string;
 }
 
-const CATEGORY_INFO: Record<ShortcutCategory, { icon: typeof Keyboard; label: string }> = {
-  playback: { icon: Play, label: 'Playback' },
-  editing: { icon: Scissors, label: 'Editing' },
-  timeline: { icon: Layers, label: 'Timeline' },
-  view: { icon: ZoomIn, label: 'View' },
-  file: { icon: FolderOpen, label: 'File' },
-  selection: { icon: Copy, label: 'Selection' },
+const CATEGORY_ICONS: Record<ShortcutCategory, typeof Keyboard> = {
+  playback: Play,
+  editing: Scissors,
+  timeline: Layers,
+  view: ZoomIn,
+  file: FolderOpen,
+  selection: Copy,
 };
 
 const DEFAULT_SHORTCUTS: KeyboardShortcut[] = [
@@ -130,6 +131,8 @@ export function KeyboardShortcutsPanel({
   onResetDefaults,
   className,
 }: KeyboardShortcutsPanelProps) {
+  const t = useTranslations('shortcuts');
+  const tCommon = useTranslations('common');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordedKeys, setRecordedKeys] = useState<string[]>([]);
@@ -213,7 +216,7 @@ export function KeyboardShortcutsPanel({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Keyboard className="h-5 w-5" />
-            Keyboard Shortcuts
+            {t('title')}
           </DialogTitle>
         </DialogHeader>
 
@@ -223,7 +226,7 @@ export function KeyboardShortcutsPanel({
             <div className="relative flex-1">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search shortcuts..."
+                placeholder={t('searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8"
@@ -236,7 +239,7 @@ export function KeyboardShortcutsPanel({
                     <RotateCcw className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Reset to defaults</TooltipContent>
+                <TooltipContent>{t('resetToDefaults')}</TooltipContent>
               </Tooltip>
             )}
           </div>
@@ -247,7 +250,8 @@ export function KeyboardShortcutsPanel({
               {(Object.entries(groupedShortcuts) as [ShortcutCategory, KeyboardShortcut[]][]).map(
                 ([category, categoryShortcuts]) => {
                   if (categoryShortcuts.length === 0) return null;
-                  const { icon: Icon, label } = CATEGORY_INFO[category];
+                  const Icon = CATEGORY_ICONS[category];
+                  const label = t(`categories.${category}`);
 
                   return (
                     <div key={category}>
@@ -269,7 +273,7 @@ export function KeyboardShortcutsPanel({
                                 <span className="text-sm font-medium">{shortcut.action}</span>
                                 {!shortcut.customizable && (
                                   <Badge variant="secondary" className="text-xs">
-                                    System
+                                    {t('system')}
                                   </Badge>
                                 )}
                               </div>
@@ -288,18 +292,18 @@ export function KeyboardShortcutsPanel({
                                   <div className="min-w-[100px] px-2 py-1 bg-muted border rounded text-center">
                                     {recordedKeys.length > 0
                                       ? formatKeys(recordedKeys)
-                                      : <span className="text-xs text-muted-foreground">Press keys...</span>
+                                      : <span className="text-xs text-muted-foreground">{t('pressKeys')}</span>
                                     }
                                   </div>
                                   <Button size="sm" variant="ghost" onClick={handleCancelEdit}>
-                                    Cancel
+                                    {tCommon('cancel')}
                                   </Button>
                                   <Button
                                     size="sm"
                                     onClick={handleSaveShortcut}
                                     disabled={recordedKeys.length === 0}
                                   >
-                                    Save
+                                    {tCommon('save')}
                                   </Button>
                                 </div>
                               ) : (
@@ -314,7 +318,7 @@ export function KeyboardShortcutsPanel({
                                       className="text-xs"
                                       onClick={() => setEditingId(shortcut.id)}
                                     >
-                                      Edit
+                                      {tCommon('edit')}
                                     </Button>
                                   )}
                                 </>

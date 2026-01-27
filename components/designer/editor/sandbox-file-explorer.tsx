@@ -6,6 +6,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   File,
   Folder,
@@ -132,6 +133,7 @@ function FileTreeNode({
   onFileSelect,
   onFileDelete,
 }: FileTreeNodeProps) {
+  const t = useTranslations('sandboxEditor');
   const isExpanded = expandedFolders.has(node.path);
   const isActive = node.path === activeFile;
 
@@ -179,20 +181,20 @@ function FileTreeNode({
           {node.type === 'file' && (
             <>
               <ContextMenuItem onClick={() => onFileSelect?.(node.path)}>
-                Open
+                {t('open')}
               </ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem
                 className="text-destructive"
                 onClick={() => onFileDelete?.(node.path)}
               >
-                Delete
+                {t('delete')}
               </ContextMenuItem>
             </>
           )}
           {node.type === 'folder' && (
             <ContextMenuItem onClick={() => onToggleFolder(node.path)}>
-              {isExpanded ? 'Collapse' : 'Expand'}
+              {isExpanded ? t('collapse') : t('expand')}
             </ContextMenuItem>
           )}
         </ContextMenuContent>
@@ -226,6 +228,7 @@ export function SandboxFileExplorer({
   onFileCreate,
   onFileDelete,
 }: SandboxFileExplorerProps) {
+  const t = useTranslations('sandboxEditor');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['/src']));
   const [showNewFile, setShowNewFile] = useState(false);
   const [newFileName, setNewFileName] = useState('');
@@ -258,7 +261,7 @@ export function SandboxFileExplorer({
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b">
         <span className="text-xs font-medium text-muted-foreground uppercase">
-          Files
+          {t('files')}
         </span>
         <Button
           variant="ghost"
@@ -276,7 +279,7 @@ export function SandboxFileExplorer({
           <Input
             value={newFileName}
             onChange={(e) => setNewFileName(e.target.value)}
-            placeholder="filename.tsx"
+            placeholder={t('filenamePlaceholder')}
             className="h-7 text-xs"
             autoFocus
             onKeyDown={(e) => {

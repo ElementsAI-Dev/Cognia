@@ -56,6 +56,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useProjectStore } from '@/stores';
 import type { KnowledgeFile } from '@/types';
 import { cn } from '@/lib/utils';
@@ -328,15 +334,18 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
 
       {/* Upload error message */}
       {uploadError && (
-        <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-          {uploadError}
-          <button
-            onClick={() => setUploadError(null)}
-            className="ml-2 underline hover:no-underline"
-          >
-            {t('dismiss')}
-          </button>
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription className="flex items-center justify-between">
+            <span>{uploadError}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setUploadError(null)}
+            >
+              {t('dismiss')}
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
 
       {project.knowledgeBase.length > 0 && (
@@ -431,41 +440,72 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setViewingFile(file)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewingFile(file);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('view')}</TooltipContent>
+                  </Tooltip>
                   {isDesktop && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleOpenFile(file)}
-                      title={t('openWithDefault')}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenFile(file);
+                          }}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('openWithDefault')}</TooltipContent>
+                    </Tooltip>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => handleDownload(file)}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => setDeleteFileId(file.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload(file);
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('download')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteFileId(file.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('deleteFile')}</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             );

@@ -13,6 +13,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -110,6 +111,7 @@ export function MediaLibraryPanel({
   onShowInfo,
   className,
 }: MediaLibraryPanelProps) {
+  const t = useTranslations('mediaLibrary');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<MediaType | 'all'>('all');
@@ -185,7 +187,7 @@ export function MediaLibraryPanel({
         <div className="flex items-center justify-between">
           <h3 className="font-medium flex items-center gap-2">
             <FolderOpen className="h-4 w-4" />
-            Media Library
+            {t('title')}
           </h3>
           <div className="flex items-center gap-1">
             <Tooltip>
@@ -199,7 +201,7 @@ export function MediaLibraryPanel({
                   <Grid className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Grid View</TooltipContent>
+              <TooltipContent>{t('gridView')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -212,11 +214,11 @@ export function MediaLibraryPanel({
                   <List className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>List View</TooltipContent>
+              <TooltipContent>{t('listView')}</TooltipContent>
             </Tooltip>
             <Button size="sm" onClick={onImport}>
               <Plus className="h-3.5 w-3.5 mr-1" />
-              Import
+              {t('import')}
             </Button>
           </div>
         </div>
@@ -226,7 +228,7 @@ export function MediaLibraryPanel({
           <div className="relative flex-1">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search..."
+              placeholder={t('searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-8 pl-7 text-sm"
@@ -238,11 +240,11 @@ export function MediaLibraryPanel({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="video">Video</SelectItem>
-              <SelectItem value="image">Image</SelectItem>
-              <SelectItem value="audio">Audio</SelectItem>
-              <SelectItem value="text">Text</SelectItem>
+              <SelectItem value="all">{t('filter.all')}</SelectItem>
+              <SelectItem value="video">{t('filter.video')}</SelectItem>
+              <SelectItem value="image">{t('filter.image')}</SelectItem>
+              <SelectItem value="audio">{t('filter.audio')}</SelectItem>
+              <SelectItem value="text">{t('filter.text')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -253,10 +255,10 @@ export function MediaLibraryPanel({
         {filteredAssets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <FolderOpen className="h-12 w-12 mb-3 opacity-50" />
-            <p className="text-sm">No media files</p>
+            <p className="text-sm">{t('noMedia')}</p>
             <Button variant="outline" size="sm" className="mt-3" onClick={onImport}>
               <Plus className="h-3.5 w-3.5 mr-1" />
-              Import Media
+              {t('importMedia')}
             </Button>
           </div>
         ) : viewMode === 'grid' ? (
@@ -337,11 +339,11 @@ export function MediaLibraryPanel({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => onAssetDoubleClick(asset)}>
                           <Play className="h-4 w-4 mr-2" />
-                          Preview
+                          {t('preview')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onShowInfo(asset)}>
                           <Info className="h-4 w-4 mr-2" />
-                          Info
+                          {t('info')}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -349,7 +351,7 @@ export function MediaLibraryPanel({
                           onClick={() => onDelete(asset.id)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
+                          {t('delete')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -425,11 +427,11 @@ export function MediaLibraryPanel({
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onAssetDoubleClick(asset)}>
                         <Play className="h-4 w-4 mr-2" />
-                        Preview
+                        {t('preview')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onShowInfo(asset)}>
                         <Info className="h-4 w-4 mr-2" />
-                        Info
+                        {t('info')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -437,7 +439,7 @@ export function MediaLibraryPanel({
                         onClick={() => onDelete(asset.id)}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
+                        {t('delete')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -450,9 +452,9 @@ export function MediaLibraryPanel({
 
       {/* Footer status */}
       <div className="p-2 border-t text-xs text-muted-foreground flex items-center justify-between">
-        <span>{filteredAssets.length} items</span>
+        <span>{filteredAssets.length} {t('items')}</span>
         {selectedAssetIds.length > 0 && (
-          <span>{selectedAssetIds.length} selected</span>
+          <span>{selectedAssetIds.length} {t('selected')}</span>
         )}
       </div>
     </div>

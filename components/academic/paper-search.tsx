@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Search,
   Filter,
@@ -44,6 +45,7 @@ interface PaperSearchProps {
 }
 
 export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
+  const t = useTranslations('academic.paperSearch');
   const {
     searchQuery,
     searchResults,
@@ -109,7 +111,7 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search papers by title, author, or keywords..."
+              placeholder={t('placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -125,7 +127,7 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
             <PopoverContent className="w-80" align="end">
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium">Providers</Label>
+                  <Label className="text-sm font-medium">{t('providers')}</Label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     {PROVIDER_OPTIONS.map((provider) => (
                       <div key={provider.id} className="flex items-center space-x-2">
@@ -144,7 +146,7 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-sm">Year From</Label>
+                    <Label className="text-sm">{t('yearFrom')}</Label>
                     <Input
                       type="number"
                       placeholder="2020"
@@ -154,7 +156,7 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm">Year To</Label>
+                    <Label className="text-sm">{t('yearTo')}</Label>
                     <Input
                       type="number"
                       placeholder="2024"
@@ -172,14 +174,14 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
                     onCheckedChange={(checked) => setOpenAccessOnly(checked === true)}
                   />
                   <Label htmlFor="openAccess" className="text-sm cursor-pointer">
-                    Open Access only
+                    {t('openAccessOnly')}
                   </Label>
                 </div>
               </div>
             </PopoverContent>
           </Popover>
           <Button onClick={handleSearch} disabled={isSearching || !searchQuery.trim()}>
-            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : t('search')}
           </Button>
         </div>
 
@@ -200,21 +202,21 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
 
           {!isSearching && searchResults.length === 0 && searchQuery && !searchError && (
             <div className="text-center text-muted-foreground py-8">
-              No papers found. Try adjusting your search or filters.
+              {t('noResults')}
             </div>
           )}
 
           {!isSearching && searchResults.length === 0 && !searchQuery && (
             <div className="text-center text-muted-foreground py-8">
               <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Search for academic papers across multiple sources</p>
-              <p className="text-sm mt-2">Supports arXiv, Semantic Scholar, CORE, and more</p>
+              <p>{t('emptyState')}</p>
+              <p className="text-sm mt-2">{t('emptyStateHint')}</p>
             </div>
           )}
 
           {totalResults > 0 && (
             <div className="text-sm text-muted-foreground mb-2">
-              Found {totalResults.toLocaleString()} papers
+              {t('foundPapers', { count: totalResults.toLocaleString() })}
             </div>
           )}
 
@@ -239,6 +241,7 @@ interface PaperCardProps {
 }
 
 function PaperCard({ paper, onSelect, onAddToLibrary }: PaperCardProps) {
+  const t = useTranslations('academic.paperSearch');
   const authors = paper.authors
     .slice(0, 3)
     .map((a) => a.name)
@@ -292,7 +295,7 @@ function PaperCard({ paper, onSelect, onAddToLibrary }: PaperCardProps) {
           {paper.citationCount !== undefined && paper.citationCount > 0 && (
             <span className="flex items-center gap-1">
               <Quote className="h-3 w-3" />
-              {paper.citationCount.toLocaleString()} citations
+              {paper.citationCount.toLocaleString()} {t('citations')}
             </span>
           )}
           <Badge variant="outline" className="text-xs">

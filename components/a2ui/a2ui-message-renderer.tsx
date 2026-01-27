@@ -16,6 +16,7 @@ interface A2UIMessageRendererProps {
   content: string;
   messageId: string;
   className?: string;
+  textRenderer?: (text: string) => React.ReactNode;
   onAction?: (action: A2UIUserAction) => void;
   onDataChange?: (change: A2UIDataModelChange) => void;
 }
@@ -23,79 +24,28 @@ interface A2UIMessageRendererProps {
 /**
  * Renders A2UI content embedded in a chat message
  * Automatically detects and parses A2UI JSON from the message content
+ * Also renders text content alongside A2UI when present
  */
 export function A2UIMessageRenderer({
-  content,
-  messageId,
-  className,
-  onAction,
-  onDataChange,
-}: A2UIMessageRendererProps) {
-  const { extractAndProcess, getSurface } = useA2UI({ onAction, onDataChange });
-
-  // Extract and process A2UI content from the message
-  const a2uiResult = useMemo(() => {
-    if (!detectA2UIContent(content)) {
-      return null;
-    }
-    return extractA2UIFromResponse(content);
-  }, [content]);
-
-  // Process the A2UI messages when detected
-  useEffect(() => {
-    if (a2uiResult) {
-      extractAndProcess(content);
-    }
-  }, [a2uiResult, content, extractAndProcess]);
-
-  // Generate a surface ID based on message ID
-  const surfaceId = a2uiResult?.surfaceId || `msg-${messageId}`;
-  const surface = getSurface(surfaceId);
-
-  // If no A2UI content, return null
-  if (!a2uiResult || !surface) {
-    return null;
-  }
-
-  return (
-    <div className={cn('a2ui-message-content', className)}>
-      <A2UIInlineSurface
-        surfaceId={surfaceId}
-        onAction={onAction}
-        onDataChange={onDataChange}
-      />
-    </div>
-  );
-}
-
-/**
- * Check if a message contains A2UI content
- */
-export function hasA2UIContent(content: string): boolean {
-  return detectA2UIContent(content);
-}
-
-/**
- * Wrapper component that renders both text and A2UI content
- */
-interface A2UIEnhancedMessageProps {
-  content: string;
-  messageId: string;
-  className?: string;
-  textRenderer?: (text: string) => React.ReactNode;
-  onAction?: (action: A2UIUserAction) => void;
-  onDataChange?: (change: A2UIDataModelChange) => void;
-}
-
-export function A2UIEnhancedMessage({
   content,
   messageId,
   className,
   textRenderer,
   onAction,
   onDataChange,
-}: A2UIEnhancedMessageProps) {
+}: A2UIMessageRendererProps) {
+  const { extractAndProcess, getSurface } = useA2UI({ onAction, onDataChange });
+
+  // Detect if content has A2UI
   const hasA2UI = useMemo(() => detectA2UIContent(content), [content]);
+
+  // Extract and process A2UI content from the message
+  const a2uiResult = useMemo(() => {
+    if (!hasA2UI) {
+      return null;
+    }
+    return extractA2UIFromResponse(content);
+  }, [content, hasA2UI]);
 
   // Extract non-A2UI text content
   const textContent = useMemo(() => {
@@ -115,23 +65,56 @@ export function A2UIEnhancedMessage({
     return text.trim();
   }, [content, hasA2UI]);
 
+  // Process the A2UI messages when detected
+  useEffect(() => {
+    if (a2uiResult) {
+      extractAndProcess(content);
+    }
+  }, [a2uiResult, content, extractAndProcess]);
+
+  // Generate a surface ID based on message ID
+  const surfaceId = a2uiResult?.surfaceId || `msg-${messageId}`;
+  const surface = hasA2UI ? getSurface(surfaceId) : null;
+
+  // If no A2UI content and no text, return null
+  if (!hasA2UI && !textContent) {
+    return null;
+  }
+
+  // If only text content (no A2UI), render text only
+  if (!hasA2UI || !surface) {
+    if (!textContent) return null;
+    return (
+      <div className={cn('a2ui-message-content', className)}>
+        <div className="message-text">
+          {textRenderer ? textRenderer(textContent) : textContent}
+        </div>
+      </div>
+    );
+  }
+
+  // Render both text and A2UI content
   return (
-    <div className={cn('a2ui-enhanced-message space-y-3', className)}>
+    <div className={cn('a2ui-message-content space-y-3', className)}>
       {textContent && (
         <div className="message-text">
           {textRenderer ? textRenderer(textContent) : textContent}
         </div>
       )}
-      {hasA2UI && (
-        <A2UIMessageRenderer
-          content={content}
-          messageId={messageId}
-          onAction={onAction}
-          onDataChange={onDataChange}
-        />
-      )}
+      <A2UIInlineSurface
+        surfaceId={surfaceId}
+        onAction={onAction}
+        onDataChange={onDataChange}
+      />
     </div>
   );
+}
+
+/**
+ * Check if a message contains A2UI content
+ */
+export function hasA2UIContent(content: string): boolean {
+  return detectA2UIContent(content);
 }
 
 /**

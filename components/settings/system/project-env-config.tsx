@@ -330,7 +330,7 @@ function ProjectConfigCard({
                 <Input
                   value={newVarName}
                   onChange={(e) => setNewVarName(e.target.value.toUpperCase())}
-                  placeholder="MY_VARIABLE"
+                  placeholder={t('placeholders.variableName')}
                   className="h-8 text-sm font-mono"
                 />
               </div>
@@ -339,7 +339,7 @@ function ProjectConfigCard({
                 <Input
                   value={newVarValue}
                   onChange={(e) => setNewVarValue(e.target.value)}
-                  placeholder="value"
+                  placeholder={t('placeholders.variableValue')}
                   className="h-8 text-sm"
                 />
               </div>
@@ -497,7 +497,7 @@ export function ProjectEnvConfigPanel({ projectPath, projectName: _projectName }
               <Input
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}
-                placeholder="My Project"
+                placeholder={t('placeholders.projectName')}
                 className="h-8 text-sm"
               />
             </div>
@@ -506,7 +506,7 @@ export function ProjectEnvConfigPanel({ projectPath, projectName: _projectName }
               <Input
                 value={newProjectPath}
                 onChange={(e) => setNewProjectPath(e.target.value)}
-                placeholder="/path/to/project"
+                placeholder={t('placeholders.projectPath')}
                 className="h-8 text-sm font-mono"
               />
             </div>

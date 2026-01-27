@@ -6,6 +6,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -34,6 +35,7 @@ import {
 import { isTauri } from '@/lib/native/utils';
 
 export default function NativeToolsPage() {
+  const t = useTranslations('nativeToolsPage');
   const [activeTab, setActiveTab] = useState('clipboard');
 
   const isDesktop = useMemo(() => {
@@ -46,14 +48,14 @@ export default function NativeToolsPage() {
       <div className="flex h-svh flex-col items-center justify-center bg-background p-4">
         <div className="text-center space-y-4">
           <Wrench className="h-16 w-16 mx-auto text-muted-foreground/50" />
-          <h1 className="text-2xl font-bold">Native Tools</h1>
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
           <p className="text-muted-foreground max-w-md">
-            Native tools are only available in the desktop app. Download the desktop app to access clipboard history, screenshots, focus tracking, and context awareness.
+            {t('desktopOnlyMessage')}
           </p>
           <Link href="/">
             <Button variant="outline">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Chat
+              {t('backToChat')}
             </Button>
           </Link>
         </div>
@@ -71,7 +73,7 @@ export default function NativeToolsPage() {
         </Link>
         <div className="flex items-center gap-2">
           <Wrench className="h-5 w-5" />
-          <h1 className="text-base font-semibold">Native Tools</h1>
+          <h1 className="text-base font-semibold">{t('title')}</h1>
         </div>
       </header>
 
@@ -80,35 +82,35 @@ export default function NativeToolsPage() {
           <TabsList className="grid w-full max-w-4xl grid-cols-8 shrink-0">
             <TabsTrigger value="clipboard" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Clipboard className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">History</span>
+              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.history')}</span>
             </TabsTrigger>
             <TabsTrigger value="clipboard-context" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">Smart</span>
+              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.smart')}</span>
             </TabsTrigger>
             <TabsTrigger value="templates" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">Templates</span>
+              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.templates')}</span>
             </TabsTrigger>
             <TabsTrigger value="screenshot" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Camera className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">Screenshot</span>
+              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.screenshot')}</span>
             </TabsTrigger>
             <TabsTrigger value="focus" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Monitor className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">Focus</span>
+              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.focus')}</span>
             </TabsTrigger>
             <TabsTrigger value="context" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">Context</span>
+              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.context')}</span>
             </TabsTrigger>
             <TabsTrigger value="system" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Activity className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">System</span>
+              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.system')}</span>
             </TabsTrigger>
             <TabsTrigger value="sandbox" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
               <Terminal className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">Sandbox</span>
+              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.sandbox')}</span>
             </TabsTrigger>
           </TabsList>
 

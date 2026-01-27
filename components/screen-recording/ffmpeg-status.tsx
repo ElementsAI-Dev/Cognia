@@ -20,6 +20,11 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -119,27 +124,37 @@ function InstallationDialog({
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-md font-mono text-sm">
                   <Terminal className="h-4 w-4 text-muted-foreground" />
                   <code className="flex-1">{INSTALLATION_INSTRUCTIONS.windows.wingetCommand}</code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6"
-                    onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.windows.wingetCommand)}
-                  >
-                    {t('copy')}
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6"
+                        onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.windows.wingetCommand)}
+                      >
+                        {t('copy')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('copyToClipboard')}</TooltipContent>
+                  </Tooltip>
                 </div>
                 <p className="text-xs text-muted-foreground">{t('orChocolatey')}</p>
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-md font-mono text-sm">
                   <Terminal className="h-4 w-4 text-muted-foreground" />
                   <code className="flex-1">{INSTALLATION_INSTRUCTIONS.windows.chocoCommand}</code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6"
-                    onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.windows.chocoCommand)}
-                  >
-                    {t('copy')}
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6"
+                        onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.windows.chocoCommand)}
+                      >
+                        {t('copy')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('copyToClipboard')}</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             )}
@@ -150,14 +165,19 @@ function InstallationDialog({
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-md font-mono text-sm">
                   <Terminal className="h-4 w-4 text-muted-foreground" />
                   <code className="flex-1">{INSTALLATION_INSTRUCTIONS.macos.brewCommand}</code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6"
-                    onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.macos.brewCommand)}
-                  >
-                    {t('copy')}
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6"
+                        onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.macos.brewCommand)}
+                      >
+                        {t('copy')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('copyToClipboard')}</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             )}
@@ -168,14 +188,19 @@ function InstallationDialog({
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-md font-mono text-sm">
                   <Terminal className="h-4 w-4 text-muted-foreground" />
                   <code className="flex-1">{INSTALLATION_INSTRUCTIONS.linux.aptCommand}</code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6"
-                    onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.linux.aptCommand)}
-                  >
-                    {t('copy')}
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6"
+                        onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.linux.aptCommand)}
+                      >
+                        {t('copy')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('copyToClipboard')}</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             )}

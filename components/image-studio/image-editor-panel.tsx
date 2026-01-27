@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -46,63 +47,18 @@ export interface ImageEditorPanelProps {
   className?: string;
 }
 
-interface EditorTab {
-  id: EditorMode;
-  label: string;
-  icon: React.ReactNode;
-  description: string;
-}
+const EDITOR_TAB_IDS: EditorMode[] = ['mask', 'crop', 'adjust', 'filters', 'text', 'draw', 'upscale', 'remove-bg'];
 
-const EDITOR_TABS: EditorTab[] = [
-  {
-    id: 'mask',
-    label: 'Mask',
-    icon: <Brush className="h-4 w-4" />,
-    description: 'Draw mask for inpainting',
-  },
-  {
-    id: 'crop',
-    label: 'Crop',
-    icon: <Crop className="h-4 w-4" />,
-    description: 'Crop, rotate, and flip',
-  },
-  {
-    id: 'adjust',
-    label: 'Adjust',
-    icon: <SlidersHorizontal className="h-4 w-4" />,
-    description: 'Brightness, contrast, etc.',
-  },
-  {
-    id: 'filters',
-    label: 'Filters',
-    icon: <Sparkles className="h-4 w-4" />,
-    description: 'Apply filter presets',
-  },
-  {
-    id: 'text',
-    label: 'Text',
-    icon: <Type className="h-4 w-4" />,
-    description: 'Add text and watermarks',
-  },
-  {
-    id: 'draw',
-    label: 'Draw',
-    icon: <Pencil className="h-4 w-4" />,
-    description: 'Annotate with shapes',
-  },
-  {
-    id: 'upscale',
-    label: 'Upscale',
-    icon: <ZoomIn className="h-4 w-4" />,
-    description: 'Increase resolution',
-  },
-  {
-    id: 'remove-bg',
-    label: 'Remove BG',
-    icon: <Eraser className="h-4 w-4" />,
-    description: 'Remove background',
-  },
-];
+const EDITOR_TAB_ICONS: Record<EditorMode, React.ReactNode> = {
+  mask: <Brush className="h-4 w-4" />,
+  crop: <Crop className="h-4 w-4" />,
+  adjust: <SlidersHorizontal className="h-4 w-4" />,
+  filters: <Sparkles className="h-4 w-4" />,
+  text: <Type className="h-4 w-4" />,
+  draw: <Pencil className="h-4 w-4" />,
+  upscale: <ZoomIn className="h-4 w-4" />,
+  'remove-bg': <Eraser className="h-4 w-4" />,
+};
 
 export function ImageEditorPanel({
   imageUrl,
@@ -111,6 +67,7 @@ export function ImageEditorPanel({
   onCancel,
   className,
 }: ImageEditorPanelProps) {
+  const t = useTranslations('imageStudio.editorPanel');
   const [activeMode, setActiveMode] = useState<EditorMode>(initialMode);
   const [maskBase64, setMaskBase64] = useState<string | null>(null);
 
@@ -153,15 +110,15 @@ export function ImageEditorPanel({
       <div className="flex items-center justify-between border-b p-2">
         <Tabs value={activeMode} onValueChange={(v) => setActiveMode(v as EditorMode)}>
           <TabsList>
-            {EDITOR_TABS.map((tab) => (
-              <Tooltip key={tab.id}>
+            {EDITOR_TAB_IDS.map((id) => (
+              <Tooltip key={id}>
                 <TooltipTrigger asChild>
-                  <TabsTrigger value={tab.id} className="gap-1.5">
-                    {tab.icon}
-                    <span className="hidden sm:inline">{tab.label}</span>
+                  <TabsTrigger value={id} className="gap-1.5">
+                    {EDITOR_TAB_ICONS[id]}
+                    <span className="hidden sm:inline">{t(`modes.${id}`)}</span>
                   </TabsTrigger>
                 </TooltipTrigger>
-                <TooltipContent>{tab.description}</TooltipContent>
+                <TooltipContent>{t(`descriptions.${id}`)}</TooltipContent>
               </Tooltip>
             ))}
           </TabsList>
@@ -249,7 +206,7 @@ export function ImageEditorPanel({
       {/* Footer with mask info if in mask mode */}
       {activeMode === 'mask' && maskBase64 && (
         <div className="border-t p-2 text-xs text-muted-foreground">
-          Mask ready for inpainting
+          {t('maskReadyForInpainting')}
         </div>
       )}
     </div>

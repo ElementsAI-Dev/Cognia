@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { ThumbnailNavigator } from './thumbnail-navigator';
 import { SlideshowControls, KeyboardHelpModal } from './slideshow-controls';
@@ -20,6 +21,7 @@ export function SlideshowView({
   onExit,
   onGoToSlide,
 }: SlideshowViewProps) {
+  const t = useTranslations('pptSlideshow');
   // Use persisted settings from store
   const { slideshowSettings, updateSlideshowSettings } = usePPTEditorStore();
   const [settings, setSettings] = useState<SlideshowSettings>(slideshowSettings);
@@ -276,17 +278,17 @@ export function SlideshowView({
       {/* Speaker notes panel */}
       {settings.showNotes && (
         <div className="absolute right-0 top-0 bottom-16 w-80 bg-black/80 backdrop-blur-sm text-white p-4 overflow-y-auto z-10">
-          <div className="text-xs uppercase tracking-wider text-white/60 mb-2">演讲者备注</div>
+          <div className="text-xs uppercase tracking-wider text-white/60 mb-2">{t('speakerNotes')}</div>
           <div className="text-sm leading-relaxed">
-            {slide.notes || <span className="text-white/40 italic">暂无备注</span>}
+            {slide.notes || <span className="text-white/40 italic">{t('noNotes')}</span>}
           </div>
           
           {/* Next slide preview */}
           {currentIndex < totalSlides - 1 && (
             <div className="mt-6 pt-4 border-t border-white/20">
-              <div className="text-xs uppercase tracking-wider text-white/60 mb-2">下一张</div>
+              <div className="text-xs uppercase tracking-wider text-white/60 mb-2">{t('nextSlide')}</div>
               <div className="text-sm font-medium text-white/80">
-                {presentation.slides[currentIndex + 1]?.title || '无标题'}
+                {presentation.slides[currentIndex + 1]?.title || t('noTitle')}
               </div>
             </div>
           )}

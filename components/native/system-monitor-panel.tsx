@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmptyState } from '@/components/layout/empty-state';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Cpu,
   MemoryStick,
@@ -69,14 +70,19 @@ export function SystemMonitorPanel({ className }: SystemMonitorPanelProps) {
           <Activity className="h-5 w-5" />
           <span className="font-medium">{t('title')}</span>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => fetchSystemState()}
-          disabled={isLoading}
-        >
-          <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => fetchSystemState()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('refresh')}</TooltipContent>
+        </Tooltip>
       </div>
 
       <ScrollArea className="flex-1 min-h-0">

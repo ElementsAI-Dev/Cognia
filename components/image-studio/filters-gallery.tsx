@@ -11,6 +11,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -105,6 +106,9 @@ export function FiltersGallery({
   onCancel,
   className,
 }: FiltersGalleryProps) {
+  const t = useTranslations('imageStudio.filtersGallery');
+  const tc = useTranslations('imageStudio.common');
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const previewRafRef = useRef<number | null>(null);
@@ -408,7 +412,7 @@ export function FiltersGallery({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5" />
-            <h3 className="font-medium">Filters</h3>
+            <h3 className="font-medium">{t('title')}</h3>
             {(selectedFilter || hoveredFilter) && (
               <span className="text-sm text-muted-foreground">
                 — {(hoveredFilter || selectedFilter)?.name}
@@ -427,7 +431,7 @@ export function FiltersGallery({
           />
           {!imageLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Loading image...</div>
+              <div className="animate-pulse text-muted-foreground">{tc('loadingImage')}</div>
             </div>
           )}
         </div>
@@ -435,7 +439,7 @@ export function FiltersGallery({
         {/* Intensity slider */}
         {selectedFilter && selectedFilter.id !== 'none' && (
           <div className="flex items-center gap-4">
-            <Label className="text-sm whitespace-nowrap">Intensity</Label>
+            <Label className="text-sm whitespace-nowrap">{t('intensity')}</Label>
             <Slider
               value={[intensity]}
               onValueChange={([v]) => setIntensity(v)}
@@ -452,16 +456,16 @@ export function FiltersGallery({
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={handleReset} disabled={!selectedFilter}>
             <RotateCcw className="h-4 w-4 mr-1" />
-            Reset
+            {tc('reset')}
           </Button>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={onCancel}>
               <X className="h-4 w-4 mr-1" />
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button onClick={handleApply} disabled={!selectedFilter}>
               <Check className="h-4 w-4 mr-1" />
-              Apply
+              {tc('apply')}
             </Button>
           </div>
         </div>

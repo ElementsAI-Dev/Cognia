@@ -95,13 +95,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    <div className="flex flex-col h-full p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-4 w-4" />
+        <Skeleton className="h-4 w-24" />
+      </div>
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-4 w-5/6" />
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-4/5" />
+      <Skeleton className="h-4 w-1/2" />
+      <div className="flex-1" />
+      <div className="flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
     </div>
   ),
 });

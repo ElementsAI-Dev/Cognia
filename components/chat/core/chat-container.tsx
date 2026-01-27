@@ -65,7 +65,7 @@ import { BranchButton } from '../selectors';
 import { TextSelectionPopover } from '../popovers';
 import { QuotedContent } from '../message';
 import { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart } from '../message-parts';
-import { A2UIEnhancedMessage, hasA2UIContent, useA2UIMessageIntegration } from '@/components/a2ui';
+import { A2UIMessageRenderer, hasA2UIContent, useA2UIMessageIntegration } from '@/components/a2ui';
 import { MessageReactions } from '../message';
 import { MessageArtifacts } from '@/components/artifacts';
 import type { EmojiReaction } from '@/types/core/message';
@@ -2685,7 +2685,7 @@ function ChatMessageItem({
               {message.role === 'user' ? (
                 <p className="whitespace-pre-wrap">{message.content}</p>
               ) : hasA2UIContent(message.content) ? (
-                <A2UIEnhancedMessage
+                <A2UIMessageRenderer
                   content={message.content}
                   messageId={message.id}
                   textRenderer={(text) => (

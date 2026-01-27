@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Editor, EditorProps } from '@monaco-editor/react';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { EditorTheme } from '@/types/settings/rules';
 import { RulesEditorPreview } from './rules-editor-preview';
 
@@ -63,15 +64,22 @@ export function RulesEditorContent({
               }}
             />
             <div className="absolute bottom-4 right-6 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 bg-background/80 backdrop-blur pointer-events-auto shadow-sm"
-                onClick={onThemeToggle}
-                aria-label="Toggle theme"
-              >
-                <Type className="h-3.5 w-3.5" />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 bg-background/80 backdrop-blur pointer-events-auto shadow-sm"
+                      onClick={onThemeToggle}
+                      aria-label={t('ariaLabels.toggleTheme')}
+                    >
+                      <Type className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('toggleTheme')}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </ResizablePanel>

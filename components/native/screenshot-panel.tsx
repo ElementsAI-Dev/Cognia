@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/input-group';
 import { CopyButton } from '@/components/chat/ui/copy-button';
 import { EmptyState } from '@/components/layout/empty-state';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Camera,
   Monitor,
@@ -274,14 +275,19 @@ export function ScreenshotPanel({
             </InputGroupAddon>
           )}
         </InputGroup>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => fetchHistory()}
-          disabled={isLoading}
-        >
-          <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => fetchHistory()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('refresh')}</TooltipContent>
+        </Tooltip>
       </div>
 
       <ScrollArea className="flex-1 min-h-0">

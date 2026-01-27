@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/layout/empty-state';
 import { useUsageStore } from '@/stores';
 import { formatTokens, formatCost, type UsageRecord } from '@/types/system/usage';
 
@@ -180,7 +181,7 @@ export function UsageSettings() {
                 <div className="text-base font-bold">{formatTokens(totalUsage.tokens)}</div>
                 <div className="flex items-center justify-center text-[10px] text-muted-foreground">
                   <TrendingUp className="mr-1 h-2.5 w-2.5" />
-                  {totalUsage.requests} req
+                  {totalUsage.requests} {t('requests')}
                 </div>
               </div>
               <div className="rounded-lg border p-2 text-center">
@@ -203,7 +204,7 @@ export function UsageSettings() {
                 </div>
                 <div className="flex items-center justify-center text-[10px] text-muted-foreground">
                   <Clock className="mr-1 h-2.5 w-2.5" />
-                  {records.length} rec
+                  {records.length} {t('records')}
                 </div>
               </div>
             </div>
@@ -239,9 +240,11 @@ export function UsageSettings() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground text-center py-4">
-                {t('noProviderData')}
-              </p>
+              <EmptyState
+                icon={Coins}
+                title={t('noProviderData')}
+                compact
+              />
             )}
           </CardContent>
         </Card>
@@ -306,7 +309,7 @@ export function UsageSettings() {
               <div className="relative pt-2">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  placeholder="Search provider or model..."
+                  placeholder={t('searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     setSearchQuery(e.target.value);
@@ -332,9 +335,11 @@ export function UsageSettings() {
                   </div>
                 ))}
                 {filteredRecords.length === 0 && (
-                  <p className="py-8 text-center text-muted-foreground text-xs">
-                    {searchQuery ? tCommon('noResults') : t('noRecords')}
-                  </p>
+                  <EmptyState
+                    icon={Clock}
+                    title={searchQuery ? tCommon('noResults') : t('noRecords')}
+                    compact
+                  />
                 )}
               </div>
 

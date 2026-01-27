@@ -5,6 +5,7 @@
  */
 
 import { useMemo, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Wand2, Loader2, Tag, Calendar, BookOpen, Star, Filter, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,7 @@ interface SmartCollectionsProps {
 }
 
 export function SmartCollections({ className }: SmartCollectionsProps) {
+  const t = useTranslations('academic.smartCollections');
   const { libraryPapers, createCollection, addToCollection } = useAcademic();
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
@@ -198,10 +200,10 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
           <div>
             <h3 className="font-semibold flex items-center gap-2">
               <Wand2 className="h-5 w-5 text-purple-500" />
-              Smart Collections
+              {t('title')}
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Auto-organize papers based on rules and topics
+              {t('description')}
             </p>
           </div>
           <Button
@@ -211,12 +213,12 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating...
+                {t('generating')}
               </>
             ) : (
               <>
                 <Zap className="h-4 w-4 mr-2" />
-                Generate Collections
+                {t('generateCollections')}
               </>
             )}
           </Button>
@@ -226,7 +228,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
           <div className="mt-4 space-y-2">
             <Progress value={generationProgress} className="h-2" />
             <p className="text-xs text-muted-foreground text-center">
-              Creating collections... {Math.round(generationProgress)}%
+              {t('creatingProgress', { progress: Math.round(generationProgress) })}
             </p>
           </div>
         )}
@@ -238,7 +240,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
           <div className="space-y-3">
             <h4 className="font-medium flex items-center gap-2">
               <Filter className="h-4 w-4" />
-              Smart Rules
+              {t('smartRules')}
             </h4>
             <div className="grid gap-3">
               {smartRules.map((rule) => {
@@ -265,7 +267,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Badge variant="outline">{rule.matchCount} papers</Badge>
+                          <Badge variant="outline">{rule.matchCount} {t('papers')}</Badge>
                           <Switch
                             checked={rule.enabled}
                             onCheckedChange={() => toggleRule(rule.id)}
@@ -283,7 +285,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
           <div className="space-y-3">
             <h4 className="font-medium flex items-center gap-2">
               <Tag className="h-4 w-4" />
-              Detected Topics
+              {t('detectedTopics')}
             </h4>
             {detectedTopics.length > 0 ? (
               <div className="flex flex-wrap gap-2">
@@ -296,7 +298,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Add more papers to detect common topics
+                {t('noTopicsHint')}
               </p>
             )}
           </div>
@@ -307,12 +309,12 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
               <div className="flex items-start gap-3">
                 <Wand2 className="h-5 w-5 text-purple-500 shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">How it works</p>
+                  <p className="font-medium text-foreground">{t('howItWorks')}</p>
                   <ul className="mt-2 space-y-1 list-disc list-inside">
-                    <li>Enable the rules you want to use</li>
-                    <li>Click &quot;Generate Collections&quot; to create collections</li>
-                    <li>Papers will be automatically added based on criteria</li>
-                    <li>Topic collections are created from common fields</li>
+                    <li>{t('howItWorksSteps.step1')}</li>
+                    <li>{t('howItWorksSteps.step2')}</li>
+                    <li>{t('howItWorksSteps.step3')}</li>
+                    <li>{t('howItWorksSteps.step4')}</li>
                   </ul>
                 </div>
               </div>

@@ -188,10 +188,10 @@ export const LearningStartDialog = memo(function LearningStartDialog({
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
-              {t('startDialog.learningType') || '学习类型'}
+              {t('startDialog.learningType')}
               {detectionConfidence > 0 && (
                 <Badge variant="outline" className="text-xs ml-1">
-                  {t('startDialog.autoDetected') || '自动检测'}
+                  {t('startDialog.autoDetected')}
                 </Badge>
               )}
             </Label>
@@ -207,9 +207,9 @@ export const LearningStartDialog = memo(function LearningStartDialog({
                 )}
               >
                 <Zap className={cn('h-5 w-5', durationType === 'quick' ? 'text-primary' : 'text-muted-foreground')} />
-                <span className="text-sm font-medium">{t('learningType.quick') || '快速学习'}</span>
+                <span className="text-sm font-medium">{t('learningType.quick')}</span>
                 <span className="text-xs text-muted-foreground text-center">
-                  {t('learningType.quickDesc') || '问个问题，快速解答'}
+                  {t('learningType.quickDesc')}
                 </span>
               </button>
               <button
@@ -223,9 +223,9 @@ export const LearningStartDialog = memo(function LearningStartDialog({
                 )}
               >
                 <Map className={cn('h-5 w-5', durationType === 'journey' ? 'text-primary' : 'text-muted-foreground')} />
-                <span className="text-sm font-medium">{t('learningType.journey') || '系统学习'}</span>
+                <span className="text-sm font-medium">{t('learningType.journey')}</span>
                 <span className="text-xs text-muted-foreground text-center">
-                  {t('learningType.journeyDesc') || '制定学习路径，跟踪进度'}
+                  {t('learningType.journeyDesc')}
                 </span>
               </button>
             </div>
@@ -235,21 +235,21 @@ export const LearningStartDialog = memo(function LearningStartDialog({
           {durationType === 'journey' && (
             <div className="space-y-2 p-3 rounded-lg bg-muted/50">
               <Label className="flex items-center gap-2">
-                {t('startDialog.estimatedDuration') || '预计学习时长'}
+                {t('startDialog.estimatedDuration')}
               </Label>
               <Select value={estimatedDuration} onValueChange={(v) => setEstimatedDuration(v as LearningPathDuration)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="days">{t('duration.days') || '1-7 天'}</SelectItem>
-                  <SelectItem value="weeks">{t('duration.weeks') || '1-4 周'}</SelectItem>
-                  <SelectItem value="months">{t('duration.months') || '1-6 个月'}</SelectItem>
-                  <SelectItem value="long-term">{t('duration.longTerm') || '6个月以上'}</SelectItem>
+                  <SelectItem value="days">{t('duration.days')}</SelectItem>
+                  <SelectItem value="weeks">{t('duration.weeks')}</SelectItem>
+                  <SelectItem value="months">{t('duration.months')}</SelectItem>
+                  <SelectItem value="long-term">{t('duration.longTerm')}</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                {t('startDialog.journeyHint') || '系统学习会创建学习路径，包含里程碑和进度跟踪'}
+                {t('startDialog.journeyHint')}
               </p>
             </div>
           )}

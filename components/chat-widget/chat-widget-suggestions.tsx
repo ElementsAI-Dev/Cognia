@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -23,59 +24,6 @@ interface Suggestion {
   category?: "common" | "advanced";
 }
 
-const QUICK_SUGGESTIONS: Suggestion[] = [
-  // Common suggestions (always visible)
-  {
-    icon: <MessageSquare className="h-3 w-3" />,
-    label: "解释一下",
-    prompt: "请用简单的语言解释一下这个概念：",
-    category: "common",
-  },
-  {
-    icon: <Code className="h-3 w-3" />,
-    label: "写代码",
-    prompt: "帮我写一段代码来实现：",
-    category: "common",
-  },
-  {
-    icon: <Languages className="h-3 w-3" />,
-    label: "翻译",
-    prompt: "请将以下内容翻译成中文/英文：",
-    category: "common",
-  },
-  {
-    icon: <HelpCircle className="h-3 w-3" />,
-    label: "怎么做",
-    prompt: "请告诉我如何：",
-    category: "common",
-  },
-  // Advanced suggestions (expandable)
-  {
-    icon: <FileText className="h-3 w-3" />,
-    label: "总结文章",
-    prompt: "请帮我总结以下内容的要点：",
-    category: "advanced",
-  },
-  {
-    icon: <Sparkles className="h-3 w-3" />,
-    label: "优化文字",
-    prompt: "请帮我优化以下文字，使其更加清晰流畅：",
-    category: "advanced",
-  },
-  {
-    icon: <Brain className="h-3 w-3" />,
-    label: "头脑风暴",
-    prompt: "帮我头脑风暴一下关于这个话题的想法：",
-    category: "advanced",
-  },
-  {
-    icon: <CheckCircle className="h-3 w-3" />,
-    label: "检查错误",
-    prompt: "请帮我检查以下内容是否有错误：",
-    category: "advanced",
-  },
-];
-
 interface ChatWidgetSuggestionsProps {
   onSelect: (prompt: string) => void;
   className?: string;
@@ -85,7 +33,61 @@ export const ChatWidgetSuggestions = memo(function ChatWidgetSuggestions({
   onSelect,
   className,
 }: ChatWidgetSuggestionsProps) {
+  const t = useTranslations("chatWidget.suggestions");
   const [expanded, setExpanded] = useState(false);
+
+  const QUICK_SUGGESTIONS: Suggestion[] = useMemo(() => [
+    // Common suggestions (always visible)
+    {
+      icon: <MessageSquare className="h-3 w-3" />,
+      label: t("explain"),
+      prompt: t("explainPrompt"),
+      category: "common",
+    },
+    {
+      icon: <Code className="h-3 w-3" />,
+      label: t("writeCode"),
+      prompt: t("writeCodePrompt"),
+      category: "common",
+    },
+    {
+      icon: <Languages className="h-3 w-3" />,
+      label: t("translate"),
+      prompt: t("translatePrompt"),
+      category: "common",
+    },
+    {
+      icon: <HelpCircle className="h-3 w-3" />,
+      label: t("howTo"),
+      prompt: t("howToPrompt"),
+      category: "common",
+    },
+    // Advanced suggestions (expandable)
+    {
+      icon: <FileText className="h-3 w-3" />,
+      label: t("summarize"),
+      prompt: t("summarizePrompt"),
+      category: "advanced",
+    },
+    {
+      icon: <Sparkles className="h-3 w-3" />,
+      label: t("optimize"),
+      prompt: t("optimizePrompt"),
+      category: "advanced",
+    },
+    {
+      icon: <Brain className="h-3 w-3" />,
+      label: t("brainstorm"),
+      prompt: t("brainstormPrompt"),
+      category: "advanced",
+    },
+    {
+      icon: <CheckCircle className="h-3 w-3" />,
+      label: t("checkErrors"),
+      prompt: t("checkErrorsPrompt"),
+      category: "advanced",
+    },
+  ], [t]);
 
   const commonSuggestions = QUICK_SUGGESTIONS.filter(s => s.category === "common");
   const advancedSuggestions = QUICK_SUGGESTIONS.filter(s => s.category === "advanced");
@@ -176,7 +178,7 @@ export const ChatWidgetSuggestions = memo(function ChatWidgetSuggestions({
               >
                 <ChevronDown className="h-3 w-3 mr-1" />
               </motion.span>
-              <span>{expanded ? "收起" : "更多"}</span>
+              <span>{expanded ? t("collapse") : t("more")}</span>
             </Button>
           </motion.div>
         )}

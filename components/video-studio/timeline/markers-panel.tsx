@@ -12,10 +12,12 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -77,22 +79,22 @@ export interface MarkersPanelProps {
   className?: string;
 }
 
-const MARKER_COLORS: { value: MarkerColor; label: string; class: string }[] = [
-  { value: 'red', label: 'Red', class: 'bg-red-500' },
-  { value: 'orange', label: 'Orange', class: 'bg-orange-500' },
-  { value: 'yellow', label: 'Yellow', class: 'bg-yellow-500' },
-  { value: 'green', label: 'Green', class: 'bg-green-500' },
-  { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
-  { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
-  { value: 'pink', label: 'Pink', class: 'bg-pink-500' },
-  { value: 'gray', label: 'Gray', class: 'bg-gray-500' },
+const MARKER_COLORS: { value: MarkerColor; labelKey: string; class: string }[] = [
+  { value: 'red', labelKey: 'colors.red', class: 'bg-red-500' },
+  { value: 'orange', labelKey: 'colors.orange', class: 'bg-orange-500' },
+  { value: 'yellow', labelKey: 'colors.yellow', class: 'bg-yellow-500' },
+  { value: 'green', labelKey: 'colors.green', class: 'bg-green-500' },
+  { value: 'blue', labelKey: 'colors.blue', class: 'bg-blue-500' },
+  { value: 'purple', labelKey: 'colors.purple', class: 'bg-purple-500' },
+  { value: 'pink', labelKey: 'colors.pink', class: 'bg-pink-500' },
+  { value: 'gray', labelKey: 'colors.gray', class: 'bg-gray-500' },
 ];
 
-const MARKER_TYPES: { value: MarkerType; label: string; icon: typeof Bookmark }[] = [
-  { value: 'marker', label: 'Marker', icon: Flag },
-  { value: 'chapter', label: 'Chapter', icon: BookOpen },
-  { value: 'note', label: 'Note', icon: Star },
-  { value: 'todo', label: 'To-Do', icon: CheckCircle },
+const MARKER_TYPES: { value: MarkerType; labelKey: string; icon: typeof Bookmark }[] = [
+  { value: 'marker', labelKey: 'types.marker', icon: Flag },
+  { value: 'chapter', labelKey: 'types.chapter', icon: BookOpen },
+  { value: 'note', labelKey: 'types.note', icon: Star },
+  { value: 'todo', labelKey: 'types.todo', icon: CheckCircle },
 ];
 
 export function MarkersPanel({
@@ -105,6 +107,7 @@ export function MarkersPanel({
   onJumpToMarker,
   className,
 }: MarkersPanelProps) {
+  const t = useTranslations('markers');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingMarker, setEditingMarker] = useState<Marker | null>(null);
   const [newMarker, setNewMarker] = useState<Partial<Marker>>({
@@ -183,7 +186,7 @@ export function MarkersPanel({
       <div className="flex items-center justify-between p-3 border-b">
         <h3 className="font-medium flex items-center gap-2">
           <Bookmark className="h-4 w-4" />
-          Markers
+          {t('title')}
           <Badge variant="secondary" className="text-xs">
             {markers.length}
           </Badge>
@@ -204,7 +207,7 @@ export function MarkersPanel({
                 <ChevronUp className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Previous Marker</TooltipContent>
+            <TooltipContent>{t('previousMarker')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -221,11 +224,11 @@ export function MarkersPanel({
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Next Marker</TooltipContent>
+            <TooltipContent>{t('nextMarker')}</TooltipContent>
           </Tooltip>
           <Button size="sm" onClick={handleAddMarker}>
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Add
+            {t('add')}
           </Button>
         </div>
       </div>
@@ -235,8 +238,8 @@ export function MarkersPanel({
         {sortedMarkers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <Bookmark className="h-12 w-12 mb-3 opacity-50" />
-            <p className="text-sm">No markers yet</p>
-            <p className="text-xs mt-1">Press M or click Add to create a marker</p>
+            <p className="text-sm">{t('noMarkers')}</p>
+            <p className="text-xs mt-1">{t('noMarkersHint')}</p>
           </div>
         ) : (
           <div className="p-2 space-y-1">
@@ -265,7 +268,7 @@ export function MarkersPanel({
                       <span className="text-sm font-medium truncate">{marker.name}</span>
                       {marker.type === 'chapter' && (
                         <Badge variant="outline" className="text-xs">
-                          Chapter
+                          {t('chapter')}
                         </Badge>
                       )}
                       {marker.type === 'todo' && (
@@ -312,7 +315,7 @@ export function MarkersPanel({
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => handleEditMarker(marker)}>
                         <Edit className="h-4 w-4 mr-2" />
-                        Edit
+                        {t('edit')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -320,7 +323,7 @@ export function MarkersPanel({
                         onClick={() => onDeleteMarker(marker.id)}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
+                        {t('delete')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -335,23 +338,23 @@ export function MarkersPanel({
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingMarker ? 'Edit Marker' : 'Add Marker'}</DialogTitle>
+            <DialogTitle>{editingMarker ? t('editMarker') : t('addMarker')}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             {/* Name */}
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label>{t('name')}</Label>
               <Input
                 value={newMarker.name || ''}
                 onChange={(e) => setNewMarker({ ...newMarker, name: e.target.value })}
-                placeholder="Marker name"
+                placeholder={t('markerNamePlaceholder')}
               />
             </div>
 
             {/* Time */}
             <div className="space-y-2">
-              <Label>Time</Label>
+              <Label>{t('time')}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
@@ -366,14 +369,14 @@ export function MarkersPanel({
                   size="sm"
                   onClick={() => setNewMarker({ ...newMarker, time: currentTime })}
                 >
-                  Current
+                  {t('current')}
                 </Button>
               </div>
             </div>
 
             {/* Type */}
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label>{t('type')}</Label>
               <div className="flex flex-wrap gap-1">
                 {MARKER_TYPES.map((type) => (
                   <Button
@@ -383,7 +386,7 @@ export function MarkersPanel({
                     onClick={() => setNewMarker({ ...newMarker, type: type.value })}
                   >
                     <type.icon className="h-3 w-3 mr-1" />
-                    {type.label}
+                    {t(type.labelKey)}
                   </Button>
                 ))}
               </div>
@@ -391,7 +394,7 @@ export function MarkersPanel({
 
             {/* Color */}
             <div className="space-y-2">
-              <Label>Color</Label>
+              <Label>{t('color')}</Label>
               <div className="flex gap-1">
                 {MARKER_COLORS.map((color) => (
                   <Button
@@ -412,20 +415,21 @@ export function MarkersPanel({
 
             {/* Description */}
             <div className="space-y-2">
-              <Label>Description (optional)</Label>
-              <Input
+              <Label>{t('descriptionOptional')}</Label>
+              <Textarea
                 value={newMarker.description || ''}
                 onChange={(e) => setNewMarker({ ...newMarker, description: e.target.value })}
-                placeholder="Add a description..."
+                placeholder={t('descriptionPlaceholder')}
+                rows={3}
               />
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Cancel
+              {t('cancel')}
             </Button>
-            <Button onClick={handleSaveMarker}>{editingMarker ? 'Save' : 'Add'}</Button>
+            <Button onClick={handleSaveMarker}>{editingMarker ? t('save') : t('add')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

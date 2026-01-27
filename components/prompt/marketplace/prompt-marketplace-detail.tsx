@@ -24,6 +24,8 @@ import {
   Sparkles,
   History,
   Shield,
+  Trash2,
+  Play,
 } from 'lucide-react';
 import {
   Dialog,
@@ -31,6 +33,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -43,21 +55,24 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { MarketplacePrompt, PromptReview } from '@/types/content/prompt-marketplace';
+import type { MarketplacePrompt, PromptReview, PromptAuthor } from '@/types/content/prompt-marketplace';
 import { QUALITY_TIER_INFO } from '@/types/content/prompt-marketplace';
 import { usePromptMarketplaceStore } from '@/stores/prompt/prompt-marketplace-store';
+import { PromptPreviewDialog } from './prompt-preview-dialog';
 import { toast } from '@/components/ui/sonner';
 
 interface PromptMarketplaceDetailProps {
   prompt: MarketplacePrompt | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onViewAuthor?: (author: PromptAuthor) => void;
 }
 
 export function PromptMarketplaceDetail({
   prompt,
   open,
   onOpenChange,
+  onViewAuthor,
 }: PromptMarketplaceDetailProps) {
   const t = useTranslations('promptMarketplace.detail');
   const format = useFormatter();
@@ -65,8 +80,12 @@ export function PromptMarketplaceDetail({
   const [showFullContent, setShowFullContent] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [userReview, setUserReview] = useState('');
-  const [_reviews, setReviews] = useState<PromptReview[]>([]);
+  const [reviews, setReviews] = useState<PromptReview[]>([]);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showUninstallConfirm, setShowUninstallConfirm] = useState(false);
+  const [isUninstalling, setIsUninstalling] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const isInstalled = usePromptMarketplaceStore(state => 
     prompt ? state.isPromptInstalled(prompt.id) : false
@@ -77,7 +96,13 @@ export function PromptMarketplaceDetail({
   const addToFavorites = usePromptMarketplaceStore(state => state.addToFavorites);
   const removeFromFavorites = usePromptMarketplaceStore(state => state.removeFromFavorites);
   const installPrompt = usePromptMarketplaceStore(state => state.installPrompt);
+  const uninstallPrompt = usePromptMarketplaceStore(state => state.uninstallPrompt);
   const fetchPromptReviews = usePromptMarketplaceStore(state => state.fetchPromptReviews);
+  const submitReviewAction = usePromptMarketplaceStore(state => state.submitReview);
+  const markReviewHelpful = usePromptMarketplaceStore(state => state.markReviewHelpful);
+  const hasReviewed = usePromptMarketplaceStore(state => 
+    prompt ? state.userActivity.reviewed.includes(prompt.id) : false
+  );
 
   const handleInstall = useCallback(async () => {
     if (!prompt) return;
@@ -92,6 +117,21 @@ export function PromptMarketplaceDetail({
       setIsInstalling(false);
     }
   }, [prompt, installPrompt, t]);
+
+  const handleUninstall = useCallback(async () => {
+    if (!prompt) return;
+    setIsUninstalling(true);
+    try {
+      uninstallPrompt(prompt.id);
+      toast.success(t('uninstallSuccess'));
+      setShowUninstallConfirm(false);
+    } catch (error) {
+      toast.error(t('uninstallFailed'));
+      console.error(error);
+    } finally {
+      setIsUninstalling(false);
+    }
+  }, [prompt, uninstallPrompt, t]);
 
   const handleFavoriteToggle = useCallback(() => {
     if (!prompt) return;
@@ -119,9 +159,31 @@ export function PromptMarketplaceDetail({
 
   const loadReviews = useCallback(async () => {
     if (!prompt) return;
-    const reviews = await fetchPromptReviews(prompt.id);
-    setReviews(reviews);
+    const reviewsList = await fetchPromptReviews(prompt.id);
+    setReviews(reviewsList);
   }, [prompt, fetchPromptReviews]);
+
+  const handleSubmitReview = useCallback(async () => {
+    if (!prompt || userRating === 0) return;
+    setIsSubmittingReview(true);
+    try {
+      await submitReviewAction(prompt.id, userRating, userReview);
+      toast.success(t('reviewSubmitted'));
+      setUserRating(0);
+      setUserReview('');
+      loadReviews();
+    } catch (error) {
+      toast.error(t('reviewFailed'));
+      console.error(error);
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  }, [prompt, userRating, userReview, submitReviewAction, t, loadReviews]);
+
+  const handleMarkHelpful = useCallback(async (reviewId: string) => {
+    await markReviewHelpful(reviewId);
+    loadReviews();
+  }, [markReviewHelpful, loadReviews]);
 
   if (!prompt) return null;
 
@@ -168,13 +230,16 @@ export function PromptMarketplaceDetail({
               </div>
               
               <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
+                <button
+                  className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+                  onClick={() => onViewAuthor?.(prompt.author)}
+                >
                   <User className="h-3.5 w-3.5" />
-                  <span>{prompt.author.name}</span>
+                  <span className="hover:underline">{prompt.author.name}</span>
                   {prompt.author.verified && (
                     <Shield className="h-3.5 w-3.5 text-blue-500" />
                   )}
-                </div>
+                </button>
                 <div className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
                   <span>{formatDate(prompt.createdAt)}</span>
@@ -401,37 +466,95 @@ export function PromptMarketplaceDetail({
                   </div>
 
                   {/* Write Review */}
-                  <div className="p-4 border rounded-lg space-y-3">
-                    <h5 className="font-medium">{t('writeReview')}</h5>
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setUserRating(star)}
-                          className="p-1 hover:scale-110 transition-transform"
-                        >
-                          <Star
-                            className={cn(
-                              'h-6 w-6 transition-colors',
-                              star <= userRating
-                                ? 'text-yellow-500 fill-yellow-500'
-                                : 'text-muted-foreground hover:text-yellow-400'
-                            )}
-                          />
-                        </button>
+                  {!hasReviewed ? (
+                    <div className="p-4 border rounded-lg space-y-3">
+                      <h5 className="font-medium">{t('writeReview')}</h5>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setUserRating(star)}
+                            className="p-1 hover:scale-110 transition-transform"
+                          >
+                            <Star
+                              className={cn(
+                                'h-6 w-6 transition-colors',
+                                star <= userRating
+                                  ? 'text-yellow-500 fill-yellow-500'
+                                  : 'text-muted-foreground hover:text-yellow-400'
+                              )}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <Textarea
+                        placeholder={t('reviewPlaceholder')}
+                        value={userReview}
+                        onChange={(e) => setUserReview(e.target.value)}
+                        rows={3}
+                      />
+                      <Button 
+                        disabled={userRating === 0 || isSubmittingReview}
+                        onClick={handleSubmitReview}
+                      >
+                        {isSubmittingReview ? t('submitting') : t('submitReview')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="p-4 border rounded-lg bg-green-500/5 border-green-500/20">
+                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                        <Check className="h-4 w-4" />
+                        <span className="text-sm font-medium">{t('alreadyReviewed')}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reviews List */}
+                  {reviews.length > 0 && (
+                    <div className="space-y-3">
+                      <h5 className="font-medium">{t('userReviews')} ({reviews.length})</h5>
+                      {reviews.map((review) => (
+                        <div key={review.id} className="p-4 border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{review.authorName}</span>
+                              <div className="flex items-center gap-0.5">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={cn(
+                                      'h-3 w-3',
+                                      star <= review.rating
+                                        ? 'text-yellow-500 fill-yellow-500'
+                                        : 'text-muted-foreground'
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {format.relativeTime(new Date(review.createdAt))}
+                            </span>
+                          </div>
+                          {review.content && (
+                            <p className="text-sm text-muted-foreground">{review.content}</p>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1 text-muted-foreground"
+                              onClick={() => handleMarkHelpful(review.id)}
+                            >
+                              <ThumbsUp className="h-3 w-3" />
+                              {t('helpful')} ({review.helpful})
+                            </Button>
+                          </div>
+                        </div>
                       ))}
                     </div>
-                    <Textarea
-                      placeholder={t('reviewPlaceholder')}
-                      value={userReview}
-                      onChange={(e) => setUserReview(e.target.value)}
-                      rows={3}
-                    />
-                    <Button disabled={userRating === 0}>
-                      {t('submitReview')}
-                    </Button>
-                  </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
@@ -472,13 +595,32 @@ export function PromptMarketplaceDetail({
             <TooltipContent>{t('sharePrompt')}</TooltipContent>
           </Tooltip>
 
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setShowPreview(true)}
+          >
+            <Play className="h-4 w-4" />
+            {t('tryPrompt')}
+          </Button>
+
           <div className="flex-1" />
 
           {isInstalled ? (
-            <Button variant="outline" className="gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              {t('installed')}
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setShowUninstallConfirm(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                {t('uninstall')}
+              </Button>
+              <Button variant="secondary" className="gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                {t('installed')}
+              </Button>
+            </>
           ) : (
             <Button onClick={handleInstall} disabled={isInstalling} className="gap-2">
               <Download className="h-4 w-4" />
@@ -487,6 +629,35 @@ export function PromptMarketplaceDetail({
           )}
         </div>
       </DialogContent>
+
+      {/* Uninstall Confirmation Dialog */}
+      <AlertDialog open={showUninstallConfirm} onOpenChange={setShowUninstallConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('uninstallConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('uninstallConfirmDesc', { name: prompt.name })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleUninstall}
+              disabled={isUninstalling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isUninstalling ? t('uninstalling') : t('uninstall')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Prompt Preview Dialog */}
+      <PromptPreviewDialog
+        prompt={prompt}
+        open={showPreview}
+        onOpenChange={setShowPreview}
+      />
     </Dialog>
   );
 }

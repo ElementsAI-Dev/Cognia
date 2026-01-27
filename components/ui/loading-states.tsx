@@ -43,7 +43,7 @@ export function LoadingOverlay({ message, className }: LoadingOverlayProps) {
   return (
     <div className={cn(
       'absolute inset-0 z-50 flex flex-col items-center justify-center',
-      'bg-background/80 backdrop-blur-sm',
+      'bg-background',
       className
     )}>
       <LoadingSpinner size="lg" />
@@ -80,7 +80,7 @@ export function ThinkingIndicator({
   return (
     <div className={cn(
       'flex items-center gap-2 px-3 py-2 rounded-lg',
-      'bg-muted/60 supports-[backdrop-filter]:bg-muted/50 backdrop-blur-sm border border-border/50',
+      'bg-muted border border-border/50',
       className
     )}>
       <span className={cn('animate-pulse', colors[variant])}>

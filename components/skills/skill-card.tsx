@@ -133,16 +133,21 @@ export const SkillCard = memo(function SkillCard({
     return (
       <Card
         className={cn(
-          'group cursor-pointer transition-all hover:shadow-md hover:border-primary/50',
+          'group cursor-pointer transition-all duration-200',
+          'hover:shadow-md hover:border-primary/50 hover:-translate-y-0.5',
+          'active:scale-[0.98]',
           selected && 'ring-2 ring-primary border-primary',
-          !isEnabled && 'opacity-60',
+          !isEnabled && 'opacity-60 hover:opacity-80',
           className
         )}
         onClick={handleCardClick}
       >
         <CardContent className="p-3">
           <div className="flex items-start gap-2">
-            <div className={cn('p-1.5 rounded-md shrink-0', CATEGORY_COLORS[skill.category])}>
+            <div className={cn(
+              'p-1.5 rounded-lg shrink-0 transition-transform duration-200 group-hover:scale-110',
+              CATEGORY_COLORS[skill.category]
+            )}>
               {CATEGORY_ICONS[skill.category]}
             </div>
             <div className="flex-1 min-w-0">
@@ -167,14 +172,19 @@ export const SkillCard = memo(function SkillCard({
     return (
       <div
         className={cn(
-          'group flex items-center gap-4 p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50 overflow-hidden',
+          'group flex items-center gap-3 sm:gap-4 p-3 rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden',
+          'hover:bg-accent/50 hover:border-primary/30 hover:shadow-sm',
+          'active:scale-[0.995]',
           selected && 'ring-2 ring-primary border-primary bg-accent/30',
-          !isEnabled && 'opacity-60',
+          !isEnabled && 'opacity-60 hover:opacity-80',
           className
         )}
         onClick={handleCardClick}
       >
-        <div className={cn('p-2 rounded-md shrink-0', CATEGORY_COLORS[skill.category])}>
+        <div className={cn(
+          'p-2 rounded-lg shrink-0 transition-transform duration-200 group-hover:scale-105',
+          CATEGORY_COLORS[skill.category]
+        )}>
           {CATEGORY_ICONS[skill.category]}
         </div>
         
@@ -278,9 +288,11 @@ export const SkillCard = memo(function SkillCard({
   return (
     <Card
       className={cn(
-        'group cursor-pointer transition-all hover:shadow-md hover:border-primary/50',
-        selected && 'ring-2 ring-primary border-primary',
-        !isEnabled && 'opacity-60',
+        'group cursor-pointer transition-all duration-200',
+        'hover:shadow-lg hover:shadow-primary/5 hover:border-primary/50 hover:-translate-y-0.5',
+        'active:scale-[0.99] active:shadow-md',
+        selected && 'ring-2 ring-primary border-primary shadow-md',
+        !isEnabled && 'opacity-60 hover:opacity-80',
         className
       )}
       onClick={handleCardClick}
@@ -288,7 +300,10 @@ export const SkillCard = memo(function SkillCard({
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-3 min-w-0">
-            <div className={cn('p-2 rounded-md shrink-0', CATEGORY_COLORS[skill.category])}>
+            <div className={cn(
+              'p-2 rounded-lg shrink-0 transition-transform duration-200 group-hover:scale-110',
+              CATEGORY_COLORS[skill.category]
+            )}>
               {CATEGORY_ICONS[skill.category]}
             </div>
             <div className="min-w-0">

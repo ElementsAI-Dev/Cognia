@@ -10,6 +10,32 @@ import { useVectorDB } from '@/hooks/rag';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { VectorCollectionInfo, VectorStats, CollectionExport } from '@/lib/vector';
 
 export function VectorManager() {
@@ -261,17 +287,18 @@ export function VectorManager() {
           <div className="space-y-2">
             <Label>{t('activeCollection')}</Label>
             <div className="flex gap-2">
-              <select
-                className="flex-1 rounded-md border px-2 py-1 text-sm"
-                value={collectionName}
-                onChange={(e) => setCollectionName(e.target.value)}
-              >
-                {collections.map((c) => (
-                  <option key={c.name} value={c.name}>
-                    {c.name} ({c.documentCount})
-                  </option>
-                ))}
-              </select>
+              <Select value={collectionName} onValueChange={setCollectionName}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder={t('activeCollection')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {collections.map((c) => (
+                    <SelectItem key={c.name} value={c.name}>
+                      {c.name} ({c.documentCount})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button variant="outline" onClick={handleRefresh} size="sm">
                 {t('refresh')}
               </Button>
@@ -294,10 +321,12 @@ export function VectorManager() {
 
         {/* Action message */}
         {actionMessage && (
-          <div className={`p-2 rounded-md text-sm ${actionMessage.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
-            {actionMessage.text}
-            <Button variant="ghost" size="sm" className="ml-2 h-5" onClick={() => setActionMessage(null)}>×</Button>
-          </div>
+          <Alert variant={actionMessage.type === 'success' ? 'default' : 'destructive'} className="py-2">
+            <AlertDescription className="flex items-center justify-between">
+              {actionMessage.text}
+              <Button variant="ghost" size="sm" className="h-5 px-2" onClick={() => setActionMessage(null)}>×</Button>
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Collection info display */}
@@ -325,33 +354,127 @@ export function VectorManager() {
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={handleDelete} disabled={!collectionName}>
-            {t('deleteCollection')}
-          </Button>
-          <Button variant="outline" onClick={handleClear} disabled={!collectionName}>
-            {t('clearCollection')}
-          </Button>
-          <Button variant="outline" onClick={handleTruncate} disabled={!collectionName}>
-            {t('truncate')}
-          </Button>
-          <Button variant="outline" onClick={handleDeleteAllDocs} disabled={!collectionName}>
-            {t('deleteAllDocs')}
-          </Button>
-          <Button variant="outline" onClick={handleExport} disabled={!collectionName}>
-            {t('export')}
-          </Button>
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-            {t('import')}
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={handleImport}
-          />
-        </div>
+        <TooltipProvider>
+          <div className="flex flex-wrap gap-2">
+            <AlertDialog>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={!collectionName}>
+                      {t('deleteCollection')}
+                    </Button>
+                  </AlertDialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t('deleteCollectionTooltip')}</TooltipContent>
+              </Tooltip>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('confirmDeleteDesc')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>{t('confirm')}</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={!collectionName}>
+                      {t('clearCollection')}
+                    </Button>
+                  </AlertDialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t('clearCollectionTooltip')}</TooltipContent>
+              </Tooltip>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('confirmClearTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('confirmClearDesc')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClear}>{t('confirm')}</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={!collectionName}>
+                      {t('truncate')}
+                    </Button>
+                  </AlertDialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t('truncateTooltip')}</TooltipContent>
+              </Tooltip>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('confirmTruncateTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('confirmTruncateDesc')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleTruncate}>{t('confirm')}</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={!collectionName}>
+                      {t('deleteAllDocs')}
+                    </Button>
+                  </AlertDialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t('deleteAllDocsTooltip')}</TooltipContent>
+              </Tooltip>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('confirmDeleteDocsTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('confirmDeleteDocsDesc')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteAllDocs}>{t('confirm')}</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" onClick={handleExport} disabled={!collectionName}>
+                  {t('export')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('exportTooltip')}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                  {t('import')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('importTooltip')}</TooltipContent>
+            </Tooltip>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={handleImport}
+            />
+          </div>
+        </TooltipProvider>
 
         {/* Rename section */}
         <div className="flex gap-2 items-center">
@@ -382,11 +505,11 @@ export function VectorManager() {
         <div className="space-y-2">
           <Label>{t('addDocument')}</Label>
           <div className="grid gap-2 md:grid-cols-3">
-            <Input
+            <Textarea
               placeholder={t('documentContentPlaceholder')}
               value={newDocContent}
               onChange={(e) => setNewDocContent(e.target.value)}
-              className="md:col-span-2"
+              className="md:col-span-2 min-h-[80px]"
             />
             <Input
               placeholder={t('metadataPlaceholder')}

@@ -7,7 +7,9 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AnnotationToolbar } from './annotation-toolbar';
 import { AnnotationCanvas } from './annotation-canvas';
 import { QuickColorBar } from './color-picker';
@@ -29,6 +31,7 @@ export function ScreenshotEditor({
   onCancel,
   className,
 }: ScreenshotEditorProps) {
+  const t = useTranslations('screenshot.editor');
   const containerRef = useRef<HTMLDivElement>(null);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(
     null
@@ -186,7 +189,7 @@ export function ScreenshotEditor({
   if (!imageDimensions) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <Skeleton className="h-8 w-8 rounded-full" />
       </div>
     );
   }
@@ -253,9 +256,9 @@ export function ScreenshotEditor({
       {/* Size info */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-background/90 backdrop-blur rounded-lg px-4 py-2 shadow-lg">
         <p className="text-sm text-muted-foreground">
-          {imageDimensions.width} × {imageDimensions.height} px
+          {t('dimensions', { width: imageDimensions.width, height: imageDimensions.height })}
           {annotations.length > 0 && (
-            <span className="ml-4">{annotations.length} 个标注</span>
+            <span className="ml-4">{t('annotationCount', { count: annotations.length })}</span>
           )}
         </p>
       </div>

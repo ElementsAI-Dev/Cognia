@@ -5,6 +5,7 @@
  * Displays server connection status with tooltip
  */
 
+import { useTranslations } from 'next-intl';
 import { Check, Loader2, AlertCircle, Plug } from 'lucide-react';
 import {
   Tooltip,
@@ -18,6 +19,8 @@ interface ServerStatusIconProps {
 }
 
 export function ServerStatusIcon({ status }: ServerStatusIconProps) {
+  const t = useTranslations('mcpSettings');
+
   const getIcon = () => {
     switch (status.type) {
       case 'connected':
@@ -35,15 +38,15 @@ export function ServerStatusIcon({ status }: ServerStatusIconProps) {
   const getTooltipText = () => {
     switch (status.type) {
       case 'connected':
-        return 'Server connected and ready';
+        return t('statusConnected');
       case 'connecting':
-        return 'Connecting to server...';
+        return t('statusConnecting');
       case 'reconnecting':
-        return 'Reconnecting to server...';
+        return t('statusReconnecting');
       case 'error':
-        return status.message || 'Connection error';
+        return status.message || t('statusError');
       default:
-        return 'Server disconnected';
+        return t('statusDisconnected');
     }
   };
 

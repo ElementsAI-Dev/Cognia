@@ -14,7 +14,7 @@ const { FlowChatNode } = require('./flow-chat-node');
 
 // Mock A2UI components
 jest.mock('@/components/a2ui', () => ({
-  A2UIEnhancedMessage: ({ content }: { content: string }) => (
+  A2UIMessageRenderer: ({ content }: { content: string }) => (
     <div data-testid="a2ui-message">{content}</div>
   ),
   hasA2UIContent: (content: string) => content.includes('a2ui'),

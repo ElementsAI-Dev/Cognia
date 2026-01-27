@@ -24,6 +24,11 @@ import {
   Bug,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -124,7 +129,7 @@ export function SkillAIAssistant({
 
   const handleGenerate = useCallback(async () => {
     if (!description) {
-      setError('Please provide a description of what the skill should do');
+      setError(t('pleaseProvideDescription'));
       return;
     }
 
@@ -155,18 +160,18 @@ export function SkillAIAssistant({
       } else {
         // Show the prompt for manual use
         setGeneratedContent(null);
-        setError('AI integration not available. Copy the prompt below to use with your AI assistant.');
+        setError(t('aiIntegrationNotAvailableCopy'));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setIsLoading(false);
     }
-  }, [description, examples, category, onRequestAI]);
+  }, [description, examples, category, onRequestAI, t]);
 
   const handleRefine = useCallback(async () => {
     if (!currentContent) {
-      setError('No skill content to refine. Please add content first.');
+      setError(t('noContentToRefine'));
       return;
     }
 
@@ -188,18 +193,18 @@ export function SkillAIAssistant({
         }
       } else {
         setRefinedContent(prompt);
-        setError('AI integration not available. The refinement prompt is shown below.');
+        setError(t('aiIntegrationNotAvailableRefinement'));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Refinement failed');
     } finally {
       setIsLoading(false);
     }
-  }, [currentContent, refinementType, customInstructions, onRequestAI]);
+  }, [currentContent, refinementType, customInstructions, onRequestAI, t]);
 
   const handleGetSuggestions = useCallback(async () => {
     if (!currentContent) {
-      setError('No skill content to analyze. Please add content first.');
+      setError(t('noContentToAnalyze'));
       return;
     }
 
@@ -215,14 +220,14 @@ export function SkillAIAssistant({
         const parsed = parseSuggestions(response);
         setSuggestions(parsed);
       } else {
-        setError('AI integration not available. Use the prompt below with your AI assistant.');
+        setError(t('aiIntegrationNotAvailablePrompt'));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to get suggestions');
     } finally {
       setIsLoading(false);
     }
-  }, [currentContent, onRequestAI]);
+  }, [currentContent, onRequestAI, t]);
 
   const handleCopyPrompt = useCallback((prompt: string) => {
     navigator.clipboard.writeText(prompt);
@@ -385,19 +390,25 @@ export function SkillAIAssistant({
             <Label>{t('refinementType')}</Label>
             <div className="grid grid-cols-2 gap-2">
               {REFINEMENT_OPTIONS.map((opt) => (
-                <Card
-                  key={opt.value}
-                  className={`cursor-pointer transition-all p-3 ${
-                    refinementType === opt.value ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
-                  }`}
-                  onClick={() => setRefinementType(opt.value)}
-                >
-                  <div className="flex items-center gap-2">
-                    {opt.icon}
-                    <span className="text-sm font-medium">{t(opt.labelKey)}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">{t(opt.descKey)}</p>
-                </Card>
+                <Tooltip key={opt.value}>
+                  <TooltipTrigger asChild>
+                    <Card
+                      className={`cursor-pointer transition-all p-3 ${
+                        refinementType === opt.value ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
+                      }`}
+                      onClick={() => setRefinementType(opt.value)}
+                    >
+                      <div className="flex items-center gap-2">
+                        {opt.icon}
+                        <span className="text-sm font-medium">{t(opt.labelKey)}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{t(opt.descKey)}</p>
+                    </Card>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {t(opt.descKey)}
+                  </TooltipContent>
+                </Tooltip>
               ))}
             </div>
           </div>

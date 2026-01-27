@@ -25,7 +25,7 @@ import {
   RotateCcw,
   Activity,
   Globe,
-  Cpu,
+  Search,
   Server,
   LayoutGrid,
   TableIcon,
@@ -318,7 +318,7 @@ export function ProviderSettings() {
         <div>
           <h2 className="text-lg font-semibold">{t('title')}</h2>
           <p className="text-sm text-muted-foreground">
-            {configuredCount} provider{configuredCount !== 1 ? 's' : ''} configured
+            {t('providersConfigured', { count: configuredCount })}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -332,12 +332,12 @@ export function ProviderSettings() {
             {isBatchTesting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Testing...
+                {t('testing')}
               </>
             ) : (
               <>
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Test All Providers
+                {t('testAllProviders')}
               </>
             )}
           </Button>
@@ -349,7 +349,7 @@ export function ProviderSettings() {
         <div className="space-y-2">
           <Progress value={batchTestProgress} className="h-2" />
           <p className="text-xs text-muted-foreground text-center">
-            Testing providers... {Math.round(batchTestProgress)}%
+            {t('testingProviders', { progress: Math.round(batchTestProgress) })}
           </p>
         </div>
       )}
@@ -359,17 +359,17 @@ export function ProviderSettings() {
         <div className="flex items-center gap-4 rounded-lg border p-3 bg-muted/30">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Test Results:</span>
+            <span className="text-sm font-medium">{t('testResults')}:</span>
           </div>
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1 text-sm text-green-600">
               <Check className="h-4 w-4" />
-              {testResultsSummary.success} passed
+              {t('passedCount', { count: testResultsSummary.success })}
             </span>
             {testResultsSummary.failed > 0 && (
               <span className="flex items-center gap-1 text-sm text-destructive">
                 <AlertCircle className="h-4 w-4" />
-                {testResultsSummary.failed} failed
+                {t('failedCount', { count: testResultsSummary.failed })}
               </span>
             )}
           </div>
@@ -412,16 +412,16 @@ export function ProviderSettings() {
         </Tabs>
         <div className="flex items-center gap-2">
           <div className="relative w-full sm:w-48">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <Input
               placeholder={tPlaceholders('searchProviders')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 text-sm pl-8 max-sm:h-10 max-sm:text-base"
+              className="h-8 text-sm pl-10 max-sm:h-10 max-sm:text-base"
               autoComplete="off"
               data-form-type="other"
               data-lpignore="true"
             />
-            <Cpu className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           </div>
           <div className="flex items-center border rounded-md">
             <Button
@@ -453,7 +453,7 @@ export function ProviderSettings() {
       <TooltipProvider delayDuration={300}>
         {filteredProviders.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground">
-            No providers found matching your filters.
+            {t('noProvidersFound')}
           </div>
         ) : viewMode === 'table' ? (
           /* Table View */
@@ -753,13 +753,13 @@ export function ProviderSettings() {
                           {isEnabled && apiKey && (
                             <Badge variant="default" className="text-xs shrink-0 max-sm:hidden">
                               <Check className="h-3 w-3 mr-1" />
-                              {tc('configured') || 'Configured'}
+                              {t('configured')}
                             </Badge>
                           )}
                           {apiKeys.length > 1 && (
                             <Badge variant="outline" className="text-xs shrink-0 max-sm:hidden">
                               <RotateCcw className="h-3 w-3 mr-1" />
-                              {apiKeys.length} keys
+                              {apiKeys.length} {t('keys')}
                             </Badge>
                           )}
                         </CardTitle>
@@ -771,7 +771,7 @@ export function ProviderSettings() {
                           {provider.supportsOAuth && (
                             <Badge variant="outline" className="text-[10px] ml-1">
                               <Globe className="h-2.5 w-2.5 mr-0.5" />
-                              OAuth
+                              {t('oauth')}
                             </Badge>
                           )}
                         </CardDescription>
@@ -779,7 +779,7 @@ export function ProviderSettings() {
                         {isEnabled && apiKey && (
                           <div className="hidden max-sm:flex items-center gap-1 text-xs text-green-600">
                             <Check className="h-3 w-3" />
-                            <span>Configured</span>
+                            <span>{t('configured')}</span>
                           </div>
                         )}
                       </div>
@@ -835,7 +835,7 @@ export function ProviderSettings() {
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Test connection to Ollama server</p>
+                              <p>{t('testOllamaConnection')}</p>
                             </TooltipContent>
                           </Tooltip>
                         </div>
@@ -864,7 +864,7 @@ export function ProviderSettings() {
                             rel="noopener noreferrer"
                             className="text-primary hover:underline inline-flex items-center gap-1"
                           >
-                            {tc('learnMore')} <ExternalLink className="h-3 w-3" />
+                            {t('learnMore')} <ExternalLink className="h-3 w-3" />
                           </a>
                         </p>
                       </div>
@@ -930,7 +930,7 @@ export function ProviderSettings() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Verify API key with {provider.name}</p>
+                                <p>{t('verifyApiKey', { provider: provider.name })}</p>
                               </TooltipContent>
                             </Tooltip>
                           </div>
@@ -974,11 +974,11 @@ export function ProviderSettings() {
                         <div className="space-y-2">
                           <Label className="text-sm flex items-center gap-1.5">
                             <Server className="h-3.5 w-3.5" />
-                            {t('customBaseURL') || 'Custom Base URL'}
-                            <Badge variant="outline" className="text-[10px] ml-1">Optional</Badge>
+                            {t('customBaseURL')}
+                            <Badge variant="outline" className="text-[10px] ml-1">{t('optional')}</Badge>
                           </Label>
                           <Input
-                            placeholder={t('baseURLPlaceholder') || `https://api.${providerId}.com/v1`}
+                            placeholder={t('baseURLPlaceholder')}
                             value={settings.baseURL || ''}
                             onChange={(e) =>
                               updateProviderSettings(providerId, { baseURL: e.target.value || undefined })
@@ -989,7 +989,7 @@ export function ProviderSettings() {
                             data-form-type="other"
                           />
                           <p className="text-xs text-muted-foreground">
-                            {t('baseURLHint') || 'Use a proxy URL or self-hosted endpoint. Leave empty for default.'}
+                            {t('baseURLHint')}
                           </p>
                         </div>
                       </div>
@@ -1001,7 +1001,7 @@ export function ProviderSettings() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <Activity className="h-4 w-4 text-muted-foreground" />
-                              <Label className="text-sm font-medium">API Key Rotation</Label>
+                              <Label className="text-sm font-medium">{t('apiKeyRotation')}</Label>
                               <Badge variant="outline" className="text-xs">
                                 {apiKeys.length} key{apiKeys.length !== 1 ? 's' : ''}
                               </Badge>
@@ -1016,7 +1016,7 @@ export function ProviderSettings() {
                           {/* Rotation Strategy */}
                           {rotationEnabled && apiKeys.length >= 2 && (
                             <div className="flex items-center gap-2">
-                              <Label className="text-xs text-muted-foreground">Strategy:</Label>
+                              <Label className="text-xs text-muted-foreground">{t('strategy')}:</Label>
                               <Select
                                 value={rotationStrategy}
                                 onValueChange={(value: ApiKeyRotationStrategy) =>
@@ -1028,9 +1028,9 @@ export function ProviderSettings() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="round-robin">Round Robin</SelectItem>
-                                  <SelectItem value="random">Random</SelectItem>
-                                  <SelectItem value="least-used">Least Used</SelectItem>
+                                  <SelectItem value="round-robin">{t('rotationStrategies.roundRobin')}</SelectItem>
+                                  <SelectItem value="random">{t('rotationStrategies.random')}</SelectItem>
+                                  <SelectItem value="least-used">{t('rotationStrategies.leastUsed')}</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1053,7 +1053,7 @@ export function ProviderSettings() {
                                     <div className="flex items-center gap-2 flex-1 min-w-0">
                                       {isActive && rotationEnabled && (
                                         <Badge variant="default" className="text-[10px] px-1 py-0 shrink-0">
-                                          Active
+                                          {t('active')}
                                         </Badge>
                                       )}
                                       <code className="font-mono text-muted-foreground truncate text-[11px]">
@@ -1128,7 +1128,7 @@ export function ProviderSettings() {
                           </div>
 
                           <p className="text-[10px] text-muted-foreground">
-                            Add multiple keys to enable rotation for rate limit distribution.
+                            {t('multiKeyHint')}
                           </p>
                         </div>
                         {/* Available models with default selection */}
@@ -1139,7 +1139,7 @@ export function ProviderSettings() {
                               {t('availableModels')}
                             </Label>
                             <span className="text-[10px] text-muted-foreground">
-                              Click to set default
+                              {t('clickToSetDefault')}
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-1.5">

@@ -30,6 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader } from '@/components/ai-elements/loader';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, useSessionStore } from '@/stores';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import { optimizePrompt } from '@/lib/ai/prompts/prompt-optimizer';
 import type { PromptOptimizationStyle, OptimizedPrompt } from '@/types/content/prompt';
 import { PROVIDERS } from '@/types/provider';
@@ -354,7 +355,8 @@ export function PromptOptimizerDialog({
                       </SelectTrigger>
                       <SelectContent>
                         {availableProviders.map((providerId) => (
-                          <SelectItem key={providerId} value={providerId}>
+                          <SelectItem key={providerId} value={providerId} showIconInTrigger>
+                            <ProviderIcon icon={`/icons/providers/${providerId}.svg`} size={16} />
                             {PROVIDERS[providerId]?.name || providerId}
                           </SelectItem>
                         ))}

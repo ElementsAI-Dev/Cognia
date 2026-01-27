@@ -1,4 +1,29 @@
 {
+  "regionSelector": {
+    "instructions": {
+      "dragToMove": "拖拽移动 • 拖动手柄调整大小",
+      "clickAndDrag": "点击并拖拽以选择区域"
+    },
+    "shortcuts": "ESC 取消 • Enter 确认 • 方向键微调 • Shift+方向键 10px • Ctrl+方向键 调整大小",
+    "cancel": "取消",
+    "magnifier": "放大镜 (M)",
+    "confirm": "确认选区"
+  },
+  "assistantBubble": {
+    "tooltip": {
+      "clickAction": "点击：{action}对话",
+      "open": "打开",
+      "hide": "隐藏",
+      "hints": "双击新建 | 右键菜单"
+    },
+    "menu": {
+      "openChat": "打开对话",
+      "hideChat": "隐藏对话",
+      "newSession": "新对话",
+      "settings": "设置",
+      "hideBubble": "隐藏气泡"
+    }
+  },
   "desktopSettings": {
     "title": "桌面设置",
     "notAvailable": "这些设置仅在桌面应用中可用",
@@ -165,6 +190,11 @@
     "deleteAll": "全部删除",
     "searchPackages": "搜索包...",
     "noMatchingPackages": "未找到匹配的包",
-    "dismiss": "关闭"
+    "dismiss": "关闭",
+    "envTypes": {
+      "uvFastest": "uv (最快)",
+      "venvStandard": "venv (标准)",
+      "conda": "conda"
+    }
   }
 }

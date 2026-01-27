@@ -11,7 +11,25 @@
     "noMatchingVariables": "No matching variables",
     "selectEnvironment": "Select environment",
     "connect": "Connect",
-    "runAll": "Run All"
+    "runAll": "Run All",
+    "runAllFailed": "Failed to run all cells",
+    "syncOutputsFailed": "Failed to sync notebook outputs",
+    "pythonDefault": "Python",
+    "errorOccurred": "An error occurred",
+    "refreshVariables": "Refresh variables",
+    "variableValue": "Variable value",
+    "status": {
+      "idle": "Idle",
+      "busy": "Busy",
+      "starting": "Starting",
+      "dead": "Dead",
+      "restarting": "Restarting",
+      "interrupting": "Interrupting",
+      "stopping": "Stopping",
+      "configuring": "Configuring",
+      "installing": "Installing",
+      "error": "Error"
+    }
   },
   "jupyterRenderer": {
     "parseError": "Failed to parse Jupyter notebook",

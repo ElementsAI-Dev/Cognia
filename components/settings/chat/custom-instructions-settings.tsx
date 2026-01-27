@@ -11,6 +11,7 @@ import { User, MessageSquare, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Tooltip,
@@ -119,9 +120,9 @@ export function CustomInstructionsSettings() {
                   maxLength={1500}
                   className="text-xs"
                 />
-                <p className="mt-1 text-[10px] text-muted-foreground text-right">
+                <Label className="mt-1 text-[10px] text-muted-foreground text-right block">
                   {localAboutUser.length}/1500
-                </p>
+                </Label>
               </CardContent>
             </Card>
 
@@ -151,9 +152,9 @@ export function CustomInstructionsSettings() {
                   maxLength={1500}
                   className="text-xs"
                 />
-                <p className="mt-1 text-[10px] text-muted-foreground text-right">
+                <Label className="mt-1 text-[10px] text-muted-foreground text-right block">
                   {localResponsePrefs.length}/1500
-                </p>
+                </Label>
               </CardContent>
             </Card>
           </div>
@@ -175,9 +176,9 @@ export function CustomInstructionsSettings() {
                 maxLength={2000}
                 className="text-xs"
               />
-              <p className="mt-1 text-[10px] text-muted-foreground text-right">
+              <Label className="mt-1 text-[10px] text-muted-foreground text-right block">
                 {localCustomInstructions.length}/2000
-              </p>
+              </Label>
             </CardContent>
           </Card>
 

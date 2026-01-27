@@ -15,6 +15,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -85,6 +86,7 @@ export function VideoEditorPanel({
   onSave: _onSave,
   className,
 }: VideoEditorPanelProps) {
+  const t = useTranslations('editorPanel');
   // State
   const [editorMode, setEditorMode] = useState<EditorMode>('timeline');
   const [selectedClipForTrim, setSelectedClipForTrim] = useState<VideoClip | null>(null);
@@ -357,7 +359,7 @@ export function VideoEditorPanel({
                 <FolderOpen className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Import Video</TooltipContent>
+            <TooltipContent>{t('importVideo')}</TooltipContent>
           </Tooltip>
 
           <div className="w-px h-6 bg-border hidden sm:block" />
@@ -373,7 +375,7 @@ export function VideoEditorPanel({
                 <Undo className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Undo</TooltipContent>
+            <TooltipContent>{t('undo')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -387,7 +389,7 @@ export function VideoEditorPanel({
                 <Redo className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Redo</TooltipContent>
+            <TooltipContent>{t('redo')}</TooltipContent>
           </Tooltip>
 
           <div className="w-px h-6 bg-border hidden sm:block" />
@@ -403,7 +405,7 @@ export function VideoEditorPanel({
                 <Scissors className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Trim Clip</TooltipContent>
+            <TooltipContent>{t('trimClip')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -416,7 +418,7 @@ export function VideoEditorPanel({
                 <Sparkles className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Effects</TooltipContent>
+            <TooltipContent>{t('effects')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -429,7 +431,7 @@ export function VideoEditorPanel({
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Transitions</TooltipContent>
+            <TooltipContent>{t('transitions')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -442,7 +444,7 @@ export function VideoEditorPanel({
                 <Type className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Subtitles</TooltipContent>
+            <TooltipContent>{t('subtitles')}</TooltipContent>
           </Tooltip>
 
           <div className="w-px h-6 bg-border hidden sm:block" />
@@ -457,7 +459,7 @@ export function VideoEditorPanel({
                 <Palette className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Color Correction</TooltipContent>
+            <TooltipContent>{t('colorCorrection')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -470,7 +472,7 @@ export function VideoEditorPanel({
                 <Timer className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Speed Controls</TooltipContent>
+            <TooltipContent>{t('speedControls')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -483,7 +485,7 @@ export function VideoEditorPanel({
                 <Flag className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Markers</TooltipContent>
+            <TooltipContent>{t('markers')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -496,7 +498,7 @@ export function VideoEditorPanel({
                 <Music className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Audio Mixer</TooltipContent>
+            <TooltipContent>{t('audioMixer')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -509,7 +511,7 @@ export function VideoEditorPanel({
                 <Layers className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Layers</TooltipContent>
+            <TooltipContent>{t('layers')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -530,7 +532,7 @@ export function VideoEditorPanel({
                 <Keyboard className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Keyboard Shortcuts</TooltipContent>
+            <TooltipContent>{t('keyboardShortcuts')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -539,7 +541,7 @@ export function VideoEditorPanel({
                 <Settings className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Project Settings</TooltipContent>
+            <TooltipContent>{t('projectSettings')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -548,7 +550,7 @@ export function VideoEditorPanel({
                 <Download className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Export</TooltipContent>
+            <TooltipContent>{t('export')}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -571,10 +573,10 @@ export function VideoEditorPanel({
             ) : (
               <div className="text-center text-muted-foreground">
                 <Film className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Import a video to get started</p>
+                <p>{t('importHint')}</p>
                 <Button variant="outline" className="mt-4" onClick={handleImportVideo}>
                   <FolderOpen className="h-4 w-4 mr-2" />
-                  Import Video
+                  {t('importVideo')}
                 </Button>
               </div>
             )}
@@ -657,19 +659,19 @@ export function VideoEditorPanel({
               <TabsList className="w-full justify-start rounded-none border-b px-2">
                 <TabsTrigger value="effects" className="gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" />
-                  <span className="hidden lg:inline">Effects</span>
+                  <span className="hidden lg:inline">{t('sidePanelTabs.effects')}</span>
                 </TabsTrigger>
                 <TabsTrigger value="color" className="gap-1.5">
                   <Palette className="h-3.5 w-3.5" />
-                  <span className="hidden lg:inline">Color</span>
+                  <span className="hidden lg:inline">{t('sidePanelTabs.color')}</span>
                 </TabsTrigger>
                 <TabsTrigger value="audio" className="gap-1.5">
                   <Music className="h-3.5 w-3.5" />
-                  <span className="hidden lg:inline">Audio</span>
+                  <span className="hidden lg:inline">{t('sidePanelTabs.audio')}</span>
                 </TabsTrigger>
                 <TabsTrigger value="layers" className="gap-1.5">
                   <Layers className="h-3.5 w-3.5" />
-                  <span className="hidden lg:inline">Layers</span>
+                  <span className="hidden lg:inline">{t('sidePanelTabs.layers')}</span>
                 </TabsTrigger>
               </TabsList>
               

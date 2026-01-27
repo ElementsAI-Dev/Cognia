@@ -84,7 +84,10 @@
     "enableSelected": "启用",
     "disableSelected": "禁用",
     "deleteSelected": "删除",
-    "allScopes": "所有范围"
+    "allScopes": "所有范围",
+    "importSuccess": "成功导入 {count} 条记忆",
+    "importFailed": "导入失败：{error}",
+    "moreWarnings": "（还有 {count} 条警告）"
   },
   "customInstructions": {
     "title": "自定义指令",
@@ -154,6 +157,43 @@
       "backend": "后端",
       "testing": "测试",
       "style": "编码风格"
+    },
+    "ariaLabels": {
+      "undo": "撤销",
+      "redo": "重做",
+      "togglePreview": "切换预览",
+      "toggleWordWrap": "切换自动换行",
+      "aiOptimize": "AI 优化",
+      "import": "导入",
+      "export": "导出",
+      "reset": "重置",
+      "copy": "复制",
+      "save": "保存",
+      "toggleTheme": "切换主题",
+      "openMenu": "打开菜单",
+      "closeMenu": "关闭菜单"
+    },
+    "templateLabels": {
+      "base": "平衡基础",
+      "senior": "高级工程师",
+      "react": "React & Tailwind",
+      "styling": "设计系统",
+      "typescript": "Node & TS",
+      "full": "TDD 方法"
+    },
+    "variableLabels": {
+      "projectName": "项目名称",
+      "techStack": "技术栈",
+      "author": "作者",
+      "date": "当前日期",
+      "styleGuide": "风格指南"
+    },
+    "variableDescriptions": {
+      "projectName": "当前项目的名称",
+      "techStack": "检测到的技术栈",
+      "author": "当前用户名",
+      "date": "当前系统日期",
+      "styleGuide": "项目风格约定"
     }
   },
   "knowledgeBase": {

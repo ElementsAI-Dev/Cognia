@@ -42,11 +42,11 @@ export function GridView({ slides, theme, currentIndex, onSelect, onEdit }: Grid
       {/* Grid controls */}
       <div className="flex items-center justify-between px-2 py-1 border-b">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{slides.length} 张幻灯片</span>
+          <span>{t('slideCount', { count: slides.length })}</span>
           {currentIndex >= 0 && (
             <>
               <span>•</span>
-              <span>选中第 {currentIndex + 1} 张</span>
+              <span>{t('selectedSlide', { index: currentIndex + 1 })}</span>
             </>
           )}
         </div>
@@ -63,7 +63,7 @@ export function GridView({ slides, theme, currentIndex, onSelect, onEdit }: Grid
                   <LayoutGrid className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>小尺寸</TooltipContent>
+              <TooltipContent>{t('smallSize')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           
@@ -79,7 +79,7 @@ export function GridView({ slides, theme, currentIndex, onSelect, onEdit }: Grid
                   <Grid3X3 className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>中等尺寸</TooltipContent>
+              <TooltipContent>{t('mediumSize')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           
@@ -95,7 +95,7 @@ export function GridView({ slides, theme, currentIndex, onSelect, onEdit }: Grid
                   <Grid2X2 className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>大尺寸</TooltipContent>
+              <TooltipContent>{t('largeSize')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>

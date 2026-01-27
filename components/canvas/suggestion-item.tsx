@@ -22,6 +22,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { CanvasSuggestion } from '@/types';
 
@@ -128,23 +133,33 @@ export const SuggestionItem = memo(function SuggestionItem({
       {/* Actions */}
       {suggestion.status === 'pending' && (
         <div className="flex items-center gap-2 pt-1">
-          <Button
-            size="sm"
-            className="h-9 flex-1"
-            onClick={() => onApply(suggestion.id)}
-          >
-            <Check className="h-3.5 w-3.5 mr-1" />
-            {t('apply')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 flex-1"
-            onClick={() => onReject(suggestion.id)}
-          >
-            <X className="h-3.5 w-3.5 mr-1" />
-            {t('dismiss')}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                className="h-9 flex-1"
+                onClick={() => onApply(suggestion.id)}
+              >
+                <Check className="h-3.5 w-3.5 mr-1" />
+                {t('apply')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('apply')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 flex-1"
+                onClick={() => onReject(suggestion.id)}
+              >
+                <X className="h-3.5 w-3.5 mr-1" />
+                {t('dismiss')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('dismiss')}</TooltipContent>
+          </Tooltip>
         </div>
       )}
 

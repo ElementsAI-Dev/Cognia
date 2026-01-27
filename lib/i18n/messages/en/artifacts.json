@@ -6,6 +6,9 @@
     "download": "Download",
     "revealInExplorer": "Reveal in File Explorer",
     "openWithDefault": "Open with Default App",
+    "sheetTitle": "Artifact Panel",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit Fullscreen",
     "editInCanvas": "Edit in Canvas",
     "previewInDesigner": "Preview in Designer",
     "openFullDesigner": "Open Full Designer",
@@ -33,7 +36,10 @@
   },
   "artifactPreview": {
     "previewError": "Preview error",
-    "previewTitle": "Preview: {title}"
+    "previewTitle": "Preview: {title}",
+    "previewFailed": "Preview failed to render",
+    "loadingPreview": "Loading preview...",
+    "iframeLoadError": "Failed to load preview iframe"
   },
   "artifactList": {
     "noArtifacts": "No artifacts yet",

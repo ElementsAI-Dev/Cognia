@@ -12,6 +12,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ import { cn } from '@/lib/utils';
 // ============================================================================
 
 export default function SpeedPassPage() {
+  const t = useTranslations('learningMode.speedpass.page');
   const [activeTab, setActiveTab] = useState('overview');
   const store = useSpeedPassStore();
 
@@ -53,20 +55,20 @@ export default function SpeedPassPage() {
               <GraduationCap className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold">速过学习</h1>
+              <h1 className="text-xl font-semibold">{t('title')}</h1>
               <p className="text-sm text-muted-foreground">
-                智能教材学习 · 高效备考
+                {t('subtitle')}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm">
               <Settings className="mr-2 h-4 w-4" />
-              设置
+              {t('settings')}
             </Button>
             <Button size="sm">
               <Plus className="mr-2 h-4 w-4" />
-              添加教材
+              {t('addTextbook')}
             </Button>
           </div>
         </div>
@@ -82,35 +84,35 @@ export default function SpeedPassPage() {
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
               >
                 <Target className="mr-2 h-4 w-4" />
-                概览
+                {t('tabs.overview')}
               </TabsTrigger>
               <TabsTrigger
                 value="textbooks"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
               >
                 <BookOpen className="mr-2 h-4 w-4" />
-                教材库
+                {t('tabs.textbooks')}
               </TabsTrigger>
               <TabsTrigger
                 value="tutorials"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
               >
                 <FileText className="mr-2 h-4 w-4" />
-                学习教程
+                {t('tabs.tutorials')}
               </TabsTrigger>
               <TabsTrigger
                 value="quiz"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
               >
                 <Brain className="mr-2 h-4 w-4" />
-                练习测验
+                {t('tabs.quiz')}
               </TabsTrigger>
               <TabsTrigger
                 value="wrong-book"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
               >
                 <AlertCircle className="mr-2 h-4 w-4" />
-                错题本
+                {t('tabs.wrongBook')}
                 {Object.keys(store.wrongQuestions).length > 0 && (
                   <Badge variant="destructive" className="ml-2 h-5 px-1.5">
                     {Object.keys(store.wrongQuestions).length}
@@ -122,7 +124,7 @@ export default function SpeedPassPage() {
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
               >
                 <BarChart3 className="mr-2 h-4 w-4" />
-                学习报告
+                {t('tabs.analytics')}
               </TabsTrigger>
             </TabsList>
           </div>

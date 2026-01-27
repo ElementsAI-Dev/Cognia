@@ -94,14 +94,14 @@ export function ThemeImportExport() {
 
         if (importedCount > 0) {
           setImportStatus('success');
-          setImportMessage(`Successfully imported ${importedCount} theme(s)`);
+          setImportMessage(t('importSuccess', { count: importedCount }));
         } else {
           setImportStatus('error');
-          setImportMessage('All themes already exist');
+          setImportMessage(t('themesAlreadyExist'));
         }
       } catch {
         setImportStatus('error');
-        setImportMessage('Failed to parse file');
+        setImportMessage(t('parseFileFailed'));
       }
     };
 

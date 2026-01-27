@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useLearningStore } from '@/stores/learning';
 import type { LearningNote } from '@/types/learning';
@@ -235,6 +236,7 @@ const NoteItem = memo(function NoteItem({
   onCancelEdit,
   onDelete,
   onToggleHighlight,
+  t,
 }: NoteItemProps) {
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString(undefined, {
@@ -291,34 +293,55 @@ const NoteItem = memo(function NoteItem({
       
       {/* Action buttons */}
       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={onToggleHighlight}
-        >
-          {note.isHighlight ? (
-            <StarOff className="h-3 w-3 text-yellow-500" />
-          ) : (
-            <Star className="h-3 w-3" />
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={onStartEdit}
-        >
-          <Edit2 className="h-3 w-3" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 text-destructive"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={onToggleHighlight}
+              >
+                {note.isHighlight ? (
+                  <StarOff className="h-3 w-3 text-yellow-500" />
+                ) : (
+                  <Star className="h-3 w-3" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('notes.toggleHighlight')}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={onStartEdit}
+              >
+                <Edit2 className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('notes.edit')}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-destructive"
+                onClick={onDelete}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('notes.delete')}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

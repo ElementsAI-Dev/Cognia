@@ -14,6 +14,9 @@
     "clear": "Clear",
     "clearTitle": "Clear Usage Records",
     "clearDesc": "Are you sure you want to clear all usage records? This action cannot be undone and will reset your usage statistics.",
-    "clearAll": "Clear All"
+    "clearAll": "Clear All",
+    "requests": "req",
+    "records": "rec",
+    "searchPlaceholder": "Search provider or model..."
   }
 }

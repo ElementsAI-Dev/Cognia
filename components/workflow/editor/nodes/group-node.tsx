@@ -6,6 +6,7 @@
  */
 
 import { memo, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { NodeResizer, type NodeProps } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ const GROUP_COLORS = [
 ];
 
 function GroupNodeComponent({ id, data, selected }: NodeProps) {
+  const t = useTranslations('workflowEditor');
   const nodeData = data as GroupNodeData;
   const [isEditing, setIsEditing] = useState(false);
   const [editLabel, setEditLabel] = useState(nodeData.label);
@@ -196,18 +198,18 @@ function GroupNodeComponent({ id, data, selected }: NodeProps) {
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => setIsEditing(true)}>
                 <Edit2 className="h-4 w-4 mr-2" />
-                Rename
+                {t('rename')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleToggleCollapse}>
                 {nodeData.isCollapsed ? (
                   <>
                     <Maximize2 className="h-4 w-4 mr-2" />
-                    Expand
+                    {t('expand')}
                   </>
                 ) : (
                   <>
                     <Minimize2 className="h-4 w-4 mr-2" />
-                    Collapse
+                    {t('collapse')}
                   </>
                 )}
               </DropdownMenuItem>
@@ -217,7 +219,7 @@ function GroupNodeComponent({ id, data, selected }: NodeProps) {
               <div className="px-2 py-1.5">
                 <div className="text-xs font-medium mb-2 flex items-center gap-1">
                   <Palette className="h-3 w-3" />
-                  Color
+                  {t('color')}
                 </div>
                 <div className="grid grid-cols-4 gap-1">
                   {GROUP_COLORS.map((color) => (
@@ -238,14 +240,14 @@ function GroupNodeComponent({ id, data, selected }: NodeProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleDuplicate}>
                 <Copy className="h-4 w-4 mr-2" />
-                Duplicate
+                {t('duplicate')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleDelete}
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+                {t('delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -261,7 +263,7 @@ function GroupNodeComponent({ id, data, selected }: NodeProps) {
             )}
             {nodeData.childNodeIds?.length === 0 && (
               <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                Drag nodes here to group them
+                {t('dragNodesToGroup')}
               </div>
             )}
           </div>

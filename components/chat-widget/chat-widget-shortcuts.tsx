@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -13,16 +14,16 @@ import { Keyboard } from "lucide-react";
 
 interface Shortcut {
   keys: string[];
-  description: string;
+  descriptionKey: string;
 }
 
-const SHORTCUTS: Shortcut[] = [
-  { keys: ["Enter"], description: "发送消息" },
-  { keys: ["Shift", "Enter"], description: "换行" },
-  { keys: ["Esc"], description: "隐藏助手" },
-  { keys: ["↑"], description: "上一条消息" },
-  { keys: ["↓"], description: "下一条消息" },
-  { keys: ["Ctrl", "Shift", "Space"], description: "唤起/隐藏助手" },
+const SHORTCUT_KEYS: Shortcut[] = [
+  { keys: ["Enter"], descriptionKey: "sendMessage" },
+  { keys: ["Shift", "Enter"], descriptionKey: "newLine" },
+  { keys: ["Esc"], descriptionKey: "hideAssistant" },
+  { keys: ["↑"], descriptionKey: "previousMessage" },
+  { keys: ["↓"], descriptionKey: "nextMessage" },
+  { keys: ["Ctrl", "Shift", "Space"], descriptionKey: "toggleAssistant" },
 ];
 
 interface ChatWidgetShortcutsProps {
@@ -30,7 +31,13 @@ interface ChatWidgetShortcutsProps {
 }
 
 export function ChatWidgetShortcuts({ className }: ChatWidgetShortcutsProps) {
+  const t = useTranslations("chatWidget.shortcuts");
   const [open, setOpen] = useState(false);
+
+  const shortcuts = useMemo(() => SHORTCUT_KEYS.map(s => ({
+    keys: s.keys,
+    description: t(s.descriptionKey as "sendMessage" | "newLine" | "hideAssistant" | "previousMessage" | "nextMessage" | "toggleAssistant"),
+  })), [t]);
 
   // Listen for ? key to open shortcuts
   useEffect(() => {
@@ -62,18 +69,18 @@ export function ChatWidgetShortcuts({ className }: ChatWidgetShortcutsProps) {
           )}
         >
           <Keyboard className="h-4 w-4 mr-2" />
-          快捷键
+          {t("title")}
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[320px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Keyboard className="h-4 w-4" />
-            快捷键
+            {t("title")}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-2 py-2">
-          {SHORTCUTS.map((shortcut, index) => (
+          {shortcuts.map((shortcut, index) => (
             <div
               key={index}
               className="flex items-center justify-between text-sm"
@@ -97,7 +104,7 @@ export function ChatWidgetShortcuts({ className }: ChatWidgetShortcutsProps) {
           ))}
         </div>
         <p className="text-xs text-muted-foreground text-center">
-          按 <kbd className="px-1 py-0.5 text-xs bg-muted rounded border">?</kbd> 打开此面板
+          <kbd className="px-1 py-0.5 text-xs bg-muted rounded border">?</kbd> {t("openPanel")}
         </p>
       </DialogContent>
     </Dialog>

@@ -1,11 +1,13 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useContext, AppType } from '@/hooks/context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmptyState } from '@/components/layout/empty-state';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Monitor,
   AppWindow,
@@ -23,6 +25,7 @@ interface ContextPanelProps {
 }
 
 export function ContextPanel({ className }: ContextPanelProps) {
+  const t = useTranslations('contextPanel');
   const {
     context,
     isLoading,
@@ -63,16 +66,21 @@ export function ContextPanel({ className }: ContextPanelProps) {
       <div className="flex items-center justify-between p-2 sm:p-3 border-b shrink-0">
         <div className="flex items-center gap-2">
           <Monitor className="h-5 w-5" />
-          <span className="font-medium">Context Awareness</span>
+          <span className="font-medium">{t('title')}</span>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => fetchContext()}
-          disabled={isLoading}
-        >
-          <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => fetchContext()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('refreshContext')}</TooltipContent>
+        </Tooltip>
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
@@ -88,7 +96,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <AppWindow className="h-4 w-4" />
-                  Active Window
+                  {t('activeWindow')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -107,7 +115,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   {getAppTypeIcon(context.app.app_type)}
-                  Application
+                  {t('application')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -122,18 +130,18 @@ export function ContextPanel({ className }: ContextPanelProps) {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {context.app.supports_text_input && (
-                    <Badge variant="outline" className="text-xs">Text Input</Badge>
+                    <Badge variant="outline" className="text-xs">{t('textInput')}</Badge>
                   )}
                   {context.app.supports_rich_text && (
-                    <Badge variant="outline" className="text-xs">Rich Text</Badge>
+                    <Badge variant="outline" className="text-xs">{t('richText')}</Badge>
                   )}
                   {context.app.is_dev_tool && (
-                    <Badge variant="outline" className="text-xs">Dev Tool</Badge>
+                    <Badge variant="outline" className="text-xs">{t('devTool')}</Badge>
                   )}
                 </div>
                 {context.app.suggested_actions.length > 0 && (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Suggested Actions</p>
+                    <p className="text-xs text-muted-foreground mb-1">{t('suggestedActions')}</p>
                     <div className="flex flex-wrap gap-1">
                       {context.app.suggested_actions.map((action) => (
                         <Badge key={action} variant="secondary" className="text-xs">
@@ -152,7 +160,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <FileCode className="h-4 w-4" />
-                  Editor Context
+                  {t('editorContext')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -192,7 +200,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Globe className="h-4 w-4" />
-                  Browser Context
+                  {t('browserContext')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -217,7 +225,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <FileCode className="h-4 w-4" />
-                  File Context
+                  {t('fileContext')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -237,7 +245,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
                   )}
                   {context.file.is_modified && (
                     <Badge variant="outline" className="text-xs text-yellow-500">
-                      Modified
+                      {t('modified')}
                     </Badge>
                   )}
                 </div>
@@ -248,8 +256,8 @@ export function ContextPanel({ className }: ContextPanelProps) {
           {!context && !isLoading && !error && (
             <EmptyState
               icon={Monitor}
-              title="No context available"
-              description="Context awareness is not detecting any active window"
+              title={t('noContextAvailable')}
+              description={t('notDetecting')}
               compact
             />
           )}
@@ -258,7 +266,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
 
       {context && (
         <div className="p-2 border-t text-xs text-muted-foreground text-center shrink-0">
-          Last updated: {new Date(context.timestamp).toLocaleTimeString()}
+          {t('lastUpdated')} {new Date(context.timestamp).toLocaleTimeString()}
         </div>
       )}
     </div>

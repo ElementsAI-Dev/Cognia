@@ -201,6 +201,13 @@
     "previous": "返回",
     "step": "步骤",
     "skipTour": "跳过引导",
+    "closeTour": "关闭引导",
+    "keyboardHints": {
+      "next": "→ 或 Enter",
+      "previous": "←",
+      "skip": "Esc",
+      "complete": "Enter"
+    },
     "tour": {
       "welcomeTitle": "欢迎使用 Cognia",
       "welcomeDesc": "您的 AI 智能助手，支持对话、编程、研究和学习。让我带您了解一下！",

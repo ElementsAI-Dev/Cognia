@@ -351,19 +351,19 @@ function CreateEnvDialog({
                 <SelectItem value="uv">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-3.5 w-3.5 text-yellow-500" />
-                    <span>uv (Fastest)</span>
+                    <span>{t('envTypes.uvFastest')}</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="venv">
                   <div className="flex items-center gap-2">
                     <Terminal className="h-3.5 w-3.5 text-blue-500" />
-                    <span>venv (Standard)</span>
+                    <span>{t('envTypes.venvStandard')}</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="conda">
                   <div className="flex items-center gap-2">
                     <Package className="h-3.5 w-3.5 text-green-500" />
-                    <span>conda</span>
+                    <span>{t('envTypes.conda')}</span>
                   </div>
                 </SelectItem>
               </SelectContent>

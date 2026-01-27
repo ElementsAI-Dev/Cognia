@@ -14,6 +14,9 @@
     "clear": "清除",
     "clearTitle": "清除使用记录",
     "clearDesc": "确定要清除所有使用记录吗？此操作无法撤销，将重置您的使用统计数据。",
-    "clearAll": "全部清除"
+    "clearAll": "全部清除",
+    "requests": "请求",
+    "records": "记录",
+    "searchPlaceholder": "搜索提供商或模型..."
   }
 }

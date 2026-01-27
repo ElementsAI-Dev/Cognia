@@ -241,7 +241,10 @@ export function DesignerToolbar({ className, onAIEdit, onExport: _onExport, onOp
                 <Undo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t('undo')}</TooltipContent>
+            <TooltipContent>
+              <span>{t('undo')}</span>
+              <kbd className="ml-2 px-1.5 py-0.5 text-[10px] bg-muted rounded">⌘Z</kbd>
+            </TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -256,7 +259,10 @@ export function DesignerToolbar({ className, onAIEdit, onExport: _onExport, onOp
                 <Redo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t('redo')}</TooltipContent>
+            <TooltipContent>
+              <span>{t('redo')}</span>
+              <kbd className="ml-2 px-1.5 py-0.5 text-[10px] bg-muted rounded">⌘⇧Z</kbd>
+            </TooltipContent>
           </Tooltip>
         </div>
 

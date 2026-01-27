@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -38,7 +39,8 @@ interface ContextDebugDialogProps {
 }
 
 export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogProps) {
-  
+  const t = useTranslations('contextDebug');
+
   const {
     stats,
     isLoading,
@@ -59,14 +61,14 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
 
   const [gcResult, setGcResult] = useState<{ deleted: number; timestamp: Date } | null>(null);
 
-  // Category display info
-  const categoryInfo: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-    'tool-output': { label: 'Tool Outputs', icon: <Zap className="h-4 w-4" />, color: 'bg-blue-500' },
-    'history': { label: 'Chat History', icon: <Clock className="h-4 w-4" />, color: 'bg-green-500' },
-    'mcp': { label: 'MCP Tools', icon: <Database className="h-4 w-4" />, color: 'bg-purple-500' },
-    'skills': { label: 'Skills', icon: <FileText className="h-4 w-4" />, color: 'bg-orange-500' },
-    'terminal': { label: 'Terminal', icon: <FolderOpen className="h-4 w-4" />, color: 'bg-gray-500' },
-    'temp': { label: 'Temporary', icon: <AlertCircle className="h-4 w-4" />, color: 'bg-red-500' },
+  // Category display info - labels use i18n
+  const categoryInfo: Record<string, { labelKey: string; icon: React.ReactNode; color: string }> = {
+    'tool-output': { labelKey: 'categories.toolOutputs', icon: <Zap className="h-4 w-4" />, color: 'bg-blue-500' },
+    'history': { labelKey: 'categories.chatHistory', icon: <Clock className="h-4 w-4" />, color: 'bg-green-500' },
+    'mcp': { labelKey: 'categories.mcpTools', icon: <Database className="h-4 w-4" />, color: 'bg-purple-500' },
+    'skills': { labelKey: 'categories.skills', icon: <FileText className="h-4 w-4" />, color: 'bg-orange-500' },
+    'terminal': { labelKey: 'categories.terminal', icon: <FolderOpen className="h-4 w-4" />, color: 'bg-gray-500' },
+    'temp': { labelKey: 'categories.temporary', icon: <AlertCircle className="h-4 w-4" />, color: 'bg-red-500' },
   };
 
   // Calculate total files
@@ -82,7 +84,7 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
 
   // Handle clear all
   const handleClearAll = async () => {
-    if (confirm('Are you sure you want to clear all context files? This cannot be undone.')) {
+    if (confirm(t('confirmClearAll'))) {
       await clearAll();
       setGcResult({ deleted: totalFiles, timestamp: new Date() });
     }
@@ -94,10 +96,10 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            Context Debug
+            {t('title')}
           </DialogTitle>
           <DialogDescription>
-            Monitor and manage context files for AI agent execution
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -106,19 +108,19 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
           <div className="grid grid-cols-3 gap-4">
             <div className="rounded-lg border p-3 text-center">
               <div className="text-2xl font-bold">{totalFiles}</div>
-              <div className="text-xs text-muted-foreground">Total Files</div>
+              <div className="text-xs text-muted-foreground">{t('stats.totalFiles')}</div>
             </div>
             <div className="rounded-lg border p-3 text-center">
               <div className="text-2xl font-bold">
                 {stats ? formatSize(stats.totalSizeBytes) : '--'}
               </div>
-              <div className="text-xs text-muted-foreground">Storage</div>
+              <div className="text-xs text-muted-foreground">{t('stats.storage')}</div>
             </div>
             <div className="rounded-lg border p-3 text-center">
               <div className="text-2xl font-bold">
                 {stats ? formatTokens(stats.estimatedTotalTokens) : '--'}
               </div>
-              <div className="text-xs text-muted-foreground">Est. Tokens</div>
+              <div className="text-xs text-muted-foreground">{t('stats.estTokens')}</div>
             </div>
           </div>
 
@@ -126,12 +128,12 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
 
           {/* Category Breakdown */}
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Files by Category</h4>
+            <h4 className="text-sm font-medium">{t('filesByCategory')}</h4>
             <ScrollArea className="h-40">
               <div className="space-y-2">
                 {stats && Object.entries(stats.filesByCategory).map(([category, count]) => {
                   const info = categoryInfo[category] || {
-                    label: category,
+                    labelKey: 'categories.other',
                     icon: <FileText className="h-4 w-4" />,
                     color: 'bg-gray-400',
                   };
@@ -144,8 +146,8 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between text-sm">
-                          <span>{info.label}</span>
-                          <span className="text-muted-foreground">{count} files</span>
+                          <span>{t(info.labelKey)}</span>
+                          <span className="text-muted-foreground">{t('filesCount', { count })}</span>
                         </div>
                         <Progress value={percentage} className="h-1.5" />
                       </div>
@@ -154,7 +156,7 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
                 })}
                 {(!stats || Object.keys(stats.filesByCategory).length === 0) && (
                   <div className="text-center text-sm text-muted-foreground py-4">
-                    No context files
+                    {t('noContextFiles')}
                   </div>
                 )}
               </div>
@@ -166,10 +168,10 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
           {/* Auto-Sync Status */}
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h4 className="text-sm font-medium">Auto-Sync</h4>
+              <h4 className="text-sm font-medium">{t('autoSync')}</h4>
               <p className="text-xs text-muted-foreground">
-                {isAutoSyncRunning ? 'Running' : 'Stopped'} 
-                {syncResult && ` • Last: ${syncResult.durationMs}ms`}
+                {isAutoSyncRunning ? t('running') : t('stopped')} 
+                {syncResult && ` • ${t('lastDuration', { ms: syncResult.durationMs })}`}
               </p>
             </div>
             <Button
@@ -183,7 +185,7 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4 mr-1" />
-                  Sync Now
+                  {t('syncNow')}
                 </>
               )}
             </Button>
@@ -193,10 +195,10 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
           {stats && (stats.oldestFile || stats.lastAccessed) && (
             <div className="text-xs text-muted-foreground space-y-1">
               {stats.oldestFile && (
-                <div>Oldest file: {stats.oldestFile.toLocaleString()}</div>
+                <div>{t('oldestFile')}: {stats.oldestFile.toLocaleString()}</div>
               )}
               {stats.lastAccessed && (
-                <div>Last accessed: {stats.lastAccessed.toLocaleString()}</div>
+                <div>{t('lastAccessed')}: {stats.lastAccessed.toLocaleString()}</div>
               )}
             </div>
           )}
@@ -204,7 +206,7 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
           {/* GC Result */}
           {gcResult && (
             <div className="rounded-lg bg-muted p-2 text-sm">
-              Cleaned {gcResult.deleted} files at {gcResult.timestamp.toLocaleTimeString()}
+              {t('cleanedFiles', { count: gcResult.deleted, time: gcResult.timestamp.toLocaleTimeString() })}
             </div>
           )}
 
@@ -227,7 +229,7 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
               className="flex-1"
             >
               <RefreshCw className={cn('h-4 w-4 mr-1', isLoading && 'animate-spin')} />
-              Refresh
+              {t('refresh')}
             </Button>
             <Button
               variant="outline"
@@ -236,7 +238,7 @@ export function ContextDebugDialog({ open, onOpenChange }: ContextDebugDialogPro
               className="flex-1"
             >
               <Clock className="h-4 w-4 mr-1" />
-              Clean Old
+              {t('cleanOld')}
             </Button>
             <Button
               variant="destructive"

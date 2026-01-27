@@ -14,6 +14,8 @@ import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   CheckCircle2,
   XCircle,
@@ -163,14 +165,23 @@ export function QuizInterface({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleToggleFlag}
-                className={cn(flaggedQuestions.has(currentIndex) && 'text-yellow-500')}
-              >
-                <Flag className="h-4 w-4" />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleToggleFlag}
+                      className={cn(flaggedQuestions.has(currentIndex) && 'text-yellow-500')}
+                    >
+                      <Flag className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{t('flagQuestion')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <Button variant="outline" size="sm" onClick={onCancel}>
                 {t('exit')}
               </Button>
@@ -226,10 +237,19 @@ export function QuizInterface({
             {t('prev')}
           </Button>
           {!showHint && question.hintsAvailable > question.hintsUsed && (
-            <Button variant="ghost" onClick={() => setShowHint(true)}>
-              <Lightbulb className="mr-2 h-4 w-4" />
-              {t('hint.button')}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" onClick={() => setShowHint(true)}>
+                    <Lightbulb className="mr-2 h-4 w-4" />
+                    {t('hint.button')}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t('hint.title')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
         <div className="flex gap-2">
@@ -250,23 +270,25 @@ export function QuizInterface({
       <Card>
         <CardContent className="py-4">
           <p className="text-sm text-muted-foreground mb-3">{t('navigator')}</p>
-          <div className="flex flex-wrap gap-2">
-            {currentQuiz.questions.map((_, idx) => (
-              <Button
-                key={idx}
-                variant={idx === currentIndex ? 'default' : 'outline'}
-                size="sm"
-                className={cn(
-                  'h-8 w-8 p-0',
-                  userAnswers[idx] && idx !== currentIndex && 'bg-green-500/20 border-green-500',
-                  flaggedQuestions.has(idx) && 'border-yellow-500'
-                )}
-                onClick={() => setCurrentIndex(idx)}
-              >
-                {idx + 1}
-              </Button>
-            ))}
-          </div>
+          <ScrollArea className="max-h-32">
+            <div className="flex flex-wrap gap-2">
+              {currentQuiz.questions.map((_, idx) => (
+                <Button
+                  key={idx}
+                  variant={idx === currentIndex ? 'default' : 'outline'}
+                  size="sm"
+                  className={cn(
+                    'h-8 w-8 p-0',
+                    userAnswers[idx] && idx !== currentIndex && 'bg-green-500/20 border-green-500',
+                    flaggedQuestions.has(idx) && 'border-yellow-500'
+                  )}
+                  onClick={() => setCurrentIndex(idx)}
+                >
+                  {idx + 1}
+                </Button>
+              ))}
+            </div>
+          </ScrollArea>
         </CardContent>
       </Card>
     </div>

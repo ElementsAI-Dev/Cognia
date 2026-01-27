@@ -1,0 +1,99 @@
+{
+  "chatWidget": {
+    "fab": {
+      "title": "AI 助手",
+      "closeAssistant": "关闭聊天助手",
+      "openAssistant": "打开聊天助手",
+      "clickToStart": "点击开始对话",
+      "shortcutHint": "快捷键: Ctrl+Shift+Space"
+    },
+    "header": {
+      "unpin": "取消置顶",
+      "pin": "窗口置顶",
+      "newSession": "新会话",
+      "clearMessages": "清空消息",
+      "exportChat": "导出对话",
+      "settings": "设置",
+      "close": "关闭 (Esc)"
+    },
+    "input": {
+      "placeholder": "输入消息...",
+      "stopRecording": "停止录音",
+      "voiceInput": "语音输入",
+      "stopGeneration": "停止生成",
+      "sendMessage": "发送消息 (Enter)"
+    },
+    "messages": {
+      "emptyTitle": "有什么可以帮您的？",
+      "emptyDesc": "按 Ctrl+Shift+Space 唤起/隐藏助手",
+      "thinking": "思考中...",
+      "continueGeneration": "继续生成",
+      "edited": "(已编辑)",
+      "edit": "编辑",
+      "stopReading": "停止朗读",
+      "read": "朗读",
+      "helpful": "有帮助",
+      "notHelpful": "无帮助",
+      "regenerate": "重新生成"
+    },
+    "settings": {
+      "title": "助手设置",
+      "description": "配置 AI 助手的模型和行为",
+      "aiModel": "AI 模型",
+      "provider": "提供商",
+      "selectProvider": "选择提供商",
+      "model": "模型",
+      "selectModel": "选择模型",
+      "systemPrompt": "系统提示词",
+      "systemPromptPlaceholder": "设置 AI 的角色和行为...",
+      "behavior": "行为设置",
+      "alwaysOnTop": "窗口置顶",
+      "alwaysOnTopDesc": "始终显示在其他窗口前面",
+      "autoFocus": "自动聚焦",
+      "autoFocusDesc": "打开时自动聚焦输入框",
+      "showTimestamps": "显示时间",
+      "showTimestampsDesc": "在消息旁显示时间戳",
+      "rememberPosition": "记住位置",
+      "rememberPositionDesc": "下次打开时恢复窗口位置",
+      "shortcuts": "快捷键",
+      "toggleAssistant": "唤起/隐藏助手",
+      "reset": "重置",
+      "save": "保存"
+    },
+    "shortcuts": {
+      "title": "快捷键",
+      "sendMessage": "发送消息",
+      "newLine": "换行",
+      "hideAssistant": "隐藏助手",
+      "previousMessage": "上一条消息",
+      "nextMessage": "下一条消息",
+      "toggleAssistant": "唤起/隐藏助手",
+      "openPanel": "打开此面板"
+    },
+    "suggestions": {
+      "explain": "解释一下",
+      "explainPrompt": "请用简单的语言解释一下这个概念：",
+      "writeCode": "写代码",
+      "writeCodePrompt": "帮我写一段代码来实现：",
+      "translate": "翻译",
+      "translatePrompt": "请将以下内容翻译成中文/英文：",
+      "howTo": "怎么做",
+      "howToPrompt": "请告诉我如何：",
+      "summarize": "总结文章",
+      "summarizePrompt": "请帮我总结以下内容的要点：",
+      "optimize": "优化文字",
+      "optimizePrompt": "请帮我优化以下文字，使其更加清晰流畅：",
+      "brainstorm": "头脑风暴",
+      "brainstormPrompt": "帮我头脑风暴一下关于这个话题的想法：",
+      "checkErrors": "检查错误",
+      "checkErrorsPrompt": "请帮我检查以下内容是否有错误：",
+      "collapse": "收起",
+      "more": "更多"
+    },
+    "export": {
+      "user": "👤 用户",
+      "assistant": "🤖 助手"
+    },
+    "continueGeneration": "请继续"
+  }
+}

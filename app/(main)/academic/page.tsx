@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Library, BarChart3, ArrowLeftRight, Brain, GraduationCap, Lightbulb, Wand2 } from 'lucide-react';
 import { PaperSearch } from '@/components/academic/paper-search';
@@ -21,6 +22,7 @@ import type { LibraryPaper, Paper } from '@/types/learning/academic';
 type AcademicTab = 'search' | 'library' | 'stats' | 'compare' | 'recommend' | 'smart' | 'analysis';
 
 export default function AcademicPage() {
+  const t = useTranslations('academic');
   const { activeTab, setActiveTab, refreshLibrary, refreshCollections } = useAcademicStore();
   const [selectedPaper, setSelectedPaper] = useState<LibraryPaper | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -42,8 +44,8 @@ export default function AcademicPage() {
       <div className="border-b px-4 py-3 flex items-center gap-3">
         <GraduationCap className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="font-semibold">Academic Research</h1>
-          <p className="text-xs text-muted-foreground">Search, manage, and analyze academic papers</p>
+          <h1 className="font-semibold">{t('title')}</h1>
+          <p className="text-xs text-muted-foreground">{t('description')}</p>
         </div>
       </div>
       
@@ -56,31 +58,31 @@ export default function AcademicPage() {
           <TabsList className="h-11">
             <TabsTrigger value="search" className="gap-2 text-sm" data-tour="academic-research">
               <Search className="h-4 w-4" />
-              Search
+              {t('tabs.search')}
             </TabsTrigger>
             <TabsTrigger value="library" className="gap-2 text-sm">
               <Library className="h-4 w-4" />
-              Library
+              {t('tabs.library')}
             </TabsTrigger>
             <TabsTrigger value="stats" className="gap-2 text-sm">
               <BarChart3 className="h-4 w-4" />
-              Statistics
+              {t('tabs.statistics')}
             </TabsTrigger>
             <TabsTrigger value="compare" className="gap-2 text-sm">
               <ArrowLeftRight className="h-4 w-4" />
-              Compare
+              {t('tabs.compare')}
             </TabsTrigger>
             <TabsTrigger value="recommend" className="gap-2 text-sm">
               <Lightbulb className="h-4 w-4" />
-              Discover
+              {t('tabs.discover')}
             </TabsTrigger>
             <TabsTrigger value="smart" className="gap-2 text-sm">
               <Wand2 className="h-4 w-4" />
-              Smart
+              {t('tabs.smart')}
             </TabsTrigger>
             <TabsTrigger value="analysis" className="gap-2 text-sm" data-tour="academic-writing">
               <Brain className="h-4 w-4" />
-              AI
+              {t('tabs.ai')}
             </TabsTrigger>
           </TabsList>
         </div>

@@ -111,7 +111,7 @@ export function PromptTemplateCard({
                     variant="outline"
                     className="text-[10px] px-1.5 py-0 h-5 font-medium border-blue-200 bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:border-blue-900 dark:text-blue-400"
                   >
-                    Built-in
+                    {t('builtIn')}
                   </Badge>
                 )}
               </div>

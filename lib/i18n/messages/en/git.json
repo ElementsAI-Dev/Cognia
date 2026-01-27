@@ -1,6 +1,28 @@
 {
   "git": {
     "repository": "Repository",
+    "pageTitle": "Git",
+    "pageDescription": "Version control management",
+    "repositoryPath": "Repository Path",
+    "repositoryPathPlaceholder": "Enter repository path...",
+    "openRepository": "Open Repository",
+    "change": "Change",
+    "selectRepository": "Select Git Repository",
+    "repositoryOverview": "Repository Overview",
+    "useSidebarHint": "Use the sidebar to manage your Git repository",
+    "quickTips": "Quick Tips",
+    "tipChangesTab": "Use the Changes tab to stage and commit files",
+    "tipBranchesTab": "Switch branches in the Branches tab",
+    "tipHistoryTab": "View commit history in the History tab",
+    "tipPushPull": "Push and pull using the quick action buttons",
+    "keyboardShortcuts": "Keyboard Shortcuts",
+    "shortcutStageAll": "Stage all changes",
+    "shortcutQuickCommit": "Quick commit",
+    "shortcutPush": "Push",
+    "shortcutPull": "Pull",
+    "settingsHint": "Configure Git settings, auto-commit, and more in the",
+    "settingsLink": "Settings → Git",
+    "section": "section.",
     "checking": "Checking Git installation...",
     "notInstalled": {
       "title": "Git Not Installed",
@@ -90,8 +112,12 @@
       "noStashesHint": "Save your work in progress to the stash.",
       "onBranch": "on {branch}",
       "pop": "Pop",
+      "popTooltip": "Apply and remove from stash",
       "apply": "Apply",
+      "applyTooltip": "Apply without removing from stash",
       "drop": "Drop",
+      "dropTooltip": "Remove from stash",
+      "actionsTooltip": "Stash actions",
       "clearAll": "Clear All",
       "saveStash": "Save to Stash",
       "saveStashDescription": "Temporarily save your uncommitted changes.",
@@ -128,12 +154,38 @@
       "filesChanged": "{count} files changed",
       "expandAll": "Expand All",
       "collapseAll": "Collapse All",
+      "expandAllTooltip": "Expand all file diffs",
+      "collapseAllTooltip": "Collapse all file diffs",
       "copyPath": "Copy Path",
       "fullscreen": "Fullscreen",
       "stage": "Stage",
       "unstage": "Unstage",
       "discard": "Discard",
       "binaryOrEmpty": "Binary file or no content available"
+    },
+    "statusPanel": {
+      "notInstalled": "Git not installed",
+      "install": "Install",
+      "dismiss": "Dismiss",
+      "installed": "Installed",
+      "notInstalledWarning": "Git is not installed",
+      "installing": "Installing...",
+      "installGit": "Install Git",
+      "website": "Website",
+      "notARepo": "Not a Git repository",
+      "installation": {
+        "title": "Git Installation",
+        "description": "Version control system for tracking changes"
+      },
+      "repoStatus": {
+        "title": "Repository Status",
+        "ahead": "{count} ahead",
+        "behind": "{count} behind",
+        "changes": "Changes ({count} files)",
+        "moreFiles": "+{count} more files",
+        "lastCommit": "Last Commit",
+        "branchCount": "Branches ({count})"
+      }
     }
   },
   "projectGit": {
@@ -166,7 +218,11 @@
       "commit": "Commit",
       "push": "Push",
       "pull": "Pull",
-      "fetch": "Fetch"
+      "fetch": "Fetch",
+      "commitTooltip": "Commit all changes to the repository",
+      "pushTooltip": "Push commits to remote repository",
+      "pullTooltip": "Pull changes from remote repository",
+      "fetchTooltip": "Fetch latest changes from remote"
     },
     "commitDialog": {
       "title": "Commit Changes",

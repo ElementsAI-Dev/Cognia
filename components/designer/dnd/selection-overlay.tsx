@@ -7,8 +7,15 @@
 
 import { memo, useCallback, useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslations } from 'next-intl';
 import { Trash2, Copy, MoveVertical as _MoveVertical, MoreHorizontal, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,63 +85,78 @@ function ActionToolbar({
   onMoveUp,
   onMoveDown,
 }: ActionToolbarProps) {
+  const t = useTranslations('designer');
   return (
-    <div
-      className="absolute flex items-center gap-0.5 bg-background border rounded-md shadow-md p-0.5 z-50"
-      style={{
-        top: position.top - 32,
-        right: position.right,
-      }}
-    >
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6"
-        onClick={onMoveUp}
-        title="Move up"
+    <TooltipProvider>
+      <div
+        className="absolute flex items-center gap-0.5 bg-background border rounded-md shadow-md p-0.5 z-50"
+        style={{
+          top: position.top - 32,
+          right: position.right,
+        }}
       >
-        <ChevronUp className="h-3 w-3" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6"
-        onClick={onMoveDown}
-        title="Move down"
-      >
-        <ChevronDown className="h-3 w-3" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6"
-        onClick={onDuplicate}
-        title="Duplicate"
-      >
-        <Copy className="h-3 w-3" />
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-6 w-6">
-            <MoreHorizontal className="h-3 w-3" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
-          <DropdownMenuItem onClick={onDuplicate}>
-            <Copy className="h-4 w-4 mr-2" />
-            Duplicate
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigator.clipboard.writeText(element.id)}>
-            Copy ID
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onDelete} className="text-destructive">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={onMoveUp}
+            >
+              <ChevronUp className="h-3 w-3" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('moveUp')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={onMoveDown}
+            >
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('moveDown')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={onDuplicate}
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('duplicate')}</TooltipContent>
+        </Tooltip>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6">
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={onDuplicate}>
+              <Copy className="h-4 w-4 mr-2" />
+              {t('duplicate')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(element.id)}>
+              {t('copyId')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete} className="text-destructive">
+              <Trash2 className="h-4 w-4 mr-2" />
+              {t('delete')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -156,14 +178,39 @@ function SelectionOverlayComponent({
   const { isEditing, editingElement, startEditing, stopEditing } = useInlineTextEditor();
 
   // Get element bounds relative to preview container
+  // Supports both direct elements and elements inside preview iframe
   const getElementBounds = useCallback((elementId: string) => {
     const container = previewContainerRef.current;
     if (!container) return null;
 
-    const element = container.querySelector(`[data-designer-id="${elementId}"]`);
+    // Try to find element directly in container first
+    let element = container.querySelector(`[data-element-id="${elementId}"]`);
+    const containerRect = container.getBoundingClientRect();
+    
+    // If not found, try to find in preview iframe
+    if (!element) {
+      const iframe = container.querySelector('iframe');
+      if (iframe?.contentDocument) {
+        element = iframe.contentDocument.querySelector(`[data-element-id="${elementId}"]`);
+        if (element) {
+          // Get iframe position for offset calculation
+          const iframeRect = iframe.getBoundingClientRect();
+          const elementRect = element.getBoundingClientRect();
+          
+          return {
+            top: iframeRect.top - containerRect.top + elementRect.top,
+            left: iframeRect.left - containerRect.left + elementRect.left,
+            width: elementRect.width,
+            height: elementRect.height,
+            right: containerRect.right - (iframeRect.left + elementRect.right),
+            bottom: containerRect.bottom - (iframeRect.top + elementRect.bottom),
+          };
+        }
+      }
+    }
+
     if (!element) return null;
 
-    const containerRect = container.getBoundingClientRect();
     const elementRect = element.getBoundingClientRect();
 
     return {

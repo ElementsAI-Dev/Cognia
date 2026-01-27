@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useSkillSeekersStore, selectActiveJob, selectPresetsByCategory } from '@/stores/skill-seekers';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import type { EnhanceProvider } from '@/lib/native/skill-seekers';
 
 type GeneratorStep = 'source' | 'config' | 'progress' | 'complete';
@@ -189,10 +190,10 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5" />
-            {t('skillSeekers.title') || 'Skill Seekers'}
+            {t('skillSeekers.title')}
           </CardTitle>
           <CardDescription>
-            {t('skillSeekers.installDescription') || 'Install Skill Seekers to generate AI skills from documentation, GitHub repositories, and PDFs.'}
+            {t('skillSeekers.installDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -200,19 +201,19 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
             {isInstalling ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t('skillSeekers.installing') || 'Installing...'}
+                {t('skillSeekers.installing')}
               </>
             ) : (
               <>
                 <Download className="mr-2 h-4 w-4" />
-                {t('skillSeekers.install') || 'Install Skill Seekers'}
+                {t('skillSeekers.install')}
               </>
             )}
           </Button>
           {error && (
             <Alert variant="destructive" className="mt-4">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>{t('error') || 'Error'}</AlertTitle>
+              <AlertTitle>{t('error')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -226,7 +227,7 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('error') || 'Error'}</AlertTitle>
+          <AlertTitle>{t('error')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -236,10 +237,10 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5" />
-              {t('skillSeekers.generateSkill') || 'Generate Skill'}
+              {t('skillSeekers.generateSkill')}
             </CardTitle>
             <CardDescription>
-              {t('skillSeekers.generateDescription') || 'Choose a source to generate a new AI skill.'}
+              {t('skillSeekers.generateDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -247,37 +248,37 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="website" className="flex items-center gap-1.5">
                   <Globe className="h-4 w-4" />
-                  <span className="hidden sm:inline">{t('skillSeekers.website') || 'Website'}</span>
+                  <span className="hidden sm:inline">{t('skillSeekers.website')}</span>
                 </TabsTrigger>
                 <TabsTrigger value="github" className="flex items-center gap-1.5">
                   <Github className="h-4 w-4" />
-                  <span className="hidden sm:inline">{t('skillSeekers.github') || 'GitHub'}</span>
+                  <span className="hidden sm:inline">{t('skillSeekers.github')}</span>
                 </TabsTrigger>
                 <TabsTrigger value="preset" className="flex items-center gap-1.5">
                   <Package className="h-4 w-4" />
-                  <span className="hidden sm:inline">{t('skillSeekers.preset') || 'Preset'}</span>
+                  <span className="hidden sm:inline">{t('skillSeekers.preset')}</span>
                 </TabsTrigger>
                 <TabsTrigger value="pdf" disabled className="flex items-center gap-1.5">
                   <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">{t('skillSeekers.pdf') || 'PDF'}</span>
+                  <span className="hidden sm:inline">{t('skillSeekers.pdf')}</span>
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="website" className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="skill-name">{t('skillSeekers.skillName') || 'Skill Name'}</Label>
+                  <Label htmlFor="skill-name">{t('skillSeekers.skillName')}</Label>
                   <Input
                     id="skill-name"
-                    placeholder="e.g., React Documentation"
+                    placeholder={t('skillSeekers.skillNamePlaceholder')}
                     value={skillName}
                     onChange={(e) => setSkillName(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="website-url">{t('skillSeekers.websiteUrl') || 'Documentation URL'}</Label>
+                  <Label htmlFor="website-url">{t('skillSeekers.websiteUrl')}</Label>
                   <Input
                     id="website-url"
-                    placeholder="https://docs.example.com"
+                    placeholder={t('skillSeekers.websiteUrlPlaceholder')}
                     value={websiteUrl}
                     onChange={(e) => setWebsiteUrl(e.target.value)}
                   />
@@ -286,15 +287,15 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
 
               <TabsContent value="github" className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="github-repo">{t('skillSeekers.githubRepo') || 'Repository'}</Label>
+                  <Label htmlFor="github-repo">{t('skillSeekers.githubRepo')}</Label>
                   <Input
                     id="github-repo"
-                    placeholder="owner/repository"
+                    placeholder={t('skillSeekers.githubRepoPlaceholder')}
                     value={githubRepo}
                     onChange={(e) => setGithubRepo(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    {t('skillSeekers.githubHint') || 'Enter the repository in owner/repo format (e.g., facebook/react)'}
+                    {t('skillSeekers.githubHint')}
                   </p>
                 </div>
               </TabsContent>
@@ -340,7 +341,7 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <FileText className="h-12 w-12 text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">
-                    {t('skillSeekers.pdfComingSoon') || 'PDF extraction coming soon'}
+                    {t('skillSeekers.pdfComingSoon')}
                   </p>
                 </div>
               </TabsContent>
@@ -349,9 +350,9 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
             <div className="mt-6 space-y-4 border-t pt-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="auto-enhance">{t('skillSeekers.autoEnhance') || 'Auto-enhance with AI'}</Label>
+                  <Label htmlFor="auto-enhance">{t('skillSeekers.autoEnhance')}</Label>
                   <p className="text-xs text-muted-foreground">
-                    {t('skillSeekers.autoEnhanceHint') || 'Improve skill quality using AI after scraping'}
+                    {t('skillSeekers.autoEnhanceHint')}
                   </p>
                 </div>
                 <Switch id="auto-enhance" checked={autoEnhance} onCheckedChange={setAutoEnhance} />
@@ -359,15 +360,24 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
 
               {autoEnhance && (
                 <div className="space-y-2">
-                  <Label>{t('skillSeekers.enhanceProvider') || 'AI Provider'}</Label>
+                  <Label>{t('skillSeekers.enhanceProvider')}</Label>
                   <Select value={enhanceProvider} onValueChange={(v) => setEnhanceProvider(v as EnhanceProvider)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                      <SelectItem value="google">Google (Gemini)</SelectItem>
-                      <SelectItem value="openai">OpenAI (GPT)</SelectItem>
+                      <SelectItem value="anthropic" showIconInTrigger>
+                        <ProviderIcon icon="/icons/providers/anthropic.svg" size={16} />
+                        {t('providerAnthropic')}
+                      </SelectItem>
+                      <SelectItem value="google" showIconInTrigger>
+                        <ProviderIcon icon="/icons/providers/google.svg" size={16} />
+                        {t('providerGoogle')}
+                      </SelectItem>
+                      <SelectItem value="openai" showIconInTrigger>
+                        <ProviderIcon icon="/icons/providers/openai.svg" size={16} />
+                        {t('providerOpenAI')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -375,9 +385,9 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="auto-install">{t('skillSeekers.autoInstall') || 'Auto-install to library'}</Label>
+                  <Label htmlFor="auto-install">{t('skillSeekers.autoInstall')}</Label>
                   <p className="text-xs text-muted-foreground">
-                    {t('skillSeekers.autoInstallHint') || 'Automatically add skill to your library when complete'}
+                    {t('skillSeekers.autoInstallHint')}
                   </p>
                 </div>
                 <Switch id="auto-install" checked={autoInstall} onCheckedChange={setAutoInstall} />
@@ -386,11 +396,11 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
 
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" onClick={onCancel}>
-                {t('cancel') || 'Cancel'}
+                {t('cancel')}
               </Button>
               <Button onClick={handleGenerate} disabled={!canGenerate()}>
                 <Zap className="mr-2 h-4 w-4" />
-                {t('skillSeekers.generate') || 'Generate Skill'}
+                {t('skillSeekers.generate')}
               </Button>
             </div>
           </CardContent>
@@ -402,7 +412,7 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin" />
-              {t('skillSeekers.generating') || 'Generating Skill'}
+              {t('skillSeekers.generating')}
             </CardTitle>
             <CardDescription>{activeJob.name}</CardDescription>
           </CardHeader>
@@ -416,11 +426,10 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
             </div>
 
             <div className="rounded-lg bg-muted p-3">
-              <p className="text-sm text-muted-foreground">{activeJob.progress.message || 'Processing...'}</p>
+              <p className="text-sm text-muted-foreground">{activeJob.progress.message || t('processing')}</p>
               {activeJob.progress.pages_scraped > 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {activeJob.progress.pages_scraped}
-                  {activeJob.progress.pages_total ? ` / ${activeJob.progress.pages_total}` : ''} pages scraped
+                  {t('pagesScraped', { scraped: activeJob.progress.pages_scraped, total: activeJob.progress.pages_total || '' })}
                 </p>
               )}
             </div>
@@ -428,7 +437,7 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
             <div className="flex justify-end">
               <Button variant="destructive" size="sm" onClick={handleCancel}>
                 <X className="mr-2 h-4 w-4" />
-                {t('skillSeekers.cancelGeneration') || 'Cancel'}
+                {t('skillSeekers.cancelGeneration')}
               </Button>
             </div>
           </CardContent>
@@ -440,7 +449,7 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-600">
               <CheckCircle2 className="h-5 w-5" />
-              {t('skillSeekers.complete') || 'Skill Generated'}
+              {t('skillSeekers.complete')}
             </CardTitle>
             <CardDescription>{activeJob.name}</CardDescription>
           </CardHeader>
@@ -459,7 +468,7 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
                       {new Date(activeJob.completedAt || '').toLocaleTimeString()}
                     </Badge>
                     {activeJob.progress.pages_scraped > 0 && (
-                      <Badge variant="outline">{activeJob.progress.pages_scraped} pages</Badge>
+                      <Badge variant="outline">{t('pagesCount', { count: activeJob.progress.pages_scraped })}</Badge>
                     )}
                   </div>
                 </div>
@@ -469,11 +478,11 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setStep('source')}>
                 <RefreshCw className="mr-2 h-4 w-4" />
-                {t('skillSeekers.generateAnother') || 'Generate Another'}
+                {t('skillSeekers.generateAnother')}
               </Button>
               <Button onClick={handleComplete}>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                {t('done') || 'Done'}
+                {t('done')}
               </Button>
             </div>
           </CardContent>

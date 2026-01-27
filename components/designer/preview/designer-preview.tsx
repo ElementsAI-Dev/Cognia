@@ -111,6 +111,21 @@ function wrapCodeForPreview(code: string, isDarkMode: boolean): string {
     [data-element-id].selected {
       outline: 2px solid hsl(var(--primary));
     }
+    [data-element-id].highlighted {
+      outline: 2px dashed hsl(var(--primary) / 0.7);
+      background-color: hsl(var(--primary) / 0.05);
+    }
+    /* Drag-drop states */
+    body.drag-active {
+      cursor: copy;
+    }
+    body.drag-active [data-element-id] {
+      outline: 1px dashed hsl(var(--primary) / 0.3);
+    }
+    [data-element-id].drop-target {
+      outline: 2px solid hsl(142 76% 36%);
+      background-color: hsl(142 76% 36% / 0.1);
+    }
   </style>
 </head>
 <body>
@@ -161,6 +176,105 @@ function wrapCodeForPreview(code: string, isDarkMode: boolean): string {
     document.addEventListener('mouseout', (e) => {
       window.parent.postMessage({ type: 'element-hover', elementId: null }, '*');
     });
+
+    // Listen for selection updates from parent (bidirectional sync)
+    window.addEventListener('message', (e) => {
+      if (e.data.type === 'select-element') {
+        const elementId = e.data.elementId;
+        document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        if (elementId) {
+          const element = document.querySelector('[data-element-id="' + elementId + '"]');
+          if (element) {
+            element.classList.add('selected');
+            element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+      } else if (e.data.type === 'highlight-element') {
+        const elementId = e.data.elementId;
+        document.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
+        if (elementId) {
+          const element = document.querySelector('[data-element-id="' + elementId + '"]');
+          if (element) {
+            element.classList.add('highlighted');
+          }
+        }
+      } else if (e.data.type === 'drop-component') {
+        // Handle component drop from parent
+        const { code, targetElementId, position } = e.data;
+        if (code) {
+          window.parent.postMessage({
+            type: 'component-dropped',
+            code: code,
+            targetElementId: targetElementId,
+            position: position || 'inside',
+          }, '*');
+        }
+      }
+    });
+
+    // Handle drag events for cross-iframe drop
+    let dragOverElement = null;
+    
+    document.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      document.body.classList.add('drag-active');
+    });
+
+    document.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const element = e.target.closest('[data-element-id]');
+      if (element && element !== dragOverElement) {
+        if (dragOverElement) {
+          dragOverElement.classList.remove('drop-target');
+        }
+        dragOverElement = element;
+        element.classList.add('drop-target');
+        window.parent.postMessage({
+          type: 'drag-over-element',
+          elementId: element.getAttribute('data-element-id'),
+          rect: element.getBoundingClientRect(),
+        }, '*');
+      }
+    });
+
+    document.addEventListener('dragleave', (e) => {
+      if (e.target === document.body || !document.body.contains(e.relatedTarget)) {
+        document.body.classList.remove('drag-active');
+        if (dragOverElement) {
+          dragOverElement.classList.remove('drop-target');
+          dragOverElement = null;
+        }
+      }
+    });
+
+    document.addEventListener('drop', (e) => {
+      e.preventDefault();
+      document.body.classList.remove('drag-active');
+      
+      const element = e.target.closest('[data-element-id]');
+      const targetId = element ? element.getAttribute('data-element-id') : null;
+      
+      if (dragOverElement) {
+        dragOverElement.classList.remove('drop-target');
+        dragOverElement = null;
+      }
+
+      // Get drop data from dataTransfer
+      const componentData = e.dataTransfer.getData('application/json');
+      if (componentData) {
+        try {
+          const data = JSON.parse(componentData);
+          window.parent.postMessage({
+            type: 'component-dropped',
+            code: data.code,
+            targetElementId: targetId,
+            position: 'inside',
+          }, '*');
+        } catch (err) {
+          console.error('Failed to parse drop data:', err);
+        }
+      }
+    });
   </script>
 </body>
 </html>
@@ -183,8 +297,30 @@ export function DesignerPreview({
   const zoom = useDesignerStore((state) => state.zoom);
   const selectElement = useDesignerStore((state) => state.selectElement);
   const hoverElement = useDesignerStore((state) => state.hoverElement);
+  const selectedElementId = useDesignerStore((state) => state.selectedElementId);
+  const hoveredElementId = useDesignerStore((state) => state.hoveredElementId);
+  const parseCodeToElements = useDesignerStore((state) => state.parseCodeToElements);
+  const setCode = useDesignerStore((state) => state.setCode);
 
   const isDarkMode = useSettingsStore((state) => state.theme === 'dark');
+
+  // Sync selection from store to iframe (bidirectional sync)
+  useEffect(() => {
+    if (!iframeRef.current?.contentWindow) return;
+    iframeRef.current.contentWindow.postMessage({
+      type: 'select-element',
+      elementId: selectedElementId,
+    }, '*');
+  }, [selectedElementId]);
+
+  // Sync hover from store to iframe (bidirectional sync)
+  useEffect(() => {
+    if (!iframeRef.current?.contentWindow) return;
+    iframeRef.current.contentWindow.postMessage({
+      type: 'highlight-element',
+      elementId: hoveredElementId,
+    }, '*');
+  }, [hoveredElementId]);
 
   // Calculate viewport dimensions
   const viewportStyle = useMemo(() => {
@@ -225,12 +361,38 @@ export function DesignerPreview({
       } else if (data.type === 'element-hover') {
         hoverElement(data.elementId);
         onElementHover?.(data.elementId);
+      } else if (data.type === 'component-dropped') {
+        // Handle component drop - insert code into the design
+        const { code: droppedCode, targetElementId } = data;
+        if (droppedCode) {
+          // For now, append to the end of the code or insert into target element
+          // Parse the dropped code to create element
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = droppedCode;
+          
+          if (targetElementId) {
+            // Insert into target element - update the code
+            const newCode = code.replace(
+              new RegExp(`(<[^>]*data-element-id="${targetElementId}"[^>]*>)([\\s\\S]*?)(</[^>]+>)`),
+              `$1$2\n${droppedCode}\n$3`
+            );
+            setCode(newCode, true);
+          } else {
+            // Append to root - simple code concatenation for JSX
+            const insertPoint = code.lastIndexOf('</');
+            if (insertPoint !== -1) {
+              const newCode = code.slice(0, insertPoint) + '\n' + droppedCode + '\n' + code.slice(insertPoint);
+              setCode(newCode, true);
+            }
+          }
+          parseCodeToElements(code);
+        }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [selectElement, hoverElement, onElementSelect, onElementHover]);
+  }, [selectElement, hoverElement, onElementSelect, onElementHover, code, setCode, parseCodeToElements]);
 
   // Update iframe content when code changes
   useEffect(() => {

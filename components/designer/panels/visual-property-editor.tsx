@@ -42,17 +42,17 @@ interface VisualPropertyEditorProps {
 
 interface PropertyGroup {
   id: string;
-  label: string;
+  labelKey: string;
   icon: React.ReactNode;
 }
 
 const PROPERTY_GROUPS: PropertyGroup[] = [
-  { id: 'layout', label: 'Layout', icon: <Box className="h-4 w-4" /> },
-  { id: 'spacing', label: 'Spacing', icon: <Move className="h-4 w-4" /> },
-  { id: 'size', label: 'Size', icon: <Maximize className="h-4 w-4" /> },
-  { id: 'typography', label: 'Typography', icon: <Type className="h-4 w-4" /> },
-  { id: 'background', label: 'Background', icon: <Paintbrush className="h-4 w-4" /> },
-  { id: 'effects', label: 'Effects', icon: <Layers className="h-4 w-4" /> },
+  { id: 'layout', labelKey: 'layout', icon: <Box className="h-4 w-4" /> },
+  { id: 'spacing', labelKey: 'spacing', icon: <Move className="h-4 w-4" /> },
+  { id: 'size', labelKey: 'size', icon: <Maximize className="h-4 w-4" /> },
+  { id: 'typography', labelKey: 'typography', icon: <Type className="h-4 w-4" /> },
+  { id: 'background', labelKey: 'background', icon: <Paintbrush className="h-4 w-4" /> },
+  { id: 'effects', labelKey: 'effects', icon: <Layers className="h-4 w-4" /> },
 ];
 
 const DISPLAY_OPTIONS = ['block', 'flex', 'grid', 'inline', 'inline-block', 'none'];
@@ -193,14 +193,14 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                     {group.icon}
                   </TabsTrigger>
                 </TooltipTrigger>
-                <TooltipContent>{group.label}</TooltipContent>
+                <TooltipContent>{t(group.labelKey)}</TooltipContent>
               </Tooltip>
             ))}
           </TabsList>
 
           <div className="flex-1 overflow-auto p-3 space-y-4">
             <TabsContent value="layout" className="m-0 space-y-4">
-              <PropertyRow label="Display">
+              <PropertyRow label={t('display')}>
                 <Select
                   value={classes.display || 'block'}
                   onValueChange={(v) => updateClass('display', v, classes.display)}
@@ -220,7 +220,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
 
               {classes.display === 'flex' && (
                 <>
-                  <PropertyRow label="Direction">
+                  <PropertyRow label={t('direction')}>
                     <Select
                       value={classes.flexDirection?.replace('flex-', '') || 'row'}
                       onValueChange={(v) =>
@@ -240,7 +240,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                     </Select>
                   </PropertyRow>
 
-                  <PropertyRow label="Justify">
+                  <PropertyRow label={t('justify')}>
                     <Select
                       value={classes.justifyContent?.replace('justify-', '') || 'start'}
                       onValueChange={(v) =>
@@ -260,7 +260,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                     </Select>
                   </PropertyRow>
 
-                  <PropertyRow label="Align">
+                  <PropertyRow label={t('align')}>
                     <Select
                       value={classes.alignItems?.replace('items-', '') || 'start'}
                       onValueChange={(v) =>
@@ -280,7 +280,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                     </Select>
                   </PropertyRow>
 
-                  <PropertyRow label="Gap">
+                  <PropertyRow label={t('gap')}>
                     <SliderWithValue
                       value={parseInt(classes.gap?.replace('gap-', '') || '0')}
                       onChange={(v) => updateClass('gap', `gap-${v}`, classes.gap)}
@@ -292,22 +292,22 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
             </TabsContent>
 
             <TabsContent value="spacing" className="m-0 space-y-4">
-              <div className="text-xs font-medium text-muted-foreground mb-2">Padding</div>
-              <PropertyRow label="All">
+              <div className="text-xs font-medium text-muted-foreground mb-2">{t('spacing')}</div>
+              <PropertyRow label={t('all')}>
                 <SliderWithValue
                   value={parseInt(classes.padding?.replace('p-', '') || '0')}
                   onChange={(v) => updateClass('padding', `p-${v}`, classes.padding)}
                   max={16}
                 />
               </PropertyRow>
-              <PropertyRow label="Horizontal">
+              <PropertyRow label={t('horizontal')}>
                 <SliderWithValue
                   value={parseInt(classes.paddingX?.replace('px-', '') || '0')}
                   onChange={(v) => updateClass('paddingX', `px-${v}`, classes.paddingX)}
                   max={16}
                 />
               </PropertyRow>
-              <PropertyRow label="Vertical">
+              <PropertyRow label={t('vertical')}>
                 <SliderWithValue
                   value={parseInt(classes.paddingY?.replace('py-', '') || '0')}
                   onChange={(v) => updateClass('paddingY', `py-${v}`, classes.paddingY)}
@@ -315,8 +315,8 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                 />
               </PropertyRow>
 
-              <div className="text-xs font-medium text-muted-foreground mb-2 mt-4">Margin</div>
-              <PropertyRow label="All">
+              <div className="text-xs font-medium text-muted-foreground mb-2 mt-4">{t('spacing')}</div>
+              <PropertyRow label={t('all')}>
                 <SliderWithValue
                   value={parseInt(classes.margin?.replace('m-', '') || '0')}
                   onChange={(v) => updateClass('margin', `m-${v}`, classes.margin)}
@@ -326,7 +326,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
             </TabsContent>
 
             <TabsContent value="size" className="m-0 space-y-4">
-              <PropertyRow label="Width">
+              <PropertyRow label={t('width')}>
                 <Input
                   className="h-8"
                   placeholder="w-full, w-64, w-[200px]"
@@ -334,7 +334,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                   onChange={(e) => updateClass('width', e.target.value, classes.width)}
                 />
               </PropertyRow>
-              <PropertyRow label="Height">
+              <PropertyRow label={t('height')}>
                 <Input
                   className="h-8"
                   placeholder="h-full, h-64, h-[200px]"
@@ -342,7 +342,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                   onChange={(e) => updateClass('height', e.target.value, classes.height)}
                 />
               </PropertyRow>
-              <PropertyRow label="Max Width">
+              <PropertyRow label={t('maxWidth')}>
                 <Input
                   className="h-8"
                   placeholder="max-w-md, max-w-lg"
@@ -353,7 +353,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
             </TabsContent>
 
             <TabsContent value="typography" className="m-0 space-y-4">
-              <PropertyRow label="Size">
+              <PropertyRow label={t('fontSizeLabel')}>
                 <Select
                   value={classes.fontSize?.replace('text-', '') || 'base'}
                   onValueChange={(v) =>
@@ -372,7 +372,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                   </SelectContent>
                 </Select>
               </PropertyRow>
-              <PropertyRow label="Weight">
+              <PropertyRow label={t('weight')}>
                 <Select
                   value={classes.fontWeight?.replace('font-', '') || 'normal'}
                   onValueChange={(v) =>
@@ -391,7 +391,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                   </SelectContent>
                 </Select>
               </PropertyRow>
-              <PropertyRow label="Align">
+              <PropertyRow label={t('alignLabel')}>
                 <Select
                   value={classes.textAlign?.replace('text-', '') || 'left'}
                   onValueChange={(v) =>
@@ -410,7 +410,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                   </SelectContent>
                 </Select>
               </PropertyRow>
-              <PropertyRow label="Color">
+              <PropertyRow label={t('color')}>
                 <Input
                   className="h-8"
                   placeholder="text-gray-600"
@@ -421,7 +421,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
             </TabsContent>
 
             <TabsContent value="background" className="m-0 space-y-4">
-              <PropertyRow label="Background">
+              <PropertyRow label={t('background')}>
                 <Input
                   className="h-8"
                   placeholder="bg-white, bg-gray-100"
@@ -429,7 +429,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                   onChange={(e) => updateClass('background', e.target.value, classes.background)}
                 />
               </PropertyRow>
-              <PropertyRow label="Border Radius">
+              <PropertyRow label={t('borderRadius')}>
                 <Select
                   value={classes.borderRadius || 'rounded-none'}
                   onValueChange={(v) =>
@@ -451,7 +451,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
             </TabsContent>
 
             <TabsContent value="effects" className="m-0 space-y-4">
-              <PropertyRow label="Shadow">
+              <PropertyRow label={t('shadow')}>
                 <Select
                   value={classes.shadow || 'shadow-none'}
                   onValueChange={(v) => updateClass('shadow', v, classes.shadow)}
@@ -468,7 +468,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
                   </SelectContent>
                 </Select>
               </PropertyRow>
-              <PropertyRow label="Opacity">
+              <PropertyRow label={t('opacityLabel')}>
                 <SliderWithValue
                   value={parseInt(classes.opacity?.replace('opacity-', '') || '100')}
                   onChange={(v) => updateClass('opacity', `opacity-${v}`, classes.opacity)}

@@ -97,14 +97,14 @@ export function VideoStudioHeader({
         <Link href="/">
           <Button variant="ghost" size="sm" className="px-2 sm:px-3">
             <ArrowLeft className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">{t('back') || 'Back'}</span>
+            <span className="hidden sm:inline">{t('back')}</span>
           </Button>
         </Link>
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-md bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center">
             <Film className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
           </div>
-          <h1 className="font-semibold text-sm sm:text-base">{t('title') || 'Video Studio'}</h1>
+          <h1 className="font-semibold text-sm sm:text-base">{t('title')}</h1>
         </div>
 
         {/* Mode Selector */}
@@ -116,7 +116,7 @@ export function VideoStudioHeader({
             className="h-7"
           >
             <Disc className="h-3 w-3 mr-1" />
-            {tEditor('recording') || 'Recording'}
+            {tEditor('recording')}
           </Button>
           <Button
             variant={studioMode === 'ai-generation' ? 'default' : 'ghost'}
@@ -125,7 +125,7 @@ export function VideoStudioHeader({
             className="h-7"
           >
             <Sparkles className="h-3 w-3 mr-1" />
-            {tGen('aiGeneration') || 'AI Generation'}
+            {tGen('aiGeneration')}
           </Button>
         </div>
       </div>
@@ -149,9 +149,8 @@ export function VideoStudioHeader({
                 {monitors.map((monitor) => (
                   <SelectItem key={monitor.index} value={monitor.index.toString()}>
                     {monitor.is_primary
-                      ? tEditor('primaryMonitor') || 'Primary Monitor'
-                      : tEditor('monitor', { index: monitor.index + 1 }) ||
-                        `Monitor ${monitor.index + 1}`}
+                      ? tEditor('primaryMonitor')
+                      : tEditor('monitor', { index: monitor.index + 1 })}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -172,7 +171,7 @@ export function VideoStudioHeader({
             <div className="flex items-center gap-2 px-2 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
               <Clock className="h-3 w-3 text-yellow-500 animate-pulse" />
               <span className="text-xs font-medium text-yellow-500">
-                {tEditor('countdown') || 'Starting...'}
+                {tEditor('countdown')}
               </span>
             </div>
           )}
@@ -181,7 +180,7 @@ export function VideoStudioHeader({
             <div className="flex items-center gap-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md">
               <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
               <span className="text-xs font-medium text-blue-500">
-                {tEditor('processing') || 'Processing'}
+                {tEditor('processing')}
               </span>
             </div>
           )}
@@ -197,11 +196,11 @@ export function VideoStudioHeader({
                   onClick={onStartRecording}
                 >
                   <Circle className="h-3 w-3 mr-1 fill-current" />
-                  <span className="hidden sm:inline">{tEditor('startRecording') || 'Record'}</span>
+                  <span className="hidden sm:inline">{tEditor('startRecording')}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {tEditor('startRecordingTooltip') || 'Start screen recording'}
+                {tEditor('startRecordingTooltip')}
               </TooltipContent>
             </Tooltip>
           )}
@@ -210,14 +209,14 @@ export function VideoStudioHeader({
           {isRecording && !isPaused && onPauseRecording && (
             <Button variant="outline" size="sm" onClick={onPauseRecording}>
               <Pause className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">{tEditor('pause') || 'Pause'}</span>
+              <span className="hidden sm:inline">{tEditor('pause')}</span>
             </Button>
           )}
 
           {isRecording && isPaused && onResumeRecording && (
             <Button variant="outline" size="sm" onClick={onResumeRecording}>
               <Play className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">{tEditor('resume') || 'Resume'}</span>
+              <span className="hidden sm:inline">{tEditor('resume')}</span>
             </Button>
           )}
 
@@ -226,7 +225,7 @@ export function VideoStudioHeader({
             <>
               <Button variant="destructive" size="sm" onClick={onStopRecording}>
                 <Square className="h-3 w-3 mr-1 fill-current" />
-                <span className="hidden sm:inline">{tEditor('stop') || 'Stop'}</span>
+                <span className="hidden sm:inline">{tEditor('stop')}</span>
               </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onCancelRecording}>
                 <X className="h-4 w-4" />
@@ -253,7 +252,7 @@ export function VideoStudioHeader({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {showSidebar ? t('hideSidebar') || 'Hide sidebar' : t('showSidebar') || 'Show sidebar'}
+            {showSidebar ? t('hideSidebar') : t('showSidebar')}
           </TooltipContent>
         </Tooltip>
       </div>

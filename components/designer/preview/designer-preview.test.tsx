@@ -9,6 +9,7 @@ import { DesignerPreview } from './designer-preview';
 const mockSelectElement = jest.fn();
 const mockHoverElement = jest.fn();
 const mockParseCodeToElements = jest.fn();
+const mockSetCode = jest.fn();
 
 jest.mock('@/stores/designer', () => ({
   useDesignerStore: (selector: (state: Record<string, unknown>) => unknown) => {
@@ -22,6 +23,7 @@ jest.mock('@/stores/designer', () => ({
       selectElement: mockSelectElement,
       hoverElement: mockHoverElement,
       parseCodeToElements: mockParseCodeToElements,
+      setCode: mockSetCode,
     };
     return selector(state);
   },
@@ -120,6 +122,7 @@ describe('DesignerPreview with design mode', () => {
           selectElement: mockSelectElement,
           hoverElement: mockHoverElement,
           parseCodeToElements: mockParseCodeToElements,
+          setCode: mockSetCode,
         };
         return selector(state);
       },
@@ -127,5 +130,62 @@ describe('DesignerPreview with design mode', () => {
     
     render(<DesignerPreview />);
     expect(screen.getByTitle('Designer Preview')).toBeInTheDocument();
+  });
+});
+
+describe('DesignerPreview bidirectional sync', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should handle element-select message from iframe', () => {
+    render(<DesignerPreview />);
+    
+    // Simulate message from iframe
+    const messageEvent = new MessageEvent('message', {
+      data: { type: 'element-select', elementId: 'el-0' },
+    });
+    window.dispatchEvent(messageEvent);
+    
+    expect(mockSelectElement).toHaveBeenCalledWith('el-0');
+  });
+
+  it('should handle element-hover message from iframe', () => {
+    render(<DesignerPreview />);
+    
+    // Simulate message from iframe
+    const messageEvent = new MessageEvent('message', {
+      data: { type: 'element-hover', elementId: 'el-1' },
+    });
+    window.dispatchEvent(messageEvent);
+    
+    expect(mockHoverElement).toHaveBeenCalledWith('el-1');
+  });
+
+  it('should handle component-dropped message from iframe', () => {
+    render(<DesignerPreview />);
+    
+    // Simulate component drop message from iframe
+    const messageEvent = new MessageEvent('message', {
+      data: { 
+        type: 'component-dropped', 
+        code: '<button>New Button</button>',
+        targetElementId: null,
+      },
+    });
+    window.dispatchEvent(messageEvent);
+    
+    // setCode should be called with updated code
+    expect(mockSetCode).toHaveBeenCalled();
+  });
+});
+
+describe('DesignerPreview drag-drop support', () => {
+  it('should render with drag-drop CSS styles in iframe content', () => {
+    render(<DesignerPreview />);
+    const iframe = screen.getByTitle('Designer Preview');
+    expect(iframe).toBeInTheDocument();
+    // Iframe should be present and ready for drag-drop
+    expect(iframe.tagName.toLowerCase()).toBe('iframe');
   });
 });

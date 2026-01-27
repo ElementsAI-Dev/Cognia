@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   Video as VideoIcon,
   AlertCircle,
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { VideoStatus } from '@/types/media/video';
 import type { VideoJob } from '@/types/video-studio/types';
@@ -28,34 +30,34 @@ export interface VideoJobCardProps {
   formatTime?: (timestamp: number) => string;
 }
 
-export function getStatusBadge(status: VideoStatus) {
+export function getStatusBadge(status: VideoStatus, t: (key: string) => string) {
   switch (status) {
     case 'pending':
       return (
         <Badge variant="secondary">
           <Clock className="h-3 w-3 mr-1" />
-          Pending
+          {t('status.pending')}
         </Badge>
       );
     case 'processing':
       return (
         <Badge variant="default" className="bg-blue-500">
           <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-          Processing
+          {t('status.processing')}
         </Badge>
       );
     case 'completed':
       return (
         <Badge variant="default" className="bg-green-500">
           <Check className="h-3 w-3 mr-1" />
-          Completed
+          {t('status.completed')}
         </Badge>
       );
     case 'failed':
       return (
         <Badge variant="destructive">
           <AlertCircle className="h-3 w-3 mr-1" />
-          Failed
+          {t('status.failed')}
         </Badge>
       );
     default:
@@ -72,6 +74,7 @@ export function VideoJobCard({
   onToggleFavorite,
   formatTime,
 }: VideoJobCardProps) {
+  const t = useTranslations('videoJobCard');
   const defaultFormatTime = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -122,47 +125,64 @@ export function VideoJobCard({
           {job.status === 'completed' && (
             <>
               {onPreview && (
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPreview(job);
-                  }}
-                >
-                  <Play className="h-3 w-3 sm:h-4 sm:w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPreview(job);
+                      }}
+                    >
+                      <Play className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('actions.play')}</TooltipContent>
+                </Tooltip>
               )}
               {onDownload && (
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDownload(job);
-                  }}
-                >
-                  <Download className="h-3 w-3 sm:h-4 sm:w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDownload(job);
+                      }}
+                    >
+                      <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('actions.download')}</TooltipContent>
+                </Tooltip>
               )}
             </>
           )}
           {onToggleFavorite && (
-            <Button
-              size="icon"
-              variant="secondary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite(job.id);
-              }}
-            >
-              <Star
-                className={cn(
-                  'h-3 w-3 sm:h-4 sm:w-4',
-                  job.isFavorite && 'fill-yellow-500 text-yellow-500'
-                )}
-              />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavorite(job.id);
+                  }}
+                >
+                  <Star
+                    className={cn(
+                      'h-3 w-3 sm:h-4 sm:w-4',
+                      job.isFavorite && 'fill-yellow-500 text-yellow-500'
+                    )}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {job.isFavorite ? t('actions.unfavorite') : t('actions.favorite')}
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -170,7 +190,7 @@ export function VideoJobCard({
         <p className="text-sm truncate">{job.prompt}</p>
         <div className="flex items-center justify-between mt-2">
           <span className="text-xs text-muted-foreground">{timeFormatter(job.createdAt)}</span>
-          {getStatusBadge(job.status)}
+          {getStatusBadge(job.status, t)}
         </div>
       </CardContent>
     </Card>

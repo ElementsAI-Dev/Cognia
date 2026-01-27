@@ -48,6 +48,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
 import { SkillResourceManager } from './skill-resource-manager';
 import { SkillEditor } from './skill-editor';
@@ -235,7 +236,7 @@ Status: ${skill.status}
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <ScrollArea className="flex-1 min-h-0">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="h-full">
           <TabsList className="mx-4 mt-4">
             <TabsTrigger value="overview">{t('previewTab')}</TabsTrigger>
@@ -432,7 +433,7 @@ Status: ${skill.status}
             />
           </TabsContent>
         </Tabs>
-      </div>
+      </ScrollArea>
 
       {/* Delete Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

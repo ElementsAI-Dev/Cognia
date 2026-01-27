@@ -122,7 +122,7 @@ export function Toaster({ position = 'bottom-right' }: ToasterProps) {
         <div
           key={t.id}
           className={cn(
-            'flex items-start gap-3 rounded-lg border p-4 shadow-lg bg-background/95 supports-[backdrop-filter]:bg-background/85 backdrop-blur-md',
+            'flex items-start gap-3 rounded-lg border p-4 shadow-lg bg-background',
             'animate-in slide-in-from-right-full fade-in-0 duration-300',
             toastStyles[t.type]
           )}

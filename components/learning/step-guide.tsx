@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { DifficultyLevel } from '@/types/learning/learning';
 
@@ -118,27 +119,34 @@ const StepIndicator = memo(function StepIndicator({
         return (
           <div key={step.id} className="flex items-center">
             {/* Step dot */}
-            <button
-              onClick={() => allowNavigation && onStepClick?.(index)}
-              disabled={!allowNavigation}
-              className={cn(
-                'flex items-center justify-center w-8 h-8 rounded-full transition-all',
-                isCompleted && 'bg-green-500 text-white',
-                isCurrent && 'bg-primary text-primary-foreground ring-2 ring-primary/30',
-                isPast && !isCompleted && 'bg-muted-foreground/30 text-muted-foreground',
-                isFuture && 'bg-muted text-muted-foreground',
-                allowNavigation && 'cursor-pointer hover:ring-2 hover:ring-primary/20',
-                !allowNavigation && 'cursor-default'
-              )}
-            >
-              {isCompleted ? (
-                <Check className="h-4 w-4" />
-              ) : isCurrent ? (
-                <CircleDot className="h-4 w-4" />
-              ) : (
-                <span className="text-sm font-medium">{index + 1}</span>
-              )}
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => allowNavigation && onStepClick?.(index)}
+                    disabled={!allowNavigation}
+                    className={cn(
+                      'flex items-center justify-center w-8 h-8 rounded-full transition-all',
+                      isCompleted && 'bg-green-500 text-white',
+                      isCurrent && 'bg-primary text-primary-foreground ring-2 ring-primary/30',
+                      isPast && !isCompleted && 'bg-muted-foreground/30 text-muted-foreground',
+                      isFuture && 'bg-muted text-muted-foreground',
+                      allowNavigation && 'cursor-pointer hover:ring-2 hover:ring-primary/20',
+                      !allowNavigation && 'cursor-default'
+                    )}
+                  >
+                    {isCompleted ? (
+                      <Check className="h-4 w-4" />
+                    ) : isCurrent ? (
+                      <CircleDot className="h-4 w-4" />
+                    ) : (
+                      <span className="text-sm font-medium">{index + 1}</span>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{step.title}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             {/* Connector line */}
             {index < steps.length - 1 && (

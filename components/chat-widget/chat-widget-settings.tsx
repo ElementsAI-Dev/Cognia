@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -128,6 +129,7 @@ function ChatWidgetSettingsContent({
   onResetConfig,
   onClose,
 }: ChatWidgetSettingsContentProps) {
+  const t = useTranslations("chatWidget.settings");
   const [localConfig, setLocalConfig] = useState(config);
 
   const handleSave = () => {
@@ -153,8 +155,8 @@ function ChatWidgetSettingsContent({
             <Sparkles className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <SheetTitle className="text-lg">助手设置</SheetTitle>
-            <p className="text-xs text-muted-foreground">配置 AI 助手的模型和行为</p>
+            <SheetTitle className="text-lg">{t("title")}</SheetTitle>
+            <p className="text-xs text-muted-foreground">{t("description")}</p>
           </div>
         </div>
       </SheetHeader>
@@ -168,18 +170,18 @@ function ChatWidgetSettingsContent({
           )}>
             <div className="flex items-center gap-2 text-sm font-medium">
               <Bot className="h-4 w-4 text-primary" />
-              <span>AI 模型</span>
+              <span>{t("aiModel")}</span>
             </div>
             
             <div className="grid gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">提供商</Label>
+                <Label className="text-xs text-muted-foreground">{t("provider")}</Label>
                 <Select
                   value={localConfig.provider}
                   onValueChange={(v) => handleProviderChange(v as ProviderName)}
                 >
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="选择提供商" />
+                    <SelectValue placeholder={t("selectProvider")} />
                   </SelectTrigger>
                   <SelectContent>
                     {PROVIDERS.map((p) => (
@@ -192,7 +194,7 @@ function ChatWidgetSettingsContent({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">模型</Label>
+                <Label className="text-xs text-muted-foreground">{t("model")}</Label>
                 <Select
                   value={localConfig.model}
                   onValueChange={(v) =>
@@ -200,7 +202,7 @@ function ChatWidgetSettingsContent({
                   }
                 >
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="选择模型" />
+                    <SelectValue placeholder={t("selectModel")} />
                   </SelectTrigger>
                   <SelectContent>
                     {MODELS[localConfig.provider]?.map((m) => (
@@ -221,7 +223,7 @@ function ChatWidgetSettingsContent({
           )}>
             <div className="flex items-center gap-2 text-sm font-medium">
               <MessageSquare className="h-4 w-4 text-primary" />
-              <span>系统提示词</span>
+              <span>{t("systemPrompt")}</span>
             </div>
             <Textarea
               value={localConfig.systemPrompt}
@@ -231,7 +233,7 @@ function ChatWidgetSettingsContent({
                   systemPrompt: e.target.value,
                 }))
               }
-              placeholder="设置 AI 的角色和行为..."
+              placeholder={t("systemPromptPlaceholder")}
               rows={3}
               className="resize-none text-sm"
             />
@@ -244,14 +246,14 @@ function ChatWidgetSettingsContent({
           )}>
             <div className="flex items-center gap-2 text-sm font-medium">
               <Settings2 className="h-4 w-4 text-primary" />
-              <span>行为设置</span>
+              <span>{t("behavior")}</span>
             </div>
 
             <div className="space-y-1">
               <SettingRow
                 icon={<Pin className="h-3.5 w-3.5" />}
-                label="窗口置顶"
-                description="始终显示在其他窗口前面"
+                label={t("alwaysOnTop")}
+                description={t("alwaysOnTopDesc")}
               >
                 <Switch
                   id="pinned"
@@ -264,8 +266,8 @@ function ChatWidgetSettingsContent({
 
               <SettingRow
                 icon={<Focus className="h-3.5 w-3.5" />}
-                label="自动聚焦"
-                description="打开时自动聚焦输入框"
+                label={t("autoFocus")}
+                description={t("autoFocusDesc")}
               >
                 <Switch
                   id="autoFocus"
@@ -278,8 +280,8 @@ function ChatWidgetSettingsContent({
 
               <SettingRow
                 icon={<Clock className="h-3.5 w-3.5" />}
-                label="显示时间"
-                description="在消息旁显示时间戳"
+                label={t("showTimestamps")}
+                description={t("showTimestampsDesc")}
               >
                 <Switch
                   id="showTimestamps"
@@ -295,8 +297,8 @@ function ChatWidgetSettingsContent({
 
               <SettingRow
                 icon={<MapPin className="h-3.5 w-3.5" />}
-                label="记住位置"
-                description="下次打开时恢复窗口位置"
+                label={t("rememberPosition")}
+                description={t("rememberPositionDesc")}
               >
                 <Switch
                   id="rememberPosition"
@@ -319,13 +321,13 @@ function ChatWidgetSettingsContent({
           )}>
             <div className="flex items-center gap-2 text-sm font-medium">
               <Keyboard className="h-4 w-4 text-primary" />
-              <span>快捷键</span>
+              <span>{t("shortcuts")}</span>
             </div>
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <kbd className="px-2.5 py-1 bg-muted rounded-md text-xs font-mono border border-border/50">
                 {localConfig.shortcut.replace("CommandOrControl", "Ctrl")}
               </kbd>
-              <span>唤起/隐藏助手</span>
+              <span>{t("toggleAssistant")}</span>
             </div>
           </div>
         </div>
@@ -339,14 +341,14 @@ function ChatWidgetSettingsContent({
           onClick={onResetConfig}
         >
           <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-          重置
+          {t("reset")}
         </Button>
         <Button 
           className="flex-1 h-9" 
           onClick={handleSave}
         >
           <Save className="h-3.5 w-3.5 mr-1.5" />
-          保存
+          {t("save")}
         </Button>
       </div>
     </>

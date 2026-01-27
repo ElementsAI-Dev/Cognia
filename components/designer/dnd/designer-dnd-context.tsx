@@ -6,6 +6,7 @@
  */
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   DndContext,
   DragOverlay,
@@ -242,12 +243,13 @@ export function DesignerDndProvider({ children }: DesignerDndProviderProps) {
 
 // Drag preview component shown while dragging
 function DragPreview({ item }: { item: DragItem }) {
+  const t = useTranslations('designer');
   return (
     <div className="px-3 py-2 bg-primary text-primary-foreground rounded-md shadow-lg text-sm font-medium opacity-90">
       {item.type === 'component' ? (
-        <span>{item.componentName || 'Component'}</span>
+        <span>{item.componentName || t('dragComponent')}</span>
       ) : (
-        <span>Element</span>
+        <span>{t('dragElement')}</span>
       )}
     </div>
   );

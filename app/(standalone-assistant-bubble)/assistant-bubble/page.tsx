@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from 'next-intl';
 import { cn } from "@/lib/utils";
 import { Sparkles, MessageCircle, Settings, X, RotateCcw } from "lucide-react";
 import { isTauri } from "@/lib/native/utils";
@@ -22,6 +23,7 @@ type BubbleState = {
 type MenuPosition = 'above' | 'below';
 
 export default function AssistantBubblePage() {
+  const t = useTranslations('assistantBubble');
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const didDragRef = useRef(false);
   const lastClickTimeRef = useRef<number>(0);
@@ -344,8 +346,8 @@ export default function AssistantBubblePage() {
           )}
         >
           <div className="text-center">
-            <div>点击：{bubbleState.isChatVisible ? "隐藏" : "打开"}对话</div>
-            <div className="text-muted-foreground text-[10px]">双击新建 | 右键菜单</div>
+            <div>{t('tooltip.clickAction', { action: bubbleState.isChatVisible ? t('tooltip.hide') : t('tooltip.open') })}</div>
+            <div className="text-muted-foreground text-[10px]">{t('tooltip.hints')}</div>
           </div>
           {/* Tooltip arrow */}
           <div className={cn(
@@ -462,7 +464,7 @@ export default function AssistantBubblePage() {
             )}
           >
             <MessageCircle className="h-4 w-4" />
-            {bubbleState.isChatVisible ? "隐藏对话" : "打开对话"}
+            {bubbleState.isChatVisible ? t('menu.hideChat') : t('menu.openChat')}
           </button>
           <button
             type="button"
@@ -474,7 +476,7 @@ export default function AssistantBubblePage() {
             )}
           >
             <RotateCcw className="h-4 w-4" />
-            新对话
+            {t('menu.newSession')}
           </button>
           <button
             type="button"
@@ -486,7 +488,7 @@ export default function AssistantBubblePage() {
             )}
           >
             <Settings className="h-4 w-4" />
-            设置
+            {t('menu.settings')}
           </button>
           <div className="my-1 border-t border-border" />
           <button
@@ -499,7 +501,7 @@ export default function AssistantBubblePage() {
             )}
           >
             <X className="h-4 w-4" />
-            隐藏气泡
+            {t('menu.hideBubble')}
           </button>
         </div>
       )}

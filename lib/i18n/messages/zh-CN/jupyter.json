@@ -11,7 +11,25 @@
     "noMatchingVariables": "无匹配的变量",
     "selectEnvironment": "选择环境",
     "connect": "连接",
-    "runAll": "全部运行"
+    "runAll": "全部运行",
+    "runAllFailed": "运行全部单元格失败",
+    "syncOutputsFailed": "同步笔记本输出失败",
+    "pythonDefault": "Python",
+    "errorOccurred": "发生错误",
+    "refreshVariables": "刷新变量",
+    "variableValue": "变量值",
+    "status": {
+      "idle": "空闲",
+      "busy": "忙碌",
+      "starting": "启动中",
+      "dead": "已停止",
+      "restarting": "重启中",
+      "interrupting": "中断中",
+      "stopping": "停止中",
+      "configuring": "配置中",
+      "installing": "安装中",
+      "error": "错误"
+    }
   },
   "jupyterRenderer": {
     "parseError": "无法解析 Jupyter 笔记本",

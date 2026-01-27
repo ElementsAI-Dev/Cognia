@@ -56,12 +56,65 @@
   },
   "sources": {
     "usedSources": "Used {count} sources",
+    "sourcesUsed": "{count, plural, =1 {1 source used} other {# sources used}}",
     "web": "Web",
     "document": "Document",
     "video": "Video",
     "image": "Image",
     "link": "Link",
-    "book": "Book"
+    "book": "Book",
+    "credibility": {
+      "high": "High Credibility",
+      "medium": "Medium Credibility",
+      "low": "Low Credibility",
+      "unknown": "Unknown"
+    },
+    "credibilityScore": "Credibility: {score}%",
+    "relevanceScore": "{score}% relevant",
+    "webSearchAnswer": "Web Search Answer"
+  },
+  "attachments": {
+    "remove": "Remove"
+  },
+  "upload": {
+    "dropFilesHere": "Drop files here",
+    "dismiss": "Dismiss"
+  },
+  "preview": {
+    "audioNotSupported": "Your browser does not support audio playback.",
+    "videoNotSupported": "Your browser does not support video playback."
+  },
+  "contextDebug": {
+    "title": "Context Debug",
+    "description": "Monitor and manage context files for AI agent execution",
+    "confirmClearAll": "Are you sure you want to clear all context files? This cannot be undone.",
+    "stats": {
+      "totalFiles": "Total Files",
+      "storage": "Storage",
+      "estTokens": "Est. Tokens"
+    },
+    "filesByCategory": "Files by Category",
+    "filesCount": "{count, plural, =1 {1 file} other {# files}}",
+    "noContextFiles": "No context files",
+    "categories": {
+      "toolOutputs": "Tool Outputs",
+      "chatHistory": "Chat History",
+      "mcpTools": "MCP Tools",
+      "skills": "Skills",
+      "terminal": "Terminal",
+      "temporary": "Temporary",
+      "other": "Other"
+    },
+    "autoSync": "Auto-Sync",
+    "running": "Running",
+    "stopped": "Stopped",
+    "lastDuration": "Last: {ms}ms",
+    "syncNow": "Sync Now",
+    "oldestFile": "Oldest file",
+    "lastAccessed": "Last accessed",
+    "cleanedFiles": "Cleaned {count} files at {time}",
+    "refresh": "Refresh",
+    "cleanOld": "Clean Old"
   },
   "contextSettings": {
     "title": "Context Settings",
@@ -178,6 +231,8 @@
     "noData": "No data to display",
     "renderError": "Failed to render",
     "parseError": "Failed to parse data",
+    "invalidChartFormat": "Invalid chart data format",
+    "failedToParseChart": "Failed to parse chart data",
     "retry": "Retry",
     "copyCode": "Copy code",
     "copySpec": "Copy spec",

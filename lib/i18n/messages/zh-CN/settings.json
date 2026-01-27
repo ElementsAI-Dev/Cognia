@@ -189,7 +189,17 @@
     "selectedSources": "已选择 {count} 个来源",
     "higherPriority": "提高优先级",
     "lowerPriority": "降低优先级",
-    "primary": "主要"
+    "primary": "主要",
+    "apiKey": "API 密钥",
+    "features": {
+      "aiAnswer": "AI 回答",
+      "news": "新闻",
+      "images": "图片",
+      "academic": "学术",
+      "recencyFilter": "时效过滤",
+      "domainFilter": "域名过滤",
+      "contentExtraction": "内容提取"
+    }
   },
   "dataSettings": {
     "title": "数据管理",
@@ -225,7 +235,9 @@
     "helpAndTour": "帮助与引导",
     "helpAndTourDesc": "重新启动功能引导，了解各项功能",
     "restartTour": "重启引导",
-    "tourReset": "引导已重置，正在刷新..."
+    "tourReset": "引导已重置，正在刷新...",
+    "indexedDB": "IndexedDB",
+    "usage": "使用量"
   },
   "themeEditor": {
     "title": "主题编辑器",
@@ -287,7 +299,9 @@
     "selectFile": "选择文件",
     "customThemesCount": "您有 {count} 个自定义主题",
     "importSuccess": "成功导入 {count} 个主题",
-    "importFailed": "导入主题失败"
+    "importFailed": "导入主题失败",
+    "themesAlreadyExist": "所有主题已存在",
+    "parseFileFailed": "解析文件失败"
   },
   "customThemeEditor": {
     "editTheme": "编辑主题",
@@ -359,6 +373,9 @@
     "textDisplay": "文本显示",
     "textDisplayDesc": "自定义文本渲染",
     "lineHeight": "行高",
+    "enableLaTeX": "LaTeX",
+    "enableMermaid": "Mermaid",
+    "enableVegaLite": "VegaLite",
     "mathDisplay": "数学显示",
     "mathDisplayDesc": "自定义 LaTeX 数学渲染",
     "fontScale": "字体缩放",
@@ -379,6 +396,11 @@
     "sampleResponse": "示例 AI 响应：",
     "previewLabel": "预览：",
     "mathPreviewUnavailable": "预览不可用",
+    "tooltips": {
+      "latex": "在响应中渲染 LaTeX 数学公式",
+      "mermaid": "渲染 Mermaid 图表和流程图",
+      "vegaLite": "渲染 VegaLite 数据可视化"
+    },
     "codeTheme": {
       "githubDark": "GitHub 深色",
       "githubLight": "GitHub 浅色",
@@ -519,7 +541,17 @@
     "availableVoices": "可用语音",
     "supported": "支持",
     "notSupported": "不支持",
-    "browserSupportNote": "语音功能取决于浏览器支持。Chrome 和 Edge 对语音识别的支持最好。"
+    "browserSupportNote": "语音功能取决于浏览器支持。Chrome 和 Edge 对语音识别的支持最好。",
+    "providers": {
+      "openaiWhisper": "OpenAI Whisper",
+      "openaiTts": "OpenAI TTS",
+      "geminiTts": "Gemini TTS",
+      "edgeTts": "Edge TTS"
+    },
+    "models": {
+      "tts1": "TTS-1",
+      "tts1Hd": "TTS-1 HD"
+    }
   },
   "appearanceSettings": {
     "uiFontSize": "界面字体大小",
@@ -710,7 +742,24 @@
     "animationSpeed": "动画速度",
     "resetAllSettings": "重置所有设置",
     "backgroundPreview": "背景预览",
-    "showPreview": "显示预览"
+    "showPreview": "显示预览",
+    "url": "网址"
+  },
+  "backgroundImportExport": {
+    "importExportButton": "导入/导出",
+    "dialogTitle": "背景设置导入/导出",
+    "dialogDescription": "分享您的背景设置或从文件导入",
+    "exportSettings": "导出设置",
+    "exportSettingsDesc": "将当前背景设置导出为 JSON 文件",
+    "exportToFile": "导出到文件",
+    "exportSuccess": "导出成功",
+    "importSettings": "导入设置",
+    "importSettingsDesc": "从 JSON 文件导入背景设置",
+    "selectFile": "选择文件",
+    "importSuccess": "导入成功",
+    "parseFileFailed": "解析文件失败",
+    "invalidFileFormat": "文件格式无效",
+    "localFilesNote": "注意：本地上传的图片不会包含在导出中。只有 URL 和预设背景会被导出。"
   },
   "autoRouterSettings": {
     "title": "自动模型路由",
@@ -1046,5 +1095,47 @@
     "newLink": "新链接",
     "newLinkDescription": "添加描述...",
     "resetToDefault": "重置为默认"
+  },
+  "shortcutConflict": {
+    "title": "检测到快捷键冲突",
+    "singleDescription": "以下快捷键冲突需要解决：",
+    "multipleDescription": "{count} 个快捷键冲突需要解决：",
+    "conflictNumber": "冲突 #{number}",
+    "existing": "现有：",
+    "new": "新增：",
+    "keepExisting": "保留现有",
+    "useNew": "使用新的",
+    "keepAllExisting": "全部保留现有",
+    "useAllNew": "全部使用新的",
+    "keepExistingTooltip": "保留当前分配的快捷键，丢弃新的",
+    "useNewTooltip": "用新分配替换现有快捷键"
+  },
+  "shortcutManager": {
+    "title": "快捷键管理器",
+    "description": "查看和管理所有键盘快捷键",
+    "conflictsCount": "{count} 个冲突",
+    "refresh": "刷新",
+    "export": "导出",
+    "searchPlaceholder": "搜索快捷键...",
+    "detectConflicts": "检测冲突",
+    "tableShortcut": "快捷键",
+    "tableAction": "操作",
+    "tableOwner": "所属",
+    "tableStatus": "状态",
+    "tableRegistered": "注册时间",
+    "noShortcuts": "未找到快捷键",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "showingCount": "显示 {filtered} / {total} 个快捷键",
+    "resolutionModeLabel": "冲突解决模式：",
+    "resolutionWarn": "警告",
+    "resolutionBlock": "阻止",
+    "resolutionAutoResolve": "自动解决",
+    "resolutionWarnTooltip": "检测到冲突时显示警告",
+    "resolutionBlockTooltip": "存在冲突时阻止快捷键注册",
+    "resolutionAutoResolveTooltip": "自动使用最新的快捷键解决冲突",
+    "categories": {
+      "all": "全部"
+    }
   }
 }

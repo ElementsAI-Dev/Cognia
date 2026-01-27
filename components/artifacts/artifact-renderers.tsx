@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MermaidBlock } from '@/components/chat/renderers/mermaid-block';
 import { MathBlock } from '@/components/chat/renderers/math-block';
 import { CodeBlock } from '@/components/chat/renderers/code-block';
@@ -97,21 +98,21 @@ export function ChartRenderer({ content, chartType = 'line', chartData, classNam
         } else if (parsed.data && Array.isArray(parsed.data)) {
           setData(parsed.data);
         } else {
-          throw new Error('Invalid chart data format');
+          throw new Error(t('invalidChartFormat'));
         }
       }
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to parse chart data');
+      setError(err instanceof Error ? err.message : t('failedToParseChart'));
     }
-  }, [content, chartData]);
+  }, [content, chartData, t]);
 
   if (error) {
     return (
-      <div className={cn('flex flex-col items-center justify-center gap-2 p-4 text-destructive', className)}>
-        <AlertCircle className="h-5 w-5" />
-        <p className="text-sm">{error}</p>
-      </div>
+      <Alert variant="destructive" className={cn('m-4', className)}>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
     );
   }
 

@@ -45,9 +45,9 @@ export function VectorSettings() {
     setTestError(null);
     try {
       const collections = await vector.listAllCollections();
-      setTestResult(`Success: ${collections.length} collections reachable`);
+      setTestResult(t('connectionSuccess', { count: collections.length }));
     } catch (err) {
-      setTestError(err instanceof Error ? err.message : 'Connection failed');
+      setTestError(err instanceof Error ? err.message : t('connectionFailed'));
     } finally {
       setTesting(false);
     }
@@ -79,9 +79,9 @@ export function VectorSettings() {
                   {vectorProviders.map((p) => (
                     <SelectItem key={p} value={p}>
                       {p === 'chroma'
-                        ? 'Chroma (embedded/server)'
+                        ? t('providerChroma')
                         : p === 'native'
-                          ? 'Native (local Tauri)'
+                          ? t('providerNative')
                           : p}
                     </SelectItem>
                   ))}
@@ -162,7 +162,7 @@ export function VectorSettings() {
 
           {/* Default collection for RAG */}
           <div className="space-y-1.5">
-            <Label className="text-sm">{t('defaultCollection') || 'Default Collection'}</Label>
+            <Label className="text-sm">{t('defaultCollection')}</Label>
             <Input
               value={settings.defaultCollectionName || 'default'}
               onChange={(e) => updateSettings({ defaultCollectionName: e.target.value })}
@@ -170,8 +170,7 @@ export function VectorSettings() {
               className="h-9"
             />
             <p className="text-[10px] text-muted-foreground">
-              {t('defaultCollectionHint') ||
-                'The default collection name used for RAG searches when not specified.'}
+              {t('defaultCollectionHint')}
             </p>
           </div>
 

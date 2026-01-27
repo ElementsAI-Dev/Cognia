@@ -1,0 +1,41 @@
+{
+  "screenshot": {
+    "tools": {
+      "rectangle": "Rectangle",
+      "ellipse": "Ellipse",
+      "arrow": "Arrow",
+      "freehand": "Freehand",
+      "text": "Text",
+      "blur": "Blur",
+      "highlight": "Highlight",
+      "marker": "Marker",
+      "select": "Select"
+    },
+    "actions": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "clear": "Clear Annotations",
+      "copy": "Copy to Clipboard",
+      "save": "Save",
+      "cancel": "Cancel",
+      "confirm": "Done"
+    },
+    "shortcuts": {
+      "undo": "Ctrl+Z",
+      "redo": "Ctrl+Y",
+      "copy": "Ctrl+C",
+      "save": "Ctrl+S"
+    },
+    "colorPicker": {
+      "selectColor": "Select color",
+      "color": "Color",
+      "strokeWidth": "Stroke Width: {width}px"
+    },
+    "editor": {
+      "annotationCount": "{count} annotation(s)",
+      "enterText": "Enter text:",
+      "dimensions": "{width} × {height} px",
+      "loading": "Loading..."
+    }
+  }
+}

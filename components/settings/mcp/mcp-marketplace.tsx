@@ -33,6 +33,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Alert,
   AlertDescription,
@@ -394,12 +395,12 @@ export function McpMarketplace() {
                     <div className="space-y-2 pt-2 border-t">
                       <h4 className="text-sm font-medium">{t('smitheryApiKey')}</h4>
                       <div className="flex gap-2">
-                        <input
+                        <Input
                           type="password"
                           value={apiKeyInput}
                           onChange={(e) => setApiKeyInput(e.target.value)}
                           placeholder={t('enterApiKey')}
-                          className="flex-1 h-8 px-2 text-xs border rounded-md bg-background"
+                          className="flex-1 h-8 text-xs"
                         />
                         <Button
                           size="sm"

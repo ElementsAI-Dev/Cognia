@@ -24,6 +24,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { VariableInfo } from '@/types/system/jupyter';
 
 interface VariableInspectorProps {
@@ -90,19 +97,26 @@ export function VariableInspector({
         <div className="flex-1" />
 
         {onRefresh && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={onRefresh}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3 w-3" />
-            )}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={onRefresh}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('refreshVariables')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
 
@@ -122,43 +136,68 @@ export function VariableInspector({
         )}
 
         <ScrollArea className="max-h-[300px]">
-          {filteredVariables.length === 0 ? (
+          {isLoading && variables.length === 0 ? (
+            <div className="px-3 py-2 space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                  <Skeleton className="h-3 w-32" />
+                </div>
+              ))}
+            </div>
+          ) : filteredVariables.length === 0 ? (
             <div className="px-3 py-4 text-center text-sm text-muted-foreground">
               {variables.length === 0 ? t('noVariables') : t('noMatchingVariables')}
             </div>
           ) : (
-            <div className="divide-y">
-              {filteredVariables.map((variable) => (
-                <div
-                  key={variable.name}
-                  className={cn(
-                    'px-3 py-2 hover:bg-muted/50 transition-colors',
-                    onInspect && 'cursor-pointer'
-                  )}
-                  onClick={() => onInspect?.(variable.name)}
-                >
-                  <div className="flex items-center gap-2">
-                    <code className="text-xs font-mono font-medium">
-                      {variable.name}
-                    </code>
-                    <Badge
-                      variant="secondary"
-                      className={cn('text-[10px] px-1.5 py-0', getTypeColor(variable.type))}
-                    >
-                      {variable.type}
-                    </Badge>
-                    {variable.size && (
-                      <span className="text-[10px] text-muted-foreground">
-                        {variable.size}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground font-mono truncate">
-                    {variable.value}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TooltipProvider>
+              <div className="divide-y">
+                {filteredVariables.map((variable) => (
+                  <Tooltip key={variable.name}>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          'px-3 py-2 hover:bg-muted/50 transition-colors',
+                          onInspect && 'cursor-pointer'
+                        )}
+                        onClick={() => onInspect?.(variable.name)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs font-mono font-medium">
+                            {variable.name}
+                          </code>
+                          <Badge
+                            variant="secondary"
+                            className={cn('text-[10px] px-1.5 py-0', getTypeColor(variable.type))}
+                          >
+                            {variable.type}
+                          </Badge>
+                          {variable.size && (
+                            <span className="text-[10px] text-muted-foreground">
+                              {variable.size}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground font-mono truncate">
+                          {variable.value}
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-[300px]">
+                      <div className="space-y-1">
+                        <div className="font-medium">{variable.name}</div>
+                        <div className="text-xs font-mono break-all">
+                          {variable.value}
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </TooltipProvider>
           )}
         </ScrollArea>
       </CollapsibleContent>

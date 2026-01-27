@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +51,8 @@ interface NodeTemplatePanelProps {
 }
 
 export function NodeTemplatePanel({ onAddTemplate, className }: NodeTemplatePanelProps) {
+  const t = useTranslations('workflowEditor');
+  const tCommon = useTranslations('common');
   const [searchQuery, setSearchQuery] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
@@ -89,7 +92,7 @@ export function NodeTemplatePanel({ onAddTemplate, className }: NodeTemplatePane
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search templates..."
+            placeholder={t('searchNodes')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 h-8 text-sm"
@@ -105,7 +108,7 @@ export function NodeTemplatePanel({ onAddTemplate, className }: NodeTemplatePane
               disabled={selectedNodes.length === 0}
             >
               <Plus className="h-4 w-4 mr-1.5" />
-              Create from Selection
+              {t('saveAsTemplate')}
               {selectedNodes.length > 0 && (
                 <Badge variant="secondary" className="ml-1.5 text-[10px]">
                   {selectedNodes.length}
@@ -115,38 +118,38 @@ export function NodeTemplatePanel({ onAddTemplate, className }: NodeTemplatePane
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create Node Template</DialogTitle>
+              <DialogTitle>{t('createTemplate')}</DialogTitle>
               <DialogDescription>
-                Save the selected nodes as a reusable template.
+                {t('templateDescriptionPlaceholder')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="template-name">Name</Label>
+                <Label htmlFor="template-name">{t('templateName')}</Label>
                 <Input
                   id="template-name"
                   value={newTemplateName}
                   onChange={(e) => setNewTemplateName(e.target.value)}
-                  placeholder="My Template"
+                  placeholder={t('templateNamePlaceholder')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="template-description">Description</Label>
+                <Label htmlFor="template-description">{t('templateDescription')}</Label>
                 <Textarea
                   id="template-description"
                   value={newTemplateDescription}
                   onChange={(e) => setNewTemplateDescription(e.target.value)}
-                  placeholder="Optional description..."
+                  placeholder={t('templateDescriptionPlaceholder')}
                   className="resize-none"
                 />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-                Cancel
+                {tCommon('cancel')}
               </Button>
               <Button onClick={handleCreateTemplate} disabled={!newTemplateName.trim()}>
-                Create Template
+                {t('createTemplate')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -160,12 +163,12 @@ export function NodeTemplatePanel({ onAddTemplate, className }: NodeTemplatePane
             <div className="text-center py-8 text-muted-foreground">
               <Bookmark className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">
-                {searchQuery ? 'No templates found' : 'No templates yet'}
+                {searchQuery ? t('noResultsFound') : t('noTemplates')}
               </p>
               <p className="text-xs">
                 {searchQuery
-                  ? 'Try a different search term'
-                  : 'Select nodes and create a template'}
+                  ? t('tryDifferentSearch')
+                  : t('createFirstTemplate')}
               </p>
             </div>
           ) : (
@@ -223,14 +226,13 @@ export function NodeTemplatePanel({ onAddTemplate, className }: NodeTemplatePane
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Template</AlertDialogTitle>
+                        <AlertDialogTitle>{t('deleteTemplate')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete &quot;{template.name}&quot;? This action
-                          cannot be undone.
+                          {t('confirmDeleteTemplate')}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => deleteNodeTemplate(template.id)}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

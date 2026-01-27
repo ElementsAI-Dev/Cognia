@@ -23,6 +23,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { AlertCircle } from 'lucide-react';
 import { JupyterRenderer } from '@/components/artifacts/jupyter-renderer';
 import { KernelStatus } from './kernel-status';
 import { VariableInspector } from './variable-inspector';
@@ -314,19 +322,26 @@ export function InteractiveNotebook({
 
         {/* Connect button */}
         {!activeSession && (
-          <Button
-            size="sm"
-            onClick={handleConnect}
-            disabled={!selectedEnvPath || isCreatingSession}
-            className="h-8"
-          >
-            {isCreatingSession ? (
-              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-            ) : (
-              <Play className="h-3 w-3 mr-1.5" />
-            )}
-            {t('connect')}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  onClick={handleConnect}
+                  disabled={!selectedEnvPath || isCreatingSession}
+                  className="h-8"
+                >
+                  {isCreatingSession ? (
+                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                  ) : (
+                    <Play className="h-3 w-3 mr-1.5" />
+                  )}
+                  {t('connect')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('connectKernel')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
         {/* Kernel status */}
@@ -343,28 +358,36 @@ export function InteractiveNotebook({
 
         {/* Run all button */}
         {activeSession && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRunAll}
-            disabled={isExecuting || isRunningAll}
-            className="h-8"
-          >
-            {isRunningAll ? (
-              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-            ) : (
-              <PlayCircle className="h-3 w-3 mr-1.5" />
-            )}
-            {t('runAll')}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRunAll}
+                  disabled={isExecuting || isRunningAll}
+                  className="h-8"
+                >
+                  {isRunningAll ? (
+                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                  ) : (
+                    <PlayCircle className="h-3 w-3 mr-1.5" />
+                  )}
+                  {t('runAll')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('runAll')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
 
       {/* Error display */}
       {error && (
-        <div className="px-4 py-2 bg-destructive/10 text-destructive text-sm border-b">
-          {error}
-        </div>
+        <Alert variant="destructive" className="mx-4 my-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {/* Main content */}

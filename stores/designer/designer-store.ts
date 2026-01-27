@@ -680,6 +680,9 @@ function elementToHTML(element: DesignerElement, indent: number): string {
 function parseHTMLToElementTree(code: string): DesignerElement | null {
   if (typeof window === 'undefined') return null;
 
+  // Reset ID counter for deterministic IDs matching preview iframe
+  resetElementIdCounter();
+
   // Check if this is React code
   const isReact = code.includes('function') && (code.includes('return') || code.includes('=>'));
 
@@ -835,8 +838,21 @@ function extractStyleString(styleContent: string): string {
   return styles.join('; ');
 }
 
+// Global counter for deterministic ID generation
+let elementIdCounter = 0;
+
+// Reset counter before parsing
+function resetElementIdCounter() {
+  elementIdCounter = 0;
+}
+
+// Generate deterministic element ID matching preview iframe
+function generateElementId(): string {
+  return `el-${elementIdCounter++}`;
+}
+
 function domToDesignerElement(element: HTMLElement, parentId: string | null): DesignerElement {
-  const id = nanoid();
+  const id = generateElementId();
 
   // Extract styles from style attribute
   const styles: Record<string, string> = {};

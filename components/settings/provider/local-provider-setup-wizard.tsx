@@ -8,6 +8,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Download,
   Check,
@@ -39,6 +40,7 @@ export function LocalProviderSetupWizard({
   providerId,
   onComplete,
 }: LocalProviderSetupWizardProps) {
+  const t = useTranslations('providers');
   const [currentStep, setCurrentStep] = useState<SetupStep>('download');
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<{
@@ -51,11 +53,11 @@ export function LocalProviderSetupWizard({
   const instructions = getInstallInstructions(providerId);
 
   const steps: { id: SetupStep; title: string }[] = [
-    { id: 'download', title: 'Download' },
-    { id: 'install', title: 'Install' },
-    { id: 'configure', title: 'Configure' },
-    { id: 'verify', title: 'Verify' },
-    { id: 'complete', title: 'Complete' },
+    { id: 'download', title: t('setupWizard.download') },
+    { id: 'install', title: t('setupWizard.install') },
+    { id: 'configure', title: t('setupWizard.configure') },
+    { id: 'verify', title: t('setupWizard.verifyStep') },
+    { id: 'complete', title: t('setupWizard.complete') },
   ];
 
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
@@ -171,7 +173,7 @@ export function LocalProviderSetupWizard({
               <Download className="h-12 w-12 mx-auto text-primary mb-2" />
               <h3 className="font-semibold text-lg">{instructions.title}</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Download the installer from the official website
+                {t('setupWizard.downloadInstructions')}
               </p>
             </div>
 
@@ -185,14 +187,14 @@ export function LocalProviderSetupWizard({
                 rel="noopener noreferrer"
               >
                 <Download className="h-4 w-4 mr-2" />
-                Download {config.name}
+                {t('setupWizard.downloadProvider', { provider: config.name })}
                 <ExternalLink className="h-3 w-3 ml-2" />
               </a>
             </Button>
 
             <div className="flex justify-end">
               <Button onClick={() => setCurrentStep('install')}>
-                Next
+                {t('next')}
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
@@ -202,7 +204,7 @@ export function LocalProviderSetupWizard({
       case 'install':
         return (
           <div className="space-y-4">
-            <h3 className="font-semibold">Installation Steps</h3>
+            <h3 className="font-semibold">{t('setupWizard.installationSteps')}</h3>
             <ol className="space-y-3">
               {instructions.steps.map((step, index) => (
                 <li key={index} className="flex gap-3 text-sm">
@@ -218,7 +220,7 @@ export function LocalProviderSetupWizard({
             {providerId === 'ollama' && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  After installation, start the server:
+                  {t('setupWizard.afterInstallation')}
                 </p>
                 {renderCommand('ollama serve')}
               </div>
@@ -226,10 +228,10 @@ export function LocalProviderSetupWizard({
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setCurrentStep('download')}>
-                Back
+                {t('back')}
               </Button>
               <Button onClick={() => setCurrentStep('configure')}>
-                Next
+                {t('next')}
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
@@ -239,29 +241,29 @@ export function LocalProviderSetupWizard({
       case 'configure':
         return (
           <div className="space-y-4">
-            <h3 className="font-semibold">Configuration</h3>
+            <h3 className="font-semibold">{t('setupWizard.configurationTitle')}</h3>
             
             <div className="space-y-3">
               <div className="rounded-lg border p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Server URL</span>
+                  <span className="text-sm font-medium">{t('serverUrl')}</span>
                   <Badge variant="secondary" className="font-mono text-xs">
                     {config.defaultBaseURL}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Default port: {config.defaultPort}
+                  {t('setupWizard.defaultPort', { port: config.defaultPort })}
                 </p>
               </div>
 
               {providerId === 'ollama' && (
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    Pull your first model:
+                    {t('setupWizard.pullFirstModel')}
                   </p>
                   {renderCommand('ollama pull llama3.2')}
                   <p className="text-xs text-muted-foreground">
-                    This downloads a 2GB model optimized for chat.
+                    {t('setupWizard.pullModelSize')}
                   </p>
                 </div>
               )}
@@ -279,16 +281,16 @@ export function LocalProviderSetupWizard({
                 rel="noopener noreferrer"
               >
                 <ExternalLink className="h-3 w-3 mr-1" />
-                View Documentation
+                {t('viewDocumentation')}
               </a>
             </Button>
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setCurrentStep('install')}>
-                Back
+                {t('back')}
               </Button>
               <Button onClick={() => setCurrentStep('verify')}>
-                Next
+                {t('next')}
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
@@ -298,9 +300,9 @@ export function LocalProviderSetupWizard({
       case 'verify':
         return (
           <div className="space-y-4">
-            <h3 className="font-semibold">Verify Connection</h3>
+            <h3 className="font-semibold">{t('setupWizard.verifyConnection')}</h3>
             <p className="text-sm text-muted-foreground">
-              Make sure {config.name} is running and click verify to test the connection.
+              {t('setupWizard.verifyConnectionDesc', { provider: config.name })}
             </p>
 
             <Button
@@ -311,12 +313,12 @@ export function LocalProviderSetupWizard({
               {isVerifying ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Verifying...
+                  {t('verifying')}
                 </>
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Verify Connection
+                  {t('setupWizard.verifyConnection')}
                 </>
               )}
             </Button>
@@ -341,13 +343,13 @@ export function LocalProviderSetupWizard({
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setCurrentStep('configure')}>
-                Back
+                {t('back')}
               </Button>
               <Button
                 onClick={() => setCurrentStep('complete')}
                 variant={verificationResult?.success ? 'default' : 'outline'}
               >
-                {verificationResult?.success ? 'Complete Setup' : 'Skip for Now'}
+                {verificationResult?.success ? t('setupWizard.completeSetup') : t('skipForNow')}
               </Button>
             </div>
           </div>
@@ -360,21 +362,21 @@ export function LocalProviderSetupWizard({
               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
             <div>
-              <h3 className="font-semibold text-lg">Setup Complete!</h3>
+              <h3 className="font-semibold text-lg">{t('setupWizard.setupComplete')}</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                {config.name} is ready to use
+                {t('setupWizard.providerReady', { provider: config.name })}
               </p>
             </div>
 
             {verificationResult?.success && (
               <Badge variant="default" className="bg-green-600">
                 <Check className="h-3 w-3 mr-1" />
-                Connected
+                {t('connected')}
               </Badge>
             )}
 
             <Button className="w-full" onClick={onComplete}>
-              Get Started
+              {t('getStarted')}
             </Button>
           </div>
         );

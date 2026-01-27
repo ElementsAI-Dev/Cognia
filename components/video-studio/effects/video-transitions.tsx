@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -234,6 +235,7 @@ export function VideoTransitions({
   onCancel,
   className,
 }: VideoTransitionsProps) {
+  const t = useTranslations('transitions');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   // Get all available transitions (built-in + plugins)
@@ -262,11 +264,11 @@ export function VideoTransitions({
     <div className={cn('flex flex-col gap-4', className)}>
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Transitions</h3>
+        <h3 className="text-lg font-semibold">{t('title')}</h3>
         <div className="flex items-center gap-2">
           {selectedTransitionId && (
             <Button variant="ghost" size="sm" onClick={() => onTransitionSelect(null)}>
-              Clear
+              {t('clear')}
             </Button>
           )}
         </div>
@@ -298,7 +300,7 @@ export function VideoTransitions({
                     <div className="flex items-center gap-1">
                       {isPlugin && (
                         <Badge variant="secondary" className="text-xs">
-                          Plugin
+                          {t('plugin')}
                         </Badge>
                       )}
                       {isSelected && <Check className="h-4 w-4 text-primary" />}
@@ -340,14 +342,14 @@ export function VideoTransitions({
                   <Play className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Preview transition</TooltipContent>
+              <TooltipContent>{t('preview')}</TooltipContent>
             </Tooltip>
           </div>
 
           {/* Duration slider */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Duration</Label>
+              <Label>{t('duration')}</Label>
               <span className="text-sm font-mono">{transitionDuration.toFixed(1)}s</span>
             </div>
             <Slider
@@ -369,7 +371,7 @@ export function VideoTransitions({
             <div className="space-y-2">
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <Info className="h-3 w-3" />
-                <span>Additional settings available</span>
+                <span>{t('additionalSettings')}</span>
               </div>
             </div>
           )}
@@ -379,10 +381,10 @@ export function VideoTransitions({
       {/* Action buttons */}
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          {t('cancel')}
         </Button>
         <Button onClick={onApply} disabled={!selectedTransitionId}>
-          Apply Transition
+          {t('apply')}
         </Button>
       </div>
     </div>

@@ -5,7 +5,7 @@
  * Allows users to view, navigate, and restore previous versions
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   History,
@@ -21,6 +21,10 @@ import {
   Copy,
   Type,
   Palette,
+  Eye,
+  X,
+  Plus,
+  Minus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -86,6 +90,36 @@ function formatTimestamp(date: Date, t: ReturnType<typeof useTranslations>): str
   });
 }
 
+// Simple diff calculation for display
+function calculateDiff(oldCode: string, newCode: string): { added: string[]; removed: string[]; unchanged: number } {
+  const oldLines = oldCode.split('\n');
+  const newLines = newCode.split('\n');
+  
+  const added: string[] = [];
+  const removed: string[] = [];
+  let unchanged = 0;
+  
+  // Simple line-by-line comparison
+  const maxLines = Math.max(oldLines.length, newLines.length);
+  for (let i = 0; i < maxLines; i++) {
+    const oldLine = oldLines[i];
+    const newLine = newLines[i];
+    
+    if (oldLine === newLine) {
+      unchanged++;
+    } else {
+      if (oldLine && !newLines.includes(oldLine)) {
+        removed.push(oldLine.trim().slice(0, 50));
+      }
+      if (newLine && !oldLines.includes(newLine)) {
+        added.push(newLine.trim().slice(0, 50));
+      }
+    }
+  }
+  
+  return { added: added.slice(0, 5), removed: removed.slice(0, 5), unchanged };
+}
+
 export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
   const t = useTranslations('versionHistoryPanel');
   const history = useDesignerStore((state) => state.history);
@@ -93,6 +127,9 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
   const undo = useDesignerStore((state) => state.undo);
   const redo = useDesignerStore((state) => state.redo);
   const setCode = useDesignerStore((state) => state.setCode);
+  
+  // Diff view state
+  const [selectedDiffEntry, setSelectedDiffEntry] = useState<DesignerHistoryEntry | null>(null);
 
   const canUndo = historyIndex >= 0;
   const canRedo = historyIndex < history.length - 1;
@@ -201,56 +238,103 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
               const isPast = originalIndex < historyIndex;
               const isFuture = originalIndex > historyIndex;
 
-              return (
-                <button
-                  key={entry.id}
-                  onClick={() => restoreVersion(entry, originalIndex)}
-                  className={cn(
-                    'w-full text-left rounded-md px-2 py-1.5 transition-colors group',
-                    isCurrent && 'bg-primary/10 border border-primary/30',
-                    isPast && 'opacity-60 hover:opacity-100 hover:bg-muted',
-                    isFuture && 'opacity-40 hover:opacity-100 hover:bg-muted/50',
-                    !isCurrent && 'hover:bg-muted'
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        'shrink-0',
-                        isCurrent ? 'text-primary' : 'text-muted-foreground'
-                      )}
-                    >
-                      {getActionIcon(entry.action)}
-                    </div>
+              const isSelected = selectedDiffEntry?.id === entry.id;
+              const diff = isSelected ? calculateDiff(entry.previousCode, entry.newCode) : null;
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-medium truncate">
-                          {entry.action}
-                        </span>
-                        {isCurrent && (
-                          <span className="text-[10px] bg-primary/20 text-primary px-1 rounded">
-                            {t('current')}
+              return (
+                <div key={entry.id} className="space-y-1">
+                  <button
+                    onClick={() => restoreVersion(entry, originalIndex)}
+                    className={cn(
+                      'w-full text-left rounded-md px-2 py-1.5 transition-colors group',
+                      isCurrent && 'bg-primary/10 border border-primary/30',
+                      isPast && 'opacity-60 hover:opacity-100 hover:bg-muted',
+                      isFuture && 'opacity-40 hover:opacity-100 hover:bg-muted/50',
+                      !isCurrent && 'hover:bg-muted'
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          'shrink-0',
+                          isCurrent ? 'text-primary' : 'text-muted-foreground'
+                        )}
+                      >
+                        {getActionIcon(entry.action)}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-medium truncate">
+                            {entry.action}
                           </span>
+                          {isCurrent && (
+                            <span className="text-[10px] bg-primary/20 text-primary px-1 rounded">
+                              {t('current')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-muted-foreground">
+                            {formatTimestamp(new Date(entry.timestamp), t)}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {getDiffSummary(entry)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-1">
+                        {/* Diff toggle button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDiffEntry(isSelected ? null : entry);
+                          }}
+                        >
+                          {isSelected ? <X className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        </Button>
+                        {!isCurrent && (
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <RotateCcw className="h-3 w-3 text-muted-foreground" />
+                          </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-muted-foreground">
-                          {formatTimestamp(new Date(entry.timestamp), t)}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {getDiffSummary(entry)}
-                        </span>
-                      </div>
                     </div>
-
-                    {!isCurrent && (
-                      <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                </button>
+                  </button>
+                  
+                  {/* Diff view */}
+                  {isSelected && diff && (
+                    <div className="ml-6 p-2 rounded-md bg-muted/50 text-[10px] font-mono space-y-1">
+                      {diff.removed.length > 0 && (
+                        <div className="space-y-0.5">
+                          {diff.removed.map((line, i) => (
+                            <div key={`r-${i}`} className="flex items-center gap-1 text-red-500">
+                              <Minus className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{line || '(empty line)'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {diff.added.length > 0 && (
+                        <div className="space-y-0.5">
+                          {diff.added.map((line, i) => (
+                            <div key={`a-${i}`} className="flex items-center gap-1 text-green-500">
+                              <Plus className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{line || '(empty line)'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {diff.removed.length === 0 && diff.added.length === 0 && (
+                        <div className="text-muted-foreground">No visible changes</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

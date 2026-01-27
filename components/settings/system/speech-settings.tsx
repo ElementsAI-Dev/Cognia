@@ -203,7 +203,7 @@ export function SpeechSettings() {
                 <SelectItem value="openai" disabled={!hasOpenAIKey}>
                   <span className="flex items-center gap-2">
                     <span>🤖</span>
-                    <span>OpenAI Whisper</span>
+                    <span>{t('providers.openaiWhisper')}</span>
                     {!hasOpenAIKey && (
                       <Badge variant="outline" className="text-[10px] ml-1">
                         {t('needsApiKey')}
@@ -322,7 +322,7 @@ export function SpeechSettings() {
                 <SelectItem value="openai" disabled={!hasOpenAIKey}>
                   <span className="flex items-center gap-2">
                     <span>🤖</span>
-                    <span>OpenAI TTS</span>
+                    <span>{t('providers.openaiTts')}</span>
                     {!hasOpenAIKey && (
                       <Badge variant="outline" className="text-[10px] ml-1">
                         {t('needsApiKey')}
@@ -333,7 +333,7 @@ export function SpeechSettings() {
                 <SelectItem value="gemini" disabled={!hasGoogleKey}>
                   <span className="flex items-center gap-2">
                     <span>✨</span>
-                    <span>Gemini TTS</span>
+                    <span>{t('providers.geminiTts')}</span>
                     {!hasGoogleKey && (
                       <Badge variant="outline" className="text-[10px] ml-1">
                         {t('needsApiKey')}
@@ -344,7 +344,7 @@ export function SpeechSettings() {
                 <SelectItem value="edge">
                   <span className="flex items-center gap-2">
                     <span>🔊</span>
-                    <span>Edge TTS ({t('free')})</span>
+                    <span>{t('providers.edgeTts')} ({t('free')})</span>
                   </span>
                 </SelectItem>
               </SelectContent>
@@ -438,8 +438,8 @@ export function SpeechSettings() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="tts-1">TTS-1 ({t('standard')})</SelectItem>
-                    <SelectItem value="tts-1-hd">TTS-1 HD ({t('highQuality')})</SelectItem>
+                    <SelectItem value="tts-1">{t('models.tts1')} ({t('standard')})</SelectItem>
+                    <SelectItem value="tts-1-hd">{t('models.tts1Hd')} ({t('highQuality')})</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

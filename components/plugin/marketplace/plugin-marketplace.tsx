@@ -187,18 +187,37 @@ export function PluginMarketplace({
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* Hero Section with Stats */}
-      <div className="p-4 sm:p-6 border-b bg-gradient-to-br from-primary/5 via-background to-background">
-        <div className="space-y-4 sm:space-y-6">
+      <div className="p-4 sm:p-6 border-b bg-muted/30">
+        <div className="space-y-4">
           {/* Stats Bar */}
           <MarketplaceStatsBar />
           
-          {/* Featured Section */}
+          {/* Featured Section - Horizontal scroll on mobile */}
           <div>
-            <div className="flex items-center gap-2 mb-3 sm:mb-4">
-              <Award className="h-5 w-5 text-primary" />
-              <h2 className="text-base sm:text-lg font-semibold">{t('featured.title')}</h2>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-primary" />
+                <h2 className="text-base sm:text-lg font-semibold">{t('featured.title')}</h2>
+              </div>
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {featuredPlugins.length} featured
+              </span>
             </div>
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+            <ScrollArea className="w-full lg:hidden">
+              <div className="flex gap-3 pb-2">
+                {featuredPlugins.slice(0, 4).map((plugin) => (
+                  <div key={plugin.id} className="w-[280px] shrink-0">
+                    <FeaturedPluginCard
+                      plugin={plugin}
+                      onInstall={onInstall}
+                      onViewDetails={onViewDetails}
+                    />
+                  </div>
+                ))}
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+            <div className="hidden lg:grid gap-4 grid-cols-2 xl:grid-cols-3">
               {featuredPlugins.slice(0, 3).map((plugin) => (
                 <FeaturedPluginCard
                   key={plugin.id}
@@ -221,7 +240,7 @@ export function PluginMarketplace({
           </div>
           <Button variant="ghost" size="sm" className="text-xs">
             View All
-            <ChevronRight className="h-4 w-4 ml-1" />
+            <ChevronRight className="h-3.5 w-3.5 ml-1" />
           </Button>
         </div>
         <ScrollArea className="w-full">
@@ -243,7 +262,7 @@ export function PluginMarketplace({
           </div>
           <Button variant="ghost" size="sm" className="text-xs">
             {t('trending.viewAll')}
-            <ChevronRight className="h-4 w-4 ml-1" />
+            <ChevronRight className="h-3.5 w-3.5 ml-1" />
           </Button>
         </div>
         <ScrollArea className="w-full">
@@ -263,7 +282,7 @@ export function PluginMarketplace({
       {/* Browse All Section */}
       <div className="flex-1 flex flex-col min-h-0">
         {/* Quick Filters */}
-        <div className="flex items-center gap-2 px-4 sm:px-6 py-3 border-b overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-3 border-b overflow-x-auto scrollbar-hide">
           {QUICK_FILTERS.map((filter) => {
             const Icon = filter.icon;
             const isActive = quickFilter === filter.id;
@@ -274,7 +293,7 @@ export function PluginMarketplace({
                 size="sm"
                 className={cn(
                   'h-8 text-xs gap-1.5 shrink-0 transition-all',
-                  isActive && 'shadow-md'
+                  isActive && 'shadow-sm'
                 )}
                 onClick={() => setQuickFilter(filter.id)}
               >
@@ -462,32 +481,42 @@ export function PluginMarketplace({
           </Collapsible>
         </div>
 
-        {/* Results */}
-        <ScrollArea className="flex-1 p-4 sm:px-6">
+        {/* Results - Enhanced grid with better spacing */}
+        <ScrollArea className="flex-1 p-4 sm:p-6">
           {isLoading ? (
             <MarketplaceLoadingSkeleton viewMode={viewMode} />
           ) : filteredPlugins.length === 0 ? (
             <MarketplaceEmptyState searchQuery={searchQuery} onClear={clearFilters} />
           ) : viewMode === 'grid' ? (
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredPlugins.map((plugin) => (
-                <PluginGridCard
+            <div className="grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {filteredPlugins.map((plugin, index) => (
+                <div 
                   key={plugin.id}
-                  plugin={plugin}
-                  onInstall={onInstall}
-                  onViewDetails={onViewDetails}
-                />
+                  className="animate-in fade-in-0 slide-in-from-bottom-2"
+                  style={{ animationDelay: `${index * 30}ms`, animationFillMode: 'backwards' }}
+                >
+                  <PluginGridCard
+                    plugin={plugin}
+                    onInstall={onInstall}
+                    onViewDetails={onViewDetails}
+                  />
+                </div>
               ))}
             </div>
           ) : (
-            <div className="space-y-2 sm:space-y-3">
-              {filteredPlugins.map((plugin) => (
-                <PluginListItem
+            <div className="space-y-3">
+              {filteredPlugins.map((plugin, index) => (
+                <div 
                   key={plugin.id}
-                  plugin={plugin}
-                  onInstall={onInstall}
-                  onViewDetails={onViewDetails}
-                />
+                  className="animate-in fade-in-0 slide-in-from-left-2"
+                  style={{ animationDelay: `${index * 20}ms`, animationFillMode: 'backwards' }}
+                >
+                  <PluginListItem
+                    plugin={plugin}
+                    onInstall={onInstall}
+                    onViewDetails={onViewDetails}
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -495,10 +524,15 @@ export function PluginMarketplace({
 
         {/* Results count */}
         <div className="px-4 sm:px-6 py-2 border-t text-xs text-muted-foreground flex items-center justify-between">
-          <span>{t('results.count', { count: filteredPlugins.length })}</span>
+          <span className="font-medium">{t('results.count', { count: filteredPlugins.length })}</span>
           {hasActiveFilters && (
-            <Button variant="link" size="sm" className="h-auto p-0 text-xs hidden sm:inline-flex" onClick={clearFilters}>
-              Clear all filters
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 px-2 text-xs hover:bg-background" 
+              onClick={clearFilters}
+            >
+              Clear filters
             </Button>
           )}
         </div>

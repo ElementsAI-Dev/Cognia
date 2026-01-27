@@ -23,27 +23,27 @@ const STATUS_CONFIG = {
   loading: {
     icon: <Loader2 className="h-6 w-6 animate-spin" />,
     color: 'text-muted-foreground',
-    label: 'Loading...',
+    labelKey: 'loading',
   },
   compiling: {
     icon: <Code2 className="h-6 w-6 animate-pulse" />,
     color: 'text-blue-500',
-    label: 'Compiling code...',
+    labelKey: 'compilingCode',
   },
   rendering: {
     icon: <Loader2 className="h-6 w-6 animate-spin" />,
     color: 'text-primary',
-    label: 'Rendering preview...',
+    labelKey: 'renderingPreview',
   },
   done: {
     icon: <CheckCircle2 className="h-6 w-6" />,
     color: 'text-green-500',
-    label: 'Ready',
+    labelKey: 'ready',
   },
   error: {
     icon: <AlertCircle className="h-6 w-6" />,
     color: 'text-destructive',
-    label: 'Error',
+    labelKey: 'error',
   },
 };
 
@@ -71,7 +71,7 @@ export function PreviewLoading({
 
       {/* Status label */}
       <p className="text-sm font-medium">
-        {message || t(config.label) || config.label}
+        {message || t(config.labelKey)}
       </p>
 
       {/* Progress bar */}

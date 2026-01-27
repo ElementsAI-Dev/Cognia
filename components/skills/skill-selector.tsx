@@ -16,6 +16,11 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import {
   InputGroup,
@@ -267,35 +272,42 @@ export function SkillSelector({
                   const isActive = activeSkillIds.includes(skill.id);
                   const disabled = !isActive && activeSkillIds.length >= maxSkills;
                   return (
-                    <button
-                      key={skill.id}
-                      className={cn(
-                        "w-full flex items-center gap-2 p-2 rounded-lg text-left transition-colors",
-                        isActive 
-                          ? "bg-primary/10 border border-primary/30" 
-                          : "hover:bg-muted",
-                        disabled && "opacity-50 cursor-not-allowed"
-                      )}
-                      onClick={() => !disabled && handleToggleSkill(skill)}
-                      disabled={disabled}
-                    >
-                      <div className={cn(
-                        "flex h-5 w-5 items-center justify-center rounded-sm border",
-                        isActive
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : "border-muted-foreground/30"
-                      )}>
-                        {isActive && <Check className="h-3 w-3" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">
-                          {skill.metadata.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {skill.metadata.description}
-                        </div>
-                      </div>
-                    </button>
+                    <Tooltip key={skill.id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          className={cn(
+                            "w-full flex items-center gap-2 p-2 rounded-lg text-left transition-colors",
+                            isActive 
+                              ? "bg-primary/10 border border-primary/30" 
+                              : "hover:bg-muted",
+                            disabled && "opacity-50 cursor-not-allowed"
+                          )}
+                          onClick={() => !disabled && handleToggleSkill(skill)}
+                          disabled={disabled}
+                        >
+                          <div className={cn(
+                            "flex h-5 w-5 items-center justify-center rounded-sm border",
+                            isActive
+                              ? "bg-primary border-primary text-primary-foreground"
+                              : "border-muted-foreground/30"
+                          )}>
+                            {isActive && <Check className="h-3 w-3" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm truncate">
+                              {skill.metadata.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {skill.metadata.description}
+                            </div>
+                          </div>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <p className="font-medium">{skill.metadata.name}</p>
+                        <p className="text-xs text-muted-foreground">{skill.metadata.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   );
                 })}
               </div>

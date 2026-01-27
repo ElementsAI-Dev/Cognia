@@ -1,0 +1,41 @@
+{
+  "traySettings": {
+    "title": "System Tray Settings",
+    "notAvailable": "This feature is only available in the desktop app",
+    "downloadHint": "Please download the desktop app to use system tray features",
+    "displayMode": "Display Mode",
+    "displayModeDesc": "Choose the display mode for the system tray menu",
+    "currentMode": "Current Mode",
+    "fullModeDesc": "Full Mode - Show all features",
+    "compactModeDesc": "Compact Mode - Show core features only",
+    "full": "Full",
+    "compact": "Compact",
+    "switchMode": "Switch Mode",
+    "fullMode": "Full Mode",
+    "showAllItems": "Show all menu items",
+    "compactMode": "Compact Mode",
+    "coreOnly": "Core features only",
+    "displayOptions": "Display Options",
+    "showIcons": "Show Icons",
+    "showIconsDesc": "Show emoji icons before menu items",
+    "showShortcuts": "Show Shortcuts",
+    "showShortcutsDesc": "Show keyboard shortcuts after menu items",
+    "menuConfig": "Menu Configuration",
+    "menuConfigDesc": "Customize menu item visibility and order (checkbox indicates compact mode visibility)",
+    "resetCompact": "Reset Compact",
+    "resetAll": "Reset All",
+    "compactPreview": "Compact Mode Preview",
+    "compactPreviewDesc": "The following {count} items will be shown in compact mode",
+    "syncing": "Syncing...",
+    "applyChanges": "Apply Changes",
+    "submenu": "Submenu",
+    "showInCompact": "Show in compact mode",
+    "categories": {
+      "window": "Window Controls",
+      "tools": "Tools",
+      "settings": "Settings",
+      "help": "Help",
+      "exit": "Exit"
+    }
+  }
+}

@@ -40,11 +40,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 
 import { PluginList } from '../core/plugin-list';
 import { PluginEmptyState } from '../core/plugin-empty-state';
@@ -300,114 +298,164 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         onValueChange={setActiveTab}
         className={cn('space-y-4', className)}
       >
-        {/* Tab Navigation - Consistent with MCP settings */}
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto gap-1 p-1">
-          <TabsTrigger value="my-plugins" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
-            <Puzzle className="h-3.5 w-3.5" />
-            <span className="hidden xs:inline">{t('tabs.myPlugins')}</span>
-            <span className="xs:hidden">插件</span>
-            {plugins.length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px] hidden sm:flex">
-                {plugins.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="marketplace" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
-            <Store className="h-3.5 w-3.5" />
-            <span className="hidden xs:inline">{t('tabs.marketplace')}</span>
-            <span className="xs:hidden">市场</span>
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
-            <Activity className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('tabs.analytics')}</span>
-            <span className="sm:hidden">分析</span>
-          </TabsTrigger>
-          <TabsTrigger value="develop" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
-            <Code2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('tabs.develop')}</span>
-            <span className="sm:hidden">开发</span>
-          </TabsTrigger>
-          <TabsTrigger value="health" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
-            <Heart className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('tabs.health')}</span>
-            <span className="sm:hidden">健康</span>
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
-            <Settings2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t('tabs.settings')}</span>
-            <span className="sm:hidden">设置</span>
-          </TabsTrigger>
-        </TabsList>
+        {/* Tab Navigation - Horizontal scroll on mobile */}
+        <div className="relative">
+          <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 p-1.5 bg-muted/50 border rounded-xl">
+            <TabsTrigger 
+              value="my-plugins" 
+              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:shadow-primary/10 transition-all duration-200"
+            >
+              <Puzzle className="h-4 w-4" />
+              <span className="hidden xs:inline">{t('tabs.myPlugins')}</span>
+              <span className="xs:hidden">插件</span>
+              {plugins.length > 0 && (
+                <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] font-medium bg-primary/10 text-primary border-0">
+                  {plugins.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger 
+              value="marketplace" 
+              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Store className="h-4 w-4" />
+              <span className="hidden xs:inline">{t('tabs.marketplace')}</span>
+              <span className="xs:hidden">市场</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="analytics" 
+              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Activity className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('tabs.analytics')}</span>
+              <span className="sm:hidden">分析</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="develop" 
+              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Code2 className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('tabs.develop')}</span>
+              <span className="sm:hidden">开发</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="health" 
+              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Heart className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('tabs.health')}</span>
+              <span className="sm:hidden">健康</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="settings" 
+              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Settings2 className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('tabs.settings')}</span>
+              <span className="sm:hidden">设置</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* My Plugins Tab */}
-        <TabsContent value="my-plugins" className="space-y-4 mt-0">
-          {/* Header Alert - Consistent with MCP settings */}
-          <Alert className="bg-muted/30">
-            <Puzzle className="h-4 w-4" />
-            <AlertTitle className="text-sm">{t('title')}</AlertTitle>
-            <AlertDescription className="text-xs">
-              {t('description')}
-              {plugins.length > 0 && (
-                <span className="ml-1">
-                  {t('enabledCount', { count: enabledPlugins.length })} / {plugins.length}
-                </span>
-              )}
-            </AlertDescription>
-          </Alert>
-
-          {/* Quick Stats Bar */}
-          {plugins.length > 0 && (
-            <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-                <span className="font-medium text-foreground">{healthScore}%</span>
-                <span className="hidden sm:inline">Health</span>
-              </div>
-              <Separator orientation="vertical" className="h-4" />
-              <div className="flex items-center gap-1.5">
-                <Zap className="h-3.5 w-3.5" />
-                <span className="font-medium text-foreground">{totalTools}</span>
-                <span className="hidden sm:inline">Tools</span>
-              </div>
-              {errorPlugins.length > 0 && (
-                <>
-                  <Separator orientation="vertical" className="h-4" />
-                  <div className="flex items-center gap-1.5 text-destructive">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    <span className="font-medium">{errorPlugins.length}</span>
-                    <span className="hidden sm:inline">Errors</span>
+        <TabsContent value="my-plugins" className="space-y-5 mt-0">
+          {/* Hero Section with Stats */}
+          <div className="rounded-xl border bg-muted/30 p-4 sm:p-6">
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20">
+                      <Puzzle className="h-5 w-5 text-primary" />
+                    </div>
+                    <h2 className="text-lg sm:text-xl font-semibold tracking-tight">{t('title')}</h2>
                   </div>
-                </>
-              )}
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    {t('description')}
+                  </p>
+                </div>
+                
+                {/* Stats Cards */}
+                {plugins.length > 0 && (
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    {/* Health Score */}
+                    <div className="flex flex-col items-center px-3 sm:px-4 py-2 rounded-lg bg-background border min-w-[70px]">
+                      <div className="flex items-center gap-1.5">
+                        <div className={cn(
+                          "h-2 w-2 rounded-full",
+                          healthScore >= 80 ? "bg-emerald-500" : healthScore >= 50 ? "bg-amber-500" : "bg-red-500"
+                        )} />
+                        <span className="text-lg sm:text-xl font-bold tabular-nums">{healthScore}%</span>
+                      </div>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">Health</span>
+                    </div>
+                    
+                    {/* Enabled Count */}
+                    <div className="flex flex-col items-center px-3 sm:px-4 py-2 rounded-lg bg-background border min-w-[70px]">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                        <span className="text-lg sm:text-xl font-bold tabular-nums">{enabledPlugins.length}</span>
+                      </div>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">Enabled</span>
+                    </div>
+                    
+                    {/* Tools Count */}
+                    <div className="flex flex-col items-center px-3 sm:px-4 py-2 rounded-lg bg-background border min-w-[70px]">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="h-3.5 w-3.5 text-amber-500" />
+                        <span className="text-lg sm:text-xl font-bold tabular-nums">{totalTools}</span>
+                      </div>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">Tools</span>
+                    </div>
+                    
+                    {/* Error Count - Only show if errors exist */}
+                    {errorPlugins.length > 0 && (
+                      <div className="flex flex-col items-center px-3 sm:px-4 py-2 rounded-lg bg-destructive/10 border border-destructive/30 min-w-[70px]">
+                        <div className="flex items-center gap-1.5">
+                          <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                          <span className="text-lg sm:text-xl font-bold tabular-nums text-destructive">{errorPlugins.length}</span>
+                        </div>
+                        <span className="text-[10px] sm:text-xs text-destructive/80">Errors</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
 
-          {/* Actions Bar */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex gap-2 flex-wrap">
-              <Button size="sm" onClick={() => setIsCreateWizardOpen(true)}>
+          {/* Actions Bar - Enhanced with better grouping */}
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            {/* Primary Actions */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button 
+                size="sm" 
+                onClick={() => setIsCreateWizardOpen(true)}
+                className="h-9 px-4"
+              >
                 <Plus className="h-4 w-4 mr-1.5" />
                 {t('createPlugin')}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="h-9 px-3">
                     <Download className="h-4 w-4 mr-1.5" />
-                    {t('import')}
+                    <span className="hidden sm:inline">{t('import')}</span>
+                    <span className="sm:hidden">Import</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem>
-                    <FolderOpen className="h-4 w-4 mr-2" />
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuItem className="gap-2">
+                    <FolderOpen className="h-4 w-4" />
                     {t('fromFolder')}
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Upload className="h-4 w-4 mr-2" />
+                  <DropdownMenuItem className="gap-2">
+                    <Upload className="h-4 w-4" />
                     {t('fromZip')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleInstallFromGitUrl}>
-                    <GitBranch className="h-4 w-4 mr-2" />
+                  <DropdownMenuItem onClick={handleInstallFromGitUrl} className="gap-2">
+                    <GitBranch className="h-4 w-4" />
                     {t('fromGitUrl')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -417,7 +465,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-9 w-9 hover:bg-primary/10"
                     onClick={handleRefresh}
                     disabled={isRefreshing}
                   >
@@ -428,10 +476,11 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
               </Tooltip>
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Filters and View Controls */}
+            <div className="flex items-center gap-2 flex-wrap">
               {/* Filter Bar */}
               <PluginFilterBar
-                className="flex-1 sm:flex-initial"
+                className="flex-1 lg:flex-initial"
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 statusFilter={filterBy}
@@ -444,37 +493,46 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 activeCount={filteredPlugins.length}
               />
 
-              {/* View Mode Toggle */}
-              <div className="flex items-center border rounded-md h-8 bg-background">
+              {/* View Mode Toggle - Enhanced */}
+              <div className="flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5">
                 <Button
                   variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                   size="sm"
-                  className="rounded-r-none h-7 w-7 p-0"
+                  className={cn(
+                    "h-8 w-8 p-0 rounded-md transition-all duration-200",
+                    viewMode === 'grid' && "bg-background shadow-sm"
+                  )}
                   onClick={() => setViewMode('grid')}
                 >
-                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <LayoutGrid className="h-4 w-4" />
                 </Button>
                 <Button
                   variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                   size="sm"
-                  className="rounded-l-none h-7 w-7 p-0"
+                  className={cn(
+                    "h-8 w-8 p-0 rounded-md transition-all duration-200",
+                    viewMode === 'list' && "bg-background shadow-sm"
+                  )}
                   onClick={() => setViewMode('list')}
                 >
-                  <List className="h-3.5 w-3.5" />
+                  <List className="h-4 w-4" />
                 </Button>
               </div>
 
-              {/* Selection Mode */}
+              {/* Selection Mode Toggle */}
               <Button
-                variant={isSelectionMode ? 'secondary' : 'outline'}
+                variant={isSelectionMode ? 'default' : 'outline'}
                 size="sm"
-                className="h-8 gap-1.5"
+                className={cn(
+                  "h-9 gap-1.5 transition-all duration-200",
+                  isSelectionMode && "bg-primary/90 hover:bg-primary"
+                )}
                 onClick={() => {
                   setIsSelectionMode(!isSelectionMode);
                   if (isSelectionMode) setSelectedPlugins(new Set());
                 }}
               >
-                <CheckCircle className={cn('h-3.5 w-3.5', isSelectionMode && 'text-primary')} />
+                <CheckCircle className="h-4 w-4" />
                 <span className="hidden sm:inline">
                   {isSelectionMode ? t('filters.exitSelect') : t('filters.select')}
                 </span>

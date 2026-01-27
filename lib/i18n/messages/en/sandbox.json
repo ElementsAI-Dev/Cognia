@@ -26,7 +26,17 @@
       "timeout": "Timeout",
       "empty": "No execution history yet",
       "clearConfirmTitle": "Clear Execution History",
-      "clearConfirmDescription": "Are you sure you want to clear all execution history? This action cannot be undone."
+      "clearConfirmDescription": "Are you sure you want to clear all execution history? This action cannot be undone.",
+      "exportTooltip": "Export history as JSON",
+      "copyCode": "Copy code",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {page}",
+      "refresh": "Refresh",
+      "clearHistory": "Clear history",
+      "favorite": "Toggle favorite",
+      "loadCode": "Load code",
+      "deleteExecution": "Delete execution"
     },
     "snippets": {
       "title": "Code Snippets",
@@ -48,7 +58,14 @@
       "tags": "Tags",
       "tagsPlaceholder": "Enter tags separated by commas",
       "template": "Template",
-      "empty": "No snippets yet"
+      "empty": "No snippets yet",
+      "run": "Run snippet",
+      "editSnippet": "Edit snippet",
+      "deleteSnippet": "Delete snippet",
+      "deleteConfirmTitle": "Delete Snippet",
+      "deleteConfirmDescription": "Are you sure you want to delete this snippet? This action cannot be undone.",
+      "markAsTemplate": "Mark as template",
+      "refresh": "Refresh snippets"
     }
   },
   "sandboxPanel": {

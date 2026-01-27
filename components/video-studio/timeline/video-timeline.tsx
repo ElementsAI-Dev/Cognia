@@ -12,6 +12,7 @@
  */
 
 import { useRef, useCallback, useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -113,6 +114,7 @@ export function VideoTimeline({
   onSnapToggle,
   className,
 }: VideoTimelineProps) {
+  const t = useTranslations('timeline');
   const timelineRef = useRef<HTMLDivElement>(null);
   const rulerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -344,7 +346,7 @@ export function VideoTimeline({
                 <SkipBack className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Go to start</TooltipContent>
+            <TooltipContent>{t('goToStart')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -358,7 +360,7 @@ export function VideoTimeline({
                 {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{isPlaying ? 'Pause' : 'Play'}</TooltipContent>
+            <TooltipContent>{isPlaying ? t('pause') : t('play')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -367,7 +369,7 @@ export function VideoTimeline({
                 <SkipForward className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Go to end</TooltipContent>
+            <TooltipContent>{t('goToEnd')}</TooltipContent>
           </Tooltip>
 
           <Separator orientation="vertical" className="h-6 mx-2" />
@@ -392,7 +394,7 @@ export function VideoTimeline({
                 <Scissors className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Split at playhead</TooltipContent>
+            <TooltipContent>{t('splitAtPlayhead')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -407,7 +409,7 @@ export function VideoTimeline({
                 <Copy className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Duplicate</TooltipContent>
+            <TooltipContent>{t('duplicate')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -422,7 +424,7 @@ export function VideoTimeline({
                 <Trash2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Delete</TooltipContent>
+            <TooltipContent>{t('delete')}</TooltipContent>
           </Tooltip>
 
           <Separator orientation="vertical" className="h-6 mx-2" />
@@ -439,7 +441,7 @@ export function VideoTimeline({
                 <Magnet className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Snap {snapEnabled ? 'On' : 'Off'}</TooltipContent>
+            <TooltipContent>{snapEnabled ? t('snapOn') : t('snapOff')}</TooltipContent>
           </Tooltip>
 
           {/* Zoom controls */}
@@ -454,7 +456,7 @@ export function VideoTimeline({
                 <ZoomOut className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoom out</TooltipContent>
+            <TooltipContent>{t('zoomOut')}</TooltipContent>
           </Tooltip>
 
           <span className="text-xs text-muted-foreground w-12 text-center">
@@ -472,7 +474,7 @@ export function VideoTimeline({
                 <ZoomIn className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoom in</TooltipContent>
+            <TooltipContent>{t('zoomIn')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -486,7 +488,7 @@ export function VideoTimeline({
                 <Maximize2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Fit to view</TooltipContent>
+            <TooltipContent>{t('fitToView')}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -501,7 +503,7 @@ export function VideoTimeline({
               className="flex items-center justify-between px-2 border-b bg-muted/50"
               style={{ height: RULER_HEIGHT }}
             >
-              <span className="text-xs font-medium">Tracks</span>
+              <span className="text-xs font-medium">{t('tracks')}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -528,7 +530,7 @@ export function VideoTimeline({
                 <div className="flex-1 min-w-0">
                   <span className="text-xs font-medium truncate block">{track.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    {track.clips.length} clip{track.clips.length !== 1 ? 's' : ''}
+                    {track.clips.length} {track.clips.length !== 1 ? t('clips') : t('clip')}
                   </span>
                 </div>
 

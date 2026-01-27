@@ -103,6 +103,23 @@
     "export": "导出",
     "wordWrap": "自动换行",
     "minimap": "小地图",
-    "lineNumbers": "行号"
+    "lineNumbers": "行号",
+    "errorTitle": "出错了",
+    "errorDescription": "渲染画布时发生错误。",
+    "tryAgain": "重试",
+    "copyError": "复制错误",
+    "showDetails": "显示详情",
+    "hideDetails": "隐藏详情",
+    "copy": "复制",
+    "translate": "翻译",
+    "from": "从",
+    "to": "到",
+    "compare": "对比",
+    "cancelCompare": "取消",
+    "compareInstructions": "选择两个版本进行对比",
+    "viewDiff": "查看差异",
+    "selected": "已选中",
+    "versionComparison": "版本对比",
+    "copyDiff": "复制差异"
   }
 }

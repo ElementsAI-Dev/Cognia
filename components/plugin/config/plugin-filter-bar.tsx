@@ -74,18 +74,19 @@ export function PluginFilterBar({
   return (
     <div
       className={cn(
-        'flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-2 p-1',
+        'flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-2',
         className
       )}
     >
-      <div className="relative flex-1 w-full sm:max-w-md">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Search Input - Enhanced with focus ring */}
+      <div className="relative flex-1 w-full sm:max-w-xs lg:max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <Input
-          placeholder={t('searchPlaceholder') || 'Search plugins by name or ID...'}
+          placeholder={t('searchPlaceholder') || 'Search plugins...'}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className={cn(
-            'pl-9 h-9 transition-colors',
+            'pl-9 pr-9 h-10 rounded-lg transition-colors',
             isBackgroundActive ? TRANSPARENCY_CONFIG.interactive : 'bg-background'
           )}
         />
@@ -93,7 +94,7 @@ export function PluginFilterBar({
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-0.5 top-1/2 -translate-y-1/2 h-8 w-8 hover:bg-transparent"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 hover:bg-muted rounded-md"
             onClick={() => onSearchChange('')}
           >
             <X className="h-4 w-4 text-muted-foreground" />
@@ -101,25 +102,27 @@ export function PluginFilterBar({
         )}
       </div>
 
-      <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 scrollbar-hide mask-fade-right">
-        {/* Status Filter */}
+      {/* Filter Buttons - Scrollable on mobile */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
+        {/* Status Filter - Enhanced */}
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               size="sm"
               className={cn(
-                'h-9 border-dashed transition-colors',
-                statusFilter !== 'all' && 'bg-accent/50 border-solid',
+                'h-10 px-3 border-border/60 rounded-lg transition-all duration-200 shrink-0',
+                statusFilter !== 'all' && 'bg-primary/10 border-primary/30 text-primary',
                 isBackgroundActive && TRANSPARENCY_CONFIG.interactive
               )}
             >
               <Filter className="mr-2 h-4 w-4" />
-              {statusFilter === 'all' ? 'Status' : getStatusLabel(statusFilter)}
-              {statusFilter !== 'all' && <div className="ml-1 rounded-sm bg-primary w-1.5 h-1.5" />}
+              <span className="hidden sm:inline">{statusFilter === 'all' ? 'Status' : getStatusLabel(statusFilter)}</span>
+              <span className="sm:hidden">{statusFilter === 'all' ? 'Status' : statusFilter.charAt(0).toUpperCase()}</span>
+              {statusFilter !== 'all' && <div className="ml-1.5 rounded-full bg-primary w-2 h-2" />}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-0" align="start">
+          <PopoverContent className="w-[180px] p-1" align="start">
             <Command>
               <CommandList>
                 <CommandGroup>
@@ -127,10 +130,10 @@ export function PluginFilterBar({
                     <CommandItem
                       key={status}
                       onSelect={() => onStatusFilterChange(status)}
-                      className="flex items-center justify-between"
+                      className="flex items-center justify-between px-3 py-2 rounded-md"
                     >
                       <span>{getStatusLabel(status)}</span>
-                      {statusFilter === status && <Check className="h-4 w-4" />}
+                      {statusFilter === status && <Check className="h-4 w-4 text-primary" />}
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -139,55 +142,56 @@ export function PluginFilterBar({
           </PopoverContent>
         </Popover>
 
-        {/* Type Filter */}
+        {/* Type Filter - Enhanced */}
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               size="sm"
               className={cn(
-                'h-9 border-dashed transition-colors',
-                typeFilter !== 'all' && 'bg-accent/50 border-solid',
+                'h-10 px-3 border-border/60 rounded-lg transition-all duration-200 shrink-0',
+                typeFilter !== 'all' && 'bg-primary/10 border-primary/30 text-primary',
                 isBackgroundActive && TRANSPARENCY_CONFIG.interactive
               )}
             >
               <SlidersHorizontal className="mr-2 h-4 w-4" />
-              {typeFilter === 'all' ? 'Type' : typeFilter}
-              {typeFilter !== 'all' && <div className="ml-1 rounded-sm bg-primary w-1.5 h-1.5" />}
+              <span className="hidden sm:inline">{typeFilter === 'all' ? 'Type' : typeFilter}</span>
+              <span className="sm:hidden">Type</span>
+              {typeFilter !== 'all' && <div className="ml-1.5 rounded-full bg-primary w-2 h-2" />}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-0" align="start">
+          <PopoverContent className="w-[160px] p-1" align="start">
             <Command>
               <CommandList>
                 <CommandGroup>
                   <CommandItem
                     onSelect={() => onTypeFilterChange('all')}
-                    className="justify-between"
+                    className="justify-between px-3 py-2 rounded-md"
                   >
                     All Types
-                    {typeFilter === 'all' && <Check className="h-4 w-4" />}
+                    {typeFilter === 'all' && <Check className="h-4 w-4 text-primary" />}
                   </CommandItem>
-                  <CommandSeparator />
+                  <CommandSeparator className="my-1" />
                   <CommandItem
                     onSelect={() => onTypeFilterChange('frontend')}
-                    className="justify-between"
+                    className="justify-between px-3 py-2 rounded-md"
                   >
                     Frontend
-                    {typeFilter === 'frontend' && <Check className="h-4 w-4" />}
+                    {typeFilter === 'frontend' && <Check className="h-4 w-4 text-primary" />}
                   </CommandItem>
                   <CommandItem
                     onSelect={() => onTypeFilterChange('python')}
-                    className="justify-between"
+                    className="justify-between px-3 py-2 rounded-md"
                   >
                     Python
-                    {typeFilter === 'python' && <Check className="h-4 w-4" />}
+                    {typeFilter === 'python' && <Check className="h-4 w-4 text-primary" />}
                   </CommandItem>
                   <CommandItem
                     onSelect={() => onTypeFilterChange('hybrid')}
-                    className="justify-between"
+                    className="justify-between px-3 py-2 rounded-md"
                   >
                     Hybrid
-                    {typeFilter === 'hybrid' && <Check className="h-4 w-4" />}
+                    {typeFilter === 'hybrid' && <Check className="h-4 w-4 text-primary" />}
                   </CommandItem>
                 </CommandGroup>
               </CommandList>
@@ -195,55 +199,63 @@ export function PluginFilterBar({
           </PopoverContent>
         </Popover>
 
-        {/* Capability Filter */}
+        {/* Capability Filter - Enhanced */}
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               size="sm"
               className={cn(
-                'h-9 border-dashed transition-colors',
-                capabilityFilter !== 'all' && 'bg-accent/50 border-solid',
+                'h-10 px-3 border-border/60 rounded-lg transition-all duration-200 shrink-0',
+                capabilityFilter !== 'all' && 'bg-primary/10 border-primary/30 text-primary',
                 isBackgroundActive && TRANSPARENCY_CONFIG.interactive
               )}
             >
               <Check className="mr-2 h-4 w-4" />
-              {capabilityFilter === 'all' ? 'Capability' : capabilityFilter}
-              {capabilityFilter !== 'all' && <div className="ml-1 rounded-sm bg-primary w-1.5 h-1.5" />}
+              <span className="hidden sm:inline">{capabilityFilter === 'all' ? 'Capability' : capabilityFilter}</span>
+              <span className="sm:hidden">Cap</span>
+              {capabilityFilter !== 'all' && <div className="ml-1.5 rounded-full bg-primary w-2 h-2" />}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-0" align="start">
+          <PopoverContent className="w-[180px] p-1" align="start">
             <Command>
               <CommandList>
                 <CommandGroup>
                   <CommandItem
                     onSelect={() => onCapabilityFilterChange('all')}
-                    className="justify-between"
+                    className="justify-between px-3 py-2 rounded-md"
                   >
                     All Capabilities
-                    {capabilityFilter === 'all' && <Check className="h-4 w-4" />}
+                    {capabilityFilter === 'all' && <Check className="h-4 w-4 text-primary" />}
                   </CommandItem>
-                  <CommandSeparator />
+                  <CommandSeparator className="my-1" />
                   <CommandItem
-                    onSelect={() => onCapabilityFilterChange('chat')}
-                    className="justify-between"
+                    onSelect={() => onCapabilityFilterChange('tools')}
+                    className="justify-between px-3 py-2 rounded-md"
                   >
-                    Chat
-                    {capabilityFilter === 'chat' && <Check className="h-4 w-4" />}
-                  </CommandItem>
-                  <CommandItem
-                    onSelect={() => onCapabilityFilterChange('code-execution')}
-                    className="justify-between"
-                  >
-                    Code Execution
-                    {capabilityFilter === 'code-execution' && <Check className="h-4 w-4" />}
+                    Tools
+                    {capabilityFilter === 'tools' && <Check className="h-4 w-4 text-primary" />}
                   </CommandItem>
                   <CommandItem
-                    onSelect={() => onCapabilityFilterChange('file-access')}
-                    className="justify-between"
+                    onSelect={() => onCapabilityFilterChange('components')}
+                    className="justify-between px-3 py-2 rounded-md"
                   >
-                    File Access
-                    {capabilityFilter === 'file-access' && <Check className="h-4 w-4" />}
+                    Components
+                    {capabilityFilter === 'components' && <Check className="h-4 w-4 text-primary" />}
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => onCapabilityFilterChange('modes')}
+                    className="justify-between px-3 py-2 rounded-md"
+                  >
+                    Modes
+                    {capabilityFilter === 'modes' && <Check className="h-4 w-4 text-primary" />}
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => onCapabilityFilterChange('skills')}
+                    className="justify-between px-3 py-2 rounded-md"
+                  >
+                    Skills
+                    {capabilityFilter === 'skills' && <Check className="h-4 w-4 text-primary" />}
                   </CommandItem>
                 </CommandGroup>
               </CommandList>
@@ -251,22 +263,23 @@ export function PluginFilterBar({
           </PopoverContent>
         </Popover>
 
+        {/* Reset and Count */}
         {(hasActiveFilters || searchQuery) && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onResetFilters}
-            className="h-9 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
+            className="h-10 px-3 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors shrink-0"
           >
-            Reset
-            <X className="ml-2 h-4 w-4" />
+            <X className="h-4 w-4 mr-1.5" />
+            <span className="hidden sm:inline">Reset</span>
           </Button>
         )}
 
         {activeCount > 0 && !hasActiveFilters && !searchQuery && (
-          <p className="text-xs text-muted-foreground ml-auto sm:ml-2 whitespace-nowrap hidden sm:block">
-            Showing {activeCount} plugins
-          </p>
+          <span className="text-xs text-muted-foreground whitespace-nowrap hidden lg:inline-flex items-center px-2 py-1 rounded-md bg-muted/50">
+            {activeCount} plugins
+          </span>
         )}
       </div>
     </div>

@@ -51,11 +51,18 @@ interface AISuggestionsPanelProps {
 
 type SuggestionTab = 'style' | 'accessibility' | 'responsive' | 'layout';
 
-const TAB_CONFIG: Record<SuggestionTab, { icon: React.ReactNode; label: string }> = {
-  style: { icon: <Palette className="h-4 w-4" />, label: 'Style' },
-  accessibility: { icon: <Accessibility className="h-4 w-4" />, label: 'A11y' },
-  responsive: { icon: <Smartphone className="h-4 w-4" />, label: 'Responsive' },
-  layout: { icon: <Layout className="h-4 w-4" />, label: 'Layout' },
+const TAB_ICONS: Record<SuggestionTab, React.ReactNode> = {
+  style: <Palette className="h-4 w-4" />,
+  accessibility: <Accessibility className="h-4 w-4" />,
+  responsive: <Smartphone className="h-4 w-4" />,
+  layout: <Layout className="h-4 w-4" />,
+};
+
+const TAB_LABEL_KEYS: Record<SuggestionTab, string> = {
+  style: 'tabStyle',
+  accessibility: 'tabA11y',
+  responsive: 'tabResponsive',
+  layout: 'tabLayout',
 };
 
 const PRIORITY_CONFIG = {
@@ -229,22 +236,20 @@ export function AISuggestionsPanel({
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
           <TabsList className="grid grid-cols-4 mx-2 mt-2">
-            {(Object.entries(TAB_CONFIG) as [SuggestionTab, typeof TAB_CONFIG[SuggestionTab]][]).map(
-              ([key, config]) => (
+            {(Object.keys(TAB_ICONS) as SuggestionTab[]).map((key) => (
                 <TabsTrigger
                   key={key}
                   value={key}
                   className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                 >
-                  {config.icon}
-                  <span className="hidden sm:inline">{config.label}</span>
+                  {TAB_ICONS[key]}
+                  <span className="hidden sm:inline">{t(TAB_LABEL_KEYS[key])}</span>
                 </TabsTrigger>
-              )
-            )}
+              ))}
           </TabsList>
 
           {/* Content */}
-          {(Object.keys(TAB_CONFIG) as SuggestionTab[]).map((tab) => (
+          {(Object.keys(TAB_ICONS) as SuggestionTab[]).map((tab) => (
             <TabsContent key={tab} value={tab} className="flex-1 m-0 mt-2 min-h-0">
               <ScrollArea className="h-[350px]">
                 {loading[tab] ? (

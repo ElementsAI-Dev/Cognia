@@ -21,6 +21,11 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -128,19 +133,34 @@ function ResourceItem({ resource, onEdit, onDelete, onPreview }: ResourceItemPro
             )}
             <div className="flex gap-2">
               {hasContent && (
-                <Button variant="outline" size="sm" onClick={onPreview}>
-                  <Eye className="h-3 w-3 mr-1" />
-                  {t('preview')}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={onPreview}>
+                      <Eye className="h-3 w-3 mr-1" />
+                      {t('preview')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('previewResource')}</TooltipContent>
+                </Tooltip>
               )}
-              <Button variant="outline" size="sm" onClick={onEdit}>
-                <Edit2 className="h-3 w-3 mr-1" />
-                {t('edit')}
-              </Button>
-              <Button variant="outline" size="sm" onClick={onDelete}>
-                <Trash2 className="h-3 w-3 mr-1" />
-                {t('delete')}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={onEdit}>
+                    <Edit2 className="h-3 w-3 mr-1" />
+                    {t('edit')}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('editResource')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={onDelete}>
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    {t('delete')}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('deleteResource')}</TooltipContent>
+              </Tooltip>
             </div>
           </CardContent>
         </CollapsibleContent>

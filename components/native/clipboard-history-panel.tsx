@@ -12,6 +12,7 @@ import {
   InputGroupButton,
 } from '@/components/ui/input-group';
 import { EmptyState } from '@/components/layout/empty-state';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Copy,
   Pin,
@@ -102,14 +103,19 @@ export function ClipboardHistoryPanel({
             </InputGroupAddon>
           )}
         </InputGroup>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => fetchHistory()}
-          disabled={isLoading}
-        >
-          <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => fetchHistory()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('refresh')}</TooltipContent>
+        </Tooltip>
       </div>
 
       {pinnedItems.length > 0 && !searchResults && (

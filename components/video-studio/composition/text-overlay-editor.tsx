@@ -13,6 +13,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,18 +108,18 @@ const FONT_FAMILIES = [
   { value: 'Comic Sans MS', label: 'Comic Sans MS' },
 ];
 
-const ANIMATIONS: { value: TextAnimation; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'fade-in', label: 'Fade In' },
-  { value: 'fade-out', label: 'Fade Out' },
-  { value: 'slide-up', label: 'Slide Up' },
-  { value: 'slide-down', label: 'Slide Down' },
-  { value: 'slide-left', label: 'Slide Left' },
-  { value: 'slide-right', label: 'Slide Right' },
-  { value: 'zoom-in', label: 'Zoom In' },
-  { value: 'zoom-out', label: 'Zoom Out' },
-  { value: 'typewriter', label: 'Typewriter' },
-  { value: 'bounce', label: 'Bounce' },
+const ANIMATION_KEYS: { value: TextAnimation; key: string }[] = [
+  { value: 'none', key: 'none' },
+  { value: 'fade-in', key: 'fadeIn' },
+  { value: 'fade-out', key: 'fadeOut' },
+  { value: 'slide-up', key: 'slideUp' },
+  { value: 'slide-down', key: 'slideDown' },
+  { value: 'slide-left', key: 'slideLeft' },
+  { value: 'slide-right', key: 'slideRight' },
+  { value: 'zoom-in', key: 'zoomIn' },
+  { value: 'zoom-out', key: 'zoomOut' },
+  { value: 'typewriter', key: 'typewriter' },
+  { value: 'bounce', key: 'bounce' },
 ];
 
 export function TextOverlayEditor({
@@ -127,6 +128,7 @@ export function TextOverlayEditor({
   onClose,
   className,
 }: TextOverlayEditorProps) {
+  const t = useTranslations('textOverlay');
   const [activeTab, setActiveTab] = useState('text');
 
   const handleTextChange = useCallback(
@@ -160,10 +162,10 @@ export function TextOverlayEditor({
       <div className="flex items-center justify-between p-3 border-b">
         <h3 className="font-medium flex items-center gap-2">
           <Type className="h-4 w-4" />
-          Text Overlay
+          {t('title')}
         </h3>
         <Button variant="ghost" size="sm" onClick={onClose}>
-          Done
+          {t('done')}
         </Button>
       </div>
 
@@ -172,15 +174,15 @@ export function TextOverlayEditor({
         <TabsList className="grid w-full grid-cols-3 mx-3 mt-3">
           <TabsTrigger value="text" className="text-xs">
             <Type className="h-3 w-3 mr-1" />
-            Text
+            {t('tabs.text')}
           </TabsTrigger>
           <TabsTrigger value="style" className="text-xs">
             <Palette className="h-3 w-3 mr-1" />
-            Style
+            {t('tabs.style')}
           </TabsTrigger>
           <TabsTrigger value="animation" className="text-xs">
             <Sparkles className="h-3 w-3 mr-1" />
-            Animation
+            {t('tabs.animation')}
           </TabsTrigger>
         </TabsList>
 
@@ -188,18 +190,18 @@ export function TextOverlayEditor({
           <TabsContent value="text" className="mt-0 space-y-4">
             {/* Text input */}
             <div className="space-y-2">
-              <Label>Text Content</Label>
+              <Label>{t('textContent')}</Label>
               <Textarea
                 value={overlay.text}
                 onChange={(e) => handleTextChange(e.target.value)}
-                placeholder="Enter your text..."
+                placeholder={t('placeholder')}
                 className="min-h-[100px] resize-none"
               />
             </div>
 
             {/* Font family */}
             <div className="space-y-2">
-              <Label>Font</Label>
+              <Label>{t('font')}</Label>
               <Select
                 value={overlay.fontFamily}
                 onValueChange={(v) => onOverlayChange({ fontFamily: v })}
@@ -224,7 +226,7 @@ export function TextOverlayEditor({
             {/* Font size */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Font Size</Label>
+                <Label>{t('fontSize')}</Label>
                 <span className="text-sm text-muted-foreground">{overlay.fontSize}px</span>
               </div>
               <Slider
@@ -238,7 +240,7 @@ export function TextOverlayEditor({
 
             {/* Text style buttons */}
             <div className="space-y-2">
-              <Label>Style</Label>
+              <Label>{t('fontStyle')}</Label>
               <div className="flex items-center gap-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -250,7 +252,7 @@ export function TextOverlayEditor({
                       <Bold className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Bold</TooltipContent>
+                  <TooltipContent>{t('bold')}</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -263,7 +265,7 @@ export function TextOverlayEditor({
                       <Italic className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Italic</TooltipContent>
+                  <TooltipContent>{t('italic')}</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -276,7 +278,7 @@ export function TextOverlayEditor({
                       <Underline className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Underline</TooltipContent>
+                  <TooltipContent>{t('underline')}</TooltipContent>
                 </Tooltip>
 
                 <div className="w-px h-8 bg-border mx-1" />
@@ -300,7 +302,7 @@ export function TextOverlayEditor({
                           <Icon className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent className="capitalize">{align}</TooltipContent>
+                      <TooltipContent>{t(`alignment.${align}`)}</TooltipContent>
                     </Tooltip>
                   );
                 })}
@@ -311,7 +313,7 @@ export function TextOverlayEditor({
           <TabsContent value="style" className="mt-0 space-y-4">
             {/* Text color */}
             <div className="space-y-2">
-              <Label>Text Color</Label>
+              <Label>{t('textColor')}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="color"
@@ -330,7 +332,7 @@ export function TextOverlayEditor({
             {/* Background */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Background</Label>
+                <Label>{t('background')}</Label>
                 <Switch
                   checked={overlay.backgroundOpacity > 0}
                   onCheckedChange={(checked) =>
@@ -366,7 +368,7 @@ export function TextOverlayEditor({
             {/* Outline */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Outline</Label>
+                <Label>{t('outline')}</Label>
                 <Switch
                   checked={overlay.outlineWidth > 0}
                   onCheckedChange={(checked) =>
@@ -400,7 +402,7 @@ export function TextOverlayEditor({
             {/* Shadow */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Shadow</Label>
+                <Label>{t('shadow')}</Label>
                 <Switch
                   checked={overlay.shadowBlur > 0}
                   onCheckedChange={(checked) =>
@@ -419,7 +421,7 @@ export function TextOverlayEditor({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Blur</Label>
+                    <Label className="text-xs">{t('blur')}</Label>
                     <Slider
                       value={[overlay.shadowBlur]}
                       onValueChange={(v) => onOverlayChange({ shadowBlur: v[0] })}
@@ -435,7 +437,7 @@ export function TextOverlayEditor({
             {/* Opacity */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Opacity</Label>
+                <Label>{t('opacity')}</Label>
                 <span className="text-sm text-muted-foreground">
                   {Math.round(overlay.opacity * 100)}%
                 </span>
@@ -453,7 +455,7 @@ export function TextOverlayEditor({
           <TabsContent value="animation" className="mt-0 space-y-4">
             {/* Animation type */}
             <div className="space-y-2">
-              <Label>Animation</Label>
+              <Label>{t('animation')}</Label>
               <Select
                 value={overlay.animation}
                 onValueChange={(v) => onOverlayChange({ animation: v as TextAnimation })}
@@ -462,9 +464,9 @@ export function TextOverlayEditor({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ANIMATIONS.map((anim) => (
+                  {ANIMATION_KEYS.map((anim) => (
                     <SelectItem key={anim.value} value={anim.value}>
-                      {anim.label}
+                      {t(`animations.${anim.key}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -475,7 +477,7 @@ export function TextOverlayEditor({
             {overlay.animation !== 'none' && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Duration</Label>
+                  <Label>{t('duration')}</Label>
                   <span className="text-sm text-muted-foreground">
                     {overlay.animationDuration.toFixed(1)}s
                   </span>
@@ -494,7 +496,7 @@ export function TextOverlayEditor({
             <div className="space-y-2">
               <Label className="flex items-center gap-1">
                 <Move className="h-3 w-3" />
-                Position
+                {t('position')}
               </Label>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
@@ -527,7 +529,7 @@ export function TextOverlayEditor({
             {/* Rotation */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Rotation</Label>
+                <Label>{t('rotation')}</Label>
                 <span className="text-sm text-muted-foreground">{overlay.rotation}°</span>
               </div>
               <Slider

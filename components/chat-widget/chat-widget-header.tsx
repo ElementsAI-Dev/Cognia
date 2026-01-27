@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,8 @@ export function ChatWidgetHeader({
   onExport,
   className,
 }: ChatWidgetHeaderProps) {
+  const t = useTranslations("chatWidget.header");
+
   return (
     <div
       className={cn(
@@ -111,7 +114,7 @@ export function ChatWidgetHeader({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              {config.pinned ? "取消置顶" : "窗口置顶"}
+              {config.pinned ? t("unpin") : t("pin")}
             </TooltipContent>
           </Tooltip>
 
@@ -125,16 +128,16 @@ export function ChatWidgetHeader({
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={onNewSession}>
                 <RotateCcw className="h-4 w-4 mr-2" />
-                新会话
+                {t("newSession")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onClearMessages}>
                 <Trash2 className="h-4 w-4 mr-2" />
-                清空消息
+                {t("clearMessages")}
               </DropdownMenuItem>
               {onExport && messages && messages.length > 0 && (
                 <DropdownMenuItem onClick={onExport}>
                   <Download className="h-4 w-4 mr-2" />
-                  导出对话
+                  {t("exportChat")}
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
@@ -142,7 +145,7 @@ export function ChatWidgetHeader({
               {onSettings && (
                 <DropdownMenuItem onClick={onSettings}>
                   <Settings className="h-4 w-4 mr-2" />
-                  设置
+                  {t("settings")}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -158,7 +161,7 @@ export function ChatWidgetHeader({
               e.stopPropagation();
               onClose();
             }}
-            title="关闭 (Esc)"
+            title={t("close")}
           >
             <X className="h-3.5 w-3.5" />
           </Button>

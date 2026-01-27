@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ export function VideoTrimmer({
   onCancel,
   className,
 }: VideoTrimmerProps) {
+  const t = useTranslations('trimmer');
   const videoRef = useRef<HTMLVideoElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -315,7 +317,7 @@ export function VideoTrimmer({
                 <SkipBack className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Go to in point</TooltipContent>
+            <TooltipContent>{t('goToInPoint')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -324,7 +326,7 @@ export function VideoTrimmer({
                 {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{isPlaying ? 'Pause' : 'Play'}</TooltipContent>
+            <TooltipContent>{isPlaying ? t('pause') : t('play')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -333,14 +335,14 @@ export function VideoTrimmer({
                 <SkipForward className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Go to out point</TooltipContent>
+            <TooltipContent>{t('goToOutPoint')}</TooltipContent>
           </Tooltip>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
           {/* In point */}
           <div className="flex items-center gap-2">
-            <Label className="text-xs text-green-500">In</Label>
+            <Label className="text-xs text-green-500">{t('inPoint')}</Label>
             <Input
               value={formatTime(inPoint)}
               onChange={(e) => {
@@ -352,13 +354,13 @@ export function VideoTrimmer({
               className="w-20 sm:w-24 h-8 text-xs font-mono"
             />
             <Button variant="ghost" size="sm" onClick={setInToCurrent}>
-              Set
+              {t('set')}
             </Button>
           </div>
 
           {/* Out point */}
           <div className="flex items-center gap-2">
-            <Label className="text-xs text-red-500">Out</Label>
+            <Label className="text-xs text-red-500">{t('outPoint')}</Label>
             <Input
               value={formatTime(outPoint)}
               onChange={(e) => {
@@ -370,13 +372,13 @@ export function VideoTrimmer({
               className="w-20 sm:w-24 h-8 text-xs font-mono"
             />
             <Button variant="ghost" size="sm" onClick={setOutToCurrent}>
-              Set
+              {t('set')}
             </Button>
           </div>
 
           {/* Duration */}
           <div className="flex items-center gap-2">
-            <Label className="text-xs">Duration</Label>
+            <Label className="text-xs">{t('duration')}</Label>
             <span className="text-sm font-mono">{formatTime(trimDuration)}</span>
           </div>
         </div>
@@ -388,17 +390,17 @@ export function VideoTrimmer({
                 <RotateCcw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset trim</TooltipContent>
+            <TooltipContent>{t('resetTrim')}</TooltipContent>
           </Tooltip>
 
           <Button variant="ghost" onClick={onCancel}>
             <X className="h-4 w-4 mr-2" />
-            Cancel
+            {t('cancel')}
           </Button>
 
           <Button onClick={() => onConfirm(inPoint, outPoint)}>
             <Check className="h-4 w-4 mr-2" />
-            Apply Trim
+            {t('applyTrim')}
           </Button>
         </div>
       </div>

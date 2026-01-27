@@ -1,0 +1,99 @@
+{
+  "chatWidget": {
+    "fab": {
+      "title": "AI Assistant",
+      "closeAssistant": "Close chat assistant",
+      "openAssistant": "Open chat assistant",
+      "clickToStart": "Click to start a conversation",
+      "shortcutHint": "Shortcut: Ctrl+Shift+Space"
+    },
+    "header": {
+      "unpin": "Unpin",
+      "pin": "Pin to top",
+      "newSession": "New Session",
+      "clearMessages": "Clear Messages",
+      "exportChat": "Export Chat",
+      "settings": "Settings",
+      "close": "Close (Esc)"
+    },
+    "input": {
+      "placeholder": "Type a message...",
+      "stopRecording": "Stop recording",
+      "voiceInput": "Voice input",
+      "stopGeneration": "Stop generating",
+      "sendMessage": "Send message (Enter)"
+    },
+    "messages": {
+      "emptyTitle": "How can I help you?",
+      "emptyDesc": "Press Ctrl+Shift+Space to show/hide assistant",
+      "thinking": "Thinking...",
+      "continueGeneration": "Continue generating",
+      "edited": "(edited)",
+      "edit": "Edit",
+      "stopReading": "Stop reading",
+      "read": "Read aloud",
+      "helpful": "Helpful",
+      "notHelpful": "Not helpful",
+      "regenerate": "Regenerate"
+    },
+    "settings": {
+      "title": "Assistant Settings",
+      "description": "Configure AI assistant model and behavior",
+      "aiModel": "AI Model",
+      "provider": "Provider",
+      "selectProvider": "Select provider",
+      "model": "Model",
+      "selectModel": "Select model",
+      "systemPrompt": "System Prompt",
+      "systemPromptPlaceholder": "Set AI's role and behavior...",
+      "behavior": "Behavior Settings",
+      "alwaysOnTop": "Always on Top",
+      "alwaysOnTopDesc": "Keep window above other windows",
+      "autoFocus": "Auto Focus",
+      "autoFocusDesc": "Focus input when opened",
+      "showTimestamps": "Show Timestamps",
+      "showTimestampsDesc": "Display timestamps next to messages",
+      "rememberPosition": "Remember Position",
+      "rememberPositionDesc": "Restore window position on next open",
+      "shortcuts": "Shortcuts",
+      "toggleAssistant": "Show/hide assistant",
+      "reset": "Reset",
+      "save": "Save"
+    },
+    "shortcuts": {
+      "title": "Keyboard Shortcuts",
+      "sendMessage": "Send message",
+      "newLine": "New line",
+      "hideAssistant": "Hide assistant",
+      "previousMessage": "Previous message",
+      "nextMessage": "Next message",
+      "toggleAssistant": "Show/hide assistant",
+      "openPanel": "Open this panel"
+    },
+    "suggestions": {
+      "explain": "Explain",
+      "explainPrompt": "Please explain this concept in simple terms:",
+      "writeCode": "Write code",
+      "writeCodePrompt": "Help me write code to implement:",
+      "translate": "Translate",
+      "translatePrompt": "Please translate the following content:",
+      "howTo": "How to",
+      "howToPrompt": "Please tell me how to:",
+      "summarize": "Summarize",
+      "summarizePrompt": "Please summarize the key points of the following:",
+      "optimize": "Optimize text",
+      "optimizePrompt": "Please optimize the following text to make it clearer:",
+      "brainstorm": "Brainstorm",
+      "brainstormPrompt": "Help me brainstorm ideas about this topic:",
+      "checkErrors": "Check errors",
+      "checkErrorsPrompt": "Please check if there are any errors in the following:",
+      "collapse": "Collapse",
+      "more": "More"
+    },
+    "export": {
+      "user": "👤 User",
+      "assistant": "🤖 Assistant"
+    },
+    "continueGeneration": "Please continue"
+  }
+}

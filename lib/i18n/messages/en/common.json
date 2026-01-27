@@ -177,6 +177,17 @@
     "maximize": "Maximize",
     "close": "Close"
   },
+  "splashscreen": {
+    "initializing": "Initializing...",
+    "loadingCore": "Loading core modules...",
+    "initializingProviders": "Initializing providers...",
+    "loadingThemes": "Loading themes...",
+    "preparingWorkspace": "Preparing workspace...",
+    "almostReady": "Almost ready...",
+    "ready": "Ready!",
+    "appName": "Cognia",
+    "appDescription": "AI Chat Assistant"
+  },
   "debug": {
     "tools": "Debug Tools",
     "openDevTools": "Open DevTools",

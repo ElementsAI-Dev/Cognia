@@ -76,6 +76,9 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Sidebar semi-transparent backgrounds using color-mix for proper blending */
+  --sidebar-80: color-mix(in oklch, oklch(0.985 0 0) 80%, transparent);
+  --sidebar-70: color-mix(in oklch, oklch(0.985 0 0) 70%, transparent);
 }
 
 .dark {
@@ -110,6 +113,9 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  /* Sidebar semi-transparent backgrounds using color-mix for proper blending */
+  --sidebar-80: color-mix(in oklch, oklch(0.205 0 0) 80%, transparent);
+  --sidebar-70: color-mix(in oklch, oklch(0.205 0 0) 70%, transparent);
 }
 
 /* Color Theme Presets */
@@ -187,6 +193,16 @@
   --primary-foreground: oklch(0.15 0.02 350);
   --ring: oklch(0.72 0.16 350);
   --sidebar-primary: oklch(0.72 0.16 350);
+}
+
+/* ===== Sidebar Semi-Transparent Background Utilities ===== */
+/* These classes use color-mix for proper transparency blending with oklch colors */
+.bg-sidebar-80 {
+  background-color: var(--sidebar-80);
+}
+
+.bg-sidebar-70 {
+  background-color: var(--sidebar-70);
 }
 
 @layer base {
@@ -785,6 +801,31 @@ html.tauri-app [data-slot='sidebar-inset'] {
 
 .monaco-editor .codicon {
   font-family: 'codicon' !important;
+}
+
+/* ===== Chat Input Background Mixing ===== */
+/* Using color-mix for proper oklch color transparency blending */
+
+/* CSS Variables for semi-transparent backgrounds */
+:root {
+  --background-90: color-mix(in oklch, var(--background) 90%, transparent);
+  --background-80: color-mix(in oklch, var(--background) 80%, transparent);
+  --card-90: color-mix(in oklch, var(--card) 90%, transparent);
+  --card-80: color-mix(in oklch, var(--card) 80%, transparent);
+}
+
+/* Chat input container - semi-transparent with blur */
+[data-chat-input] {
+  background-color: var(--background-80);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Chat input inner box - semi-transparent card with blur */
+[data-chat-input-box] {
+  background-color: var(--card-80);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 /* ===== Chat Widget Window Styles ===== */

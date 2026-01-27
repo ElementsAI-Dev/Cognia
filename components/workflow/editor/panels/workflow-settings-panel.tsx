@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,6 +72,7 @@ interface WorkflowSettingsPanelProps {
 }
 
 export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps) {
+  const t = useTranslations('workflowEditor');
   const {
     currentWorkflow,
     updateWorkflowMeta,
@@ -135,7 +137,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 <Settings className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Workflow Settings</TooltipContent>
+            <TooltipContent>{t('workflowSettings')}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </SheetTrigger>
@@ -143,10 +145,10 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Workflow Settings
+            {t('workflowSettings')}
           </SheetTitle>
           <SheetDescription>
-            Configure workflow properties and behavior
+            {t('manageVariables')}
           </SheetDescription>
         </SheetHeader>
 
@@ -157,13 +159,13 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
               <AccordionTrigger className="py-3 text-sm">
                 <div className="flex items-center gap-2">
                   <Workflow className="h-4 w-4" />
-                  General
+                  {t('general')}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-4 space-y-4">
                 {/* Name */}
                 <div className="space-y-2">
-                  <Label>Workflow Name</Label>
+                  <Label>{t('workflowName')}</Label>
                   <Input
                     value={currentWorkflow.name}
                     onChange={(e) => handleMetaChange({ name: e.target.value })}
@@ -173,11 +175,11 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
 
                 {/* Description */}
                 <div className="space-y-2">
-                  <Label>Description</Label>
+                  <Label>{t('description')}</Label>
                   <Textarea
                     value={currentWorkflow.description}
                     onChange={(e) => handleMetaChange({ description: e.target.value })}
-                    placeholder="Describe what this workflow does..."
+                    placeholder={t('noDescriptionText')}
                     rows={3}
                   />
                 </div>
@@ -185,7 +187,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 {/* Icon & Category */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Icon</Label>
+                    <Label>{t('workflowIcon')}</Label>
                     <Select
                       value={currentWorkflow.icon}
                       onValueChange={(value) => handleMetaChange({ icon: value })}
@@ -202,7 +204,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Category</Label>
+                    <Label>{t('workflowCategory')}</Label>
                     <Select
                       value={currentWorkflow.category}
                       onValueChange={(value) => handleMetaChange({ category: value })}
@@ -225,7 +227,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
                     <Tag className="h-3.5 w-3.5" />
-                    Tags
+                    {t('workflowTags')}
                   </Label>
                   <div className="flex flex-wrap gap-1 mb-2">
                     {tags.map(tag => (
@@ -278,7 +280,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
               <AccordionTrigger className="py-3 text-sm">
                 <div className="flex items-center gap-2">
                   <Grid3X3 className="h-4 w-4" />
-                  Editor
+                  {t('editor')}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-4 space-y-4">
@@ -287,10 +289,10 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                   <div className="space-y-0.5">
                     <Label className="flex items-center gap-1">
                       <Save className="h-3.5 w-3.5" />
-                      Auto Save
+                      {t('autoSave')}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Automatically save changes
+                      {t('autoSave')}
                     </p>
                   </div>
                   <Switch
@@ -306,10 +308,10 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                   <div className="space-y-0.5">
                     <Label className="flex items-center gap-1">
                       <Grid3X3 className="h-3.5 w-3.5" />
-                      Show Grid
+                      {t('showGrid')}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Display background grid
+                      {t('showGrid')}
                     </p>
                   </div>
                   <Switch
@@ -321,9 +323,9 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 {/* Snap to Grid */}
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Snap to Grid</Label>
+                    <Label>{t('snapToGrid')}</Label>
                     <p className="text-xs text-muted-foreground">
-                      Align nodes to grid
+                      {t('snapToGrid')}
                     </p>
                   </div>
                   <Switch
@@ -335,7 +337,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 {/* Grid Size */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label>Grid Size</Label>
+                    <Label>{t('gridSize')}</Label>
                     <span className="text-sm text-muted-foreground">{settings.gridSize}px</span>
                   </div>
                   <Slider
@@ -354,10 +356,10 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                   <div className="space-y-0.5">
                     <Label className="flex items-center gap-1">
                       <Map className="h-3.5 w-3.5" />
-                      Show Minimap
+                      {t('showMinimap')}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Display navigation minimap
+                      {t('showMinimap')}
                     </p>
                   </div>
                   <Switch
@@ -369,9 +371,9 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 {/* Auto Layout */}
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Auto Layout</Label>
+                    <Label>{t('autoLayoutSetting')}</Label>
                     <p className="text-xs text-muted-foreground">
-                      Automatically arrange new nodes
+                      {t('autoLayoutSetting')}
                     </p>
                   </div>
                   <Switch
@@ -387,7 +389,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
               <AccordionTrigger className="py-3 text-sm">
                 <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4" />
-                  Execution
+                  {t('execution')}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-4 space-y-4">
@@ -395,7 +397,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
                     <Sparkles className="h-3.5 w-3.5" />
-                    Default AI Model
+                    {t('defaultAIModel')}
                   </Label>
                   <Select
                     value={settings.defaultModel || ''}
@@ -416,7 +418,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 {/* Default Temperature */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label>Default Temperature</Label>
+                    <Label>{t('defaultTemperature')}</Label>
                     <span className="text-sm text-muted-foreground">
                       {settings.defaultTemperature ?? 0.7}
                     </span>
@@ -437,10 +439,10 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                   <div className="space-y-0.5">
                     <Label className="flex items-center gap-1">
                       <RefreshCw className="h-3.5 w-3.5" />
-                      Retry on Failure
+                      {t('retryOnFailure')}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Automatically retry failed nodes
+                      {t('retryOnFailure')}
                     </p>
                   </div>
                   <Switch
@@ -453,7 +455,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 {settings.retryOnFailure && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label>Max Retries</Label>
+                      <Label>{t('maxRetriesSetting')}</Label>
                       <span className="text-sm text-muted-foreground">{settings.maxRetries}</span>
                     </div>
                     <Slider
@@ -470,7 +472,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
-                    Max Execution Time (ms)
+                    {t('maxExecutionTime')}
                   </Label>
                   <Input
                     type="number"
@@ -486,7 +488,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
                     <Bug className="h-3.5 w-3.5" />
-                    Log Level
+                    {t('logLevel')}
                   </Label>
                   <Select
                     value={settings.logLevel}
@@ -515,7 +517,7 @@ export function WorkflowSettingsPanel({ className }: WorkflowSettingsPanelProps)
               onClick={handleResetSettings}
             >
               <RotateCcw className="h-4 w-4 mr-2" />
-              Reset to Defaults
+              {t('resetToDefaults')}
             </Button>
           </div>
         </ScrollArea>

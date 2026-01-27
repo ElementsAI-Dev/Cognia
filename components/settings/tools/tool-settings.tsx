@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { SourceVerificationSettings } from './source-verification-settings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -109,18 +110,19 @@ export function ToolSettings() {
               <CardContent className="pt-0 px-4 pb-3">
                 <div className="flex flex-wrap gap-1">
                   {category.tools.map((tool) => (
-                    <span
+                    <Badge
                       key={tool.name}
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono ${
+                      variant={tool.requiresApproval ? 'outline' : 'secondary'}
+                      className={`text-[10px] font-mono ${
                         tool.requiresApproval
-                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                          : 'bg-muted text-muted-foreground'
+                          ? 'border-amber-500/50 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                          : ''
                       }`}
                       title={t(tool.descriptionKey)}
                     >
                       {tool.name}
-                      {tool.requiresApproval && <AlertTriangle className="h-2.5 w-2.5" />}
-                    </span>
+                      {tool.requiresApproval && <AlertTriangle className="h-2.5 w-2.5 ml-1" />}
+                    </Badge>
                   ))}
                 </div>
               </CardContent>

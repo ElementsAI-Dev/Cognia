@@ -151,19 +151,19 @@ export const LearningModePanel = memo(function LearningModePanel({
           <TabsList className="grid w-full grid-cols-4 mx-4 mt-2" style={{ width: 'calc(100% - 2rem)' }}>
             <TabsTrigger value="progress" className="text-xs">
               <GraduationCap className="h-3 w-3 mr-1" />
-              Progress
+              {t('tabs.progress')}
             </TabsTrigger>
             <TabsTrigger value="stats" className="text-xs">
               <BarChart3 className="h-3 w-3 mr-1" />
-              Stats
+              {t('tabs.stats')}
             </TabsTrigger>
             <TabsTrigger value="notes" className="text-xs">
               <StickyNote className="h-3 w-3 mr-1" />
-              Notes
+              {t('tabs.notes')}
             </TabsTrigger>
             <TabsTrigger value="history" className="text-xs">
               <History className="h-3 w-3 mr-1" />
-              History
+              {t('tabs.history')}
             </TabsTrigger>
           </TabsList>
 

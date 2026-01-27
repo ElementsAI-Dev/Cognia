@@ -40,6 +40,7 @@ interface PresetsManagerProps {
 export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
   const t = useTranslations('presets');
   const tCommon = useTranslations('common');
+  const tPlaceholders = useTranslations('placeholders');
   const [search, setSearch] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editPreset, setEditPreset] = useState<Preset | null>(null);
@@ -168,10 +169,10 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
           });
           toast.success(t('importSuccess', { count: imported }));
         } else {
-          toast.error('Invalid preset file format.');
+          toast.error(t('errors.invalidFileFormat'));
         }
       } catch {
-        toast.error('Failed to parse preset file.');
+        toast.error(t('errors.parseFileFailed'));
       }
     };
     reader.readAsText(file);
@@ -188,7 +189,7 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
     
     const settings = providerSettings['openai'] || Object.values(providerSettings).find(s => s?.apiKey);
     if (!settings?.apiKey) {
-      toast.warning('Please configure an API key in settings first.');
+      toast.warning(t('errors.noApiKey'));
       return;
     }
 
@@ -232,11 +233,11 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
         toast.success(t('aiGenerateSuccess'));
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || 'Failed to generate preset');
+        toast.error(errorData.error || t('errors.generateFailed'));
       }
     } catch (error) {
       console.error('Failed to generate preset:', error);
-      toast.error('Failed to generate preset. Please try again.');
+      toast.error(t('errors.generateFailedRetry'));
     } finally {
       setIsGenerating(false);
     }
@@ -252,7 +253,7 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
         </div>
         <div className="flex items-center gap-2">
           <Input
-            placeholder="Describe your ideal preset... e.g., 'A coding assistant for Python'"
+            placeholder={tPlaceholders('describePreset')}
             value={aiDescription}
             onChange={(e) => setAiDescription(e.target.value)}
             className="flex-1"

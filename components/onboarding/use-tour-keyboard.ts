@@ -7,6 +7,13 @@
 
 import { useEffect, useCallback } from 'react';
 
+export interface KeyboardHints {
+  next: string;
+  previous: string;
+  skip: string;
+  complete: string;
+}
+
 interface UseTourKeyboardOptions {
   isActive: boolean;
   onNext: () => void;
@@ -15,7 +22,15 @@ interface UseTourKeyboardOptions {
   onClose: () => void;
   isFirst: boolean;
   isLast: boolean;
+  keyboardHints?: KeyboardHints;
 }
+
+const DEFAULT_KEYBOARD_HINTS: KeyboardHints = {
+  next: '→ or Enter',
+  previous: '←',
+  skip: 'Esc',
+  complete: 'Enter',
+};
 
 export function useTourKeyboard({
   isActive,
@@ -25,6 +40,7 @@ export function useTourKeyboard({
   onClose,
   isFirst,
   isLast,
+  keyboardHints = DEFAULT_KEYBOARD_HINTS,
 }: UseTourKeyboardOptions) {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -86,13 +102,8 @@ export function useTourKeyboard({
   }, [isActive, handleKeyDown]);
 
   return {
-    // Provide keyboard hint text
-    keyboardHints: {
-      next: '→ or Enter',
-      previous: '←',
-      skip: 'Esc',
-      complete: 'Enter',
-    },
+    // Provide keyboard hint text (uses i18n translations if provided)
+    keyboardHints,
   };
 }
 

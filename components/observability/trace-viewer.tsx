@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight, ExternalLink, Clock, Zap, Hash } from 'lucide-react';
 import type { TraceData, SpanData } from './observability-dashboard';
 
@@ -14,9 +17,10 @@ interface TraceViewerProps {
 interface SpanTreeProps {
   span: SpanData;
   depth?: number;
+  t: ReturnType<typeof useTranslations>;
 }
 
-function SpanTree({ span, depth = 0 }: SpanTreeProps) {
+function SpanTree({ span, depth = 0, t }: SpanTreeProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const hasChildren = span.children && span.children.length > 0;
 
@@ -84,7 +88,7 @@ function SpanTree({ span, depth = 0 }: SpanTreeProps) {
       {isExpanded && hasChildren && (
         <div className="ml-4">
           {span.children?.map((child) => (
-            <SpanTree key={child.id} span={child} depth={depth + 1} />
+            <SpanTree key={child.id} span={child} depth={depth + 1} t={t} />
           ))}
         </div>
       )}
@@ -93,7 +97,7 @@ function SpanTree({ span, depth = 0 }: SpanTreeProps) {
         <div className="ml-9 mt-2 space-y-2 text-xs">
           {span.input !== undefined && (
             <div className="p-2 bg-muted rounded">
-              <div className="font-medium text-muted-foreground mb-1">Input</div>
+              <div className="font-medium text-muted-foreground mb-1">{t('input')}</div>
               <pre className="whitespace-pre-wrap overflow-x-auto">
                 {String(typeof span.input === 'string' ? span.input : JSON.stringify(span.input, null, 2))}
               </pre>
@@ -101,7 +105,7 @@ function SpanTree({ span, depth = 0 }: SpanTreeProps) {
           )}
           {span.output !== undefined && (
             <div className="p-2 bg-muted rounded">
-              <div className="font-medium text-muted-foreground mb-1">Output</div>
+              <div className="font-medium text-muted-foreground mb-1">{t('output')}</div>
               <pre className="whitespace-pre-wrap overflow-x-auto">
                 {String(typeof span.output === 'string' ? span.output : JSON.stringify(span.output, null, 2))}
               </pre>
@@ -114,6 +118,8 @@ function SpanTree({ span, depth = 0 }: SpanTreeProps) {
 }
 
 export function TraceViewer({ trace }: TraceViewerProps) {
+  const t = useTranslations('observability.traceViewer');
+
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleString();
   };
@@ -142,7 +148,7 @@ export function TraceViewer({ trace }: TraceViewerProps) {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center gap-2">
             <Hash className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Trace ID:</span>
+            <span className="text-muted-foreground">{t('traceId')}</span>
             <code className="text-xs bg-muted px-1 py-0.5 rounded truncate">
               {trace.id}
             </code>
@@ -151,7 +157,7 @@ export function TraceViewer({ trace }: TraceViewerProps) {
           {trace.sessionId && (
             <div className="flex items-center gap-2">
               <Hash className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Session:</span>
+              <span className="text-muted-foreground">{t('sessionId')}</span>
               <code className="text-xs bg-muted px-1 py-0.5 rounded truncate">
                 {trace.sessionId}
               </code>
@@ -160,28 +166,28 @@ export function TraceViewer({ trace }: TraceViewerProps) {
 
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Started:</span>
+            <span className="text-muted-foreground">{t('started')}</span>
             <span>{formatDate(trace.startTime)}</span>
           </div>
 
           {trace.duration && (
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Duration:</span>
+              <span className="text-muted-foreground">{t('duration')}</span>
               <span>{trace.duration}ms</span>
             </div>
           )}
 
           {trace.provider && (
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Provider:</span>
+              <span className="text-muted-foreground">{t('provider')}</span>
               <Badge variant="secondary">{trace.provider}</Badge>
             </div>
           )}
 
           {trace.model && (
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Model:</span>
+              <span className="text-muted-foreground">{t('model')}</span>
               <Badge variant="secondary">{trace.model}</Badge>
             </div>
           )}
@@ -190,20 +196,20 @@ export function TraceViewer({ trace }: TraceViewerProps) {
         {trace.tokenUsage && (
           <div className="flex items-center gap-4 p-3 bg-muted rounded-lg text-sm">
             <div>
-              <span className="text-muted-foreground">Prompt:</span>{' '}
+              <span className="text-muted-foreground">{t('tokenUsage.prompt')}</span>{' '}
               <span className="font-medium">{trace.tokenUsage.prompt}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">Completion:</span>{' '}
+              <span className="text-muted-foreground">{t('tokenUsage.completion')}</span>{' '}
               <span className="font-medium">{trace.tokenUsage.completion}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">Total:</span>{' '}
+              <span className="text-muted-foreground">{t('tokenUsage.total')}</span>{' '}
               <span className="font-medium">{trace.tokenUsage.total}</span>
             </div>
             {trace.cost && (
               <div>
-                <span className="text-muted-foreground">Cost:</span>{' '}
+                <span className="text-muted-foreground">{t('tokenUsage.cost')}</span>{' '}
                 <span className="font-medium">${trace.cost.toFixed(4)}</span>
               </div>
             )}
@@ -211,31 +217,38 @@ export function TraceViewer({ trace }: TraceViewerProps) {
         )}
 
         <div>
-          <h4 className="font-medium mb-2">Span Tree</h4>
-          <div className="border rounded-lg p-2 max-h-64 overflow-y-auto">
+          <h4 className="font-medium mb-2">{t('spanTree')}</h4>
+          <ScrollArea className="border rounded-lg p-2 max-h-64">
             {trace.spans.length === 0 ? (
               <div className="text-center text-muted-foreground py-4">
-                No spans recorded
+                {t('noSpans')}
               </div>
             ) : (
-              trace.spans.map((span) => <SpanTree key={span.id} span={span} />)
+              trace.spans.map((span) => <SpanTree key={span.id} span={span} t={t} />)
             )}
-          </div>
+          </ScrollArea>
         </div>
 
         {trace.metadata && Object.keys(trace.metadata).length > 0 && (
-          <div>
-            <h4 className="font-medium mb-2">Metadata</h4>
-            <pre className="text-xs bg-muted p-2 rounded-lg overflow-x-auto">
-              {JSON.stringify(trace.metadata, null, 2)}
-            </pre>
-          </div>
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                <ChevronRight className="h-4 w-4 transition-transform [[data-state=open]>svg]:rotate-90" />
+                {t('metadata')}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <pre className="text-xs bg-muted p-2 rounded-lg overflow-x-auto mt-2">
+                {JSON.stringify(trace.metadata, null, 2)}
+              </pre>
+            </CollapsibleContent>
+          </Collapsible>
         )}
 
         <div className="flex justify-end">
           <Button variant="outline" size="sm" className="gap-2">
             <ExternalLink className="h-4 w-4" />
-            Open in Langfuse
+            {t('openInLangfuse')}
           </Button>
         </div>
       </CardContent>

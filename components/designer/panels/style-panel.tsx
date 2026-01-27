@@ -229,8 +229,8 @@ export function StylePanel({ className }: StylePanelProps) {
 
           <Separator />
 
-          {/* Style properties accordion */}
-          <Accordion type="multiple" defaultValue={['layout', 'spacing']} className="w-full">
+          {/* Style properties accordion - only expand layout by default for cleaner UI */}
+          <Accordion type="multiple" defaultValue={['layout']} className="w-full">
             {/* Layout */}
             <AccordionItem value="layout">
               <AccordionTrigger className="text-xs py-2">

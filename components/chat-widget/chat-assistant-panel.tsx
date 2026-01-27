@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import { cn } from '@/lib/utils';
 import { isTauri } from '@/lib/native/utils';
@@ -135,6 +136,7 @@ export function ChatAssistantPanel({
   height = 560,
   className,
 }: ChatAssistantPanelProps) {
+  const t = useTranslations("chatWidget");
   const containerRef = useRef<HTMLDivElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const resetConfig = useChatWidgetStore((state) => state.resetConfig);
@@ -267,7 +269,7 @@ export function ChatAssistantPanel({
         onSettings={() => setSettingsOpen(true)}
         onExport={() => {
           const content = messages
-            .map((m) => `${m.role === "user" ? "👤 用户" : "🤖 助手"}:\n${m.content}`)
+            .map((m) => `${m.role === "user" ? t("export.user") : t("export.assistant")}:\n${m.content}`)
             .join("\n\n---\n\n");
           const blob = new Blob([content], { type: "text/markdown" });
           const url = URL.createObjectURL(blob);
@@ -292,7 +294,7 @@ export function ChatAssistantPanel({
           handleSubmit();
         }}
         onContinue={() => {
-          setInputValue("请继续");
+          setInputValue(t("continueGeneration"));
           handleSubmit();
         }}
       />

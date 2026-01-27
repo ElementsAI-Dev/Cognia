@@ -12,7 +12,8 @@
  * - Auto-save configuration
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,43 +75,6 @@ export interface ProjectSettingsPanelProps {
   className?: string;
 }
 
-const RESOLUTION_PRESETS = [
-  { label: '4K UHD', width: 3840, height: 2160 },
-  { label: '2K QHD', width: 2560, height: 1440 },
-  { label: '1080p HD', width: 1920, height: 1080 },
-  { label: '720p HD', width: 1280, height: 720 },
-  { label: '480p SD', width: 854, height: 480 },
-  { label: 'Instagram Square', width: 1080, height: 1080 },
-  { label: 'Instagram Story', width: 1080, height: 1920 },
-  { label: 'TikTok', width: 1080, height: 1920 },
-  { label: 'YouTube Shorts', width: 1080, height: 1920 },
-];
-
-const FRAME_RATES: { value: FrameRate; label: string }[] = [
-  { value: 23.976, label: '23.976 fps (Film)' },
-  { value: 24, label: '24 fps (Cinema)' },
-  { value: 25, label: '25 fps (PAL)' },
-  { value: 29.97, label: '29.97 fps (NTSC)' },
-  { value: 30, label: '30 fps' },
-  { value: 50, label: '50 fps (PAL HFR)' },
-  { value: 59.94, label: '59.94 fps (NTSC HFR)' },
-  { value: 60, label: '60 fps' },
-];
-
-const ASPECT_RATIOS: { value: AspectRatio; label: string }[] = [
-  { value: '16:9', label: '16:9 (Widescreen)' },
-  { value: '4:3', label: '4:3 (Standard)' },
-  { value: '1:1', label: '1:1 (Square)' },
-  { value: '9:16', label: '9:16 (Vertical)' },
-  { value: '21:9', label: '21:9 (Ultrawide)' },
-  { value: 'custom', label: 'Custom' },
-];
-
-const SAMPLE_RATES = [
-  { value: 44100, label: '44.1 kHz' },
-  { value: 48000, label: '48 kHz' },
-  { value: 96000, label: '96 kHz' },
-];
 
 const DEFAULT_SETTINGS: ProjectSettings = {
   name: 'Untitled Project',
@@ -137,7 +101,47 @@ export function ProjectSettingsPanel({
   onReset,
   className,
 }: ProjectSettingsPanelProps) {
+  const t = useTranslations('projectSettings');
+  const tCommon = useTranslations('common');
   const [localSettings, setLocalSettings] = useState(settings);
+
+  const resolutionPresets = useMemo(() => [
+    { label: t('resolutions.4kUhd'), width: 3840, height: 2160 },
+    { label: t('resolutions.2kQhd'), width: 2560, height: 1440 },
+    { label: t('resolutions.1080pHd'), width: 1920, height: 1080 },
+    { label: t('resolutions.720pHd'), width: 1280, height: 720 },
+    { label: t('resolutions.480pSd'), width: 854, height: 480 },
+    { label: t('resolutions.instagramSquare'), width: 1080, height: 1080 },
+    { label: t('resolutions.instagramStory'), width: 1080, height: 1920 },
+    { label: t('resolutions.tiktok'), width: 1080, height: 1920 },
+    { label: t('resolutions.youtubeShorts'), width: 1080, height: 1920 },
+  ], [t]);
+
+  const frameRates = useMemo((): { value: FrameRate; label: string }[] => [
+    { value: 23.976, label: t('frameRates.23976') },
+    { value: 24, label: t('frameRates.24') },
+    { value: 25, label: t('frameRates.25') },
+    { value: 29.97, label: t('frameRates.2997') },
+    { value: 30, label: t('frameRates.30') },
+    { value: 50, label: t('frameRates.50') },
+    { value: 59.94, label: t('frameRates.5994') },
+    { value: 60, label: t('frameRates.60') },
+  ], [t]);
+
+  const aspectRatios = useMemo((): { value: AspectRatio; label: string }[] => [
+    { value: '16:9', label: t('aspectRatios.16:9') },
+    { value: '4:3', label: t('aspectRatios.4:3') },
+    { value: '1:1', label: t('aspectRatios.1:1') },
+    { value: '9:16', label: t('aspectRatios.9:16') },
+    { value: '21:9', label: t('aspectRatios.21:9') },
+    { value: 'custom', label: t('aspectRatios.custom') },
+  ], [t]);
+
+  const sampleRates = useMemo(() => [
+    { value: 44100, label: t('sampleRates.44100') },
+    { value: 48000, label: t('sampleRates.48000') },
+    { value: 96000, label: t('sampleRates.96000') },
+  ], [t]);
 
   const handleSettingChange = useCallback(
     <K extends keyof ProjectSettings>(key: K, value: ProjectSettings[K]) => {
@@ -192,7 +196,7 @@ export function ProjectSettingsPanel({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Project Settings
+            {t('title')}
           </DialogTitle>
         </DialogHeader>
 
@@ -200,11 +204,11 @@ export function ProjectSettingsPanel({
           <div className="space-y-6">
             {/* Project name */}
             <div className="space-y-2">
-              <Label>Project Name</Label>
+              <Label>{t('projectName')}</Label>
               <Input
                 value={localSettings.name}
                 onChange={(e) => handleSettingChange('name', e.target.value)}
-                placeholder="Project name"
+                placeholder={t('projectNamePlaceholder')}
               />
             </div>
 
@@ -212,14 +216,14 @@ export function ProjectSettingsPanel({
             <div className="space-y-4">
               <h4 className="font-medium flex items-center gap-2">
                 <Monitor className="h-4 w-4" />
-                Video Settings
+                {t('videoSettings')}
               </h4>
 
               {/* Resolution presets */}
               <div className="space-y-2">
-                <Label>Resolution Presets</Label>
+                <Label>{t('resolutionPresets')}</Label>
                 <div className="flex flex-wrap gap-1">
-                  {RESOLUTION_PRESETS.map((preset) => (
+                  {resolutionPresets.map((preset) => (
                     <Button
                       key={preset.label}
                       variant={
@@ -241,7 +245,7 @@ export function ProjectSettingsPanel({
               {/* Custom resolution */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Width (px)</Label>
+                  <Label>{t('width')}</Label>
                   <Input
                     type="number"
                     value={localSettings.width}
@@ -251,7 +255,7 @@ export function ProjectSettingsPanel({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Height (px)</Label>
+                  <Label>{t('height')}</Label>
                   <Input
                     type="number"
                     value={localSettings.height}
@@ -264,7 +268,7 @@ export function ProjectSettingsPanel({
 
               {/* Aspect ratio */}
               <div className="space-y-2">
-                <Label>Aspect Ratio</Label>
+                <Label>{t('aspectRatio')}</Label>
                 <Select
                   value={localSettings.aspectRatio}
                   onValueChange={(v) => handleAspectRatioChange(v as AspectRatio)}
@@ -273,7 +277,7 @@ export function ProjectSettingsPanel({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ASPECT_RATIOS.map((ratio) => (
+                    {aspectRatios.map((ratio) => (
                       <SelectItem key={ratio.value} value={ratio.value}>
                         {ratio.label}
                       </SelectItem>
@@ -286,7 +290,7 @@ export function ProjectSettingsPanel({
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Film className="h-4 w-4" />
-                  Frame Rate
+                  {t('frameRate')}
                 </Label>
                 <Select
                   value={localSettings.frameRate.toString()}
@@ -296,7 +300,7 @@ export function ProjectSettingsPanel({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {FRAME_RATES.map((rate) => (
+                    {frameRates.map((rate) => (
                       <SelectItem key={rate.value} value={rate.value.toString()}>
                         {rate.label}
                       </SelectItem>
@@ -309,7 +313,7 @@ export function ProjectSettingsPanel({
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Palette className="h-4 w-4" />
-                  Background Color
+                  {t('backgroundColor')}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Input
@@ -328,7 +332,7 @@ export function ProjectSettingsPanel({
 
               {/* Color space */}
               <div className="space-y-2">
-                <Label>Working Color Space</Label>
+                <Label>{t('colorSpace')}</Label>
                 <Select
                   value={localSettings.workingColorSpace}
                   onValueChange={(v) =>
@@ -339,9 +343,9 @@ export function ProjectSettingsPanel({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="srgb">sRGB</SelectItem>
-                    <SelectItem value="rec709">Rec. 709</SelectItem>
-                    <SelectItem value="rec2020">Rec. 2020</SelectItem>
+                    <SelectItem value="srgb">{t('colorSpaces.srgb')}</SelectItem>
+                    <SelectItem value="rec709">{t('colorSpaces.rec709')}</SelectItem>
+                    <SelectItem value="rec2020">{t('colorSpaces.rec2020')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -351,12 +355,12 @@ export function ProjectSettingsPanel({
             <div className="space-y-4">
               <h4 className="font-medium flex items-center gap-2">
                 <Volume2 className="h-4 w-4" />
-                Audio Settings
+                {t('audioSettings')}
               </h4>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Sample Rate</Label>
+                  <Label>{t('sampleRate')}</Label>
                   <Select
                     value={localSettings.audioSampleRate.toString()}
                     onValueChange={(v) => handleSettingChange('audioSampleRate', parseInt(v))}
@@ -365,7 +369,7 @@ export function ProjectSettingsPanel({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {SAMPLE_RATES.map((rate) => (
+                      {sampleRates.map((rate) => (
                         <SelectItem key={rate.value} value={rate.value.toString()}>
                           {rate.label}
                         </SelectItem>
@@ -375,7 +379,7 @@ export function ProjectSettingsPanel({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Channels</Label>
+                  <Label>{t('channels')}</Label>
                   <Select
                     value={localSettings.audioChannels.toString()}
                     onValueChange={(v) => handleSettingChange('audioChannels', parseInt(v) as 1 | 2)}
@@ -384,8 +388,8 @@ export function ProjectSettingsPanel({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">Mono</SelectItem>
-                      <SelectItem value="2">Stereo</SelectItem>
+                      <SelectItem value="1">{t('mono')}</SelectItem>
+                      <SelectItem value="2">{t('stereo')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -396,14 +400,14 @@ export function ProjectSettingsPanel({
             <div className="space-y-4">
               <h4 className="font-medium flex items-center gap-2">
                 <HardDrive className="h-4 w-4" />
-                Performance
+                {t('performance')}
               </h4>
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Use Proxy Media</Label>
+                  <Label>{t('useProxy')}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Use lower resolution proxies for smoother editing
+                    {t('proxyDescription')}
                   </p>
                 </div>
                 <Switch
@@ -414,7 +418,7 @@ export function ProjectSettingsPanel({
 
               {localSettings.useProxy && (
                 <div className="space-y-2 pl-4">
-                  <Label>Proxy Resolution</Label>
+                  <Label>{t('proxyResolution')}</Label>
                   <Select
                     value={localSettings.proxyResolution}
                     onValueChange={(v) =>
@@ -425,9 +429,9 @@ export function ProjectSettingsPanel({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1/2">1/2 Resolution</SelectItem>
-                      <SelectItem value="1/4">1/4 Resolution</SelectItem>
-                      <SelectItem value="1/8">1/8 Resolution</SelectItem>
+                      <SelectItem value="1/2">{t('proxyOptions.half')}</SelectItem>
+                      <SelectItem value="1/4">{t('proxyOptions.quarter')}</SelectItem>
+                      <SelectItem value="1/8">{t('proxyOptions.eighth')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -438,14 +442,14 @@ export function ProjectSettingsPanel({
             <div className="space-y-4">
               <h4 className="font-medium flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Auto-Save
+                {t('autoSave')}
               </h4>
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Enable Auto-Save</Label>
+                  <Label>{t('enableAutoSave')}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Automatically save project at regular intervals
+                    {t('autoSaveDescription')}
                   </p>
                 </div>
                 <Switch
@@ -456,7 +460,7 @@ export function ProjectSettingsPanel({
 
               {localSettings.autoSave && (
                 <div className="space-y-2 pl-4">
-                  <Label>Save Interval (minutes)</Label>
+                  <Label>{t('saveInterval')}</Label>
                   <Input
                     type="number"
                     value={localSettings.autoSaveInterval}
@@ -475,15 +479,15 @@ export function ProjectSettingsPanel({
         <DialogFooter className="flex items-center justify-between">
           <Button variant="outline" onClick={handleReset}>
             <RotateCcw className="h-4 w-4 mr-2" />
-            Reset to Defaults
+            {t('resetToDefaults')}
           </Button>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <Button onClick={handleSave}>
               <Save className="h-4 w-4 mr-2" />
-              Save Settings
+              {t('saveSettings')}
             </Button>
           </div>
         </DialogFooter>

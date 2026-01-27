@@ -196,7 +196,7 @@ export function ArtifactPanel() {
   return (
     <Sheet open={panelOpen && panelView === 'artifact'} onOpenChange={(open) => !open && closePanel()}>
       <SheetContent side="right" className={`${panelWidth} p-0 transition-all duration-200`}>
-        <SheetTitle className="sr-only">Artifact Panel</SheetTitle>
+        <SheetTitle className="sr-only">{t('sheetTitle')}</SheetTitle>
         {activeArtifact ? (
           <Artifact className="h-full border-0 rounded-none">
             <ArtifactHeader>

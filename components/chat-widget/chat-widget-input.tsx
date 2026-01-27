@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,12 +39,13 @@ export const ChatWidgetInput = forwardRef<
     onStop,
     isLoading,
     disabled,
-    placeholder = "Type a message...",
+    placeholder: placeholderProp,
     className,
     showVoiceInput = true,
   },
   ref
 ) {
+  const t = useTranslations("chatWidget.input");
   const formRef = useRef<HTMLFormElement>(null);
 
   // Voice input using existing useSpeech hook
@@ -105,7 +107,7 @@ export const ChatWidgetInput = forwardRef<
           value={value}
           onChange={handleInput}
           onKeyDown={onKeyDown}
-          placeholder={placeholder}
+          placeholder={placeholderProp || t("placeholder")}
           disabled={disabled}
           className={cn(
             "min-h-[40px] max-h-[120px] py-2.5 px-3 pr-12",
@@ -152,7 +154,7 @@ export const ChatWidgetInput = forwardRef<
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top">
-                {isListening ? "停止录音" : "语音输入"}
+                {isListening ? t("stopRecording") : t("voiceInput")}
                 {interimTranscript && (
                   <span className="block text-xs opacity-70 mt-1">
                     {interimTranscript}
@@ -176,7 +178,7 @@ export const ChatWidgetInput = forwardRef<
                   <Square className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">停止生成</TooltipContent>
+              <TooltipContent side="top">{t("stopGeneration")}</TooltipContent>
             </Tooltip>
           ) : (
             /* Send button */
@@ -192,7 +194,7 @@ export const ChatWidgetInput = forwardRef<
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top">
-                发送消息 (Enter)
+                {t("sendMessage")}
               </TooltipContent>
             </Tooltip>
           )}

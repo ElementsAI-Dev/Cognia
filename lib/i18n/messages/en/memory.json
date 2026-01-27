@@ -84,7 +84,10 @@
     "enableSelected": "Enable",
     "disableSelected": "Disable",
     "deleteSelected": "Delete",
-    "allScopes": "All Scopes"
+    "allScopes": "All Scopes",
+    "importSuccess": "Successfully imported {count} memories",
+    "importFailed": "Import failed: {error}",
+    "moreWarnings": "(+{count} more warnings)"
   },
   "customInstructions": {
     "title": "Custom Instructions",
@@ -154,6 +157,43 @@
       "backend": "Backend",
       "testing": "Testing",
       "style": "Coding Style"
+    },
+    "ariaLabels": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "togglePreview": "Toggle preview",
+      "toggleWordWrap": "Toggle word wrap",
+      "aiOptimize": "AI Optimize",
+      "import": "Import",
+      "export": "Export",
+      "reset": "Reset",
+      "copy": "Copy",
+      "save": "Save",
+      "toggleTheme": "Toggle theme",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu"
+    },
+    "templateLabels": {
+      "base": "Balanced Base",
+      "senior": "Senior Engineer",
+      "react": "React & Tailwind",
+      "styling": "Design System",
+      "typescript": "Node & TS",
+      "full": "TDD Approach"
+    },
+    "variableLabels": {
+      "projectName": "Project Name",
+      "techStack": "Stack Info",
+      "author": "Author",
+      "date": "Current Date",
+      "styleGuide": "Style Guide"
+    },
+    "variableDescriptions": {
+      "projectName": "Name of the current project",
+      "techStack": "Detected technology stack",
+      "author": "Current user name",
+      "date": "Current system date",
+      "styleGuide": "Project style conventions"
     }
   },
   "knowledgeBase": {

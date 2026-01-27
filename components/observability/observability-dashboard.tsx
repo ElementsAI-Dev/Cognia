@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Activity, DollarSign, AlertTriangle, Clock } from 'lucide-react';
 import { TraceViewer } from './trace-viewer';
@@ -70,6 +74,10 @@ interface ObservabilityDashboardProps {
 }
 
 export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps) {
+  const t = useTranslations('observability.dashboard');
+  const tTime = useTranslations('observability.timeRange');
+  const tCommon = useTranslations('observability');
+
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
   const [selectedTrace, setSelectedTrace] = useState<TraceData | null>(null);
   const [traces, setTraces] = useState<TraceData[]>([]);
@@ -121,11 +129,11 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
     return (
       <Card className="w-full">
         <CardContent className="flex flex-col items-center justify-center py-12">
-          <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">Observability Disabled</h3>
-          <p className="text-muted-foreground text-center max-w-md">
-            Enable observability in settings to track AI operations, view traces, and analyze costs.
-          </p>
+          <Alert variant="default" className="max-w-md">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>{t('disabledTitle')}</AlertTitle>
+            <AlertDescription>{t('disabledDescription')}</AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     );
@@ -134,17 +142,17 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
-        <h2 className="text-xl font-semibold">Observability Dashboard</h2>
+        <h2 className="text-xl font-semibold">{t('title')}</h2>
         <div className="flex items-center gap-4">
           <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1h">Last 1 hour</SelectItem>
-              <SelectItem value="24h">Last 24 hours</SelectItem>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="1h">{tTime('1h')}</SelectItem>
+              <SelectItem value="24h">{tTime('24h')}</SelectItem>
+              <SelectItem value="7d">{tTime('7d')}</SelectItem>
+              <SelectItem value="30d">{tTime('30d')}</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isLoading}>
@@ -152,7 +160,7 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
           </Button>
           {onClose && (
             <Button variant="ghost" size="sm" onClick={onClose}>
-              Close
+              {tCommon('close')}
             </Button>
           )}
         </div>
@@ -163,104 +171,122 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Activity className="h-4 w-4" />
-              Total Requests
+              {t('totalRequests')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.totalRequests ?? 0}</div>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">{metrics?.totalRequests ?? 0}</div>
+            )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Avg Latency
+              {t('avgLatency')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {metrics?.averageLatency ? `${metrics.averageLatency.toFixed(0)}ms` : '0ms'}
-            </div>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">
+                {metrics?.averageLatency ? `${metrics.averageLatency.toFixed(0)}ms` : '0ms'}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
-              Total Cost
+              {t('totalCost')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ${metrics?.totalCost?.toFixed(4) ?? '0.00'}
-            </div>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">
+                ${metrics?.totalCost?.toFixed(4) ?? '0.00'}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
-              Error Rate
+              {t('errorRate')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {metrics?.errorRate ? `${(metrics.errorRate * 100).toFixed(1)}%` : '0%'}
-            </div>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">
+                {metrics?.errorRate ? `${(metrics.errorRate * 100).toFixed(1)}%` : '0%'}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 p-4">
         <TabsList>
-          <TabsTrigger value="traces">Traces</TabsTrigger>
-          <TabsTrigger value="metrics">Metrics</TabsTrigger>
-          <TabsTrigger value="costs">Cost Analysis</TabsTrigger>
+          <TabsTrigger value="traces">{t('tabs.traces')}</TabsTrigger>
+          <TabsTrigger value="metrics">{t('tabs.metrics')}</TabsTrigger>
+          <TabsTrigger value="costs">{t('tabs.costs')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="traces" className="flex-1 mt-4">
           <div className="grid grid-cols-3 gap-4 h-full">
             <Card className="col-span-1">
               <CardHeader>
-                <CardTitle className="text-sm">Recent Traces</CardTitle>
+                <CardTitle className="text-sm">{t('recentTraces')}</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="divide-y max-h-96 overflow-y-auto">
-                  {traces.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground">
-                      No traces yet. Start using AI features to see traces here.
-                    </div>
-                  ) : (
-                    traces.map((trace) => (
-                      <button
-                        key={trace.id}
-                        className={`w-full p-3 text-left hover:bg-muted/50 transition-colors ${
-                          selectedTrace?.id === trace.id ? 'bg-muted' : ''
-                        }`}
-                        onClick={() => setSelectedTrace(trace)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm truncate">{trace.name}</span>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded ${
-                              trace.status === 'success'
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                                : trace.status === 'error'
-                                ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-                            }`}
-                          >
-                            {trace.status}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                          <span>{trace.duration ? `${trace.duration}ms` : 'Running...'}</span>
-                          {trace.tokenUsage && <span>• {trace.tokenUsage.total} tokens</span>}
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
+                <ScrollArea className="max-h-96">
+                  <div className="divide-y">
+                    {traces.length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground">
+                        {t('noTraces')}
+                      </div>
+                    ) : (
+                      traces.map((trace) => (
+                        <button
+                          key={trace.id}
+                          className={`w-full p-3 text-left hover:bg-muted/50 transition-colors ${
+                            selectedTrace?.id === trace.id ? 'bg-muted' : ''
+                          }`}
+                          onClick={() => setSelectedTrace(trace)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm truncate">{trace.name}</span>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded ${
+                                trace.status === 'success'
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                  : trace.status === 'error'
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                                  : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                              }`}
+                            >
+                              {trace.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                            <span>{trace.duration ? `${trace.duration}ms` : t('traceRunning')}</span>
+                            {trace.tokenUsage && <span>• {trace.tokenUsage.total} tokens</span>}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
 
@@ -270,7 +296,7 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
               ) : (
                 <Card className="h-full flex items-center justify-center">
                   <CardContent className="text-center text-muted-foreground">
-                    Select a trace to view details
+                    {t('selectTrace')}
                   </CardContent>
                 </Card>
               )}

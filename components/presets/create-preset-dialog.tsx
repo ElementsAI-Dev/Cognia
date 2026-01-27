@@ -194,7 +194,7 @@ export function CreatePresetDialog({
     
     const settings = getApiSettings();
     if (!settings?.apiKey) {
-      toast.warning('Please configure an API key in settings first.');
+      toast.warning(t('errors.noApiKey'));
       return;
     }
 
@@ -234,14 +234,14 @@ export function CreatePresetDialog({
           })));
         }
         setAiDescription('');
-        toast.success(t('aiGenerateSuccess') || 'Preset generated successfully!');
+        toast.success(t('aiGenerateSuccess'));
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || 'Failed to generate preset');
+        toast.error(errorData.error || t('errors.generateFailed'));
       }
     } catch (error) {
       console.error('Failed to generate preset:', error);
-      toast.error('Failed to generate preset. Please try again.');
+      toast.error(t('errors.generateFailedRetry'));
     } finally {
       setIsGeneratingPreset(false);
     }
@@ -253,7 +253,7 @@ export function CreatePresetDialog({
     
     const settings = getApiSettings();
     if (!settings?.apiKey) {
-      toast.warning('Please configure an API key in settings first.');
+      toast.warning(t('errors.noApiKey'));
       return;
     }
 
@@ -276,11 +276,11 @@ export function CreatePresetDialog({
         toast.success(t('optimizeSuccess'));
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || 'Failed to optimize prompt');
+        toast.error(errorData.error || t('errors.optimizeFailed'));
       }
     } catch (error) {
       console.error('Failed to optimize prompt:', error);
-      toast.error('Failed to optimize prompt. Please try again.');
+      toast.error(t('errors.optimizeFailedRetry'));
     } finally {
       setIsOptimizingPrompt(false);
     }
@@ -292,7 +292,7 @@ export function CreatePresetDialog({
     
     const settings = getApiSettings();
     if (!settings?.apiKey) {
-      toast.warning('Please configure an API key in settings first.');
+      toast.warning(t('errors.noApiKey'));
       return;
     }
 
@@ -326,11 +326,11 @@ export function CreatePresetDialog({
         toast.success(t('generatePromptsSuccess'));
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || 'Failed to generate prompts');
+        toast.error(errorData.error || t('errors.generatePromptsFailed'));
       }
     } catch (error) {
       console.error('Failed to generate prompts:', error);
-      toast.error('Failed to generate prompts. Please try again.');
+      toast.error(t('errors.generatePromptsFailedRetry'));
     } finally {
       setIsGeneratingPrompts(false);
     }
@@ -375,11 +375,11 @@ export function CreatePresetDialog({
 
   const handleSubmit = () => {
     if (!name.trim()) {
-      toast.error('Please enter a preset name');
+      toast.error(t('errors.nameRequired'));
       return;
     }
     if (!model.trim()) {
-      toast.error('Please select a model');
+      toast.error(t('errors.modelRequired'));
       return;
     }
 
@@ -680,7 +680,7 @@ export function CreatePresetDialog({
                       size="sm"
                       onClick={() => setTemplateSelectorOpen(true)}
                     >
-                      Insert template
+                      {t('insertTemplate')}
                     </Button>
                     <Button
                       variant="outline"

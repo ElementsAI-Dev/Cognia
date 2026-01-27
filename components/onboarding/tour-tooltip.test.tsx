@@ -55,6 +55,12 @@ describe('TourTooltip', () => {
     onClose: jest.fn(),
     isFirst: true,
     isLast: false,
+    nextLabel: 'Next',
+    previousLabel: 'Previous',
+    skipLabel: 'Skip tour',
+    completeLabel: 'Complete',
+    stepLabel: 'Step',
+    closeTourLabel: 'Close tour',
   };
 
   beforeEach(() => {

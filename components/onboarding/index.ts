@@ -13,7 +13,7 @@ export {
 export { SpotlightOverlay } from './spotlight-overlay';
 export { TourTooltip, type TooltipPosition } from './tour-tooltip';
 export { Confetti, ConfettiBurst } from './confetti';
-export { useTourKeyboard } from './use-tour-keyboard';
+export { useTourKeyboard, type KeyboardHints } from './use-tour-keyboard';
 export { TourManager, useTourManager } from './tour-manager';
 export {
   chatTourSteps,

@@ -1,6 +1,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { SLIDE_LAYOUT_INFO } from '@/types/workflow';
 import { ChevronLeft, ChevronRight, Edit, LayoutTemplate } from 'lucide-react';
 import { SlideContent } from '../rendering';
@@ -46,34 +53,59 @@ export function SingleSlideView({
         )}
 
         {/* Navigation arrows */}
-        <button
-          onClick={onPrev}
-          disabled={slideIndex === 0}
-          aria-label="Previous slide"
-          aria-disabled={slideIndex === 0}
-          className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-background/80 hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed z-10"
-        >
-          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-        </button>
-        <button
-          onClick={onNext}
-          aria-label="Next slide"
-          aria-disabled={slideIndex === totalSlides - 1}
-          disabled={slideIndex === totalSlides - 1}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-background/80 hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed z-10"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onPrev}
+                disabled={slideIndex === 0}
+                aria-label={t('slideOf', { current: slideIndex, total: totalSlides })}
+                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 hover:bg-background disabled:opacity-30 z-10"
+              >
+                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{t('slideOf', { current: slideIndex, total: totalSlides })}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onNext}
+                disabled={slideIndex === totalSlides - 1}
+                aria-label={t('slideOf', { current: slideIndex + 2, total: totalSlides })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 hover:bg-background disabled:opacity-30 z-10"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">{t('slideOf', { current: slideIndex + 2, total: totalSlides })}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Edit button */}
         {onEdit && (
-          <button
-            onClick={onEdit}
-            aria-label="Edit slide"
-            className="absolute top-2 right-2 p-2 rounded-full bg-background/80 hover:bg-background z-10"
-          >
-            <Edit className="h-4 w-4" aria-hidden="true" />
-          </button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onEdit}
+                  aria-label={t('openEditor')}
+                  className="absolute top-2 right-2 rounded-full bg-background/80 hover:bg-background z-10"
+                >
+                  <Edit className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('openEditor')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
         {/* Slide content */}

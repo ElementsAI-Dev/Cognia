@@ -291,4 +291,51 @@ describe('useDesignerStore', () => {
       expect(state.selectedElementId).toBeNull();
     });
   });
+
+  describe('parseCodeToElements', () => {
+    it('should generate deterministic element IDs (el-0, el-1, etc.)', () => {
+      act(() => {
+        useDesignerStore.getState().parseCodeToElements('<div><span>Hello</span><p>World</p></div>');
+      });
+
+      const state = useDesignerStore.getState();
+      expect(state.elementTree).not.toBeNull();
+      // Root element should be el-0
+      expect(state.elementTree?.id).toBe('el-0');
+      // First child should be el-1
+      expect(state.elementTree?.children[0]?.id).toBe('el-1');
+      // Second child should be el-2
+      expect(state.elementTree?.children[1]?.id).toBe('el-2');
+    });
+
+    it('should reset ID counter for each parse to ensure consistency', () => {
+      // First parse
+      act(() => {
+        useDesignerStore.getState().parseCodeToElements('<div><span>Test1</span></div>');
+      });
+      const firstTree = useDesignerStore.getState().elementTree;
+      expect(firstTree?.id).toBe('el-0');
+      expect(firstTree?.children[0]?.id).toBe('el-1');
+
+      // Second parse - IDs should start from el-0 again
+      act(() => {
+        useDesignerStore.getState().parseCodeToElements('<section><article>Test2</article></section>');
+      });
+      const secondTree = useDesignerStore.getState().elementTree;
+      expect(secondTree?.id).toBe('el-0');
+      expect(secondTree?.children[0]?.id).toBe('el-1');
+    });
+
+    it('should build element map with deterministic IDs', () => {
+      act(() => {
+        useDesignerStore.getState().parseCodeToElements('<div class="container"><button>Click</button></div>');
+      });
+
+      const state = useDesignerStore.getState();
+      expect(state.elementMap['el-0']).toBeDefined();
+      expect(state.elementMap['el-0'].tagName).toBe('div');
+      expect(state.elementMap['el-1']).toBeDefined();
+      expect(state.elementMap['el-1'].tagName).toBe('button');
+    });
+  });
 });

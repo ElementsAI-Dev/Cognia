@@ -11,6 +11,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { X, Check, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { RecordingRegion } from '@/lib/native/screen-recording';
 
@@ -179,17 +181,19 @@ export function RegionSelector({
       onMouseLeave={handleMouseUp}
     >
       {/* Instructions */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur rounded-lg px-4 py-2 shadow-lg border">
-        <p className="text-sm text-center">
-          {selection && selection.width > 0 
-            ? t('dragToAdjust')
-            : t('clickAndDrag')
-          }
-        </p>
-        <p className="text-xs text-muted-foreground text-center mt-1">
-          {t('pressEscToCancel')} • {t('pressEnterToConfirm')}
-        </p>
-      </div>
+      <Card className="absolute top-4 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur shadow-lg">
+        <CardContent className="px-4 py-2">
+          <p className="text-sm text-center">
+            {selection && selection.width > 0 
+              ? t('dragToAdjust')
+              : t('clickAndDrag')
+            }
+          </p>
+          <p className="text-xs text-muted-foreground text-center mt-1">
+            {t('pressEscToCancel')} • {t('pressEnterToConfirm')}
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Selection overlay */}
       {selection && selection.width > 0 && selection.height > 0 && (
@@ -249,9 +253,9 @@ export function RegionSelector({
             <div className="absolute inset-0 bg-transparent" />
             
             {/* Size indicator */}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-mono whitespace-nowrap">
+            <Badge className="absolute -top-8 left-1/2 -translate-x-1/2 font-mono whitespace-nowrap">
               {Math.round(selection.width)} × {Math.round(selection.height)}
-            </div>
+            </Badge>
 
             {/* Resize handles */}
             {!isSelecting && (

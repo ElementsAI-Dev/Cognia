@@ -40,12 +40,7 @@ const DIFFICULTY_COLORS: Record<DifficultyLevel, string> = {
   expert: 'bg-red-500',
 };
 
-const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
-  beginner: 'Beginner',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
-  expert: 'Expert',
-};
+// DIFFICULTY_LABELS moved to use i18n in component
 
 export const LearningStatisticsPanel = memo(function LearningStatisticsPanel({
   session,
@@ -116,10 +111,10 @@ export const LearningStatisticsPanel = memo(function LearningStatisticsPanel({
         <CardContent>
           <div className="flex items-center gap-2">
             <div className={cn('w-3 h-3 rounded-full', DIFFICULTY_COLORS[session.currentDifficulty])} />
-            <span className="font-medium">{DIFFICULTY_LABELS[session.currentDifficulty]}</span>
+            <span className="font-medium">{t(`stats.difficulty.${session.currentDifficulty}`)}</span>
             {session.adaptiveAdjustments > 0 && (
               <Badge variant="secondary" className="text-xs">
-                {session.adaptiveAdjustments} adjustments
+                {session.adaptiveAdjustments} {t('stats.adjustments')}
               </Badge>
             )}
           </div>
@@ -192,7 +187,7 @@ export const LearningStatisticsPanel = memo(function LearningStatisticsPanel({
             ))}
             {session.concepts.length > 5 && (
               <p className="text-xs text-muted-foreground text-center">
-                +{session.concepts.length - 5} more concepts
+                {t('stats.moreConcepts', { count: session.concepts.length - 5 })}
               </p>
             )}
           </CardContent>
@@ -212,13 +207,13 @@ export const LearningStatisticsPanel = memo(function LearningStatisticsPanel({
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-500" />
               <span className="text-lg font-bold">{session.consecutiveCorrect}</span>
-              <span className="text-xs text-muted-foreground">correct</span>
+              <span className="text-xs text-muted-foreground">{t('stats.correct')}</span>
             </div>
             {session.consecutiveIncorrect > 0 && (
               <div className="flex items-center gap-2">
                 <XCircle className="h-4 w-4 text-red-500" />
                 <span className="text-lg font-bold">{session.consecutiveIncorrect}</span>
-                <span className="text-xs text-muted-foreground">incorrect</span>
+                <span className="text-xs text-muted-foreground">{t('stats.incorrect')}</span>
               </div>
             )}
           </div>

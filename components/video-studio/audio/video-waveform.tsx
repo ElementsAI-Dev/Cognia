@@ -13,7 +13,9 @@
  */
 
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface WaveformData {
   peaks: number[]; // Normalized amplitude values (0-1)
@@ -60,6 +62,7 @@ export function VideoWaveform({
   onSelectionChange,
   className,
 }: VideoWaveformProps) {
+  const t = useTranslations('waveform');
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -267,7 +270,10 @@ export function VideoWaveform({
       {/* Loading overlay */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-          <span className="text-xs text-muted-foreground">Loading waveform...</span>
+          <div className="flex flex-col items-center gap-2">
+            <Skeleton className="h-8 w-32" />
+            <span className="text-xs text-muted-foreground">{t('loading')}</span>
+          </div>
         </div>
       )}
     </div>

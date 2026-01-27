@@ -207,7 +207,7 @@ export function LocalProviderModelManager({
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <Server className="h-4 w-4" />
-              {config.name} Models
+              {t('providerModels', { provider: config.name })}
             </CardTitle>
             <CardDescription className="mt-1">
               {renderStatus()}
@@ -235,7 +235,7 @@ export function LocalProviderModelManager({
         {!isConnected ? (
           <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
             <Server className="mx-auto mb-2 h-8 w-8 opacity-50" />
-            <p>{config.name} is not running</p>
+            <p>{t('providerNotRunning', { provider: config.name })}</p>
             <p className="mt-2 text-xs">
               <a
                 href={installInfo.downloadUrl}
@@ -244,7 +244,7 @@ export function LocalProviderModelManager({
                 className="inline-flex items-center gap-1 text-primary hover:underline"
               >
                 <ExternalLink className="h-3 w-3" />
-                Install {config.name}
+                {t('installProvider', { provider: config.name })}
               </a>
             </p>
           </div>
@@ -284,7 +284,7 @@ export function LocalProviderModelManager({
                     <CollapsibleTrigger asChild>
                       <Button variant="ghost" size="sm" className="w-full justify-between">
                         <span className="text-xs text-muted-foreground">
-                          Popular Models
+                          {t('popularModels')}
                         </span>
                         {showSuggestedModels ? (
                           <ChevronUp className="h-4 w-4" />
@@ -379,7 +379,7 @@ export function LocalProviderModelManager({
             {/* Installed models list */}
             {models.length > 0 ? (
               <div className="space-y-2">
-                <h4 className="text-sm font-medium">Installed Models</h4>
+                <h4 className="text-sm font-medium">{t('installedModels')}</h4>
                 <div className="space-y-1">
                   {models.map((model) => {
                     const isSelected = selectedModel === model.id;
@@ -444,9 +444,9 @@ export function LocalProviderModelManager({
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Model</AlertDialogTitle>
+                                <AlertDialogTitle>{t('deleteModel')}</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to delete {model.id}? This action cannot be undone.
+                                  {t('deleteModelConfirm', { model: model.id })}
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -469,10 +469,10 @@ export function LocalProviderModelManager({
             ) : (
               <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
                 <Plus className="mx-auto mb-2 h-6 w-6 opacity-50" />
-                <p>No models installed</p>
+                <p>{t('noModelsInstalled')}</p>
                 {capabilities.canPullModels && (
                   <p className="mt-1 text-xs">
-                    Pull a model to get started
+                    {t('pullModelToStart')}
                   </p>
                 )}
               </div>

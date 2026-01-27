@@ -5,6 +5,7 @@
  */
 
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { useGit } from '@/hooks/native/use-git';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +43,7 @@ export function GitStatusPanel({
   showRepoStatus = true,
   compact = false,
 }: GitStatusPanelProps) {
+  const t = useTranslations('git.statusPanel');
   const {
     gitStatus,
     isInstalled,
@@ -83,7 +85,7 @@ export function GitStatusPanel({
           <>
             <Check className="h-4 w-4 text-green-500" />
             <span className="text-sm text-muted-foreground">
-              Git {gitStatus.version}
+              Git {gitStatus.version || ''}
             </span>
             {currentRepo && (
               <Badge variant="outline" className="text-xs">
@@ -94,9 +96,9 @@ export function GitStatusPanel({
         ) : (
           <>
             <X className="h-4 w-4 text-red-500" />
-            <span className="text-sm text-muted-foreground">Git not installed</span>
+            <span className="text-sm text-muted-foreground">{t('notInstalled')}</span>
             <Button size="sm" variant="outline" onClick={installGit}>
-              Install
+              {t('install')}
             </Button>
           </>
         )}
@@ -113,7 +115,7 @@ export function GitStatusPanel({
           <AlertDescription className="flex items-center justify-between">
             <span>{error}</span>
             <Button size="sm" variant="ghost" onClick={clearError}>
-              Dismiss
+              {t('dismiss')}
             </Button>
           </AlertDescription>
         </Alert>
@@ -127,10 +129,10 @@ export function GitStatusPanel({
               <div>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <GitBranch className="h-5 w-5" />
-                  Git Installation
+                  {t('installation.title')}
                 </CardTitle>
                 <CardDescription>
-                  Version control system for tracking changes
+                  {t('installation.description')}
                 </CardDescription>
               </div>
               <Button
@@ -157,7 +159,7 @@ export function GitStatusPanel({
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
-                  <span className="font-medium">Installed</span>
+                  <span className="font-medium">{t('installed')}</span>
                   <Badge variant="secondary">{gitStatus.version}</Badge>
                 </div>
                 {gitStatus.path && (
@@ -170,7 +172,7 @@ export function GitStatusPanel({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-amber-600">
                   <AlertCircle className="h-4 w-4" />
-                  <span>Git is not installed</span>
+                  <span>{t('notInstalledWarning')}</span>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -181,18 +183,18 @@ export function GitStatusPanel({
                     {isInstallingGit ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Installing...
+                        {t('installing')}
                       </>
                     ) : (
                       <>
                         <Download className="h-4 w-4 mr-2" />
-                        Install Git
+                        {t('installGit')}
                       </>
                     )}
                   </Button>
                   <Button size="sm" variant="outline" onClick={openGitWebsite}>
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Website
+                    {t('website')}
                   </Button>
                 </div>
               </div>
@@ -209,7 +211,7 @@ export function GitStatusPanel({
               <div>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <GitCommit className="h-5 w-5" />
-                  Repository Status
+                  {t('repoStatus.title')}
                 </CardTitle>
                 <CardDescription className="truncate max-w-[300px]">
                   {currentRepo.path}
@@ -265,12 +267,12 @@ export function GitStatusPanel({
               <div className="flex items-center gap-2 text-sm">
                 {currentRepo.ahead > 0 && (
                   <span className="text-blue-600">
-                    ↑ {currentRepo.ahead} ahead
+                    ↑ {t('repoStatus.ahead', { count: currentRepo.ahead })}
                   </span>
                 )}
                 {currentRepo.behind > 0 && (
                   <span className="text-orange-600">
-                    ↓ {currentRepo.behind} behind
+                    ↓ {t('repoStatus.behind', { count: currentRepo.behind })}
                   </span>
                 )}
               </div>
@@ -280,7 +282,7 @@ export function GitStatusPanel({
             {fileStatus.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">
-                  Changes ({fileStatus.length} files)
+                  {t('repoStatus.changes', { count: fileStatus.length })}
                 </p>
                 <div className="max-h-32 overflow-auto space-y-1">
                   {fileStatus.slice(0, 10).map((file, idx) => (
@@ -307,7 +309,7 @@ export function GitStatusPanel({
                   ))}
                   {fileStatus.length > 10 && (
                     <p className="text-xs text-muted-foreground">
-                      +{fileStatus.length - 10} more files
+                      {t('repoStatus.moreFiles', { count: fileStatus.length - 10 })}
                     </p>
                   )}
                 </div>
@@ -317,7 +319,7 @@ export function GitStatusPanel({
             {/* Last Commit */}
             {currentRepo.lastCommit && (
               <div className="space-y-1 border-t pt-3">
-                <p className="text-sm font-medium">Last Commit</p>
+                <p className="text-sm font-medium">{t('repoStatus.lastCommit')}</p>
                 <div className="flex items-start gap-2">
                   <GitCommit className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
@@ -336,7 +338,7 @@ export function GitStatusPanel({
             {/* Recent Branches */}
             {branches.length > 0 && (
               <div className="space-y-2 border-t pt-3">
-                <p className="text-sm font-medium">Branches ({branches.length})</p>
+                <p className="text-sm font-medium">{t('repoStatus.branchCount', { count: branches.length })}</p>
                 <div className="flex flex-wrap gap-1">
                   {branches.slice(0, 5).map((branch, idx) => (
                     <Badge
@@ -365,7 +367,7 @@ export function GitStatusPanel({
           <CardContent className="py-6 text-center">
             <GitPullRequest className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Not a Git repository
+              {t('notARepo')}
             </p>
           </CardContent>
         </Card>

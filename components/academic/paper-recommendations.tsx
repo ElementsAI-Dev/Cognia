@@ -5,6 +5,7 @@
  */
 
 import { useMemo, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Lightbulb,
   TrendingUp,
@@ -36,6 +37,7 @@ interface PaperRecommendationsProps {
 }
 
 export function PaperRecommendations({ className }: PaperRecommendationsProps) {
+  const t = useTranslations('academic.paperRecommendations');
   const { libraryPapers, addToLibrary, searchResults, search } = useAcademic();
   const [activeTab, setActiveTab] = useState<'related' | 'trending' | 'authors'>('related');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -102,8 +104,8 @@ export function PaperRecommendations({ className }: PaperRecommendationsProps) {
       return (
         <div className="text-center text-muted-foreground py-8">
           <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>No recommendations available</p>
-          <p className="text-sm mt-1">Add more papers to your library or search for papers</p>
+          <p>{t('emptyState')}</p>
+          <p className="text-sm mt-1">{t('emptyStateHint')}</p>
         </div>
       );
     }
@@ -199,15 +201,15 @@ export function PaperRecommendations({ className }: PaperRecommendationsProps) {
           <div>
             <h3 className="font-semibold flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-yellow-500" />
-              Recommendations
+              {t('title')}
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Discover papers based on your library
+              {t('description')}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
             <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
-            Refresh
+            {t('refresh')}
           </Button>
         </div>
       </div>
@@ -220,13 +222,13 @@ export function PaperRecommendations({ className }: PaperRecommendationsProps) {
         <div className="border-b px-4">
           <TabsList className="h-10">
             <TabsTrigger value="related" className="text-sm">
-              Related ({recommendations.related.length})
+              {t('tabs.related')} ({recommendations.related.length})
             </TabsTrigger>
             <TabsTrigger value="trending" className="text-sm">
-              Trending ({recommendations.trending.length})
+              {t('tabs.trending')} ({recommendations.trending.length})
             </TabsTrigger>
             <TabsTrigger value="authors" className="text-sm">
-              By Authors ({recommendations.byAuthors.length})
+              {t('tabs.byAuthors')} ({recommendations.byAuthors.length})
             </TabsTrigger>
           </TabsList>
         </div>

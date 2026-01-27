@@ -226,7 +226,7 @@ export function DesignerPanel({
         className="w-full sm:w-[90vw] sm:max-w-[1400px] p-0 flex flex-col"
         showCloseButton={false}
       >
-        <SheetTitle className="sr-only">Designer Panel</SheetTitle>
+        <SheetTitle className="sr-only">{t('panelTitle')}</SheetTitle>
         <DesignerDndProvider>
           {/* Toolbar */}
           <DesignerToolbar 
@@ -329,7 +329,7 @@ export function DesignerPanel({
                             onClick={() => setLeftPanelTab('components')}
                           >
                             <Package className="h-3.5 w-3.5" />
-                            {t('components') || 'Components'}
+                            {t('components')}
                           </Button>
                         </div>
                         {/* Panel content */}
@@ -375,7 +375,7 @@ export function DesignerPanel({
                               {t('styles')}
                             </TabsTrigger>
                             <TabsTrigger value="tokens" className="text-xs">
-                              {t('tokens') || 'Tokens'}
+                              {t('tokens')}
                             </TabsTrigger>
                           </TabsList>
                           <TabsContent value="styles" className="flex-1 mt-0">
@@ -437,9 +437,9 @@ export function DesignerPanel({
         <Dialog open={showTemplateBrowser} onOpenChange={setShowTemplateBrowser}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden p-0">
             <DialogHeader className="px-4 pt-4 pb-2">
-              <DialogTitle>{t('selectTemplate') || 'Select Template'}</DialogTitle>
+              <DialogTitle>{t('selectTemplate')}</DialogTitle>
               <DialogDescription>
-                {t('selectTemplateDescription') || 'Choose a template to start with'}
+                {t('selectTemplateDescription')}
               </DialogDescription>
             </DialogHeader>
             <div className="h-[60vh] overflow-auto">

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,21 +28,26 @@ export function DeleteConfirmDialog({
   onOpenChange,
   onConfirm,
   isLoading = false,
-  title = 'Delete Recording',
-  description = 'Are you sure you want to delete this recording? This action cannot be undone.',
-  cancelText = 'Cancel',
-  deleteText = 'Delete',
+  title,
+  description,
+  cancelText,
+  deleteText,
 }: DeleteConfirmDialogProps) {
+  const t = useTranslations('deleteConfirm');
+  const displayTitle = title ?? t('title');
+  const displayDescription = description ?? t('description');
+  const displayCancelText = cancelText ?? t('cancel');
+  const displayDeleteText = deleteText ?? t('delete');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>{displayTitle}</DialogTitle>
+          <DialogDescription>{displayDescription}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {cancelText}
+            {displayCancelText}
           </Button>
           <Button variant="destructive" onClick={onConfirm} disabled={isLoading}>
             {isLoading ? (
@@ -49,7 +55,7 @@ export function DeleteConfirmDialog({
             ) : (
               <Trash2 className="h-4 w-4 mr-2" />
             )}
-            {deleteText}
+            {displayDeleteText}
           </Button>
         </DialogFooter>
       </DialogContent>

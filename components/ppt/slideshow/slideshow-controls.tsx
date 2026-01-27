@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -65,6 +66,7 @@ export function SlideshowControls({
   onShowKeyboardHelp,
   className,
 }: SlideshowControlsProps) {
+  const t = useTranslations('pptSlideshow');
   const [isVisible, setIsVisible] = useState(true);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -145,7 +147,7 @@ export function SlideshowControls({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top">
-                {isPlaying ? '暂停自动播放' : '自动播放'}
+                {isPlaying ? t('pauseAutoPlay') : t('autoPlay')}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -196,7 +198,7 @@ export function SlideshowControls({
                   <LayoutGrid className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">缩略图</TooltipContent>
+              <TooltipContent side="top">{t('thumbnails')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -216,7 +218,7 @@ export function SlideshowControls({
                   <FileText className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">演讲者备注</TooltipContent>
+              <TooltipContent side="top">{t('speakerNotes')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -233,7 +235,7 @@ export function SlideshowControls({
                   <Keyboard className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">快捷键</TooltipContent>
+              <TooltipContent side="top">{t('keyboardShortcuts')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -250,10 +252,10 @@ export function SlideshowControls({
             </PopoverTrigger>
             <PopoverContent className="w-72" side="top" align="end">
               <div className="space-y-4">
-                <h4 className="font-medium text-sm">播放设置</h4>
+                <h4 className="font-medium text-sm">{t('playbackSettings')}</h4>
                 
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="auto-play" className="text-sm">自动播放</Label>
+                  <Label htmlFor="auto-play" className="text-sm">{t('autoPlayLabel')}</Label>
                   <Switch
                     id="auto-play"
                     checked={settings.autoPlay}
@@ -263,7 +265,7 @@ export function SlideshowControls({
 
                 {settings.autoPlay && (
                   <div className="space-y-2">
-                    <Label className="text-sm">播放间隔: {settings.autoPlayInterval}秒</Label>
+                    <Label className="text-sm">{t('playbackInterval', { seconds: settings.autoPlayInterval })}</Label>
                     <Slider
                       value={[settings.autoPlayInterval]}
                       onValueChange={([value]) => onSettingsChange({ autoPlayInterval: value })}
@@ -275,7 +277,7 @@ export function SlideshowControls({
                 )}
 
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="show-timer" className="text-sm">显示计时器</Label>
+                  <Label htmlFor="show-timer" className="text-sm">{t('showTimer')}</Label>
                   <Switch
                     id="show-timer"
                     checked={settings.showTimer}
@@ -284,7 +286,7 @@ export function SlideshowControls({
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="show-progress" className="text-sm">显示进度条</Label>
+                  <Label htmlFor="show-progress" className="text-sm">{t('showProgress')}</Label>
                   <Switch
                     id="show-progress"
                     checked={settings.showProgress}
@@ -293,7 +295,7 @@ export function SlideshowControls({
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="transitions" className="text-sm">启用过渡动画</Label>
+                  <Label htmlFor="transitions" className="text-sm">{t('enableTransitions')}</Label>
                   <Switch
                     id="transitions"
                     checked={settings.enableTransitions}
@@ -317,7 +319,7 @@ export function SlideshowControls({
                   <Minimize2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">退出演示 (Esc)</TooltipContent>
+              <TooltipContent side="top">{t('exitPresentation')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -333,19 +335,21 @@ interface KeyboardHelpModalProps {
 }
 
 export function KeyboardHelpModal({ isOpen, onClose }: KeyboardHelpModalProps) {
+  const t = useTranslations('pptSlideshow');
+  
   if (!isOpen) return null;
 
   const shortcuts = [
-    { keys: ['←', '↑', 'PageUp'], action: '上一张幻灯片' },
-    { keys: ['→', '↓', 'PageDown', 'Space'], action: '下一张幻灯片' },
-    { keys: ['Home'], action: '第一张幻灯片' },
-    { keys: ['End'], action: '最后一张幻灯片' },
-    { keys: ['Esc'], action: '退出演示模式' },
-    { keys: ['F'], action: '切换全屏' },
-    { keys: ['T'], action: '显示/隐藏缩略图' },
-    { keys: ['N'], action: '显示/隐藏备注' },
-    { keys: ['P'], action: '开始/暂停自动播放' },
-    { keys: ['?', 'H'], action: '显示快捷键帮助' },
+    { keys: ['←', '↑', 'PageUp'], action: t('prevSlide') },
+    { keys: ['→', '↓', 'PageDown', 'Space'], action: t('nextSlide') },
+    { keys: ['Home'], action: t('firstSlide') },
+    { keys: ['End'], action: t('lastSlide') },
+    { keys: ['Esc'], action: t('exitMode') },
+    { keys: ['F'], action: t('toggleFullscreen') },
+    { keys: ['T'], action: t('showHideThumbnails') },
+    { keys: ['N'], action: t('showHideNotes') },
+    { keys: ['P'], action: t('startPauseAutoplay') },
+    { keys: ['?', 'H'], action: t('showHelp') },
   ];
 
   return (
@@ -358,7 +362,7 @@ export function KeyboardHelpModal({ isOpen, onClose }: KeyboardHelpModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">键盘快捷键</h3>
+          <h3 className="text-lg font-semibold text-white">{t('keyboardShortcuts')}</h3>
           <Button
             variant="ghost"
             size="icon"

@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Tooltip,
   TooltipContent,
@@ -666,8 +667,8 @@ export function PPTEditor({
               </div>
               <ScrollArea className="h-[calc(100%-32px)]">
                 <div className="p-3">
-                  <textarea
-                    className="w-full h-full min-h-[60px] bg-transparent resize-none text-sm focus:outline-none"
+                  <Textarea
+                    className="w-full h-full min-h-[60px] bg-transparent border-none resize-none text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
                     placeholder={t('addNotesPlaceholder')}
                     value={currentSlide.notes || ''}
                     onChange={(e) => {

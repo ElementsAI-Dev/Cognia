@@ -73,23 +73,23 @@ export const LearningPathDashboard = memo(function LearningPathDashboard({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatsCard
           icon={<Map className="h-4 w-4" />}
-          label={t('dashboard.activePaths') || '进行中的路径'}
+          label={t('dashboard.activePaths')}
           value={activePaths.length.toString()}
         />
         <StatsCard
           icon={<Trophy className="h-4 w-4" />}
-          label={t('dashboard.completedPaths') || '已完成路径'}
+          label={t('dashboard.completedPaths')}
           value={completedPaths.length.toString()}
         />
         <StatsCard
           icon={<Clock className="h-4 w-4" />}
-          label={t('dashboard.totalTime') || '总学习时长'}
+          label={t('dashboard.totalTime')}
           value={formatTimeSpent(globalStats.totalTimeSpentMs)}
         />
         <StatsCard
           icon={<Flame className="h-4 w-4" />}
-          label={t('dashboard.streak') || '连续学习'}
-          value={`${globalStats.currentStreak} ${t('dashboard.days') || '天'}`}
+          label={t('dashboard.streak')}
+          value={`${globalStats.currentStreak} ${t('dashboard.days')}`}
         />
       </div>
 
@@ -99,10 +99,10 @@ export const LearningPathDashboard = memo(function LearningPathDashboard({
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
-              {t('dashboard.activeLearningPaths') || '进行中的学习路径'}
+              {t('dashboard.activeLearningPaths')}
             </CardTitle>
             <CardDescription>
-              {t('dashboard.activePathsDesc') || '继续你的学习之旅'}
+              {t('dashboard.activePathsDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>

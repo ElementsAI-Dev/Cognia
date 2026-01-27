@@ -12,6 +12,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -123,6 +124,7 @@ export function ExportDialog({
   onExport,
   className,
 }: ExportDialogProps) {
+  const t = useTranslations('videoExport');
   const [settings, setSettings] = useState<ExportSettings>({
     ...DEFAULT_SETTINGS,
     filename: projectName.replace(/[^a-zA-Z0-9-_]/g, '_'),
@@ -179,7 +181,7 @@ export function ExportDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-5 w-5" />
-            Export Video
+            {t('title')}
           </DialogTitle>
         </DialogHeader>
 
@@ -188,7 +190,7 @@ export function ExportDialog({
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
-              Preset
+              {t('preset')}
             </Label>
             <Select value={settings.preset} onValueChange={handlePresetChange}>
               <SelectTrigger>
@@ -197,7 +199,7 @@ export function ExportDialog({
               <SelectContent>
                 {PRESETS.map((preset) => (
                   <SelectItem key={preset.value} value={preset.value}>
-                    {preset.label}
+                    {t(`presets.${preset.value}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -206,12 +208,12 @@ export function ExportDialog({
 
           {/* Filename */}
           <div className="space-y-2">
-            <Label>Filename</Label>
+            <Label>{t('filename')}</Label>
             <div className="flex gap-2">
               <Input
                 value={settings.filename}
                 onChange={(e) => updateSettings({ filename: e.target.value })}
-                placeholder="Enter filename"
+                placeholder={t('filenamePlaceholder')}
                 className="flex-1"
               />
               <span className="flex items-center text-muted-foreground">
@@ -225,22 +227,22 @@ export function ExportDialog({
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="video" className="flex items-center gap-1">
                 <Film className="h-3 w-3" />
-                Video
+                {t('video')}
               </TabsTrigger>
               <TabsTrigger value="audio" className="flex items-center gap-1">
                 <Music className="h-3 w-3" />
-                Audio
+                {t('audio')}
               </TabsTrigger>
               <TabsTrigger value="advanced" className="flex items-center gap-1">
                 <Settings2 className="h-3 w-3" />
-                Advanced
+                {t('advanced')}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="video" className="space-y-4 mt-4">
               {/* Format */}
               <div className="space-y-2">
-                <Label>Format</Label>
+                <Label>{t('format')}</Label>
                 <Select
                   value={settings.format}
                   onValueChange={(v) => updateSettings({ format: v as ExportSettings['format'] })}
@@ -252,9 +254,9 @@ export function ExportDialog({
                     {FORMAT_OPTIONS.map((format) => (
                       <SelectItem key={format.value} value={format.value}>
                         <div>
-                          <span>{format.label}</span>
+                          <span>{t(`formats.${format.value}`)}</span>
                           <span className="text-xs text-muted-foreground ml-2">
-                            {format.description}
+                            {t(`formats.${format.value}Desc`)}
                           </span>
                         </div>
                       </SelectItem>
@@ -265,7 +267,7 @@ export function ExportDialog({
 
               {/* Resolution */}
               <div className="space-y-2">
-                <Label>Resolution</Label>
+                <Label>{t('resolution')}</Label>
                 <Select
                   value={settings.resolution}
                   onValueChange={(v) => updateSettings({ resolution: v as ExportSettings['resolution'] })}
@@ -276,7 +278,7 @@ export function ExportDialog({
                   <SelectContent>
                     {RESOLUTION_OPTIONS.map((res) => (
                       <SelectItem key={res.value} value={res.value}>
-                        {res.label}
+                        {t(`resolutions.${res.value}`)}
                         {res.width > 0 && (
                           <span className="text-xs text-muted-foreground ml-2">
                             ({res.width}x{res.height})
@@ -293,7 +295,7 @@ export function ExportDialog({
                       type="number"
                       value={settings.customWidth || ''}
                       onChange={(e) => updateSettings({ customWidth: parseInt(e.target.value) })}
-                      placeholder="Width"
+                      placeholder={t('width')}
                       className="w-24"
                     />
                     <span className="flex items-center">×</span>
@@ -301,7 +303,7 @@ export function ExportDialog({
                       type="number"
                       value={settings.customHeight || ''}
                       onChange={(e) => updateSettings({ customHeight: parseInt(e.target.value) })}
-                      placeholder="Height"
+                      placeholder={t('height')}
                       className="w-24"
                     />
                   </div>
@@ -311,7 +313,7 @@ export function ExportDialog({
               {/* FPS */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Frame Rate</Label>
+                  <Label>{t('frameRate')}</Label>
                   <span className="text-sm text-muted-foreground">{settings.fps} fps</span>
                 </div>
                 <Slider
@@ -325,7 +327,7 @@ export function ExportDialog({
 
               {/* Quality */}
               <div className="space-y-2">
-                <Label>Quality</Label>
+                <Label>{t('quality')}</Label>
                 <div className="grid grid-cols-4 gap-2">
                   {QUALITY_OPTIONS.map((quality) => (
                     <Button
@@ -334,7 +336,7 @@ export function ExportDialog({
                       size="sm"
                       onClick={() => updateSettings({ quality: quality.value as ExportSettings['quality'] })}
                     >
-                      {quality.label}
+                      {t(`qualities.${quality.value}`)}
                     </Button>
                   ))}
                 </div>
@@ -344,7 +346,7 @@ export function ExportDialog({
             <TabsContent value="audio" className="space-y-4 mt-4">
               {/* Include Audio */}
               <div className="flex items-center justify-between">
-                <Label>Include Audio</Label>
+                <Label>{t('includeAudio')}</Label>
                 <Switch
                   checked={settings.includeAudio}
                   onCheckedChange={(checked) => updateSettings({ includeAudio: checked })}
@@ -356,7 +358,7 @@ export function ExportDialog({
                   {/* Audio Bitrate */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label>Audio Bitrate</Label>
+                      <Label>{t('audioBitrate')}</Label>
                       <span className="text-sm text-muted-foreground">
                         {settings.audioBitrate} kbps
                       </span>
@@ -372,7 +374,7 @@ export function ExportDialog({
 
                   {/* Sample Rate */}
                   <div className="space-y-2">
-                    <Label>Sample Rate</Label>
+                    <Label>{t('sampleRate')}</Label>
                     <Select
                       value={settings.audioSampleRate.toString()}
                       onValueChange={(v) => updateSettings({ audioSampleRate: parseInt(v) })}
@@ -381,9 +383,9 @@ export function ExportDialog({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="44100">44.1 kHz</SelectItem>
-                        <SelectItem value="48000">48 kHz</SelectItem>
-                        <SelectItem value="96000">96 kHz</SelectItem>
+                        <SelectItem value="44100">{t('sampleRates.44100')}</SelectItem>
+                        <SelectItem value="48000">{t('sampleRates.48000')}</SelectItem>
+                        <SelectItem value="96000">{t('sampleRates.96000')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -393,12 +395,12 @@ export function ExportDialog({
 
             <TabsContent value="advanced" className="space-y-4 mt-4">
               <div className="text-sm text-muted-foreground">
-                Advanced encoding options for fine-tuned control.
+                {t('advancedDescription')}
               </div>
 
               {/* Video Codec */}
               <div className="space-y-2">
-                <Label>Video Codec</Label>
+                <Label>{t('videoCodec')}</Label>
                 <Select
                   value={settings.codec}
                   onValueChange={(v) => updateSettings({ codec: v })}
@@ -407,17 +409,17 @@ export function ExportDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="h264">H.264 (AVC)</SelectItem>
-                    <SelectItem value="h265">H.265 (HEVC)</SelectItem>
-                    <SelectItem value="vp9">VP9</SelectItem>
-                    <SelectItem value="av1">AV1</SelectItem>
+                    <SelectItem value="h264">{t('codecs.h264')}</SelectItem>
+                    <SelectItem value="h265">{t('codecs.h265')}</SelectItem>
+                    <SelectItem value="vp9">{t('codecs.vp9')}</SelectItem>
+                    <SelectItem value="av1">{t('codecs.av1')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Custom Bitrate */}
               <div className="space-y-2">
-                <Label>Custom Video Bitrate (optional)</Label>
+                <Label>{t('customBitrate')}</Label>
                 <Input
                   type="number"
                   value={settings.bitrate || ''}
@@ -427,7 +429,7 @@ export function ExportDialog({
                   placeholder="Auto"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Leave empty for automatic bitrate based on quality settings
+                  {t('customBitrateHint')}
                 </p>
               </div>
             </TabsContent>
@@ -437,7 +439,7 @@ export function ExportDialog({
           <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
             <div className="flex items-center gap-2">
               <HardDrive className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Estimated Size</span>
+              <span className="text-sm">{t('estimatedSize')}</span>
             </div>
             <span className="font-medium">{estimatedFileSize}</span>
           </div>
@@ -445,11 +447,11 @@ export function ExportDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
-            Export
+            {t('export')}
           </Button>
         </DialogFooter>
       </DialogContent>

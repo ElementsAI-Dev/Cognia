@@ -19,6 +19,13 @@ import { CreateProjectDialog } from './create-project-dialog';
 import { ImportExportDialog } from './import-export-dialog';
 import { ProjectTemplatesDialog } from './project-templates';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +48,7 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const projects = useProjectStore((state) => state.projects);
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
@@ -63,6 +71,11 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
       const dayAgo = now - 24 * 60 * 60 * 1000;
       return new Date(p.updatedAt).getTime() > dayAgo;
     }).length;
+    
+    // Mark loading as complete once we have data
+    if (isLoading) {
+      setIsLoading(false);
+    }
     
     return { totalProjects, totalSessions, recentProjects };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -124,22 +137,32 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowArchived(!showArchived)}
-          >
-            <Archive className="h-4 w-4 mr-2" />
-            {showArchived ? t('title') : t('archived')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowImportExport(true)}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            {t('importExport')}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowArchived(!showArchived)}
+              >
+                <Archive className="h-4 w-4 mr-2" />
+                {showArchived ? t('title') : t('archived')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{showArchived ? t('viewActiveTooltip') : t('viewArchivedTooltip')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowImportExport(true)}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {t('importExport')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('importExportTooltip')}</TooltipContent>
+          </Tooltip>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button data-tour="projects-create">
@@ -164,39 +187,45 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
       {/* Statistics Cards */}
       {projects.length > 0 && (
         <div className="grid grid-cols-3 gap-4">
-          <div className="rounded-lg border bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
-                <FolderOpen className="h-5 w-5 text-blue-500" />
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
+                  <FolderOpen className="h-5 w-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.totalProjects}</p>
+                  <p className="text-xs text-muted-foreground">{t('totalProjects')}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalProjects}</p>
-                <p className="text-xs text-muted-foreground">{t('totalProjects')}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
+                  <MessageSquare className="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.totalSessions}</p>
+                  <p className="text-xs text-muted-foreground">{t('conversations')}</p>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="rounded-lg border bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
-                <MessageSquare className="h-5 w-5 text-green-500" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10">
+                  <TrendingUp className="h-5 w-5 text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.recentProjects}</p>
+                  <p className="text-xs text-muted-foreground">{t('activeToday')}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalSessions}</p>
-                <p className="text-xs text-muted-foreground">{t('conversations')}</p>
-              </div>
-            </div>
-          </div>
-          <div className="rounded-lg border bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10">
-                <TrendingUp className="h-5 w-5 text-purple-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.recentProjects}</p>
-                <p className="text-xs text-muted-foreground">{t('activeToday')}</p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -213,7 +242,27 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
       </InputGroup>
 
       {/* Projects Grid */}
-      {filteredProjects.length > 0 ? (
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Skeleton className="h-10 w-10 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filteredProjects.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProjects.map((project) => (
             <ProjectCard

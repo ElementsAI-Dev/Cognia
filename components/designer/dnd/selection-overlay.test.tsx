@@ -129,4 +129,32 @@ describe('SelectionOverlay', () => {
     );
     expect(ref.current).toBeInTheDocument();
   });
+
+  describe('element lookup', () => {
+    it('should look for elements using data-element-id attribute', () => {
+      const ref = createRef();
+      // Add an element with data-element-id
+      const testElement = document.createElement('div');
+      testElement.setAttribute('data-element-id', 'el-0');
+      ref.current?.appendChild(testElement);
+
+      render(<SelectionOverlay previewContainerRef={ref} />);
+      
+      // The component should be able to find elements with data-element-id
+      const element = ref.current?.querySelector('[data-element-id="el-0"]');
+      expect(element).toBeInTheDocument();
+    });
+
+    it('should support iframe element lookup', () => {
+      const ref = createRef();
+      // Add an iframe
+      const iframe = document.createElement('iframe');
+      ref.current?.appendChild(iframe);
+
+      render(<SelectionOverlay previewContainerRef={ref} />);
+      
+      // iframe should be present in container
+      expect(ref.current?.querySelector('iframe')).toBeInTheDocument();
+    });
+  });
 });

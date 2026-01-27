@@ -4,6 +4,7 @@
  * SourcesPart - Renders search result sources with optional verification badges
  */
 
+import { useTranslations } from 'next-intl';
 import {
   Sources,
   SourcesTrigger,
@@ -28,30 +29,25 @@ import type { SourcesPart as SourcesPartType } from '@/types/core/message';
 import type { CredibilityLevel } from '@/types/search';
 import { cn } from '@/lib/utils';
 
-// Credibility badge configuration
-const credibilityConfig: Record<CredibilityLevel, { 
-  icon: React.ReactNode; 
-  label: string; 
+// Credibility icon and style configuration (labels are i18n)
+const credibilityIcons: Record<CredibilityLevel, {
+  icon: React.ReactNode;
   className: string;
 }> = {
   high: {
     icon: <ShieldCheck className="h-3 w-3" />,
-    label: '高可信度',
     className: 'text-green-600',
   },
   medium: {
     icon: <Shield className="h-3 w-3" />,
-    label: '中等可信度',
     className: 'text-yellow-600',
   },
   low: {
     icon: <ShieldAlert className="h-3 w-3" />,
-    label: '低可信度',
     className: 'text-red-600',
   },
   unknown: {
     icon: <ShieldQuestion className="h-3 w-3" />,
-    label: '未知',
     className: 'text-gray-600',
   },
 };
@@ -61,6 +57,7 @@ interface SourcesPartProps {
 }
 
 export function SourcesPart({ part }: SourcesPartProps) {
+  const t = useTranslations('sources');
   const showVerificationBadges = useSettingsStore(
     (state) => state.sourceVerificationSettings.showVerificationBadges
   );
@@ -69,6 +66,11 @@ export function SourcesPart({ part }: SourcesPartProps) {
     return null;
   }
 
+  // Get credibility label from i18n
+  const getCredibilityLabel = (level: CredibilityLevel) => {
+    return t(`credibility.${level}`);
+  };
+
   return (
     <Sources>
       <SourcesTrigger count={part.sources.length} />
@@ -76,8 +78,8 @@ export function SourcesPart({ part }: SourcesPartProps) {
         {part.sources.map((source) => {
           const verification = source.verification;
           const credibility = verification?.credibilityLevel || 'unknown';
-          const config = credibilityConfig[credibility];
-          
+          const iconConfig = credibilityIcons[credibility];
+
           return (
             <Source key={source.id} href={source.url} title={source.title}>
               <div className="flex flex-col">
@@ -87,14 +89,14 @@ export function SourcesPart({ part }: SourcesPartProps) {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className={cn('inline-flex', config.className)}>
-                            {config.icon}
+                          <span className={cn('inline-flex', iconConfig.className)}>
+                            {iconConfig.icon}
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{config.label}</p>
+                          <p>{getCredibilityLabel(credibility)}</p>
                           <p className="text-xs text-muted-foreground">
-                            可信度: {Math.round(verification.credibilityScore * 100)}%
+                            {t('credibilityScore', { score: Math.round(verification.credibilityScore * 100) })}
                           </p>
                         </TooltipContent>
                       </Tooltip>

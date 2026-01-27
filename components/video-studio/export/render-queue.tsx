@@ -12,6 +12,7 @@
  */
 
 import { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -109,6 +110,7 @@ export function RenderQueue({
   onPauseAll,
   className,
 }: RenderQueueProps) {
+  const t = useTranslations('renderQueue');
   const formatDuration = useCallback((seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.round(seconds % 60);
@@ -129,16 +131,16 @@ export function RenderQueue({
       <div className="flex items-center justify-between p-3 border-b">
         <div className="flex items-center gap-2">
           <ListOrdered className="h-4 w-4" />
-          <h3 className="font-medium">Render Queue</h3>
+          <h3 className="font-medium">{t('title')}</h3>
           <Badge variant="secondary" className="text-xs">
-            {queuedCount} queued
+            {queuedCount} {t('queued')}
           </Badge>
         </div>
         <div className="flex items-center gap-1">
           {hasActiveJob ? (
             <Button variant="outline" size="sm" onClick={onPauseAll}>
               <Pause className="h-3 w-3 mr-1" />
-              Pause All
+              {t('pauseAll')}
             </Button>
           ) : (
             <Button
@@ -148,12 +150,12 @@ export function RenderQueue({
               disabled={queuedCount === 0}
             >
               <Play className="h-3 w-3 mr-1" />
-              Start All
+              {t('startAll')}
             </Button>
           )}
           {completedCount > 0 && (
             <Button variant="ghost" size="sm" onClick={onClearCompleted}>
-              Clear Completed
+              {t('clearCompleted')}
             </Button>
           )}
         </div>
@@ -165,7 +167,7 @@ export function RenderQueue({
           {jobs.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <ListOrdered className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No jobs in queue</p>
+              <p className="text-sm">{t('noJobs')}</p>
             </div>
           ) : (
             jobs.map((job, index) => {
@@ -224,7 +226,7 @@ export function RenderQueue({
                               <Play className="h-3 w-3" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Start Now</TooltipContent>
+                          <TooltipContent>{t('startNow')}</TooltipContent>
                         </Tooltip>
                       )}
 
@@ -240,7 +242,7 @@ export function RenderQueue({
                               <Pause className="h-3 w-3" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Pause</TooltipContent>
+                          <TooltipContent>{t('pause')}</TooltipContent>
                         </Tooltip>
                       )}
 
@@ -256,7 +258,7 @@ export function RenderQueue({
                               <Play className="h-3 w-3" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Resume</TooltipContent>
+                          <TooltipContent>{t('resume')}</TooltipContent>
                         </Tooltip>
                       )}
 
@@ -272,7 +274,7 @@ export function RenderQueue({
                               <FolderOpen className="h-3 w-3" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Open File</TooltipContent>
+                          <TooltipContent>{t('openFile')}</TooltipContent>
                         </Tooltip>
                       )}
 
@@ -286,13 +288,13 @@ export function RenderQueue({
                           {canMoveUp && (
                             <DropdownMenuItem onClick={() => onReorderJob(job.id, 'up')}>
                               <ChevronUp className="h-4 w-4 mr-2" />
-                              Move Up
+                              {t('moveUp')}
                             </DropdownMenuItem>
                           )}
                           {canMoveDown && (
                             <DropdownMenuItem onClick={() => onReorderJob(job.id, 'down')}>
                               <ChevronDown className="h-4 w-4 mr-2" />
-                              Move Down
+                              {t('moveDown')}
                             </DropdownMenuItem>
                           )}
                           {(canMoveUp || canMoveDown) && <DropdownMenuSeparator />}
@@ -302,7 +304,7 @@ export function RenderQueue({
                               onClick={() => onCancelJob(job.id)}
                             >
                               <XCircle className="h-4 w-4 mr-2" />
-                              Cancel
+                              {t('cancel')}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem
@@ -310,7 +312,7 @@ export function RenderQueue({
                             onClick={() => onRemoveJob(job.id)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Remove
+                            {t('remove')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -324,7 +326,7 @@ export function RenderQueue({
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>{Math.round(job.progress)}%</span>
                         {job.estimatedTime && (
-                          <span>~{formatDuration(job.estimatedTime)} remaining</span>
+                          <span>~{formatDuration(job.estimatedTime)} {t('remaining')}</span>
                         )}
                       </div>
                     </div>
@@ -338,7 +340,7 @@ export function RenderQueue({
                   {/* Completed time */}
                   {job.status === 'completed' && job.completedAt && (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Completed at {formatTime(job.completedAt)}
+                      {t('completedAt')} {formatTime(job.completedAt)}
                     </p>
                   )}
                 </div>

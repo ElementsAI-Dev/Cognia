@@ -52,7 +52,7 @@ function TableFooter({
     <tfoot
       data-slot="table-footer"
       className={cn(
-        "bg-muted/60 supports-[backdrop-filter]:bg-muted/50 backdrop-blur-sm border-t font-medium [&>tr]:last:border-b-0",
+        "bg-muted border-t font-medium [&>tr]:last:border-b-0",
         className
       )}
       {...props}

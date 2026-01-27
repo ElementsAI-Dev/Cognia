@@ -13,6 +13,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -173,6 +174,7 @@ export function ColorCorrectionPanel({
   onApplyPreset,
   className,
 }: ColorCorrectionPanelProps) {
+  const t = useTranslations('colorCorrection');
   const [activeTab, setActiveTab] = useState('basic');
 
   const handleSliderChange = useCallback(
@@ -193,7 +195,7 @@ export function ColorCorrectionPanel({
       <div className="flex items-center justify-between p-3 border-b">
         <h3 className="font-medium flex items-center gap-2">
           <Palette className="h-4 w-4" />
-          Color Correction
+          {t('title')}
         </h3>
         <div className="flex items-center gap-2">
           <Tooltip>
@@ -211,7 +213,7 @@ export function ColorCorrectionPanel({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{settings.enabled ? 'Disable' : 'Enable'}</TooltipContent>
+            <TooltipContent>{settings.enabled ? t('disable') : t('enable')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -219,14 +221,14 @@ export function ColorCorrectionPanel({
                 <RotateCcw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset All</TooltipContent>
+            <TooltipContent>{t('resetAll')}</TooltipContent>
           </Tooltip>
         </div>
       </div>
 
       {/* Presets */}
       <div className="p-3 border-b">
-        <Label className="text-xs text-muted-foreground mb-2 block">Presets</Label>
+        <Label className="text-xs text-muted-foreground mb-2 block">{t('presets')}</Label>
         <div className="flex flex-wrap gap-1">
           {presets.map((preset) => (
             <Button
@@ -247,19 +249,19 @@ export function ColorCorrectionPanel({
         <TabsList className="grid w-full grid-cols-4 mx-3 mt-3">
           <TabsTrigger value="basic" className="text-xs">
             <SlidersHorizontal className="h-3 w-3 mr-1" />
-            Basic
+            {t('tabs.basic')}
           </TabsTrigger>
           <TabsTrigger value="color" className="text-xs">
             <Thermometer className="h-3 w-3 mr-1" />
-            Color
+            {t('tabs.color')}
           </TabsTrigger>
           <TabsTrigger value="tone" className="text-xs">
             <Contrast className="h-3 w-3 mr-1" />
-            Tone
+            {t('tabs.tone')}
           </TabsTrigger>
           <TabsTrigger value="effects" className="text-xs">
             <Sparkles className="h-3 w-3 mr-1" />
-            Effects
+            {t('tabs.effects')}
           </TabsTrigger>
         </TabsList>
 
@@ -271,7 +273,7 @@ export function ColorCorrectionPanel({
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-1 text-sm">
                     <Sun className="h-3 w-3" />
-                    Brightness
+                    {t('brightness')}
                   </Label>
                   <span className="text-xs text-muted-foreground">
                     {formatValue(settings.brightness)}
@@ -292,7 +294,7 @@ export function ColorCorrectionPanel({
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-1 text-sm">
                     <Contrast className="h-3 w-3" />
-                    Contrast
+                    {t('contrast')}
                   </Label>
                   <span className="text-xs text-muted-foreground">
                     {formatValue(settings.contrast)}
@@ -313,7 +315,7 @@ export function ColorCorrectionPanel({
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-1 text-sm">
                     <Droplets className="h-3 w-3" />
-                    Saturation
+                    {t('saturation')}
                   </Label>
                   <span className="text-xs text-muted-foreground">
                     {formatValue(settings.saturation)}
@@ -332,7 +334,7 @@ export function ColorCorrectionPanel({
               {/* Exposure */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm">Exposure</Label>
+                  <Label className="text-sm">{t('exposure')}</Label>
                   <span className="text-xs text-muted-foreground">
                     {formatValue(settings.exposure)} EV
                   </span>
@@ -350,7 +352,7 @@ export function ColorCorrectionPanel({
               {/* Gamma */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm">Gamma</Label>
+                  <Label className="text-sm">{t('gamma')}</Label>
                   <span className="text-xs text-muted-foreground">
                     {settings.gamma.toFixed(2)}
                   </span>
@@ -372,7 +374,7 @@ export function ColorCorrectionPanel({
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-1 text-sm">
                     <Thermometer className="h-3 w-3" />
-                    Temperature
+                    {t('temperature')}
                   </Label>
                   <span className="text-xs text-muted-foreground">
                     {formatValue(settings.temperature)}
@@ -391,15 +393,15 @@ export function ColorCorrectionPanel({
                   />
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Cool</span>
-                  <span>Warm</span>
+                  <span>{t('cool')}</span>
+                  <span>{t('warm')}</span>
                 </div>
               </div>
 
               {/* Tint */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm">Tint</Label>
+                  <Label className="text-sm">{t('tint')}</Label>
                   <span className="text-xs text-muted-foreground">
                     {formatValue(settings.tint)}
                   </span>
@@ -417,15 +419,15 @@ export function ColorCorrectionPanel({
                   />
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Green</span>
-                  <span>Magenta</span>
+                  <span>{t('green')}</span>
+                  <span>{t('magenta')}</span>
                 </div>
               </div>
 
               {/* Hue */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm">Hue Shift</Label>
+                  <Label className="text-sm">{t('hueShift')}</Label>
                   <span className="text-xs text-muted-foreground">
                     {formatValue(settings.hue)}°
                   </span>
@@ -448,11 +450,11 @@ export function ColorCorrectionPanel({
             <TabsContent value="tone" className="mt-0 space-y-4">
               {/* Shadows */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Shadows</Label>
+                <Label className="text-sm font-medium">{t('shadows')}</Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <Label className="text-xs">Lift</Label>
+                      <Label className="text-xs">{t('lift')}</Label>
                       <span className="text-xs text-muted-foreground">
                         {formatValue(settings.shadowsLift)}
                       </span>
@@ -468,7 +470,7 @@ export function ColorCorrectionPanel({
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <Label className="text-xs">Gain</Label>
+                      <Label className="text-xs">{t('gain')}</Label>
                       <span className="text-xs text-muted-foreground">
                         {formatValue(settings.shadowsGain)}
                       </span>
@@ -487,11 +489,11 @@ export function ColorCorrectionPanel({
 
               {/* Midtones */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Midtones</Label>
+                <Label className="text-sm font-medium">{t('midtones')}</Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <Label className="text-xs">Lift</Label>
+                      <Label className="text-xs">{t('lift')}</Label>
                       <span className="text-xs text-muted-foreground">
                         {formatValue(settings.midtonesLift)}
                       </span>
@@ -507,7 +509,7 @@ export function ColorCorrectionPanel({
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <Label className="text-xs">Gain</Label>
+                      <Label className="text-xs">{t('gain')}</Label>
                       <span className="text-xs text-muted-foreground">
                         {formatValue(settings.midtonesGain)}
                       </span>
@@ -526,11 +528,11 @@ export function ColorCorrectionPanel({
 
               {/* Highlights */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Highlights</Label>
+                <Label className="text-sm font-medium">{t('highlights')}</Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <Label className="text-xs">Lift</Label>
+                      <Label className="text-xs">{t('lift')}</Label>
                       <span className="text-xs text-muted-foreground">
                         {formatValue(settings.highlightsLift)}
                       </span>
@@ -546,7 +548,7 @@ export function ColorCorrectionPanel({
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <Label className="text-xs">Gain</Label>
+                      <Label className="text-xs">{t('gain')}</Label>
                       <span className="text-xs text-muted-foreground">
                         {formatValue(settings.highlightsGain)}
                       </span>
@@ -567,7 +569,7 @@ export function ColorCorrectionPanel({
             <TabsContent value="effects" className="mt-0 space-y-4">
               {/* LUT */}
               <div className="space-y-2">
-                <Label className="text-sm">Color LUT</Label>
+                <Label className="text-sm">{t('colorLut')}</Label>
                 <Select
                   value={settings.lutId || 'none'}
                   onValueChange={(v) => onSettingsChange({ lutId: v === 'none' ? null : v })}
@@ -588,7 +590,7 @@ export function ColorCorrectionPanel({
                 {settings.lutId && (
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <Label className="text-xs">Intensity</Label>
+                      <Label className="text-xs">{t('intensity')}</Label>
                       <span className="text-xs text-muted-foreground">
                         {settings.lutIntensity}%
                       </span>
@@ -607,11 +609,11 @@ export function ColorCorrectionPanel({
 
               {/* Vignette */}
               <div className="space-y-2">
-                <Label className="text-sm">Vignette</Label>
+                <Label className="text-sm">{t('vignette')}</Label>
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <Label className="text-xs">Amount</Label>
+                      <Label className="text-xs">{t('amount')}</Label>
                       <span className="text-xs text-muted-foreground">
                         {settings.vignetteAmount}%
                       </span>
@@ -629,7 +631,7 @@ export function ColorCorrectionPanel({
                   {settings.vignetteAmount > 0 && (
                     <div className="space-y-1">
                       <div className="flex justify-between">
-                        <Label className="text-xs">Size</Label>
+                        <Label className="text-xs">{t('size')}</Label>
                         <span className="text-xs text-muted-foreground">
                           {settings.vignetteSize}%
                         </span>

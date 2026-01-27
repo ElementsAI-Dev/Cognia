@@ -67,6 +67,7 @@ function SeverityIcon({ severity }: { severity: string }) {
 }
 
 function FindingCard({ finding }: { finding: SecurityFinding }) {
+  const t = useTranslations('skills');
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -121,7 +122,7 @@ function FindingCard({ finding }: { finding: SecurityFinding }) {
               {finding.suggestion && (
                 <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-3">
                   <p className="text-xs text-blue-700 dark:text-blue-300">
-                    <strong>Suggestion:</strong> {finding.suggestion}
+                    <strong>{t('suggestion')}:</strong> {finding.suggestion}
                   </p>
                 </div>
               )}
@@ -182,27 +183,27 @@ function ScanSummary({ report }: { report: SecurityScanReport }) {
       <div className="flex flex-wrap gap-2">
         {report.summary.critical > 0 && (
           <Badge className="bg-red-600 text-white">
-            {report.summary.critical} Critical
+            {t('severityCriticalCount', { count: report.summary.critical })}
           </Badge>
         )}
         {report.summary.high > 0 && (
           <Badge className="bg-orange-500 text-white">
-            {report.summary.high} High
+            {t('severityHighCount', { count: report.summary.high })}
           </Badge>
         )}
         {report.summary.medium > 0 && (
           <Badge className="bg-yellow-500 text-black">
-            {report.summary.medium} Medium
+            {t('severityMediumCount', { count: report.summary.medium })}
           </Badge>
         )}
         {report.summary.low > 0 && (
           <Badge className="bg-blue-500 text-white">
-            {report.summary.low} Low
+            {t('severityLowCount', { count: report.summary.low })}
           </Badge>
         )}
         {report.summary.info > 0 && (
           <Badge className="bg-gray-500 text-white">
-            {report.summary.info} Info
+            {t('severityInfoCount', { count: report.summary.info })}
           </Badge>
         )}
       </div>
@@ -298,7 +299,7 @@ export function SkillSecurityScanner({
           <div className="flex items-center justify-between">
             <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
             <Button variant="ghost" size="sm" onClick={clearError}>
-              Dismiss
+              {t('dismiss')}
             </Button>
           </div>
         </div>

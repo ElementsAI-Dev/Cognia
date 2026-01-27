@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Network,
   ArrowUp,
@@ -49,6 +50,7 @@ interface CitationGraphProps {
 }
 
 export function CitationGraph({ paper, onPaperClick, className }: CitationGraphProps) {
+  const t = useTranslations('academic.citationGraph');
   const [network, setNetwork] = useState<CitationNetwork | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +138,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
                         ★
                       </Badge>
                     </TooltipTrigger>
-                    <TooltipContent>Influential citation</TooltipContent>
+                    <TooltipContent>{t('influentialCitation')}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
@@ -176,7 +178,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
               {node.citationCount !== undefined && (
                 <span className="flex items-center gap-1">
                   <Quote className="h-3 w-3" />
-                  {node.citationCount.toLocaleString()} citations
+                  {node.citationCount.toLocaleString()} {t('citations')}
                 </span>
               )}
               {node.venue && (
@@ -191,7 +193,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
                 onClick={() => onPaperClick?.(node.paperId, node.title)}
               >
                 <Eye className="h-3 w-3 mr-1" />
-                View Details
+                {t('viewDetails')}
               </Button>
               <Button
                 variant="outline"
@@ -200,7 +202,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
                 onClick={() => window.open(`https://www.semanticscholar.org/paper/${node.paperId}`, '_blank')}
               >
                 <ExternalLink className="h-3 w-3 mr-1" />
-                Semantic Scholar
+                {t('semanticScholar')}
               </Button>
             </div>
           </CardContent>
@@ -214,7 +216,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
       <div className={cn('space-y-4', className)}>
         <div className="flex items-center gap-2 text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-sm">Loading citation network...</span>
+          <span className="text-sm">{t('loading')}</span>
         </div>
         <div className="space-y-3">
           {[1, 2, 3].map(i => (
@@ -232,7 +234,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
         <p className="text-muted-foreground">{error}</p>
         <Button variant="outline" size="sm" className="mt-4" onClick={loadCitationNetwork}>
           <RefreshCw className="h-4 w-4 mr-2" />
-          Retry
+          {t('retry')}
         </Button>
       </div>
     );
@@ -242,9 +244,9 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
     return (
       <div className={cn('text-center py-8', className)}>
         <Network className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-        <p className="text-muted-foreground">No citation data available</p>
+        <p className="text-muted-foreground">{t('emptyState')}</p>
         <p className="text-sm text-muted-foreground mt-1">
-          This paper may not have citation information indexed yet
+          {t('emptyStateHint')}
         </p>
       </div>
     );
@@ -278,12 +280,12 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
             onCheckedChange={setShowInfluentialOnly}
           />
           <Label htmlFor="influential-only" className="text-sm cursor-pointer">
-            Influential only
+            {t('influentialOnly')}
           </Label>
         </div>
         <Button variant="ghost" size="sm" onClick={loadCitationNetwork}>
           <RefreshCw className="h-4 w-4 mr-1" />
-          Refresh
+          {t('refresh')}
         </Button>
       </div>
 
@@ -292,11 +294,11 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
         <TabsList className="w-full">
           <TabsTrigger value="citations" className="flex-1">
             <ArrowUp className="h-4 w-4 mr-2" />
-            Cited By ({filteredCitations.length})
+            {t('tabs.citations')} ({filteredCitations.length})
           </TabsTrigger>
           <TabsTrigger value="references" className="flex-1">
             <ArrowDown className="h-4 w-4 mr-2" />
-            References ({filteredReferences.length})
+            {t('tabs.references')} ({filteredReferences.length})
           </TabsTrigger>
         </TabsList>
 
@@ -305,8 +307,8 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
             {filteredCitations.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 {showInfluentialOnly 
-                  ? 'No influential citations found'
-                  : 'No papers have cited this work yet'}
+                  ? t('noCitations')
+                  : t('noCitations')}
               </div>
             ) : (
               <div className="space-y-3 pr-4">
@@ -321,8 +323,8 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
             {filteredReferences.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 {showInfluentialOnly 
-                  ? 'No influential references found'
-                  : 'No references available'}
+                  ? t('noReferences')
+                  : t('noReferences')}
               </div>
             ) : (
               <div className="space-y-3 pr-4">

@@ -53,6 +53,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 import { LANGUAGE_INFO, type ExecutionStatus } from '@/types/system/sandbox';
 
 export interface ExecutionHistoryProps {
@@ -180,7 +181,7 @@ export function ExecutionHistory({
                   <Download className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Export history as JSON</TooltipContent>
+              <TooltipContent>{t('history.exportTooltip')}</TooltipContent>
             </Tooltip>
             <Button
               variant="ghost"
@@ -276,7 +277,13 @@ export function ExecutionHistory({
       <CardContent className="flex-1 p-0">
         <ScrollArea className="h-100">
           <div className="px-6 pb-6 space-y-2">
-            {executions.length === 0 ? (
+            {loading ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : executions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>{t('history.empty')}</p>
@@ -343,45 +350,60 @@ export function ExecutionHistory({
                               )}
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Copy code</TooltipContent>
+                          <TooltipContent>{t('history.copyCode')}</TooltipContent>
                         </Tooltip>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleFavorite(execution.id);
-                          }}
-                        >
-                          {execution.is_favorite ? (
-                            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          ) : (
-                            <StarOff className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectExecution?.(execution.code, execution.language);
-                          }}
-                        >
-                          <Code className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(execution.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleFavorite(execution.id);
+                              }}
+                            >
+                              {execution.is_favorite ? (
+                                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                              ) : (
+                                <StarOff className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('history.favorite')}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectExecution?.(execution.code, execution.language);
+                              }}
+                            >
+                              <Code className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('history.loadCode')}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(execution.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('history.deleteExecution')}</TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
                   </div>
@@ -401,10 +423,10 @@ export function ExecutionHistory({
               disabled={!hasPrevPage}
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
+              {t('history.previous')}
             </Button>
             <span className="text-sm text-muted-foreground">
-              Page {currentPage + 1}
+              {t('history.page', { page: currentPage + 1 })}
             </span>
             <Button
               variant="outline"
@@ -412,7 +434,7 @@ export function ExecutionHistory({
               onClick={() => setCurrentPage(p => p + 1)}
               disabled={!hasMorePages}
             >
-              Next
+              {t('history.next')}
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>

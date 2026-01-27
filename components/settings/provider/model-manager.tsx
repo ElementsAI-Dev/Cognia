@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from 'next-intl';
 import { cn } from "@/lib/utils";
 import { isTauri } from '@/lib/native/utils';
 import {
@@ -73,10 +74,12 @@ function ModelCard({
   model,
   onDownload,
   onDelete,
+  t,
 }: {
   model: ModelState;
   onDownload: () => void;
   onDelete: () => void;
+  t: ReturnType<typeof useTranslations<'providers'>>;
 }) {
   const { definition, installed, downloading, progress } = model;
 
@@ -92,7 +95,7 @@ function ModelCard({
             {installed && (
               <Badge variant="outline" className="text-green-400 border-green-400/50 text-xs">
                 <CheckCircle2 className="w-3 h-3 mr-1" />
-                Installed
+                {t('installed')}
               </Badge>
             )}
             <Badge variant="secondary" className="text-xs">
@@ -109,7 +112,7 @@ function ModelCard({
           <div className="space-y-2">
             <Progress value={progress.percent} className="h-2" />
             <div className="flex flex-col gap-0.5 text-xs text-muted-foreground sm:flex-row sm:justify-between">
-              <span>{progress.status === "downloading" ? "Downloading..." : progress.status}</span>
+              <span>{progress.status === "downloading" ? t('downloading') : progress.status}</span>
               <span className="truncate">
                 {formatFileSize(progress.downloaded_bytes)} / {formatFileSize(progress.total_bytes)}
                 {progress.speed_bps > 0 && ` • ${formatSpeed(progress.speed_bps)}`}
@@ -127,7 +130,7 @@ function ModelCard({
                 className="flex-1 h-8"
               >
                 <Download className="w-3 h-3 mr-1" />
-                Download
+                {t('download')}
               </Button>
             ) : (
               <Button
@@ -137,7 +140,7 @@ function ModelCard({
                 className="flex-1 h-8"
               >
                 <Trash2 className="w-3 h-3 mr-1" />
-                Delete
+                {t('delete')}
               </Button>
             )}
           </div>
@@ -153,20 +156,22 @@ function ProxySettings({
   proxyStatus,
   onTestProxy,
   onDetectProxy,
+  t,
 }: {
   config: DownloadConfig;
   onConfigChange: (config: DownloadConfig) => void;
   proxyStatus: "unknown" | "testing" | "connected" | "failed";
   onTestProxy: () => void;
   onDetectProxy: () => void;
+  t: ReturnType<typeof useTranslations<'providers'>>;
 }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
-          <Label>Auto-detect Proxy</Label>
+          <Label>{t('modelManager.autoDetectProxy')}</Label>
           <p className="text-xs text-white/60">
-            Automatically detect and use system proxy (Clash, V2Ray, etc.)
+            {t('modelManager.autoDetectProxyDesc')}
           </p>
         </div>
         <Switch
@@ -178,7 +183,7 @@ function ProxySettings({
       </div>
 
       <div className="space-y-2">
-        <Label>Proxy URL</Label>
+        <Label>{t('modelManager.proxyUrl')}</Label>
         <div className="flex gap-2">
           <Input
             placeholder="http://127.0.0.1:7890"
@@ -190,7 +195,7 @@ function ProxySettings({
           />
           <Button variant="outline" size="sm" onClick={onDetectProxy}>
             <RefreshCw className="w-4 h-4 mr-1" />
-            Detect
+            {t('detect')}
           </Button>
           <Button
             variant="outline"
@@ -212,9 +217,9 @@ function ProxySettings({
       </div>
 
       <div className="space-y-2">
-        <Label>Preferred Sources</Label>
+        <Label>{t('modelManager.preferredSources')}</Label>
         <p className="text-xs text-white/60">
-          Sources to try first (in order of priority)
+          {t('routingHint')}
         </p>
         <div className="flex flex-wrap gap-2">
           {(["hugging_face", "model_scope", "git_hub"] as ModelSource[]).map((source) => {
@@ -244,7 +249,7 @@ function ProxySettings({
       </div>
 
       <div className="space-y-2">
-        <Label>Download Timeout</Label>
+        <Label>{t('modelManager.downloadTimeout')}</Label>
         <Select
           value={String(config.timeout_secs)}
           onValueChange={(value) =>
@@ -255,10 +260,10 @@ function ProxySettings({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-gray-900 border-white/10">
-            <SelectItem value="60">1 minute</SelectItem>
-            <SelectItem value="180">3 minutes</SelectItem>
-            <SelectItem value="300">5 minutes</SelectItem>
-            <SelectItem value="600">10 minutes</SelectItem>
+            <SelectItem value="60">{t('modelManager.timeout1min')}</SelectItem>
+            <SelectItem value="180">{t('modelManager.timeout3min')}</SelectItem>
+            <SelectItem value="300">{t('modelManager.timeout5min')}</SelectItem>
+            <SelectItem value="600">{t('modelManager.timeout10min')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -269,6 +274,7 @@ function ProxySettings({
 // ============== Main Component ==============
 
 export function ModelManager({ className }: ModelManagerProps) {
+  const t = useTranslations('providers');
   const [models, setModels] = useState<ModelState[]>([]);
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<DownloadConfig>({
@@ -454,29 +460,29 @@ export function ModelManager({ className }: ModelManagerProps) {
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Model Manager</h2>
+            <h2 className="text-lg font-semibold">{t('modelManager.title')}</h2>
             <p className="text-sm text-muted-foreground">
-              {installedCount} of {models.length} models installed
-              {downloadingCount > 0 && ` • ${downloadingCount} downloading`}
+              {t('modelManager.installedCount', { installed: installedCount, total: models.length })}
+              {downloadingCount > 0 && ` • ${downloadingCount} ${t('downloading')}`}
             </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={loadModels} className="h-8">
               <RefreshCw className="w-4 h-4 sm:mr-1" />
-              <span className="hidden sm:inline">Refresh</span>
+              <span className="hidden sm:inline">{t('refresh')}</span>
             </Button>
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8">
                   <Settings className="w-4 h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Settings</span>
+                  <span className="hidden sm:inline">{t('modelManager.settings')}</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Download Settings</DialogTitle>
+                  <DialogTitle>{t('modelManager.downloadSettings')}</DialogTitle>
                   <DialogDescription>
-                    Configure proxy and download sources
+                    {t('modelManager.downloadSettingsDesc')}
                   </DialogDescription>
                 </DialogHeader>
                 <ProxySettings
@@ -485,6 +491,7 @@ export function ModelManager({ className }: ModelManagerProps) {
                   proxyStatus={proxyStatus}
                   onTestProxy={handleTestProxy}
                   onDetectProxy={handleDetectProxy}
+                  t={t}
                 />
               </DialogContent>
             </Dialog>
@@ -496,7 +503,7 @@ export function ModelManager({ className }: ModelManagerProps) {
           <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
             <Wifi className="w-4 h-4 text-green-400" />
             <span className="text-sm text-green-400">
-              Using proxy: {config.proxy_url}
+              {t('modelManager.usingProxy', { url: config.proxy_url })}
             </span>
           </div>
         )}
@@ -504,7 +511,7 @@ export function ModelManager({ className }: ModelManagerProps) {
         {/* Category Tabs */}
         <Tabs value={activeCategory} onValueChange={setActiveCategory}>
           <TabsList className="bg-gray-800/50">
-            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="all">{t('allModels')}</TabsTrigger>
             {categories
               .filter((c) => c !== "all")
               .map((cat) => (
@@ -518,7 +525,7 @@ export function ModelManager({ className }: ModelManagerProps) {
             {filteredModels.length === 0 ? (
               <div className="text-center py-8 text-white/60">
                 <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No models available in this category</p>
+                <p>{t('modelManager.noModelsInCategory')}</p>
               </div>
             ) : (
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -528,6 +535,7 @@ export function ModelManager({ className }: ModelManagerProps) {
                     model={model}
                     onDownload={() => handleDownload(model.definition.id)}
                     onDelete={() => handleDelete(model.definition.id)}
+                    t={t}
                   />
                 ))}
               </div>

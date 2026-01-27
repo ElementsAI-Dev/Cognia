@@ -276,9 +276,9 @@ export function MemorySettings() {
         <Alert className={importResult.success ? 'border-green-500' : 'border-destructive'}>
           <AlertDescription className="text-xs">
             {importResult.success
-              ? `Successfully imported ${importResult.imported} memories.`
-              : `Import failed: ${importResult.errors[0]}`}
-            {importResult.errors.length > 1 && ` (+${importResult.errors.length - 1} warnings)`}
+              ? t('importSuccess', { count: importResult.imported })
+              : t('importFailed', { error: importResult.errors[0] })}
+            {importResult.errors.length > 1 && ` ${t('moreWarnings', { count: importResult.errors.length - 1 })}`}
           </AlertDescription>
         </Alert>
       )}

@@ -88,23 +88,23 @@ export function OutlineView({ presentation, marpContent, onCopy, copied }: Outli
     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1 flex flex-col">
       <TabsList className="w-full justify-start">
         <TabsTrigger value="outline">{t('outline')}</TabsTrigger>
-        <TabsTrigger value="structure">结构概览</TabsTrigger>
+        <TabsTrigger value="structure">{t('structureOverview')}</TabsTrigger>
         <TabsTrigger value="marp">{t('marpCode')}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="outline" className="flex-1 overflow-hidden">
         <div className="flex items-center justify-between mb-2 px-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{stats.totalSlides} 张幻灯片</span>
+            <span>{t('slideCount', { count: stats.totalSlides })}</span>
             <span>•</span>
-            <span>{stats.totalBullets} 个要点</span>
+            <span>{t('bulletCount', { count: stats.totalBullets })}</span>
           </div>
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" onClick={expandAll} className="h-7 px-2 text-xs">
-              展开全部
+              {t('expandAll')}
             </Button>
             <Button variant="ghost" size="sm" onClick={collapseAll} className="h-7 px-2 text-xs">
-              折叠全部
+              {t('collapseAll')}
             </Button>
           </div>
         </div>
@@ -142,7 +142,7 @@ export function OutlineView({ presentation, marpContent, onCopy, copied }: Outli
                         {slide.notes && (
                           <Badge variant="outline" className="text-xs">
                             <FileText className="h-3 w-3 mr-1" />
-                            备注
+                            {t('notes')}
                           </Badge>
                         )}
                         <Badge variant="secondary" className="text-xs">
@@ -185,7 +185,7 @@ export function OutlineView({ presentation, marpContent, onCopy, copied }: Outli
                       )}
                       {slide.elements && slide.elements.length > 0 && (
                         <div className="text-xs text-muted-foreground">
-                          包含 {slide.elements.length} 个自定义元素
+                          {t('customElements', { count: slide.elements.length })}
                         </div>
                       )}
                     </div>
@@ -216,25 +216,25 @@ export function OutlineView({ presentation, marpContent, onCopy, copied }: Outli
                 <div className="text-2xl font-bold" style={{ color: presentation.theme.primaryColor }}>
                   {stats.totalSlides}
                 </div>
-                <div className="text-xs text-muted-foreground">幻灯片</div>
+                <div className="text-xs text-muted-foreground">{t('slidesLabel')}</div>
               </div>
               <div className="border rounded-lg p-3">
                 <div className="text-2xl font-bold" style={{ color: presentation.theme.primaryColor }}>
                   {stats.totalBullets}
                 </div>
-                <div className="text-xs text-muted-foreground">要点</div>
+                <div className="text-xs text-muted-foreground">{t('pointsLabel')}</div>
               </div>
               <div className="border rounded-lg p-3">
                 <div className="text-2xl font-bold" style={{ color: presentation.theme.primaryColor }}>
                   {stats.slidesWithNotes}
                 </div>
-                <div className="text-xs text-muted-foreground">有备注</div>
+                <div className="text-xs text-muted-foreground">{t('withNotes')}</div>
               </div>
               <div className="border rounded-lg p-3">
                 <div className="text-2xl font-bold" style={{ color: presentation.theme.primaryColor }}>
                   {stats.slidesWithImages}
                 </div>
-                <div className="text-xs text-muted-foreground">有图片</div>
+                <div className="text-xs text-muted-foreground">{t('withImages')}</div>
               </div>
             </div>
 
@@ -242,7 +242,7 @@ export function OutlineView({ presentation, marpContent, onCopy, copied }: Outli
             <div className="space-y-2">
               <h4 className="font-medium flex items-center gap-2">
                 <ChevronsUpDown className="h-4 w-4" />
-                内容结构
+                {t('contentStructure')}
               </h4>
               <div className="border rounded-lg p-3 space-y-1">
                 {presentation.slides.map((slide, index) => (
@@ -258,7 +258,7 @@ export function OutlineView({ presentation, marpContent, onCopy, copied }: Outli
                     </span>
                     {slide.bullets && slide.bullets.length > 0 && (
                       <Badge variant="outline" className="text-xs ml-auto">
-                        {slide.bullets.length} 项
+                        {t('items', { count: slide.bullets.length })}
                       </Badge>
                     )}
                   </div>
@@ -268,7 +268,7 @@ export function OutlineView({ presentation, marpContent, onCopy, copied }: Outli
 
             {/* Theme info */}
             <div className="space-y-2">
-              <h4 className="font-medium">主题</h4>
+              <h4 className="font-medium">{t('themeLabel')}</h4>
               <div className="flex items-center gap-2">
                 <div 
                   className="w-6 h-6 rounded-full border"

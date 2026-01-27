@@ -5,6 +5,7 @@
  */
 
 import { type ReactNode, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Popover,
   PopoverContent,
@@ -25,6 +26,8 @@ interface NodeQuickConfigProps {
 }
 
 export function NodeQuickConfig({ nodeId, data, children }: NodeQuickConfigProps) {
+  const t = useTranslations('workflowEditor');
+  const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState(data.label);
   const [description, setDescription] = useState(data.description || '');
@@ -72,13 +75,13 @@ export function NodeQuickConfig({ nodeId, data, children }: NodeQuickConfigProps
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Settings className="h-4 w-4 text-muted-foreground" />
-            <h4 className="font-medium text-sm">Quick Config</h4>
+            <h4 className="font-medium text-sm">{t('quickConfig')}</h4>
           </div>
 
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="node-label" className="text-xs">
-                Label
+                {t('label')}
               </Label>
               <Input
                 id="node-label"
@@ -91,7 +94,7 @@ export function NodeQuickConfig({ nodeId, data, children }: NodeQuickConfigProps
 
             <div className="space-y-1.5">
               <Label htmlFor="node-description" className="text-xs">
-                Description
+                {t('description')}
               </Label>
               <Textarea
                 id="node-description"
@@ -109,14 +112,14 @@ export function NodeQuickConfig({ nodeId, data, children }: NodeQuickConfigProps
               size="sm"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <Button 
               size="sm"
               onClick={handleSave}
             >
               <Save className="h-3.5 w-3.5 mr-1.5" />
-              Save
+              {tCommon('save')}
             </Button>
           </div>
         </div>

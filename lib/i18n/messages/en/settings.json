@@ -189,7 +189,17 @@
     "selectedSources": "{count} source(s) selected",
     "higherPriority": "Higher priority",
     "lowerPriority": "Lower priority",
-    "primary": "Primary"
+    "primary": "Primary",
+    "apiKey": "API Key",
+    "features": {
+      "aiAnswer": "AI Answer",
+      "news": "News",
+      "images": "Images",
+      "academic": "Academic",
+      "recencyFilter": "Recency Filter",
+      "domainFilter": "Domain Filter",
+      "contentExtraction": "Content Extraction"
+    }
   },
   "dataSettings": {
     "title": "Data Management",
@@ -225,7 +235,9 @@
     "helpAndTour": "Help & Onboarding",
     "helpAndTourDesc": "Restart the guided tour to learn about features",
     "restartTour": "Restart Tour",
-    "tourReset": "Tour has been reset. Reloading..."
+    "tourReset": "Tour has been reset. Reloading...",
+    "indexedDB": "IndexedDB",
+    "usage": "Usage"
   },
   "themeEditor": {
     "title": "Theme Editor",
@@ -287,7 +299,9 @@
     "selectFile": "Select File",
     "customThemesCount": "You have {count} custom theme(s)",
     "importSuccess": "Successfully imported {count} theme(s)",
-    "importFailed": "Failed to import themes"
+    "importFailed": "Failed to import themes",
+    "themesAlreadyExist": "All themes already exist",
+    "parseFileFailed": "Failed to parse file"
   },
   "customThemeEditor": {
     "editTheme": "Edit Theme",
@@ -359,6 +373,9 @@
     "textDisplay": "Text Display",
     "textDisplayDesc": "Customize text rendering",
     "lineHeight": "Line Height",
+    "enableLaTeX": "LaTeX",
+    "enableMermaid": "Mermaid",
+    "enableVegaLite": "VegaLite",
     "mathDisplay": "Math Display",
     "mathDisplayDesc": "Customize LaTeX math rendering",
     "fontScale": "Font Scale",
@@ -379,6 +396,11 @@
     "sampleResponse": "Sample AI response:",
     "previewLabel": "Preview:",
     "mathPreviewUnavailable": "Preview unavailable",
+    "tooltips": {
+      "latex": "Render LaTeX math formulas in responses",
+      "mermaid": "Render Mermaid diagrams and flowcharts",
+      "vegaLite": "Render VegaLite data visualizations"
+    },
     "codeTheme": {
       "githubDark": "GitHub Dark",
       "githubLight": "GitHub Light",
@@ -519,7 +541,17 @@
     "availableVoices": "Available Voices",
     "supported": "Supported",
     "notSupported": "Not Supported",
-    "browserSupportNote": "Speech features depend on browser support. Chrome and Edge have the best support for speech recognition."
+    "browserSupportNote": "Speech features depend on browser support. Chrome and Edge have the best support for speech recognition.",
+    "providers": {
+      "openaiWhisper": "OpenAI Whisper",
+      "openaiTts": "OpenAI TTS",
+      "geminiTts": "Gemini TTS",
+      "edgeTts": "Edge TTS"
+    },
+    "models": {
+      "tts1": "TTS-1",
+      "tts1Hd": "TTS-1 HD"
+    }
   },
   "appearanceSettings": {
     "uiFontSize": "UI Font Size",
@@ -711,7 +743,24 @@
     "animationSpeed": "Animation Speed",
     "resetAllSettings": "Reset All Settings",
     "backgroundPreview": "Background Preview",
-    "showPreview": "Show Preview"
+    "showPreview": "Show Preview",
+    "url": "URL"
+  },
+  "backgroundImportExport": {
+    "importExportButton": "Import/Export",
+    "dialogTitle": "Background Import/Export",
+    "dialogDescription": "Share your background settings or import from a file",
+    "exportSettings": "Export Settings",
+    "exportSettingsDesc": "Export current background settings to a JSON file",
+    "exportToFile": "Export to File",
+    "exportSuccess": "Export successful",
+    "importSettings": "Import Settings",
+    "importSettingsDesc": "Import background settings from a JSON file",
+    "selectFile": "Select File",
+    "importSuccess": "Import successful",
+    "parseFileFailed": "Failed to parse file",
+    "invalidFileFormat": "Invalid file format",
+    "localFilesNote": "Note: Locally uploaded images are not included in exports. Only URL and preset backgrounds are exported."
   },
   "autoRouterSettings": {
     "title": "Auto Model Routing",
@@ -1125,5 +1174,47 @@
     "newLink": "New Link",
     "newLinkDescription": "Add description...",
     "resetToDefault": "Reset to Default"
+  },
+  "shortcutConflict": {
+    "title": "Shortcut Conflicts Detected",
+    "singleDescription": "The following shortcut conflict needs to be resolved:",
+    "multipleDescription": "{count} shortcut conflicts need to be resolved:",
+    "conflictNumber": "Conflict #{number}",
+    "existing": "Existing:",
+    "new": "New:",
+    "keepExisting": "Keep Existing",
+    "useNew": "Use New",
+    "keepAllExisting": "Keep All Existing",
+    "useAllNew": "Use All New",
+    "keepExistingTooltip": "Keep the currently assigned shortcut and discard the new one",
+    "useNewTooltip": "Replace the existing shortcut with the new assignment"
+  },
+  "shortcutManager": {
+    "title": "Shortcut Manager",
+    "description": "View and manage all keyboard shortcuts",
+    "conflictsCount": "{count} Conflict(s)",
+    "refresh": "Refresh",
+    "export": "Export",
+    "searchPlaceholder": "Search shortcuts...",
+    "detectConflicts": "Detect Conflicts",
+    "tableShortcut": "Shortcut",
+    "tableAction": "Action",
+    "tableOwner": "Owner",
+    "tableStatus": "Status",
+    "tableRegistered": "Registered",
+    "noShortcuts": "No shortcuts found",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "showingCount": "Showing {filtered} of {total} shortcuts",
+    "resolutionModeLabel": "Conflict Resolution Mode:",
+    "resolutionWarn": "Warn",
+    "resolutionBlock": "Block",
+    "resolutionAutoResolve": "Auto-Resolve",
+    "resolutionWarnTooltip": "Show a warning when conflicts are detected",
+    "resolutionBlockTooltip": "Block shortcut registration when conflicts exist",
+    "resolutionAutoResolveTooltip": "Automatically resolve conflicts using the latest shortcut",
+    "categories": {
+      "all": "All"
+    }
   }
 }

@@ -604,7 +604,7 @@ export function BackgroundSettings() {
             </TabsTrigger>
             <TabsTrigger value="url" className="text-xs">
               <LinkIcon className="h-3 w-3 mr-1" />
-              URL
+              {t('url')}
             </TabsTrigger>
             <TabsTrigger value="file" className="text-xs">
               <Upload className="h-3 w-3 mr-1" />

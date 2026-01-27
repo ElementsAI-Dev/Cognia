@@ -12,6 +12,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -116,6 +117,8 @@ export function LayersPanel({
   onLayerMerge,
   className,
 }: LayersPanelProps) {
+  const t = useTranslations('imageStudio.layersPanel');
+
   const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -193,7 +196,7 @@ export function LayersPanel({
       <div className="p-3 border-b flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4" aria-hidden="true" />
-          <h3 className="font-medium text-sm" id="layers-panel-title">Layers</h3>
+          <h3 className="font-medium text-sm" id="layers-panel-title">{t('title')}</h3>
           <span className="text-xs text-muted-foreground">({layers.length})</span>
         </div>
         <DropdownMenu>
@@ -205,15 +208,15 @@ export function LayersPanel({
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => onLayerAdd('image')}>
               <ImageIcon className="h-4 w-4 mr-2" />
-              Image Layer
+              {t('layerTypes.image')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onLayerAdd('mask')}>
               <Paintbrush className="h-4 w-4 mr-2" />
-              Mask Layer
+              {t('layerTypes.mask')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onLayerAdd('adjustment')}>
               <SlidersHorizontal className="h-4 w-4 mr-2" />
-              Adjustment Layer
+              {t('layerTypes.adjustment')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -225,7 +228,7 @@ export function LayersPanel({
           {/* Opacity */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <Label className="text-xs">Opacity</Label>
+              <Label className="text-xs">{t('opacity')}</Label>
               <span className="text-xs text-muted-foreground">{activeLayer.opacity}%</span>
             </div>
             <Slider
@@ -240,7 +243,7 @@ export function LayersPanel({
 
           {/* Blend mode */}
           <div className="space-y-1">
-            <Label className="text-xs">Blend Mode</Label>
+            <Label className="text-xs">{t('blendMode')}</Label>
             <Select
               value={activeLayer.blendMode}
               onValueChange={(v) => onLayerUpdate(activeLayer.id, { blendMode: v as BlendMode })}
@@ -266,7 +269,7 @@ export function LayersPanel({
         <div className="p-2 space-y-1">
           {sortedLayers.length === 0 ? (
             <div className="text-center py-4 text-xs text-muted-foreground">
-              No layers yet. Add one to get started.
+              {t('noLayers')}
             </div>
           ) : (
             sortedLayers.map((layer) => (
@@ -342,7 +345,7 @@ export function LayersPanel({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="left">
-                      {layer.visible ? 'Hide' : 'Show'}
+                      {layer.visible ? t('hide') : t('show')}
                     </TooltipContent>
                   </Tooltip>
 
@@ -365,7 +368,7 @@ export function LayersPanel({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="left">
-                      {layer.locked ? 'Unlock' : 'Lock'}
+                      {layer.locked ? t('unlock') : t('lock')}
                     </TooltipContent>
                   </Tooltip>
 
@@ -382,20 +385,20 @@ export function LayersPanel({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => handleStartRename(layer)}>
-                        Rename
+                        {t('rename')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onLayerDuplicate(layer.id)}>
                         <Copy className="h-3 w-3 mr-2" />
-                        Duplicate
+                        {t('duplicate')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => handleMoveUp(layer.id)}>
                         <ChevronUp className="h-3 w-3 mr-2" />
-                        Move Up
+                        {t('moveUp')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleMoveDown(layer.id)}>
                         <ChevronDown className="h-3 w-3 mr-2" />
-                        Move Down
+                        {t('moveDown')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -404,7 +407,7 @@ export function LayersPanel({
                         disabled={layers.length === 1}
                       >
                         <Trash2 className="h-3 w-3 mr-2" />
-                        Delete
+                        {t('delete')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -425,7 +428,7 @@ export function LayersPanel({
             onClick={() => onLayerMerge(layers.map((l) => l.id))}
           >
             <Merge className="h-3 w-3 mr-1" />
-            Merge Visible
+            {t('mergeVisible')}
           </Button>
         </div>
       )}

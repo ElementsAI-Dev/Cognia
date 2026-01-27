@@ -63,21 +63,22 @@ export function PresetQuickPrompts({
         <ScrollArea className="max-h-64">
           <div className="p-1">
             {prompts.map((prompt) => (
-              <button
+              <Button
                 key={prompt.id}
+                variant="ghost"
                 onClick={() => handleSelect(prompt)}
-                className="w-full text-left p-2 rounded-md hover:bg-accent transition-colors"
+                className="w-full justify-start h-auto p-2 text-left flex-col items-start"
               >
-                <p className="text-sm font-medium truncate">{prompt.name}</p>
+                <p className="text-sm font-medium truncate w-full">{prompt.name}</p>
                 {prompt.description && (
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground truncate w-full font-normal">
                     {prompt.description}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2 w-full font-normal">
                   {prompt.content}
                 </p>
-              </button>
+              </Button>
             ))}
           </div>
         </ScrollArea>

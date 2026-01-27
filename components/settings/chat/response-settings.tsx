@@ -24,6 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useSettingsStore, type CodeTheme, type FontFamily } from '@/stores';
 import { CODE_THEME_OPTIONS, FONT_FAMILY_OPTIONS } from '@/lib/settings/chat';
 import { MathPreview } from '@/components/settings/shared';
@@ -71,6 +77,7 @@ export function ResponseSettings() {
   const setShowTokenCount = useSettingsStore((state) => state.setShowTokenCount);
 
   return (
+    <TooltipProvider delayDuration={300}>
     <div className="space-y-4">
       {/* Code Display Settings */}
       <Card>
@@ -186,7 +193,14 @@ export function ResponseSettings() {
 
           <div className="grid grid-cols-3 gap-2">
             <div className="flex items-center justify-between rounded-md border px-3 py-2">
-              <Label htmlFor="math-rendering" className="text-xs">LaTeX</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Label htmlFor="math-rendering" className="text-xs cursor-help">{t('enableLaTeX')}</Label>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">{t('tooltips.latex')}</p>
+                </TooltipContent>
+              </Tooltip>
               <Switch
                 id="math-rendering"
                 checked={enableMathRendering}
@@ -194,7 +208,14 @@ export function ResponseSettings() {
               />
             </div>
             <div className="flex items-center justify-between rounded-md border px-3 py-2">
-              <Label htmlFor="mermaid-diagrams" className="text-xs">Mermaid</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Label htmlFor="mermaid-diagrams" className="text-xs cursor-help">{t('enableMermaid')}</Label>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">{t('tooltips.mermaid')}</p>
+                </TooltipContent>
+              </Tooltip>
               <Switch
                 id="mermaid-diagrams"
                 checked={enableMermaidDiagrams}
@@ -202,7 +223,14 @@ export function ResponseSettings() {
               />
             </div>
             <div className="flex items-center justify-between rounded-md border px-3 py-2">
-              <Label htmlFor="vegalite-charts" className="text-xs">VegaLite</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Label htmlFor="vegalite-charts" className="text-xs cursor-help">{t('enableVegaLite')}</Label>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">{t('tooltips.vegaLite')}</p>
+                </TooltipContent>
+              </Tooltip>
               <Switch
                 id="vegalite-charts"
                 checked={enableVegaLiteCharts}
@@ -394,6 +422,7 @@ export function ResponseSettings() {
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   );
 }
 

@@ -1,4 +1,19 @@
 {
+  "nativeToolsPage": {
+    "title": "Native Tools",
+    "desktopOnlyMessage": "Native tools are only available in the desktop app. Download the desktop app to access clipboard history, screenshots, focus tracking, and context awareness.",
+    "backToChat": "Back to Chat",
+    "tabs": {
+      "history": "History",
+      "smart": "Smart",
+      "templates": "Templates",
+      "screenshot": "Screenshot",
+      "focus": "Focus",
+      "context": "Context",
+      "system": "System",
+      "sandbox": "Sandbox"
+    }
+  },
   "nativeToolsSettings": {
     "title": "Native Tools",
     "description": "Configure clipboard history, screenshots, focus tracking, and context awareness.",
@@ -283,7 +298,8 @@
     "tryDifferentQuery": "Try a different search query",
     "takeScreenshotToStart": "Take a screenshot to get started",
     "screenshotCount": "{count} screenshots",
-    "clearHistory": "Clear history"
+    "clearHistory": "Clear history",
+    "refresh": "Refresh history"
   },
   "windowSelector": {
     "title": "Select Window",
@@ -294,7 +310,8 @@
     "windowCount": "{count} windows",
     "cancel": "Cancel",
     "capture": "Capture",
-    "capturing": "Capturing..."
+    "capturing": "Capturing...",
+    "refresh": "Refresh windows"
   },
   "clipboardPanel": {
     "searchPlaceholder": "Search clipboard...",
@@ -305,7 +322,8 @@
     "tryDifferentQuery": "Try a different search query",
     "copyToStart": "Copy something to get started",
     "itemCount": "{count} items",
-    "clearUnpinned": "Clear unpinned"
+    "clearUnpinned": "Clear unpinned",
+    "refresh": "Refresh history"
   },
   "clipboard": {
     "title": "Clipboard History",
@@ -338,12 +356,12 @@
       "toggleChat": "Toggle chat widget",
       "explain": "Explain selected text",
       "translateDefault": "Translate (default language)",
-      "translateChinese": "Translate → Chinese 🇨🇳",
-      "translateEnglish": "Translate → English 🇺🇸",
-      "translateJapanese": "Translate → Japanese 🇯🇵",
-      "translateKorean": "Translate → Korean 🇰🇷",
-      "translateFrench": "Translate → French 🇫🇷",
-      "translateGerman": "Translate → German 🇩🇪",
+      "translateChinese": "Translate → Chinese ",
+      "translateEnglish": "Translate → English ",
+      "translateJapanese": "Translate → Japanese ",
+      "translateKorean": "Translate → Korean ",
+      "translateFrench": "Translate → French ",
+      "translateGerman": "Translate → German ",
       "summarize": "Summarize",
       "define": "Define",
       "copy": "Copy to clipboard",
@@ -433,7 +451,8 @@
     "network": "Network",
     "connected": "Connected",
     "disconnected": "Disconnected",
-    "powerMode": "Power Mode"
+    "powerMode": "Power Mode",
+    "refresh": "Refresh status"
   },
   "templates": {
     "title": "Prompt Templates",
@@ -567,5 +586,107 @@
     "translate": "Translate",
     "askAbout": "Ask About",
     "knowledgeMap": "Knowledge Map"
+  },
+  "clipboardContextPanel": {
+    "title": "Context Clipboard",
+    "monitoring": "Monitoring",
+    "current": "Current",
+    "actions": "Actions",
+    "entities": "Entities",
+    "content": "Content",
+    "sensitive": "Sensitive",
+    "quickActions": "Quick Actions",
+    "copy": "Copy",
+    "clear": "Clear",
+    "moreTransforms": "More Transforms",
+    "allTransforms": "All Transforms",
+    "noClipboardContent": "No clipboard content",
+    "copyToSeeAnalysis": "Copy something to see context-aware analysis",
+    "noSuggestedActions": "No suggested actions",
+    "actionsWillAppear": "Actions will appear based on clipboard content",
+    "noEntitiesDetected": "No entities detected",
+    "entitiesWillAppear": "URLs, emails, colors, and other patterns will appear here",
+    "chars": "chars",
+    "words": "words",
+    "lines": "lines",
+    "confidence": "confidence",
+    "toggleMonitoring": "Toggle monitoring",
+    "refreshClipboard": "Refresh clipboard"
+  },
+  "clipboardTemplatesPanel": {
+    "title": "Templates",
+    "loadDefaults": "Load Defaults",
+    "createTemplate": "Create Template",
+    "editTemplate": "Edit Template",
+    "description": "Create reusable text snippets with variable placeholders.",
+    "name": "Name",
+    "namePlaceholder": "Template name",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Brief description",
+    "contentLabel": "Content",
+    "contentPlaceholder": "Use {{variable}} for placeholders",
+    "category": "Category",
+    "categoryPlaceholder": "e.g., email, code",
+    "tags": "Tags",
+    "tagsPlaceholder": "Comma separated",
+    "cancel": "Cancel",
+    "saveChanges": "Save Changes",
+    "apply": "Apply",
+    "edit": "Edit",
+    "delete": "Delete",
+    "use": "Use",
+    "noTemplates": "No templates",
+    "createTemplatesHint": "Create templates for quick text insertion",
+    "noMatchingTemplates": "No templates match your search",
+    "searchPlaceholder": "Search templates...",
+    "all": "All",
+    "vars": "vars",
+    "applyTemplate": "Apply Template",
+    "fillVariables": "Fill in the template variables.",
+    "enterVariable": "Enter {variable}",
+    "copyToClipboard": "Copy to Clipboard",
+    "addTemplate": "Add template",
+    "refreshTemplates": "Refresh templates"
+  },
+  "contextPanel": {
+    "title": "Context Awareness",
+    "activeWindow": "Active Window",
+    "application": "Application",
+    "textInput": "Text Input",
+    "richText": "Rich Text",
+    "devTool": "Dev Tool",
+    "suggestedActions": "Suggested Actions",
+    "editorContext": "Editor Context",
+    "browserContext": "Browser Context",
+    "fileContext": "File Context",
+    "noContextAvailable": "No context available",
+    "notDetecting": "Context awareness is not detecting any active window",
+    "modified": "Modified",
+    "lastUpdated": "Last updated:",
+    "refreshContext": "Refresh context"
+  },
+  "focusTrackerPanel": {
+    "title": "Focus Tracker",
+    "stop": "Stop",
+    "start": "Start",
+    "currentFocus": "Current Focus",
+    "todaySummary": "Today's Summary",
+    "totalActiveTime": "Total Active Time",
+    "appSwitches": "app switches",
+    "topApps": "Top Apps",
+    "appStatistics": "App Statistics",
+    "recentSessions": "Recent Sessions",
+    "sessions": "sessions",
+    "avg": "avg",
+    "clearHistory": "Clear History",
+    "noTrackingData": "No tracking data",
+    "startTrackingHint": "Start tracking to see your focus statistics",
+    "toggleTracking": "Toggle tracking",
+    "clearFocusHistory": "Clear focus history"
+  },
+  "platformWarning": {
+    "limitedSupport": "Limited Support",
+    "notSupported": "{feature} is only available on {platforms}.",
+    "desktopOnly": "This feature is only available in the desktop app."
   }
 }

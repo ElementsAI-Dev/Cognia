@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
   Tooltip,
   TooltipContent,
@@ -151,9 +152,12 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
         <ScrollArea className="flex-1 max-h-[200px]">
           <div className="p-3 space-y-2">
             {isExecuting && !result && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>{t('executingCode')}</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>{t('executingCode')}</span>
+                </div>
+                <Progress value={undefined} className="h-1" />
               </div>
             )}
 

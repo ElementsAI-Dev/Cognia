@@ -36,7 +36,7 @@ export function ImportSkillDialog({ open, onOpenChange, onImport, t }: ImportSki
   const handleImport = () => {
     const result = parseSkillMd(content);
     if (!result.success) {
-      setError(result.errors[0]?.message || 'Invalid SKILL.md content');
+      setError(result.errors[0]?.message || t('invalidSkillContent'));
       return;
     }
     onImport(content);
@@ -55,7 +55,7 @@ export function ImportSkillDialog({ open, onOpenChange, onImport, t }: ImportSki
 
         <div className="space-y-4">
           <Textarea
-            placeholder="---&#10;name: my-skill&#10;description: What this skill does...&#10;---&#10;&#10;# My Skill&#10;..."
+            placeholder={t('skillMdPlaceholder') || '---\nname: my-skill\ndescription: What this skill does...\n---\n\n# My Skill\n...'}
             value={content}
             onChange={(e) => {
               setContent(e.target.value);

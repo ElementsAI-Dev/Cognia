@@ -20,6 +20,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { formatDuration, type RecordingHistoryEntry } from '@/lib/native/screen-recording';
 
@@ -50,7 +55,7 @@ export function RecordingSidebar({
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="p-3 sm:p-4 border-b">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-medium">{t('recordings') || 'Recordings'}</h2>
+          <h2 className="font-medium">{t('recordings')}</h2>
           {onCloseSidebar && (
             <Button
               variant="ghost"
@@ -63,7 +68,7 @@ export function RecordingSidebar({
           )}
         </div>
         <Input
-          placeholder={t('searchRecordings') || 'Search recordings...'}
+          placeholder={t('searchRecordings')}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="h-8"
@@ -75,7 +80,7 @@ export function RecordingSidebar({
           {history.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Film className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">{t('noRecordings') || 'No recordings yet'}</p>
+              <p className="text-sm">{t('noRecordings')}</p>
             </div>
           ) : (
             history.map((entry) => (
@@ -123,16 +128,21 @@ export function RecordingSidebar({
                     
                     {/* Actions */}
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreHorizontal className="h-3 w-3" />
-                        </Button>
-                      </DropdownMenuTrigger>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>{t('actions')}</TooltipContent>
+                      </Tooltip>
                       <DropdownMenuContent align="end">
                         {onOpenFolder && (
                           <DropdownMenuItem onClick={(e) => {
@@ -140,7 +150,7 @@ export function RecordingSidebar({
                             onOpenFolder(entry);
                           }}>
                             <FolderOpen className="h-4 w-4 mr-2" />
-                            {t('openFolder') || 'Open Folder'}
+                            {t('openFolder')}
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
@@ -152,7 +162,7 @@ export function RecordingSidebar({
                           }}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          {t('delete') || 'Delete'}
+                          {t('delete')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

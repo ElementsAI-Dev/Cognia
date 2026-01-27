@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +17,8 @@ interface PreviewDialogProps {
 }
 
 export function PreviewDialog({ attachment, onOpenChange }: PreviewDialogProps) {
+  const t = useTranslations('preview');
+
   return (
     <Dialog open={!!attachment} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
@@ -38,7 +43,7 @@ export function PreviewDialog({ attachment, onOpenChange }: PreviewDialogProps) 
                 className="w-full max-w-md"
                 src={attachment.url}
               >
-                Your browser does not support audio playback.
+                {t('audioNotSupported')}
               </audio>
               <span className="text-sm text-muted-foreground">
                 {attachment.mimeType} • {formatFileSize(attachment.size)}
@@ -51,7 +56,7 @@ export function PreviewDialog({ attachment, onOpenChange }: PreviewDialogProps) 
                 className="max-h-[60vh] max-w-full rounded-lg"
                 src={attachment.url}
               >
-                Your browser does not support video playback.
+                {t('videoNotSupported')}
               </video>
               <span className="text-sm text-muted-foreground">
                 {attachment.mimeType} • {formatFileSize(attachment.size)}

@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Music, Video, X } from 'lucide-react';
 import type { Attachment } from '../chat-input';
@@ -7,10 +10,14 @@ interface AttachmentsPreviewProps {
   attachments: Attachment[];
   onRemove: (id: string) => void;
   onPreview: (attachment: Attachment) => void;
-  removeLabel: string;
+  /** @deprecated Use internal i18n instead */
+  removeLabel?: string;
 }
 
 export function AttachmentsPreview({ attachments, onRemove, onPreview, removeLabel }: AttachmentsPreviewProps) {
+  const t = useTranslations('attachments');
+  const label = removeLabel || t('remove');
+
   if (attachments.length === 0) return null;
 
   return (
@@ -55,8 +62,8 @@ export function AttachmentsPreview({ attachments, onRemove, onPreview, removeLab
             variant="destructive"
             size="icon"
             className="absolute -right-2 -top-2 h-6 w-6 p-0.5 opacity-0 transition-all duration-150 group-hover:opacity-100 hover:scale-110"
-            aria-label={removeLabel}
-            title={removeLabel}
+            aria-label={label}
+            title={label}
           >
             <X className="h-3 w-3" />
           </Button>

@@ -235,7 +235,7 @@ function ElementTreeNode({
         <ContextMenuTrigger>
           <div
             ref={setNodeRef}
-            style={{ ...style, paddingLeft: `${depth * 12 + 8}px` }}
+            style={{ ...style, paddingLeft: `${depth * 8 + 8}px` }}
             className={cn(
               'group flex items-center gap-1 rounded-md px-2 py-1 text-sm cursor-pointer transition-colors relative',
               isSelected && 'bg-primary/10 text-primary',

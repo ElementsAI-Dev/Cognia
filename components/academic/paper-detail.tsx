@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ExternalLink,
   Download,
@@ -86,6 +87,7 @@ interface PaperDetailProps {
 }
 
 export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
+  const t = useTranslations('academic.paperDetail');
   const {
     updatePaperStatus,
     updatePaperRating,
@@ -219,13 +221,13 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
               {paper.citationCount !== undefined && (
                 <span className="flex items-center gap-1">
                   <Quote className="h-3.5 w-3.5" />
-                  {paper.citationCount.toLocaleString()} citations
+                  {paper.citationCount.toLocaleString()} {t('citations')}
                 </span>
               )}
               {paper.referenceCount !== undefined && (
                 <span className="flex items-center gap-1">
                   <Link2 className="h-3.5 w-3.5" />
-                  {paper.referenceCount} references
+                  {paper.referenceCount} {t('references')}
                 </span>
               )}
             </div>
@@ -246,7 +248,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       </Badge>
                     </TooltipTrigger>
-                    <TooltipContent>Click to copy DOI</TooltipContent>
+                    <TooltipContent>{t('clickToCopyDoi')}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
@@ -256,13 +258,13 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
               </Badge>
               {paper.isOpenAccess && (
                 <Badge variant="secondary" className="bg-green-500/10 text-green-600">
-                  Open Access
+                  {t('openAccess')}
                 </Badge>
               )}
               {hasLocalPdf && (
                 <Badge variant="secondary" className="bg-blue-500/10 text-blue-600">
                   <FileText className="h-3 w-3 mr-1" />
-                  PDF Cached
+                  {t('pdfCached')}
                 </Badge>
               )}
             </div>
@@ -272,24 +274,24 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
               {paper.pdfUrl && (
                 <Button size="sm" variant="outline" onClick={handleDownloadPdf}>
                   <Download className="h-4 w-4 mr-2" />
-                  {hasLocalPdf ? 'Open PDF' : 'Download PDF'}
+                  {hasLocalPdf ? t('openPdf') : t('downloadPdf')}
                 </Button>
               )}
               {paper.urls && paper.urls.length > 0 && (
                 <Button size="sm" variant="outline" asChild>
                   <a href={paper.urls[0].url} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    View Source
+                    {t('viewSource')}
                   </a>
                 </Button>
               )}
               <Button size="sm" variant="outline" onClick={handleCopyCitation}>
                 <Copy className="h-4 w-4 mr-2" />
-                Copy Citation
+                {t('copyCitation')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => startGuidedLearning(paper.id)}>
                 <GraduationCap className="h-4 w-4 mr-2" />
-                Start Learning
+                {t('startLearning')}
               </Button>
             </div>
 
@@ -298,10 +300,10 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="w-full justify-start">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="notes">Notes</TabsTrigger>
-                <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
-                <TabsTrigger value="citations">Citations</TabsTrigger>
+                <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
+                <TabsTrigger value="notes">{t('tabs.notes')}</TabsTrigger>
+                <TabsTrigger value="analysis">{t('tabs.analysis')}</TabsTrigger>
+                <TabsTrigger value="citations">{t('tabs.citations')}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-4 mt-4">
@@ -310,7 +312,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                   <div className="space-y-2">
                     <h4 className="font-medium flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
-                      Abstract
+                      {t('abstract')}
                     </h4>
                     <p
                       className={cn(
@@ -330,12 +332,12 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                         {isAbstractExpanded ? (
                           <>
                             <ChevronUp className="h-3 w-3 mr-1" />
-                            Show less
+                            {t('showLess')}
                           </>
                         ) : (
                           <>
                             <ChevronDown className="h-3 w-3 mr-1" />
-                            Show more
+                            {t('showMore')}
                           </>
                         )}
                       </Button>
@@ -348,7 +350,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                   <div className="space-y-2">
                     <h4 className="font-medium flex items-center gap-2">
                       <Tag className="h-4 w-4" />
-                      Fields of Study
+                      {t('fieldsOfStudy')}
                     </h4>
                     <div className="flex flex-wrap gap-1">
                       {paper.fieldsOfStudy.map((field, idx) => (
@@ -364,7 +366,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    Reading Status
+                    {t('readingStatus')}
                   </h4>
                   <div className="flex items-center gap-4">
                     <Select
@@ -405,7 +407,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
                     <Bookmark className="h-4 w-4" />
-                    Collections
+                    {t('collections')}
                   </h4>
                   <div className="flex flex-wrap gap-1">
                     {paper.collections?.map((collId) => {
@@ -422,7 +424,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     })}
                     <Select onValueChange={(collId) => addToCollection(paper.id, collId)}>
                       <SelectTrigger className="w-auto h-6 text-xs border-dashed">
-                        <span className="text-muted-foreground">+ Add to collection</span>
+                        <span className="text-muted-foreground">{t('addToCollection')}</span>
                       </SelectTrigger>
                       <SelectContent>
                         {collections
@@ -441,7 +443,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
                     <Tag className="h-4 w-4" />
-                    Tags
+                    {t('tags')}
                   </h4>
                   <div className="flex flex-wrap gap-1">
                     {paper.tags?.map((tag, idx) => (
@@ -457,7 +459,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     ))}
                     <div className="flex items-center gap-1">
                       <Input
-                        placeholder="Add tag..."
+                        placeholder={t('addTag')}
                         value={newTag}
                         onChange={(e) => setNewTag(e.target.value)}
                         className="h-6 w-24 text-xs"
@@ -477,16 +479,16 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
-                    Personal Notes
+                    {t('personalNotes')}
                   </h4>
                   <Textarea
-                    placeholder="Add your notes about this paper..."
+                    placeholder={t('addNotesPlaceholder')}
                     value={userNote}
                     onChange={(e) => setUserNote(e.target.value)}
                     className="min-h-[200px]"
                   />
                   <Button size="sm" onClick={handleSaveNote}>
-                    Save Notes
+                    {t('saveNotes')}
                   </Button>
                 </div>
               </TabsContent>
@@ -495,10 +497,10 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                 <div className="space-y-3">
                   <h4 className="font-medium flex items-center gap-2">
                     <Brain className="h-4 w-4" />
-                    AI-Powered Analysis
+                    {t('aiAnalysis')}
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    Use AI to analyze this paper and extract insights
+                    {t('aiAnalysisDescription')}
                   </p>
 
                   <div className="flex gap-2">
@@ -523,7 +525,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                       </SelectContent>
                     </Select>
                     <Button onClick={handleAnalyze} disabled={isAnalyzing}>
-                      {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+                      {isAnalyzing ? t('analyzing') : t('analyze')}
                     </Button>
                   </div>
 
@@ -542,7 +544,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                         onClick={() => setShowAnalysisHistory(!showAnalysisHistory)}
                         className="w-full justify-between"
                       >
-                        <span className="text-sm font-medium">Analysis History ({analysisHistory.length})</span>
+                        <span className="text-sm font-medium">{t('analysisHistory')} ({analysisHistory.length})</span>
                         {showAnalysisHistory ? (
                           <ChevronUp className="h-4 w-4" />
                         ) : (

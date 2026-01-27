@@ -20,6 +20,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Sheet,
   SheetContent,
@@ -461,7 +467,20 @@ function VersionItem({
         </div>
       </div>
       {compareMode ? (
-        <div className="mt-2 flex items-center justify-end">
+        <div className="mt-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id={`version-${version.id}`}
+              checked={isSelected}
+              onCheckedChange={() => onSelect?.()}
+            />
+            <label
+              htmlFor={`version-${version.id}`}
+              className="text-xs text-muted-foreground cursor-pointer"
+            >
+              {t('selected')}
+            </label>
+          </div>
           {isSelected && (
             <Badge variant="default" className="text-xs">
               <Check className="h-3 w-3 mr-1" />
@@ -471,24 +490,39 @@ function VersionItem({
         </div>
       ) : (
         <div className="mt-2 flex gap-1">
-          <Button variant="ghost" size="sm" className="h-9" onClick={onPreview}>
-            <Eye className="h-3.5 w-3.5 mr-1" />
-            {t('previewAction')}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-9" onClick={onPreview}>
+                <Eye className="h-3.5 w-3.5 mr-1" />
+                {t('previewAction')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('previewAction')}</TooltipContent>
+          </Tooltip>
           {!isCurrent && (
-            <Button variant="ghost" size="sm" className="h-9" onClick={onRestore}>
-              <RotateCcw className="h-3.5 w-3.5 mr-1" />
-              {t('restore')}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-9" onClick={onRestore}>
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                  {t('restore')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('restoreVersion')}</TooltipContent>
+            </Tooltip>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-destructive hover:text-destructive"
-            onClick={onDelete}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 text-destructive hover:text-destructive"
+                onClick={onDelete}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('deleteVersion')}</TooltipContent>
+          </Tooltip>
         </div>
       )}
     </div>

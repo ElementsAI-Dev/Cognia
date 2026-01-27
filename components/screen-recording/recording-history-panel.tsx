@@ -19,6 +19,23 @@ import {
   InputGroupButton,
 } from '@/components/ui/input-group';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { EmptyState } from '@/components/layout/empty-state';
 import {
   Video,
@@ -288,41 +305,56 @@ export function RecordingHistoryPanel({
 
                         {/* Actions */}
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenFile(recording.file_path);
-                            }}
-                          >
-                            <Play className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (recording.file_path) {
-                                // TODO: Open folder containing file
-                              }
-                            }}
-                          >
-                            <Folder className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(recording.id);
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenFile(recording.file_path);
+                                }}
+                              >
+                                <Play className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t('play')}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (recording.file_path) {
+                                    // TODO: Open folder containing file
+                                  }
+                                }}
+                              >
+                                <Folder className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t('openFolder')}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(recording.id);
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t('delete')}</TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
                     </div>
@@ -353,15 +385,13 @@ export function RecordingHistoryPanel({
                   {storageUsagePercent.toFixed(0)}% {t('used')}
                 </span>
               </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className={cn(
-                    "h-full transition-all",
-                    isStorageExceeded ? "bg-destructive" : "bg-primary"
-                  )}
-                  style={{ width: `${Math.min(storageUsagePercent, 100)}%` }}
-                />
-              </div>
+              <Progress
+                value={Math.min(storageUsagePercent, 100)}
+                className={cn(
+                  "h-1.5",
+                  isStorageExceeded && "[&>div]:bg-destructive"
+                )}
+              />
             </div>
           )}
           
@@ -388,15 +418,35 @@ export function RecordingHistoryPanel({
                   {t('cleanup')}
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-destructive hover:text-destructive"
-                onClick={handleClearAll}
-              >
-                <Trash2 className="h-3 w-3 mr-1" />
-                {t('clearHistory')}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    {t('clearHistory')}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('confirmClearTitle')}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('confirmClearDescription')}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleClearAll}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {t('confirm')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </div>

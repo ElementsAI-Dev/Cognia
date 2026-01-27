@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { X, Maximize2, Minimize2, ExternalLink, Sparkles, Send, Loader2, ChevronUp, FileCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,7 @@ export function ChatDesignerPanel({
   className,
   showAIPanel: initialShowAI = false,
 }: ChatDesignerPanelProps) {
+  const t = useTranslations('designer');
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(initialShowAI);
   const [aiPrompt, setAIPrompt] = useState('');
@@ -106,7 +108,7 @@ export function ChatDesignerPanel({
         <div className="flex items-center justify-between border-b px-3 py-2 bg-muted/30">
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
-              Live Preview
+              {t('livePreview')}
             </Badge>
           </div>
           <div className="flex items-center gap-1">
@@ -123,7 +125,7 @@ export function ChatDesignerPanel({
                     <Sparkles className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>AI Edit</TooltipContent>
+                <TooltipContent>{t('aiEdit')}</TooltipContent>
               </Tooltip>
             )}
             <Tooltip>
@@ -137,7 +139,7 @@ export function ChatDesignerPanel({
                   <FileCode className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Edit in Canvas</TooltipContent>
+              <TooltipContent>{t('editInCanvas')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -150,7 +152,7 @@ export function ChatDesignerPanel({
                   <ExternalLink className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Open Full Designer</TooltipContent>
+              <TooltipContent>{t('openFullDesigner')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -167,7 +169,7 @@ export function ChatDesignerPanel({
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{isExpanded ? 'Minimize' : 'Maximize'}</TooltipContent>
+              <TooltipContent>{isExpanded ? t('minimize') : t('maximize')}</TooltipContent>
             </Tooltip>
             {onClose && (
               <Tooltip>
@@ -181,7 +183,7 @@ export function ChatDesignerPanel({
                     <X className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Close</TooltipContent>
+                <TooltipContent>{t('close')}</TooltipContent>
               </Tooltip>
             )}
           </div>
@@ -195,7 +197,7 @@ export function ChatDesignerPanel({
                 <Textarea
                   value={aiPrompt}
                   onChange={(e) => setAIPrompt(e.target.value)}
-                  placeholder="Describe what you want to change..."
+                  placeholder={t('aiEditPlaceholder')}
                   className="min-h-[60px] resize-none text-sm"
                   disabled={isAIProcessing}
                 />
@@ -226,7 +228,7 @@ export function ChatDesignerPanel({
                   ) : (
                     <>
                       <Send className="h-3.5 w-3.5 mr-1" />
-                      Edit
+                      {t('edit')}
                     </>
                   )}
                 </Button>

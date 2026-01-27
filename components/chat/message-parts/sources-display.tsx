@@ -5,6 +5,7 @@
  * Supports verification badges when source verification is enabled
  */
 
+import { useTranslations } from 'next-intl';
 import {
   Sources,
   SourcesTrigger,
@@ -56,30 +57,25 @@ export interface WebSource {
   verification?: SourceVerification;
 }
 
-// Credibility badge configuration
-const credibilityConfig: Record<CredibilityLevel, { 
-  icon: React.ReactNode; 
-  label: string; 
+// Credibility icon and style configuration (labels are i18n)
+const credibilityIcons: Record<CredibilityLevel, {
+  icon: React.ReactNode;
   className: string;
 }> = {
   high: {
     icon: <ShieldCheck className="h-3 w-3" />,
-    label: '高可信度',
     className: 'text-green-600 bg-green-500/10 border-green-500/20',
   },
   medium: {
     icon: <Shield className="h-3 w-3" />,
-    label: '中等可信度',
     className: 'text-yellow-600 bg-yellow-500/10 border-yellow-500/20',
   },
   low: {
     icon: <ShieldAlert className="h-3 w-3" />,
-    label: '低可信度',
     className: 'text-red-600 bg-red-500/10 border-red-500/20',
   },
   unknown: {
     icon: <ShieldQuestion className="h-3 w-3" />,
-    label: '未知',
     className: 'text-gray-600 bg-gray-500/10 border-gray-500/20',
   },
 };
@@ -96,6 +92,7 @@ export function SourcesDisplay({
   sources,
   className,
 }: SourcesDisplayProps) {
+  const t = useTranslations('sources');
   // Get verification badge setting from store
   const showVerificationBadges = useSettingsStore(
     (state) => state.sourceVerificationSettings.showVerificationBadges
@@ -111,7 +108,7 @@ export function SourcesDisplay({
         <div className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors">
           <Globe className="h-4 w-4" />
           <span className="font-medium">
-            {sources.length} source{sources.length !== 1 ? 's' : ''} used
+            {t('sourcesUsed', { count: sources.length })}
           </span>
         </div>
       </SourcesTrigger>
@@ -136,10 +133,11 @@ interface SourceItemProps {
 }
 
 function SourceItem({ source, index, showVerificationBadges = false }: SourceItemProps) {
+  const t = useTranslations('sources');
   const hostname = getHostname(source.url);
   const verification = source.verification;
   const credibility = verification?.credibilityLevel || 'unknown';
-  const config = credibilityConfig[credibility];
+  const iconConfig = credibilityIcons[credibility];
 
   return (
     <Source href={source.url} title={source.title}>
@@ -154,14 +152,14 @@ function SourceItem({ source, index, showVerificationBadges = false }: SourceIte
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded border', config.className)}>
-                      {config.icon}
+                    <div className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded border', iconConfig.className)}>
+                      {iconConfig.icon}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{config.label}</p>
+                    <p>{t(`credibility.${credibility}`)}</p>
                     <p className="text-xs text-muted-foreground">
-                      可信度: {Math.round(verification.credibilityScore * 100)}%
+                      {t('credibilityScore', { score: Math.round(verification.credibilityScore * 100) })}
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -177,7 +175,7 @@ function SourceItem({ source, index, showVerificationBadges = false }: SourceIte
           )}
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <Badge variant="outline" className="text-xs px-1.5 py-0">
-              {Math.round(source.score * 100)}% relevant
+              {t('relevanceScore', { score: Math.round(source.score * 100) })}
             </Badge>
             {showVerificationBadges && verification?.sourceType && verification.sourceType !== 'unknown' && (
               <Badge variant="outline" className="text-xs px-1.5 py-0">
@@ -263,6 +261,7 @@ export function SourcesSummary({
   responseTime,
   className,
 }: SourcesSummaryProps) {
+  const t = useTranslations('sources');
   return (
     <div className={cn('space-y-4', className)}>
       {/* Answer section */}
@@ -270,7 +269,7 @@ export function SourcesSummary({
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Globe className="h-4 w-4 text-primary" />
-            <span className="font-medium text-sm">Web Search Answer</span>
+            <span className="font-medium text-sm">{t('webSearchAnswer')}</span>
             {responseTime && (
               <span className="text-xs text-muted-foreground ml-auto">
                 {(responseTime / 1000).toFixed(2)}s
@@ -296,6 +295,8 @@ function getHostname(url: string): string {
   }
 }
 
+// Note: formatDate returns relative time strings - these should be handled by
+// the component using useTranslations for proper i18n support
 function formatDate(dateString: string): string {
   try {
     const date = new Date(dateString);
@@ -303,12 +304,13 @@ function formatDate(dateString: string): string {
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-    return `${Math.floor(diffDays / 365)} years ago`;
+    // Return structured data that can be translated by component
+    if (diffDays === 0) return 'today';
+    if (diffDays === 1) return 'yesterday';
+    if (diffDays < 7) return `${diffDays}d`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo`;
+    return `${Math.floor(diffDays / 365)}y`;
   } catch {
     return dateString;
   }

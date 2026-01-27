@@ -6,6 +6,11 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { TemplateBrowser } from './template-browser';
 import type { WorkflowTemplate } from '@/types/workflow/template';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({
@@ -157,6 +162,36 @@ jest.mock('next/image', () => ({
   __esModule: true,
   // eslint-disable-next-line @next/next/no-img-element, @typescript-eslint/no-explicit-any
   default: ({ alt, ...props }: any) => <img data-testid="image" alt={alt} {...props} />,
+}));
+
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <span data-testid="badge" className={className}>{children}</span>
+  ),
+}));
+
+jest.mock('@/components/ui/card', () => ({
+  Card: ({ children, className, onClick }: { children?: React.ReactNode; className?: string; onClick?: () => void }) => (
+    <div data-testid="card" className={className} onClick={onClick}>{children}</div>
+  ),
+  CardContent: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="card-content" className={className}>{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/scroll-area', () => ({
+  ScrollArea: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="scroll-area" className={className}>{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="tooltip-content">{children}</div>
+  ),
+  TooltipProvider: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
 // Mock lucide-react icons

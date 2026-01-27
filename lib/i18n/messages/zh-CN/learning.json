@@ -83,9 +83,95 @@
       "engagementLow": "尝试更专注于学习内容。",
       "conceptMastery": "概念掌握度",
       "currentStreak": "当前连续",
-      "achievements": "成就"
+      "achievements": "成就",
+      "adjustments": "次调整",
+      "moreConcepts": "还有 {count} 个概念",
+      "correct": "正确",
+      "incorrect": "错误",
+      "difficulty": {
+        "beginner": "初学者",
+        "intermediate": "中级",
+        "advanced": "高级",
+        "expert": "专家"
+      }
     },
     "speedpass": {
+      "page": {
+        "title": "速过学习",
+        "subtitle": "智能教材学习 · 高效备考",
+        "settings": "设置",
+        "addTextbook": "添加教材",
+        "tabs": {
+          "overview": "概览",
+          "textbooks": "教材库",
+          "tutorials": "学习教程",
+          "quiz": "练习测验",
+          "wrongBook": "错题本",
+          "analytics": "学习报告"
+        },
+        "stats": {
+          "totalStudyTime": "累计学习时间",
+          "textbookCount": "教材数量",
+          "accuracy": "答题正确率",
+          "quizzesCompleted": "完成测验",
+          "tutorials": "个教程",
+          "questions": "题",
+          "sessions": "次学习",
+          "daysStreak": "天连续"
+        },
+        "modes": {
+          "rapid": {
+            "title": "极速模式",
+            "description": "1-2小时快速掌握核心考点",
+            "duration": "1-2h"
+          },
+          "intensive": {
+            "title": "速成模式",
+            "description": "2-4小时系统学习重点内容",
+            "duration": "2-4h"
+          },
+          "comprehensive": {
+            "title": "全面模式",
+            "description": "6-12小时深入学习全部内容",
+            "duration": "6-12h"
+          }
+        },
+        "activeSession": "正在进行的学习",
+        "completedSections": "已完成 {count} 个知识点",
+        "continueLearning": "继续学习",
+        "recentActivity": "最近学习",
+        "recentActivityDesc": "继续上次的学习进度",
+        "noLearningRecords": "还没有学习记录",
+        "addTextbookToStart": "添加教材开始学习",
+        "progress": "进度",
+        "continue": "继续",
+        "textbooksTitle": "教材库",
+        "textbooksDesc": "管理您的教材和学习资料",
+        "noTextbooks": "暂无教材",
+        "uploadPdfOrAdd": "上传 PDF 教材或添加在线教材",
+        "tutorialsTitle": "学习教程",
+        "tutorialsDesc": "基于教材生成的速学教程",
+        "noTutorials": "暂无教程",
+        "addTextbookFirst": "先添加教材，然后生成速学教程",
+        "quizTitle": "练习测验",
+        "quizDesc": "智能题库，精准练习",
+        "startPractice": "开始练习",
+        "selectFromExamples": "从教材例题和习题中智能选题",
+        "startQuiz": "开始测验",
+        "wrongBookTitle": "错题本",
+        "wrongBookDesc": "记录并复习做错的题目",
+        "noWrongQuestions": "没有错题",
+        "wrongQuestionsAutoRecord": "做练习时答错的题目会自动记录",
+        "wrongQuestionsCount": "共 {count} 道错题需要复习",
+        "startReview": "开始复习错题",
+        "analyticsTitle": "学习报告",
+        "analyticsDesc": "查看学习数据和进步趋势",
+        "noData": "暂无数据",
+        "startLearningForReport": "开始学习后将生成学习报告",
+        "hours": "小时",
+        "minutes": "分钟",
+        "hoursMinutes": "{hours}小时{minutes}分"
+      },
       "library": {
         "title": "我的教材",
         "subtitle": "共 {count} 本教材",
@@ -118,7 +204,14 @@
           "startLearning": "开始学习",
           "practice": "练习",
           "edit": "编辑信息",
-          "delete": "删除教材"
+          "delete": "删除教材",
+          "moreActions": "更多操作"
+        },
+        "deleteConfirm": {
+          "title": "删除教材",
+          "description": "确定要删除此教材吗？此操作无法撤销。",
+          "cancel": "取消",
+          "confirm": "删除"
         },
         "status": {
           "pending": "待处理",
@@ -145,6 +238,7 @@
         },
         "navigator": "题目导航",
         "placeholder": "请输入答案...",
+        "flagQuestion": "标记题目",
         "results": {
           "title": "测验结束",
           "subtitle": "查看你的答题情况",
@@ -181,7 +275,12 @@
       "highlighted": "已标记",
       "all": "全部笔记",
       "empty": "还没有笔记。开始记录关键见解！",
-      "addFirst": "添加第一条笔记"
+      "addFirst": "添加第一条笔记",
+      "toggleHighlight": "切换高亮",
+      "edit": "编辑笔记",
+      "delete": "删除笔记",
+      "save": "保存",
+      "cancel": "取消"
     },
     "history": {
       "overallProgress": "总体进度",
@@ -194,7 +293,16 @@
       "achievements": "成就",
       "achievementsEarned": "已获得成就",
       "recentSessions": "最近会话",
-      "noSessions": "还没有完成的会话。开始学习以跟踪您的进度！"
+      "noSessions": "还没有完成的会话。开始学习以跟踪您的进度！",
+      "days": "天",
+      "concepts": "个概念",
+      "completed": "已完成"
+    },
+    "tabs": {
+      "progress": "进度",
+      "stats": "统计",
+      "notes": "笔记",
+      "history": "历史"
     },
     "difficulty": {
       "beginner": "初学者",
@@ -524,6 +632,17 @@
     }
   },
   "academic": {
+    "title": "学术研究",
+    "description": "搜索、管理和分析学术论文",
+    "tabs": {
+      "search": "搜索",
+      "library": "文献库",
+      "statistics": "统计",
+      "compare": "对比",
+      "discover": "发现",
+      "smart": "智能",
+      "ai": "AI"
+    },
     "knowledgeMap": {
       "title": "知识地图",
       "create": "创建",
@@ -598,6 +717,233 @@
       "navigateToLocation": "跳转到位置",
       "children": "子节点",
       "andMore": "还有 {count} 个..."
+    },
+    "chatPanel": {
+      "title": "学术研究助手",
+      "selected": "已选",
+      "quickActions": "快捷操作",
+      "tryAsking": "试试这样问...",
+      "showLess": "收起",
+      "showMore": "显示更多 {count} 条结果",
+      "analyzing": "正在分析论文...",
+      "searching": "搜索中...",
+      "selectedPapers": "已选论文",
+      "analyze": "分析",
+      "generatePPT": "生成PPT",
+      "clear": "清除",
+      "placeholder": "搜索论文或提出研究问题...",
+      "addedToLibrary": "已将「{title}」添加到文献库。",
+      "actions": {
+        "search": "搜索论文",
+        "summarize": "总结",
+        "compare": "对比",
+        "explain": "简单解释",
+        "generatePPT": "生成PPT"
+      },
+      "prompts": {
+        "search": "查找关于 ",
+        "summarize": "总结这篇论文: ",
+        "compare": "对比这些论文: ",
+        "explain": "用简单的话解释: ",
+        "generatePPT": "生成关于以下内容的演示文稿: "
+      }
+    },
+    "stats": {
+      "totalPapers": "论文总数",
+      "completed": "已完成",
+      "currentlyReading": "正在阅读",
+      "collections": "收藏夹",
+      "paperCollections": "论文收藏",
+      "readingProgress": "阅读进度",
+      "readingStatusBreakdown": "您的整体阅读状态分布",
+      "unread": "未读",
+      "reading": "阅读中",
+      "archived": "已归档",
+      "topResearchFields": "热门研究领域",
+      "noFieldsData": "暂无领域数据",
+      "paperSources": "论文来源",
+      "engagementMetrics": "互动指标",
+      "avgReadingTime": "平均阅读时间",
+      "notesPerPaper": "每篇笔记数",
+      "annotationRate": "标注率",
+      "citationTracking": "引用追踪"
+    },
+    "citationGraph": {
+      "title": "引用网络",
+      "influentialCitation": "重要引用",
+      "citations": "引用",
+      "viewDetails": "查看详情",
+      "semanticScholar": "Semantic Scholar",
+      "loading": "正在加载引用网络...",
+      "error": "加载引用网络失败",
+      "retry": "重试",
+      "emptyState": "选择论文查看引用网络",
+      "emptyStateHint": "引用和参考文献将显示在此处",
+      "papers": "篇论文",
+      "influentialOnly": "仅显示重要引用",
+      "refresh": "刷新",
+      "tabs": {
+        "citations": "引用",
+        "references": "参考文献"
+      },
+      "noCitations": "未找到引用",
+      "noReferences": "未找到参考文献"
+    },
+    "paperComparison": {
+      "title": "论文对比",
+      "description": "并排对比最多4篇论文",
+      "addPaper": "添加论文",
+      "searchPapers": "搜索论文...",
+      "noPapersFound": "未找到论文。",
+      "emptyState": "添加论文进行对比",
+      "emptyStateHint": "从文献库中选择论文进行并排对比",
+      "commonResearchFields": "共同研究领域",
+      "citationComparison": "引用对比",
+      "abstractComparison": "摘要对比",
+      "noAbstract": "暂无摘要",
+      "featureMatrix": "特征矩阵",
+      "feature": "特征",
+      "year": "年份",
+      "citations": "引用数",
+      "openAccess": "开放获取",
+      "pdfAvailable": "PDF可用",
+      "yes": "是",
+      "no": "否"
+    },
+    "paperSearch": {
+      "placeholder": "按标题、作者或关键词搜索论文...",
+      "providers": "来源",
+      "yearFrom": "起始年份",
+      "openAccessOnly": "仅开放获取",
+      "search": "搜索",
+      "noResults": "未找到论文。请尝试调整搜索条件或筛选器。",
+      "emptyState": "跨多个来源搜索学术论文",
+      "emptyStateHint": "支持arXiv、Semantic Scholar、CORE等",
+      "foundPapers": "找到 {count} 篇论文",
+      "citations": "引用",
+      "addToLibrary": "添加到文献库"
+    },
+    "paperRecommendations": {
+      "title": "推荐",
+      "description": "根据您的文献库发现论文",
+      "refresh": "刷新",
+      "emptyState": "暂无推荐",
+      "emptyStateHint": "向文献库添加更多论文或搜索论文",
+      "tabs": {
+        "related": "相关",
+        "trending": "热门",
+        "byAuthors": "按作者"
+      }
+    },
+    "smartCollections": {
+      "title": "智能收藏",
+      "description": "根据规则和主题自动整理论文",
+      "generating": "生成中...",
+      "generateCollections": "生成收藏",
+      "creatingProgress": "正在创建收藏... {progress}%",
+      "smartRules": "智能规则",
+      "papers": "篇论文",
+      "detectedTopics": "检测到的主题",
+      "noTopicsHint": "添加更多论文以检测常见主题",
+      "howItWorks": "工作原理",
+      "howItWorksSteps": {
+        "step1": "启用您想使用的规则",
+        "step2": "点击「生成收藏」创建收藏",
+        "step3": "论文将根据条件自动添加",
+        "step4": "主题收藏根据常见领域创建"
+      },
+      "rules": {
+        "recent": {
+          "name": "近期论文",
+          "description": "最近2年的论文"
+        },
+        "highlyCited": {
+          "name": "高引用",
+          "description": "引用数超过100的论文"
+        },
+        "openAccess": {
+          "name": "开放获取",
+          "description": "可免费获取的论文"
+        },
+        "favorites": {
+          "name": "收藏夹",
+          "description": "评分4星或以上的论文"
+        },
+        "unread": {
+          "name": "阅读队列",
+          "description": "标记为未读的论文"
+        }
+      }
+    },
+    "paperDetail": {
+      "citations": "引用",
+      "copyDOI": "点击复制DOI",
+      "openAccess": "开放获取",
+      "pdfCached": "PDF已缓存",
+      "openPDF": "打开PDF",
+      "downloadPDF": "下载PDF",
+      "viewSource": "查看来源",
+      "copyCitation": "复制引用",
+      "startLearning": "开始学习",
+      "tabs": {
+        "overview": "概览",
+        "notes": "笔记",
+        "analysis": "分析"
+      },
+      "abstract": "摘要",
+      "showLess": "收起",
+      "showMore": "展开",
+      "fieldsOfStudy": "研究领域",
+      "readingStatus": "阅读状态",
+      "status": {
+        "unread": "未读",
+        "reading": "阅读中",
+        "completed": "已完成",
+        "archived": "已归档"
+      },
+      "collections": "收藏",
+      "addToCollection": "+ 添加到收藏",
+      "tags": "标签",
+      "personalNotes": "个人笔记",
+      "notesPlaceholder": "添加您对这篇论文的笔记...",
+      "aiAnalysis": "AI分析",
+      "analyze": "分析",
+      "analyzing": "分析中...",
+      "noAnalysis": "暂无分析",
+      "analyzeHint": "点击「分析」获取AI驱动的论文洞察"
+    },
+    "paperLibrary": {
+      "collections": "收藏夹",
+      "createCollection": "创建收藏",
+      "createCollectionDescription": "创建新收藏来整理您的论文",
+      "collectionName": "收藏名称",
+      "cancel": "取消",
+      "create": "创建",
+      "allPapers": "全部论文",
+      "searchPapers": "搜索论文...",
+      "export": "导出",
+      "status": {
+        "all": "全部",
+        "unread": "未读",
+        "reading": "阅读中",
+        "completed": "已完成",
+        "archived": "已归档"
+      },
+      "select": "选择",
+      "exitSelection": "退出选择",
+      "selected": "已选",
+      "selectAll": "全选",
+      "setStatus": "设置状态",
+      "addToCollection": "添加到收藏",
+      "noCollections": "暂无收藏",
+      "remove": "移除",
+      "emptyState": "文献库中暂无论文",
+      "emptyStateHint": "搜索并添加论文开始使用",
+      "viewDetails": "查看详情",
+      "markAsReading": "标记为阅读中",
+      "markAsCompleted": "标记为已完成",
+      "downloadPDF": "下载PDF",
+      "removeFromLibrary": "从文献库移除"
     }
   },
   "flowChat": {
@@ -605,7 +951,6 @@
     "viewFlow": "画布视图",
     "createBranch": "创建分支",
     "regenerate": "重新生成",
-    "followUp": "追问",
     "reference": "引用",
     "parallelGenerate": "并行生成",
     "copy": "复制",

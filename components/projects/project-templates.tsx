@@ -26,6 +26,12 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/stores';
 import type { CreateProjectInput, ProjectTemplate } from '@/types';
@@ -250,37 +256,42 @@ export function ProjectTemplatesDialog({
               const tKey = templateKeyMap[template.id] || 'blankProject';
               
               return (
-                <button
-                  key={template.id}
-                  onClick={() => handleSelectTemplate(template)}
-                  disabled={isCreating}
-                  className="flex items-start gap-3 p-4 rounded-lg border text-left hover:border-primary/50 hover:bg-muted/50 transition-colors disabled:opacity-50"
-                >
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                    style={{ backgroundColor: `${template.color}20` }}
-                  >
-                    <span style={{ color: template.color }}>
-                      <IconComponent className="h-5 w-5" />
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm">{t(`${tKey}.name`)}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {t(`${tKey}.description`)}
-                    </p>
-                    <div className="flex gap-1 mt-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {template.defaultMode}
-                      </Badge>
-                      {template.tags.slice(0, 2).map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </button>
+                <Tooltip key={template.id}>
+                  <TooltipTrigger asChild>
+                    <Card
+                      className="cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors disabled:opacity-50"
+                      onClick={() => !isCreating && handleSelectTemplate(template)}
+                    >
+                      <CardContent className="flex items-start gap-3 p-4">
+                        <div
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                          style={{ backgroundColor: `${template.color}20` }}
+                        >
+                          <span style={{ color: template.color }}>
+                            <IconComponent className="h-5 w-5" />
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <h3 className="font-medium text-sm">{t(`${tKey}.name`)}</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                            {t(`${tKey}.description`)}
+                          </p>
+                          <div className="flex gap-1 mt-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {template.defaultMode}
+                            </Badge>
+                            {template.tags.slice(0, 2).map((tag) => (
+                              <Badge key={tag} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{t('clickToCreate')}</TooltipContent>
+                </Tooltip>
               );
             })}
           </div>

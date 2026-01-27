@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { GitBranch, FolderOpen, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,8 @@ import { GitPanel } from '@/components/git';
 import { open } from '@tauri-apps/plugin-dialog';
 
 export default function GitPage() {
+  const t = useTranslations('git');
+  const tc = useTranslations('common');
   const [repoPath, setRepoPath] = useState('');
   const [activeRepo, setActiveRepo] = useState<string | null>(null);
 
@@ -35,7 +38,7 @@ export default function GitPage() {
       const selected = await open({
         directory: true,
         multiple: false,
-        title: 'Select Git Repository',
+        title: t('selectRepository'),
       });
       if (selected && typeof selected === 'string') {
         setRepoPath(selected);
@@ -43,7 +46,7 @@ export default function GitPage() {
     } catch {
       // User cancelled or error - silently ignore
     }
-  }, []);
+  }, [t]);
 
   return (
     <div className="flex h-screen bg-background">
@@ -54,16 +57,16 @@ export default function GitPage() {
             <Link href="/">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
+                {tc('back')}
               </Button>
             </Link>
           </div>
           <div className="flex items-center gap-2">
             <GitBranch className="h-5 w-5" />
-            <h1 className="text-lg font-semibold">Git</h1>
+            <h1 className="text-lg font-semibold">{t('pageTitle')}</h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Version control management
+            {t('pageDescription')}
           </p>
         </div>
 
@@ -71,14 +74,14 @@ export default function GitPage() {
         {!activeRepo && (
           <div className="p-4 border-b">
             <Label htmlFor="repoPath" className="text-sm font-medium">
-              Repository Path
+              {t('repositoryPath')}
             </Label>
             <div className="flex gap-2 mt-2">
               <Input
                 id="repoPath"
                 value={repoPath}
                 onChange={(e) => setRepoPath(e.target.value)}
-                placeholder="Enter repository path..."
+                placeholder={t('repositoryPathPlaceholder')}
                 className="flex-1"
               />
               <Button variant="outline" size="icon" onClick={handlePickFolder}>
@@ -90,7 +93,7 @@ export default function GitPage() {
               onClick={handleOpenRepo}
               disabled={!repoPath.trim()}
             >
-              Open Repository
+              {t('openRepository')}
             </Button>
           </div>
         )}
@@ -112,7 +115,7 @@ export default function GitPage() {
                 size="sm"
                 onClick={() => setActiveRepo(null)}
               >
-                Change
+                {t('change')}
               </Button>
             </div>
           </div>
@@ -133,20 +136,20 @@ export default function GitPage() {
                 <div className="mx-auto mb-4 p-4 rounded-full bg-primary/10">
                   <GitBranch className="h-8 w-8 text-primary" />
                 </div>
-                <CardTitle>Git Version Control</CardTitle>
+                <CardTitle>{t('repository')}</CardTitle>
                 <CardDescription>
-                  Open a repository to view changes, manage branches, and commit your work.
+                  {t('desktopRequired.description')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="mainRepoPath">Repository Path</Label>
+                  <Label htmlFor="mainRepoPath">{t('repositoryPath')}</Label>
                   <div className="flex gap-2">
                     <Input
                       id="mainRepoPath"
                       value={repoPath}
                       onChange={(e) => setRepoPath(e.target.value)}
-                      placeholder="/path/to/your/repository"
+                      placeholder={t('repositoryPathPlaceholder')}
                       className="flex-1"
                     />
                     <Button variant="outline" size="icon">
@@ -167,47 +170,47 @@ export default function GitPage() {
         ) : (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold">Repository Overview</h2>
+              <h2 className="text-2xl font-bold">{t('repositoryOverview')}</h2>
               <p className="text-muted-foreground">
-                Use the sidebar to manage your Git repository
+                {t('useSidebarHint')}
               </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Quick Tips</CardTitle>
+                  <CardTitle className="text-base">{t('quickTips')}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-2">
-                  <p>• Use the <strong>Changes</strong> tab to stage and commit files</p>
-                  <p>• Switch branches in the <strong>Branches</strong> tab</p>
-                  <p>• View commit history in the <strong>History</strong> tab</p>
-                  <p>• Push and pull using the quick action buttons</p>
+                  <p>• {t('tipChangesTab')}</p>
+                  <p>• {t('tipBranchesTab')}</p>
+                  <p>• {t('tipHistoryTab')}</p>
+                  <p>• {t('tipPushPull')}</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Keyboard Shortcuts</CardTitle>
+                  <CardTitle className="text-base">{t('keyboardShortcuts')}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-2">
-                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+S</kbd> Stage all changes</p>
-                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+Enter</kbd> Quick commit</p>
-                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+Shift+P</kbd> Push</p>
-                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+Shift+L</kbd> Pull</p>
+                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+S</kbd> {t('shortcutStageAll')}</p>
+                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+Enter</kbd> {t('shortcutQuickCommit')}</p>
+                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+Shift+P</kbd> {t('shortcutPush')}</p>
+                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+Shift+L</kbd> {t('shortcutPull')}</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Settings</CardTitle>
+                  <CardTitle className="text-base">{tc('settings')}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
-                  <p>Configure Git settings, auto-commit, and more in the</p>
+                  <p>{t('settingsHint')}</p>
                   <Link href="/settings" className="text-primary hover:underline">
-                    Settings → Git
+                    {t('settingsLink')}
                   </Link>
-                  <p className="mt-2">section.</p>
+                  <p className="mt-2">{t('section')}</p>
                 </CardContent>
               </Card>
             </div>

@@ -243,7 +243,7 @@ export function V0Designer({
         className="w-full sm:w-[95vw] sm:max-w-[1600px] p-0 flex flex-col"
         showCloseButton={false}
       >
-        <SheetTitle className="sr-only">V0 Designer</SheetTitle>
+        <SheetTitle className="sr-only">{t('v0DesignerTitle')}</SheetTitle>
         <TooltipProvider>
           {/* Header */}
           <div className="flex items-center justify-between border-b px-4 py-2">
@@ -368,10 +368,10 @@ export function V0Designer({
                     onClick={() => setShowAIChatPanel(!showAIChatPanel)}
                   >
                     <MessageSquare className="h-4 w-4 mr-2" />
-                    {t('aiChat') || 'AI Chat'}
+                    {t('aiChat')}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t('aiChatTooltip') || 'Open AI conversation panel'}</TooltipContent>
+                <TooltipContent>{t('aiChatTooltip')}</TooltipContent>
               </Tooltip>
 
               {/* Save button */}

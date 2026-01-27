@@ -106,33 +106,36 @@ export function PluginList({
         />
       )}
 
-      {/* Plugin Grid/List */}
+      {/* Plugin Grid/List - Enhanced responsive grid */}
       <div
         className={cn(
           viewMode === 'grid'
-            ? 'grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-            : 'flex flex-col gap-2'
+            ? 'grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+            : 'flex flex-col gap-3'
         )}
       >
-        {plugins.map((plugin) => (
+        {plugins.map((plugin, index) => (
           <div
             key={plugin.manifest.id}
             className={cn(
-              'relative',
+              'relative group/item',
               enableSelection &&
                 selectedPlugins.has(plugin.manifest.id) &&
-                'ring-2 ring-primary rounded-lg'
+                'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-xl'
             )}
+            style={{
+              animationDelay: `${index * 30}ms`,
+            }}
           >
-            {/* Selection checkbox overlay */}
+            {/* Selection checkbox overlay - Enhanced positioning */}
             {enableSelection && (
-              <div className="absolute top-2 left-2 z-10">
+              <div className="absolute top-3 left-3 z-10">
                 <Checkbox
                   checked={selectedPlugins.has(plugin.manifest.id)}
                   onCheckedChange={(checked) =>
                     handleSelectPlugin(plugin.manifest.id, checked as boolean)
                   }
-                  className="bg-background border-2"
+                  className="h-5 w-5 bg-background/90 backdrop-blur-sm border-2 shadow-sm data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
               </div>
             )}

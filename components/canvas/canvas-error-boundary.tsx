@@ -9,6 +9,13 @@ import { useTranslations } from 'next-intl';
 import { AlertTriangle, RefreshCw, Bug, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Collapsible,
   CollapsibleContent,
@@ -115,58 +122,74 @@ function CanvasErrorFallbackContent({
 
   return (
     <div className="flex flex-col items-center justify-center h-full p-8 bg-background">
-      <Alert variant="destructive" className="max-w-lg">
-        <AlertTriangle className="h-5 w-5" />
-        <AlertTitle className="text-lg">{t('errorTitle')}</AlertTitle>
-        <AlertDescription className="mt-2">
-          <p className="mb-4">{t('errorDescription')}</p>
-          
-          <div className="flex gap-2 mb-4">
-            <Button onClick={onReset} size="sm" className="gap-2">
-              <RefreshCw className="h-4 w-4" />
-              {t('tryAgain')}
-            </Button>
-            <Button 
-              onClick={handleCopy} 
-              variant="outline" 
-              size="sm" 
-              className="gap-2"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  {t('copied')}
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" />
-                  {t('copyError')}
-                </>
-              )}
-            </Button>
-          </div>
+      <Card className="max-w-lg border-destructive/50">
+        <CardContent className="pt-6">
+          <Alert variant="destructive" className="border-0 p-0">
+            <AlertTriangle className="h-5 w-5" />
+            <AlertTitle className="text-lg">{t('errorTitle')}</AlertTitle>
+            <AlertDescription className="mt-2">
+              <p className="mb-4 text-muted-foreground">{t('errorDescription')}</p>
+              
+              <div className="flex gap-2 mb-4">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button onClick={onReset} size="sm" className="gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      {t('tryAgain')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('tryAgain')}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={handleCopy} 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="h-4 w-4 text-green-500" />
+                          {t('copied')}
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          {t('copyError')}
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('copyError')}</TooltipContent>
+                </Tooltip>
+              </div>
 
-          <Collapsible open={showDetails} onOpenChange={setShowDetails}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2 w-full justify-start">
-                <Bug className="h-4 w-4" />
-                {showDetails ? t('hideDetails') : t('showDetails')}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <pre className="mt-2 p-3 bg-muted rounded-md text-xs overflow-auto max-h-48 font-mono">
-                {error?.message || 'Unknown error'}
-                {error?.stack && (
-                  <>
-                    {'\n\n'}
-                    {error.stack}
-                  </>
-                )}
-              </pre>
-            </CollapsibleContent>
-          </Collapsible>
-        </AlertDescription>
-      </Alert>
+              <Separator className="my-4" />
+
+              <Collapsible open={showDetails} onOpenChange={setShowDetails}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2 w-full justify-start">
+                    <Bug className="h-4 w-4" />
+                    {showDetails ? t('hideDetails') : t('showDetails')}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <pre className="mt-2 p-3 bg-muted rounded-md text-xs overflow-auto max-h-48 font-mono">
+                    {error?.message || 'Unknown error'}
+                    {error?.stack && (
+                      <>
+                        {'\n\n'}
+                        {error.stack}
+                      </>
+                    )}
+                  </pre>
+                </CollapsibleContent>
+              </Collapsible>
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
     </div>
   );
 }

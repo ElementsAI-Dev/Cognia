@@ -1,8 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
   Image as ImageIcon,
@@ -24,6 +31,7 @@ export function SlideElement({
   onUpdate,
   onDelete,
 }: SlideElementProps) {
+  const t = useTranslations('pptEditor');
   const [isEditingContent, setIsEditingContent] = useState(false);
 
   const style: React.CSSProperties = {
@@ -71,13 +79,13 @@ export function SlideElement({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={element.content}
-                alt="Slide element"
+                alt={t('slideElementAlt')}
                 className="max-w-full max-h-full object-contain"
               />
             ) : (
               <div className="text-center text-muted-foreground">
                 <ImageIcon className="h-8 w-8 mx-auto mb-2" />
-                <span className="text-sm">Click to add image</span>
+                <span className="text-sm">{t('clickToAddImage')}</span>
               </div>
             )}
           </div>
@@ -101,7 +109,7 @@ export function SlideElement({
           <div className="w-full h-full flex items-center justify-center bg-muted/30 rounded border border-dashed">
             <div className="text-center text-muted-foreground">
               <BarChart3 className="h-8 w-8 mx-auto mb-2" />
-              <span className="text-sm">{String(element.metadata?.chartType || 'Chart')}</span>
+              <span className="text-sm">{String(element.metadata?.chartType || t('chartPlaceholder'))}</span>
             </div>
           </div>
         );
@@ -111,7 +119,7 @@ export function SlideElement({
           <div className="w-full h-full flex items-center justify-center bg-muted/30 rounded border border-dashed">
             <div className="text-center text-muted-foreground">
               <Table className="h-8 w-8 mx-auto mb-2" />
-              <span className="text-sm">Table</span>
+              <span className="text-sm">{t('tablePlaceholder')}</span>
             </div>
           </div>
         );
@@ -122,14 +130,14 @@ export function SlideElement({
             className="w-full h-full p-3 bg-black/90 text-green-400 rounded overflow-auto text-sm"
             style={{ fontFamily: theme.codeFont }}
           >
-            <code>{element.content || '// Code here'}</code>
+            <code>{element.content || t('codePlaceholder')}</code>
           </pre>
         );
 
       default:
         return (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            Unknown element
+            {t('unknownElement')}
           </div>
         );
     }
@@ -156,17 +164,24 @@ export function SlideElement({
           <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-primary rounded-full cursor-se-resize" />
           
           {/* Delete button */}
-          <Button
-            variant="destructive"
-            size="icon"
-            className="absolute -top-3 -right-3 h-6 w-6 opacity-0 group-hover:opacity-100"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute -top-3 -right-3 h-6 w-6 opacity-0 group-hover:opacity-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('deleteElement')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </>
       )}
     </div>

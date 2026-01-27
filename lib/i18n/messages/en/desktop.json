@@ -1,4 +1,29 @@
 {
+  "regionSelector": {
+    "instructions": {
+      "dragToMove": "Drag to move • Drag handles to resize",
+      "clickAndDrag": "Click and drag to select a region"
+    },
+    "shortcuts": "ESC Cancel • Enter Confirm • Arrow keys fine-tune • Shift+Arrow 10px • Ctrl+Arrow resize",
+    "cancel": "Cancel",
+    "magnifier": "Magnifier (M)",
+    "confirm": "Confirm Selection"
+  },
+  "assistantBubble": {
+    "tooltip": {
+      "clickAction": "Click: {action} chat",
+      "open": "Open",
+      "hide": "Hide",
+      "hints": "Double-click new | Right-click menu"
+    },
+    "menu": {
+      "openChat": "Open Chat",
+      "hideChat": "Hide Chat",
+      "newSession": "New Session",
+      "settings": "Settings",
+      "hideBubble": "Hide Bubble"
+    }
+  },
   "desktopSettings": {
     "title": "Desktop Settings",
     "notAvailable": "These settings are only available in the desktop app",
@@ -165,6 +190,11 @@
     "deleteAll": "Delete All",
     "searchPackages": "Search packages...",
     "noMatchingPackages": "No matching packages found",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "envTypes": {
+      "uvFastest": "uv (Fastest)",
+      "venvStandard": "venv (Standard)",
+      "conda": "conda"
+    }
   }
 }

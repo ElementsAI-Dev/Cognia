@@ -6,7 +6,9 @@
  */
 
 import React, { Component, useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, RefreshCw, Copy, Check } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -76,6 +78,7 @@ interface ErrorDisplayProps {
 }
 
 function ErrorDisplay({ error, errorInfo, onReset, className }: ErrorDisplayProps) {
+  const t = useTranslations('sandboxEditor');
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -87,31 +90,27 @@ function ErrorDisplay({ error, errorInfo, onReset, className }: ErrorDisplayProp
 
   return (
     <div className={cn('flex flex-col h-full bg-destructive/5 p-4', className)}>
-      <div className="flex items-start gap-3 mb-4">
-        <div className="p-2 rounded-full bg-destructive/10">
-          <AlertTriangle className="h-5 w-5 text-destructive" />
-        </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-destructive">Runtime Error</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            An error occurred while rendering the preview.
-          </p>
-        </div>
-      </div>
+      <Alert variant="destructive" className="mb-4">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>{t('runtimeError')}</AlertTitle>
+        <AlertDescription>
+          {t('errorOccurred')}
+        </AlertDescription>
+      </Alert>
 
       <ScrollArea className="flex-1 mb-4">
         <div className="space-y-3">
           {/* Error message */}
           <div className="p-3 rounded-md bg-background border border-destructive/30">
             <p className="text-sm font-mono text-destructive break-all">
-              {error?.message || 'Unknown error'}
+              {error?.message || t('unknownError')}
             </p>
           </div>
 
           {/* Stack trace */}
           {error?.stack && (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Stack Trace</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('stackTrace')}</p>
               <pre className="p-3 rounded-md bg-muted text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
                 {error.stack}
               </pre>
@@ -121,7 +120,7 @@ function ErrorDisplay({ error, errorInfo, onReset, className }: ErrorDisplayProp
           {/* Component stack */}
           {errorInfo?.componentStack && (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Component Stack</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('componentStack')}</p>
               <pre className="p-3 rounded-md bg-muted text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
                 {errorInfo.componentStack}
               </pre>
@@ -133,7 +132,7 @@ function ErrorDisplay({ error, errorInfo, onReset, className }: ErrorDisplayProp
       <div className="flex items-center gap-2">
         <Button onClick={onReset} className="flex-1">
           <RefreshCw className="h-4 w-4 mr-2" />
-          Try Again
+          {t('tryAgain')}
         </Button>
         <Button variant="outline" onClick={handleCopy}>
           {copied ? (

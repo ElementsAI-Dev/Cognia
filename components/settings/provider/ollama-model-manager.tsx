@@ -322,7 +322,7 @@ export function OllamaModelManager({
 
                   const { percentage, text } = state.progress
                     ? formatPullProgress(state.progress)
-                    : { percentage: 0, text: 'Starting...' };
+                    : { percentage: 0, text: t('starting') };
 
                   return (
                     <div
@@ -399,7 +399,7 @@ export function OllamaModelManager({
                               {isRunning && (
                                 <Badge variant="default" className="text-[10px] bg-green-500">
                                   <Zap className="h-2.5 w-2.5 mr-0.5" />
-                                  Running
+                                  {t('running')}
                                 </Badge>
                               )}
                             </div>
@@ -429,7 +429,7 @@ export function OllamaModelManager({
                                   <Eye className="h-3.5 w-3.5" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Stop model</TooltipContent>
+                              <TooltipContent>{t('stopModel')}</TooltipContent>
                             </Tooltip>
                           )}
 

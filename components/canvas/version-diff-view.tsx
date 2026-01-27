@@ -4,10 +4,17 @@
  * VersionDiffView - displays diff between two versions of a canvas document
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Copy, Check } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 interface DiffLine {
@@ -134,6 +141,7 @@ export function VersionDiffView({
   className,
 }: VersionDiffViewProps) {
   const t = useTranslations('canvas');
+  const [copied, setCopied] = useState(false);
 
   const diff = useMemo(() => computeDiff(oldContent, newContent), [oldContent, newContent]);
 
@@ -146,6 +154,23 @@ export function VersionDiffView({
     });
     return { added, removed };
   }, [diff]);
+
+  const diffText = useMemo(() => {
+    return diff.map((line) => {
+      const prefix = line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' ';
+      return `${prefix} ${line.content}`;
+    }).join('\n');
+  }, [diff]);
+
+  const handleCopyDiff = async () => {
+    try {
+      await navigator.clipboard.writeText(diffText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy diff:', err);
+    }
+  };
 
   return (
     <div className={cn('flex flex-col', className)}>
@@ -168,6 +193,23 @@ export function VersionDiffView({
         <div className="flex items-center gap-2 text-xs">
           <span className="text-green-600 dark:text-green-400">+{stats.added}</span>
           <span className="text-red-600 dark:text-red-400">-{stats.removed}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={handleCopyDiff}
+              >
+                {copied ? (
+                  <Check className="h-3 w-3 text-green-500" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('copyDiff')}</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 

@@ -740,7 +740,7 @@ Expected output here
                 {showRightPanel ? <PanelRightClose className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{showRightPanel ? 'Hide Panel' : 'Show Panel'}</TooltipContent>
+            <TooltipContent>{showRightPanel ? t('hidePanel') : t('showPanel')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -749,7 +749,7 @@ Expected output here
                 {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</TooltipContent>
+            <TooltipContent>{isFullscreen ? t('exitFullscreen') : t('fullscreen')}</TooltipContent>
           </Tooltip>
 
           <Separator orientation="vertical" className="h-6 mx-1" />
@@ -766,11 +766,11 @@ Expected output here
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleDownload('md')}>
                 <FileText className="h-4 w-4 mr-2" />
-                Markdown (.md)
+                {t('markdownFile')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleDownload('json')}>
                 <FileCode className="h-4 w-4 mr-2" />
-                Package (.json)
+                {t('packageFile')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -834,7 +834,7 @@ Expected output here
                       <Undo2 className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
+                  <TooltipContent side="bottom">{t('undoShortcut')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -842,7 +842,7 @@ Expected output here
                       <Redo2 className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Redo (Ctrl+Y)</TooltipContent>
+                  <TooltipContent side="bottom">{t('redoShortcut')}</TooltipContent>
                 </Tooltip>
                 
                 <Separator orientation="vertical" className="h-4 mx-1" />
@@ -854,7 +854,7 @@ Expected output here
                       <Bold className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Bold (Ctrl+B)</TooltipContent>
+                  <TooltipContent side="bottom">{t('boldShortcut')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -862,7 +862,7 @@ Expected output here
                       <Italic className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Italic (Ctrl+I)</TooltipContent>
+                  <TooltipContent side="bottom">{t('italicShortcut')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -870,7 +870,7 @@ Expected output here
                       <Code className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Code</TooltipContent>
+                  <TooltipContent side="bottom">{t('code')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -878,7 +878,7 @@ Expected output here
                       <Link className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Link</TooltipContent>
+                  <TooltipContent side="bottom">{t('link')}</TooltipContent>
                 </Tooltip>
 
                 <Separator orientation="vertical" className="h-4 mx-1" />
@@ -893,27 +893,27 @@ Expected output here
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
                     <DropdownMenuItem onClick={() => insertHeading(1)}>
-                      <Heading1 className="h-4 w-4 mr-2" /> Heading 1
+                      <Heading1 className="h-4 w-4 mr-2" /> {t('heading1')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => insertHeading(2)}>
-                      <Heading2 className="h-4 w-4 mr-2" /> Heading 2
+                      <Heading2 className="h-4 w-4 mr-2" /> {t('heading2')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={insertList}>
-                      <List className="h-4 w-4 mr-2" /> Bullet List
+                      <List className="h-4 w-4 mr-2" /> {t('bulletList')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={insertOrderedList}>
-                      <ListOrdered className="h-4 w-4 mr-2" /> Numbered List
+                      <ListOrdered className="h-4 w-4 mr-2" /> {t('numberedList')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={insertQuote}>
-                      <Quote className="h-4 w-4 mr-2" /> Quote
+                      <Quote className="h-4 w-4 mr-2" /> {t('quote')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={insertCodeBlock}>
-                      <FileCode className="h-4 w-4 mr-2" /> Code Block
+                      <FileCode className="h-4 w-4 mr-2" /> {t('codeBlock')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={insertTable}>
-                      <Table className="h-4 w-4 mr-2" /> Table
+                      <Table className="h-4 w-4 mr-2" /> {t('table')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -923,10 +923,10 @@ Expected output here
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" onClick={insertSkillTemplate} disabled={readOnly}>
                       <Wand2 className="h-3.5 w-3.5" />
-                      <span className="text-xs">Template</span>
+                      <span className="text-xs">{t('template')}</span>
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Insert Template</TooltipContent>
+                  <TooltipContent side="bottom">{t('insertTemplate')}</TooltipContent>
                 </Tooltip>
 
                 <div className="flex-1" />
@@ -938,7 +938,7 @@ Expected output here
                       <Search className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Find (Ctrl+F)</TooltipContent>
+                  <TooltipContent side="bottom">{t('findShortcut')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -951,7 +951,7 @@ Expected output here
                       <WrapText className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Word Wrap</TooltipContent>
+                  <TooltipContent side="bottom">{t('wordWrap')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -964,12 +964,12 @@ Expected output here
                       <Map className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Minimap</TooltipContent>
+                  <TooltipContent side="bottom">{t('minimap')}</TooltipContent>
                 </Tooltip>
                 
                 {/* Cursor Position Indicator */}
                 <div className="text-[10px] text-muted-foreground tabular-nums px-2 py-1 bg-muted/50 rounded">
-                  Ln {cursorPosition.line}, Col {cursorPosition.column}
+                  {t('lineCol', { line: cursorPosition.line, col: cursorPosition.column })}
                 </div>
               </div>
 
@@ -1028,7 +1028,7 @@ Expected output here
                         <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/10">
                           <Sparkles className="h-3.5 w-3.5 text-primary" />
                         </div>
-                        <span className="text-sm font-medium">AI Optimize</span>
+                        <span className="text-sm font-medium">{t('aiOptimize')}</span>
                       </div>
                       <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md" onClick={handleClosePopup}>
                         <X className="h-3.5 w-3.5" />
@@ -1039,16 +1039,16 @@ Expected output here
                       <div className="p-3 space-y-3">
                         {/* Quick Actions */}
                         <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">Quick Actions</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">{t('quickActions')}</div>
                           <div className="grid grid-cols-2 gap-1.5">
                             {[
-                              { id: 'improve', icon: Pencil, label: 'Improve' },
-                              { id: 'simplify', icon: Eraser, label: 'Simplify' },
-                              { id: 'expand', icon: FileEdit, label: 'Expand' },
-                              { id: 'fix', icon: RefreshCw, label: 'Fix Grammar' },
-                              { id: 'summarize', icon: SummarizeIcon, label: 'Summarize' },
-                              { id: 'translate', icon: Languages, label: 'Translate' },
-                            ].map(({ id, icon: Icon, label }) => (
+                              { id: 'improve', icon: Pencil, labelKey: 'aiImprove' },
+                              { id: 'simplify', icon: Eraser, labelKey: 'aiSimplify' },
+                              { id: 'expand', icon: FileEdit, labelKey: 'aiExpand' },
+                              { id: 'fix', icon: RefreshCw, labelKey: 'aiFixGrammar' },
+                              { id: 'summarize', icon: SummarizeIcon, labelKey: 'aiSummarize' },
+                              { id: 'translate', icon: Languages, labelKey: 'aiTranslate' },
+                            ].map(({ id, icon: Icon, labelKey }) => (
                               <Button 
                                 key={id}
                                 variant="ghost" 
@@ -1057,7 +1057,7 @@ Expected output here
                                 onClick={() => handleOptimizeText(id as 'improve' | 'simplify' | 'expand' | 'fix' | 'summarize' | 'translate')}
                               >
                                 <Icon className="h-3.5 w-3.5 mr-2" />
-                                {label}
+                                {t(labelKey)}
                               </Button>
                             ))}
                           </div>
@@ -1065,13 +1065,13 @@ Expected output here
                         
                         {/* Rewrite Style */}
                         <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">Rewrite Style</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">{t('rewriteStyle')}</div>
                           <div className="flex gap-1.5">
                             {[
-                              { id: 'formal', icon: Briefcase, label: 'Formal' },
-                              { id: 'casual', icon: MessageCircle, label: 'Casual' },
-                              { id: 'technical', icon: Cpu, label: 'Technical' },
-                            ].map(({ id, icon: Icon, label }) => (
+                              { id: 'formal', icon: Briefcase, labelKey: 'styleFormal' },
+                              { id: 'casual', icon: MessageCircle, labelKey: 'styleCasual' },
+                              { id: 'technical', icon: Cpu, labelKey: 'styleTechnical' },
+                            ].map(({ id, icon: Icon, labelKey }) => (
                               <Button 
                                 key={id}
                                 variant="outline" 
@@ -1080,7 +1080,7 @@ Expected output here
                                 onClick={() => handleOptimizeText(id as 'formal' | 'casual' | 'technical')}
                               >
                                 <Icon className="h-3.5 w-3.5 mr-1.5" />
-                                {label}
+                                {t(labelKey)}
                               </Button>
                             ))}
                           </div>
@@ -1088,7 +1088,7 @@ Expected output here
                         
                         {/* Custom Prompt */}
                         <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">Custom Instruction</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">{t('customInstruction')}</div>
                           <form 
                             className="flex gap-1.5"
                             onSubmit={(e) => {
@@ -1101,7 +1101,7 @@ Expected output here
                             <Input
                               value={customPrompt}
                               onChange={(e) => setCustomPrompt(e.target.value)}
-                              placeholder="e.g., Translate to French..."
+                              placeholder={t('customInstructionPlaceholder')}
                               className="h-8 text-xs flex-1"
                             />
                             <Button 
@@ -1123,14 +1123,14 @@ Expected output here
                           <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
                           <Loader2 className="h-8 w-8 animate-spin text-primary relative z-10" />
                         </div>
-                        <span className="text-sm text-muted-foreground mt-3">Optimizing your text...</span>
+                        <span className="text-sm text-muted-foreground mt-3">{t('optimizingText')}</span>
                       </div>
                     )}
                     
                     {optimizedText && !isOptimizing && (
                       <div className="p-3 space-y-3">
                         <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">Result</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">{t('result')}</div>
                           <ScrollArea className="h-[120px] rounded-lg border bg-muted/30 p-2">
                             <p className="text-sm whitespace-pre-wrap">{optimizedText}</p>
                           </ScrollArea>
@@ -1138,11 +1138,11 @@ Expected output here
                         <div className="flex gap-2">
                           <Button size="sm" className="flex-1 h-9" onClick={handleApplyOptimization}>
                             <Check className="h-3.5 w-3.5 mr-1.5" />
-                            Apply
+                            {t('apply')}
                           </Button>
                           <Button variant="outline" size="sm" className="h-9" onClick={() => { setOptimizedText(''); setOptimizeMode(null); }}>
                             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                            Retry
+                            {t('retry')}
                           </Button>
                         </div>
                       </div>

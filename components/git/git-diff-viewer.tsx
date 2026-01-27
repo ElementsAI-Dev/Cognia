@@ -31,6 +31,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { GitDiffInfo, GitFileStatus } from '@/types/system/git';
 
@@ -168,12 +174,26 @@ export function GitDiffViewer({
           {t('filesChanged', { count: diffs.length })}
         </span>
         <div className="flex gap-1">
-          <Button size="sm" variant="ghost" onClick={expandAll}>
-            {t('expandAll')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={collapseAll}>
-            {t('collapseAll')}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="sm" variant="ghost" onClick={expandAll}>
+                  {t('expandAll')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('expandAllTooltip')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="sm" variant="ghost" onClick={collapseAll}>
+                  {t('collapseAll')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('collapseAllTooltip')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from "next-intl";
 import { cn } from '@/lib/utils';
 import { isTauri } from '@/lib/native/utils';
 import { useChatWidget } from "@/hooks/chat";
@@ -16,6 +17,7 @@ interface ChatWidgetProps {
 }
 
 export function ChatWidget({ className }: ChatWidgetProps) {
+  const t = useTranslations("chatWidget");
   const containerRef = useRef<HTMLDivElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contentReady, setContentReady] = useState(false);
@@ -136,7 +138,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
         onSettings={() => setSettingsOpen(true)}
         onExport={() => {
           const content = messages
-            .map((m) => `${m.role === "user" ? "👤 用户" : "🤖 助手"}:\n${m.content}`)
+            .map((m) => `${m.role === "user" ? t("export.user") : t("export.assistant")}:\n${m.content}`)
             .join("\n\n---\n\n");
           const blob = new Blob([content], { type: "text/markdown" });
           const url = URL.createObjectURL(blob);
@@ -163,7 +165,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
         }}
         onContinue={() => {
           // Continue generation by sending a "continue" message
-          setInputValue("请继续");
+          setInputValue(t("continueGeneration"));
           handleSubmit();
         }}
       />

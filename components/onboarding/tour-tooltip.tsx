@@ -10,6 +10,7 @@ import { forwardRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Check, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 export type TooltipPosition = 'top' | 'bottom' | 'left' | 'right' | 'center';
@@ -27,11 +28,12 @@ interface TourTooltipProps {
   onClose: () => void;
   isFirst: boolean;
   isLast: boolean;
-  nextLabel?: string;
-  previousLabel?: string;
-  skipLabel?: string;
-  completeLabel?: string;
-  stepLabel?: string;
+  nextLabel: string;
+  previousLabel: string;
+  skipLabel: string;
+  completeLabel: string;
+  stepLabel: string;
+  closeTourLabel: string;
   icon?: React.ReactNode;
   isMobile?: boolean;
 }
@@ -54,11 +56,12 @@ export const TourTooltip = forwardRef<HTMLDivElement, TourTooltipProps>(
       onClose,
       isFirst,
       isLast,
-      nextLabel = 'Next',
-      previousLabel = 'Previous',
-      skipLabel = 'Skip tour',
-      completeLabel = 'Complete',
-      stepLabel = 'Step',
+      nextLabel,
+      previousLabel,
+      skipLabel,
+      completeLabel,
+      stepLabel,
+      closeTourLabel,
       icon,
       isMobile = false,
     },
@@ -200,7 +203,7 @@ export const TourTooltip = forwardRef<HTMLDivElement, TourTooltipProps>(
           size="icon"
           className="absolute top-2 right-2 h-7 w-7 rounded-full hover:bg-muted"
           onClick={onClose}
-          aria-label="Close tour"
+          aria-label={closeTourLabel}
         >
           <X className="h-4 w-4" />
         </Button>
@@ -214,14 +217,7 @@ export const TourTooltip = forwardRef<HTMLDivElement, TourTooltipProps>(
             </span>
             <span className="font-mono">{Math.round(progress)}%</span>
           </div>
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-            />
-          </div>
+          <Progress value={progress} className="h-1.5" />
         </div>
 
         {/* Content */}

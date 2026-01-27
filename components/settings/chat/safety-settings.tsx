@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useSettingsStore } from '@/stores';
 import { useTranslations } from 'next-intl';
 import type { SafetyMode, SafetyRule } from '@/stores/settings/settings-store';
@@ -371,22 +372,24 @@ export function SafetySettings() {
                 </div>
                 <div>
                   <Label>{t('applyTo')}</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex flex-wrap gap-3 mt-2">
                     {(['input', 'system', 'toolCall'] as const).map((type) => (
-                      <label key={type} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
+                      <div key={type} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`rule-type-${type}`}
                           checked={newRuleTypes.includes(type)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
+                          onCheckedChange={(checked) => {
+                            if (checked) {
                               setNewRuleTypes([...newRuleTypes, type]);
                             } else {
                               setNewRuleTypes(newRuleTypes.filter((t) => t !== type));
                             }
                           }}
                         />
-                        <span className="text-sm">{type}</span>
-                      </label>
+                        <Label htmlFor={`rule-type-${type}`} className="text-sm cursor-pointer">
+                          {t(`ruleType.${type}`)}
+                        </Label>
+                      </div>
                     ))}
                   </div>
                 </div>

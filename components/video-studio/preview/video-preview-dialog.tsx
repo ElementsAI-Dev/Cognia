@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -20,15 +21,16 @@ export function VideoPreviewDialog({
   video,
   open,
   onOpenChange,
-  title = 'Video Preview',
+  title,
 }: VideoPreviewDialogProps) {
+  const t = useTranslations('previewDialog');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle>{title || t('title')}</DialogTitle>
           <DialogDescription className="sr-only">
-            Preview video content
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
         {video && (video.videoUrl || video.videoBase64) && (

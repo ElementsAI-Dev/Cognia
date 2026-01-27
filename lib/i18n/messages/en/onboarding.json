@@ -201,6 +201,13 @@
     "previous": "Back",
     "step": "Step",
     "skipTour": "Skip tour",
+    "closeTour": "Close tour",
+    "keyboardHints": {
+      "next": "→ or Enter",
+      "previous": "←",
+      "skip": "Esc",
+      "complete": "Enter"
+    },
     "tour": {
       "welcomeTitle": "Welcome to Cognia",
       "welcomeDesc": "Your AI-powered assistant for chat, code, research, and learning. Let me show you around!",

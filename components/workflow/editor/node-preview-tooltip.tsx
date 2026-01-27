@@ -5,6 +5,7 @@
  */
 
 import { type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Tooltip,
   TooltipContent,
@@ -21,6 +22,7 @@ interface NodePreviewTooltipProps {
 }
 
 export function NodePreviewTooltip({ data, children }: NodePreviewTooltipProps) {
+  const t = useTranslations('workflowEditor');
   const color = NODE_TYPE_COLORS[data.nodeType];
 
   return (
@@ -71,13 +73,13 @@ export function NodePreviewTooltip({ data, children }: NodePreviewTooltipProps) 
 
             {data.executionTime !== undefined && data.executionTime > 0 && (
               <div className="text-xs text-muted-foreground">
-                Execution time: {(data.executionTime / 1000).toFixed(2)}s
+                {t('execution')}: {(data.executionTime / 1000).toFixed(2)}s
               </div>
             )}
 
             {!data.isConfigured && data.nodeType !== 'start' && data.nodeType !== 'end' && (
               <div className="text-xs text-yellow-600 dark:text-yellow-500">
-                ⚠ Node not configured
+                ⚠ {t('notConfigured')}
               </div>
             )}
           </div>

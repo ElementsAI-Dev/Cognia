@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface RulesEditorHeaderProps {
   isDirty: boolean;
@@ -42,15 +43,24 @@ export function RulesEditorHeader({
       </div>
 
       {/* Mobile Menu Button */}
-      <Button
-        variant="outline"
-        size="icon"
-        className="md:hidden h-8 w-8"
-        onClick={onMobileMenuToggle}
-        aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-      >
-        {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="md:hidden h-8 w-8"
+              onClick={onMobileMenuToggle}
+              aria-label={mobileMenuOpen ? t('ariaLabels.closeMenu') : t('ariaLabels.openMenu')}
+            >
+              {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {mobileMenuOpen ? t('ariaLabels.closeMenu') : t('ariaLabels.openMenu')}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </>
   );
 }

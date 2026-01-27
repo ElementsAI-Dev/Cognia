@@ -542,7 +542,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
                     onClick={handleDuplicateTheme}
                   >
                     <Copy className="h-4 w-4 mr-1" />
-                    Duplicate
+                    {t('duplicateTheme')}
                   </Button>
                 </div>
               )}

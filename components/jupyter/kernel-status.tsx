@@ -35,57 +35,57 @@ interface KernelStatusProps {
 
 const statusConfig: Record<
   KernelStatusType,
-  { color: string; icon: React.ReactNode; label: string }
+  { color: string; icon: React.ReactNode; labelKey: string }
 > = {
   idle: {
     color: 'bg-green-500',
     icon: <Circle className="h-2 w-2 fill-current" />,
-    label: 'Idle',
+    labelKey: 'status.idle',
   },
   busy: {
     color: 'bg-yellow-500',
     icon: <Loader2 className="h-2 w-2 animate-spin" />,
-    label: 'Busy',
+    labelKey: 'status.busy',
   },
   starting: {
     color: 'bg-blue-500',
     icon: <Loader2 className="h-2 w-2 animate-spin" />,
-    label: 'Starting',
+    labelKey: 'status.starting',
   },
   dead: {
     color: 'bg-red-500',
     icon: <AlertCircle className="h-2 w-2" />,
-    label: 'Dead',
+    labelKey: 'status.dead',
   },
   restarting: {
     color: 'bg-orange-500',
     icon: <RefreshCw className="h-2 w-2 animate-spin" />,
-    label: 'Restarting',
+    labelKey: 'status.restarting',
   },
   interrupting: {
     color: 'bg-orange-500',
     icon: <Square className="h-2 w-2" />,
-    label: 'Interrupting',
+    labelKey: 'status.interrupting',
   },
   stopping: {
     color: 'bg-orange-500',
     icon: <Square className="h-2 w-2" />,
-    label: 'Stopping',
+    labelKey: 'status.stopping',
   },
   configuring: {
     color: 'bg-blue-500',
     icon: <Loader2 className="h-2 w-2 animate-spin" />,
-    label: 'Configuring',
+    labelKey: 'status.configuring',
   },
   installing: {
     color: 'bg-blue-500',
     icon: <Loader2 className="h-2 w-2 animate-spin" />,
-    label: 'Installing',
+    labelKey: 'status.installing',
   },
   error: {
     color: 'bg-red-500',
     icon: <AlertCircle className="h-2 w-2" />,
-    label: 'Error',
+    labelKey: 'status.error',
   },
 };
 
@@ -148,7 +148,7 @@ export function KernelStatus({
           {config.icon}
         </span>
         <span>
-          {kernel?.name || 'Python'} · {config.label}
+          {kernel?.name || t('pythonDefault')} · {t(config.labelKey)}
         </span>
         {kernel?.executionCount !== undefined && kernel.executionCount > 0 && (
           <span className="text-muted-foreground">

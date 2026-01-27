@@ -8,6 +8,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useClipboardContext, type ClipboardTemplate } from '@/hooks/context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmptyState } from '@/components/layout/empty-state';
 import {
   Plus,
@@ -140,6 +142,7 @@ Best,
 ];
 
 export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelProps) {
+  const t = useTranslations('clipboardTemplatesPanel');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -277,7 +280,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
       <div className="flex items-center justify-between p-2 sm:p-3 border-b shrink-0">
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5" />
-          <span className="font-medium">Templates</span>
+          <span className="font-medium">{t('title')}</span>
           <Badge variant="secondary" className="text-xs">
             {templates.length}
           </Badge>
@@ -290,50 +293,55 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
               onClick={initializeDefaults}
               className="text-xs"
             >
-              Load Defaults
+              {t('loadDefaults')}
             </Button>
           )}
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="icon" className="h-8 w-8">
-                <Plus className="h-4 w-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('addTemplate')}</TooltipContent>
+              </Tooltip>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>
-                  {editingTemplate ? 'Edit Template' : 'Create Template'}
+                  {editingTemplate ? t('editTemplate') : t('createTemplate')}
                 </DialogTitle>
                 <DialogDescription>
-                  Create reusable text snippets with variable placeholders.
+                  {t('description')}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Name</Label>
+                  <Label htmlFor="name">{t('name')}</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Template name"
+                    placeholder={t('namePlaceholder')}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{t('descriptionLabel')}</Label>
                   <Input
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Brief description"
+                    placeholder={t('descriptionPlaceholder')}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="content">Content</Label>
+                  <Label htmlFor="content">{t('contentLabel')}</Label>
                   <Textarea
                     id="content"
                     value={formData.content}
                     onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    placeholder="Use {{variable}} for placeholders"
+                    placeholder={t('contentPlaceholder')}
                     className="min-h-[150px] font-mono text-sm"
                   />
                   {formData.content && (
@@ -349,21 +357,21 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="category">Category</Label>
+                    <Label htmlFor="category">{t('category')}</Label>
                     <Input
                       id="category"
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      placeholder="e.g., email, code"
+                      placeholder={t('categoryPlaceholder')}
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="tags">Tags</Label>
+                    <Label htmlFor="tags">{t('tags')}</Label>
                     <Input
                       id="tags"
                       value={formData.tags}
                       onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                      placeholder="Comma separated"
+                      placeholder={t('tagsPlaceholder')}
                     />
                   </div>
                 </div>
@@ -377,10 +385,10 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
                     resetForm();
                   }}
                 >
-                  Cancel
+                  {t('cancel')}
                 </Button>
                 <Button onClick={handleSubmit} disabled={!formData.name || !formData.content}>
-                  {editingTemplate ? 'Save Changes' : 'Create Template'}
+                  {editingTemplate ? t('saveChanges') : t('createTemplate')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -394,7 +402,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search templates..."
+            placeholder={t('searchPlaceholder')}
             className="pl-8 h-8 text-sm"
           />
         </div>
@@ -406,7 +414,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
               className="h-6 text-xs"
               onClick={() => setSelectedCategory(null)}
             >
-              All
+              {t('all')}
             </Button>
             {categories.map((cat) => (
               <Button
@@ -448,11 +456,11 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => quickApply(template)}>
                           <Copy className="h-4 w-4 mr-2" />
-                          Apply
+                          {t('apply')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openEditDialog(template)}>
                           <Edit className="h-4 w-4 mr-2" />
-                          Edit
+                          {t('edit')}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -460,7 +468,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
                           className="text-destructive"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
+                          {t('delete')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -481,7 +489,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
                       {template.variables.length > 0 && (
                         <Badge variant="outline" className="text-xs">
                           <Variable className="h-3 w-3 mr-1" />
-                          {template.variables.length} vars
+                          {template.variables.length} {t('vars')}
                         </Badge>
                       )}
                       {template.tags.slice(0, 2).map((tag) => (
@@ -498,7 +506,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
                       onClick={() => quickApply(template)}
                     >
                       <Copy className="h-3 w-3 mr-1" />
-                      Use
+                      {t('use')}
                     </Button>
                   </div>
                 </CardContent>
@@ -507,8 +515,8 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
           ) : (
             <EmptyState
               icon={FileText}
-              title="No templates"
-              description={templates.length === 0 ? "Create templates for quick text insertion" : "No templates match your search"}
+              title={t('noTemplates')}
+              description={templates.length === 0 ? t('createTemplatesHint') : t('noMatchingTemplates')}
               compact
             />
           )}
@@ -518,9 +526,9 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
       <Dialog open={!!applyingTemplate} onOpenChange={() => setApplyingTemplate(null)}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>Apply Template</DialogTitle>
+            <DialogTitle>{t('applyTemplate')}</DialogTitle>
             <DialogDescription>
-              Fill in the template variables.
+              {t('fillVariables')}
             </DialogDescription>
           </DialogHeader>
           {applyingTemplate && (
@@ -536,7 +544,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
                     onChange={(e) =>
                       setVariableValues({ ...variableValues, [variable]: e.target.value })
                     }
-                    placeholder={`Enter ${variable}`}
+                    placeholder={t('enterVariable', { variable })}
                     className="h-8"
                   />
                 </div>
@@ -545,11 +553,11 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setApplyingTemplate(null)}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button onClick={handleApplyTemplate}>
               <Copy className="h-4 w-4 mr-2" />
-              Copy to Clipboard
+              {t('copyToClipboard')}
             </Button>
           </DialogFooter>
         </DialogContent>

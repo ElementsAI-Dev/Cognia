@@ -7,7 +7,9 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
@@ -27,6 +29,7 @@ export function MonacoSandpackEditor({
   readOnly = false,
   onSave,
 }: MonacoSandpackEditorProps) {
+  const t = useTranslations('sandboxEditor');
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoEditorRef = useRef<unknown>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -122,10 +125,10 @@ export function MonacoSandpackEditor({
       setIsLoading(false);
     } catch (err) {
       console.error('Failed to load Monaco editor:', err);
-      setError('Failed to load code editor');
+      setError(t('failedToLoadEditor'));
       setIsLoading(false);
     }
-  }, [code, language, theme, readOnly, setCode, parseCodeToElements, onSave]);
+  }, [code, language, theme, readOnly, setCode, parseCodeToElements, onSave, t]);
 
   // Initialize Monaco editor
   useEffect(() => {
@@ -181,12 +184,7 @@ export function MonacoSandpackEditor({
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-background z-10 gap-2">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           {loadingProgress > 0 && (
-            <div className="w-32 h-1 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${loadingProgress}%` }}
-              />
-            </div>
+            <Progress value={loadingProgress} className="w-32 h-1" />
           )}
         </div>
       )}

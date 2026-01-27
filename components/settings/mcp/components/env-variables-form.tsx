@@ -10,6 +10,11 @@ import { Plus, X, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface EnvVariablesFormProps {
   env: Record<string, string>;
@@ -73,28 +78,40 @@ export function EnvVariablesForm({
               <code className="bg-muted px-2 py-1 rounded flex-1 truncate text-xs">
                 {showEnvValues[key] ? value : '••••••••'}
               </code>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onToggleVisibility(key)}
-                type="button"
-              >
-                {showEnvValues[key] ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive"
-                onClick={() => onRemoveEnv(key)}
-                type="button"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => onToggleVisibility(key)}
+                    type="button"
+                  >
+                    {showEnvValues[key] ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {showEnvValues[key] ? t('hidePassword') : t('showPassword')}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={() => onRemoveEnv(key)}
+                    type="button"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('removeEnvVar')}</TooltipContent>
+              </Tooltip>
             </div>
           ))}
         </div>

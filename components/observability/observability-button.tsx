@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -19,6 +20,7 @@ export function ObservabilityButton({
   size = 'icon',
   showLabel = false,
 }: ObservabilityButtonProps) {
+  const t = useTranslations('observability.button');
   const [isOpen, setIsOpen] = useState(false);
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
   const isEnabled = observabilitySettings?.enabled ?? false;
@@ -26,7 +28,7 @@ export function ObservabilityButton({
   const button = (
     <Button variant={variant} size={size} className="gap-2">
       <Activity className={`h-4 w-4 ${isEnabled ? 'text-green-500' : ''}`} />
-      {showLabel && <span>Observability</span>}
+      {showLabel && <span>{t('label')}</span>}
     </Button>
   );
 
@@ -39,9 +41,9 @@ export function ObservabilityButton({
           </DialogTrigger>
         </TooltipTrigger>
         <TooltipContent side="right">
-          <p>Observability Dashboard</p>
+          <p>{t('tooltipTitle')}</p>
           {!isEnabled && (
-            <p className="text-xs text-muted-foreground">Enable in settings to view traces</p>
+            <p className="text-xs text-muted-foreground">{t('tooltipDisabledHint')}</p>
           )}
         </TooltipContent>
       </Tooltip>

@@ -11,6 +11,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -68,6 +69,8 @@ export function ImageComparison({
   initialPosition = 50,
   className,
 }: ImageComparisonProps) {
+  const t = useTranslations('imageStudio.imageComparison');
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [mode, setMode] = useState<ComparisonMode>(initialMode);
@@ -175,7 +178,7 @@ export function ImageComparison({
                   {option.icon}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{option.label}</TooltipContent>
+              <TooltipContent>{t(option.label)}</TooltipContent>
             </Tooltip>
           ))}
         </div>
@@ -184,7 +187,7 @@ export function ImageComparison({
 
         {(mode === 'slider-h' || mode === 'slider-v') && (
           <div className="flex items-center gap-2 min-w-[140px]">
-            <Label className="text-xs whitespace-nowrap">Position</Label>
+            <Label className="text-xs whitespace-nowrap">{t('position')}</Label>
             <Slider
               value={[position]}
               onValueChange={([v]) => setPosition(v)}
@@ -199,7 +202,7 @@ export function ImageComparison({
 
         {mode === 'onion-skin' && (
           <div className="flex items-center gap-2 min-w-[140px]">
-            <Label className="text-xs whitespace-nowrap">Opacity</Label>
+            <Label className="text-xs whitespace-nowrap">{t('opacity')}</Label>
             <Slider
               value={[opacity]}
               onValueChange={([v]) => setOpacity(v)}
@@ -219,7 +222,7 @@ export function ImageComparison({
             onClick={() => setShowBefore(!showBefore)}
           >
             {showBefore ? <Eye className="h-4 w-4 mr-1" /> : <EyeOff className="h-4 w-4 mr-1" />}
-            {showBefore ? beforeLabel : afterLabel}
+            {showBefore ? beforeLabel || t('before') : afterLabel || t('after')}
           </Button>
         )}
 
@@ -231,7 +234,7 @@ export function ImageComparison({
               <RotateCcw className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Reset</TooltipContent>
+          <TooltipContent>{t('reset')}</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -240,7 +243,7 @@ export function ImageComparison({
               {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</TooltipContent>
+          <TooltipContent>{isFullscreen ? t('exitFullscreen') : t('fullscreen')}</TooltipContent>
         </Tooltip>
       </div>
 
@@ -257,7 +260,7 @@ export function ImageComparison({
       >
         {!allLoaded && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="animate-pulse text-muted-foreground">Loading images...</div>
+            <div className="animate-pulse text-muted-foreground">{t('loadingImages')}</div>
           </div>
         )}
 
@@ -265,11 +268,11 @@ export function ImageComparison({
           <>
             <div className="absolute inset-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={beforeImage} alt={beforeLabel} className="w-full h-full object-contain" />
+              <img src={beforeImage} alt={beforeLabel || t('before')} className="w-full h-full object-contain" />
             </div>
             <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 0 0 ${position}%)` }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={afterImage} alt={afterLabel} className="w-full h-full object-contain" />
+              <img src={afterImage} alt={afterLabel || t('after')} className="w-full h-full object-contain" />
             </div>
             <div
               className="absolute top-0 bottom-0 w-1 bg-white shadow-lg cursor-ew-resize"
@@ -279,8 +282,8 @@ export function ImageComparison({
                 <SplitSquareHorizontal className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
-            <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{beforeLabel}</div>
-            <div className="absolute top-2 right-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{afterLabel}</div>
+            <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{beforeLabel || t('before')}</div>
+            <div className="absolute top-2 right-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{afterLabel || t('after')}</div>
           </>
         )}
 
@@ -288,11 +291,11 @@ export function ImageComparison({
           <>
             <div className="absolute inset-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={beforeImage} alt={beforeLabel} className="w-full h-full object-contain" />
+              <img src={beforeImage} alt={beforeLabel || t('before')} className="w-full h-full object-contain" />
             </div>
             <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(${position}% 0 0 0)` }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={afterImage} alt={afterLabel} className="w-full h-full object-contain" />
+              <img src={afterImage} alt={afterLabel || t('after')} className="w-full h-full object-contain" />
             </div>
             <div
               className="absolute left-0 right-0 h-1 bg-white shadow-lg cursor-ns-resize"
@@ -302,8 +305,8 @@ export function ImageComparison({
                 <SplitSquareVertical className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
-            <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{beforeLabel}</div>
-            <div className="absolute bottom-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{afterLabel}</div>
+            <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{beforeLabel || t('before')}</div>
+            <div className="absolute bottom-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{afterLabel || t('after')}</div>
           </>
         )}
 
@@ -311,13 +314,13 @@ export function ImageComparison({
           <div className="flex h-full">
             <div className="flex-1 relative border-r">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={beforeImage} alt={beforeLabel} className="w-full h-full object-contain" />
-              <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{beforeLabel}</div>
+              <img src={beforeImage} alt={beforeLabel || t('before')} className="w-full h-full object-contain" />
+              <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{beforeLabel || t('before')}</div>
             </div>
             <div className="flex-1 relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={afterImage} alt={afterLabel} className="w-full h-full object-contain" />
-              <div className="absolute top-2 right-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{afterLabel}</div>
+              <img src={afterImage} alt={afterLabel || t('after')} className="w-full h-full object-contain" />
+              <div className="absolute top-2 right-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{afterLabel || t('after')}</div>
             </div>
           </div>
         )}
@@ -326,14 +329,14 @@ export function ImageComparison({
           <>
             <div className="absolute inset-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={beforeImage} alt={beforeLabel} className="w-full h-full object-contain" />
+              <img src={beforeImage} alt={beforeLabel || t('before')} className="w-full h-full object-contain" />
             </div>
             <div className="absolute inset-0" style={{ opacity: opacity / 100 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={afterImage} alt={afterLabel} className="w-full h-full object-contain" />
+              <img src={afterImage} alt={afterLabel || t('after')} className="w-full h-full object-contain" />
             </div>
             <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">
-              {beforeLabel} + {afterLabel} ({opacity}%)
+              {(beforeLabel || t('before')) + ' + ' + (afterLabel || t('after')) + ' (' + opacity + '%)'}
             </div>
           </>
         )}

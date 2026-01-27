@@ -460,14 +460,13 @@ export function OCRPanel({
                     key={provider.provider_type} 
                     value={provider.provider_type} 
                     className="text-xs"
+                    showIconInTrigger
                   >
-                    <div className="flex items-center gap-2">
-                      {PROVIDER_ICONS[provider.provider_type]}
-                      <span>{provider.display_name}</span>
-                      {provider.is_local && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{t("providers.windows_ocr")}</Badge>
-                      )}
-                    </div>
+                    {PROVIDER_ICONS[provider.provider_type]}
+                    <span>{provider.display_name}</span>
+                    {provider.is_local && (
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{t("providers.windows_ocr")}</Badge>
+                    )}
                   </SelectItem>
                 ))}
                 {providers.filter(p => p.available).length === 0 && (

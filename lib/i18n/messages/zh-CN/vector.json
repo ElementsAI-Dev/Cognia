@@ -69,7 +69,21 @@
     "hideMetadata": "隐藏元数据",
     "showMetadata": "显示元数据",
     "peek": "预览（前 N 条）",
-    "peekBtn": "预览"
+    "peekBtn": "预览",
+    "confirmDeleteTitle": "删除集合",
+    "confirmDeleteDesc": "确定要删除此集合吗？此操作无法撤销。",
+    "confirmClearTitle": "清空集合",
+    "confirmClearDesc": "确定要清空此集合中的所有文档吗？",
+    "confirmTruncateTitle": "截断集合",
+    "confirmTruncateDesc": "确定要截断此集合吗？所有数据将被移除。",
+    "confirmDeleteDocsTitle": "删除所有文档",
+    "confirmDeleteDocsDesc": "确定要删除此集合中的所有文档吗？",
+    "deleteCollectionTooltip": "永久删除选中的集合",
+    "clearCollectionTooltip": "移除所有文档但保留集合",
+    "truncateTooltip": "将集合重置为空状态",
+    "deleteAllDocsTooltip": "从集合中移除所有文档",
+    "exportTooltip": "将集合数据导出为 JSON 文件",
+    "importTooltip": "从 JSON 文件导入集合"
   },
   "vectorSettings": {
     "title": "向量数据库",
@@ -93,6 +107,10 @@
     "defaultCollectionHint": "未指定时用于 RAG 搜索的默认集合名称。",
     "testConnection": "测试连接",
     "testing": "测试中...",
-    "nativeProviderHint": "原生提供商通过 Tauri 命令本地存储向量（JSON 格式）。请确保使用桌面运行时。"
+    "nativeProviderHint": "原生提供商通过 Tauri 命令本地存储向量（JSON 格式）。请确保使用桌面运行时。",
+    "providerChroma": "Chroma（嵌入式/服务器）",
+    "providerNative": "原生（本地 Tauri）",
+    "connectionSuccess": "成功：{count} 个集合可访问",
+    "connectionFailed": "连接失败"
   }
 }

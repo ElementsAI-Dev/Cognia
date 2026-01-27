@@ -103,6 +103,23 @@
     "export": "Export",
     "wordWrap": "Word Wrap",
     "minimap": "Minimap",
-    "lineNumbers": "Line Numbers"
+    "lineNumbers": "Line Numbers",
+    "errorTitle": "Something went wrong",
+    "errorDescription": "An error occurred while rendering the canvas.",
+    "tryAgain": "Try Again",
+    "copyError": "Copy Error",
+    "showDetails": "Show Details",
+    "hideDetails": "Hide Details",
+    "copy": "Copy",
+    "translate": "Translate",
+    "from": "From",
+    "to": "To",
+    "compare": "Compare",
+    "cancelCompare": "Cancel",
+    "compareInstructions": "Select two versions to compare",
+    "viewDiff": "View Diff",
+    "selected": "Selected",
+    "versionComparison": "Version Comparison",
+    "copyDiff": "Copy Diff"
   }
 }

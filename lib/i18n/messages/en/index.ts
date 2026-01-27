@@ -33,6 +33,9 @@ import misc from './misc.json';
 import learning from './learning.json';
 import plugin from './plugin.json';
 import document from './document.json';
+import tray from './tray.json';
+import chatWidget from './chatWidget.json';
+import imageStudio from './imageStudio.json';
 
 const messages = {
   ...common,
@@ -67,7 +70,10 @@ const messages = {
   ...learning,
   ...plugin,
   ...plugin,
-  ...document
+  ...document,
+  ...tray,
+  ...chatWidget,
+  ...imageStudio
 };
 
 export default messages;

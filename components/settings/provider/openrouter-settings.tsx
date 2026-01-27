@@ -74,7 +74,7 @@ interface OpenRouterSettingsProps {
 }
 
 export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
-  const _t = useTranslations('providers');
+  const t = useTranslations('providers');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const updateProviderSettings = useSettingsStore((state) => state.updateProviderSettings);
   
@@ -181,7 +181,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-green-500" />
-                <CardTitle className="text-sm">OpenRouter Credits</CardTitle>
+                <CardTitle className="text-sm">{t('openRouterCredits')}</CardTitle>
               </div>
               <Button
                 variant="ghost"
@@ -206,20 +206,20 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
             ) : openRouterSettings.credits !== undefined ? (
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Total</p>
+                  <p className="text-muted-foreground">{t('total')}</p>
                   <p className="font-medium">{formatCredits(openRouterSettings.credits || 0)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Used</p>
+                  <p className="text-muted-foreground">{t('used')}</p>
                   <p className="font-medium">{formatCredits(openRouterSettings.creditsUsed || 0)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Remaining</p>
+                  <p className="text-muted-foreground">{t('remaining')}</p>
                   <p className="font-medium text-green-600">{formatCredits(openRouterSettings.creditsRemaining || 0)}</p>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Click refresh to load credits</p>
+              <p className="text-sm text-muted-foreground">{t('clickRefreshToLoad')}</p>
             )}
           </CardContent>
         </Card>
@@ -233,7 +233,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Key className="h-4 w-4" />
-                  <CardTitle className="text-sm">Bring Your Own Keys (BYOK)</CardTitle>
+                  <CardTitle className="text-sm">{t('byok.title')}</CardTitle>
                   {(openRouterSettings.byokKeys?.length || 0) > 0 && (
                     <Badge variant="secondary" className="ml-2">
                       {openRouterSettings.byokKeys?.length}
@@ -247,7 +247,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
                 )}
               </div>
               <CardDescription className="text-xs">
-                Use your own provider API keys for 5% cost (free for first 1M requests/month)
+                {t('byok.description')}
               </CardDescription>
             </CardHeader>
           </CollapsibleTrigger>
@@ -268,10 +268,10 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
                             {key.name || providerInfo?.name || key.provider}
                           </span>
                           {key.enabled && (
-                            <Badge variant="outline" className="text-xs">Active</Badge>
+                            <Badge variant="outline" className="text-xs">{t('active')}</Badge>
                           )}
                           {key.alwaysUse && (
-                            <Badge variant="secondary" className="text-xs">Always Use</Badge>
+                            <Badge variant="secondary" className="text-xs">{t('byok.alwaysUse')}</Badge>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
@@ -288,7 +288,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
                               />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Always use this key (no fallback to OpenRouter credits)</p>
+                              <p>{t('byok.alwaysUseHint')}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -312,7 +312,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
 
                 {/* Add New BYOK Key */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Add Provider Key</Label>
+                  <Label className="text-sm font-medium">{t('byok.addProviderKey')}</Label>
                   <Select
                     value={newByokProvider}
                     onValueChange={(value) => setNewByokProvider(value as BYOKProvider)}
@@ -368,7 +368,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
                         className="w-full"
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Key
+                        {t('byok.addKey')}
                       </Button>
                     </>
                   )}
@@ -381,7 +381,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-primary hover:underline"
                   >
-                    Learn more about BYOK <ExternalLink className="h-3 w-3" />
+                    {t('byok.learnMore')} <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
               </div>
@@ -398,7 +398,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Settings2 className="h-4 w-4" />
-                  <CardTitle className="text-sm">Provider Ordering</CardTitle>
+                  <CardTitle className="text-sm">{t('providerOrdering.title')}</CardTitle>
                 </div>
                 {isProviderOrderOpen ? (
                   <ChevronUp className="h-4 w-4" />
@@ -407,7 +407,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
                 )}
               </div>
               <CardDescription className="text-xs">
-                Control the order in which providers are tried for each request
+                {t('providerOrdering.description')}
               </CardDescription>
             </CardHeader>
           </CollapsibleTrigger>
@@ -416,7 +416,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="provider-ordering-enabled" className="text-sm">
-                    Enable Provider Ordering
+                    {t('providerOrdering.enable')}
                   </Label>
                   <Switch
                     id="provider-ordering-enabled"
@@ -439,10 +439,10 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
                     <div className="flex items-center justify-between">
                       <div>
                         <Label htmlFor="allow-fallbacks" className="text-sm">
-                          Allow Fallbacks
+                          {t('providerOrdering.allowFallbacks')}
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          If disabled, only your BYOK keys will be used
+                          {t('providerOrdering.fallbackHint')}
                         </p>
                       </div>
                       <Switch
@@ -460,7 +460,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm">Provider Order</Label>
+                      <Label className="text-sm">{t('providerOrdering.order')}</Label>
                       <Textarea
                         placeholder="e.g., Amazon Bedrock, Google Vertex AI, Anthropic"
                         value={openRouterSettings.providerOrdering?.order?.join(', ') || ''}
@@ -479,7 +479,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
                         rows={2}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Comma-separated list of provider names in order of preference
+                        {t('providerOrdering.orderHint')}
                       </p>
                     </div>
                   </>
@@ -495,16 +495,16 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
         <CardHeader className="py-3">
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            <CardTitle className="text-sm">App Attribution</CardTitle>
+            <CardTitle className="text-sm">{t('appAttribution')}</CardTitle>
           </div>
           <CardDescription className="text-xs">
-            Optional headers for leaderboard ranking and attribution
+            {t('appAttributionDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-3">
             <div>
-              <Label htmlFor="site-url" className="text-xs">Site URL</Label>
+              <Label htmlFor="site-url" className="text-xs">{t('siteUrl')}</Label>
               <Input
                 id="site-url"
                 placeholder="https://your-app.com"
@@ -513,7 +513,7 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
               />
             </div>
             <div>
-              <Label htmlFor="site-name" className="text-xs">Site Name</Label>
+              <Label htmlFor="site-name" className="text-xs">{t('siteName')}</Label>
               <Input
                 id="site-name"
                 placeholder="Your App Name"

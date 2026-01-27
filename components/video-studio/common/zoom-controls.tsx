@@ -10,6 +10,7 @@
  */
 
 import { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -50,6 +51,8 @@ export function ZoomControls({
   compact = false,
   className,
 }: ZoomControlsProps) {
+  const t = useTranslations('zoom');
+
   // Handle zoom in
   const handleZoomIn = useCallback(() => {
     onZoomChange(Math.min(zoom + step, maxZoom));
@@ -94,7 +97,7 @@ export function ZoomControls({
           </Button>
         </TooltipTrigger>
         <TooltipContent side={vertical ? 'left' : 'bottom'}>
-          Zoom Out
+          {t('zoomOut')}
         </TooltipContent>
       </Tooltip>
 
@@ -126,7 +129,7 @@ export function ZoomControls({
           </Button>
         </TooltipTrigger>
         <TooltipContent side={vertical ? 'left' : 'bottom'}>
-          Zoom In
+          {t('zoomIn')}
         </TooltipContent>
       </Tooltip>
 
@@ -143,8 +146,7 @@ export function ZoomControls({
             </Button>
           </TooltipTrigger>
           <TooltipContent side={vertical ? 'left' : 'bottom'}>
-            <span className="hidden sm:inline">Fit to View</span>
-            <span className="sm:hidden">Fit</span>
+            {t('fitToView')}
           </TooltipContent>
         </Tooltip>
       )}

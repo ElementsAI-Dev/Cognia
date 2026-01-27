@@ -5,6 +5,7 @@
  */
 
 import { memo, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { NodeResizer, type NodeProps } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,7 @@ const FONT_SIZES = {
 };
 
 function AnnotationNodeComponent({ id, data, selected }: NodeProps) {
+  const t = useTranslations('workflowEditor');
   const nodeData = data as AnnotationNodeData;
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(nodeData.content || '');
@@ -115,7 +117,7 @@ function AnnotationNodeComponent({ id, data, selected }: NodeProps) {
               className="text-xs font-medium"
               style={{ color: currentColor.textColor }}
             >
-              Note
+              {t('note')}
             </span>
           </div>
 
@@ -132,7 +134,7 @@ function AnnotationNodeComponent({ id, data, selected }: NodeProps) {
             <DropdownMenuContent align="end" className="w-48">
               {/* Font size */}
               <div className="px-2 py-1.5">
-                <div className="text-xs font-medium mb-2">Font Size</div>
+                <div className="text-xs font-medium mb-2">{t('fontSize')}</div>
                 <div className="flex gap-1">
                   {(['small', 'medium', 'large'] as const).map((size) => (
                     <Button
@@ -154,7 +156,7 @@ function AnnotationNodeComponent({ id, data, selected }: NodeProps) {
               <div className="px-2 py-1.5">
                 <div className="text-xs font-medium mb-2 flex items-center gap-1">
                   <Palette className="h-3 w-3" />
-                  Color
+                  {t('color')}
                 </div>
                 <div className="grid grid-cols-4 gap-1">
                   {ANNOTATION_COLORS.map((color) => (
@@ -176,21 +178,21 @@ function AnnotationNodeComponent({ id, data, selected }: NodeProps) {
               
               <DropdownMenuItem onClick={handleToggleBorder}>
                 <Check className={cn("h-4 w-4 mr-2", !nodeData.showBorder && "opacity-0")} />
-                Show Border
+                {t('showBorder')}
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />
               
               <DropdownMenuItem onClick={handleDuplicate}>
                 <Copy className="h-4 w-4 mr-2" />
-                Duplicate
+                {t('duplicate')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleDelete}
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+                {t('delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -229,7 +231,7 @@ function AnnotationNodeComponent({ id, data, selected }: NodeProps) {
               style={{ color: currentColor.textColor }}
               onDoubleClick={() => setIsEditing(true)}
             >
-              {content || 'Double-click to edit...'}
+              {content || t('doubleClickToEdit')}
             </div>
           )}
         </div>

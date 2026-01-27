@@ -7,6 +7,10 @@
     "editInCanvas": "在画布中编辑",
     "previewInDesigner": "在设计器中预览",
     "openFullDesigner": "打开完整设计器",
+    "revealInExplorer": "在文件资源管理器中显示",
+    "sheetTitle": "Artifact 面板",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
     "noArtifact": "未选择作品",
     "createArtifact": "创建作品",
     "artifactTypes": {
@@ -31,7 +35,10 @@
   },
   "artifactPreview": {
     "previewError": "预览错误",
-    "previewTitle": "预览: {title}"
+    "previewTitle": "预览: {title}",
+    "previewFailed": "预览渲染失败",
+    "loadingPreview": "加载预览中...",
+    "iframeLoadError": "加载预览 iframe 失败"
   },
   "artifactList": {
     "noArtifacts": "暂无 Artifact",

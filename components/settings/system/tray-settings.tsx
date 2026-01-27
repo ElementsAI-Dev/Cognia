@@ -38,15 +38,9 @@ import { useTray } from '@/hooks/native';
 import { useTrayStore } from '@/stores/system/tray-store';
 import { isTauri } from '@/lib/native/utils';
 import type { TrayMenuItem, TrayMenuCategory } from '@/types/system/tray';
-import { DEFAULT_TRAY_ITEMS, DEFAULT_COMPACT_ITEMS } from '@/types/system/tray';
+import { DEFAULT_COMPACT_ITEMS } from '@/types/system/tray';
 
-const CATEGORY_LABELS: Record<TrayMenuCategory, string> = {
-  window: '窗口控制',
-  tools: '工具',
-  settings: '设置',
-  help: '帮助',
-  exit: '退出',
-};
+// Category labels are now handled via i18n in the component
 
 const CATEGORY_ORDER: TrayMenuCategory[] = ['window', 'tools', 'settings', 'help', 'exit'];
 
@@ -62,6 +56,8 @@ interface TrayItemRowProps {
   canMoveDown: boolean;
   showShortcuts: boolean;
   showIcons: boolean;
+  submenuLabel: string;
+  compactTooltip: string;
 }
 
 function TrayItemRow({
@@ -76,6 +72,8 @@ function TrayItemRow({
   canMoveDown,
   showShortcuts,
   showIcons,
+  submenuLabel,
+  compactTooltip,
 }: TrayItemRowProps) {
   return (
     <div className="flex items-center gap-2 py-2 px-2 rounded-md hover:bg-muted/50 group">
@@ -107,7 +105,7 @@ function TrayItemRow({
         <span className="text-sm truncate">{item.label}</span>
         {item.isSubmenu && (
           <Badge variant="secondary" className="text-xs">
-            子菜单
+            {submenuLabel}
           </Badge>
         )}
         {showShortcuts && item.shortcut && (
@@ -128,7 +126,7 @@ function TrayItemRow({
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>精简模式中显示</p>
+              <p>{compactTooltip}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -144,8 +142,8 @@ function TrayItemRow({
 }
 
 export function TraySettings() {
-  const t = useTranslations('settings');
-  const [isDesktop, setIsDesktop] = useState(() => isTauri());
+  const t = useTranslations('traySettings');
+  const [isDesktop] = useState(() => isTauri());
 
   const {
     displayMode,
@@ -217,14 +215,14 @@ export function TraySettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Monitor className="h-5 w-5" />
-            系统托盘设置
+            {t('title')}
           </CardTitle>
-          <CardDescription>此功能仅在桌面应用中可用</CardDescription>
+          <CardDescription>{t('notAvailable')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
             <Monitor className="h-12 w-12 mb-4 opacity-50" />
-            <p className="text-sm">请下载桌面应用以使用系统托盘功能</p>
+            <p className="text-sm">{t('downloadHint')}</p>
           </div>
         </CardContent>
       </Card>
@@ -238,26 +236,26 @@ export function TraySettings() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Layout className="h-4 w-4 text-muted-foreground" />
-            显示模式
+            {t('displayMode')}
           </CardTitle>
           <CardDescription className="text-xs">
-            选择系统托盘菜单的显示模式
+            {t('displayModeDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>当前模式</Label>
+              <Label>{t('currentMode')}</Label>
               <p className="text-sm text-muted-foreground">
-                {displayMode === 'full' ? '完整模式 - 显示所有功能' : '精简模式 - 仅显示核心功能'}
+                {displayMode === 'full' ? t('fullModeDesc') : t('compactModeDesc')}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant={displayMode === 'compact' ? 'default' : 'secondary'}>
-                {displayMode === 'full' ? '完整' : '精简'}
+                {displayMode === 'full' ? t('full') : t('compact')}
               </Badge>
               <Button variant="outline" size="sm" onClick={toggleMode} disabled={isSyncing}>
-                切换模式
+                {t('switchMode')}
               </Button>
             </div>
           </div>
@@ -273,8 +271,8 @@ export function TraySettings() {
             >
               <Eye className="h-6 w-6" />
               <div className="text-center">
-                <div className="font-medium">完整模式</div>
-                <div className="text-xs text-muted-foreground">显示所有菜单项</div>
+                <div className="font-medium">{t('fullMode')}</div>
+                <div className="text-xs text-muted-foreground">{t('showAllItems')}</div>
               </div>
               {displayMode === 'full' && <Check className="h-4 w-4 absolute top-2 right-2" />}
             </Button>
@@ -287,8 +285,8 @@ export function TraySettings() {
             >
               <EyeOff className="h-6 w-6" />
               <div className="text-center">
-                <div className="font-medium">精简模式</div>
-                <div className="text-xs text-muted-foreground">仅核心功能</div>
+                <div className="font-medium">{t('compactMode')}</div>
+                <div className="text-xs text-muted-foreground">{t('coreOnly')}</div>
               </div>
               {displayMode === 'compact' && <Check className="h-4 w-4 absolute top-2 right-2" />}
             </Button>
@@ -301,7 +299,7 @@ export function TraySettings() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Smile className="h-4 w-4 text-muted-foreground" />
-            显示选项
+            {t('displayOptions')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -309,9 +307,9 @@ export function TraySettings() {
             <div className="space-y-0.5">
               <Label className="flex items-center gap-2">
                 <Smile className="h-4 w-4" />
-                显示图标
+                {t('showIcons')}
               </Label>
-              <p className="text-sm text-muted-foreground">在菜单项前显示表情图标</p>
+              <p className="text-sm text-muted-foreground">{t('showIconsDesc')}</p>
             </div>
             <Switch checked={config.showIcons} onCheckedChange={setShowIcons} />
           </div>
@@ -322,9 +320,9 @@ export function TraySettings() {
             <div className="space-y-0.5">
               <Label className="flex items-center gap-2">
                 <Keyboard className="h-4 w-4" />
-                显示快捷键
+                {t('showShortcuts')}
               </Label>
-              <p className="text-sm text-muted-foreground">在菜单项后显示快捷键提示</p>
+              <p className="text-sm text-muted-foreground">{t('showShortcutsDesc')}</p>
             </div>
             <Switch checked={config.showShortcuts} onCheckedChange={setShowShortcuts} />
           </div>
@@ -338,10 +336,10 @@ export function TraySettings() {
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Monitor className="h-4 w-4 text-muted-foreground" />
-                菜单项配置
+                {t('menuConfig')}
               </CardTitle>
               <CardDescription className="text-xs">
-                自定义菜单项的显示和顺序（勾选框表示在精简模式中显示）
+                {t('menuConfigDesc')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -352,11 +350,11 @@ export function TraySettings() {
                 disabled={isSyncing}
               >
                 <RotateCcw className="h-4 w-4 mr-1" />
-                重置精简
+                {t('resetCompact')}
               </Button>
               <Button variant="ghost" size="sm" onClick={resetConfig} disabled={isSyncing}>
                 <RotateCcw className="h-4 w-4 mr-1" />
-                重置全部
+                {t('resetAll')}
               </Button>
             </div>
           </div>
@@ -372,7 +370,7 @@ export function TraySettings() {
                   <div key={category}>
                     <div className="flex items-center gap-2 mb-2">
                       <h4 className="text-sm font-medium text-muted-foreground">
-                        {CATEGORY_LABELS[category]}
+                        {t(`categories.${category}`)}
                       </h4>
                       <Badge variant="outline" className="text-xs">
                         {items.length}
@@ -393,6 +391,8 @@ export function TraySettings() {
                           canMoveDown={index < items.length - 1}
                           showShortcuts={config.showShortcuts}
                           showIcons={config.showIcons}
+                          submenuLabel={t('submenu')}
+                          compactTooltip={t('showInCompact')}
                         />
                       ))}
                     </div>
@@ -409,10 +409,10 @@ export function TraySettings() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <EyeOff className="h-4 w-4 text-muted-foreground" />
-            精简模式预览
+            {t('compactPreview')}
           </CardTitle>
           <CardDescription className="text-xs">
-            精简模式下将显示以下 {compactModeItems.length} 个项目
+            {t('compactPreviewDesc', { count: compactModeItems.length })}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -446,7 +446,7 @@ export function TraySettings() {
       {/* Apply Button */}
       <div className="flex justify-end">
         <Button onClick={syncConfig} disabled={isSyncing}>
-          {isSyncing ? '同步中...' : '应用更改'}
+          {isSyncing ? t('syncing') : t('applyChanges')}
         </Button>
       </div>
     </div>

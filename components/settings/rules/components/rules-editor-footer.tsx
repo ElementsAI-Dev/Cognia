@@ -2,6 +2,7 @@
 
 import { Info } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { RULE_TARGETS } from '../constants';
@@ -44,10 +45,18 @@ export function RulesEditorFooter({
           {t('tokens')}: <span className="text-primary font-bold">{tokenEstimate}</span>
         </span>
         <Separator orientation="vertical" className="h-3 hidden sm:block" />
-        <div className="flex items-center gap-1">
-          <div className={cn('h-2 w-2 rounded-full', isDirty ? 'bg-yellow-500' : 'bg-green-500')} />
+        <Badge
+          variant="outline"
+          className={cn(
+            'text-[9px] h-4 gap-1 font-normal',
+            isDirty
+              ? 'border-yellow-500/50 text-yellow-600 dark:text-yellow-400'
+              : 'border-green-500/50 text-green-600 dark:text-green-400'
+          )}
+        >
+          <div className={cn('h-1.5 w-1.5 rounded-full', isDirty ? 'bg-yellow-500' : 'bg-green-500')} />
           <span className="hidden xs:inline">{isDirty ? t('unsavedChanges') : t('synced')}</span>
-        </div>
+        </Badge>
       </div>
     </div>
   );

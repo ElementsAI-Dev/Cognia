@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, memo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Tooltip,
   TooltipContent,
@@ -43,6 +45,7 @@ export function ChatWidgetMessages({
   onContinue,
   className,
 }: ChatWidgetMessagesProps) {
+  const t = useTranslations("chatWidget.messages");
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -61,8 +64,8 @@ export function ChatWidgetMessages({
         {messages.length === 0 && !isLoading && (
           <EmptyState
             icon={<Sparkles className="h-10 w-10 text-primary/50" />}
-            title="有什么可以帮您的？"
-            description="按 Ctrl+Shift+Space 唤起/隐藏助手"
+            title={t("emptyTitle")}
+            description={t("emptyDesc")}
             compact
             className="h-40"
           />
@@ -95,7 +98,7 @@ export function ChatWidgetMessages({
             <LoadingAnimation
               variant="dots"
               size="sm"
-              text="思考中..."
+              text={t("thinking")}
               className="min-w-[180px]"
             />
           </div>
@@ -103,10 +106,10 @@ export function ChatWidgetMessages({
 
         {/* Error message */}
         {error && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-            <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
+          <Alert variant="destructive" className="bg-destructive/10 border-destructive/20">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         {/* Continue generation button - show after last assistant message when not loading */}
@@ -119,7 +122,7 @@ export function ChatWidgetMessages({
               onClick={onContinue}
             >
               <ArrowRight className="h-3 w-3" />
-              继续生成
+              {t("continueGeneration")}
             </Button>
           </div>
         )}
@@ -148,6 +151,7 @@ const MessageBubble = memo(function MessageBubble({
   onFeedback,
   onEdit,
 }: MessageBubbleProps) {
+  const t = useTranslations("chatWidget.messages");
   const isUser = message.role === "user";
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
@@ -252,7 +256,7 @@ const MessageBubble = memo(function MessageBubble({
             <div className="whitespace-pre-wrap break-words">
               {message.content}
               {message.isEdited && (
-                <span className="text-[10px] opacity-60 ml-1">(已编辑)</span>
+                <span className="text-[10px] opacity-60 ml-1">{t("edited")}</span>
               )}
             </div>
           ) : (
@@ -291,7 +295,7 @@ const MessageBubble = memo(function MessageBubble({
                     <Pencil className="h-3 w-3" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">编辑</TooltipContent>
+                <TooltipContent side="bottom">{t("edit")}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -324,7 +328,7 @@ const MessageBubble = memo(function MessageBubble({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    {isSpeaking ? "停止朗读" : "朗读"}
+                    {isSpeaking ? t("stopReading") : t("read")}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -345,7 +349,7 @@ const MessageBubble = memo(function MessageBubble({
                         <ThumbsUp className="h-3 w-3" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">有帮助</TooltipContent>
+                    <TooltipContent side="bottom">{t("helpful")}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
                 <TooltipProvider delayDuration={300}>
@@ -360,7 +364,7 @@ const MessageBubble = memo(function MessageBubble({
                         <ThumbsDown className="h-3 w-3" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">无帮助</TooltipContent>
+                    <TooltipContent side="bottom">{t("notHelpful")}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </>
@@ -380,7 +384,7 @@ const MessageBubble = memo(function MessageBubble({
                       <RefreshCw className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">重新生成</TooltipContent>
+                  <TooltipContent side="bottom">{t("regenerate")}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             )}

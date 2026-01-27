@@ -854,7 +854,7 @@ export function Video({
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Clear all</TooltipContent>
+                  <TooltipContent>{t('clearAll')}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
               <Button
@@ -896,7 +896,7 @@ export function Video({
                           <Download className="h-3 w-3" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Download</TooltipContent>
+                      <TooltipContent>{t('download')}</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                   <TooltipProvider>
@@ -914,7 +914,7 @@ export function Video({
                           <ExternalLink className="h-3 w-3" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Open in new tab</TooltipContent>
+                      <TooltipContent>{t('openInNewTab')}</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                   <TooltipProvider>
@@ -932,7 +932,7 @@ export function Video({
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Delete</TooltipContent>
+                      <TooltipContent>{t('delete')}</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>

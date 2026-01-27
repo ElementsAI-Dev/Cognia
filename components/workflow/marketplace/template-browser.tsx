@@ -8,11 +8,21 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { Search, Filter, Star, Download, GitBranch } from 'lucide-react';
 import { useTemplateMarketStore } from '@/stores/workflow/template-market-store';
 import type { WorkflowTemplate } from '@/types/workflow/template';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -29,6 +39,8 @@ import {
 import { TemplatePreview } from './template-preview';
 
 export function TemplateBrowser() {
+  const t = useTranslations('marketplace');
+
   const {
     getFilteredTemplates,
     setSearchQuery,
@@ -87,104 +99,111 @@ export function TemplateBrowser() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="border-b p-4">
-        <h2 className="text-2xl font-bold mb-4">Template Marketplace</h2>
+    <TooltipProvider>
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="border-b p-4">
+          <h2 className="text-2xl font-bold mb-4">{t('title')}</h2>
 
-        {/* Search and Filters */}
-        <div className="flex gap-2 mb-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search templates..."
-              value={searchInput}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={sortBy} onValueChange={handleSortChange}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name">Name</SelectItem>
-              <SelectItem value="rating">Rating</SelectItem>
-              <SelectItem value="usage">Usage</SelectItem>
-              <SelectItem value="date">Date</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleSortOrderToggle}
-            title="Toggle sort order"
-          >
-            <Filter className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Templates Grid */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {templates.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <Filter className="h-12 w-12 mb-4" />
-            <p>No templates found</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {templates.map((template) => (
-              <TemplateCard
-                key={template.id}
-                template={template}
-                onPreview={() => handlePreview(template)}
-                onUse={() => handleUseTemplate(template)}
-                onClone={() => handleCloneTemplate(template)}
+          {/* Search and Filters */}
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t('searchPlaceholder')}
+                value={searchInput}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10"
               />
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
 
-      {/* Template Preview Dialog */}
-      <Dialog
-        open={!!previewTemplate}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPreviewTemplate(null);
-            setSelectedTemplate(null);
-          }
-        }}
-      >
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {previewTemplate?.name}
-            </DialogTitle>
-          </DialogHeader>
-          {previewTemplate && (
-            <TemplatePreview template={previewTemplate} />
+            <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder={t('category')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('allCategories')}</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={handleSortChange}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder={t('sortBy')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">{t('sortName')}</SelectItem>
+                <SelectItem value="rating">{t('sortRating')}</SelectItem>
+                <SelectItem value="usage">{t('sortUsage')}</SelectItem>
+                <SelectItem value="date">{t('sortDate')}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleSortOrderToggle}
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('toggleSortOrder')}</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+
+        {/* Templates Grid */}
+        <ScrollArea className="flex-1 p-4">
+          {templates.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+              <Filter className="h-12 w-12 mb-4" />
+              <p>{t('noTemplates')}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {templates.map((template) => (
+                <TemplateCard
+                  key={template.id}
+                  template={template}
+                  onPreview={() => handlePreview(template)}
+                  onUse={() => handleUseTemplate(template)}
+                  onClone={() => handleCloneTemplate(template)}
+                  t={t}
+                />
+              ))}
+            </div>
           )}
-        </DialogContent>
-      </Dialog>
-    </div>
+        </ScrollArea>
+
+        {/* Template Preview Dialog */}
+        <Dialog
+          open={!!previewTemplate}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPreviewTemplate(null);
+              setSelectedTemplate(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {previewTemplate?.name}
+              </DialogTitle>
+            </DialogHeader>
+            {previewTemplate && (
+              <TemplatePreview template={previewTemplate} />
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -193,11 +212,12 @@ interface TemplateCardProps {
   onPreview: () => void;
   onUse: () => void;
   onClone: () => void;
+  t: (key: string) => string;
 }
 
-function TemplateCard({ template, onPreview, onUse, onClone }: TemplateCardProps) {
+function TemplateCard({ template, onPreview, onUse, onClone, t }: TemplateCardProps) {
   return (
-    <div className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       {/* Thumbnail */}
       <div className="aspect-video bg-muted flex items-center justify-center relative">
         {template.metadata.thumbnail ? (
@@ -214,13 +234,11 @@ function TemplateCard({ template, onPreview, onUse, onClone }: TemplateCardProps
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <CardContent className="p-4">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-lg line-clamp-1">{template.name}</h3>
           {template.metadata.isOfficial && (
-            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">
-              Official
-            </span>
+            <Badge variant="default">{t('official')}</Badge>
           )}
         </div>
 
@@ -239,25 +257,27 @@ function TemplateCard({ template, onPreview, onUse, onClone }: TemplateCardProps
             <span>{template.metadata.usageCount}</span>
           </div>
           {template.metadata.source === 'git' && (
-            <div className="flex items-center gap-1" title="Git repository">
-              <GitBranch className="h-4 w-4" />
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 cursor-help">
+                  <GitBranch className="h-4 w-4" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>Git repository</TooltipContent>
+            </Tooltip>
           )}
         </div>
 
         {/* Tags */}
         <div className="flex flex-wrap gap-1 mb-4">
           {template.tags.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="text-xs bg-secondary px-2 py-0.5 rounded"
-            >
+            <Badge key={tag} variant="secondary" className="text-xs">
               {tag}
-            </span>
+            </Badge>
           ))}
           {template.tags.length > 3 && (
             <span className="text-xs text-muted-foreground">
-              +{template.tags.length - 3} more
+              +{template.tags.length - 3} {t('more')}
             </span>
           )}
         </div>
@@ -265,16 +285,21 @@ function TemplateCard({ template, onPreview, onUse, onClone }: TemplateCardProps
         {/* Actions */}
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onPreview} className="flex-1">
-            Preview
+            {t('previewBtn')}
           </Button>
           <Button size="sm" onClick={onUse} className="flex-1">
-            Use Template
+            {t('useTemplate')}
           </Button>
-          <Button variant="ghost" size="icon" onClick={onClone} title="Clone template">
-            <Download className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={onClone}>
+                <Download className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('cloneTemplate')}</TooltipContent>
+          </Tooltip>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

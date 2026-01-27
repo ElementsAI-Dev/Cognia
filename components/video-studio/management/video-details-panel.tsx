@@ -95,7 +95,7 @@ export const VideoDetailsPanel = forwardRef<HTMLVideoElement, VideoDetailsPanelP
 
           {/* Status */}
           <div className="flex items-center gap-2">
-            {getStatusBadge(video.status)}
+            {getStatusBadge(video.status, t)}
             {(video.status === 'pending' || video.status === 'processing') && (
               <Progress value={video.progress} className="flex-1" />
             )}

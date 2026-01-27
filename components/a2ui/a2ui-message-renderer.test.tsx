@@ -7,7 +7,6 @@ import { render, screen } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import {
   A2UIMessageRenderer,
-  A2UIEnhancedMessage,
   hasA2UIContent,
   useA2UIMessageIntegration,
 } from './a2ui-message-renderer';
@@ -70,15 +69,17 @@ describe('A2UIMessageRenderer', () => {
     expect(screen.getByTestId('inline-surface')).toHaveTextContent('extracted-surface');
   });
 
-  it('should return null when no A2UI content detected', () => {
+  it('should render text content when no A2UI content detected', () => {
     const content = 'This is a regular message without A2UI';
     mockGetSurface.mockReturnValue(null);
 
-    const { container } = render(
+    render(
       <A2UIMessageRenderer content={content} messageId="msg2" />
     );
 
-    expect(container.firstChild).toBeNull();
+    // Merged component now renders text content even without A2UI
+    expect(screen.getByText(content)).toBeInTheDocument();
+    expect(screen.queryByTestId('inline-surface')).toBeNull();
   });
 
   it('should call extractAndProcess when A2UI content found', () => {
@@ -136,7 +137,7 @@ describe('hasA2UIContent', () => {
   });
 });
 
-describe('A2UIEnhancedMessage', () => {
+describe('A2UIMessageRenderer text rendering', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetSurface.mockReturnValue({ id: 'test-surface', ready: true });
@@ -146,7 +147,7 @@ describe('A2UIEnhancedMessage', () => {
     const content = 'This is plain text without A2UI';
 
     render(
-      <A2UIEnhancedMessage content={content} messageId="msg1" />
+      <A2UIMessageRenderer content={content} messageId="msg1" />
     );
 
     expect(screen.getByText(content)).toBeInTheDocument();
@@ -158,7 +159,7 @@ describe('A2UIEnhancedMessage', () => {
     mockExtractAndProcess.mockReturnValue('test-surface');
 
     render(
-      <A2UIEnhancedMessage content={content} messageId="msg2" />
+      <A2UIMessageRenderer content={content} messageId="msg2" />
     );
 
     expect(screen.getByTestId('inline-surface')).toBeInTheDocument();
@@ -169,7 +170,7 @@ describe('A2UIEnhancedMessage', () => {
     const textRenderer = (text: string) => <strong data-testid="custom">{text}</strong>;
 
     render(
-      <A2UIEnhancedMessage
+      <A2UIMessageRenderer
         content={content}
         messageId="msg3"
         textRenderer={textRenderer}
@@ -180,11 +181,11 @@ describe('A2UIEnhancedMessage', () => {
     expect(screen.getByTestId('custom')).toHaveTextContent(content);
   });
 
-  it('should apply custom className', () => {
+  it('should apply custom className for text-only content', () => {
     const content = 'Test message';
 
     const { container } = render(
-      <A2UIEnhancedMessage
+      <A2UIMessageRenderer
         content={content}
         messageId="msg4"
         className="my-class"
@@ -198,7 +199,7 @@ describe('A2UIEnhancedMessage', () => {
     const content = 'Before text ```json\n{"a2ui": true}\n``` After text';
 
     render(
-      <A2UIEnhancedMessage content={content} messageId="msg5" />
+      <A2UIMessageRenderer content={content} messageId="msg5" />
     );
 
     // The JSON block should be removed from text

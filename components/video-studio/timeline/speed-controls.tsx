@@ -12,6 +12,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -70,11 +71,11 @@ const SPEED_PRESETS = [
   { value: 4, label: '4x' },
 ];
 
-const FRAME_BLENDING_OPTIONS: { value: FrameBlendingMode; label: string; description: string }[] = [
-  { value: 'none', label: 'None', description: 'No frame interpolation' },
-  { value: 'frame-sampling', label: 'Frame Sampling', description: 'Duplicate/drop frames' },
-  { value: 'frame-blending', label: 'Frame Blending', description: 'Blend adjacent frames' },
-  { value: 'optical-flow', label: 'Optical Flow', description: 'Motion-based interpolation' },
+const FRAME_BLENDING_OPTIONS: { value: FrameBlendingMode; labelKey: string; descKey: string }[] = [
+  { value: 'none', labelKey: 'frameBlending.none', descKey: 'frameBlending.noneDesc' },
+  { value: 'frame-sampling', labelKey: 'frameBlending.frameSampling', descKey: 'frameBlending.frameSamplingDesc' },
+  { value: 'frame-blending', labelKey: 'frameBlending.frameBlending', descKey: 'frameBlending.frameBlendingDesc' },
+  { value: 'optical-flow', labelKey: 'frameBlending.opticalFlow', descKey: 'frameBlending.opticalFlowDesc' },
 ];
 
 const DEFAULT_SETTINGS: SpeedSettings = {
@@ -93,6 +94,7 @@ export function SpeedControls({
   onReset,
   className,
 }: SpeedControlsProps) {
+  const t = useTranslations('speedControls');
   const [customSpeed, setCustomSpeed] = useState(settings.speed.toString());
 
   const handleSpeedChange = useCallback(
@@ -146,7 +148,7 @@ export function SpeedControls({
       <div className="flex items-center justify-between">
         <h3 className="font-medium flex items-center gap-2">
           <Gauge className="h-4 w-4" />
-          Speed Controls
+          {t('title')}
         </h3>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -154,14 +156,14 @@ export function SpeedControls({
               <RotateCcw className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Reset to default</TooltipContent>
+          <TooltipContent>{t('resetToDefault')}</TooltipContent>
         </Tooltip>
       </div>
 
       {/* Speed slider */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="text-sm">Playback Speed</Label>
+          <Label className="text-sm">{t('playbackSpeed')}</Label>
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -210,16 +212,16 @@ export function SpeedControls({
       {/* Duration info */}
       <div className="p-3 bg-muted/50 rounded-lg space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Original Duration</span>
+          <span className="text-muted-foreground">{t('originalDuration')}</span>
           <span className="font-mono">{formatDuration(duration)}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">New Duration</span>
+          <span className="text-muted-foreground">{t('newDuration')}</span>
           <span className="font-mono font-medium">{formatDuration(calculateNewDuration())}</span>
         </div>
         {settings.speed !== 1 && (
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Change</span>
+            <span>{t('change')}</span>
             <span className={settings.speed > 1 ? 'text-green-500' : 'text-orange-500'}>
               {settings.speed > 1 ? '-' : '+'}
               {Math.abs(Math.round((1 - 1 / settings.speed) * 100))}%
@@ -232,7 +234,7 @@ export function SpeedControls({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
-          <Label className="text-sm">Reverse Playback</Label>
+          <Label className="text-sm">{t('reversePlayback')}</Label>
         </div>
         <Switch checked={settings.reverse} onCheckedChange={toggleReverse} />
       </div>
@@ -241,7 +243,7 @@ export function SpeedControls({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Play className="h-4 w-4 text-muted-foreground" />
-          <Label className="text-sm">Maintain Audio Pitch</Label>
+          <Label className="text-sm">{t('maintainAudioPitch')}</Label>
         </div>
         <Switch
           checked={settings.maintainPitch}
@@ -253,7 +255,7 @@ export function SpeedControls({
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4 text-muted-foreground" />
-          <Label className="text-sm">Frame Interpolation</Label>
+          <Label className="text-sm">{t('frameInterpolation')}</Label>
         </div>
         <Select
           value={settings.frameBlending}
@@ -266,8 +268,8 @@ export function SpeedControls({
             {FRAME_BLENDING_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 <div>
-                  <div>{option.label}</div>
-                  <div className="text-xs text-muted-foreground">{option.description}</div>
+                  <div>{t(option.labelKey)}</div>
+                  <div className="text-xs text-muted-foreground">{t(option.descKey)}</div>
                 </div>
               </SelectItem>
             ))}
@@ -278,8 +280,8 @@ export function SpeedControls({
       {/* Speed ramp toggle */}
       <div className="flex items-center justify-between pt-2 border-t">
         <div>
-          <Label className="text-sm">Speed Ramping</Label>
-          <p className="text-xs text-muted-foreground">Gradually change speed over time</p>
+          <Label className="text-sm">{t('speedRamping')}</Label>
+          <p className="text-xs text-muted-foreground">{t('speedRampingDescription')}</p>
         </div>
         <Switch
           checked={settings.rampEnabled}
@@ -290,14 +292,14 @@ export function SpeedControls({
       {settings.rampEnabled && (
         <div className="p-3 bg-muted/30 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <Label className="text-xs">Speed Curve</Label>
+            <Label className="text-xs">{t('speedCurve')}</Label>
             <Button variant="outline" size="sm" className="h-6 text-xs">
-              Edit Curve
+              {t('editCurve')}
             </Button>
           </div>
           <div className="h-16 bg-muted rounded flex items-center justify-center">
             <span className="text-xs text-muted-foreground">
-              Click &quot;Edit Curve&quot; to customize speed ramp
+              {t('editCurveHint')}
             </span>
           </div>
         </div>

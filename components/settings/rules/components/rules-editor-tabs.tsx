@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RULE_TARGETS } from '../constants';
 
@@ -9,6 +10,8 @@ interface RulesEditorTabsProps {
 }
 
 export function RulesEditorTabs({ activeTab, onTabChange }: RulesEditorTabsProps) {
+  const t = useTranslations('rules');
+
   return (
     <div className="px-2 md:px-4 py-0 border-b bg-muted/30 shrink-0 overflow-x-auto">
       <Tabs value={activeTab} onValueChange={onTabChange}>
@@ -21,7 +24,7 @@ export function RulesEditorTabs({ activeTab, onTabChange }: RulesEditorTabsProps
             >
               <div className="flex items-center gap-1 md:gap-2">
                 {target.icon}
-                <span className="text-[10px] md:text-xs font-medium">{target.label}</span>
+                <span className="text-[10px] md:text-xs font-medium">{t(`targets.${target.id}`)}</span>
                 <span className="text-[9px] md:text-[10px] text-muted-foreground opacity-60 hidden sm:inline">
                   ({target.path})
                 </span>

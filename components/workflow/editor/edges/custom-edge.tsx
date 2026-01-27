@@ -5,6 +5,7 @@
  */
 
 import { memo, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -84,6 +85,7 @@ function CustomEdgeComponent({
   markerEnd,
   style,
 }: EdgeProps) {
+  const t = useTranslations('workflowEditor');
   const edgeData = (data || {}) as CustomEdgeData;
   const { deleteEdge, updateEdge } = useWorkflowEditorStore();
   const [isEditingLabel, setIsEditingLabel] = useState(false);
@@ -239,11 +241,11 @@ function CustomEdgeComponent({
 
               <PopoverContent className="w-56 p-3" side="top">
                 <div className="space-y-3">
-                  <div className="text-xs font-medium">Edge Settings</div>
+                  <div className="text-xs font-medium">{t('edgeSettings')}</div>
                   
                   {/* Label */}
                   <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Label</label>
+                    <label className="text-xs text-muted-foreground">{t('label')}</label>
                     <div className="flex gap-1">
                       <Input
                         value={labelText}
@@ -267,7 +269,7 @@ function CustomEdgeComponent({
 
                   {/* Edge Type */}
                   <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Type</label>
+                    <label className="text-xs text-muted-foreground">{t('variableType')}</label>
                     <Select
                       value={edgeData.edgeType || 'default'}
                       onValueChange={handleEdgeTypeChange}
@@ -317,7 +319,7 @@ function CustomEdgeComponent({
                     }}
                   >
                     <X className="h-3 w-3 mr-1" />
-                    Delete Edge
+                    {t('deleteEdge')}
                   </Button>
                 </div>
               </PopoverContent>

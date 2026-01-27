@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +24,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,6 +102,40 @@ export function TextbookLibrary() {
         </div>
       )}
     </div>
+  );
+}
+
+// ============================================================================
+// Textbook Card Skeleton (for loading state)
+// ============================================================================
+
+export function TextbookCardSkeleton() {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-12 w-12 rounded-lg" />
+            <div className="flex-1 min-w-0 space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          </div>
+          <Skeleton className="h-8 w-8 rounded-md" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-3 gap-2">
+          <Skeleton className="h-16 rounded-lg" />
+          <Skeleton className="h-16 rounded-lg" />
+          <Skeleton className="h-16 rounded-lg" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 flex-1" />
+          <Skeleton className="h-9 w-20" />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -236,8 +282,10 @@ interface TextbookCardProps {
 
 function TextbookCard({ textbook }: TextbookCardProps) {
   const t = useTranslations('learningMode.speedpass.library.card');
+  const tDelete = useTranslations('learningMode.speedpass.library.deleteConfirm');
   const store = useSpeedPassStore();
   const { processTextbook: _processTextbook, progress, isProcessing } = useTextbookProcessor();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const parseStatus = store.parseProgress?.textbookId === textbook.id ? store.parseProgress : null;
   const chapters = store.textbookChapters[textbook.id] || [];
@@ -246,6 +294,7 @@ function TextbookCard({ textbook }: TextbookCardProps) {
 
   const handleDelete = useCallback(() => {
     store.removeTextbook(textbook.id);
+    setIsDeleteDialogOpen(false);
   }, [store, textbook.id]);
 
   const handleStartLearning = useCallback(() => {
@@ -267,28 +316,55 @@ function TextbookCard({ textbook }: TextbookCardProps) {
               </CardDescription>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                data-testid="textbook-menu-trigger"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <Edit className="mr-2 h-4 w-4" />
-                {t('edit')}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive" onClick={handleDelete}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                {t('delete')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      data-testid="textbook-menu-trigger"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <Edit className="mr-2 h-4 w-4" />
+                      {t('edit')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {t('delete')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{t('moreActions')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{tDelete('title')}</AlertDialogTitle>
+                <AlertDialogDescription>{tDelete('description')}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{tDelete('cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  {tDelete('confirm')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </CardHeader>
 

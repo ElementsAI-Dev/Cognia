@@ -78,7 +78,7 @@ interface ElementTreeVirtualProps {
 }
 
 export function ElementTreeVirtual({ className }: ElementTreeVirtualProps) {
-  const t = useTranslations('elementTree');
+  const t = useTranslations('elementTreeVirtual');
   const elementTree = useDesignerStore((state) => state.elementTree);
   const selectedElementId = useDesignerStore((state) => state.selectedElementId);
   const hoveredElementId = useDesignerStore((state) => state.hoveredElementId);

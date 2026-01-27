@@ -12,6 +12,7 @@
  */
 
 import { useState, useCallback, useRef, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,6 +87,7 @@ export function VideoSubtitleTrack({
   onTimeChange,
   className,
 }: VideoSubtitleTrackProps) {
+  const t = useTranslations('subtitleTrack');
   const trackRef = useRef<HTMLDivElement>(null);
   const [editingCueId, setEditingCueId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -345,21 +347,21 @@ export function VideoSubtitleTrack({
               <ContextMenuContent>
                 <ContextMenuItem onClick={() => handleCueDoubleClick(cue.id)}>
                   <Edit2 className="h-4 w-4 mr-2" />
-                  Edit Text
+                  {t('editText')}
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => onCueDuplicate(cue.id)}>
                   <Copy className="h-4 w-4 mr-2" />
-                  Duplicate
+                  {t('duplicate')}
                 </ContextMenuItem>
                 <ContextMenuSeparator />
                 <ContextMenuItem onClick={() => onCueSplit(cue.id, currentTime)}>
                   <Scissors className="h-4 w-4 mr-2" />
-                  Split at Playhead
+                  {t('splitAtPlayhead')}
                 </ContextMenuItem>
                 {selectedCueIds.length > 1 && (
                   <ContextMenuItem onClick={() => onCueMerge(selectedCueIds)}>
                     <Merge className="h-4 w-4 mr-2" />
-                    Merge Selected
+                    {t('mergeSelected')}
                   </ContextMenuItem>
                 )}
                 <ContextMenuSeparator />
@@ -369,7 +371,7 @@ export function VideoSubtitleTrack({
                   }}
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Shift Earlier (-100ms)
+                  {t('shiftEarlier')}
                 </ContextMenuItem>
                 <ContextMenuItem
                   onClick={() => {
@@ -377,7 +379,7 @@ export function VideoSubtitleTrack({
                   }}
                 >
                   <ArrowRight className="h-4 w-4 mr-2" />
-                  Shift Later (+100ms)
+                  {t('shiftLater')}
                 </ContextMenuItem>
                 <ContextMenuSeparator />
                 <ContextMenuItem
@@ -385,7 +387,7 @@ export function VideoSubtitleTrack({
                   onClick={() => onCueDelete(cue.id)}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  {t('delete')}
                 </ContextMenuItem>
               </ContextMenuContent>
             </ContextMenu>

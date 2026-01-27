@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -105,6 +106,7 @@ interface KeyboardShortcutsPanelProps {
 }
 
 export function KeyboardShortcutsPanel({ className }: KeyboardShortcutsPanelProps) {
+  const t = useTranslations('workflowEditor');
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -162,7 +164,7 @@ export function KeyboardShortcutsPanel({ className }: KeyboardShortcutsPanelProp
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              Keyboard Shortcuts (Shift + ?)
+              {t('keyboardShortcuts')} (Shift + ?)
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -171,10 +173,10 @@ export function KeyboardShortcutsPanel({ className }: KeyboardShortcutsPanelProp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Keyboard className="h-5 w-5" />
-            Keyboard Shortcuts
+            {t('keyboardShortcuts')}
           </DialogTitle>
           <DialogDescription>
-            Quick reference for all available keyboard shortcuts
+            {t('shortcutsDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -183,7 +185,7 @@ export function KeyboardShortcutsPanel({ className }: KeyboardShortcutsPanelProp
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search shortcuts..."
+              placeholder={t('searchShortcuts')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -230,7 +232,7 @@ export function KeyboardShortcutsPanel({ className }: KeyboardShortcutsPanelProp
               {Object.keys(groupedShortcuts).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No shortcuts found</p>
+                  <p>{t('noShortcutsFound')}</p>
                 </div>
               )}
             </div>

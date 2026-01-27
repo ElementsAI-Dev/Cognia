@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -20,7 +21,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
@@ -36,7 +36,6 @@ import {
   Download,
   Loader2,
   Image as ImageIcon,
-  FileArchive,
   Check,
 } from 'lucide-react';
 
@@ -74,6 +73,9 @@ export function BatchExportDialog({
   images,
   onExport,
 }: BatchExportDialogProps) {
+  const t = useTranslations('imageStudio.batchExport');
+  const tc = useTranslations('imageStudio.common');
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [options, setOptions] = useState<ExportOptions>(DEFAULT_OPTIONS);
   const [isExporting, setIsExporting] = useState(false);
@@ -227,31 +229,18 @@ export function BatchExportDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5" />
-            Export Images
-          </DialogTitle>
-          <DialogDescription>
-            Select images to export and configure export options.
-          </DialogDescription>
-        </DialogHeader>
-
+        <DialogTitle>{t('title')}</DialogTitle>
+        <DialogDescription>{t('description')}</DialogDescription>
         <div className="space-y-4">
           {/* Image selection */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Select Images ({selectedIds.size} of {images.length})</Label>
+              <Label className="font-medium">{t('selectImages', { selected: selectedIds.size, total: images.length })}</Label>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={selectAll}>
-                  Select All
-                </Button>
-                <Button variant="ghost" size="sm" onClick={deselectAll}>
-                  Deselect All
-                </Button>
+                <Button variant="ghost" size="sm" onClick={selectAll}>{t('selectAll')}</Button>
+                <Button variant="ghost" size="sm" onClick={deselectAll}>{t('deselectAll')}</Button>
               </div>
             </div>
-
             <ScrollArea className="h-48 border rounded-md p-2">
               <div className="grid grid-cols-4 gap-2">
                 {images.map((image) => (
@@ -291,7 +280,7 @@ export function BatchExportDialog({
           {/* Export options */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Format</Label>
+              <Label>{t('format')}</Label>
               <Select
                 value={options.format}
                 onValueChange={(v) => setOptions((prev) => ({ ...prev, format: v as ExportFormat }))}
@@ -300,15 +289,15 @@ export function BatchExportDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="png">PNG (Lossless)</SelectItem>
-                  <SelectItem value="jpeg">JPEG (Smaller)</SelectItem>
-                  <SelectItem value="webp">WebP (Modern)</SelectItem>
+                  <SelectItem value="png">{t('formats.png')}</SelectItem>
+                  <SelectItem value="jpeg">{t('formats.jpeg')}</SelectItem>
+                  <SelectItem value="webp">{t('formats.webp')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>Scale</Label>
+              <Label>{t('scale')}</Label>
               <Select
                 value={options.scale.toString()}
                 onValueChange={(v) => setOptions((prev) => ({ ...prev, scale: parseInt(v) }))}
@@ -317,8 +306,8 @@ export function BatchExportDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">1× (Original)</SelectItem>
-                  <SelectItem value="2">2× (Double)</SelectItem>
+                  <SelectItem value="1">{t('scales.1x')}</SelectItem>
+                  <SelectItem value="2">{t('scales.2x')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -328,8 +317,8 @@ export function BatchExportDialog({
           {options.format !== 'png' && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Quality</Label>
-                <span className="text-sm text-muted-foreground">{options.quality}%</span>
+                <Label>{t('quality')}</Label>
+                <span className="text-sm">{options.quality}%</span>
               </div>
               <Slider
                 value={[options.quality]}
@@ -351,9 +340,7 @@ export function BatchExportDialog({
                   setOptions((prev) => ({ ...prev, includeMetadata: !!checked }))
                 }
               />
-              <Label htmlFor="include-metadata" className="text-sm">
-                Include metadata
-              </Label>
+              <Label htmlFor="include-metadata" className="text-sm">{t('includeMetadata')}</Label>
             </div>
           </div>
 
@@ -362,9 +349,7 @@ export function BatchExportDialog({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">
-                  Exporting {exportedCount} of {selectedIds.size}...
-                </span>
+                <span className="text-sm">{t('exporting', { current: exportedCount, total: selectedIds.size })}</span>
               </div>
               <Progress value={progress} />
             </div>
@@ -372,21 +357,14 @@ export function BatchExportDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isExporting}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isExporting}>{tc('cancel')}</Button>
           <Button onClick={handleExport} disabled={selectedIds.size === 0 || isExporting}>
             {isExporting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Exporting...
-              </>
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
             ) : (
-              <>
-                <FileArchive className="h-4 w-4 mr-2" />
-                Export {selectedIds.size} Image{selectedIds.size !== 1 ? 's' : ''}
-              </>
+              <Download className="h-4 w-4 mr-1" />
             )}
+            {selectedIds.size === 1 ? t('exportButton', { count: selectedIds.size }) : t('exportButtonPlural', { count: selectedIds.size })}
           </Button>
         </DialogFooter>
       </DialogContent>

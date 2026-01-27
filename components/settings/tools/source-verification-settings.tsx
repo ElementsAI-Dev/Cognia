@@ -306,7 +306,7 @@ export function SourceVerificationSettings({
                 </Label>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="example.com"
+                    placeholder={t('trustedDomainPlaceholder')}
                     value={newTrustedDomain}
                     onChange={(e) => setNewTrustedDomain(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddTrustedDomain()}
@@ -351,7 +351,7 @@ export function SourceVerificationSettings({
                 </Label>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="spam-site.com"
+                    placeholder={t('blockedDomainPlaceholder')}
                     value={newBlockedDomain}
                     onChange={(e) => setNewBlockedDomain(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddBlockedDomain()}

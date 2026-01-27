@@ -41,6 +41,11 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { ActivityType, ProjectActivityItem } from '@/types';
 
 // Re-export types for backward compatibility
@@ -138,17 +143,22 @@ export function ProjectActivity({
               {t('activityHistory')}
             </SheetTitle>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Filter className="h-4 w-4" />
-                  {t('filter')}
-                  {filterTypes.size > 0 && (
-                    <Badge variant="secondary" className="ml-1 text-xs">
-                      {filterTypes.size}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Filter className="h-4 w-4" />
+                      {t('filter')}
+                      {filterTypes.size > 0 && (
+                        <Badge variant="secondary" className="ml-1 text-xs">
+                          {filterTypes.size}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t('filterTooltip')}</TooltipContent>
+              </Tooltip>
               <DropdownMenuContent align="end">
                 {(Object.keys(ACTIVITY_ICONS) as ActivityType[]).map((type) => (
                   <DropdownMenuCheckboxItem

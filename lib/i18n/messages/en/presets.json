@@ -137,6 +137,24 @@
     "exportSuccess": "Presets exported successfully",
     "importSuccess": "Successfully imported {count} presets",
     "optimizeSuccess": "Prompt optimized successfully!",
-    "generatePromptsSuccess": "Quick prompts generated successfully!"
+    "generatePromptsSuccess": "Quick prompts generated successfully!",
+    "insertTemplate": "Insert template",
+    "switchedTo": "Switched to {name}",
+    "removeFromFavoritesTitle": "Remove from favorites",
+    "addToFavoritesTitle": "Add to favorites",
+    "removePrompt": "Remove prompt",
+    "errors": {
+      "noApiKey": "Please configure an API key in settings first.",
+      "generateFailed": "Failed to generate preset",
+      "generateFailedRetry": "Failed to generate preset. Please try again.",
+      "optimizeFailed": "Failed to optimize prompt",
+      "optimizeFailedRetry": "Failed to optimize prompt. Please try again.",
+      "generatePromptsFailed": "Failed to generate prompts",
+      "generatePromptsFailedRetry": "Failed to generate prompts. Please try again.",
+      "nameRequired": "Please enter a preset name",
+      "modelRequired": "Please select a model",
+      "invalidFileFormat": "Invalid preset file format",
+      "parseFileFailed": "Failed to parse preset file"
+    }
   }
 }

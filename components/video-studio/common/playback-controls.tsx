@@ -15,6 +15,7 @@
  */
 
 import { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -110,6 +111,8 @@ export function PlaybackControls({
   onReset,
   className,
 }: PlaybackControlsProps) {
+  const t = useTranslations('playback');
+
   // Format time as MM:SS or HH:MM:SS
   const formatTime = useCallback((seconds: number): string => {
     if (!isFinite(seconds) || seconds < 0) return '0:00';
@@ -211,7 +214,7 @@ export function PlaybackControls({
                 <RotateCcw className={iconSize} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset</TooltipContent>
+            <TooltipContent>{t('reset')}</TooltipContent>
           </Tooltip>
         )}
 
@@ -223,7 +226,7 @@ export function PlaybackControls({
                 <ChevronLeft className={iconSize} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Previous Frame</TooltipContent>
+            <TooltipContent>{t('previousFrame')}</TooltipContent>
           </Tooltip>
         )}
 
@@ -235,7 +238,7 @@ export function PlaybackControls({
                 <SkipBack className={iconSize} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Back {skipAmount}s</TooltipContent>
+            <TooltipContent>{t('backSeconds', { seconds: skipAmount })}</TooltipContent>
           </Tooltip>
         )}
 
@@ -255,7 +258,7 @@ export function PlaybackControls({
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{isPlaying ? 'Pause' : 'Play'}</TooltipContent>
+          <TooltipContent>{isPlaying ? t('pause') : t('play')}</TooltipContent>
         </Tooltip>
 
         {/* Skip forward */}
@@ -266,7 +269,7 @@ export function PlaybackControls({
                 <SkipForward className={iconSize} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Forward {skipAmount}s</TooltipContent>
+            <TooltipContent>{t('forwardSeconds', { seconds: skipAmount })}</TooltipContent>
           </Tooltip>
         )}
 
@@ -278,7 +281,7 @@ export function PlaybackControls({
                 <ChevronRight className={iconSize} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Next Frame</TooltipContent>
+            <TooltipContent>{t('nextFrame')}</TooltipContent>
           </Tooltip>
         )}
 
@@ -301,7 +304,7 @@ export function PlaybackControls({
                   </Button>
                 </PopoverTrigger>
               </TooltipTrigger>
-              <TooltipContent>{muted ? 'Unmute' : 'Mute'}</TooltipContent>
+              <TooltipContent>{muted ? t('unmute') : t('mute')}</TooltipContent>
             </Tooltip>
             <PopoverContent align="center" side="top">
               <Slider
@@ -328,7 +331,7 @@ export function PlaybackControls({
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent>Playback Speed</TooltipContent>
+              <TooltipContent>{t('playbackSpeed')}</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="center">
               {PLAYBACK_SPEEDS.map((speed) => (
@@ -356,7 +359,7 @@ export function PlaybackControls({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</TooltipContent>
+            <TooltipContent>{isFullscreen ? t('exitFullscreen') : t('fullscreen')}</TooltipContent>
           </Tooltip>
         )}
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 
 /**
  * Splash Screen Page
@@ -10,21 +11,26 @@ import { useState, useEffect } from 'react';
  */
 
 export default function SplashScreenPage() {
+  const t = useTranslations('splashscreen');
   // Primary blue color for the splash
   const primary = '#3b82f6';
   const [progress, setProgress] = useState(0);
-  const [loadingText, setLoadingText] = useState('Initializing...');
+  const [loadingText, setLoadingText] = useState('');
 
   // Simulate loading progress with realistic stages
   useEffect(() => {
     const stages = [
-      { progress: 15, text: 'Loading core modules...' },
-      { progress: 35, text: 'Initializing providers...' },
-      { progress: 55, text: 'Loading themes...' },
-      { progress: 75, text: 'Preparing workspace...' },
-      { progress: 90, text: 'Almost ready...' },
-      { progress: 100, text: 'Ready!' },
+      { progress: 0, text: t('initializing') },
+      { progress: 15, text: t('loadingCore') },
+      { progress: 35, text: t('initializingProviders') },
+      { progress: 55, text: t('loadingThemes') },
+      { progress: 75, text: t('preparingWorkspace') },
+      { progress: 90, text: t('almostReady') },
+      { progress: 100, text: t('ready') },
     ];
+    
+    // Set initial text
+    setLoadingText(stages[0].text);
 
     let currentStage = 0;
     const interval = setInterval(() => {
@@ -38,6 +44,7 @@ export default function SplashScreenPage() {
     }, 400);
 
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   return (
@@ -123,10 +130,10 @@ export default function SplashScreenPage() {
         {/* Brand name */}
         <div className="flex flex-col items-center gap-4">
           <h1 className="text-3xl font-semibold text-white tracking-tight">
-            Cognia
+            {t('appName')}
           </h1>
           <p className="text-sm text-white/50">
-            AI Chat Assistant
+            {t('appDescription')}
           </p>
           
           {/* Progress bar container */}

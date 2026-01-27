@@ -6,6 +6,7 @@
  */
 
 import { memo, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { NodePreviewTooltip } from '../node-preview-tooltip';
@@ -101,6 +102,7 @@ function BaseNodeComponent({
   multipleSourceHandles,
   multipleTargetHandles,
 }: BaseNodeProps) {
+  const t = useTranslations('workflowEditor');
   const nodeType = data.nodeType;
   const Icon = NODE_ICONS[nodeType] || Workflow;
   const StatusIcon = STATUS_ICONS[data.executionStatus];
@@ -192,7 +194,7 @@ function BaseNodeComponent({
         {data.executionStatus === 'running' && (
           <div className="mt-2 flex items-center gap-2 text-xs text-blue-500 bg-blue-500/10 rounded px-2 py-1">
             <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-            <span>Executing...</span>
+            <span>{t('executing')}</span>
           </div>
         )}
 
@@ -208,7 +210,7 @@ function BaseNodeComponent({
         {!data.isConfigured && nodeType !== 'start' && nodeType !== 'end' && (
           <div className="mt-2 flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-500">
             <AlertCircle className="h-3 w-3" />
-            <span>Not configured</span>
+            <span>{t('notConfigured')}</span>
           </div>
         )}
       </div>

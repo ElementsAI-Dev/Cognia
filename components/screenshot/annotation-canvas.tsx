@@ -7,6 +7,7 @@
  */
 
 import { useRef, useEffect, useCallback, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import type {
   Annotation,
@@ -259,6 +260,7 @@ export function AnnotationCanvas({
   onGetNextMarkerNumber,
   className,
 }: AnnotationCanvasProps) {
+  const t = useTranslations('screenshot.editor');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -449,7 +451,7 @@ export function AnnotationCanvas({
 
     if (currentTool === 'text') {
       const point = getMousePosition(e);
-      const text = prompt('输入文字:');
+      const text = prompt(t('enterText'));
       if (text) {
         const annotation: Annotation = {
           id: `text-${Date.now()}`,

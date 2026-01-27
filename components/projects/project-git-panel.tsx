@@ -33,6 +33,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -331,15 +336,20 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
           <div className="flex flex-wrap gap-2">
             {/* Commit Dialog */}
             <Dialog open={showCommitDialog} onOpenChange={setShowCommitDialog}>
-              <DialogTrigger asChild>
-                <Button
-                  size="sm"
-                  disabled={!currentRepo?.hasUncommittedChanges && !currentRepo?.hasUntrackedFiles}
-                >
-                  <GitCommit className="h-4 w-4 mr-2" />
-                  {t('quickActions.commit')}
-                </Button>
-              </DialogTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      disabled={!currentRepo?.hasUncommittedChanges && !currentRepo?.hasUntrackedFiles}
+                    >
+                      <GitCommit className="h-4 w-4 mr-2" />
+                      {t('quickActions.commit')}
+                    </Button>
+                  </DialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t('quickActions.commitTooltip')}</TooltipContent>
+              </Tooltip>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t('commitDialog.title')}</DialogTitle>
@@ -397,35 +407,50 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
               </DialogContent>
             </Dialog>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => push()}
-              disabled={isOperating || !currentRepo?.remoteUrl || currentRepo?.ahead === 0}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {t('quickActions.push')}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => push()}
+                  disabled={isOperating || !currentRepo?.remoteUrl || currentRepo?.ahead === 0}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {t('quickActions.push')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('quickActions.pushTooltip')}</TooltipContent>
+            </Tooltip>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => pull()}
-              disabled={isOperating || !currentRepo?.remoteUrl}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {t('quickActions.pull')}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => pull()}
+                  disabled={isOperating || !currentRepo?.remoteUrl}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {t('quickActions.pull')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('quickActions.pullTooltip')}</TooltipContent>
+            </Tooltip>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => fetch()}
-              disabled={isOperating || !currentRepo?.remoteUrl}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {t('quickActions.fetch')}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fetch()}
+                  disabled={isOperating || !currentRepo?.remoteUrl}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {t('quickActions.fetch')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('quickActions.fetchTooltip')}</TooltipContent>
+            </Tooltip>
           </div>
         </CardContent>
       </Card>

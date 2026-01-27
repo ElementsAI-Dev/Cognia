@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -224,6 +225,7 @@ export function VideoEffectsPanel({
   onReorderEffects,
   className,
 }: VideoEffectsPanelProps) {
+  const t = useTranslations('effects');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [selectedEffectIndex, setSelectedEffectIndex] = useState<number | null>(null);
 
@@ -339,9 +341,9 @@ export function VideoEffectsPanel({
     <div className={cn('flex flex-col h-full', className)}>
       <Tabs defaultValue="browse" className="flex-1 flex flex-col">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="browse">Browse Effects</TabsTrigger>
+          <TabsTrigger value="browse">{t('browseEffects')}</TabsTrigger>
           <TabsTrigger value="applied">
-            Applied ({appliedEffects.length})
+            {t('applied')} ({appliedEffects.length})
           </TabsTrigger>
         </TabsList>
 
@@ -360,7 +362,7 @@ export function VideoEffectsPanel({
                     onClick={() => setActiveCategory(cat)}
                   >
                     {cat !== 'all' && CATEGORY_ICONS[cat]}
-                    <span className="ml-1 capitalize">{cat}</span>
+                    <span className="ml-1 capitalize">{cat === 'all' ? t('all') : t(`categories.${cat}`)}</span>
                   </Button>
                 ))}
               </div>
@@ -398,7 +400,7 @@ export function VideoEffectsPanel({
                           <div className="flex items-center gap-1">
                             {isPlugin && (
                               <Badge variant="outline" className="text-xs">
-                                Plugin
+                                {t('plugin')}
                               </Badge>
                             )}
                             <Tooltip>
@@ -415,7 +417,7 @@ export function VideoEffectsPanel({
                                   <Plus className="h-3 w-3" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Add effect</TooltipContent>
+                              <TooltipContent>{t('addEffect')}</TooltipContent>
                             </Tooltip>
                           </div>
                         </div>
@@ -433,8 +435,8 @@ export function VideoEffectsPanel({
           {appliedEffects.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
               <Layers className="h-12 w-12 mb-2 opacity-50" />
-              <p>No effects applied</p>
-              <p className="text-sm">Browse effects to add some</p>
+              <p>{t('noEffectsApplied')}</p>
+              <p className="text-sm">{t('browseHint')}</p>
             </div>
           ) : (
             <ScrollArea className="h-[300px] sm:h-[400px]">
@@ -484,7 +486,7 @@ export function VideoEffectsPanel({
                                   <ChevronUp className="h-3 w-3" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Move up</TooltipContent>
+                              <TooltipContent>{t('moveUp')}</TooltipContent>
                             </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -503,7 +505,7 @@ export function VideoEffectsPanel({
                                   <ChevronDown className="h-3 w-3" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Move down</TooltipContent>
+                              <TooltipContent>{t('moveDown')}</TooltipContent>
                             </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -519,7 +521,7 @@ export function VideoEffectsPanel({
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Remove</TooltipContent>
+                              <TooltipContent>{t('remove')}</TooltipContent>
                             </Tooltip>
                           </div>
                         </div>

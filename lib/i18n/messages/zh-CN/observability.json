@@ -1,0 +1,130 @@
+{
+  "observability": {
+    "title": "可观测性",
+    "description": "使用 Langfuse 和 OpenTelemetry 追踪 AI 操作、查看链路追踪和分析成本",
+    "close": "关闭",
+    "noData": "暂无数据",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+
+    "timeRange": {
+      "1h": "最近 1 小时",
+      "24h": "最近 24 小时",
+      "7d": "最近 7 天",
+      "30d": "最近 30 天",
+      "lastHour": "最近一小时",
+      "last24Hours": "最近 24 小时",
+      "last7Days": "最近 7 天",
+      "last30Days": "最近 30 天"
+    },
+
+    "button": {
+      "label": "可观测性",
+      "tooltipTitle": "可观测性仪表板",
+      "tooltipDisabledHint": "在设置中启用以查看追踪"
+    },
+
+    "dashboard": {
+      "title": "可观测性仪表板",
+      "disabledTitle": "可观测性已禁用",
+      "disabledDescription": "在设置中启用可观测性以追踪 AI 操作、查看链路追踪和分析成本。",
+      "totalRequests": "总请求数",
+      "avgLatency": "平均延迟",
+      "totalCost": "总成本",
+      "errorRate": "错误率",
+      "recentTraces": "最近追踪",
+      "noTraces": "暂无追踪记录。开始使用 AI 功能后将在此显示追踪信息。",
+      "selectTrace": "选择一个追踪以查看详情",
+      "traceRunning": "运行中...",
+      "tabs": {
+        "traces": "追踪",
+        "metrics": "指标",
+        "costs": "成本分析"
+      }
+    },
+
+    "costAnalysis": {
+      "title": "成本分析",
+      "noData": "暂无成本数据",
+      "totalCost": "总成本",
+      "costPerRequest": "每请求成本",
+      "costPer1kTokens": "每千 Token 成本",
+      "projectedMonthly": "预计月度成本",
+      "costByProvider": "按提供商成本",
+      "costBreakdown": "成本明细",
+      "apiCosts": "API 成本",
+      "costBreakdownDesc": "基于 {requests} 次请求，使用 {tokens} 个 Token",
+      "totalRequests": "总请求数",
+      "totalTokens": "总 Token 数",
+      "avgTokensPerRequest": "平均 Token/请求",
+      "percentOfTotal": "占总量 {percent}%"
+    },
+
+    "metrics": {
+      "title": "指标概览",
+      "noData": "暂无指标数据",
+      "totalRequests": "总请求数",
+      "totalTokens": "总 Token 数",
+      "avgLatency": "平均延迟",
+      "errorRate": "错误率",
+      "latencyPercentiles": "延迟百分位",
+      "p50": "P50",
+      "p90": "P90",
+      "p99": "P99",
+      "requestsByProvider": "按提供商请求数",
+      "requestsByModel": "按模型请求数",
+      "tokensByProvider": "按提供商 Token 数"
+    },
+
+    "traceViewer": {
+      "traceId": "追踪 ID：",
+      "sessionId": "会话：",
+      "started": "开始时间：",
+      "duration": "持续时间：",
+      "provider": "提供商：",
+      "model": "模型：",
+      "spanTree": "Span 树",
+      "noSpans": "暂无 Span 记录",
+      "metadata": "元数据",
+      "openInLangfuse": "在 Langfuse 中打开",
+      "input": "输入",
+      "output": "输出",
+      "tokenUsage": {
+        "prompt": "提示词：",
+        "completion": "补全：",
+        "total": "总计：",
+        "cost": "成本："
+      }
+    },
+
+    "settings": {
+      "title": "可观测性",
+      "description": "使用 Langfuse 和 OpenTelemetry 追踪 AI 操作、查看链路追踪和分析成本",
+      "testConnection": "测试连接",
+      "testingConnection": "正在测试连接...",
+      "connectionSuccess": "连接成功！",
+      "connectionFailed": "连接失败",
+      "configureKeysFirst": "请先配置 API 密钥",
+      "getApiKeys": "获取 API 密钥",
+      "langfuse": {
+        "title": "Langfuse 集成",
+        "description": "专为 AI 设计的可观测性，用于追踪、评估和分析",
+        "hostUrl": "主机 URL",
+        "hostUrlPlaceholder": "https://cloud.langfuse.com",
+        "publicKey": "公钥",
+        "publicKeyPlaceholder": "pk-lf-...",
+        "secretKey": "私钥",
+        "secretKeyPlaceholder": "sk-lf-..."
+      },
+      "otel": {
+        "title": "OpenTelemetry",
+        "description": "用于基础设施可观测性的标准分布式追踪",
+        "endpoint": "OTLP 端点",
+        "endpointPlaceholder": "http://localhost:4318/v1/traces",
+        "endpointHint": "用于发送追踪的 OTLP HTTP 端点（如 Jaeger、Zipkin 或 OTEL Collector）",
+        "serviceName": "服务名称",
+        "serviceNamePlaceholder": "cognia-ai"
+      }
+    }
+  }
+}

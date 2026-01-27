@@ -25,6 +25,7 @@ interface PromptMarketplaceState {
   collections: Record<string, PromptCollection>;
   featuredIds: string[];
   trendingIds: string[];
+  reviews: Record<string, PromptReview[]>;
 
   // User activity
   userActivity: MarketplaceUserActivity;
@@ -94,6 +95,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       collections: {},
       featuredIds: [],
       trendingIds: [],
+      reviews: {},
       userActivity: initialUserActivity,
       isLoading: false,
       error: null,
@@ -244,9 +246,9 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
         return get().prompts[id] || null;
       },
 
-      fetchPromptReviews: async (_promptId: string, _page = 1) => {
-        // In production, this would fetch from API
-        return [];
+      fetchPromptReviews: async (promptId: string, _page = 1) => {
+        // Return locally stored reviews
+        return get().reviews[promptId] || [];
       },
 
       // Installation Actions
@@ -443,12 +445,78 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       },
 
       // Review Actions
-      submitReview: async (_promptId: string, _rating: number, _content: string) => {
-        // In production, this would submit to API
+      submitReview: async (promptId: string, rating: number, content: string) => {
+        const review: PromptReview = {
+          id: nanoid(),
+          authorId: get().userActivity.userId || 'anonymous',
+          authorName: 'You',
+          rating,
+          content,
+          helpful: 0,
+          createdAt: new Date(),
+        };
+
+        set((state) => {
+          const promptReviews = state.reviews[promptId] || [];
+          const newReviews = [review, ...promptReviews];
+          
+          // Update prompt rating
+          const prompt = state.prompts[promptId];
+          if (prompt) {
+            const allRatings = newReviews.map((r) => r.rating);
+            const newAverage = allRatings.reduce((a, b) => a + b, 0) / allRatings.length;
+            const newDistribution = { ...prompt.rating.distribution };
+            newDistribution[rating as 1 | 2 | 3 | 4 | 5] += 1;
+
+            return {
+              reviews: {
+                ...state.reviews,
+                [promptId]: newReviews,
+              },
+              prompts: {
+                ...state.prompts,
+                [promptId]: {
+                  ...prompt,
+                  rating: {
+                    average: newAverage,
+                    count: prompt.rating.count + 1,
+                    distribution: newDistribution,
+                  },
+                  reviewCount: prompt.reviewCount + 1,
+                },
+              },
+              userActivity: {
+                ...state.userActivity,
+                reviewed: [...state.userActivity.reviewed, promptId],
+              },
+            };
+          }
+
+          return {
+            reviews: {
+              ...state.reviews,
+              [promptId]: newReviews,
+            },
+            userActivity: {
+              ...state.userActivity,
+              reviewed: [...state.userActivity.reviewed, promptId],
+            },
+          };
+        });
       },
 
-      markReviewHelpful: async (_reviewId: string) => {
-        // In production, this would update via API
+      markReviewHelpful: async (reviewId: string) => {
+        set((state) => {
+          const newReviews = { ...state.reviews };
+          for (const promptId of Object.keys(newReviews)) {
+            newReviews[promptId] = newReviews[promptId].map((review) =>
+              review.id === reviewId
+                ? { ...review, helpful: review.helpful + 1 }
+                : review
+            );
+          }
+          return { reviews: newReviews };
+        });
       },
 
       // Publishing Actions
@@ -493,6 +561,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           collections: {},
           featuredIds: [],
           trendingIds: [],
+          reviews: {},
           lastSyncedAt: null,
         });
       },
@@ -549,6 +618,16 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
         collections: state.collections,
         featuredIds: state.featuredIds,
         trendingIds: state.trendingIds,
+        reviews: Object.fromEntries(
+          Object.entries(state.reviews).map(([promptId, reviews]) => [
+            promptId,
+            reviews.map((r) => ({
+              ...r,
+              createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+              updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : r.updatedAt,
+            })),
+          ])
+        ),
         lastSyncedAt: state.lastSyncedAt?.toISOString(),
       }),
       onRehydrateStorage: () => (state) => {
@@ -576,6 +655,16 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
             p.updatedAt = new Date(p.updatedAt);
             if (p.publishedAt) p.publishedAt = new Date(p.publishedAt);
           });
+          // Rehydrate review dates
+          if (state.reviews) {
+            Object.keys(state.reviews).forEach((promptId) => {
+              state.reviews[promptId] = state.reviews[promptId].map((r) => ({
+                ...r,
+                createdAt: new Date(r.createdAt),
+                updatedAt: r.updatedAt ? new Date(r.updatedAt) : undefined,
+              }));
+            });
+          }
         }
       },
     }

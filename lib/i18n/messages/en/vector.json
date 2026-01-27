@@ -69,7 +69,21 @@
     "hideMetadata": "Hide metadata",
     "showMetadata": "Show metadata",
     "peek": "Peek (first N)",
-    "peekBtn": "Peek"
+    "peekBtn": "Peek",
+    "confirmDeleteTitle": "Delete Collection",
+    "confirmDeleteDesc": "Are you sure you want to delete this collection? This action cannot be undone.",
+    "confirmClearTitle": "Clear Collection",
+    "confirmClearDesc": "Are you sure you want to clear all documents from this collection?",
+    "confirmTruncateTitle": "Truncate Collection",
+    "confirmTruncateDesc": "Are you sure you want to truncate this collection? All data will be removed.",
+    "confirmDeleteDocsTitle": "Delete All Documents",
+    "confirmDeleteDocsDesc": "Are you sure you want to delete all documents from this collection?",
+    "deleteCollectionTooltip": "Permanently delete the selected collection",
+    "clearCollectionTooltip": "Remove all documents but keep the collection",
+    "truncateTooltip": "Reset collection to empty state",
+    "deleteAllDocsTooltip": "Remove all documents from collection",
+    "exportTooltip": "Export collection data as JSON file",
+    "importTooltip": "Import collection from JSON file"
   },
   "vectorSettings": {
     "title": "Vector Database",
@@ -93,6 +107,10 @@
     "defaultCollectionHint": "The default collection name used for RAG searches when not specified.",
     "testConnection": "Test connection",
     "testing": "Testing...",
-    "nativeProviderHint": "Native provider stores vectors locally via Tauri commands (JSON-backed). Ensure desktop runtime is used."
+    "nativeProviderHint": "Native provider stores vectors locally via Tauri commands (JSON-backed). Ensure desktop runtime is used.",
+    "providerChroma": "Chroma (embedded/server)",
+    "providerNative": "Native (local Tauri)",
+    "connectionSuccess": "Success: {count} collections reachable",
+    "connectionFailed": "Connection failed"
   }
 }

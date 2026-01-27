@@ -18,6 +18,12 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useArtifactStore, useSessionStore } from '@/stores';
 import type { Artifact } from '@/types';
@@ -126,13 +132,22 @@ export function ArtifactList({
                 <ContextMenuItem onClick={() => handleArtifactClick(artifact)}>
                   {t('open')}
                 </ContextMenuItem>
-                <ContextMenuItem
-                  className="text-destructive"
-                  onClick={(e) => handleDelete(artifact.id, e as unknown as React.MouseEvent)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {t('delete')}
-                </ContextMenuItem>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ContextMenuItem
+                        className="text-destructive"
+                        onClick={(e) => handleDelete(artifact.id, e as unknown as React.MouseEvent)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        {t('delete')}
+                      </ContextMenuItem>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>{t('delete')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </ContextMenuContent>
             </ContextMenu>
           );

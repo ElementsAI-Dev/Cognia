@@ -12,6 +12,7 @@ export { SkillTestPanel } from './skill-test-panel';
 export { SkillAnalytics } from './skill-analytics';
 export { SkillCard } from './skill-card';
 export { SkillPanel } from './skill-panel';
+export { SkillFilterSheet } from './skill-filter-sheet';
 export { SkillWizard } from './skill-wizard';
 export { SkillSuggestions, ActiveSkillsIndicator } from './skill-suggestions';
 export { SkillDiscovery } from './skill-discovery';

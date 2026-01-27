@@ -201,7 +201,7 @@ export function LocalProviderSettings({ onProviderSelect: _onProviderSelect }: L
             <div className="flex items-center gap-2">
               {groupRunning > 0 && (
                 <Badge variant="default" className="bg-green-600">
-                  {groupRunning} running
+                  {groupRunning} {t('running')}
                 </Badge>
               )}
               {isExpanded ? (
@@ -253,17 +253,17 @@ export function LocalProviderSettings({ onProviderSelect: _onProviderSelect }: L
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Server className="h-5 w-5" />
-                {t('localProvidersTitle') || 'Local Providers'}
+                {t('localProvidersTitle')}
               </CardTitle>
               <CardDescription>
-                {t('localProvidersDescription') || 'Run AI models locally on your machine'}
+                {t('localProvidersDescription')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               {runningCount > 0 && (
                 <Badge variant="default" className="bg-green-600">
                   <Zap className="h-3 w-3 mr-1" />
-                  {runningCount} running
+                  {runningCount} {t('running')}
                 </Badge>
               )}
               <Button
@@ -277,7 +277,7 @@ export function LocalProviderSettings({ onProviderSelect: _onProviderSelect }: L
                 ) : (
                   <Scan className="h-4 w-4 mr-1" />
                 )}
-                Scan
+                {t('scan')}
               </Button>
             </div>
           </div>
@@ -288,11 +288,11 @@ export function LocalProviderSettings({ onProviderSelect: _onProviderSelect }: L
           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
             <span className="flex items-center gap-1">
               <Check className="h-3.5 w-3.5 text-green-500" />
-              {installedCount} installed
+              {installedCount} {t('installed')}
             </span>
             <span className="flex items-center gap-1">
               <Zap className="h-3.5 w-3.5 text-primary" />
-              {runningCount} running
+              {runningCount} {t('running')}
             </span>
           </div>
 
@@ -301,20 +301,20 @@ export function LocalProviderSettings({ onProviderSelect: _onProviderSelect }: L
             {renderProviderGroup(
               'recommended',
               PROVIDER_GROUPS.recommended,
-              'Recommended',
-              'Easy to install, great for beginners'
+              t('providerGroups.recommended'),
+              t('providerGroups.recommendedDesc')
             )}
             {renderProviderGroup(
               'advanced',
               PROVIDER_GROUPS.advanced,
-              'Advanced',
-              'More control, requires technical setup'
+              t('providerGroups.advanced'),
+              t('providerGroups.advancedDesc')
             )}
             {renderProviderGroup(
               'specialized',
               PROVIDER_GROUPS.specialized,
-              'Specialized',
-              'For specific use cases'
+              t('providerGroups.specialized'),
+              t('providerGroups.specializedDesc')
             )}
           </div>
 
@@ -327,7 +327,7 @@ export function LocalProviderSettings({ onProviderSelect: _onProviderSelect }: L
               onClick={() => handleSetupWizard('ollama')}
             >
               <Download className="h-4 w-4 mr-1" />
-              Quick Setup
+              {t('quickSetup')}
             </Button>
             <Button
               variant="outline"
@@ -340,7 +340,7 @@ export function LocalProviderSettings({ onProviderSelect: _onProviderSelect }: L
                 rel="noopener noreferrer"
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
-                Browse Models
+                {t('browseModels')}
               </a>
             </Button>
           </div>
@@ -352,10 +352,10 @@ export function LocalProviderSettings({ onProviderSelect: _onProviderSelect }: L
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {selectedProvider && LOCAL_PROVIDER_CONFIGS[selectedProvider].name} Models
+              {selectedProvider && t('providerModels', { provider: LOCAL_PROVIDER_CONFIGS[selectedProvider].name })}
             </DialogTitle>
             <DialogDescription>
-              Manage installed models for this provider
+              {t('manageInstalledModels')}
             </DialogDescription>
           </DialogHeader>
           {selectedProvider && (
@@ -372,10 +372,10 @@ export function LocalProviderSettings({ onProviderSelect: _onProviderSelect }: L
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {setupWizardProvider && LOCAL_PROVIDER_CONFIGS[setupWizardProvider]?.name} Setup
+              {setupWizardProvider && t('providerSetup', { provider: LOCAL_PROVIDER_CONFIGS[setupWizardProvider]?.name })}
             </DialogTitle>
             <DialogDescription>
-              Follow these steps to get started
+              {t('followStepsToStart')}
             </DialogDescription>
           </DialogHeader>
           {setupWizardProvider && (

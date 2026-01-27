@@ -11,7 +11,8 @@
  * - EQ presets
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -69,15 +70,6 @@ export interface AudioTrackControlsProps {
   className?: string;
 }
 
-const EQ_PRESETS = [
-  { value: 'flat', label: 'Flat' },
-  { value: 'voice', label: 'Voice Enhancement' },
-  { value: 'music', label: 'Music' },
-  { value: 'bass-boost', label: 'Bass Boost' },
-  { value: 'treble-boost', label: 'Treble Boost' },
-  { value: 'podcast', label: 'Podcast' },
-  { value: 'cinematic', label: 'Cinematic' },
-];
 
 const DEFAULT_SETTINGS: AudioTrackSettings = {
   gain: 1,
@@ -101,7 +93,18 @@ export function AudioTrackControls({
   onReset,
   className,
 }: AudioTrackControlsProps) {
+  const t = useTranslations('audioTrack');
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const eqPresets = useMemo(() => [
+    { value: 'flat', label: t('eqPresets.flat') },
+    { value: 'voice', label: t('eqPresets.voice') },
+    { value: 'music', label: t('eqPresets.music') },
+    { value: 'bass-boost', label: t('eqPresets.bassBoost') },
+    { value: 'treble-boost', label: t('eqPresets.trebleBoost') },
+    { value: 'podcast', label: t('eqPresets.podcast') },
+    { value: 'cinematic', label: t('eqPresets.cinematic') },
+  ], [t]);
 
   const handleGainChange = useCallback(
     (value: number[]) => {
@@ -151,14 +154,14 @@ export function AudioTrackControls({
               <RotateCcw className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Reset to defaults</TooltipContent>
+          <TooltipContent>{t('resetToDefaults')}</TooltipContent>
         </Tooltip>
       </div>
 
       {/* Gain control */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label className="text-sm">Gain</Label>
+          <Label className="text-sm">{t('gain')}</Label>
           <span className="text-xs text-muted-foreground font-mono">
             {formatGain(settings.gain)}
           </span>
@@ -174,9 +177,9 @@ export function AudioTrackControls({
           />
         </div>
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>-∞</span>
-          <span>0 dB</span>
-          <span>+6 dB</span>
+          <span>{t('gainLabels.minusInfinity')}</span>
+          <span>{t('gainLabels.zero')}</span>
+          <span>{t('gainLabels.plusSix')}</span>
         </div>
       </div>
 
@@ -186,7 +189,7 @@ export function AudioTrackControls({
         <div className="space-y-2">
           <div className="flex items-center gap-1">
             <TrendingUp className="h-3 w-3" />
-            <Label className="text-xs">Fade In</Label>
+            <Label className="text-xs">{t('fadeIn')}</Label>
           </div>
           <Slider
             value={[settings.fadeInDuration]}
@@ -204,7 +207,7 @@ export function AudioTrackControls({
         <div className="space-y-2">
           <div className="flex items-center gap-1">
             <TrendingDown className="h-3 w-3" />
-            <Label className="text-xs">Fade Out</Label>
+            <Label className="text-xs">{t('fadeOut')}</Label>
           </div>
           <Slider
             value={[settings.fadeOutDuration]}
@@ -224,7 +227,7 @@ export function AudioTrackControls({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Waves className="h-4 w-4" />
-            <Label className="text-sm">Normalize Audio</Label>
+            <Label className="text-sm">{t('normalizeAudio')}</Label>
           </div>
           <Switch
             checked={settings.normalize}
@@ -235,7 +238,7 @@ export function AudioTrackControls({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sliders className="h-4 w-4" />
-            <Label className="text-sm">Noise Reduction</Label>
+            <Label className="text-sm">{t('noiseReduction')}</Label>
           </div>
           <Switch
             checked={settings.noiseReduction}
@@ -246,7 +249,7 @@ export function AudioTrackControls({
         {settings.noiseReduction && (
           <div className="pl-6 space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs">Reduction Level</Label>
+              <Label className="text-xs">{t('reductionLevel')}</Label>
               <span className="text-xs text-muted-foreground">
                 {Math.round(settings.noiseReductionLevel * 100)}%
               </span>
@@ -264,7 +267,7 @@ export function AudioTrackControls({
 
       {/* EQ Preset */}
       <div className="space-y-2">
-        <Label className="text-sm">EQ Preset</Label>
+        <Label className="text-sm">{t('eqPreset')}</Label>
         <Select
           value={settings.eqPreset}
           onValueChange={(value) => onSettingsChange({ eqPreset: value })}
@@ -273,7 +276,7 @@ export function AudioTrackControls({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {EQ_PRESETS.map((preset) => (
+            {eqPresets.map((preset) => (
               <SelectItem key={preset.value} value={preset.value}>
                 {preset.label}
               </SelectItem>
@@ -286,7 +289,7 @@ export function AudioTrackControls({
       <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
         <CollapsibleTrigger asChild>
           <Button variant="ghost" className="w-full justify-between h-8">
-            <span className="text-xs">Advanced Settings</span>
+            <span className="text-xs">{t('advancedSettings')}</span>
             {showAdvanced ? (
               <ChevronUp className="h-3 w-3" />
             ) : (
@@ -298,7 +301,7 @@ export function AudioTrackControls({
           {/* Compressor */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Compressor</Label>
+              <Label className="text-sm">{t('compressor')}</Label>
               <Switch
                 checked={settings.compressor}
                 onCheckedChange={(checked) => onSettingsChange({ compressor: checked })}
@@ -309,7 +312,7 @@ export function AudioTrackControls({
               <div className="space-y-3 pl-2">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Threshold</Label>
+                    <Label className="text-xs">{t('threshold')}</Label>
                     <Input
                       type="number"
                       value={settings.compressorThreshold}
@@ -332,7 +335,7 @@ export function AudioTrackControls({
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Ratio</Label>
+                    <Label className="text-xs">{t('ratio')}</Label>
                     <span className="text-xs text-muted-foreground">
                       {settings.compressorRatio}:1
                     </span>

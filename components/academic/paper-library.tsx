@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Library,
   Grid,
@@ -73,6 +74,7 @@ interface PaperLibraryProps {
 }
 
 export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
+  const t = useTranslations('academic.paperLibrary');
   const {
     libraryPapers,
     collections,
@@ -159,7 +161,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
       <div className="w-56 border-r flex flex-col">
         <div className="p-3 border-b">
           <div className="flex items-center justify-between">
-            <h3 className="font-medium text-sm">Collections</h3>
+            <h3 className="font-medium text-sm">{t('collections')}</h3>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -168,22 +170,22 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Create Collection</DialogTitle>
+                  <DialogTitle>{t('createCollection')}</DialogTitle>
                   <DialogDescription>
-                    Create a new collection to organize your papers
+                    {t('createCollectionDescription')}
                   </DialogDescription>
                 </DialogHeader>
                 <Input
-                  placeholder="Collection name"
+                  placeholder={t('collectionName')}
                   value={newCollectionName}
                   onChange={(e) => setNewCollectionName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateCollection()}
                 />
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                    Cancel
+                    {t('cancel')}
                   </Button>
-                  <Button onClick={handleCreateCollection}>Create</Button>
+                  <Button onClick={handleCreateCollection}>{t('create')}</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -198,7 +200,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
               onClick={() => selectCollection(null)}
             >
               <Library className="h-4 w-4 mr-2" />
-              All Papers
+              {t('allPapers')}
               <Badge variant="outline" className="ml-auto text-xs">
                 {libraryPapers.length}
               </Badge>
@@ -232,7 +234,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
         <div className="p-3 border-b space-y-3">
           <div className="flex items-center gap-2">
             <Input
-              placeholder="Search papers..."
+              placeholder={t('searchPapers')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1"
@@ -265,7 +267,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
             </div>
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
-              Export
+              {t('export')}
             </Button>
           </div>
 
@@ -277,19 +279,19 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
             >
               <TabsList className="h-8">
                 <TabsTrigger value="all" className="text-xs h-7">
-                  All
+                  {t('status.all')}
                 </TabsTrigger>
                 <TabsTrigger value="unread" className="text-xs h-7">
-                  Unread
+                  {t('status.unread')}
                 </TabsTrigger>
                 <TabsTrigger value="reading" className="text-xs h-7">
-                  Reading
+                  {t('status.reading')}
                 </TabsTrigger>
                 <TabsTrigger value="completed" className="text-xs h-7">
-                  Completed
+                  {t('status.completed')}
                 </TabsTrigger>
                 <TabsTrigger value="archived" className="text-xs h-7">
-                  Archived
+                  {t('status.archived')}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -303,7 +305,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
               }}
             >
               {isBatchMode ? <CheckSquare className="h-4 w-4 mr-1" /> : <Square className="h-4 w-4 mr-1" />}
-              {isBatchMode ? 'Exit Selection' : 'Select'}
+              {isBatchMode ? t('exitSelection') : t('select')}
             </Button>
           </div>
           
@@ -311,7 +313,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
           {isBatchMode && selectedPaperIds.length > 0 && (
             <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
               <span className="text-sm font-medium">
-                {selectedPaperIds.length} selected
+                {selectedPaperIds.length} {t('selected')}
               </span>
               <div className="flex-1" />
               <Button
@@ -319,13 +321,13 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
                 size="sm"
                 onClick={() => selectAllPapers()}
               >
-                Select All
+                {t('selectAll')}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Clock className="h-4 w-4 mr-1" />
-                    Set Status
+                    {t('setStatus')}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
@@ -351,12 +353,12 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <FolderInput className="h-4 w-4 mr-1" />
-                    Add to Collection
+                    {t('addToCollection')}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   {collections.length === 0 ? (
-                    <DropdownMenuItem disabled>No collections</DropdownMenuItem>
+                    <DropdownMenuItem disabled>{t('noCollections')}</DropdownMenuItem>
                   ) : (
                     collections.map((coll) => (
                       <DropdownMenuItem
@@ -382,7 +384,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
                 }}
               >
                 <Trash2 className="h-4 w-4 mr-1" />
-                Remove
+                {t('remove')}
               </Button>
               <Button
                 variant="ghost"
@@ -402,8 +404,8 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
             {filteredPapers.length === 0 ? (
               <div className="text-center text-muted-foreground py-12">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No papers in your library</p>
-                <p className="text-sm mt-2">Search and add papers to get started</p>
+                <p>{t('emptyState')}</p>
+                <p className="text-sm mt-2">{t('emptyStateHint')}</p>
               </div>
             ) : (
               filteredPapers.map((paper) => (

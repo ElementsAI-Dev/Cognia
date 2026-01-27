@@ -57,7 +57,10 @@
     "deleteProjectConfirm": "确定要删除 \"{name}\" 吗？这不会删除与此项目关联的会话，但它们将被取消关联。",
     "today": "今天",
     "yesterday": "昨天",
-    "daysAgo": "{days} 天前"
+    "daysAgo": "{days} 天前",
+    "viewActiveTooltip": "查看活跃项目",
+    "viewArchivedTooltip": "查看已归档项目",
+    "importExportTooltip": "导入或导出项目数据"
   },
   "importExport": {
     "title": "导入 / 导出项目",
@@ -70,6 +73,8 @@
     "deselectAll": "取消全选",
     "exportJson": "导出 JSON",
     "exportZip": "导出 ZIP",
+    "exportJsonTooltip": "将所选项目导出为 JSON 文件",
+    "exportZipTooltip": "将所选项目导出为 ZIP 压缩包",
     "importing": "导入中...",
     "dropHint": "拖放文件到此处或点击浏览",
     "supportedFormats": "支持 .json 或 .zip 文件",
@@ -79,6 +84,7 @@
   "templates": {
     "createFromTemplate": "从模板创建",
     "chooseTemplate": "选择模板快速设置您的项目",
+    "clickToCreate": "点击从此模板创建项目",
     "all": "全部",
     "categories": {
       "development": "开发",
@@ -187,13 +193,15 @@
     "deleteConfirm": "确定要删除此文件吗？此操作无法撤销。",
     "deleteMultipleFiles": "删除多个文件",
     "deleteMultipleConfirm": "确定要删除 {count} 个文件吗？此操作无法撤销。",
-    "deleteAll": "删除 {count} 个文件"
+    "deleteAll": "删除 {count} 个文件",
+    "view": "查看文件"
   },
   "projectActivity": {
     "activity": "活动",
     "activityHistory": "活动历史",
     "filter": "筛选",
     "noActivityYet": "暂无活动记录",
+    "filterTooltip": "按类型筛选活动",
     "activityTypes": {
       "session_created": "创建会话",
       "session_added": "添加会话",
@@ -234,6 +242,12 @@
     "variableName": "变量名称",
     "variableValue": "值",
     "name": "名称",
-    "value": "值"
+    "value": "值",
+    "placeholders": {
+      "variableName": "MY_VARIABLE",
+      "variableValue": "value",
+      "projectName": "我的项目",
+      "projectPath": "/path/to/project"
+    }
   }
 }

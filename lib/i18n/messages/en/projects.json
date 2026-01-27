@@ -57,7 +57,10 @@
     "deleteProjectConfirm": "Are you sure you want to delete \"{name}\"? This will not delete the sessions associated with this project, but they will be unlinked.",
     "today": "Today",
     "yesterday": "Yesterday",
-    "daysAgo": "{days} days ago"
+    "daysAgo": "{days} days ago",
+    "viewActiveTooltip": "View active projects",
+    "viewArchivedTooltip": "View archived projects",
+    "importExportTooltip": "Import or export project data"
   },
   "importExport": {
     "title": "Import / Export Projects",
@@ -70,6 +73,8 @@
     "deselectAll": "Deselect All",
     "exportJson": "Export JSON",
     "exportZip": "Export ZIP",
+    "exportJsonTooltip": "Export selected projects as JSON file",
+    "exportZipTooltip": "Export selected projects as ZIP archive",
     "importing": "Importing...",
     "dropHint": "Drop a file here or click to browse",
     "supportedFormats": "Supports .json or .zip files",
@@ -79,6 +84,7 @@
   "templates": {
     "createFromTemplate": "Create from Template",
     "chooseTemplate": "Choose a template to quickly set up your project",
+    "clickToCreate": "Click to create project from this template",
     "all": "All",
     "categories": {
       "development": "Development",
@@ -187,13 +193,15 @@
     "deleteConfirm": "Are you sure you want to delete this file? This action cannot be undone.",
     "deleteMultipleFiles": "Delete Multiple Files",
     "deleteMultipleConfirm": "Are you sure you want to delete {count} files? This action cannot be undone.",
-    "deleteAll": "Delete {count} Files"
+    "deleteAll": "Delete {count} Files",
+    "view": "View file"
   },
   "projectActivity": {
     "activity": "Activity",
     "activityHistory": "Activity History",
     "filter": "Filter",
     "noActivityYet": "No activity recorded yet",
+    "filterTooltip": "Filter activities by type",
     "activityTypes": {
       "session_created": "Session Created",
       "session_added": "Session Added",
@@ -234,6 +242,12 @@
     "variableName": "Variable Name",
     "variableValue": "Value",
     "name": "Name",
-    "value": "Value"
+    "value": "Value",
+    "placeholders": {
+      "variableName": "MY_VARIABLE",
+      "variableValue": "value",
+      "projectName": "My Project",
+      "projectPath": "/path/to/project"
+    }
   }
 }

@@ -13,8 +13,26 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -53,6 +71,9 @@ import {
   Music,
   Square,
   Copy,
+  Pencil,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 export type LayerType = 'video' | 'image' | 'text' | 'audio' | 'shape' | 'group';
@@ -113,19 +134,19 @@ const LAYER_TYPE_ICONS: Record<LayerType, typeof Film> = {
   group: Layers,
 };
 
-const BLEND_MODES: { value: BlendMode; label: string }[] = [
-  { value: 'normal', label: 'Normal' },
-  { value: 'multiply', label: 'Multiply' },
-  { value: 'screen', label: 'Screen' },
-  { value: 'overlay', label: 'Overlay' },
-  { value: 'darken', label: 'Darken' },
-  { value: 'lighten', label: 'Lighten' },
-  { value: 'color-dodge', label: 'Color Dodge' },
-  { value: 'color-burn', label: 'Color Burn' },
-  { value: 'hard-light', label: 'Hard Light' },
-  { value: 'soft-light', label: 'Soft Light' },
-  { value: 'difference', label: 'Difference' },
-  { value: 'exclusion', label: 'Exclusion' },
+const BLEND_MODE_KEYS: { value: BlendMode; key: string }[] = [
+  { value: 'normal', key: 'normal' },
+  { value: 'multiply', key: 'multiply' },
+  { value: 'screen', key: 'screen' },
+  { value: 'overlay', key: 'overlay' },
+  { value: 'darken', key: 'darken' },
+  { value: 'lighten', key: 'lighten' },
+  { value: 'color-dodge', key: 'colorDodge' },
+  { value: 'color-burn', key: 'colorBurn' },
+  { value: 'hard-light', key: 'hardLight' },
+  { value: 'soft-light', key: 'softLight' },
+  { value: 'difference', key: 'difference' },
+  { value: 'exclusion', key: 'exclusion' },
 ];
 
 export function LayerPanel({
@@ -137,15 +158,17 @@ export function LayerPanel({
   onLayerOpacityChange,
   onLayerBlendModeChange,
   onLayerRename,
-  onLayerReorder: _onLayerReorder,
+  onLayerReorder,
   onLayerDelete,
   onLayerDuplicate,
   onAddLayer,
   className,
 }: LayerPanelProps) {
+  const t = useTranslations('layers');
   const [expandedLayerId, setExpandedLayerId] = useState<string | null>(null);
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [deleteLayerId, setDeleteLayerId] = useState<string | null>(null);
 
   const handleLayerClick = useCallback(
     (e: React.MouseEvent, layerId: string) => {
@@ -189,28 +212,51 @@ export function LayerPanel({
     ? layers.find((l) => l.id === selectedLayerIds[0])
     : null;
 
+  const handleDeleteConfirm = useCallback(() => {
+    if (deleteLayerId) {
+      onLayerDelete(deleteLayerId);
+      setDeleteLayerId(null);
+    }
+  }, [deleteLayerId, onLayerDelete]);
+
   return (
     <div className={cn('flex flex-col h-full bg-background border rounded-lg', className)}>
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b">
         <h3 className="font-medium flex items-center gap-2">
           <Layers className="h-4 w-4" />
-          Layers
+          {t('title')}
         </h3>
         <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => onAddLayer('video')}
-              >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7">
                 <Plus className="h-4 w-4" />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>Add Layer</TooltipContent>
-          </Tooltip>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onAddLayer('video')}>
+                <Film className="h-4 w-4 mr-2" />
+                {t('types.video')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddLayer('image')}>
+                <Image className="h-4 w-4 mr-2" />
+                {t('types.image')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddLayer('text')}>
+                <Type className="h-4 w-4 mr-2" />
+                {t('types.text')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddLayer('audio')}>
+                <Music className="h-4 w-4 mr-2" />
+                {t('types.audio')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddLayer('shape')}>
+                <Square className="h-4 w-4 mr-2" />
+                {t('types.shape')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -220,7 +266,7 @@ export function LayerPanel({
           {layers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No layers</p>
+              <p className="text-sm">{t('noLayers')}</p>
             </div>
           ) : (
             layers.map((layer, _index) => {
@@ -304,7 +350,7 @@ export function LayerPanel({
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>{layer.visible ? 'Hide' : 'Show'}</TooltipContent>
+                        <TooltipContent>{layer.visible ? t('hide') : t('show')}</TooltipContent>
                       </Tooltip>
 
                       <Tooltip>
@@ -325,7 +371,7 @@ export function LayerPanel({
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>{layer.locked ? 'Unlock' : 'Lock'}</TooltipContent>
+                        <TooltipContent>{layer.locked ? t('unlock') : t('lock')}</TooltipContent>
                       </Tooltip>
                     </div>
                   </div>
@@ -336,7 +382,7 @@ export function LayerPanel({
                       {/* Opacity */}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <Label className="text-xs">Opacity</Label>
+                          <Label className="text-xs">{t('opacity')}</Label>
                           <span className="text-xs text-muted-foreground">
                             {Math.round(layer.opacity * 100)}%
                           </span>
@@ -353,7 +399,7 @@ export function LayerPanel({
 
                       {/* Blend mode */}
                       <div className="space-y-1">
-                        <Label className="text-xs">Blend Mode</Label>
+                        <Label className="text-xs">{t('blendMode')}</Label>
                         <Select
                           value={layer.blendMode}
                           onValueChange={(v) => onLayerBlendModeChange(layer.id, v as BlendMode)}
@@ -363,17 +409,29 @@ export function LayerPanel({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {BLEND_MODES.map((mode) => (
+                            {BLEND_MODE_KEYS.map((mode) => (
                               <SelectItem key={mode.value} value={mode.value}>
-                                {mode.label}
+                                {t(`blendModes.${mode.key}`)}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
 
+                      <Separator className="my-2" />
+
                       {/* Layer actions */}
                       <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => handleStartRename(layer)}
+                          disabled={layer.locked}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          {t('rename')}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -382,17 +440,37 @@ export function LayerPanel({
                           disabled={layer.locked}
                         >
                           <Copy className="h-3 w-3 mr-1" />
-                          Duplicate
+                          {t('duplicate')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => onLayerReorder(layer.id, 'up')}
+                          disabled={layer.locked}
+                        >
+                          <ArrowUp className="h-3 w-3 mr-1" />
+                          {t('moveUp')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => onLayerReorder(layer.id, 'down')}
+                          disabled={layer.locked}
+                        >
+                          <ArrowDown className="h-3 w-3 mr-1" />
+                          {t('moveDown')}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           className="h-7 text-xs text-destructive"
-                          onClick={() => onLayerDelete(layer.id)}
+                          onClick={() => setDeleteLayerId(layer.id)}
                           disabled={layer.locked}
                         >
                           <Trash2 className="h-3 w-3 mr-1" />
-                          Delete
+                          {t('delete')}
                         </Button>
                       </div>
                     </div>
@@ -407,19 +485,37 @@ export function LayerPanel({
       {/* Selected layer properties */}
       {selectedLayer && (
         <div className="p-3 border-t bg-muted/30 space-y-2">
-          <div className="text-xs text-muted-foreground">Selected: {selectedLayer.name}</div>
+          <div className="text-xs text-muted-foreground">{t('selected')}: {selectedLayer.name}</div>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <span className="text-muted-foreground">Position:</span>{' '}
+              <span className="text-muted-foreground">{t('position')}:</span>{' '}
               {selectedLayer.position.x}, {selectedLayer.position.y}
             </div>
             <div>
-              <span className="text-muted-foreground">Scale:</span>{' '}
+              <span className="text-muted-foreground">{t('scale')}:</span>{' '}
               {Math.round(selectedLayer.scale.x * 100)}%
             </div>
           </div>
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteLayerId} onOpenChange={(open) => !open && setDeleteLayerId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteLayer')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteLayerConfirm')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>
+              {t('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

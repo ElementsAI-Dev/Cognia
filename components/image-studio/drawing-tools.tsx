@@ -11,6 +11,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -79,6 +80,9 @@ export function DrawingTools({
   onCancel,
   className,
 }: DrawingToolsProps) {
+  const t = useTranslations('imageStudio.drawingTools');
+  const tc = useTranslations('imageStudio.common');
+
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -531,10 +535,10 @@ export function DrawingTools({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Pencil className="h-5 w-5" />
-            <h3 className="font-medium">Drawing Tools</h3>
+            <h3 className="font-medium">{t('title')}</h3>
           </div>
           <div className="text-sm text-muted-foreground">
-            {shapes.length} shape{shapes.length !== 1 ? 's' : ''}
+            {shapes.length === 1 ? t('shapes', { count: shapes.length }) : t('shapesPlural', { count: shapes.length })}
           </div>
         </div>
 
@@ -575,7 +579,7 @@ export function DrawingTools({
                   <Undo2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Undo</TooltipContent>
+              <TooltipContent>{t('undo')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -589,7 +593,7 @@ export function DrawingTools({
                   <Redo2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Redo</TooltipContent>
+              <TooltipContent>{t('redo')}</TooltipContent>
             </Tooltip>
           </div>
 
@@ -608,7 +612,7 @@ export function DrawingTools({
                 <Trash2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Clear All</TooltipContent>
+            <TooltipContent>{t('clearAll')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -632,7 +636,7 @@ export function DrawingTools({
           </div>
           {!imageLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Loading image...</div>
+              <div className="animate-pulse text-muted-foreground">{tc('loadingImage')}</div>
             </div>
           )}
         </div>
@@ -641,16 +645,16 @@ export function DrawingTools({
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={handleReset}>
             <RotateCcw className="h-4 w-4 mr-1" />
-            Reset
+            {tc('reset')}
           </Button>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={onCancel}>
               <X className="h-4 w-4 mr-1" />
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button onClick={handleApply}>
               <Check className="h-4 w-4 mr-1" />
-              Apply
+              {tc('apply')}
             </Button>
           </div>
         </div>
@@ -659,14 +663,14 @@ export function DrawingTools({
       {/* Controls panel */}
       <div className="w-64 flex flex-col border rounded-lg">
         <div className="p-3 border-b">
-          <h3 className="font-medium text-sm">Settings</h3>
+          <h3 className="font-medium text-sm">{t('settings')}</h3>
         </div>
 
         <ScrollArea className="flex-1">
           <div className="p-3 space-y-4">
             {/* Stroke color */}
             <div className="space-y-2">
-              <Label className="text-xs">Stroke Color</Label>
+              <Label className="text-xs">{t('strokeColor')}</Label>
               <div className="flex items-center gap-1 flex-wrap">
                 {PRESET_COLORS.map((color) => (
                   <button
@@ -691,7 +695,7 @@ export function DrawingTools({
             {/* Stroke width */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs">Stroke Width</Label>
+                <Label className="text-xs">{t('strokeWidth')}</Label>
                 <span className="text-xs text-muted-foreground">{strokeWidth}px</span>
               </div>
               <Slider
@@ -724,19 +728,19 @@ export function DrawingTools({
                 <Separator />
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Fill Shape</Label>
+                    <Label className="text-xs">{t('fillShape')}</Label>
                     <Button
                       variant={fill ? 'secondary' : 'outline'}
                       size="sm"
                       className="h-6 text-xs"
                       onClick={() => setFill(!fill)}
                     >
-                      {fill ? 'On' : 'Off'}
+                      {fill ? tc('on') : tc('off')}
                     </Button>
                   </div>
                   {fill && (
                     <div className="space-y-2">
-                      <Label className="text-xs">Fill Color</Label>
+                      <Label className="text-xs">{t('fillColor')}</Label>
                       <div className="flex items-center gap-1 flex-wrap">
                         {PRESET_COLORS.map((color) => (
                           <button

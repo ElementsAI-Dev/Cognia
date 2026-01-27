@@ -11,6 +11,7 @@
  */
 
 import { useRef, useState, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -83,6 +84,9 @@ export function ImageCropper({
   onCancel,
   className,
 }: ImageCropperProps) {
+  const t = useTranslations('imageStudio.imageCropper');
+  const tc = useTranslations('imageStudio.common');
+
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -611,7 +615,7 @@ export function ImageCropper({
       <div className="flex items-center gap-2 flex-wrap">
         {/* Aspect ratio presets */}
         <div className="flex items-center gap-1">
-          <Label className="text-xs mr-2">Aspect:</Label>
+          <Label className="text-xs mr-2">{t('aspectRatio')}:</Label>
           {ASPECT_PRESETS.map((preset) => (
             <Tooltip key={preset.label}>
               <TooltipTrigger asChild>
@@ -655,7 +659,7 @@ export function ImageCropper({
                 <RotateCcw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Rotate Left</TooltipContent>
+            <TooltipContent>{t('rotateLeft')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -669,7 +673,7 @@ export function ImageCropper({
                 <RotateCw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Rotate Right</TooltipContent>
+            <TooltipContent>{t('rotateRight')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -683,7 +687,7 @@ export function ImageCropper({
                 <FlipHorizontal className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Flip Horizontal</TooltipContent>
+            <TooltipContent>{t('flipHorizontal')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -697,7 +701,7 @@ export function ImageCropper({
                 <FlipVertical className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Flip Vertical</TooltipContent>
+            <TooltipContent>{t('flipVertical')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -711,7 +715,7 @@ export function ImageCropper({
                 <RotateCcwIcon className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset</TooltipContent>
+            <TooltipContent>{t('resetCrop')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -722,11 +726,11 @@ export function ImageCropper({
         <div className="flex items-center gap-1 ml-auto">
           <Button variant="outline" size="sm" onClick={onCancel}>
             <X className="h-4 w-4 mr-1" />
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button size="sm" onClick={handleApply}>
             <Check className="h-4 w-4 mr-1" />
-            Apply
+            {tc('apply')}
           </Button>
         </div>
       </div>
@@ -751,7 +755,7 @@ export function ImageCropper({
         {!imageLoaded && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="animate-pulse text-muted-foreground">
-              Loading image...
+              {tc('loadingImage')}
             </div>
           </div>
         )}

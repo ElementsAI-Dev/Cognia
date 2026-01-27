@@ -12,7 +12,9 @@
  */
 
 import { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -124,6 +126,9 @@ export function HistoryPanel({
   onClearHistory,
   className,
 }: HistoryPanelProps) {
+  const t = useTranslations('history');
+  const tCommon = useTranslations('common');
+
   const formatTime = useCallback((timestamp: number): string => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -133,11 +138,11 @@ export function HistoryPanel({
     const now = Date.now();
     const diff = now - timestamp;
     
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 60000) return t('relativeTime.justNow');
+    if (diff < 3600000) return t('relativeTime.minutesAgo', { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t('relativeTime.hoursAgo', { count: Math.floor(diff / 3600000) });
     return formatTime(timestamp);
-  }, [formatTime]);
+  }, [formatTime, t]);
 
   return (
     <div className={cn('flex flex-col h-full bg-background border rounded-lg', className)}>
@@ -145,7 +150,7 @@ export function HistoryPanel({
       <div className="flex items-center justify-between p-3 border-b">
         <h3 className="font-medium flex items-center gap-2">
           <History className="h-4 w-4" />
-          History
+          {t('title')}
         </h3>
         <div className="flex items-center gap-1">
           <Tooltip>
@@ -160,7 +165,7 @@ export function HistoryPanel({
                 <Undo className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+            <TooltipContent>{t('undoShortcut')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -174,7 +179,7 @@ export function HistoryPanel({
                 <Redo className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
+            <TooltipContent>{t('redoShortcut')}</TooltipContent>
           </Tooltip>
           
           {entries.length > 0 && (
@@ -186,14 +191,14 @@ export function HistoryPanel({
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Clear History?</AlertDialogTitle>
+                  <AlertDialogTitle>{t('clearTitle')}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete all undo/redo history. This action cannot be undone.
+                    {t('clearDescription')}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onClearHistory}>Clear</AlertDialogAction>
+                  <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={onClearHistory}>{t('clear')}</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -207,30 +212,32 @@ export function HistoryPanel({
           {entries.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No history yet</p>
-              <p className="text-xs mt-1">Your actions will appear here</p>
+              <p className="text-sm">{t('empty')}</p>
+              <p className="text-xs mt-1">{t('emptyHint')}</p>
             </div>
           ) : (
             <div className="space-y-1">
               {/* Initial state marker */}
-              <div
+              <Card
                 className={cn(
-                  'flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors',
+                  'cursor-pointer transition-colors',
                   currentIndex === -1 ? 'bg-primary/10 ring-1 ring-primary' : 'hover:bg-muted'
                 )}
                 onClick={() => onJumpTo(-1)}
               >
-                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
-                  <Circle className="h-3 w-3 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Initial State</p>
-                  <p className="text-xs text-muted-foreground">Project start</p>
-                </div>
-                {currentIndex === -1 && (
-                  <Check className="h-4 w-4 text-primary shrink-0" />
-                )}
-              </div>
+                <CardContent className="flex items-center gap-2 p-2">
+                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <Circle className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{t('initialState')}</p>
+                    <p className="text-xs text-muted-foreground">{t('projectStart')}</p>
+                  </div>
+                  {currentIndex === -1 && (
+                    <Check className="h-4 w-4 text-primary shrink-0" />
+                  )}
+                </CardContent>
+              </Card>
 
               {/* History entries */}
               {entries.map((entry, index) => {
@@ -240,34 +247,36 @@ export function HistoryPanel({
                 const isUndone = index > currentIndex;
 
                 return (
-                  <div
+                  <Card
                     key={entry.id}
                     className={cn(
-                      'flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors',
+                      'cursor-pointer transition-colors',
                       isCurrent ? 'bg-primary/10 ring-1 ring-primary' : 'hover:bg-muted',
                       isUndone && 'opacity-50'
                     )}
                     onClick={() => onJumpTo(index)}
                   >
-                    <div
-                      className={cn(
-                        'w-6 h-6 rounded-full flex items-center justify-center shrink-0',
-                        isCurrent ? 'bg-primary/20' : 'bg-muted'
-                      )}
-                    >
-                      <Icon className={cn('h-3 w-3', colorClass)} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{entry.description}</p>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        <span>{formatRelativeTime(entry.timestamp)}</span>
+                    <CardContent className="flex items-center gap-2 p-2">
+                      <div
+                        className={cn(
+                          'w-6 h-6 rounded-full flex items-center justify-center shrink-0',
+                          isCurrent ? 'bg-primary/20' : 'bg-muted'
+                        )}
+                      >
+                        <Icon className={cn('h-3 w-3', colorClass)} />
                       </div>
-                    </div>
-                    {isCurrent && (
-                      <Check className="h-4 w-4 text-primary shrink-0" />
-                    )}
-                  </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{entry.description}</p>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>{formatRelativeTime(entry.timestamp)}</span>
+                        </div>
+                      </div>
+                      {isCurrent && (
+                        <Check className="h-4 w-4 text-primary shrink-0" />
+                      )}
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
@@ -277,7 +286,7 @@ export function HistoryPanel({
 
       {/* Footer */}
       <div className="p-2 border-t text-xs text-muted-foreground flex items-center justify-between">
-        <span>{entries.length} actions</span>
+        <span>{entries.length} {t('actions')}</span>
         <span>
           {currentIndex + 1} / {entries.length}
         </span>

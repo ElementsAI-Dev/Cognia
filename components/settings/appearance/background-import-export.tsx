@@ -24,9 +24,8 @@ import { normalizeBackgroundSettings, validateBackgroundData } from '@/lib/theme
 import type { BackgroundExportData } from '@/types/settings';
 
 export function BackgroundImportExport() {
-  const _t = useTranslations('settings');
+  const t = useTranslations('backgroundImportExport');
   const tc = useTranslations('common');
-  const language = useSettingsStore((state) => state.language);
 
   const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
   const setBackgroundSettings = useSettingsStore((state) => state.setBackgroundSettings);
@@ -35,8 +34,6 @@ export function BackgroundImportExport() {
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importMessage, setImportMessage] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  const isZh = language === 'zh-CN';
 
   const handleExport = () => {
     // Don't export localAssetId as it's specific to the local storage
@@ -68,7 +65,7 @@ export function BackgroundImportExport() {
     URL.revokeObjectURL(url);
 
     setImportStatus('success');
-    setImportMessage(isZh ? '导出成功' : 'Export successful');
+    setImportMessage(t('exportSuccess'));
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +81,7 @@ export function BackgroundImportExport() {
         const validation = validateBackgroundData(data);
         if (!validation.valid) {
           setImportStatus('error');
-          setImportMessage(validation.error || 'Invalid file format');
+          setImportMessage(validation.error || t('invalidFileFormat'));
           return;
         }
 
@@ -103,10 +100,10 @@ export function BackgroundImportExport() {
         });
 
         setImportStatus('success');
-        setImportMessage(isZh ? '导入成功' : 'Import successful');
+        setImportMessage(t('importSuccess'));
       } catch {
         setImportStatus('error');
-        setImportMessage(isZh ? '解析文件失败' : 'Failed to parse file');
+        setImportMessage(t('parseFileFailed'));
       }
     };
 
@@ -134,19 +131,17 @@ export function BackgroundImportExport() {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-7 text-xs">
           <FileJson className="h-3 w-3 mr-1" />
-          {isZh ? '导入/导出' : 'Import/Export'}
+          {t('importExportButton')}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ImageIcon className="h-5 w-5" />
-            {isZh ? '背景设置导入/导出' : 'Background Import/Export'}
+            {t('dialogTitle')}
           </DialogTitle>
           <DialogDescription>
-            {isZh
-              ? '分享您的背景设置或从文件导入'
-              : 'Share your background settings or import from a file'}
+            {t('dialogDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -156,13 +151,11 @@ export function BackgroundImportExport() {
             <div className="flex items-center gap-2">
               <Download className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium text-sm">
-                {isZh ? '导出设置' : 'Export Settings'}
+                {t('exportSettings')}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              {isZh
-                ? '将当前背景设置导出为JSON文件'
-                : 'Export current background settings to a JSON file'}
+              {t('exportSettingsDesc')}
             </p>
             <Button
               variant="outline"
@@ -171,7 +164,7 @@ export function BackgroundImportExport() {
               className="w-full"
             >
               <Download className="h-3.5 w-3.5 mr-1.5" />
-              {isZh ? '导出到文件' : 'Export to File'}
+              {t('exportToFile')}
             </Button>
           </div>
 
@@ -180,13 +173,11 @@ export function BackgroundImportExport() {
             <div className="flex items-center gap-2">
               <Upload className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium text-sm">
-                {isZh ? '导入设置' : 'Import Settings'}
+                {t('importSettings')}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              {isZh
-                ? '从JSON文件导入背景设置'
-                : 'Import background settings from a JSON file'}
+              {t('importSettingsDesc')}
             </p>
             <input
               ref={fileInputRef}
@@ -202,7 +193,7 @@ export function BackgroundImportExport() {
               className="w-full"
             >
               <Upload className="h-3.5 w-3.5 mr-1.5" />
-              {isZh ? '选择文件' : 'Select File'}
+              {t('selectFile')}
             </Button>
 
             {/* Import Status */}
@@ -226,9 +217,7 @@ export function BackgroundImportExport() {
           {/* Note about local files */}
           <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
             <p>
-              {isZh
-                ? '注意：本地上传的图片不会包含在导出中。只有URL和预设背景会被导出。'
-                : 'Note: Locally uploaded images are not included in exports. Only URL and preset backgrounds are exported.'}
+              {t('localFilesNote')}
             </p>
           </div>
         </div>

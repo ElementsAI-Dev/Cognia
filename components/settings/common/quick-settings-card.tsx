@@ -13,6 +13,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS } from '@/types/provider';
 
@@ -110,22 +116,30 @@ export function QuickSettingsCard() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {summaryItems.map((item) => (
-            <div
-              key={item.label}
-              className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${getStatusColor(item.status)}`}
-            >
-              <span className="shrink-0">{item.icon}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-medium uppercase tracking-wide opacity-70">
-                  {item.label}
-                </p>
-                <p className="text-xs font-medium truncate">{item.value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <TooltipProvider delayDuration={300}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {summaryItems.map((item) => (
+              <Tooltip key={item.label}>
+                <TooltipTrigger asChild>
+                  <div
+                    className={`flex items-center gap-2 rounded-md border px-2 py-1.5 cursor-default ${getStatusColor(item.status)}`}
+                  >
+                    <span className="shrink-0">{item.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-medium uppercase tracking-wide opacity-70">
+                        {item.label}
+                      </p>
+                      <p className="text-xs font-medium truncate">{item.value}</p>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">{item.label}: {item.value}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </TooltipProvider>
       </CardContent>
     </Card>
   );

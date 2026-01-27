@@ -40,6 +40,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -240,56 +247,60 @@ export function ProjectDetail({
 
       {/* Quick Stats - Enhanced Dashboard */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '0ms' }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <MessageSquare className="h-4 w-4 text-blue-500" />
+        <Card className="transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '0ms' }}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <MessageSquare className="h-4 w-4 text-blue-500" />
+                </div>
+              </div>
+              <span className="text-2xl font-bold">{projectSessions.length}</span>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">{t('chatSessions')}</p>
+            <Progress value={Math.min(projectSessions.length * 10, 100)} className="mt-2 h-1" />
+          </CardContent>
+        </Card>
+        <Card className="transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '50ms' }}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="p-2 rounded-lg bg-green-500/10">
+                  <FileText className="h-4 w-4 text-green-500" />
+                </div>
+              </div>
+              <span className="text-2xl font-bold">{project.knowledgeBase.length}</span>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">{t('knowledgeFiles')}</p>
+            <Progress value={Math.min(project.knowledgeBase.length * 10, 100)} className="mt-2 h-1" />
+          </CardContent>
+        </Card>
+        <Card className="transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '100ms' }}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="p-2 rounded-lg bg-purple-500/10">
+                  <Calendar className="h-4 w-4 text-purple-500" />
+                </div>
               </div>
             </div>
-            <span className="text-2xl font-bold">{projectSessions.length}</span>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">{t('chatSessions')}</p>
-          <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(projectSessions.length * 10, 100)}%` }} />
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '50ms' }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <FileText className="h-4 w-4 text-green-500" />
+            <p className="mt-2 text-sm font-medium">{formatDate(project.createdAt)}</p>
+            <p className="text-xs text-muted-foreground">{t('created')}</p>
+          </CardContent>
+        </Card>
+        <Card className="transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '150ms' }}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="p-2 rounded-lg bg-orange-500/10">
+                  <Clock className="h-4 w-4 text-orange-500" />
+                </div>
               </div>
             </div>
-            <span className="text-2xl font-bold">{project.knowledgeBase.length}</span>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">{t('knowledgeFiles')}</p>
-          <div className="mt-2 h-1 w-full bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(project.knowledgeBase.length * 10, 100)}%` }} />
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '100ms' }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="p-2 rounded-lg bg-purple-500/10">
-                <Calendar className="h-4 w-4 text-purple-500" />
-              </div>
-            </div>
-          </div>
-          <p className="mt-2 text-sm font-medium">{formatDate(project.createdAt)}</p>
-          <p className="text-xs text-muted-foreground">{t('created')}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '150ms' }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="p-2 rounded-lg bg-orange-500/10">
-                <Clock className="h-4 w-4 text-orange-500" />
-              </div>
-            </div>
-          </div>
-          <p className="mt-2 text-sm font-medium">{formatDate(project.updatedAt)}</p>
-          <p className="text-xs text-muted-foreground">{t('lastUpdated')}</p>
-        </div>
+            <p className="mt-2 text-sm font-medium">{formatDate(project.updatedAt)}</p>
+            <p className="text-xs text-muted-foreground">{t('lastUpdated')}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Project Info Badges */}
@@ -346,17 +357,22 @@ export function ProjectDetail({
                       <span className="text-xs text-muted-foreground">
                         {formatDate(session.updatedAt)}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSessionToRemove(session.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSessionToRemove(session.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t('removeSession')}</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 ))}

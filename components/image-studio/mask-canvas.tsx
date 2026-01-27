@@ -10,7 +10,8 @@
  * - Export mask as PNG with transparency
  */
 
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -74,6 +75,9 @@ export function MaskCanvas({
   onStrokesChange,
   className,
 }: MaskCanvasProps) {
+  const t = useTranslations('imageStudio.maskCanvas');
+  const tc = useTranslations('imageStudio.common');
+
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -507,7 +511,7 @@ export function MaskCanvas({
                 <Brush className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Brush (B)</TooltipContent>
+            <TooltipContent>{t('brush')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -521,7 +525,7 @@ export function MaskCanvas({
                 <Eraser className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Eraser (E)</TooltipContent>
+            <TooltipContent>{t('eraser')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -535,13 +539,13 @@ export function MaskCanvas({
                 <Move className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Pan (Space)</TooltipContent>
+            <TooltipContent>{t('pan')}</TooltipContent>
           </Tooltip>
         </div>
 
         {/* Brush size */}
         <div className="flex items-center gap-2 min-w-[160px]">
-          <Label className="text-xs whitespace-nowrap">Size</Label>
+          <Label className="text-xs whitespace-nowrap">{t('size')}</Label>
           <Slider
             value={[brushSize]}
             onValueChange={([v]) => setBrushSize(v)}
@@ -555,7 +559,7 @@ export function MaskCanvas({
 
         {/* Brush hardness */}
         <div className="flex items-center gap-2 min-w-[160px]">
-          <Label className="text-xs whitespace-nowrap">Hardness</Label>
+          <Label className="text-xs whitespace-nowrap">{t('hardness')}</Label>
           <Slider
             value={[brushHardness]}
             onValueChange={([v]) => setBrushHardness(v)}
@@ -584,7 +588,7 @@ export function MaskCanvas({
                 <Undo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+            <TooltipContent>{t('undo')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -599,7 +603,7 @@ export function MaskCanvas({
                 <Redo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
+            <TooltipContent>{t('redo')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -619,7 +623,7 @@ export function MaskCanvas({
                 <ZoomOut className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoom Out</TooltipContent>
+            <TooltipContent>{t('zoomOut')}</TooltipContent>
           </Tooltip>
 
           <span className="text-xs text-muted-foreground w-12 text-center">
@@ -637,7 +641,7 @@ export function MaskCanvas({
                 <ZoomIn className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoom In</TooltipContent>
+            <TooltipContent>{t('zoomIn')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -651,7 +655,7 @@ export function MaskCanvas({
                 <RotateCcw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset View</TooltipContent>
+            <TooltipContent>{t('resetView')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -672,7 +676,7 @@ export function MaskCanvas({
                 <Trash2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Clear All</TooltipContent>
+            <TooltipContent>{t('clearAll')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -687,13 +691,13 @@ export function MaskCanvas({
                 <Download className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Download Mask</TooltipContent>
+            <TooltipContent>{t('downloadMask')}</TooltipContent>
           </Tooltip>
         </div>
 
         {/* Stroke count */}
         <div className="ml-auto text-xs text-muted-foreground">
-          {strokes.length} stroke{strokes.length !== 1 ? 's' : ''}
+          {strokes.length === 1 ? t('strokes', { count: strokes.length }) : t('strokesPlural', { count: strokes.length })}
         </div>
       </div>
 
@@ -751,7 +755,7 @@ export function MaskCanvas({
         {!imageLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
             <div className="animate-pulse text-muted-foreground">
-              Loading image...
+              {tc('loadingImage')}
             </div>
           </div>
         )}
@@ -759,8 +763,7 @@ export function MaskCanvas({
 
       {/* Instructions */}
       <p className="text-xs text-muted-foreground">
-        Paint over areas you want to edit. Use the eraser to remove mask areas.
-        Transparent areas in the mask will be regenerated.
+        {t('instructions')}
       </p>
     </div>
   );

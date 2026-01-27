@@ -7,9 +7,11 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PRESET_COLORS, STROKE_WIDTHS } from '@/types/screenshot';
 
@@ -30,6 +32,7 @@ export function ColorPicker({
   showStrokeWidth = true,
   className,
 }: ColorPickerProps) {
+  const t = useTranslations('screenshot.colorPicker');
   const [open, setOpen] = useState(false);
 
   return (
@@ -41,13 +44,13 @@ export function ColorPicker({
           className={cn('w-8 h-8 p-0 border-2', className)}
           style={{ backgroundColor: color }}
         >
-          <span className="sr-only">选择颜色</span>
+          <span className="sr-only">{t('selectColor')}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-3" align="start">
         <div className="space-y-3">
           <div>
-            <p className="text-sm font-medium mb-2">颜色</p>
+            <Label className="text-sm font-medium mb-2 block">{t('color')}</Label>
             <div className="grid grid-cols-5 gap-2">
               {PRESET_COLORS.map((presetColor) => (
                 <button
@@ -78,9 +81,9 @@ export function ColorPicker({
 
           {showStrokeWidth && (
             <div>
-              <p className="text-sm font-medium mb-2">
-                线宽: {strokeWidth}px
-              </p>
+              <Label className="text-sm font-medium mb-2 block">
+                {t('strokeWidth', { width: strokeWidth })}
+              </Label>
               <div className="flex gap-1">
                 {STROKE_WIDTHS.map((width) => (
                   <button

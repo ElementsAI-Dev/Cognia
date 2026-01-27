@@ -4,6 +4,7 @@
  * Skill Panel Component
  * 
  * Main interface for browsing, managing, and organizing skills
+ * Features responsive layout with mobile filter sheet and adaptive grid
  */
 
 import { useState, useMemo, useCallback } from 'react';
@@ -31,8 +32,11 @@ import {
   Check,
   Loader2,
   ArrowLeft,
+  MoreHorizontal,
+  Settings2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   InputGroup,
@@ -46,6 +50,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -57,7 +62,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSkillStore } from '@/stores/skills';
 import { downloadSkillAsMarkdown } from '@/lib/skills/packager';
@@ -67,19 +78,35 @@ import { SkillDetail } from './skill-detail';
 import { SkillEditor } from './skill-editor';
 import { SkillAnalytics } from './skill-analytics';
 import { SkillGeneratorPanel } from './skill-generator';
+import { SkillFilterSheet } from './skill-filter-sheet';
 import type { Skill, SkillCategory, SkillStatus } from '@/types/system/skill';
 
-const CATEGORY_OPTIONS: Array<{ value: SkillCategory | 'all'; labelKey: string; icon: React.ReactNode }> = [
-  { value: 'all', labelKey: 'allCategories', icon: <Sparkles className="h-4 w-4" /> },
-  { value: 'creative-design', labelKey: 'categoryCreativeDesign', icon: <Palette className="h-4 w-4" /> },
-  { value: 'development', labelKey: 'categoryDevelopment', icon: <Code className="h-4 w-4" /> },
-  { value: 'enterprise', labelKey: 'categoryEnterprise', icon: <Building2 className="h-4 w-4" /> },
-  { value: 'productivity', labelKey: 'categoryProductivity', icon: <Zap className="h-4 w-4" /> },
-  { value: 'data-analysis', labelKey: 'categoryDataAnalysis', icon: <BarChart3 className="h-4 w-4" /> },
-  { value: 'communication', labelKey: 'categoryCommunication', icon: <MessageSquare className="h-4 w-4" /> },
-  { value: 'meta', labelKey: 'categoryMeta', icon: <Cog className="h-4 w-4" /> },
-  { value: 'custom', labelKey: 'categoryCustom', icon: <FileText className="h-4 w-4" /> },
+const CATEGORY_OPTIONS: Array<{ value: SkillCategory | 'all'; labelKey: string; icon: React.ReactNode; color: string }> = [
+  { value: 'all', labelKey: 'allCategories', icon: <Sparkles className="h-4 w-4" />, color: 'bg-primary/10 text-primary' },
+  { value: 'creative-design', labelKey: 'categoryCreativeDesign', icon: <Palette className="h-4 w-4" />, color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400' },
+  { value: 'development', labelKey: 'categoryDevelopment', icon: <Code className="h-4 w-4" />, color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+  { value: 'enterprise', labelKey: 'categoryEnterprise', icon: <Building2 className="h-4 w-4" />, color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
+  { value: 'productivity', labelKey: 'categoryProductivity', icon: <Zap className="h-4 w-4" />, color: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' },
+  { value: 'data-analysis', labelKey: 'categoryDataAnalysis', icon: <BarChart3 className="h-4 w-4" />, color: 'bg-green-500/10 text-green-600 dark:text-green-400' },
+  { value: 'communication', labelKey: 'categoryCommunication', icon: <MessageSquare className="h-4 w-4" />, color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+  { value: 'meta', labelKey: 'categoryMeta', icon: <Cog className="h-4 w-4" />, color: 'bg-gray-500/10 text-gray-600 dark:text-gray-400' },
+  { value: 'custom', labelKey: 'categoryCustom', icon: <FileText className="h-4 w-4" />, color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400' },
 ];
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      delay: i * 0.05,
+      duration: 0.3,
+      ease: [0.25, 0.46, 0.45, 0.94] as const,
+    },
+  }),
+  exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } },
+};
 
 const STATUS_OPTIONS: Array<{ value: SkillStatus | 'all'; labelKey: string }> = [
   { value: 'all', labelKey: 'allStatus' },
@@ -148,6 +175,7 @@ export function SkillPanel({
   const [importData, setImportData] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [showGeneratorDialog, setShowGeneratorDialog] = useState(false);
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
 
   // Filtered skills
   const filteredSkills = useMemo(() => {
@@ -324,6 +352,23 @@ export function SkillPanel({
 
   const hasActiveFilters = searchQuery || categoryFilter !== 'all' || statusFilter !== 'all' || sourceFilter !== 'all' || showActiveOnly;
 
+  const activeFilterCount = [
+    categoryFilter !== 'all',
+    statusFilter !== 'all',
+    sourceFilter !== 'all',
+    showActiveOnly,
+  ].filter(Boolean).length;
+
+  // Stats for header
+  const skillStats = useMemo(() => {
+    const all = Object.values(skills);
+    return {
+      total: all.length,
+      enabled: all.filter(s => s.status === 'enabled').length,
+      active: all.filter(s => s.isActive).length,
+    };
+  }, [skills]);
+
   const selectedSkill = selectedSkillId ? skills[selectedSkillId] : null;
 
   // Render detail view
@@ -410,39 +455,95 @@ export function SkillPanel({
   return (
     <TooltipProvider>
       <div className={cn('flex flex-col h-full', className)}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <Link href="/">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ArrowLeft className="h-4 w-4" />
+        {/* Header - Responsive with sticky behavior */}
+        <div className="sticky top-0 z-10 backdrop-blur-md bg-background/80 border-b">
+          <div className="flex items-center justify-between p-3 sm:p-4">
+            {/* Left: Back + Title */}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Link href="/">
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 shrink-0">
+                  <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="font-semibold text-sm sm:text-base truncate">{t('skillsLibrary')}</h2>
+                  <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{skillStats.total} {t('total') || 'total'}</span>
+                    <Separator orientation="vertical" className="h-3" />
+                    <span className="text-green-600 dark:text-green-400">{skillStats.active} {t('active')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Actions - Desktop */}
+            <div className="hidden md:flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => setCurrentView('analytics')}>
+                    <BarChart3 className="h-4 w-4 mr-1.5" />
+                    <span className="hidden lg:inline">{t('analytics')}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="lg:hidden">{t('analytics')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => setShowGeneratorDialog(true)}>
+                    <Sparkles className="h-4 w-4 mr-1.5" />
+                    <span className="hidden lg:inline">{t('generateSkill') || 'Generate'}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="lg:hidden">{t('generateSkill') || 'Generate'}</TooltipContent>
+              </Tooltip>
+              <Button size="sm" onClick={handleCreateNew}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">{t('newSkill')}</span>
               </Button>
-            </Link>
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="font-semibold">{t('skillsLibrary')}</h2>
-            <Badge variant="secondary" className="ml-2">
-              {Object.keys(skills).length}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setCurrentView('analytics')}>
-              <BarChart3 className="h-4 w-4 mr-1" />
-              {t('analytics')}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowGeneratorDialog(true)}>
-              <Sparkles className="h-4 w-4 mr-1" />
-              {t('generateSkill') || 'Generate'}
-            </Button>
-            <Button size="sm" onClick={handleCreateNew}>
-              <Plus className="h-4 w-4 mr-1" />
-              {t('newSkill')}
-            </Button>
+            </div>
+
+            {/* Right: Actions - Mobile */}
+            <div className="flex md:hidden items-center gap-1">
+              <Button size="sm" onClick={handleCreateNew} className="h-8 px-2.5">
+                <Plus className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setCurrentView('analytics')}>
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    {t('analytics')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowGeneratorDialog(true)}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {t('generateSkill') || 'Generate'}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    {t('importSkills')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportAll}>
+                    <Download className="h-4 w-4 mr-2" />
+                    {t('exportAll')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
-        {/* Toolbar */}
-        <div className="flex flex-col gap-3 p-4 border-b bg-muted/30">
-          {/* Search and View Toggle */}
+        {/* Toolbar - Responsive */}
+        <div className="flex flex-col gap-2 sm:gap-3 p-3 sm:p-4 border-b bg-muted/30">
+          {/* Search Row */}
           <div className="flex items-center gap-2">
             <InputGroup className="flex-1">
               <InputGroupAddon align="inline-start">
@@ -452,6 +553,7 @@ export function SkillPanel({
                 placeholder={t('searchSkills')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="text-sm"
               />
               {searchQuery && (
                 <InputGroupAddon align="inline-end">
@@ -466,7 +568,23 @@ export function SkillPanel({
               )}
             </InputGroup>
             
-            <div className="flex items-center border rounded-md">
+            {/* Mobile Filter Button */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="md:hidden h-9 w-9 shrink-0 relative"
+              onClick={() => setShowFilterSheet(true)}
+            >
+              <Filter className="h-4 w-4" />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] font-medium text-primary-foreground flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+            
+            {/* View Toggle */}
+            <div className="flex items-center border rounded-md shrink-0">
               <Button
                 variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                 size="icon"
@@ -486,36 +604,41 @@ export function SkillPanel({
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Category Filter */}
+          {/* Desktop Filters - Hidden on mobile */}
+          <div className="hidden md:flex items-center gap-2 flex-wrap">
+            {/* Category Filter with colored icon */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8">
-                  {CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.icon}
-                  <span className="ml-1.5">
+                  <span className={cn('p-0.5 rounded mr-1.5', CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.color)}>
+                    {CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.icon}
+                  </span>
+                  <span className="hidden lg:inline">
                     {t(CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.labelKey || 'allCategories')}
                   </span>
                   <ChevronDown className="ml-1.5 h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent className="w-56">
                 {CATEGORY_OPTIONS.map((option) => (
                   <DropdownMenuItem
                     key={option.value}
                     onClick={() => setCategoryFilter(option.value)}
+                    className="cursor-pointer"
                   >
                     <div className="flex items-center gap-2 flex-1">
-                      {option.icon}
+                      <span className={cn('p-1 rounded', option.color)}>
+                        {option.icon}
+                      </span>
                       <span>{t(option.labelKey)}</span>
                     </div>
                     {categoryCounts[option.value] !== undefined && (
-                      <Badge variant="secondary" className="ml-2 text-xs">
+                      <Badge variant="secondary" className="ml-2 text-xs tabular-nums">
                         {categoryCounts[option.value]}
                       </Badge>
                     )}
                     {categoryFilter === option.value && (
-                      <Check className="h-4 w-4 ml-2" />
+                      <Check className="h-4 w-4 ml-2 text-primary" />
                     )}
                   </DropdownMenuItem>
                 ))}
@@ -526,8 +649,10 @@ export function SkillPanel({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8">
-                  <Filter className="h-3.5 w-3.5 mr-1.5" />
-                  {t(STATUS_OPTIONS.find(s => s.value === statusFilter)?.labelKey || 'allStatus')}
+                  <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                  <span className="hidden lg:inline">
+                    {t(STATUS_OPTIONS.find(s => s.value === statusFilter)?.labelKey || 'allStatus')}
+                  </span>
                   <ChevronDown className="ml-1.5 h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
@@ -536,10 +661,11 @@ export function SkillPanel({
                   <DropdownMenuItem
                     key={option.value}
                     onClick={() => setStatusFilter(option.value)}
+                    className="cursor-pointer"
                   >
                     {t(option.labelKey)}
                     {statusFilter === option.value && (
-                      <Check className="h-4 w-4 ml-auto" />
+                      <Check className="h-4 w-4 ml-auto text-primary" />
                     )}
                   </DropdownMenuItem>
                 ))}
@@ -559,10 +685,11 @@ export function SkillPanel({
                   <DropdownMenuItem
                     key={option.value}
                     onClick={() => setSourceFilter(option.value)}
+                    className="cursor-pointer"
                   >
                     {t(option.labelKey)}
                     {sourceFilter === option.value && (
-                      <Check className="h-4 w-4 ml-auto" />
+                      <Check className="h-4 w-4 ml-auto text-primary" />
                     )}
                   </DropdownMenuItem>
                 ))}
@@ -573,30 +700,41 @@ export function SkillPanel({
             <Button
               variant={showActiveOnly ? 'default' : 'outline'}
               size="sm"
-              className="h-8"
+              className={cn(
+                'h-8 transition-all',
+                showActiveOnly && 'shadow-sm'
+              )}
               onClick={() => setShowActiveOnly(!showActiveOnly)}
             >
-              <Zap className="h-3.5 w-3.5 mr-1.5" />
+              <Zap className={cn('h-3.5 w-3.5 mr-1.5', showActiveOnly && 'text-yellow-300')} />
               {t('activeOnly')}
             </Button>
 
             {/* Clear Filters */}
-            {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8"
-                onClick={clearFilters}
-              >
-                <X className="h-3.5 w-3.5 mr-1" />
-                {t('clearFilters')}
-              </Button>
-            )}
+            <AnimatePresence>
+              {hasActiveFilters && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-muted-foreground hover:text-foreground"
+                    onClick={clearFilters}
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    {t('clearFilters')}
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Spacer */}
             <div className="flex-1" />
 
-            {/* Import/Export */}
+            {/* Import/Export - Desktop */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8">
@@ -616,63 +754,157 @@ export function SkillPanel({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          {/* Active Filters Summary - Mobile */}
+          {hasActiveFilters && (
+            <div className="flex md:hidden items-center gap-2 overflow-x-auto pb-1 -mb-1">
+              {categoryFilter !== 'all' && (
+                <Badge variant="secondary" className="shrink-0 gap-1">
+                  {CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.icon}
+                  <span className="text-xs">{t(CATEGORY_OPTIONS.find(c => c.value === categoryFilter)?.labelKey || '')}</span>
+                  <button onClick={() => setCategoryFilter('all')} className="ml-1 hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {statusFilter !== 'all' && (
+                <Badge variant="secondary" className="shrink-0 gap-1">
+                  <span className="text-xs">{t(STATUS_OPTIONS.find(s => s.value === statusFilter)?.labelKey || '')}</span>
+                  <button onClick={() => setStatusFilter('all')} className="ml-1 hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {sourceFilter !== 'all' && (
+                <Badge variant="secondary" className="shrink-0 gap-1">
+                  <span className="text-xs">{t(SOURCE_OPTIONS.find(s => s.value === sourceFilter)?.labelKey || '')}</span>
+                  <button onClick={() => setSourceFilter('all')} className="ml-1 hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {showActiveOnly && (
+                <Badge variant="secondary" className="shrink-0 gap-1">
+                  <Zap className="h-3 w-3" />
+                  <span className="text-xs">{t('activeOnly')}</span>
+                  <button onClick={() => setShowActiveOnly(false)} className="ml-1 hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs shrink-0" onClick={clearFilters}>
+                {t('clearFilters')}
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Skills List */}
+        {/* Skills Grid/List with Animation */}
         <ScrollArea className="flex-1 min-h-0 overflow-hidden">
-          <div className="p-4 overflow-hidden">
+          <div className="p-3 sm:p-4 overflow-hidden">
             {filteredSkills.length === 0 ? (
-              <EmptyState
-                icon={Sparkles}
-                title={t('noSkillsFound')}
-                description={hasActiveFilters ? t('noSkillsMatchFilters') : t('noSkillsYet')}
-                actions={hasActiveFilters ? [{
-                  label: t('clearFilters'),
-                  onClick: clearFilters,
-                  variant: 'outline',
-                }] : [{
-                  label: t('createFirstSkill'),
-                  onClick: handleCreateNew,
-                  icon: Plus,
-                }]}
-              />
+              <div className="flex flex-col items-center justify-center py-12 sm:py-16">
+                <div className="p-4 rounded-full bg-muted/50 mb-4">
+                  <Sparkles className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <EmptyState
+                  icon={Sparkles}
+                  title={t('noSkillsFound')}
+                  description={hasActiveFilters ? t('noSkillsMatchFilters') : t('noSkillsYet')}
+                  actions={hasActiveFilters ? [{
+                    label: t('clearFilters'),
+                    onClick: clearFilters,
+                    variant: 'outline',
+                  }] : [{
+                    label: t('createFirstSkill'),
+                    onClick: handleCreateNew,
+                    icon: Plus,
+                  }]}
+                />
+              </div>
             ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredSkills.map((skill) => (
-                  <SkillCard
-                    key={skill.id}
-                    skill={skill}
-                    variant="default"
-                    onView={handleViewSkill}
-                    onEdit={handleEditSkill}
-                    onDelete={handleDeleteSkill}
-                    onDuplicate={handleDuplicateSkill}
-                    onExport={handleExportSkill}
-                    onToggleEnabled={handleToggleEnabled}
-                    onToggleActive={handleToggleActive}
-                  />
-                ))}
-              </div>
+              <motion.div 
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
+                initial="hidden"
+                animate="visible"
+              >
+                <AnimatePresence mode="popLayout">
+                  {filteredSkills.map((skill, index) => (
+                    <motion.div
+                      key={skill.id}
+                      custom={index}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      layout
+                    >
+                      <SkillCard
+                        skill={skill}
+                        variant="default"
+                        onView={handleViewSkill}
+                        onEdit={handleEditSkill}
+                        onDelete={handleDeleteSkill}
+                        onDuplicate={handleDuplicateSkill}
+                        onExport={handleExportSkill}
+                        onToggleEnabled={handleToggleEnabled}
+                        onToggleActive={handleToggleActive}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
             ) : (
-              <div className="space-y-2 overflow-hidden">
-                {filteredSkills.map((skill) => (
-                  <SkillCard
-                    key={skill.id}
-                    skill={skill}
-                    variant="list"
-                    onView={handleViewSkill}
-                    onEdit={handleEditSkill}
-                    onDelete={handleDeleteSkill}
-                    onDuplicate={handleDuplicateSkill}
-                    onExport={handleExportSkill}
-                    onToggleEnabled={handleToggleEnabled}
-                    onToggleActive={handleToggleActive}
-                  />
-                ))}
-              </div>
+              <motion.div 
+                className="space-y-2 overflow-hidden"
+                initial="hidden"
+                animate="visible"
+              >
+                <AnimatePresence mode="popLayout">
+                  {filteredSkills.map((skill, index) => (
+                    <motion.div
+                      key={skill.id}
+                      custom={index}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      layout
+                    >
+                      <SkillCard
+                        skill={skill}
+                        variant="list"
+                        onView={handleViewSkill}
+                        onEdit={handleEditSkill}
+                        onDelete={handleDeleteSkill}
+                        onDuplicate={handleDuplicateSkill}
+                        onExport={handleExportSkill}
+                        onToggleEnabled={handleToggleEnabled}
+                        onToggleActive={handleToggleActive}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
             )}
           </div>
         </ScrollArea>
+
+        {/* Mobile Filter Sheet */}
+        <SkillFilterSheet
+          open={showFilterSheet}
+          onOpenChange={setShowFilterSheet}
+          categoryFilter={categoryFilter}
+          onCategoryChange={setCategoryFilter}
+          statusFilter={statusFilter}
+          onStatusChange={setStatusFilter}
+          sourceFilter={sourceFilter}
+          onSourceChange={setSourceFilter}
+          showActiveOnly={showActiveOnly}
+          onShowActiveOnlyChange={setShowActiveOnly}
+          categoryCounts={categoryCounts}
+          onClearFilters={clearFilters}
+        />
 
         {/* Delete Dialog */}
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

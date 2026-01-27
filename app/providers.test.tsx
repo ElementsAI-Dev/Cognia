@@ -8,7 +8,7 @@
  * we test the core logic patterns used by internal components.
  */
 
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useEffect } from 'react';
 import { render, waitFor, act } from '@testing-library/react';
 import { isTauri as detectTauri } from '@/lib/native/utils';
 import { useChatWidgetStore } from '@/stores/chat';
@@ -55,27 +55,17 @@ jest.mock('@/stores/chat', () => ({
   }),
 }));
 
-// Use useLayoutEffect on client, useEffect on server
-const useIsomorphicLayoutEffect =
-  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
-
 // These are recreations of the actual component logic from providers.tsx
 // to test the patterns used
 
 /**
  * Simulates ChatAssistantContainerGate logic
+ * AI assistant bubble is a desktop-only feature, hidden in web mode.
  */
-function TestChatAssistantContainerGate({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  const [isTauri, setIsTauri] = useState(false);
-
-  useIsomorphicLayoutEffect(() => {
-    setMounted(true);
-    setIsTauri(detectTauri());
-  }, [detectTauri]);
-
-  if (!mounted || isTauri) return null;
-  return <div data-testid="gated-content">{children}</div>;
+function TestChatAssistantContainerGate({ children: _children }: { children: React.ReactNode }) {
+  // AI assistant bubble is a desktop-only feature.
+  // In web mode, this feature is not needed and should be hidden by default.
+  return null;
 }
 
 /**
@@ -126,56 +116,18 @@ function TestChatWidgetNativeSync() {
 describe('ChatAssistantContainerGate logic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockIsTauri = false;
   });
 
-  it('renders children in web mode (not Tauri)', async () => {
-    mockIsTauri = false;
-
-    const { queryByTestId } = render(
-      <TestChatAssistantContainerGate>
-        <span>Content</span>
-      </TestChatAssistantContainerGate>
-    );
-
-    // Wait for mount effect
-    await waitFor(() => {
-      expect(queryByTestId('gated-content')).toBeInTheDocument();
-    });
-  });
-
-  it('does NOT render children in Tauri mode', async () => {
-    mockIsTauri = true;
-
-    const { queryByTestId } = render(
-      <TestChatAssistantContainerGate>
-        <span>Content</span>
-      </TestChatAssistantContainerGate>
-    );
-
-    // Wait a tick for effects to run
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    });
-
-    expect(queryByTestId('gated-content')).not.toBeInTheDocument();
-  });
-
-  it('does not render before mount', () => {
-    mockIsTauri = false;
-    // On first render, mounted is false, so nothing should render
-    // We can't really test this without hooks, but the logic is:
-    // if (!mounted || isTauri) return null;
-    // Initially mounted = false, so it returns null
+  it('always returns null (desktop-only feature)', () => {
+    // AI assistant bubble is a desktop-only feature, hidden in web mode
     const { container } = render(
       <TestChatAssistantContainerGate>
         <span>Content</span>
       </TestChatAssistantContainerGate>
     );
 
-    // Initially empty (before useLayoutEffect runs)
-    // This is tested implicitly - the component should hydrate safely
-    expect(container).toBeDefined();
+    // Should render nothing - feature is disabled in web mode
+    expect(container.firstChild).toBeNull();
   });
 });
 

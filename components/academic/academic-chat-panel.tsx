@@ -5,7 +5,8 @@
  * Combines AI chat with academic search, analysis, and library features
  */
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Search,
   Send,
@@ -47,20 +48,13 @@ export interface AcademicChatPanelProps {
   className?: string;
 }
 
-const QUICK_ACTIONS = [
-  { id: 'search', label: 'Search Papers', icon: Search, prompt: 'Find papers about ' },
-  { id: 'summarize', label: 'Summarize', icon: FileText, prompt: 'Summarize this paper: ' },
-  { id: 'compare', label: 'Compare', icon: ArrowRight, prompt: 'Compare these papers: ' },
-  { id: 'explain', label: 'Explain Simply', icon: Sparkles, prompt: 'Explain in simple terms: ' },
-  { id: 'ppt', label: 'Generate PPT', icon: Presentation, prompt: '' },
-];
-
-const SUGGESTED_QUERIES = [
-  'Find recent papers on transformer architectures',
-  'What are the key papers on reinforcement learning from human feedback?',
-  'Search for papers about multimodal learning',
-  'Find open access papers on large language models',
-];
+const QUICK_ACTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  search: Search,
+  summarize: FileText,
+  compare: ArrowRight,
+  explain: Sparkles,
+  ppt: Presentation,
+};
 
 export function AcademicChatPanel({
   onPaperSelect,
@@ -68,6 +62,7 @@ export function AcademicChatPanel({
   initialQuery,
   className,
 }: AcademicChatPanelProps) {
+  const t = useTranslations('academic.chatPanel');
   const { 
     searchPapers, 
     analyzePaperWithAI, 
@@ -76,6 +71,14 @@ export function AcademicChatPanel({
     generatePresentationFromPaper,
     isGeneratingPPT,
   } = useAcademic();
+
+  const quickActions = useMemo(() => [
+    { id: 'search', label: t('actions.search'), icon: QUICK_ACTION_ICONS.search, prompt: t('prompts.search') },
+    { id: 'summarize', label: t('actions.summarize'), icon: QUICK_ACTION_ICONS.summarize, prompt: t('prompts.summarize') },
+    { id: 'compare', label: t('actions.compare'), icon: QUICK_ACTION_ICONS.compare, prompt: t('prompts.compare') },
+    { id: 'explain', label: t('actions.explain'), icon: QUICK_ACTION_ICONS.explain, prompt: t('prompts.explain') },
+    { id: 'ppt', label: t('actions.generatePPT'), icon: QUICK_ACTION_ICONS.ppt, prompt: t('prompts.generatePPT') },
+  ], [t]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState(initialQuery || '');
@@ -254,7 +257,7 @@ export function AcademicChatPanel({
     [generatePresentationFromPaper, addMessage]
   );
 
-  const handleQuickAction = useCallback((action: (typeof QUICK_ACTIONS)[0]) => {
+  const handleQuickAction = useCallback((action: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; prompt: string }) => {
     if (action.id === 'ppt') {
       handleGeneratePPT(selectedPapers);
       return;
@@ -290,7 +293,7 @@ export function AcademicChatPanel({
       try {
         await addToLibrary(paper);
         onAddToLibrary?.(paper);
-        addMessage('assistant', `Added "${paper.title}" to your library.`);
+        addMessage('assistant', t('addedToLibrary', { title: paper.title }));
       } catch (error) {
         addMessage(
           'assistant',
@@ -298,17 +301,17 @@ export function AcademicChatPanel({
         );
       }
     },
-    [addToLibrary, onAddToLibrary, addMessage]
+    [addToLibrary, onAddToLibrary, addMessage, t]
   );
 
   return (
     <div className={cn('flex flex-col h-full bg-background', className)}>
       <div className="flex items-center gap-2 px-4 py-3 border-b">
         <GraduationCap className="h-5 w-5 text-primary" />
-        <span className="font-semibold">Academic Research Assistant</span>
+        <span className="font-semibold">{t('title')}</span>
         {selectedPapers.length > 0 && (
           <Badge variant="secondary" className="ml-auto">
-            {selectedPapers.length} selected
+            {selectedPapers.length} {t('selected')}
           </Badge>
         )}
       </div>
@@ -321,22 +324,25 @@ export function AcademicChatPanel({
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-yellow-500" />
-                    Quick Actions
+                    {t('quickActions')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
-                  {QUICK_ACTIONS.map((action) => (
-                    <Button
-                      key={action.id}
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                      onClick={() => handleQuickAction(action)}
-                    >
-                      <action.icon className="h-3 w-3 mr-1" />
-                      {action.label}
-                    </Button>
-                  ))}
+                  {quickActions.map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <Button
+                        key={action.id}
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => handleQuickAction(action)}
+                      >
+                        <Icon className="h-3 w-3 mr-1" />
+                        {action.label}
+                      </Button>
+                    );
+                  })}
                 </CardContent>
               </Card>
 
@@ -344,11 +350,16 @@ export function AcademicChatPanel({
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-blue-500" />
-                    Try asking...
+                    {t('tryAsking')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {SUGGESTED_QUERIES.map((query, idx) => (
+                  {[
+                    'Find recent papers on transformer architectures',
+                    'What are the key papers on reinforcement learning from human feedback?',
+                    'Search for papers about multimodal learning',
+                    'Find open access papers on large language models',
+                  ].map((query, idx) => (
                     <Button
                       key={idx}
                       variant="ghost"
@@ -416,8 +427,8 @@ export function AcademicChatPanel({
                         }}
                       >
                         {expandedMessageIds.has(message.id) 
-                          ? 'Show less' 
-                          : `Show ${message.papers.length - 5} more results`}
+                          ? t('showLess') 
+                          : t('showMore', { count: message.papers.length - 5 })}
                       </Button>
                     )}
                   </div>
@@ -429,7 +440,7 @@ export function AcademicChatPanel({
           {isLoading && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">{isAnalyzing ? 'Analyzing paper...' : 'Searching...'}</span>
+              <span className="text-sm">{isAnalyzing ? t('analyzing') : t('searching')}</span>
             </div>
           )}
         </div>
@@ -442,7 +453,7 @@ export function AcademicChatPanel({
               variant="ghost"
               className="w-full flex items-center justify-between px-4 py-2 h-auto"
             >
-              <span className="text-sm font-medium">Selected Papers ({selectedPapers.length})</span>
+              <span className="text-sm font-medium">{t('selectedPapers')} ({selectedPapers.length})</span>
               <ChevronUp className="h-4 w-4" />
             </Button>
           </CollapsibleTrigger>
@@ -468,7 +479,7 @@ export function AcademicChatPanel({
                 disabled={isLoading || isGeneratingPPT}
               >
                 <Brain className="h-3 w-3 mr-1" />
-                Analyze
+                {t('analyze')}
               </Button>
               <Button
                 size="sm"
@@ -481,10 +492,10 @@ export function AcademicChatPanel({
                 ) : (
                   <Presentation className="h-3 w-3 mr-1" />
                 )}
-                Generate PPT
+                {t('generatePPT')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setSelectedPapers([])}>
-                Clear
+                {t('clear')}
               </Button>
             </div>
           </CollapsibleContent>
@@ -499,7 +510,7 @@ export function AcademicChatPanel({
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Search for papers or ask a research question..."
+            placeholder={t('placeholder')}
             className="min-h-[44px] max-h-[120px] resize-none"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {

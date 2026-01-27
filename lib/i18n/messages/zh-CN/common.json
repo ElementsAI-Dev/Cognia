@@ -171,6 +171,17 @@
     "maximize": "最大化",
     "close": "关闭"
   },
+  "splashscreen": {
+    "initializing": "初始化中...",
+    "loadingCore": "加载核心模块...",
+    "initializingProviders": "初始化提供者...",
+    "loadingThemes": "加载主题...",
+    "preparingWorkspace": "准备工作区...",
+    "almostReady": "即将完成...",
+    "ready": "就绪！",
+    "appName": "Cognia",
+    "appDescription": "AI 聊天助手"
+  },
   "debug": {
     "tools": "调试工具",
     "openDevTools": "打开开发者工具",

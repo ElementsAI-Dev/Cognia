@@ -298,7 +298,7 @@ interface ComponentLibraryProps {
   onInsertComponent?: (code: string) => void;
 }
 
-// Draggable component item
+// Draggable component item with native HTML5 drag support for cross-iframe compatibility
 function DraggableComponent({
   component,
   onInsert,
@@ -315,9 +315,21 @@ function DraggableComponent({
     },
   });
 
+  // Native HTML5 drag handler for cross-iframe support
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: 'component',
+      componentId: component.id,
+      code: component.code,
+    }));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
   return (
     <div
       ref={setNodeRef}
+      draggable
+      onDragStart={handleDragStart}
       className={cn(
         'flex items-center gap-2 p-2 rounded-md border bg-card cursor-grab active:cursor-grabbing',
         'hover:border-primary/50 hover:bg-accent/50 transition-colors',

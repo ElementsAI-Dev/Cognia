@@ -167,7 +167,7 @@ export function AIChatPanel({
         const quickAssistantMessage: AIConversationMessage = {
           id: nanoid(),
           role: 'assistant',
-          content: 'Done! I\'ve applied the changes.',
+          content: t('aiChatApplied'),
           timestamp: new Date(),
           codeSnapshot: result.code,
         };
@@ -181,7 +181,7 @@ export function AIChatPanel({
     } finally {
       setIsProcessing(false);
     }
-  }, [code, getConfig, onCodeChange]);
+  }, [code, getConfig, onCodeChange, t]);
 
   // Get suggestions
   const handleGetSuggestions = useCallback(async (type: 'style' | 'accessibility') => {
@@ -277,10 +277,10 @@ export function AIChatPanel({
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Show all available actions */}
         <div className="border-b p-2">
           <div className="flex flex-wrap gap-1.5">
-            {QUICK_AI_ACTIONS.slice(0, 4).map((action) => (
+            {QUICK_AI_ACTIONS.map((action) => (
               <Badge
                 key={action.id}
                 variant="outline"
@@ -324,7 +324,7 @@ export function AIChatPanel({
               <div className="flex items-center gap-2">
                 <Lightbulb className="h-4 w-4 text-yellow-500" />
                 <span className="text-sm font-medium">
-                  {suggestionType === 'style' ? 'Style Suggestions' : 'Accessibility Issues'}
+                  {suggestionType === 'style' ? t('styleSuggestions') : t('accessibilityIssues')}
                 </span>
                 {suggestions.length > 0 && (
                   <Badge variant="secondary" className="text-xs">
@@ -426,7 +426,7 @@ export function AIChatPanel({
                       {msg.codeSnapshot && (
                         <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/50">
                           <Badge variant="outline" className="text-[10px]">
-                            Code updated
+                            {t('codeUpdated')}
                           </Badge>
                           <Button
                             variant="ghost"

@@ -56,6 +56,8 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import { Confetti } from '@/components/onboarding';
@@ -410,7 +412,11 @@ export function SetupWizard({ open, onOpenChange, onComplete }: SetupWizardProps
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-2 pt-2">
+                <RadioGroup
+                  value={selectedProvider}
+                  onValueChange={handleSelectProvider}
+                  className="grid gap-2 pt-2"
+                >
                   {FEATURED_PROVIDERS.map((providerId) => {
                     const prov = PROVIDERS[providerId];
                     if (!prov) return null;
@@ -418,48 +424,57 @@ export function SetupWizard({ open, onOpenChange, onComplete }: SetupWizardProps
                     const isLocal = providerId === 'ollama';
 
                     return (
-                      <Card
+                      <Label
                         key={providerId}
-                        className={cn(
-                          'cursor-pointer transition-all',
-                          isSelected
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                            : 'hover:bg-accent'
-                        )}
-                        onClick={() => handleSelectProvider(providerId)}
+                        htmlFor={`provider-${providerId}`}
+                        className="cursor-pointer"
                       >
-                        <CardHeader className="p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                'flex h-10 w-10 items-center justify-center rounded-lg',
-                                isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                              )}>
-                                <Globe className="h-5 w-5" />
+                        <Card
+                          className={cn(
+                            'transition-all',
+                            isSelected
+                              ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                              : 'hover:bg-accent'
+                          )}
+                        >
+                          <CardHeader className="p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <RadioGroupItem
+                                  value={providerId}
+                                  id={`provider-${providerId}`}
+                                  className="sr-only"
+                                />
+                                <div className={cn(
+                                  'flex h-10 w-10 items-center justify-center rounded-lg',
+                                  isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                                )}>
+                                  <Globe className="h-5 w-5" />
+                                </div>
+                                <div>
+                                  <CardTitle className="text-sm flex items-center gap-2">
+                                    {prov.name}
+                                    {isLocal && (
+                                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted">
+                                        {t('localProvider')}
+                                      </span>
+                                    )}
+                                  </CardTitle>
+                                  <CardDescription className="text-xs">
+                                    {PROVIDER_DESCRIPTIONS[providerId]}
+                                  </CardDescription>
+                                </div>
                               </div>
-                              <div>
-                                <CardTitle className="text-sm flex items-center gap-2">
-                                  {prov.name}
-                                  {isLocal && (
-                                    <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted">
-                                      {t('localProvider')}
-                                    </span>
-                                  )}
-                                </CardTitle>
-                                <CardDescription className="text-xs">
-                                  {PROVIDER_DESCRIPTIONS[providerId]}
-                                </CardDescription>
-                              </div>
+                              {isSelected && (
+                                <Check className="h-5 w-5 text-primary" />
+                              )}
                             </div>
-                            {isSelected && (
-                              <Check className="h-5 w-5 text-primary" />
-                            )}
-                          </div>
-                        </CardHeader>
-                      </Card>
+                          </CardHeader>
+                        </Card>
+                      </Label>
                     );
                   })}
-                </div>
+                </RadioGroup>
               </div>
             )}
 
@@ -679,46 +694,54 @@ export function SetupWizard({ open, onOpenChange, onComplete }: SetupWizardProps
                     const isSelected = selectedMcpServers.has(server.id);
                     const installResult = mcpInstallResults[server.id];
                     return (
-                      <Card
+                      <Label
                         key={server.id}
-                        className={cn(
-                          'cursor-pointer transition-all',
-                          isSelected
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                            : 'hover:bg-accent',
-                          isInstallingMcp && 'pointer-events-none opacity-60'
-                        )}
-                        onClick={() => {
-                          if (isInstallingMcp) return;
-                          const newSet = new Set(selectedMcpServers);
-                          if (isSelected) {
-                            newSet.delete(server.id);
-                          } else {
-                            newSet.add(server.id);
-                          }
-                          setSelectedMcpServers(newSet);
-                        }}
+                        htmlFor={`mcp-${server.id}`}
+                        className="cursor-pointer block"
                       >
-                        <CardHeader className="p-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <CardTitle className="text-sm">{server.name}</CardTitle>
-                              <CardDescription className="text-xs">
-                                {server.description}
-                              </CardDescription>
+                        <Card
+                          className={cn(
+                            'transition-all',
+                            isSelected
+                              ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                              : 'hover:bg-accent',
+                            isInstallingMcp && 'pointer-events-none opacity-60'
+                          )}
+                        >
+                          <CardHeader className="p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Checkbox
+                                  id={`mcp-${server.id}`}
+                                  checked={isSelected}
+                                  disabled={isInstallingMcp}
+                                  onCheckedChange={(checked) => {
+                                    const newSet = new Set(selectedMcpServers);
+                                    if (checked) {
+                                      newSet.add(server.id);
+                                    } else {
+                                      newSet.delete(server.id);
+                                    }
+                                    setSelectedMcpServers(newSet);
+                                  }}
+                                />
+                                <div>
+                                  <CardTitle className="text-sm">{server.name}</CardTitle>
+                                  <CardDescription className="text-xs">
+                                    {server.description}
+                                  </CardDescription>
+                                </div>
+                              </div>
+                              {installResult === true && (
+                                <Check className="h-5 w-5 text-green-500" />
+                              )}
+                              {installResult === false && (
+                                <AlertCircle className="h-5 w-5 text-destructive" />
+                              )}
                             </div>
-                            {installResult === true && (
-                              <Check className="h-5 w-5 text-green-500" />
-                            )}
-                            {installResult === false && (
-                              <AlertCircle className="h-5 w-5 text-destructive" />
-                            )}
-                            {installResult === undefined && isSelected && (
-                              <Check className="h-5 w-5 text-primary" />
-                            )}
-                          </div>
-                        </CardHeader>
-                      </Card>
+                          </CardHeader>
+                        </Card>
+                      </Label>
                     );
                   })}
 
@@ -748,52 +771,78 @@ export function SetupWizard({ open, onOpenChange, onComplete }: SetupWizardProps
                   {/* Theme Selection */}
                   <div className="space-y-2">
                     <Label>{t('themeLabel')}</Label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <RadioGroup
+                      value={theme}
+                      onValueChange={(value) => setTheme(value as Theme)}
+                      className="grid grid-cols-3 gap-2"
+                    >
                       {[
                         { value: 'light' as Theme, icon: Sun, label: t('themeLight') },
                         { value: 'dark' as Theme, icon: Moon, label: t('themeDark') },
                         { value: 'system' as Theme, icon: Monitor, label: t('themeSystem') },
                       ].map(({ value, icon: Icon, label }) => (
-                        <button
+                        <Label
                           key={value}
-                          onClick={() => setTheme(value)}
-                          className={cn(
-                            'flex flex-col items-center gap-2 rounded-lg border p-3 transition-all',
-                            theme === value
-                              ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                              : 'hover:bg-accent'
-                          )}
+                          htmlFor={`theme-${value}`}
+                          className="cursor-pointer"
                         >
-                          <Icon className="h-5 w-5" />
-                          <span className="text-xs font-medium">{label}</span>
-                        </button>
+                          <RadioGroupItem
+                            value={value}
+                            id={`theme-${value}`}
+                            className="sr-only"
+                          />
+                          <div
+                            className={cn(
+                              'flex flex-col items-center gap-2 rounded-lg border p-3 transition-all',
+                              theme === value
+                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                                : 'hover:bg-accent'
+                            )}
+                          >
+                            <Icon className="h-5 w-5" />
+                            <span className="text-xs font-medium">{label}</span>
+                          </div>
+                        </Label>
                       ))}
-                    </div>
+                    </RadioGroup>
                   </div>
 
                   {/* Language Selection */}
                   <div className="space-y-2">
                     <Label>{t('languageLabel')}</Label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <RadioGroup
+                      value={language}
+                      onValueChange={(value) => setLanguage(value as Language)}
+                      className="grid grid-cols-2 gap-2"
+                    >
                       {[
                         { value: 'en' as Language, label: 'English', flag: '🇺🇸' },
                         { value: 'zh-CN' as Language, label: '简体中文', flag: '🇨🇳' },
                       ].map(({ value, label, flag }) => (
-                        <button
+                        <Label
                           key={value}
-                          onClick={() => setLanguage(value)}
-                          className={cn(
-                            'flex items-center gap-2 rounded-lg border p-3 transition-all',
-                            language === value
-                              ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                              : 'hover:bg-accent'
-                          )}
+                          htmlFor={`lang-${value}`}
+                          className="cursor-pointer"
                         >
-                          <span className="text-xl">{flag}</span>
-                          <span className="text-sm font-medium">{label}</span>
-                        </button>
+                          <RadioGroupItem
+                            value={value}
+                            id={`lang-${value}`}
+                            className="sr-only"
+                          />
+                          <div
+                            className={cn(
+                              'flex items-center gap-2 rounded-lg border p-3 transition-all',
+                              language === value
+                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                                : 'hover:bg-accent'
+                            )}
+                          >
+                            <span className="text-xl">{flag}</span>
+                            <span className="text-sm font-medium">{label}</span>
+                          </div>
+                        </Label>
                       ))}
-                    </div>
+                    </RadioGroup>
                   </div>
                 </div>
               </div>

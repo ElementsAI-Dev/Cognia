@@ -1,4 +1,19 @@
 {
+  "nativeToolsPage": {
+    "title": "原生工具",
+    "desktopOnlyMessage": "原生工具仅在桌面应用中可用。下载桌面应用以访问剪贴板历史、截图、焦点追踪和上下文感知功能。",
+    "backToChat": "返回聊天",
+    "tabs": {
+      "history": "历史",
+      "smart": "智能",
+      "templates": "模板",
+      "screenshot": "截图",
+      "focus": "焦点",
+      "context": "上下文",
+      "system": "系统",
+      "sandbox": "沙箱"
+    }
+  },
   "nativeToolsSettings": {
     "title": "原生工具",
     "description": "配置剪贴板历史、截图、焦点追踪和上下文感知。",

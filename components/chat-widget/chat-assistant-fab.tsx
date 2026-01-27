@@ -7,6 +7,7 @@
  */
 
 import { forwardRef } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { MessageCircle, X, Sparkles } from "lucide-react";
@@ -54,6 +55,8 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
     },
     ref
   ) {
+    const t = useTranslations("chatWidget.fab");
+
     const button = (
       <motion.button
         ref={ref}
@@ -85,7 +88,7 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
           stiffness: 400,
           damping: 25,
         }}
-        aria-label={isOpen ? "Close chat assistant" : "Open chat assistant"}
+        aria-label={isOpen ? t("closeAssistant") : t("openAssistant")}
         aria-expanded={isOpen}
       >
         {/* Pulsing ring animation when not open */}
@@ -219,9 +222,9 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
               side={position.includes("right") ? "left" : "right"}
               sideOffset={8}
             >
-              <p>AI 助手</p>
-              <p className="text-xs text-muted-foreground">点击开始对话</p>
-              <p className="text-[10px] text-muted-foreground mt-1">快捷键: Ctrl+Shift+Space</p>
+              <p>{t("title")}</p>
+              <p className="text-xs text-muted-foreground">{t("clickToStart")}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{t("shortcutHint")}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

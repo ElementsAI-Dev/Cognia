@@ -359,7 +359,7 @@ export function AppSidebar() {
       data-tour="sidebar"
       className={cn(
         'transition-colors duration-300',
-        isBackgroundActive ? 'bg-sidebar/70 backdrop-blur-md border-r-white/10' : 'bg-sidebar'
+        isBackgroundActive ? 'bg-sidebar-70 backdrop-blur-md border-r-white/10' : 'bg-sidebar'
       )}
     >
       <SidebarHeader>

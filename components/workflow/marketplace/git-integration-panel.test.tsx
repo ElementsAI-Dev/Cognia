@@ -6,6 +6,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { GitIntegrationPanel } from './git-integration-panel';
 import type { GitRepository } from '@/types/workflow/template';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({
@@ -122,6 +127,39 @@ jest.mock('@/components/ui/badge', () => ({
   ),
 }));
 
+jest.mock('@/components/ui/card', () => ({
+  Card: ({ children, className, onClick }: { children?: React.ReactNode; className?: string; onClick?: () => void }) => (
+    <div data-testid="card" className={className} onClick={onClick}>{children}</div>
+  ),
+  CardContent: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="card-content" className={className}>{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/alert', () => ({
+  Alert: ({ children, variant }: { children?: React.ReactNode; variant?: string }) => (
+    <div data-testid="alert" data-variant={variant}>{children}</div>
+  ),
+  AlertDescription: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="alert-description">{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/scroll-area', () => ({
+  ScrollArea: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="scroll-area" className={className}>{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="tooltip-content">{children}</div>
+  ),
+  TooltipProvider: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+}));
+
 // Mock lucide-react icons
 jest.mock('lucide-react', () => ({
   GitBranch: () => <svg data-testid="git-branch-icon" />,
@@ -132,6 +170,7 @@ jest.mock('lucide-react', () => ({
   Trash2: () => <svg data-testid="trash-icon" />,
   AlertCircle: () => <svg data-testid="alert-circle-icon" />,
   CheckCircle2: () => <svg data-testid="check-circle-icon" />,
+  Info: () => <svg data-testid="info-icon" />,
 }));
 
 // Mock git integration service
@@ -159,22 +198,22 @@ describe('GitIntegrationPanel', () => {
 
   it('renders without crashing', () => {
     render(<GitIntegrationPanel />);
-    expect(screen.getByText('Git Integration')).toBeInTheDocument();
+    expect(screen.getByText('title')).toBeInTheDocument();
   });
 
   it('renders header with title', () => {
     render(<GitIntegrationPanel />);
-    expect(screen.getByText('Git Integration')).toBeInTheDocument();
+    expect(screen.getByText('title')).toBeInTheDocument();
   });
 
   it('renders clone repository button', () => {
     render(<GitIntegrationPanel />);
-    expect(screen.getByText('Clone Repository')).toBeInTheDocument();
+    expect(screen.getByText('cloneRepo')).toBeInTheDocument();
   });
 
   it('renders sync all button', () => {
     render(<GitIntegrationPanel />);
-    expect(screen.getByText('Sync All')).toBeInTheDocument();
+    expect(screen.getByText('syncAll')).toBeInTheDocument();
   });
 
   it('renders plus icon in clone button', () => {
@@ -189,8 +228,8 @@ describe('GitIntegrationPanel', () => {
 
   it('shows empty state when no repositories', () => {
     render(<GitIntegrationPanel />);
-    expect(screen.getByText('No repositories connected')).toBeInTheDocument();
-    expect(screen.getByText('Clone a repository to get started')).toBeInTheDocument();
+    expect(screen.getByText('noRepos')).toBeInTheDocument();
+    expect(screen.getByText('cloneToStart')).toBeInTheDocument();
   });
 
   it('shows git branch icon in empty state', () => {
@@ -200,64 +239,62 @@ describe('GitIntegrationPanel', () => {
 
   it('opens clone dialog when clone button is clicked', () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
     expect(screen.getByTestId('dialog')).toBeInTheDocument();
   });
 
   it('renders clone dialog with title', () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
-    expect(screen.getByText('Clone Git Repository')).toBeInTheDocument();
+    expect(screen.getByText('cloneDialogTitle')).toBeInTheDocument();
   });
 
   it('renders repository URL input in clone dialog', () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
-    expect(
-      screen.getByPlaceholderText(/https:\/\/github.com\/username\/repo.git/)
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('repoUrlPlaceholder')).toBeInTheDocument();
   });
 
   it('renders branch input in clone dialog', () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
-    expect(screen.getByPlaceholderText('main')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('branchPlaceholder')).toBeInTheDocument();
   });
 
   it('updates clone URL input on change', () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
-    const urlInput = screen.getByPlaceholderText(/https:\/\/github.com\/username\/repo.git/);
+    const urlInput = screen.getByPlaceholderText('repoUrlPlaceholder');
     fireEvent.change(urlInput, { target: { value: 'https://github.com/test/repo.git' } });
     expect(urlInput).toHaveValue('https://github.com/test/repo.git');
   });
 
   it('updates branch input on change', () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
-    const branchInput = screen.getByPlaceholderText('main');
+    const branchInput = screen.getByPlaceholderText('branchPlaceholder');
     fireEvent.change(branchInput, { target: { value: 'develop' } });
     expect(branchInput).toHaveValue('develop');
   });
 
   it('shows error status when cloning with empty URL', async () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
-    const submitButton = screen.getAllByText('Clone Repository')[1];
+    const submitButton = screen.getAllByText('cloneRepo')[1];
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/Please enter a Git repository URL/)).toBeInTheDocument();
+      expect(screen.getByText('errorNoUrl')).toBeInTheDocument();
     });
   });
 
@@ -267,13 +304,13 @@ describe('GitIntegrationPanel', () => {
     const gitService = getGitIntegrationService();
 
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
-    const urlInput = screen.getByPlaceholderText(/https:\/\/github.com\/username\/repo.git/);
+    const urlInput = screen.getByPlaceholderText('repoUrlPlaceholder');
     fireEvent.change(urlInput, { target: { value: 'https://github.com/test/repo.git' } });
 
-    const submitButton = screen.getAllByText('Clone Repository')[1];
+    const submitButton = screen.getAllByText('cloneRepo')[1];
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -283,29 +320,29 @@ describe('GitIntegrationPanel', () => {
 
   it('shows info status during cloning', async () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
-    const urlInput = screen.getByPlaceholderText(/https:\/\/github.com\/username\/repo.git/);
+    const urlInput = screen.getByPlaceholderText('repoUrlPlaceholder');
     fireEvent.change(urlInput, { target: { value: 'https://github.com/test/repo.git' } });
 
-    const submitButton = screen.getAllByText('Clone Repository')[1];
+    const submitButton = screen.getAllByText('cloneRepo')[1];
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Cloning repository...')).toBeInTheDocument();
+      expect(screen.getByText('cloning')).toBeInTheDocument();
     });
   });
 
   it('disables clone button while cloning', async () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
-    const urlInput = screen.getByPlaceholderText(/https:\/\/github.com\/username\/repo.git/);
+    const urlInput = screen.getByPlaceholderText('repoUrlPlaceholder');
     fireEvent.change(urlInput, { target: { value: 'https://github.com/test/repo.git' } });
 
-    const submitButton = screen.getAllByText('Clone Repository')[1];
+    const submitButton = screen.getAllByText('cloneRepo')[1];
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -315,13 +352,13 @@ describe('GitIntegrationPanel', () => {
 
   it('shows loading spinner while cloning', async () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
-    const urlInput = screen.getByPlaceholderText(/https:\/\/github.com\/username\/repo.git/);
+    const urlInput = screen.getByPlaceholderText('repoUrlPlaceholder');
     fireEvent.change(urlInput, { target: { value: 'https://github.com/test/repo.git' } });
 
-    const submitButton = screen.getAllByText('Clone Repository')[1];
+    const submitButton = screen.getAllByText('cloneRepo')[1];
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -336,7 +373,7 @@ describe('GitIntegrationPanel', () => {
     const gitService = getGitIntegrationService();
 
     render(<GitIntegrationPanel />);
-    const syncAllButton = screen.getByText('Sync All');
+    const syncAllButton = screen.getByText('syncAll');
     fireEvent.click(syncAllButton);
 
     await waitFor(() => {
@@ -346,18 +383,18 @@ describe('GitIntegrationPanel', () => {
 
   it('shows success status after sync all', async () => {
     render(<GitIntegrationPanel />);
-    const syncAllButton = screen.getByText('Sync All');
+    const syncAllButton = screen.getByText('syncAll');
     fireEvent.click(syncAllButton);
 
     await waitFor(() => {
-      expect(screen.getByText('All repositories synced')).toBeInTheDocument();
+      expect(screen.getByText('syncSuccess')).toBeInTheDocument();
     });
   });
 
   it('renders check-circle icon for success status', () => {
     render(<GitIntegrationPanel />);
     // Trigger a success state by any action
-    const syncAllButton = screen.getByText('Sync All');
+    const syncAllButton = screen.getByText('syncAll');
     fireEvent.click(syncAllButton);
 
     // Check for success icon
@@ -367,10 +404,10 @@ describe('GitIntegrationPanel', () => {
 
   it('renders alert-circle icon for error status', async () => {
     render(<GitIntegrationPanel />);
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
-    const submitButton = screen.getAllByText('Clone Repository')[1];
+    const submitButton = screen.getAllByText('cloneRepo')[1];
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -400,20 +437,20 @@ describe('RepositoryCard', () => {
   it('renders repository name', () => {
     // The component renders when repositories are added
     // This would require adding repos to state, which is handled by the parent
-    render(<GitIntegrationPanel />);
-    expect(container.querySelector('.text-2xl')).toHaveTextContent('Git Integration');
+    const { container } = render(<GitIntegrationPanel />);
+    expect(container.querySelector('.text-2xl')).toHaveTextContent('title');
   });
 
   it('renders branch badge', () => {
     render(<GitIntegrationPanel />);
     // In empty state, no badges
-    expect(screen.getByText('No repositories connected')).toBeInTheDocument();
+    expect(screen.getByText('noRepos')).toBeInTheDocument();
   });
 
   it('renders commit hash', () => {
     render(<GitIntegrationPanel />);
     // In empty state
-    expect(screen.getByText('No repositories connected')).toBeInTheDocument();
+    expect(screen.getByText('noRepos')).toBeInTheDocument();
   });
 });
 
@@ -426,15 +463,15 @@ describe('GitIntegrationPanel integration tests', () => {
     render(<GitIntegrationPanel />);
 
     // Open clone dialog
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
     // Fill in form
-    const urlInput = screen.getByPlaceholderText(/https:\/\/github.com\/username\/repo.git/);
+    const urlInput = screen.getByPlaceholderText('repoUrlPlaceholder');
     fireEvent.change(urlInput, { target: { value: 'https://github.com/test/repo.git' } });
 
     // Submit
-    const submitButton = screen.getAllByText('Clone Repository')[1];
+    const submitButton = screen.getAllByText('cloneRepo')[1];
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -453,12 +490,12 @@ describe('GitIntegrationPanel integration tests', () => {
 
     render(<GitIntegrationPanel />);
 
-    const syncAllButton = screen.getByText('Sync All');
+    const syncAllButton = screen.getByText('syncAll');
     fireEvent.click(syncAllButton);
 
     await waitFor(() => {
       expect(gitService.syncAllRepositories).toHaveBeenCalled();
-      expect(screen.getByText('All repositories synced')).toBeInTheDocument();
+      expect(screen.getByText('syncSuccess')).toBeInTheDocument();
     });
   });
 
@@ -471,23 +508,23 @@ describe('GitIntegrationPanel integration tests', () => {
 
     render(<GitIntegrationPanel />);
 
-    const syncAllButton = screen.getByText('Sync All');
+    const syncAllButton = screen.getByText('syncAll');
     fireEvent.click(syncAllButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/Failed to sync repositories/)).toBeInTheDocument();
+      expect(screen.getByText(/syncError/)).toBeInTheDocument();
     });
   });
 
   it('shows info icon during sync', async () => {
     render(<GitIntegrationPanel />);
 
-    const syncAllButton = screen.getByText('Sync All');
+    const syncAllButton = screen.getByText('syncAll');
     fireEvent.click(syncAllButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Syncing all repositories...')).toBeInTheDocument();
-      const infoIcon = screen.queryByTestId('refresh-cw-icon');
+      expect(screen.getByText('syncingAll')).toBeInTheDocument();
+      const infoIcon = screen.queryByTestId('info-icon');
       expect(infoIcon).toBeInTheDocument();
     });
   });
@@ -495,10 +532,10 @@ describe('GitIntegrationPanel integration tests', () => {
   it('handles branch name change in clone dialog', () => {
     render(<GitIntegrationPanel />);
 
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
-    const branchInput = screen.getByPlaceholderText('main');
+    const branchInput = screen.getByPlaceholderText('branchPlaceholder');
     fireEvent.change(branchInput, { target: { value: 'develop' } });
 
     expect(branchInput).toHaveValue('develop');
@@ -507,10 +544,10 @@ describe('GitIntegrationPanel integration tests', () => {
   it('maintains clone URL state', () => {
     render(<GitIntegrationPanel />);
 
-    const cloneButton = screen.getByText('Clone Repository');
+    const cloneButton = screen.getByText('cloneRepo');
     fireEvent.click(cloneButton);
 
-    const urlInput = screen.getByPlaceholderText(/https:\/\/github.com\/username\/repo.git/);
+    const urlInput = screen.getByPlaceholderText('repoUrlPlaceholder');
     fireEvent.change(urlInput, { target: { value: 'https://custom.url/repo.git' } });
 
     expect(urlInput).toHaveValue('https://custom.url/repo.git');

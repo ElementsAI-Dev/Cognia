@@ -87,7 +87,6 @@ export {
 // Chat and tool integration
 export {
   A2UIMessageRenderer,
-  A2UIEnhancedMessage,
   hasA2UIContent,
   useA2UIMessageIntegration,
 } from './a2ui-message-renderer';

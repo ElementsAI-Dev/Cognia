@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -70,6 +71,8 @@ export function ImageUpscaler({
   onCancel,
   className,
 }: ImageUpscalerProps) {
+  const t = useTranslations('imageStudio.imageUpscaler');
+
   // Refs
   const originalCanvasRef = useRef<HTMLCanvasElement>(null);
   const upscaledCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -106,7 +109,7 @@ export function ImageUpscaler({
       }
     };
     img.onerror = () => {
-      setError('Failed to load image');
+      setError(t('failedToLoad'));
     };
     img.src = imageUrl;
   }, [imageUrl]);
@@ -343,7 +346,7 @@ export function ImageUpscaler({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ZoomIn className="h-5 w-5" />
-          <h3 className="font-medium">Image Upscaler</h3>
+          <h3 className="font-medium">{t('title')}</h3>
         </div>
         <div className="text-sm text-muted-foreground">
           {originalSize.width} × {originalSize.height} → {newSize.width} × {newSize.height}
@@ -354,7 +357,7 @@ export function ImageUpscaler({
       <div className="flex items-center gap-4 flex-wrap">
         {/* Presets */}
         <div className="flex items-center gap-2">
-          <Label className="text-xs">Preset:</Label>
+          <Label className="text-sm">{t('preset')}</Label>
           <div className="flex gap-1">
             {UPSCALE_PRESETS.map((preset) => (
               <Tooltip key={preset.name}>
@@ -377,7 +380,7 @@ export function ImageUpscaler({
 
         {/* Factor selector */}
         <div className="flex items-center gap-2">
-          <Label className="text-xs">Scale:</Label>
+          <Label className="text-sm">{t('scale')}</Label>
           <Select
             value={factor.toString()}
             onValueChange={(v) => setFactor(parseInt(v) as UpscaleFactor)}
@@ -395,7 +398,7 @@ export function ImageUpscaler({
 
         {/* Method selector */}
         <div className="flex items-center gap-2">
-          <Label className="text-xs">Method:</Label>
+          <Label className="text-sm">{t('method')}</Label>
           <Select
             value={method}
             onValueChange={(v) => setMethod(v as UpscaleMethod)}
@@ -405,9 +408,9 @@ export function ImageUpscaler({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="bilinear">Bilinear</SelectItem>
-              <SelectItem value="bicubic">Bicubic</SelectItem>
-              <SelectItem value="lanczos">Lanczos</SelectItem>
+              <SelectItem value="bilinear">{t('methods.bilinear')}</SelectItem>
+              <SelectItem value="bicubic">{t('methods.bicubic')}</SelectItem>
+              <SelectItem value="lanczos">{t('methods.lanczos')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -516,9 +519,9 @@ export function ImageUpscaler({
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
               <p className="text-xs">
-                <strong>Bilinear:</strong> Fast, basic quality<br />
-                <strong>Bicubic:</strong> Smooth, good for most images<br />
-                <strong>Lanczos:</strong> Sharpest, best for photos
+                <strong>{t('methods.bilinear')}:</strong> {t('methodInfo.bilinear')}<br />
+                <strong>{t('methods.bicubic')}:</strong> {t('methodInfo.bicubic')}<br />
+                <strong>{t('methods.lanczos')}:</strong> {t('methodInfo.lanczos')}
               </p>
             </TooltipContent>
           </Tooltip>

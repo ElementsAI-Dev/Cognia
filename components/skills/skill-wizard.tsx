@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useSkillStore } from '@/stores/skills';
 import { getAllTemplates } from '@/lib/skills/templates';
@@ -48,15 +49,15 @@ import { parseSkillMd } from '@/lib/skills/parser';
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
 import type { SkillCategory, SkillTemplate, SkillResource } from '@/types/system/skill';
 
-const CATEGORY_OPTIONS: Array<{ value: SkillCategory; label: string; icon: React.ReactNode; description: string }> = [
-  { value: 'creative-design', label: 'Creative & Design', icon: <Palette className="h-5 w-5" />, description: 'Design, art, and creative tasks' },
-  { value: 'development', label: 'Development', icon: <Code className="h-5 w-5" />, description: 'Coding, debugging, and software' },
-  { value: 'enterprise', label: 'Enterprise', icon: <Building2 className="h-5 w-5" />, description: 'Business processes and workflows' },
-  { value: 'productivity', label: 'Productivity', icon: <Zap className="h-5 w-5" />, description: 'Task management and efficiency' },
-  { value: 'data-analysis', label: 'Data Analysis', icon: <BarChart3 className="h-5 w-5" />, description: 'Data processing and insights' },
-  { value: 'communication', label: 'Communication', icon: <MessageSquare className="h-5 w-5" />, description: 'Writing and communication' },
-  { value: 'meta', label: 'Meta Skills', icon: <Cog className="h-5 w-5" />, description: 'Skills about skills' },
-  { value: 'custom', label: 'Custom', icon: <FileText className="h-5 w-5" />, description: 'General purpose skills' },
+const CATEGORY_OPTIONS: Array<{ value: SkillCategory; labelKey: string; icon: React.ReactNode; descKey: string }> = [
+  { value: 'creative-design', labelKey: 'categoryCreativeDesign', icon: <Palette className="h-5 w-5" />, descKey: 'categoryCreativeDesignDesc' },
+  { value: 'development', labelKey: 'categoryDevelopment', icon: <Code className="h-5 w-5" />, descKey: 'categoryDevelopmentDesc' },
+  { value: 'enterprise', labelKey: 'categoryEnterprise', icon: <Building2 className="h-5 w-5" />, descKey: 'categoryEnterpriseDesc' },
+  { value: 'productivity', labelKey: 'categoryProductivity', icon: <Zap className="h-5 w-5" />, descKey: 'categoryProductivityDesc' },
+  { value: 'data-analysis', labelKey: 'categoryDataAnalysis', icon: <BarChart3 className="h-5 w-5" />, descKey: 'categoryDataAnalysisDesc' },
+  { value: 'communication', labelKey: 'categoryCommunication', icon: <MessageSquare className="h-5 w-5" />, descKey: 'categoryCommunicationDesc' },
+  { value: 'meta', labelKey: 'categoryMeta', icon: <Cog className="h-5 w-5" />, descKey: 'categoryMetaDesc' },
+  { value: 'custom', labelKey: 'categoryCustom', icon: <FileText className="h-5 w-5" />, descKey: 'categoryCustomDesc' },
 ];
 
 type WizardStep = 'start' | 'template' | 'basic' | 'content' | 'preview';
@@ -268,6 +269,7 @@ Use this skill when:
   ];
 
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
+  const progressPercent = ((currentStepIndex + 1) / steps.length) * 100;
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
@@ -285,7 +287,9 @@ Use this skill when:
       </div>
 
       {/* Step Indicator */}
-      <div className="flex items-center gap-2 p-4 border-b bg-muted/30">
+      <div className="p-4 border-b bg-muted/30 space-y-3">
+        <Progress value={progressPercent} className="h-1.5" />
+        <div className="flex items-center gap-2">
         {steps.map((step, index) => (
           <div key={step.key} className="flex items-center">
             <div
@@ -313,6 +317,7 @@ Use this skill when:
             )}
           </div>
         ))}
+        </div>
       </div>
 
       {/* Content */}
@@ -470,7 +475,7 @@ Use this skill when:
                       >
                         <div className="flex items-center gap-2">
                           {option.icon}
-                          <span className="text-sm font-medium">{option.label}</span>
+                          <span className="text-sm font-medium">{t(option.labelKey)}</span>
                         </div>
                       </Card>
                     ))}

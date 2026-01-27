@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 export type ComparisonMode = 'split-horizontal' | 'split-vertical' | 'side-by-side' | 'toggle';
@@ -54,6 +55,8 @@ export function EnhancedPreview({
   onPanChange,
   className,
 }: EnhancedPreviewProps) {
+  const t = useTranslations('imageStudio.enhancedPreview');
+
   const containerRef = useRef<HTMLDivElement>(null);
   const originalCanvasRef = useRef<HTMLCanvasElement>(null);
   const editedCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -284,8 +287,8 @@ export function EnhancedPreview({
   const renderContent = () => {
     if (!originalImage && !editedImage) {
       return (
-        <div className="flex items-center justify-center h-full text-muted-foreground">
-          No image loaded
+        <div className="flex items-center justify-center h-full">
+          <div className="text-muted-foreground text-sm">{t('noImageLoaded')}</div>
         </div>
       );
     }
@@ -364,8 +367,8 @@ export function EnhancedPreview({
         return (
           <div className="flex w-full h-full gap-2">
             <div className="flex-1 relative overflow-hidden border rounded">
-              <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">
-                Original
+              <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-1 rounded">
+                {t('original')}
               </div>
               <canvas
                 ref={originalCanvasRef}
@@ -378,8 +381,8 @@ export function EnhancedPreview({
               />
             </div>
             <div className="flex-1 relative overflow-hidden border rounded">
-              <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">
-                Edited
+              <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-1 rounded">
+                {t('edited')}
               </div>
               <canvas
                 ref={editedCanvasRef}

@@ -17,8 +17,18 @@ import {
   Sparkles,
   Eye,
   ArrowUpRight,
+  Trash2,
+  MoreHorizontal,
+  ArrowUpCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -33,6 +43,8 @@ interface PromptMarketplaceCardProps {
   onInstall?: (prompt: MarketplacePrompt) => void;
   compact?: boolean;
   featured?: boolean;
+  hasUpdate?: boolean;
+  onUpdate?: () => void;
 }
 
 export function PromptMarketplaceCard({
@@ -41,6 +53,8 @@ export function PromptMarketplaceCard({
   onInstall,
   compact = false,
   featured = false,
+  hasUpdate = false,
+  onUpdate,
 }: PromptMarketplaceCardProps) {
   const t = useTranslations('promptMarketplace.card');
   const [isInstalling, setIsInstalling] = useState(false);
@@ -50,6 +64,7 @@ export function PromptMarketplaceCard({
   const addToFavorites = usePromptMarketplaceStore((state) => state.addToFavorites);
   const removeFromFavorites = usePromptMarketplaceStore((state) => state.removeFromFavorites);
   const installPrompt = usePromptMarketplaceStore((state) => state.installPrompt);
+  const uninstallPrompt = usePromptMarketplaceStore((state) => state.uninstallPrompt);
   const recordView = usePromptMarketplaceStore((state) => state.recordView);
 
   const tierInfo = QUALITY_TIER_INFO[prompt.qualityTier];
@@ -78,6 +93,11 @@ export function PromptMarketplaceCard({
   const handleViewDetail = () => {
     recordView(prompt.id);
     onViewDetail?.(prompt);
+  };
+
+  const handleUninstall = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    uninstallPrompt(prompt.id);
   };
 
   const formatNumber = (num: number): string => {
@@ -161,10 +181,59 @@ export function PromptMarketplaceCard({
               <Heart className={cn('h-4 w-4', isFavorite && 'fill-current')} />
             </Button>
             {isInstalled ? (
-              <Badge variant="secondary" className="gap-1 bg-green-500/10 text-green-600 dark:text-green-400 border-0">
-                <Check className="h-3 w-3" />
-                {t('installed')}
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                {hasUpdate && (
+                  <Button
+                    size="sm"
+                    className="gap-1 h-8 bg-blue-500 hover:bg-blue-600 text-white"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdate?.();
+                    }}
+                  >
+                    <ArrowUpCircle className="h-3 w-3" />
+                    {t('update')}
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="sm" className="gap-1.5 h-8 bg-green-500/10 text-green-600 dark:text-green-400 border-0 hover:bg-green-500/20">
+                      <Check className="h-3 w-3" />
+                      {t('installed')}
+                      <MoreHorizontal className="h-3 w-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {hasUpdate && (
+                      <>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUpdate?.();
+                          }}
+                          className="text-blue-600 focus:text-blue-600"
+                        >
+                          <ArrowUpCircle className="h-4 w-4 mr-2" />
+                          {t('update')}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    <DropdownMenuItem onClick={handleViewDetail}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      {t('viewDetails')}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleUninstall}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {t('uninstall')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ) : (
               <Button
                 size="sm"
@@ -283,7 +352,7 @@ export function PromptMarketplaceCard({
                   <TooltipTrigger>
                     <BadgeIcon className="h-3.5 w-3.5 text-blue-500 fill-blue-500/20" />
                   </TooltipTrigger>
-                  <TooltipContent>Verified Creator</TooltipContent>
+                  <TooltipContent>{t('verifiedCreator')}</TooltipContent>
                 </Tooltip>
               )}
             </div>
@@ -360,18 +429,42 @@ export function PromptMarketplaceCard({
 
         {/* Action Button */}
         {isInstalled ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="w-full gap-2 font-medium bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:text-green-400 border-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleViewDetail();
-            }}
-          >
-            <Check className="h-4 w-4" />
-            {t('installed')}
-          </Button>
+          <div className="flex gap-2 w-full">
+            {hasUpdate ? (
+              <Button
+                size="sm"
+                className="flex-1 gap-2 font-medium bg-blue-500 hover:bg-blue-600 text-white"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdate?.();
+                }}
+              >
+                <ArrowUpCircle className="h-4 w-4" />
+                {t('update')}
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1 gap-2 font-medium bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:text-green-400 border-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleViewDetail();
+                }}
+              >
+                <Check className="h-4 w-4" />
+                {t('installed')}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="px-2 text-muted-foreground hover:text-destructive hover:border-destructive/50"
+              onClick={handleUninstall}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         ) : (
           <Button
             size="sm"

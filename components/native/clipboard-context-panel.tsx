@@ -8,6 +8,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useClipboardContext, CATEGORY_INFO, TRANSFORM_ACTIONS } from '@/hooks/context';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmptyState } from '@/components/layout/empty-state';
 import {
   Copy,
@@ -53,6 +55,7 @@ interface ClipboardContextPanelProps {
 }
 
 export function ClipboardContextPanel({ className }: ClipboardContextPanelProps) {
+  const t = useTranslations('clipboardContextPanel');
   const [activeTab, setActiveTab] = useState('current');
 
   const {
@@ -119,44 +122,54 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
       <div className="flex items-center justify-between p-2 sm:p-3 border-b shrink-0">
         <div className="flex items-center gap-2">
           <Clipboard className="h-5 w-5" />
-          <span className="font-medium">Context Clipboard</span>
+          <span className="font-medium">{t('title')}</span>
           {isMonitoring && (
             <Badge variant="secondary" className="text-xs">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-1" />
-              Monitoring
+              {t('monitoring')}
             </Badge>
           )}
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => isMonitoring ? stopMonitoring() : startMonitoring()}
-          >
-            {isMonitoring ? (
-              <span className="h-4 w-4 rounded bg-red-500" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={readAndAnalyze}
-            disabled={isAnalyzing}
-          >
-            <RefreshCw className={cn('h-4 w-4', isAnalyzing && 'animate-spin')} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => isMonitoring ? stopMonitoring() : startMonitoring()}
+              >
+                {isMonitoring ? (
+                  <span className="h-4 w-4 rounded bg-red-500" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('toggleMonitoring')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={readAndAnalyze}
+                disabled={isAnalyzing}
+              >
+                <RefreshCw className={cn('h-4 w-4', isAnalyzing && 'animate-spin')} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('refreshClipboard')}</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <TabsList className="shrink-0 mx-2 mt-2 grid w-auto grid-cols-3">
-          <TabsTrigger value="current" className="text-xs">Current</TabsTrigger>
-          <TabsTrigger value="actions" className="text-xs">Actions</TabsTrigger>
-          <TabsTrigger value="entities" className="text-xs">Entities</TabsTrigger>
+          <TabsTrigger value="current" className="text-xs">{t('current')}</TabsTrigger>
+          <TabsTrigger value="actions" className="text-xs">{t('actions')}</TabsTrigger>
+          <TabsTrigger value="entities" className="text-xs">{t('entities')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="current" className="flex-1 m-0 mt-2 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
@@ -175,12 +188,12 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                       <CardTitle className="text-sm flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {getCategoryIcon(category)}
-                          <span>{categoryInfo?.label || 'Content'}</span>
+                          <span>{categoryInfo?.label || t('content')}</span>
                         </div>
                         {hasSensitiveContent && (
                           <Badge variant="destructive" className="text-xs">
                             <ShieldAlert className="h-3 w-3 mr-1" />
-                            Sensitive
+                            {t('sensitive')}
                           </Badge>
                         )}
                       </CardTitle>
@@ -206,17 +219,17 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                           </Badge>
                         )}
                         {analysis?.confidence && (
-                          <Badge variant="outline" className="text-xs">
-                            {Math.round(analysis.confidence * 100)}% confidence
-                          </Badge>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span>{Math.round(analysis.confidence * 100)}% {t('confidence')}</span>
+                          </div>
                         )}
                       </div>
 
                       {stats && (
                         <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                          <div>{stats.char_count} chars</div>
-                          <div>{stats.word_count} words</div>
-                          <div>{stats.line_count} lines</div>
+                          <div>{stats.char_count} {t('chars')}</div>
+                          <div>{stats.word_count} {t('words')}</div>
+                          <div>{stats.line_count} {t('lines')}</div>
                         </div>
                       )}
                     </CardContent>
@@ -226,7 +239,7 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm flex items-center gap-2">
                         <Wand2 className="h-4 w-4" />
-                        Quick Actions
+                        {t('quickActions')}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -238,7 +251,7 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                           className="text-xs"
                         >
                           <Copy className="h-3 w-3 mr-1" />
-                          Copy
+                          {t('copy')}
                         </Button>
 
                         {applicableTransforms.slice(0, 3).map((transform) => (
@@ -261,7 +274,7 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                              <DropdownMenuLabel>More Transforms</DropdownMenuLabel>
+                              <DropdownMenuLabel>{t('moreTransforms')}</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               {applicableTransforms.slice(3).map((transform) => (
                                 <DropdownMenuItem
@@ -281,7 +294,7 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                           onClick={clearClipboard}
                           className="text-xs text-destructive"
                         >
-                          Clear
+                          {t('clear')}
                         </Button>
                       </div>
                     </CardContent>
@@ -290,8 +303,8 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
               ) : (
                 <EmptyState
                   icon={Clipboard}
-                  title="No clipboard content"
-                  description="Copy something to see context-aware analysis"
+                  title={t('noClipboardContent')}
+                  description={t('copyToSeeAnalysis')}
                   compact
                 />
               )}
@@ -325,15 +338,15 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
               ) : (
                 <EmptyState
                   icon={Wand2}
-                  title="No suggested actions"
-                  description="Actions will appear based on clipboard content"
+                  title={t('noSuggestedActions')}
+                  description={t('actionsWillAppear')}
                   compact
                 />
               )}
 
               <div className="pt-2 border-t">
                 <div className="text-xs font-medium text-muted-foreground mb-2">
-                  All Transforms
+                  {t('allTransforms')}
                 </div>
                 <div className="grid grid-cols-2 gap-1">
                   {TRANSFORM_ACTIONS.map((transform) => (
@@ -405,8 +418,8 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
               ) : (
                 <EmptyState
                   icon={Hash}
-                  title="No entities detected"
-                  description="URLs, emails, colors, and other patterns will appear here"
+                  title={t('noEntitiesDetected')}
+                  description={t('entitiesWillAppear')}
                   compact
                 />
               )}

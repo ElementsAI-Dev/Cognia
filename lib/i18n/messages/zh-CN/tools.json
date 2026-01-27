@@ -101,6 +101,9 @@
     "configureSettings": "配置 MCP 服务器连接设置。",
     "envKeyPlaceholder": "KEY",
     "envValuePlaceholder": "值",
+    "showPassword": "显示密码",
+    "hidePassword": "隐藏密码",
+    "removeEnvVar": "移除环境变量",
     "connected": "已连接",
     "disconnected": "未连接",
     "connecting": "连接中...",
@@ -150,9 +153,17 @@
     "tools": "工具",
     "resources": "资源",
     "prompts": "提示",
+    "toolsCount": "{count} 个工具",
+    "resourcesCount": "{count} 个资源",
+    "promptsCount": "{count} 个提示",
     "toolsTooltip": "AI 可调用的功能",
     "resourcesTooltip": "可用的数据源",
     "promptsTooltip": "提示模板",
+    "statusConnected": "服务器已连接并就绪",
+    "statusConnecting": "正在连接服务器...",
+    "statusReconnecting": "正在重新连接服务器...",
+    "statusError": "连接错误",
+    "statusDisconnected": "服务器已断开",
     "myServers": "我的服务器",
     "marketplace": "市场"
   },
@@ -281,6 +292,8 @@
     "trustedDomains": "可信域名",
     "blockedDomains": "屏蔽域名",
     "removeDomain": "移除 {domain}",
-    "autoFilterWarning": "自动过滤已启用。低于 {percentage}% 可信度的来源将被自动排除。"
+    "autoFilterWarning": "自动过滤已启用。低于 {percentage}% 可信度的来源将被自动排除。",
+    "trustedDomainPlaceholder": "example.com",
+    "blockedDomainPlaceholder": "spam-site.com"
   }
 }

@@ -231,14 +231,12 @@ export function PluginCard({
       className={cn(
         'group relative overflow-hidden transition-all duration-200',
         isBackgroundActive ? TRANSPARENCY_CONFIG.card : undefined,
-        'hover:border-primary/50 hover:shadow-md hover:shadow-primary/5',
+        'hover:border-primary/50 hover:shadow-md',
         isError && 'border-destructive/50 hover:border-destructive'
       )}
     >
-      {/* Gradient overlay on hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-      <CardHeader className="relative p-3 sm:p-4 pb-2 sm:pb-3">
+      <CardHeader className="relative p-4 sm:p-5 pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-3">
             {/* Plugin Icon */}
@@ -310,23 +308,23 @@ export function PluginCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="relative p-3 sm:p-4 pt-0">
-        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mb-3">
+      <CardContent className="relative p-4 sm:p-5 pt-0">
+        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mb-4 leading-relaxed">
           {manifest.description}
         </p>
 
-        {/* Capabilities */}
-        <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-3">
+        {/* Capabilities - Enhanced pills */}
+        <div className="flex flex-wrap gap-1.5 mb-4">
           {manifest.capabilities.slice(0, 4).map((cap) => (
             <TooltipProvider key={cap}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Badge
                     variant="secondary"
-                    className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1.5 sm:px-2 cursor-help"
+                    className="text-[10px] sm:text-xs gap-1 px-2 py-0.5 cursor-help bg-muted/60 hover:bg-muted transition-colors"
                   >
                     {capabilityIcons[cap]}
-                    <span className="hidden xs:inline">{cap}</span>
+                    <span className="hidden xs:inline capitalize">{cap}</span>
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -336,20 +334,21 @@ export function PluginCard({
             </TooltipProvider>
           ))}
           {manifest.capabilities.length > 4 && (
-            <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
+            <Badge variant="outline" className="text-[10px] sm:text-xs px-2 py-0.5 text-muted-foreground">
               +{manifest.capabilities.length - 4}
             </Badge>
           )}
         </div>
 
-        {/* Status and Toggle */}
-        <div className="flex items-center justify-between pt-2 border-t">
+        {/* Status and Toggle - Enhanced with better separation */}
+        <div className="flex items-center justify-between pt-3 border-t border-border/50">
           <div className="flex items-center gap-2">
-            <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md', statusConfig.bg)}>
-              <StatusIcon className={cn('h-3.5 w-3.5', statusConfig.color)} />
-              <span
-                className={cn('text-[10px] sm:text-xs font-medium capitalize', statusConfig.color)}
-              >
+            <div className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-medium',
+              statusConfig.bg
+            )}>
+              <StatusIcon className={cn('h-3 w-3', statusConfig.color)} />
+              <span className={cn('capitalize', statusConfig.color)}>
                 {status}
               </span>
             </div>
@@ -359,7 +358,7 @@ export function PluginCard({
             checked={isEnabled}
             onCheckedChange={onToggle}
             disabled={isLoading || isError}
-            className="scale-90 sm:scale-100"
+            className="data-[state=checked]:bg-primary"
           />
         </div>
 

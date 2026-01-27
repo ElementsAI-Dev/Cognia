@@ -25,6 +25,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 /**
  * SettingsCard - Main card wrapper with consistent styling
@@ -244,16 +245,16 @@ export function SettingsDivider({ label, className }: SettingsDividerProps) {
   if (label) {
     return (
       <div className={cn('flex items-center gap-3 py-2', className)}>
-        <div className="flex-1 h-px bg-border" />
+        <Separator className="flex-1" />
         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
           {label}
         </span>
-        <div className="flex-1 h-px bg-border" />
+        <Separator className="flex-1" />
       </div>
     );
   }
 
-  return <div className={cn('h-px bg-border my-4', className)} />;
+  return <Separator className={cn('my-4', className)} />;
 }
 
 /**
@@ -285,7 +286,7 @@ export function SettingsGroup({
       className={cn('border rounded-lg', className)}
     >
       <CollapsibleTrigger asChild>
-        <button className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors rounded-t-lg">
+        <Button variant="ghost" className="flex items-center justify-between w-full p-3 h-auto rounded-t-lg rounded-b-none">
           <div className="flex items-center gap-2">
             {icon && <span className="text-muted-foreground">{icon}</span>}
             <span className="text-sm font-medium">{title}</span>
@@ -301,7 +302,7 @@ export function SettingsGroup({
               isOpen && 'rotate-180'
             )}
           />
-        </button>
+        </Button>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="p-3 pt-0 space-y-3">{children}</div>

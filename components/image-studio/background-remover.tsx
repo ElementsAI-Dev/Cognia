@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -64,6 +65,9 @@ export function BackgroundRemover({
   onCancel,
   className,
 }: BackgroundRemoverProps) {
+  const t = useTranslations('imageStudio.backgroundRemover');
+  const tc = useTranslations('imageStudio.common');
+
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -133,7 +137,7 @@ export function BackgroundRemover({
       }
     };
     img.onerror = () => {
-      setError('Failed to load image');
+      setError(t('failed'));
     };
     img.src = imageUrl;
   }, [imageUrl]);
@@ -450,7 +454,7 @@ export function BackgroundRemover({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Eraser className="h-5 w-5" />
-          <h3 className="font-medium">Background Remover</h3>
+          <h3 className="font-medium">{t('title')}</h3>
         </div>
         <div className="text-sm text-muted-foreground">
           {imageSize.width} × {imageSize.height}
@@ -472,7 +476,7 @@ export function BackgroundRemover({
                 <Wand2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Auto Detect</TooltipContent>
+            <TooltipContent>{t('autoDetect')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -486,7 +490,7 @@ export function BackgroundRemover({
                 <Brush className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Keep (Paint to restore)</TooltipContent>
+            <TooltipContent>{t('keep')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -500,14 +504,14 @@ export function BackgroundRemover({
                 <Eraser className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Remove (Paint to erase)</TooltipContent>
+            <TooltipContent>{t('remove')}</TooltipContent>
           </Tooltip>
         </div>
 
         {/* Brush size */}
         {selectedTool !== 'auto' && (
           <div className="flex items-center gap-2 min-w-[140px]">
-            <Label className="text-xs whitespace-nowrap">Brush</Label>
+            <Label className="text-xs whitespace-nowrap">{t('brush')}</Label>
             <Slider
               value={[brushSize]}
               onValueChange={([v]) => setBrushSize(v)}
@@ -523,7 +527,7 @@ export function BackgroundRemover({
         {/* Threshold (for auto mode) */}
         {selectedTool === 'auto' && (
           <div className="flex items-center gap-2 min-w-[140px]">
-            <Label className="text-xs whitespace-nowrap">Threshold</Label>
+            <Label className="text-xs whitespace-nowrap">{t('threshold')}</Label>
             <Slider
               value={[threshold]}
               onValueChange={([v]) => setThreshold(v)}
@@ -541,7 +545,7 @@ export function BackgroundRemover({
 
         {/* Background options */}
         <div className="flex items-center gap-1">
-          <Label className="text-xs mr-1">Background:</Label>
+          <Label className="text-xs mr-1">{t('background')}:</Label>
           {BACKGROUND_COLORS.map((bg) => (
             <Tooltip key={bg.type}>
               <TooltipTrigger asChild>
@@ -605,7 +609,7 @@ export function BackgroundRemover({
                 />
               </div>
             </TooltipTrigger>
-            <TooltipContent>Custom Color</TooltipContent>
+            <TooltipContent>{t('customColor')}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -625,7 +629,7 @@ export function BackgroundRemover({
                 {showOriginal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{showOriginal ? 'Show result' : 'Show original'}</TooltipContent>
+            <TooltipContent>{showOriginal ? t('showResult') : t('showOriginal')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -639,7 +643,7 @@ export function BackgroundRemover({
                 <RotateCcw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset</TooltipContent>
+            <TooltipContent>{tc('reset')}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -656,7 +660,7 @@ export function BackgroundRemover({
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Processing... {progress}%</span>
+            <span className="text-sm">{t('processing', { progress })}</span>
           </div>
           <Progress value={progress} />
         </div>
@@ -700,7 +704,7 @@ export function BackgroundRemover({
         {!imageLoaded && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="animate-pulse text-muted-foreground">
-              Loading image...
+              {tc('loadingImage')}
             </div>
           </div>
         )}
@@ -719,7 +723,7 @@ export function BackgroundRemover({
               ) : (
                 <Wand2 className="h-4 w-4 mr-1" />
               )}
-              Auto Remove Background
+              {t('autoRemoveBackground')}
             </Button>
           )}
         </div>
@@ -727,11 +731,11 @@ export function BackgroundRemover({
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={onCancel}>
             <X className="h-4 w-4 mr-1" />
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button onClick={handleApply} disabled={!hasProcessed}>
             <Check className="h-4 w-4 mr-1" />
-            Apply
+            {tc('apply')}
           </Button>
         </div>
       </div>

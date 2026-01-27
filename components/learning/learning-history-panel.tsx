@@ -145,10 +145,10 @@ export const LearningHistoryPanel = memo(function LearningHistoryPanel({
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{t('history.currentStreak')}</span>
-                <span className="text-lg font-bold">{overallStats.currentStreak} days</span>
+                <span className="text-lg font-bold">{overallStats.currentStreak} {t('history.days')}</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                {t('history.longestStreak')}: {overallStats.longestStreak} days
+                {t('history.longestStreak')}: {overallStats.longestStreak} {t('history.days')}
               </p>
             </div>
           </div>
@@ -246,6 +246,7 @@ const SessionCard = memo(function SessionCard({
   formatDate,
   formatDuration,
   onSelect,
+  t,
 }: SessionCardProps) {
   const duration = session.statistics?.totalTimeSpentMs || 0;
   const accuracy = session.statistics?.questionsAnswered
@@ -286,12 +287,12 @@ const SessionCard = memo(function SessionCard({
         {conceptsMastered > 0 && (
           <Badge variant="secondary" className="text-xs">
             <CheckCircle2 className="h-3 w-3 mr-1" />
-            {conceptsMastered} concepts
+            {conceptsMastered} {t('history.concepts')}
           </Badge>
         )}
         {session.progress === 100 && (
           <Badge className="text-xs bg-green-500/10 text-green-600 border-green-500/20">
-            Completed
+            {t('history.completed')}
           </Badge>
         )}
       </div>

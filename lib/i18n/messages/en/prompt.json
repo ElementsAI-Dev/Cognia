@@ -202,14 +202,17 @@
       "placeholder": "Search prompts...",
       "results": "Search Results",
       "noResults": "No prompts found",
-      "clearFilters": "Clear filters"
+      "clearFilters": "Clear filters",
+      "clearSearch": "Clear search",
+      "matchingFilters": "Matching your filters"
     },
     "sort": {
       "placeholder": "Sort by",
       "downloads": "Most Downloads",
       "rating": "Highest Rated",
       "trending": "Trending",
-      "newest": "Newest"
+      "newest": "Newest",
+      "name": "Name"
     },
     "filters": {
       "title": "Filters",
@@ -226,22 +229,96 @@
       "allPrompts": "All Prompts",
       "installedPrompts": "Installed Prompts",
       "favoritePrompts": "Favorite Prompts",
-      "recentlyViewed": "Recently Viewed"
+      "recentlyViewed": "Recently Viewed",
+      "installedDesc": "Your installed prompts",
+      "favoritesDesc": "Your favorite prompts",
+      "recentDesc": "Prompts you recently viewed"
+    },
+    "updates": {
+      "available": "updates available",
+      "checking": "Checking...",
+      "checkForUpdates": "Check for Updates",
+      "updated": "Updated",
+      "updateFailed": "Update failed"
+    },
+    "collections": {
+      "title": "Collections",
+      "featured": "Featured",
+      "promptsInCollection": "{count} prompts",
+      "more": "more",
+      "curatedBy": "Curated by",
+      "viewCollection": "View Collection",
+      "noCollections": "No collections yet",
+      "exploreCollections": "Explore curated prompt collections"
+    },
+    "pagination": {
+      "loadMore": "Load More",
+      "showing": "Showing {count} of {total}",
+      "endOfList": "You've reached the end"
     },
     "empty": {
       "noInstalled": "No installed prompts yet",
+      "noInstalledTitle": "No Installed Prompts",
       "noFavorites": "No favorite prompts yet",
+      "noFavoritesTitle": "No Favorites Yet",
       "noRecent": "No recently viewed prompts",
+      "noRecentTitle": "No Recent Prompts",
+      "noCollections": "No collections yet",
       "browseMarketplace": "Browse marketplace"
     },
     "card": {
       "install": "Install",
       "installing": "Installing...",
-      "installed": "Installed"
+      "installed": "Installed",
+      "uninstall": "Uninstall",
+      "viewDetails": "View Details",
+      "update": "Update",
+      "verifiedCreator": "Verified Creator"
+    },
+    "view": {
+      "gridView": "Grid view",
+      "listView": "List view"
     },
     "category": {
       "title": "Categories",
       "all": "All"
+    },
+    "importExport": {
+      "title": "Import / Export",
+      "description": "Export your installed prompts or import prompts from a file",
+      "export": "Export",
+      "import": "Import",
+      "exportDesc": "Exporting {count} installed prompts",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "download": "Download",
+      "noPromptsToExport": "No prompts to export. Install some prompts first.",
+      "selectFile": "Select File",
+      "orPasteJson": "or paste JSON below",
+      "pasteJsonHere": "Paste your prompts JSON here...",
+      "importButton": "Import Prompts",
+      "importing": "Importing...",
+      "importComplete": "Import completed successfully",
+      "importFailed": "Import failed",
+      "imported": "Imported",
+      "skipped": "Skipped",
+      "invalidFormat": "Invalid file format",
+      "parseError": "Failed to parse JSON",
+      "failedToImport": "Failed to import"
+    },
+    "author": {
+      "back": "Back",
+      "verified": "Verified",
+      "prompts": "Prompts",
+      "totalDownloads": "Total Downloads",
+      "avgRating": "Avg Rating",
+      "promptsByAuthor": "Prompts by this Author",
+      "noPrompts": "This author has no prompts yet",
+      "sort": {
+        "downloads": "Downloads",
+        "rating": "Rating",
+        "newest": "Newest"
+      }
     },
     "detail": {
       "ratings": "ratings",
@@ -271,7 +348,33 @@
       "copyPromptContent": "Copy prompt content",
       "sharePrompt": "Share prompt",
       "installPrompt": "Install Prompt",
-      "installed": "Installed"
+      "installed": "Installed",
+      "installing": "Installing...",
+      "uninstall": "Uninstall",
+      "uninstalling": "Uninstalling...",
+      "uninstallSuccess": "Prompt uninstalled successfully",
+      "uninstallFailed": "Failed to uninstall prompt",
+      "uninstallConfirmTitle": "Uninstall Prompt",
+      "uninstallConfirmDesc": "Are you sure you want to uninstall \"{name}\"? This will remove it from your installed prompts.",
+      "cancel": "Cancel",
+      "tryPrompt": "Try Prompt",
+      "preview": "Preview",
+      "previewPrompt": "Preview Prompt",
+      "fillVariables": "Fill in the variables below to preview the prompt",
+      "generatedPrompt": "Generated Prompt",
+      "testWithAI": "Test with AI",
+      "testing": "Testing...",
+      "testResult": "Test Result",
+      "copyResult": "Copy Result",
+      "sendToChat": "Send to Chat",
+      "reviewSubmitted": "Review submitted successfully!",
+      "reviewFailed": "Failed to submit review",
+      "submitting": "Submitting...",
+      "alreadyReviewed": "You have already reviewed this prompt",
+      "userReviews": "User Reviews",
+      "helpful": "Helpful",
+      "runTestHint": "Run a test to see the AI response here",
+      "copyToClipboard": "Copy to clipboard"
     }
   },
   "promptTemplate": {
@@ -297,14 +400,18 @@
       "delete": "Delete",
       "noContent": "No content yet",
       "usedCount": "Used {count}×",
-      "useTemplate": "Use template"
+      "useTemplate": "Use template",
+      "builtIn": "Built-in",
+      "targetTooltip": "Target context"
     },
     "selector": {
       "title": "Insert prompt template",
+      "description": "Select a template to use",
       "searchPlaceholder": "Search templates",
       "noTemplates": "No templates found",
       "templatesGroup": "Templates",
-      "close": "Close"
+      "close": "Close",
+      "usageCount": "Usage count"
     },
     "editor": {
       "name": "Name",

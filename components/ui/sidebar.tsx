@@ -28,6 +28,29 @@ const SIDEBAR_WIDTH_MOBILE = '18rem';
 const SIDEBAR_WIDTH_ICON = '3rem';
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
 
+export type SidebarImageFit = 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
+export type SidebarImagePosition = 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+const BACKGROUND_FIT_MAP: Record<SidebarImageFit, string> = {
+  'cover': 'cover',
+  'contain': 'contain',
+  'fill': '100% 100%',
+  'none': 'auto',
+  'scale-down': 'contain',
+};
+
+const BACKGROUND_POSITION_MAP: Record<SidebarImagePosition, string> = {
+  'center': 'center center',
+  'top': 'center top',
+  'bottom': 'center bottom',
+  'left': 'left center',
+  'right': 'right center',
+  'top-left': 'left top',
+  'top-right': 'right top',
+  'bottom-left': 'left bottom',
+  'bottom-right': 'right bottom',
+};
+
 type SidebarContextProps = {
   state: 'expanded' | 'collapsed';
   open: boolean;
@@ -142,18 +165,42 @@ function SidebarProvider({
   );
 }
 
+interface SidebarProps extends React.ComponentProps<'div'> {
+  side?: 'left' | 'right';
+  variant?: 'sidebar' | 'floating' | 'inset';
+  collapsible?: 'offcanvas' | 'icon' | 'none';
+  backgroundImage?: string;
+  backgroundFit?: SidebarImageFit;
+  backgroundPosition?: SidebarImagePosition;
+  backgroundOpacity?: number;
+  backgroundOverlay?: boolean;
+  backgroundOverlayColor?: string;
+  backgroundBlur?: number;
+}
+
 function Sidebar({
   side = 'left',
   variant = 'sidebar',
   collapsible = 'offcanvas',
   className,
   children,
+  backgroundImage,
+  backgroundFit = 'cover',
+  backgroundPosition = 'center',
+  backgroundOpacity = 1,
+  backgroundOverlay = false,
+  backgroundOverlayColor = 'rgba(0,0,0,0.4)',
+  backgroundBlur = 0,
   ...props
-}: React.ComponentProps<'div'> & {
-  side?: 'left' | 'right';
-  variant?: 'sidebar' | 'floating' | 'inset';
-  collapsible?: 'offcanvas' | 'icon' | 'none';
-}) {
+}: SidebarProps) {
+  const hasBackground = !!backgroundImage;
+
+  const backgroundStyle: React.CSSProperties = hasBackground ? {
+    backgroundImage: `url(${backgroundImage})`,
+    backgroundSize: BACKGROUND_FIT_MAP[backgroundFit],
+    backgroundPosition: BACKGROUND_POSITION_MAP[backgroundPosition],
+    backgroundRepeat: 'no-repeat',
+  } : {};
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
   if (collapsible === 'none') {
@@ -161,7 +208,7 @@ function Sidebar({
       <div
         data-slot="sidebar"
         className={cn(
-          'bg-sidebar/80 backdrop-blur-md text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col',
+          'bg-sidebar text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col',
           className
         )}
         {...props}
@@ -236,8 +283,29 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="bg-sidebar/80 backdrop-blur-md group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className={cn(
+            "bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm",
+            hasBackground && "relative overflow-hidden"
+          )}
         >
+          {hasBackground && (
+            <>
+              <div
+                className="absolute inset-0 -z-10"
+                style={{
+                  ...backgroundStyle,
+                  opacity: backgroundOpacity,
+                  filter: backgroundBlur > 0 ? `blur(${backgroundBlur}px)` : undefined,
+                }}
+              />
+              {backgroundOverlay && (
+                <div
+                  className="absolute inset-0 -z-10"
+                  style={{ backgroundColor: backgroundOverlayColor }}
+                />
+              )}
+            </>
+          )}
           {children}
         </div>
       </div>

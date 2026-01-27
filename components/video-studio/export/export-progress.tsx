@@ -12,6 +12,7 @@
  */
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -94,8 +95,9 @@ export function ExportProgress({
   onOpenFile,
   className,
 }: ExportProgressProps) {
-  const stageInfo = STAGE_INFO[stage];
-  const Icon = stageInfo.icon;
+  const t = useTranslations('exportProgress');
+  const Icon = STAGE_INFO[stage].icon;
+  const stageColor = STAGE_INFO[stage].color;
 
   const formatTime = (seconds: number): string => {
     if (seconds < 60) return `${Math.round(seconds)}s`;
@@ -126,20 +128,20 @@ export function ExportProgress({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isInProgress ? (
-              <Loader2 className={cn('h-5 w-5 animate-spin', stageInfo.color)} />
+              <Loader2 className={cn('h-5 w-5 animate-spin', stageColor)} />
             ) : (
-              <Icon className={cn('h-5 w-5', stageInfo.color)} />
+              <Icon className={cn('h-5 w-5', stageColor)} />
             )}
-            Exporting Video
+            {t('title')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           {/* Stage indicator */}
           <div className="flex items-center justify-center gap-3">
-            <Icon className={cn('h-8 w-8', stageInfo.color)} />
-            <span className={cn('text-lg font-medium', stageInfo.color)}>
-              {stageInfo.label}
+            <Icon className={cn('h-8 w-8', stageColor)} />
+            <span className={cn('text-lg font-medium', stageColor)}>
+              {t(`stages.${stage}`)}
             </span>
           </div>
 
@@ -149,7 +151,7 @@ export function ExportProgress({
               <Progress value={progress} className="h-2" />
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>{progressText}</span>
-                {isPaused && <span className="text-yellow-500">Paused</span>}
+                {isPaused && <span className="text-yellow-500">{t('paused')}</span>}
               </div>
             </div>
           )}
@@ -158,12 +160,12 @@ export function ExportProgress({
           {isInProgress && (
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="space-y-1">
-                <span className="text-muted-foreground">Elapsed</span>
+                <span className="text-muted-foreground">{t('elapsed')}</span>
                 <p className="font-medium">{formatTime(elapsedTime)}</p>
               </div>
               {estimatedTimeRemaining !== undefined && (
                 <div className="space-y-1">
-                  <span className="text-muted-foreground">Remaining</span>
+                  <span className="text-muted-foreground">{t('remaining')}</span>
                   <p className="font-medium">
                     {isPaused ? '-' : formatTime(estimatedTimeRemaining)}
                   </p>
@@ -194,44 +196,44 @@ export function ExportProgress({
                   onResume && (
                     <Button variant="outline" size="sm" onClick={onResume}>
                       <Play className="h-4 w-4 mr-1" />
-                      Resume
+                      {t('resume')}
                     </Button>
                   )
                 ) : (
                   onPause && (
                     <Button variant="outline" size="sm" onClick={onPause}>
                       <Pause className="h-4 w-4 mr-1" />
-                      Pause
+                      {t('pause')}
                     </Button>
                   )
                 )}
                 {onCancel && (
                   <Button variant="destructive" size="sm" onClick={onCancel}>
                     <X className="h-4 w-4 mr-1" />
-                    Cancel
+                    {t('cancel')}
                   </Button>
                 )}
               </>
             )}
 
             {stage === 'error' && onRetry && (
-              <Button onClick={onRetry}>Retry</Button>
+              <Button onClick={onRetry}>{t('retry')}</Button>
             )}
 
             {stage === 'completed' && (
               <>
                 {onOpenFile && (
                   <Button variant="outline" onClick={onOpenFile}>
-                    Open File
+                    {t('openFile')}
                   </Button>
                 )}
-                <Button onClick={() => onOpenChange(false)}>Done</Button>
+                <Button onClick={() => onOpenChange(false)}>{t('done')}</Button>
               </>
             )}
 
             {stage === 'cancelled' && (
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Close
+                {t('close')}
               </Button>
             )}
           </div>

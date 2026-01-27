@@ -5,6 +5,7 @@
  */
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   BookOpen,
   Clock,
@@ -65,6 +66,7 @@ function StatCard({ title, value, description, icon, trend, className }: StatCar
 }
 
 export function AcademicStats() {
+  const t = useTranslations('academic.stats');
   const { libraryPapers, collections } = useAcademic();
 
   // Calculate statistics
@@ -157,27 +159,27 @@ export function AcademicStats() {
       {/* Overview Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
-          title="Total Papers"
+          title={t('totalPapers')}
           value={stats.total}
           description={`${stats.thisWeek} added this week`}
           icon={<Library className="h-4 w-4 text-primary" />}
         />
         <StatCard
-          title="Completed"
+          title={t('completed')}
           value={stats.completed}
           description={`${completionRate}% completion rate`}
           icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}
         />
         <StatCard
-          title="Currently Reading"
+          title={t('currentlyReading')}
           value={stats.reading}
           description={`${stats.unread} in queue`}
           icon={<BookOpen className="h-4 w-4 text-blue-600" />}
         />
         <StatCard
-          title="Collections"
+          title={t('collections')}
           value={stats.collectionsCount}
-          description="Paper collections"
+          description={t('paperCollections')}
           icon={<Target className="h-4 w-4 text-purple-600" />}
         />
       </div>
@@ -187,14 +189,14 @@ export function AcademicStats() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
-            Reading Progress
+            {t('readingProgress')}
           </CardTitle>
-          <CardDescription>Your overall reading status breakdown</CardDescription>
+          <CardDescription>{t('readingStatusBreakdown')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Unread</span>
+              <span>{t('unread')}</span>
               <span className="text-muted-foreground">{stats.unread} papers</span>
             </div>
             <Progress
@@ -204,7 +206,7 @@ export function AcademicStats() {
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Reading</span>
+              <span>{t('reading')}</span>
               <span className="text-muted-foreground">{stats.reading} papers</span>
             </div>
             <Progress
@@ -214,7 +216,7 @@ export function AcademicStats() {
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Completed</span>
+              <span>{t('completed')}</span>
               <span className="text-muted-foreground">{stats.completed} papers</span>
             </div>
             <Progress
@@ -224,7 +226,7 @@ export function AcademicStats() {
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Archived</span>
+              <span>{t('archived')}</span>
               <span className="text-muted-foreground">{stats.archived} papers</span>
             </div>
             <Progress
@@ -242,7 +244,7 @@ export function AcademicStats() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <PieChart className="h-4 w-4" />
-              Top Research Fields
+              {t('topResearchFields')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -260,7 +262,7 @@ export function AcademicStats() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No fields data available yet
+                {t('noFieldsData')}
               </p>
             )}
           </CardContent>
@@ -271,7 +273,7 @@ export function AcademicStats() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Award className="h-4 w-4" />
-              Paper Sources
+              {t('paperSources')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -302,7 +304,7 @@ export function AcademicStats() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Clock className="h-4 w-4" />
-            Engagement Metrics
+            {t('engagementMetrics')}
           </CardTitle>
         </CardHeader>
         <CardContent>

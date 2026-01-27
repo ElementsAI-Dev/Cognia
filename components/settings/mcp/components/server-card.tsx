@@ -93,21 +93,21 @@ export function ServerCard({
           <div className="flex gap-3 text-xs text-muted-foreground">
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="cursor-help">{server.tools.length} tools</span>
+                <span className="cursor-help">{t('toolsCount', { count: server.tools.length })}</span>
               </TooltipTrigger>
-              <TooltipContent>Functions the AI can call</TooltipContent>
+              <TooltipContent>{t('toolsTooltip')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="cursor-help">{server.resources.length} resources</span>
+                <span className="cursor-help">{t('resourcesCount', { count: server.resources.length })}</span>
               </TooltipTrigger>
-              <TooltipContent>Data sources available</TooltipContent>
+              <TooltipContent>{t('resourcesTooltip')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="cursor-help">{server.prompts.length} prompts</span>
+                <span className="cursor-help">{t('promptsCount', { count: server.prompts.length })}</span>
               </TooltipTrigger>
-              <TooltipContent>Prompt templates</TooltipContent>
+              <TooltipContent>{t('promptsTooltip')}</TooltipContent>
             </Tooltip>
           </div>
         )}

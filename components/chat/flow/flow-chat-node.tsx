@@ -51,7 +51,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { ReasoningPart, SourcesPart } from '@/components/chat/message-parts';
-import { A2UIEnhancedMessage, hasA2UIContent } from '@/components/a2ui';
+import { A2UIMessageRenderer, hasA2UIContent } from '@/components/a2ui';
 import { FlowNodeThumbnailStrip } from './flow-node-thumbnail-strip';
 import { FlowNodeTags } from './flow-node-tags';
 import type { FlowChatNodeData, NodeAction, FlowNodeTag } from '@/types/chat/flow-chat';
@@ -462,7 +462,7 @@ function FlowChatNodeComponent({
         {/* A2UI content */}
         {hasA2UI && isExpanded && (
           <div className="mb-2">
-            <A2UIEnhancedMessage content={content} messageId={message.id} />
+            <A2UIMessageRenderer content={content} messageId={message.id} />
           </div>
         )}
 

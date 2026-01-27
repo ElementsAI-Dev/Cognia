@@ -56,12 +56,65 @@
   },
   "sources": {
     "usedSources": "使用了 {count} 个来源",
+    "sourcesUsed": "{count, plural, =1 {使用了 1 个来源} other {使用了 # 个来源}}",
     "web": "网页",
     "document": "文档",
     "video": "视频",
     "image": "图片",
     "link": "链接",
-    "book": "书籍"
+    "book": "书籍",
+    "credibility": {
+      "high": "高可信度",
+      "medium": "中等可信度",
+      "low": "低可信度",
+      "unknown": "未知"
+    },
+    "credibilityScore": "可信度: {score}%",
+    "relevanceScore": "{score}% 相关",
+    "webSearchAnswer": "网络搜索结果"
+  },
+  "attachments": {
+    "remove": "移除"
+  },
+  "upload": {
+    "dropFilesHere": "将文件拖放到这里",
+    "dismiss": "关闭"
+  },
+  "preview": {
+    "audioNotSupported": "您的浏览器不支持音频播放。",
+    "videoNotSupported": "您的浏览器不支持视频播放。"
+  },
+  "contextDebug": {
+    "title": "上下文调试",
+    "description": "监控和管理 AI 代理执行的上下文文件",
+    "confirmClearAll": "确定要清除所有上下文文件吗？此操作无法撤销。",
+    "stats": {
+      "totalFiles": "文件总数",
+      "storage": "存储空间",
+      "estTokens": "预估令牌"
+    },
+    "filesByCategory": "按类别分类",
+    "filesCount": "{count, plural, =1 {1 个文件} other {# 个文件}}",
+    "noContextFiles": "没有上下文文件",
+    "categories": {
+      "toolOutputs": "工具输出",
+      "chatHistory": "聊天历史",
+      "mcpTools": "MCP 工具",
+      "skills": "技能",
+      "terminal": "终端",
+      "temporary": "临时文件",
+      "other": "其他"
+    },
+    "autoSync": "自动同步",
+    "running": "运行中",
+    "stopped": "已停止",
+    "lastDuration": "上次: {ms}ms",
+    "syncNow": "立即同步",
+    "oldestFile": "最旧文件",
+    "lastAccessed": "最后访问",
+    "cleanedFiles": "在 {time} 清理了 {count} 个文件",
+    "refresh": "刷新",
+    "cleanOld": "清理旧文件"
   },
   "contextSettings": {
     "title": "上下文设置",
@@ -178,6 +231,8 @@
     "noData": "无数据显示",
     "renderError": "渲染失败",
     "parseError": "解析数据失败",
+    "invalidChartFormat": "无效的图表数据格式",
+    "failedToParseChart": "解析图表数据失败",
     "retry": "重试",
     "copyCode": "复制代码",
     "copySpec": "复制规格",

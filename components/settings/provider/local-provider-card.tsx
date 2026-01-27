@@ -129,7 +129,7 @@ export function LocalProviderCard({
           {isConnected && (
             <Badge variant="default" className="text-[10px] bg-green-600">
               <Check className="h-2.5 w-2.5 mr-0.5" />
-              Connected
+              {t('connected')}
             </Badge>
           )}
         </div>
@@ -208,7 +208,7 @@ export function LocalProviderCard({
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Manage Models</TooltipContent>
+                <TooltipContent>{t('manageModels')}</TooltipContent>
               </Tooltip>
             )}
             <Button
@@ -252,26 +252,31 @@ export function LocalProviderCard({
             icon={<MessageSquare className="h-3 w-3" />}
             label="Chat"
             enabled={true}
+            t={t}
           />
           <CapabilityBadge
             icon={<Zap className="h-3 w-3" />}
             label="Stream"
             enabled={capabilities.supportsStreaming}
+            t={t}
           />
           <CapabilityBadge
             icon={<ImageIcon className="h-3 w-3" />}
             label="Vision"
             enabled={capabilities.supportsVision}
+            t={t}
           />
           <CapabilityBadge
             icon={<Wrench className="h-3 w-3" />}
             label="Tools"
             enabled={capabilities.supportsTools}
+            t={t}
           />
           <CapabilityBadge
             icon={<Cpu className="h-3 w-3" />}
             label="Embed"
             enabled={capabilities.canGenerateEmbeddings}
+            t={t}
           />
         </div>
 
@@ -281,7 +286,7 @@ export function LocalProviderCard({
             <Button variant="ghost" size="sm" className="w-full justify-between">
               <span className="flex items-center gap-1.5 text-xs">
                 <Settings className="h-3 w-3" />
-                Configuration
+                {t('configuration')}
               </span>
               {isExpanded ? (
                 <ChevronUp className="h-3.5 w-3.5" />
@@ -293,7 +298,7 @@ export function LocalProviderCard({
           <CollapsibleContent className="mt-3 space-y-3">
             {/* Base URL */}
             <div className="space-y-1.5">
-              <Label className="text-xs">Server URL</Label>
+              <Label className="text-xs">{t('serverUrl')}</Label>
               <div className="flex gap-2">
                 <Input
                   value={localBaseUrl}
@@ -313,11 +318,11 @@ export function LocalProviderCard({
                       <RefreshCw className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Reset to default</TooltipContent>
+                  <TooltipContent>{t('resetToDefault')}</TooltipContent>
                 </Tooltip>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Default: {config.defaultBaseURL}
+                {t('default')}: {config.defaultBaseURL}
               </p>
             </div>
 
@@ -334,7 +339,7 @@ export function LocalProviderCard({
                 rel="noopener noreferrer"
               >
                 <ExternalLink className="h-3 w-3 mr-1.5" />
-                {config.name} Documentation
+                {t('providerDocumentation', { provider: config.name })}
               </a>
             </Button>
           </CollapsibleContent>
@@ -351,10 +356,12 @@ function CapabilityBadge({
   icon,
   label,
   enabled,
+  t,
 }: {
   icon: React.ReactNode;
   label: string;
   enabled: boolean;
+  t: ReturnType<typeof useTranslations<'providers'>>;
 }) {
   return (
     <Tooltip>
@@ -372,7 +379,7 @@ function CapabilityBadge({
         </div>
       </TooltipTrigger>
       <TooltipContent>
-        {label}: {enabled ? 'Supported' : 'Not supported'}
+        {label}: {enabled ? t('supported') : t('notSupported')}
       </TooltipContent>
     </Tooltip>
   );

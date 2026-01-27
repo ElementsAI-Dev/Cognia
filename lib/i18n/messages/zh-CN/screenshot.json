@@ -1,0 +1,41 @@
+{
+  "screenshot": {
+    "tools": {
+      "rectangle": "矩形",
+      "ellipse": "椭圆",
+      "arrow": "箭头",
+      "freehand": "画笔",
+      "text": "文字",
+      "blur": "马赛克",
+      "highlight": "高亮",
+      "marker": "序号",
+      "select": "选择"
+    },
+    "actions": {
+      "undo": "撤销",
+      "redo": "重做",
+      "clear": "清除标注",
+      "copy": "复制到剪贴板",
+      "save": "保存",
+      "cancel": "取消",
+      "confirm": "完成"
+    },
+    "shortcuts": {
+      "undo": "Ctrl+Z",
+      "redo": "Ctrl+Y",
+      "copy": "Ctrl+C",
+      "save": "Ctrl+S"
+    },
+    "colorPicker": {
+      "selectColor": "选择颜色",
+      "color": "颜色",
+      "strokeWidth": "线宽: {width}px"
+    },
+    "editor": {
+      "annotationCount": "{count} 个标注",
+      "enterText": "输入文字:",
+      "dimensions": "{width} × {height} px",
+      "loading": "加载中..."
+    }
+  }
+}

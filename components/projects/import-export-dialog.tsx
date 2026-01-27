@@ -29,6 +29,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/stores';
 import {
@@ -106,13 +111,13 @@ export function ImportExportDialog({
           downloadFile(result.blob, result.filename);
           toast.success(tToasts('projectsExported', { count: projectsToExport.length }));
         } else {
-          toast.error(result.error || 'Export failed');
+          toast.error(result.error || tToasts('exportFailed2'));
         }
       }
 
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Export failed');
+      toast.error(error instanceof Error ? error.message : tToasts('exportFailed2'));
     } finally {
       setIsProcessing(false);
     }
@@ -134,10 +139,10 @@ export function ImportExportDialog({
         toast.success(tToasts('projectsExportedZip', { count: projectsToExport.length }));
         onOpenChange(false);
       } else {
-        toast.error(result.error || 'Export failed');
+        toast.error(result.error || tToasts('exportFailed2'));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Export failed');
+      toast.error(error instanceof Error ? error.message : tToasts('exportFailed2'));
     } finally {
       setIsProcessing(false);
     }
@@ -199,7 +204,7 @@ export function ImportExportDialog({
         toast.error(tToasts('invalidFileType'));
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Import failed';
+      const errorMessage = error instanceof Error ? error.message : tToasts('importFailed');
       setImportResults({ success: 0, failed: 1, errors: [errorMessage] });
       toast.error(errorMessage);
     } finally {
@@ -282,31 +287,41 @@ export function ImportExportDialog({
                 </ScrollArea>
 
                 <div className="flex gap-2">
-                  <Button
-                    className="flex-1"
-                    variant="outline"
-                    onClick={handleExportJSON}
-                    disabled={isProcessing || selectedProjects.length === 0}
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <FileJson className="h-4 w-4 mr-2" />
-                    )}
-                    {t('exportJson')}
-                  </Button>
-                  <Button
-                    className="flex-1"
-                    onClick={handleExportZip}
-                    disabled={isProcessing || selectedProjects.length === 0}
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <FolderArchive className="h-4 w-4 mr-2" />
-                    )}
-                    {t('exportZip')}
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="flex-1"
+                        variant="outline"
+                        onClick={handleExportJSON}
+                        disabled={isProcessing || selectedProjects.length === 0}
+                      >
+                        {isProcessing ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <FileJson className="h-4 w-4 mr-2" />
+                        )}
+                        {t('exportJson')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('exportJsonTooltip')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="flex-1"
+                        onClick={handleExportZip}
+                        disabled={isProcessing || selectedProjects.length === 0}
+                      >
+                        {isProcessing ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <FolderArchive className="h-4 w-4 mr-2" />
+                        )}
+                        {t('exportZip')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('exportZipTooltip')}</TooltipContent>
+                  </Tooltip>
                 </div>
               </>
             )}

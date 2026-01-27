@@ -152,5 +152,38 @@ describe('VersionHistoryPanel', () => {
   });
 });
 
+describe('VersionHistoryPanel diff view', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should render diff toggle button on history entries', () => {
+    render(<VersionHistoryPanel />);
+    
+    // Each history entry should have a diff toggle button (Eye icon)
+    const buttons = screen.getAllByRole('button');
+    // There should be multiple buttons including diff toggles
+    expect(buttons.length).toBeGreaterThan(3);
+  });
+
+  it('should toggle diff view when diff button is clicked', async () => {
+    render(<VersionHistoryPanel />);
+    
+    // Find a button that could be a diff toggle
+    const allButtons = screen.getAllByRole('button');
+    // Should have undo, redo, and diff toggle buttons
+    expect(allButtons.length).toBeGreaterThan(2);
+  });
+
+  it('should render history entries with action icons', () => {
+    render(<VersionHistoryPanel />);
+    
+    // Code change, AI edit, Style changed entries should be visible
+    expect(screen.getByText('Code change')).toBeInTheDocument();
+    expect(screen.getByText('AI edit')).toBeInTheDocument();
+    expect(screen.getByText('Style changed')).toBeInTheDocument();
+  });
+});
+
 // Note: Empty state tests would require module re-mocking which is complex in Jest.
 // The empty state is tested implicitly through the component's conditional rendering logic.

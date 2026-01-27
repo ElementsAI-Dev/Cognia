@@ -1,11 +1,18 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import { Paperclip } from 'lucide-react';
 
 interface DragOverlayProps {
   isDragging: boolean;
-  label: string;
+  /** @deprecated Use internal i18n instead */
+  label?: string;
 }
 
 export function DragOverlay({ isDragging, label }: DragOverlayProps) {
+  const t = useTranslations('upload');
+  const displayLabel = label || t('dropFilesHere');
+
   if (!isDragging) return null;
 
   return (
@@ -14,7 +21,7 @@ export function DragOverlay({ isDragging, label }: DragOverlayProps) {
         <div className="rounded-full bg-primary/10 p-4">
           <Paperclip className="h-10 w-10" />
         </div>
-        <span className="text-lg font-medium">{label}</span>
+        <span className="text-lg font-medium">{displayLabel}</span>
       </div>
     </div>
   );

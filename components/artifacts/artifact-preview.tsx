@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, Component, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import type { Artifact } from '@/types';
 import {
@@ -27,6 +28,7 @@ interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  errorMessage?: string;
 }
 
 interface ErrorBoundaryState {
@@ -58,11 +60,15 @@ class PreviewErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return this.props.fallback;
       }
       return (
-        <div className="flex flex-col items-center justify-center gap-2 p-4 text-destructive">
-          <AlertCircle className="h-5 w-5" />
-          <p className="text-sm">Preview failed to render</p>
-          <p className="text-xs text-muted-foreground">{this.state.error?.message}</p>
-        </div>
+        <Alert variant="destructive" className="m-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <p className="font-medium">{this.props.errorMessage || 'Preview failed to render'}</p>
+            {this.state.error?.message && (
+              <p className="text-xs mt-1 opacity-80">{this.state.error.message}</p>
+            )}
+          </AlertDescription>
+        </Alert>
       );
     }
     return this.props.children;
@@ -72,11 +78,11 @@ class PreviewErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 /**
  * Loading spinner component
  */
-function PreviewLoading({ message }: { message?: string }) {
+function PreviewLoading({ message, defaultMessage }: { message?: string; defaultMessage?: string }) {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
       <Loader2 className="h-6 w-6 animate-spin" />
-      <p className="text-sm">{message || 'Loading preview...'}</p>
+      <p className="text-sm">{message || defaultMessage || 'Loading preview...'}</p>
     </div>
   );
 }
@@ -143,7 +149,7 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
   // Render specialized components for non-iframe types
   if (artifact.type === 'mermaid') {
     return (
-      <PreviewErrorBoundary>
+      <PreviewErrorBoundary errorMessage={t('previewFailed')}>
         <div className={cn('h-full w-full overflow-auto bg-background', className)}>
           <MermaidRenderer content={artifact.content} className="min-h-full" />
         </div>
@@ -153,7 +159,7 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
 
   if (artifact.type === 'chart') {
     return (
-      <PreviewErrorBoundary>
+      <PreviewErrorBoundary errorMessage={t('previewFailed')}>
         <div className={cn('h-full w-full overflow-auto bg-background p-4', className)}>
           <ChartRenderer
             content={artifact.content}
@@ -167,7 +173,7 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
 
   if (artifact.type === 'math') {
     return (
-      <PreviewErrorBoundary>
+      <PreviewErrorBoundary errorMessage={t('previewFailed')}>
         <div className={cn('h-full w-full overflow-auto bg-background', className)}>
           <MathRenderer content={artifact.content} className="min-h-full" />
         </div>
@@ -177,7 +183,7 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
 
   if (artifact.type === 'jupyter') {
     return (
-      <PreviewErrorBoundary>
+      <PreviewErrorBoundary errorMessage={t('previewFailed')}>
         <div className={cn('h-full w-full overflow-hidden bg-background', className)}>
           <JupyterRenderer content={artifact.content} className="h-full" />
         </div>
@@ -187,7 +193,7 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
 
   if (artifact.type === 'document') {
     return (
-      <PreviewErrorBoundary>
+      <PreviewErrorBoundary errorMessage={t('previewFailed')}>
         <div className={cn('h-full w-full overflow-auto bg-background', className)}>
           <MarkdownRenderer content={artifact.content} className="min-h-full" />
         </div>
@@ -200,7 +206,7 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
     <div className={cn('relative h-full w-full', className)}>
       {isLoading && (
         <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-sm">
-          <PreviewLoading message={t('loadingPreview')} />
+          <PreviewLoading message={t('loadingPreview')} defaultMessage={t('loadingPreview')} />
         </div>
       )}
       {error && (

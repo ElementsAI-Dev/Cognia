@@ -81,7 +81,7 @@ interface OpenRouterKeyManagementProps {
 }
 
 export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementProps) {
-  const _t = useTranslations('providers');
+  const t = useTranslations('providers');
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const updateProviderSettings = useSettingsStore((state) => state.updateProviderSettings);
   
@@ -216,7 +216,7 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Key className="h-4 w-4" />
-            <CardTitle className="text-sm">API Key Management</CardTitle>
+            <CardTitle className="text-sm">{t('keyManagement.title')}</CardTitle>
           </div>
           <div className="flex items-center gap-2">
             {provisioningKey && (
@@ -245,7 +245,7 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
           </div>
         </div>
         <CardDescription className="text-xs">
-          Manage API keys programmatically using the Provisioning API
+          {t('keyManagement.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
@@ -253,7 +253,7 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
         <div className="space-y-3 mb-4">
           <div>
             <Label htmlFor="provisioning-key" className="text-xs">
-              Provisioning API Key
+              {t('keyManagement.provisioningApiKey')}
             </Label>
             <Input
               id="provisioning-key"
@@ -264,7 +264,7 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
               className="mt-1"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Create a provisioning key at{' '}
+              {t('keyManagement.provisioningKeyHint')}{' '}
               <a
                 href="https://openrouter.ai/settings/provisioning"
                 target="_blank"
@@ -291,14 +291,14 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
               <DialogTrigger asChild>
                 <Button size="sm" className="w-full mb-4">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create New API Key
+                  {t('keyManagement.createNewKey')}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Create API Key</DialogTitle>
+                  <DialogTitle>{t('keyManagement.createKey')}</DialogTitle>
                   <DialogDescription>
-                    Create a new API key for use with OpenRouter
+                    {t('keyManagement.createKeyDesc')}
                   </DialogDescription>
                 </DialogHeader>
                 
@@ -306,10 +306,10 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
                   <div className="space-y-4">
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                       <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
-                        API Key Created Successfully
+                        {t('keyManagement.keyCreatedSuccess')}
                       </p>
                       <p className="text-xs text-green-600 dark:text-green-400 mb-3">
-                        Copy this key now. You won&apos;t be able to see it again.
+                        {t('keyManagement.keyCreatedHint')}
                       </p>
                       <div className="flex items-center gap-2">
                         <code className="flex-1 text-xs bg-white dark:bg-gray-900 p-2 rounded border break-all">
@@ -329,14 +329,14 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button onClick={closeCreateDialog}>Done</Button>
+                      <Button onClick={closeCreateDialog}>{t('done')}</Button>
                     </DialogFooter>
                   </div>
                 ) : (
                   <>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="key-name">Name</Label>
+                        <Label htmlFor="key-name">{t('name')}</Label>
                         <Input
                           id="key-name"
                           placeholder="My API Key"
@@ -345,7 +345,7 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
                         />
                       </div>
                       <div>
-                        <Label htmlFor="key-limit">Credit Limit (optional)</Label>
+                        <Label htmlFor="key-limit">{t('keyManagement.creditLimit')}</Label>
                         <Input
                           id="key-limit"
                           type="number"
@@ -355,11 +355,11 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
                           onChange={(e) => setNewKeyLimit(e.target.value)}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          Maximum credits this key can use
+                          {t('keyManagement.creditLimitHint')}
                         </p>
                       </div>
                       <div>
-                        <Label htmlFor="limit-reset">Limit Reset Period</Label>
+                        <Label htmlFor="limit-reset">{t('keyManagement.limitResetPeriod')}</Label>
                         <Select
                           value={newKeyLimitReset || 'none'}
                           onValueChange={(v) => setNewKeyLimitReset(v === 'none' ? null : v as LimitResetPeriod)}
@@ -368,21 +368,21 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
                             <SelectValue placeholder="No reset" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">No reset</SelectItem>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="monthly">Monthly</SelectItem>
+                            <SelectItem value="none">{t('keyManagement.noReset')}</SelectItem>
+                            <SelectItem value="daily">{t('keyManagement.daily')}</SelectItem>
+                            <SelectItem value="weekly">{t('keyManagement.weekly')}</SelectItem>
+                            <SelectItem value="monthly">{t('keyManagement.monthly')}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
                     <DialogFooter>
                       <Button variant="outline" onClick={closeCreateDialog}>
-                        Cancel
+                        {t('cancel')}
                       </Button>
                       <Button onClick={handleCreateKey} disabled={!newKeyName || isCreating}>
                         {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                        Create Key
+                        {t('keyManagement.createKey')}
                       </Button>
                     </DialogFooter>
                   </>
@@ -396,10 +396,10 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs">Name</TableHead>
-                      <TableHead className="text-xs">Usage</TableHead>
-                      <TableHead className="text-xs">Limit</TableHead>
-                      <TableHead className="text-xs">Status</TableHead>
+                      <TableHead className="text-xs">{t('name')}</TableHead>
+                      <TableHead className="text-xs">{t('usage')}</TableHead>
+                      <TableHead className="text-xs">{t('limit')}</TableHead>
+                      <TableHead className="text-xs">{t('status.unknown')}</TableHead>
                       <TableHead className="text-xs w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -426,12 +426,12 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
                               )}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground">Unlimited</span>
+                            <span className="text-muted-foreground">{t('unlimited')}</span>
                           )}
                         </TableCell>
                         <TableCell>
                           <Badge variant={key.disabled ? 'secondary' : 'default'}>
-                            {key.disabled ? 'Disabled' : 'Active'}
+                            {key.disabled ? t('disabled') : t('active')}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -446,12 +446,12 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
                                 {key.disabled ? (
                                   <>
                                     <Power className="h-4 w-4 mr-2" />
-                                    Enable
+                                    {t('enable')}
                                   </>
                                 ) : (
                                   <>
                                     <PowerOff className="h-4 w-4 mr-2" />
-                                    Disable
+                                    {t('disable')}
                                   </>
                                 )}
                               </DropdownMenuItem>
@@ -461,7 +461,7 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
                                 onClick={() => handleDeleteKey(key.hash)}
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
+                                {t('delete')}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -476,7 +476,7 @@ export function OpenRouterKeyManagement({ className }: OpenRouterKeyManagementPr
                 {isLoading ? (
                   <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 ) : (
-                  <p>No API keys found. Create one to get started.</p>
+                  <p>{t('keyManagement.noKeysFound')}</p>
                 )}
               </div>
             )}
