@@ -10,7 +10,28 @@ import type { Layer } from './layers-panel';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      title: 'Layers',
+      noLayers: 'No layers yet. Add one to get started.',
+      opacity: 'Opacity',
+      blendMode: 'Blend Mode',
+      mergeVisible: 'Merge Visible',
+      hide: 'Hide',
+      show: 'Show',
+      lock: 'Lock',
+      unlock: 'Unlock',
+      rename: 'Rename',
+      duplicate: 'Duplicate',
+      moveUp: 'Move Up',
+      moveDown: 'Move Down',
+      delete: 'Delete',
+      'layerTypes.image': 'Image Layer',
+      'layerTypes.mask': 'Mask Layer',
+      'layerTypes.adjustment': 'Adjustment Layer',
+    };
+    return translations[key] || key;
+  },
 }));
 
 // Mock ResizeObserver
@@ -140,7 +161,8 @@ describe('LayersPanel', () => {
     it('should render merge button when onLayerMerge is provided', () => {
       const onLayerMerge = jest.fn();
       render(<LayersPanel {...defaultProps} onLayerMerge={onLayerMerge} />);
-      expect(screen.getByText('Merge Visible')).toBeInTheDocument();
+      // Button shows when layers.length > 1
+      expect(screen.getByRole('button', { name: /merge/i })).toBeInTheDocument();
     });
 
     it('should not render merge button when onLayerMerge is not provided', () => {
@@ -153,7 +175,7 @@ describe('LayersPanel', () => {
       const user = userEvent.setup();
       render(<LayersPanel {...defaultProps} onLayerMerge={onLayerMerge} />);
       
-      await user.click(screen.getByText('Merge Visible'));
+      await user.click(screen.getByRole('button', { name: /merge/i }));
       expect(onLayerMerge).toHaveBeenCalled();
     });
   });

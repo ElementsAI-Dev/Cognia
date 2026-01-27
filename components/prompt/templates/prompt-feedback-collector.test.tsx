@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { PromptFeedbackCollector } from './prompt-feedback-collector';
 
 // Mock next-intl
@@ -10,26 +11,23 @@ jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-// Mock UI components
-jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
-  ),
+// Mock stores
+const mockRecordFeedback = jest.fn();
+jest.mock('@/stores', () => ({
+  usePromptTemplateStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      recordFeedback: mockRecordFeedback,
+    };
+    return selector(state);
+  },
 }));
 
-jest.mock('@/components/ui/textarea', () => ({
-  Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea {...props} />,
-}));
-
-jest.mock('@/components/ui/card', () => ({
-  Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,
-  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
-}));
-
-jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span>,
+// Mock toast
+jest.mock('@/components/ui/sonner', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
 }));
 
 describe('PromptFeedbackCollector', () => {
@@ -42,45 +40,148 @@ describe('PromptFeedbackCollector', () => {
     jest.clearAllMocks();
   });
 
-  it('renders correctly', () => {
-    render(<PromptFeedbackCollector {...defaultProps} />);
-    expect(screen.getByTestId('card')).toBeInTheDocument();
+  describe('popover variant (default)', () => {
+    it('renders trigger button', () => {
+      render(<PromptFeedbackCollector {...defaultProps} />);
+      expect(screen.getByRole('button', { name: /ratePrompt/i })).toBeInTheDocument();
+    });
+
+    it('opens popover when trigger clicked', async () => {
+      const user = userEvent.setup();
+      render(<PromptFeedbackCollector {...defaultProps} />);
+      
+      await user.click(screen.getByRole('button', { name: /ratePrompt/i }));
+      
+      expect(screen.getByText('howWasPrompt')).toBeInTheDocument();
+    });
   });
 
-  it('has a textarea for feedback', () => {
-    render(<PromptFeedbackCollector {...defaultProps} />);
-    expect(screen.getByRole('textbox')).toBeInTheDocument();
+  describe('inline variant', () => {
+    it('renders feedback form directly', () => {
+      render(<PromptFeedbackCollector {...defaultProps} variant="inline" />);
+      expect(screen.getByText('howWasPrompt')).toBeInTheDocument();
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+    });
+
+    it('displays template name when provided', () => {
+      render(<PromptFeedbackCollector {...defaultProps} variant="inline" />);
+      expect(screen.getByText('Test Template')).toBeInTheDocument();
+    });
+
+    it('allows star rating selection', () => {
+      render(<PromptFeedbackCollector {...defaultProps} variant="inline" />);
+      
+      const starButtons = screen.getAllByRole('button').filter(btn => 
+        btn.querySelector('svg')?.classList.contains('lucide-star') || btn.className.includes('hover:scale')
+      );
+      expect(starButtons.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it('allows effectiveness selection', async () => {
+      const user = userEvent.setup();
+      render(<PromptFeedbackCollector {...defaultProps} variant="inline" />);
+      
+      const excellentBtn = screen.getByRole('button', { name: /excellent/i });
+      expect(excellentBtn).toBeInTheDocument();
+      
+      await user.click(excellentBtn);
+    });
+
+    it('allows entering comments', async () => {
+      const user = userEvent.setup();
+      render(<PromptFeedbackCollector {...defaultProps} variant="inline" />);
+      
+      const textarea = screen.getByRole('textbox');
+      await user.type(textarea, 'Great prompt!');
+      
+      expect(textarea).toHaveValue('Great prompt!');
+    });
+
+    it('disables submit button when no rating or effectiveness selected', () => {
+      render(<PromptFeedbackCollector {...defaultProps} variant="inline" />);
+      
+      const submitButton = screen.getByRole('button', { name: /submitFeedback/i });
+      expect(submitButton).toBeDisabled();
+    });
   });
 
-  it('has rating buttons', () => {
-    render(<PromptFeedbackCollector {...defaultProps} />);
-    const buttons = screen.getAllByRole('button');
-    expect(buttons.length).toBeGreaterThan(0);
+  describe('compact variant', () => {
+    it('renders thumbs up/down buttons', () => {
+      render(<PromptFeedbackCollector {...defaultProps} variant="compact" />);
+      
+      const buttons = screen.getAllByRole('button');
+      expect(buttons.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('submits positive quick feedback on thumbs up', async () => {
+      const user = userEvent.setup();
+      render(<PromptFeedbackCollector {...defaultProps} variant="compact" />);
+      
+      const thumbsUpBtn = screen.getAllByRole('button')[0];
+      await user.click(thumbsUpBtn);
+      
+      expect(mockRecordFeedback).toHaveBeenCalledWith(
+        'template-1',
+        expect.objectContaining({ rating: 5, effectiveness: 'good' })
+      );
+    });
+
+    it('submits negative quick feedback on thumbs down', async () => {
+      const user = userEvent.setup();
+      render(<PromptFeedbackCollector {...defaultProps} variant="compact" />);
+      
+      const thumbsDownBtn = screen.getAllByRole('button')[1];
+      await user.click(thumbsDownBtn);
+      
+      expect(mockRecordFeedback).toHaveBeenCalledWith(
+        'template-1',
+        expect.objectContaining({ rating: 2, effectiveness: 'poor' })
+      );
+    });
   });
 
-  it('allows entering feedback text', () => {
-    render(<PromptFeedbackCollector {...defaultProps} />);
-    
-    const textarea = screen.getByRole('textbox');
-    fireEvent.change(textarea, { target: { value: 'Great prompt!' } });
-    
-    expect(textarea).toHaveValue('Great prompt!');
+  describe('context display', () => {
+    it('displays context badges when provided', () => {
+      render(
+        <PromptFeedbackCollector
+          {...defaultProps}
+          variant="inline"
+          context={{
+            model: 'gpt-4',
+            responseTime: 2500,
+            outputTokens: 100,
+          }}
+        />
+      );
+      
+      expect(screen.getByText('gpt-4')).toBeInTheDocument();
+      expect(screen.getByText('2.5s')).toBeInTheDocument();
+      expect(screen.getByText('100 tokens')).toBeInTheDocument();
+    });
   });
 
-  it('submits feedback when form is submitted', () => {
-    render(<PromptFeedbackCollector {...defaultProps} />);
-    
-    const textarea = screen.getByRole('textbox');
-    fireEvent.change(textarea, { target: { value: 'Great prompt!' } });
-    
-    const submitButton = screen.getAllByRole('button').find(btn => 
-      btn.textContent?.toLowerCase().includes('submit') || 
-      btn.getAttribute('type') === 'submit'
-    );
-    
-    if (submitButton) {
-      fireEvent.click(submitButton);
-      // Should not throw
-    }
+  describe('callback', () => {
+    it('calls onFeedbackSubmitted after quick feedback', async () => {
+      const onFeedbackSubmitted = jest.fn();
+      const user = userEvent.setup();
+      
+      render(
+        <PromptFeedbackCollector
+          {...defaultProps}
+          variant="compact"
+          onFeedbackSubmitted={onFeedbackSubmitted}
+        />
+      );
+      
+      await user.click(screen.getAllByRole('button')[0]);
+      
+      expect(onFeedbackSubmitted).toHaveBeenCalledWith(
+        expect.objectContaining({
+          templateId: 'template-1',
+          rating: 5,
+          effectiveness: 'good',
+        })
+      );
+    });
   });
 });

@@ -78,6 +78,7 @@ import {
 import { createIPCAPI } from './ipc';
 import { createEventAPI } from './message-bus';
 import { getPluginI18nLoader } from './i18n-loader';
+import { getPluginDebugger } from './debugger';
 
 /**
  * Full plugin context combining base and extended APIs
@@ -90,11 +91,12 @@ export interface FullPluginContext extends PluginContext, ExtendedPluginContext 
 
 export function createPluginContext(
   plugin: Plugin,
-  manager: PluginManager
+  manager: PluginManager,
+  options?: { enableDebug?: boolean }
 ): PluginContext {
   const pluginId = plugin.manifest.id;
 
-  return {
+  const baseContext: PluginContext = {
     pluginId,
     pluginPath: plugin.path,
     config: plugin.config,
@@ -118,6 +120,15 @@ export function createPluginContext(
     window: createWindowAPI(pluginId),
     secrets: createSecretsAPI(pluginId),
   };
+
+  // If debug mode is enabled, wrap the context with debug instrumentation
+  if (options?.enableDebug) {
+    const debugger_ = getPluginDebugger();
+    debugger_.startSession(pluginId);
+    return debugger_.createDebugContext(pluginId, baseContext);
+  }
+
+  return baseContext;
 }
 
 /**
@@ -125,12 +136,13 @@ export function createPluginContext(
  */
 export function createFullPluginContext(
   plugin: Plugin,
-  manager: PluginManager
+  manager: PluginManager,
+  options?: { enableDebug?: boolean }
 ): FullPluginContext {
   const pluginId = plugin.manifest.id;
   
-  // Get the base context
-  const baseContext = createPluginContext(plugin, manager);
+  // Get the base context (with optional debug mode)
+  const baseContext = createPluginContext(plugin, manager, options);
   
   // Create extended APIs
   const extendedContext: ExtendedPluginContext = {

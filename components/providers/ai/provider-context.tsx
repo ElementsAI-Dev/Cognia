@@ -67,6 +67,9 @@ export interface ProviderContextValue {
 // Create context
 const ProviderContext = createContext<ProviderContextValue | undefined>(undefined);
 
+// Export context for testing purposes
+export { ProviderContext };
+
 // Provider metadata registry
 const PROVIDER_METADATA: Record<string, ProviderMetadata> = {
   openai: {

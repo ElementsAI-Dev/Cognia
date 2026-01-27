@@ -208,7 +208,7 @@ describe('GroupNode', () => {
   it('applies border with custom color', () => {
     const { container } = render(<GroupNode {...mockProps} />);
     const node = container.firstChild as HTMLElement;
-    expect(node.style.borderColor).toBe('#3b82f6');
+    expect(node.style.borderColor).toMatch(/^(#3b82f6|rgb\(59,\s*130,\s*246\))$/);
   });
 
   it('has rounded corners', () => {
@@ -324,8 +324,9 @@ describe('GroupNode interactions', () => {
   });
 
   it('can toggle collapse state', () => {
-    const { _rerender } = render(<GroupNode {...mockProps} />);
-    const collapseButton = screen.getByTestId('button');
+    render(<GroupNode {...mockProps} />);
+    const buttons = screen.getAllByTestId('button');
+    const collapseButton = buttons[0]; // First button is the collapse toggle
     fireEvent.click(collapseButton);
     // In a real scenario, this would update the state
   });
@@ -376,21 +377,21 @@ describe('GroupNode with different colors', () => {
     const blueData = { ...mockData, color: '#3b82f6' };
     const { container } = render(<GroupNode {...mockProps} data={blueData} />);
     const node = container.firstChild as HTMLElement;
-    expect(node.style.borderColor).toBe('#3b82f6');
+    expect(node.style.borderColor).toMatch(/^(#3b82f6|rgb\(59,\s*130,\s*246\))$/);
   });
 
   it('handles purple color', () => {
     const purpleData = { ...mockData, color: '#8b5cf6' };
     const { container } = render(<GroupNode {...mockProps} data={purpleData} />);
     const node = container.firstChild as HTMLElement;
-    expect(node.style.borderColor).toBe('#8b5cf6');
+    expect(node.style.borderColor).toMatch(/^(#8b5cf6|rgb\(139,\s*92,\s*246\))$/);
   });
 
   it('handles green color', () => {
     const greenData = { ...mockData, color: '#22c55e' };
     const { container } = render(<GroupNode {...mockProps} data={greenData} />);
     const node = container.firstChild as HTMLElement;
-    expect(node.style.borderColor).toBe('#22c55e');
+    expect(node.style.borderColor).toMatch(/^(#22c55e|rgb\(34,\s*197,\s*94\))$/);
   });
 });
 
@@ -399,7 +400,7 @@ describe('GroupNode edge cases', () => {
     const noColorData = { ...mockData, color: '' };
     const { container } = render(<GroupNode {...mockProps} data={noColorData} />);
     const node = container.firstChild as HTMLElement;
-    expect(node.style.borderColor).toBe('#6b7280'); // Default gray
+    expect(node.style.borderColor).toMatch(/^(#6b7280|rgb\(107,\s*114,\s*128\))$/); // Default gray
   });
 
   it('handles undefined childNodeIds', () => {
@@ -410,9 +411,9 @@ describe('GroupNode edge cases', () => {
 
   it('handles empty label', () => {
     const emptyLabelData = { ...mockData, label: '' };
-    render(<GroupNode {...mockProps} data={emptyLabelData} />);
-    const label = screen.queryByText('');
-    expect(label).toBeInTheDocument();
+    const { container } = render(<GroupNode {...mockProps} data={emptyLabelData} />);
+    // Empty label renders as empty div, so we check the container exists
+    expect(container.querySelector('.truncate')).toBeInTheDocument();
   });
 
   it('handles very long label', () => {
@@ -458,7 +459,8 @@ describe('GroupNode header styling', () => {
   it('has colored header background', () => {
     const { container } = render(<GroupNode {...mockProps} />);
     const header = container.querySelector('.px-3') as HTMLElement;
-    expect(header.style.backgroundColor).toBe('#3b82f615');
+    // Browser converts hex with alpha to rgba
+    expect(header.style.backgroundColor).toMatch(/^(#3b82f615|rgba\(59,\s*130,\s*246,\s*0\.0\d+\))$/);
   });
 
   it('header has rounded top corners', () => {

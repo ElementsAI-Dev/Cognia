@@ -45,6 +45,49 @@ export interface OrchestratorConfig {
   tools?: Record<string, AgentTool>;
   enableAutoPlanning?: boolean;
   enableDynamicSubAgents?: boolean;
+  
+  // === Smart Routing (Claude Best Practice) ===
+  // Multi-agent systems use 3-10x more tokens than single-agent approaches.
+  // Only use multi-agent when: context pollution, parallelization, or specialization is needed.
+  
+  /** Enable smart routing to decide single vs multi-agent automatically */
+  enableSmartRouting?: boolean;
+  /** Threshold for preferring single agent (0-1, higher = more likely single agent) */
+  singleAgentThreshold?: number;
+  /** Maximum estimated tokens before forcing multi-agent (for context isolation) */
+  contextIsolationThreshold?: number;
+  
+  // === Token Budget Awareness (Claude Best Practice) ===
+  // Multi-agent systems use 3-10x more tokens than single-agent approaches.
+  // Plan generation should respect token budgets to ensure predictable costs.
+  
+  /** Maximum total token budget for the entire orchestration */
+  maxTokenBudget?: number;
+  /** Estimated tokens per sub-agent (for planning) */
+  estimatedTokensPerSubAgent?: number;
+  /** Whether to log token usage warnings */
+  enableTokenWarnings?: boolean;
+}
+
+/**
+ * Result of smart routing analysis
+ */
+export interface SmartRoutingResult {
+  /** Whether to use multi-agent */
+  useMultiAgent: boolean;
+  /** Reasoning for the decision */
+  reason: string;
+  /** Confidence score (0-1) */
+  confidence: number;
+  /** Estimated token usage for single agent approach */
+  estimatedSingleAgentTokens?: number;
+  /** Factors that influenced the decision */
+  factors: {
+    taskComplexity: 'simple' | 'moderate' | 'complex';
+    parallelizationBenefit: boolean;
+    contextIsolationNeeded: boolean;
+    toolSpecializationNeeded: boolean;
+  };
 }
 
 /**
@@ -149,6 +192,20 @@ Task to break down:
 `;
 
 /**
+ * Token budget-aware planning prompt extension
+ */
+const TOKEN_BUDGET_PROMPT_EXTENSION = `
+
+IMPORTANT - Token Budget Constraints:
+- Maximum sub-agents allowed: {{maxSubAgents}}
+- Estimated token budget per sub-agent: ~{{tokensPerAgent}} tokens
+- Total budget: ~{{totalBudget}} tokens
+
+Keep the plan efficient - prefer fewer, well-scoped sub-agents over many small ones.
+Each additional sub-agent adds significant overhead (system prompts, context, aggregation).
+`;
+
+/**
  * Aggregation prompt for combining sub-agent results
  */
 const AGGREGATION_PROMPT = `You are a result aggregation expert. Combine the following sub-agent results into a coherent, comprehensive response.
@@ -206,12 +263,131 @@ export class AgentOrchestrator {
       maxConcurrentSubAgents: 3,
       enableAutoPlanning: true,
       enableDynamicSubAgents: true,
+      // Smart routing defaults
+      enableSmartRouting: false, // Opt-in for backward compatibility
+      singleAgentThreshold: 0.6,
+      contextIsolationThreshold: 50000, // ~50k tokens
       ...config,
     };
   }
 
   /**
+   * Analyze task to decide if multi-agent is beneficial
+   * Based on Claude's Multi-Agent Decision Framework:
+   * 1. Context Pollution - Does task generate high-volume irrelevant info?
+   * 2. Parallelization - Can independent facets be explored simultaneously?
+   * 3. Specialization - Do different subtasks need different tool sets?
+   */
+  async analyzeForSmartRouting(task: string): Promise<SmartRoutingResult> {
+    const toolCount = Object.keys(this.config.tools || {}).length;
+    
+    // Quick heuristic analysis (no LLM call for efficiency)
+    const factors = {
+      taskComplexity: this.assessTaskComplexity(task),
+      parallelizationBenefit: this.hasParallelizationPotential(task),
+      contextIsolationNeeded: this.needsContextIsolation(task, toolCount),
+      toolSpecializationNeeded: toolCount > 15, // Claude recommends < 20 tools per agent
+    };
+    
+    // Calculate score
+    let multiAgentScore = 0;
+    
+    // Complex tasks benefit from decomposition
+    if (factors.taskComplexity === 'complex') multiAgentScore += 0.4;
+    else if (factors.taskComplexity === 'moderate') multiAgentScore += 0.2;
+    
+    // Parallelization provides throughput benefits
+    if (factors.parallelizationBenefit) multiAgentScore += 0.25;
+    
+    // Context isolation prevents pollution
+    if (factors.contextIsolationNeeded) multiAgentScore += 0.25;
+    
+    // Tool specialization improves selection accuracy
+    if (factors.toolSpecializationNeeded) multiAgentScore += 0.2;
+    
+    const threshold = this.config.singleAgentThreshold ?? 0.6;
+    const useMultiAgent = multiAgentScore >= (1 - threshold);
+    
+    // Build reasoning
+    const reasons: string[] = [];
+    if (factors.taskComplexity === 'complex') {
+      reasons.push('Task is complex and benefits from decomposition');
+    }
+    if (factors.parallelizationBenefit) {
+      reasons.push('Independent subtasks can be parallelized');
+    }
+    if (factors.contextIsolationNeeded) {
+      reasons.push('Context isolation prevents information pollution');
+    }
+    if (factors.toolSpecializationNeeded) {
+      reasons.push(`High tool count (${toolCount}) benefits from specialization`);
+    }
+    
+    if (!useMultiAgent) {
+      reasons.unshift('Single agent is more efficient for this task');
+    }
+    
+    return {
+      useMultiAgent,
+      reason: reasons.join('; ') || 'Simple task suitable for single agent',
+      confidence: Math.abs(multiAgentScore - 0.5) * 2, // 0-1 scale, higher when decision is clear
+      factors,
+    };
+  }
+
+  /**
+   * Assess task complexity based on text analysis
+   */
+  private assessTaskComplexity(task: string): 'simple' | 'moderate' | 'complex' {
+    const wordCount = task.split(/\s+/).length;
+    const hasMultipleSteps = /\b(and then|after that|next|finally|first|second|third)\b/i.test(task);
+    const hasMultipleDomains = /\b(research|analyze|create|compare|summarize|implement)\b/gi.test(task);
+    const matchCount = (task.match(/\b(research|analyze|create|compare|summarize|implement|search|find|build|write|review)\b/gi) || []).length;
+    
+    if (wordCount > 100 || (hasMultipleSteps && matchCount >= 3)) {
+      return 'complex';
+    }
+    if (wordCount > 40 || hasMultipleDomains || matchCount >= 2) {
+      return 'moderate';
+    }
+    return 'simple';
+  }
+
+  /**
+   * Check if task has parallelization potential
+   */
+  private hasParallelizationPotential(task: string): boolean {
+    // Look for patterns suggesting independent parallel work
+    const parallelPatterns = [
+      /\b(multiple|several|various|different)\s+(sources|options|approaches|methods)\b/i,
+      /\b(compare|contrast)\b.*\b(and|with|versus)\b/i,
+      /\b(search|find|research)\b.*\b(across|from multiple)\b/i,
+      /\b(simultaneously|in parallel|at the same time)\b/i,
+    ];
+    
+    return parallelPatterns.some(pattern => pattern.test(task));
+  }
+
+  /**
+   * Check if task needs context isolation
+   */
+  private needsContextIsolation(task: string, toolCount: number): boolean {
+    // Tasks involving data retrieval often generate high-volume context
+    const dataIntensivePatterns = [
+      /\b(database|api|fetch|retrieve|query|search)\b.*\b(data|records|results)\b/i,
+      /\b(analyze|process)\b.*\b(large|extensive|comprehensive)\b/i,
+      /\b(history|logs|records)\b/i,
+    ];
+    
+    const isDataIntensive = dataIntensivePatterns.some(pattern => pattern.test(task));
+    const hasManyTools = toolCount > 10;
+    
+    return isDataIntensive || hasManyTools;
+  }
+
+  /**
    * Generate a plan for sub-agents based on the task
+   * Includes token budget awareness when configured (Claude Best Practice)
    */
   async generatePlan(task: string): Promise<SubAgentPlan> {
     const modelInstance = getProviderModel(
@@ -221,9 +397,35 @@ export class AgentOrchestrator {
       this.config.baseURL
     );
 
+    // Build prompt with optional token budget constraints
+    let prompt = PLANNING_PROMPT;
+    
+    if (this.config.maxTokenBudget || this.config.estimatedTokensPerSubAgent) {
+      const tokensPerAgent = this.config.estimatedTokensPerSubAgent ?? 2000;
+      const maxBudget = this.config.maxTokenBudget ?? 50000;
+      const maxSubAgents = Math.min(
+        this.config.maxSubAgents ?? 10,
+        Math.floor(maxBudget / tokensPerAgent)
+      );
+      
+      prompt += TOKEN_BUDGET_PROMPT_EXTENSION
+        .replace('{{maxSubAgents}}', maxSubAgents.toString())
+        .replace('{{tokensPerAgent}}', tokensPerAgent.toString())
+        .replace('{{totalBudget}}', maxBudget.toString());
+      
+      if (this.config.enableTokenWarnings) {
+        console.log(
+          `[Orchestrator] Token budget: ${maxBudget} tokens, ` +
+          `max ${maxSubAgents} sub-agents at ~${tokensPerAgent} tokens each`
+        );
+      }
+    }
+    
+    prompt += task;
+
     const result = await generateText({
       model: modelInstance,
-      prompt: PLANNING_PROMPT + task,
+      prompt,
       temperature: 0.3,
     });
 
@@ -235,10 +437,30 @@ export class AgentOrchestrator {
 
     const parsed = JSON.parse(jsonMatch[0]);
     
+    // Validate plan against budget constraints
+    let subAgents = parsed.subAgents || [];
+    const maxAllowed = this.config.maxSubAgents ?? 10;
+    
+    if (subAgents.length > maxAllowed) {
+      if (this.config.enableTokenWarnings) {
+        console.warn(
+          `[Orchestrator] Plan has ${subAgents.length} sub-agents, ` +
+          `limiting to ${maxAllowed} for token budget`
+        );
+      }
+      // Keep highest priority agents
+      subAgents = subAgents
+        .sort((a: { priority?: string }, b: { priority?: string }) => {
+          const priorityOrder: Record<string, number> = { critical: 0, high: 1, normal: 2, low: 3, background: 4 };
+          return (priorityOrder[a.priority || 'normal'] ?? 2) - (priorityOrder[b.priority || 'normal'] ?? 2);
+        })
+        .slice(0, maxAllowed);
+    }
+    
     return {
       id: nanoid(),
       task,
-      subAgents: parsed.subAgents || [],
+      subAgents,
       executionMode: parsed.executionMode || 'sequential',
       reasoning: parsed.reasoning || '',
     };
@@ -422,6 +644,25 @@ export class AgentOrchestrator {
     options.onStart?.();
 
     try {
+      // Smart Routing: Decide if multi-agent is beneficial (Claude Best Practice)
+      let useMultiAgent = this.config.enableAutoPlanning ?? true;
+      let routingResult: SmartRoutingResult | undefined;
+      
+      if (this.config.enableSmartRouting) {
+        routingResult = await this.analyzeForSmartRouting(task);
+        useMultiAgent = routingResult.useMultiAgent;
+        
+        if (!useMultiAgent) {
+          console.log(
+            `[Orchestrator] Smart routing: Using single agent. Reason: ${routingResult.reason}`
+          );
+        } else {
+          console.log(
+            `[Orchestrator] Smart routing: Using multi-agent. Reason: ${routingResult.reason}`
+          );
+        }
+      }
+
       // Phase 1: Planning
       options.onProgress?.({
         phase: 'planning',
@@ -430,16 +671,16 @@ export class AgentOrchestrator {
         runningSubAgents: 0,
         failedSubAgents: 0,
         progress: 0,
-        currentActivity: 'Generating execution plan...',
+        currentActivity: useMultiAgent ? 'Generating execution plan...' : 'Preparing single agent execution...',
       });
 
       let plan: SubAgentPlan;
       
-      if (this.config.enableAutoPlanning) {
+      if (useMultiAgent && this.config.enableAutoPlanning) {
         plan = await this.generatePlan(task);
         options.onPlanGenerated?.(plan);
       } else {
-        // Create a single sub-agent for the entire task
+        // Create a single sub-agent for the entire task (more token-efficient)
         plan = {
           id: nanoid(),
           task,
@@ -450,7 +691,7 @@ export class AgentOrchestrator {
             priority: 'normal',
           }],
           executionMode: 'sequential',
-          reasoning: 'Single agent execution',
+          reasoning: routingResult?.reason || 'Single agent execution',
         };
       }
 

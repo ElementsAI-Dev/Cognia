@@ -4,6 +4,14 @@ import { SkillTestPanel } from './skill-test-panel';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { Skill } from '@/types/system/skill';
 
+// Mock langfuse to avoid dynamic import issues in test environment
+jest.mock('langfuse', () => ({
+  Langfuse: jest.fn().mockImplementation(() => ({
+    trace: jest.fn(),
+    shutdown: jest.fn(),
+  })),
+}));
+
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
 };

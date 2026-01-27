@@ -28,14 +28,14 @@ const mockContext = {
     is_modified: true,
   },
   browser: {
-    browser_name: 'Chrome',
+    browser: 'Chrome',
     page_title: 'GitHub - Repository',
     domain: 'github.com',
     is_secure: true,
   },
   file: {
-    file_name: 'document.txt',
-    directory: '/home/user/documents',
+    name: 'document.txt',
+    path: '/home/user/documents',
     language: 'plaintext',
     is_modified: false,
   },

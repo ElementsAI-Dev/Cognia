@@ -184,6 +184,22 @@ jest.mock('@/components/ui/dialog', () => ({
   ),
 }));
 
+jest.mock('@/components/ui/alert-dialog', () => ({
+  AlertDialog: ({ children }: any) => <div data-testid="alert-dialog">{children}</div>,
+  AlertDialogTrigger: ({ children, asChild: _asChild }: any) => <>{children}</>,
+  AlertDialogContent: ({ children, onClick }: any) => (
+    <div data-testid="alert-dialog-content" onClick={onClick}>{children}</div>
+  ),
+  AlertDialogHeader: ({ children }: any) => <div data-testid="alert-dialog-header">{children}</div>,
+  AlertDialogTitle: ({ children }: any) => <div data-testid="alert-dialog-title">{children}</div>,
+  AlertDialogDescription: ({ children }: any) => <div data-testid="alert-dialog-description">{children}</div>,
+  AlertDialogFooter: ({ children }: any) => <div data-testid="alert-dialog-footer">{children}</div>,
+  AlertDialogCancel: ({ children }: any) => <button data-testid="alert-cancel">{children}</button>,
+  AlertDialogAction: ({ children, onClick }: any) => (
+    <button data-testid="alert-action" onClick={onClick}>{children}</button>
+  ),
+}));
+
 // Mock data
 const mockSnippets: CodeSnippet[] = [
   {
@@ -552,19 +568,24 @@ describe('SnippetManager', () => {
   });
 
   describe('Delete Snippet', () => {
-    it('calls deleteSnippet when delete button is clicked', async () => {
+    it('calls deleteSnippet when delete is confirmed', async () => {
       render(<SnippetManager />);
       const buttons = screen.getAllByTestId('button');
-      // Find delete button (destructive styled)
+      // Find delete button (destructive styled) - this opens the dialog
       const deleteButtons = buttons.filter(btn => 
         btn.className.includes('text-destructive')
       );
       
       if (deleteButtons.length > 0) {
         fireEvent.click(deleteButtons[0]);
-        await waitFor(() => {
-          expect(mockDeleteSnippet).toHaveBeenCalled();
-        });
+        // Now click the confirm action button in the dialog
+        const actionButtons = screen.getAllByTestId('alert-action');
+        if (actionButtons.length > 0) {
+          fireEvent.click(actionButtons[0]);
+          await waitFor(() => {
+            expect(mockDeleteSnippet).toHaveBeenCalled();
+          });
+        }
       }
     });
 
@@ -732,9 +753,14 @@ describe('Integration tests', () => {
     
     if (deleteButtons.length > 0) {
       fireEvent.click(deleteButtons[0]);
-      await waitFor(() => {
-        expect(mockDelete).toHaveBeenCalled();
-      });
+      // Click the confirm action button in the dialog
+      const actionButtons = screen.getAllByTestId('alert-action');
+      if (actionButtons.length > 0) {
+        fireEvent.click(actionButtons[0]);
+        await waitFor(() => {
+          expect(mockDelete).toHaveBeenCalled();
+        });
+      }
     }
   });
 });
@@ -867,9 +893,14 @@ describe('Create and Update Handlers', () => {
     
     if (deleteButtons.length > 0) {
       fireEvent.click(deleteButtons[0]);
-      await waitFor(() => {
-        expect(mockDelete).toHaveBeenCalledWith('1');
-      });
+      // Click the confirm action button in the dialog
+      const actionButtons = screen.getAllByTestId('alert-action');
+      if (actionButtons.length > 0) {
+        fireEvent.click(actionButtons[0]);
+        await waitFor(() => {
+          expect(mockDelete).toHaveBeenCalledWith('1');
+        });
+      }
     }
   });
 });

@@ -77,6 +77,9 @@ export {
   TokenizerSettings,
 } from './chat';
 
+// Agent settings
+export { AgentOptimizationSettings, CustomModeSettings } from './agent';
+
 // Tool settings
 export {
   ToolSettings,

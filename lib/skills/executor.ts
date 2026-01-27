@@ -467,6 +467,209 @@ export function selectSkillsForContext(
   return selected;
 }
 
+// =============================================================================
+// MCP Tool Association (Claude Best Practice)
+// Skills provide workflow knowledge, MCP provides tool connectivity.
+// =============================================================================
+
+/**
+ * MCP tool information for matching
+ */
+export interface McpToolInfo {
+  serverId: string;
+  toolName: string;
+  description: string;
+}
+
+/**
+ * Result of skill-MCP matching
+ */
+export interface SkillMcpMatchResult {
+  skill: Skill;
+  matchScore: number;
+  matchReason: 'server' | 'tool' | 'keyword' | 'description';
+}
+
+/**
+ * Find skills that match a specific MCP server
+ */
+export function findSkillsForMcpServer(
+  skills: Skill[],
+  serverId: string
+): Skill[] {
+  return skills.filter(
+    skill => 
+      skill.status === 'enabled' &&
+      skill.associatedMcpServers?.includes(serverId)
+  );
+}
+
+/**
+ * Find skills that match a specific MCP tool
+ */
+export function findSkillsForMcpTool(
+  skills: Skill[],
+  serverId: string,
+  toolName: string
+): Skill[] {
+  const toolFullName = `${serverId}_${toolName}`;
+  
+  return skills.filter(skill => {
+    if (skill.status !== 'enabled') return false;
+    
+    // Check direct tool association
+    if (skill.recommendedTools?.includes(toolFullName)) return true;
+    if (skill.recommendedTools?.includes(toolName)) return true;
+    
+    // Check server association
+    if (skill.associatedMcpServers?.includes(serverId)) return true;
+    
+    return false;
+  });
+}
+
+/**
+ * Match skills to MCP tools by keyword matching
+ * Returns scored results for intelligent selection
+ */
+export function matchSkillsToMcpTool(
+  skills: Skill[],
+  toolInfo: McpToolInfo,
+  maxResults: number = 3
+): SkillMcpMatchResult[] {
+  const results: SkillMcpMatchResult[] = [];
+  
+  for (const skill of skills) {
+    if (skill.status !== 'enabled') continue;
+    
+    let matchScore = 0;
+    let matchReason: SkillMcpMatchResult['matchReason'] = 'description';
+    
+    // Check server association (highest priority)
+    if (skill.associatedMcpServers?.includes(toolInfo.serverId)) {
+      matchScore += 100;
+      matchReason = 'server';
+    }
+    
+    // Check tool association
+    const toolFullName = `${toolInfo.serverId}_${toolInfo.toolName}`;
+    if (skill.recommendedTools?.includes(toolFullName) ||
+        skill.recommendedTools?.includes(toolInfo.toolName)) {
+      matchScore += 80;
+      matchReason = 'tool';
+    }
+    
+    // Check keyword matching against tool description
+    if (skill.toolMatchKeywords && skill.toolMatchKeywords.length > 0) {
+      const lowerDesc = toolInfo.description.toLowerCase();
+      const lowerToolName = toolInfo.toolName.toLowerCase();
+      
+      for (const keyword of skill.toolMatchKeywords) {
+        const lowerKeyword = keyword.toLowerCase();
+        if (lowerDesc.includes(lowerKeyword) || lowerToolName.includes(lowerKeyword)) {
+          matchScore += 20;
+          if (matchReason === 'description') {
+            matchReason = 'keyword';
+          }
+        }
+      }
+    }
+    
+    // Check general description match (lowest priority)
+    if (matchScore === 0) {
+      const descScore = matchSkillToQuery(skill, toolInfo.description);
+      if (descScore > 5) {
+        matchScore = descScore;
+        matchReason = 'description';
+      }
+    }
+    
+    if (matchScore > 0) {
+      results.push({ skill, matchScore, matchReason });
+    }
+  }
+  
+  return results
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, maxResults);
+}
+
+/**
+ * Get skills to auto-load when specific MCP tools are being used
+ * This implements Claude's recommendation: "Skills handle expertise"
+ */
+export function getAutoLoadSkillsForTools(
+  skills: Skill[],
+  activeToolNames: string[]
+): Skill[] {
+  const matchedSkills = new Map<string, Skill>();
+  
+  for (const toolName of activeToolNames) {
+    // Parse tool name (format: mcp_serverId_toolName)
+    const parts = toolName.split('_');
+    if (parts.length >= 3 && parts[0] === 'mcp') {
+      const serverId = parts[1];
+      const actualToolName = parts.slice(2).join('_');
+      
+      // Find matching skills
+      const matched = findSkillsForMcpTool(skills, serverId, actualToolName);
+      for (const skill of matched) {
+        matchedSkills.set(skill.id, skill);
+      }
+    }
+  }
+  
+  return Array.from(matchedSkills.values());
+}
+
+/**
+ * Build a combined prompt that includes both skill instructions and MCP tool guidance
+ * This implements Claude's best practice of combining Skills (workflow) with MCP (tools)
+ */
+export function buildSkillMcpPrompt(
+  skills: Skill[],
+  mcpTools: McpToolInfo[],
+  config: SkillExecutorConfig = {}
+): string {
+  if (skills.length === 0) return '';
+  
+  const parts: string[] = [];
+  
+  parts.push('# Skill-Guided Tool Usage');
+  parts.push('');
+  parts.push('The following skills provide guidance for using the available MCP tools effectively:');
+  parts.push('');
+  
+  for (const skill of skills) {
+    // Find which tools this skill guides
+    const guidedTools = mcpTools.filter(tool => {
+      if (skill.associatedMcpServers?.includes(tool.serverId)) return true;
+      if (skill.recommendedTools?.some(rt => 
+        rt === tool.toolName || rt === `${tool.serverId}_${tool.toolName}`
+      )) return true;
+      return false;
+    });
+    
+    if (guidedTools.length > 0) {
+      parts.push(`## ${skill.metadata.name}`);
+      parts.push(`**For tools:** ${guidedTools.map(t => t.toolName).join(', ')}`);
+      parts.push('');
+      
+      // Include skill content (truncated)
+      const maxChars = Math.floor((config.maxContentLength || 5000) / skills.length);
+      const content = skill.content.length > maxChars
+        ? skill.content.substring(0, maxChars) + '\n[...]'
+        : skill.content;
+      parts.push(content);
+      parts.push('');
+      parts.push('---');
+      parts.push('');
+    }
+  }
+  
+  return parts.join('\n');
+}
+
 const skillExecutor = {
   buildSkillSystemPrompt,
   buildMultiSkillSystemPrompt,
@@ -485,6 +688,12 @@ const skillExecutor = {
   buildProgressiveSkillsPrompt,
   loadSkillContent,
   selectSkillsForContext,
+  // MCP Tool Association
+  findSkillsForMcpServer,
+  findSkillsForMcpTool,
+  matchSkillsToMcpTool,
+  getAutoLoadSkillsForTools,
+  buildSkillMcpPrompt,
 };
 
 export default skillExecutor;

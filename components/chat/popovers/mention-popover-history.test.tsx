@@ -9,8 +9,58 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { MentionPopover } from './mention-popover';
-import { useToolHistoryStore, createToolId } from '@/stores';
 import type { MentionItem } from '@/types/mcp';
+
+// Mock store - defined inside factory to avoid hoisting issues
+jest.mock('@/stores', () => {
+  const mockState = {
+    history: [] as Array<Record<string, unknown>>,
+    usageStats: {} as Record<string, { totalCalls: number; lastUsedAt: Date | null; isFavorite: boolean; isPinned: boolean }>,
+    settings: {
+      enabled: true,
+      maxRecords: 1000,
+      retentionDays: 90,
+      showRecentInPopover: true,
+      recentToolsCount: 5,
+      enablePromptSuggestions: true,
+      showUsageBadges: true,
+    },
+    isLoading: false,
+    error: null,
+    toggleFavorite: jest.fn(),
+    togglePinned: jest.fn(),
+    recordToolCall: jest.fn((params: Record<string, unknown>) => {
+      const id = `record-${Date.now()}`;
+      const record = { id, ...params };
+      mockState.history.push(record);
+      return record;
+    }),
+    updateToolCallResultStatus: jest.fn(),
+  };
+
+  // Expose state for tests to access via getState
+  (global as Record<string, unknown>).__mockToolHistoryState = mockState;
+
+  const store = Object.assign(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (selector: (s: typeof mockState) => any) => selector(mockState),
+    {
+      getState: () => mockState,
+      setState: (newState: Partial<typeof mockState>) => {
+        Object.assign(mockState, newState);
+      },
+      subscribe: jest.fn(() => jest.fn()),
+    }
+  );
+
+  return {
+    useToolHistoryStore: store,
+    createToolId: (provider: string, name: string, serverId: string) => `${provider}:${serverId}:${name}`,
+  };
+});
+
+// Import after mock is set up
+import { useToolHistoryStore, createToolId } from '@/stores';
 
 // Mock localStorage
 const localStorageMock = (() => {

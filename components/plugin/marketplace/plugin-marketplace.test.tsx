@@ -89,7 +89,7 @@ describe('PluginMarketplace', () => {
 
   it('renders quick filters', () => {
     renderWithProviders(<PluginMarketplace {...mockHandlers} />);
-    expect(screen.getByText('All')).toBeInTheDocument();
+    expect(screen.getAllByText('All').length).toBeGreaterThan(0);
   });
 
   it('applies custom className', () => {

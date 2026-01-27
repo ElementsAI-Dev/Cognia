@@ -504,4 +504,203 @@ describe('useSettingsStore', () => {
       expect(state.defaultProvider).toBe('openai');
     });
   });
+
+  describe('agent optimization settings', () => {
+    beforeEach(() => {
+      act(() => {
+        useSettingsStore.getState().resetAgentOptimizationSettings();
+      });
+    });
+
+    describe('initial state', () => {
+      it('has correct default values', () => {
+        const state = useSettingsStore.getState();
+        expect(state.agentOptimizationSettings.enableSmartRouting).toBe(false);
+        expect(state.agentOptimizationSettings.singleAgentThreshold).toBe(0.6);
+        expect(state.agentOptimizationSettings.enableTokenBudget).toBe(false);
+        expect(state.agentOptimizationSettings.maxTokenBudget).toBe(50000);
+        expect(state.agentOptimizationSettings.estimatedTokensPerSubAgent).toBe(2000);
+        expect(state.agentOptimizationSettings.enableTokenWarnings).toBe(true);
+        expect(state.agentOptimizationSettings.enableContextIsolation).toBe(false);
+        expect(state.agentOptimizationSettings.summarizeSubAgentResults).toBe(false);
+        expect(state.agentOptimizationSettings.maxResultTokens).toBe(500);
+        expect(state.agentOptimizationSettings.enableToolWarnings).toBe(true);
+        expect(state.agentOptimizationSettings.toolWarningThreshold).toBe(20);
+        expect(state.agentOptimizationSettings.enableSkillMcpAutoLoad).toBe(true);
+      });
+    });
+
+    describe('smart routing', () => {
+      it('should enable smart routing', () => {
+        act(() => {
+          useSettingsStore.getState().setSmartRoutingEnabled(true);
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.enableSmartRouting).toBe(true);
+      });
+
+      it('should disable smart routing', () => {
+        act(() => {
+          useSettingsStore.getState().setSmartRoutingEnabled(true);
+          useSettingsStore.getState().setSmartRoutingEnabled(false);
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.enableSmartRouting).toBe(false);
+      });
+
+      it('should set single agent threshold', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentOptimizationSettings({ singleAgentThreshold: 0.8 });
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.singleAgentThreshold).toBe(0.8);
+      });
+    });
+
+    describe('token budget', () => {
+      it('should enable token budget', () => {
+        act(() => {
+          useSettingsStore.getState().setTokenBudgetEnabled(true);
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.enableTokenBudget).toBe(true);
+      });
+
+      it('should set max token budget', () => {
+        act(() => {
+          useSettingsStore.getState().setMaxTokenBudget(100000);
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.maxTokenBudget).toBe(100000);
+      });
+
+      it('should set estimated tokens per sub-agent', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentOptimizationSettings({ estimatedTokensPerSubAgent: 3000 });
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.estimatedTokensPerSubAgent).toBe(3000);
+      });
+
+      it('should toggle token warnings', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentOptimizationSettings({ enableTokenWarnings: false });
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.enableTokenWarnings).toBe(false);
+      });
+    });
+
+    describe('context isolation', () => {
+      it('should enable context isolation', () => {
+        act(() => {
+          useSettingsStore.getState().setContextIsolationEnabled(true);
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.enableContextIsolation).toBe(true);
+      });
+
+      it('should enable summarize sub-agent results', () => {
+        act(() => {
+          useSettingsStore.getState().setSummarizeSubAgentResults(true);
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.summarizeSubAgentResults).toBe(true);
+      });
+
+      it('should set max result tokens', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentOptimizationSettings({ maxResultTokens: 1000 });
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.maxResultTokens).toBe(1000);
+      });
+    });
+
+    describe('tool warnings', () => {
+      it('should enable tool warnings', () => {
+        act(() => {
+          useSettingsStore.getState().setToolWarningsEnabled(true);
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.enableToolWarnings).toBe(true);
+      });
+
+      it('should disable tool warnings', () => {
+        act(() => {
+          useSettingsStore.getState().setToolWarningsEnabled(false);
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.enableToolWarnings).toBe(false);
+      });
+
+      it('should set tool warning threshold', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentOptimizationSettings({ toolWarningThreshold: 30 });
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.toolWarningThreshold).toBe(30);
+      });
+    });
+
+    describe('skills-mcp auto-load', () => {
+      it('should enable skills-mcp auto-load', () => {
+        act(() => {
+          useSettingsStore.getState().setSkillMcpAutoLoadEnabled(true);
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.enableSkillMcpAutoLoad).toBe(true);
+      });
+
+      it('should disable skills-mcp auto-load', () => {
+        act(() => {
+          useSettingsStore.getState().setSkillMcpAutoLoadEnabled(false);
+        });
+        expect(useSettingsStore.getState().agentOptimizationSettings.enableSkillMcpAutoLoad).toBe(false);
+      });
+    });
+
+    describe('batch updates', () => {
+      it('should update multiple settings at once', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentOptimizationSettings({
+            enableSmartRouting: true,
+            singleAgentThreshold: 0.7,
+            enableTokenBudget: true,
+            maxTokenBudget: 80000,
+          });
+        });
+        const settings = useSettingsStore.getState().agentOptimizationSettings;
+        expect(settings.enableSmartRouting).toBe(true);
+        expect(settings.singleAgentThreshold).toBe(0.7);
+        expect(settings.enableTokenBudget).toBe(true);
+        expect(settings.maxTokenBudget).toBe(80000);
+      });
+
+      it('should preserve unmodified settings during partial update', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentOptimizationSettings({
+            enableSmartRouting: true,
+          });
+        });
+        const settings = useSettingsStore.getState().agentOptimizationSettings;
+        expect(settings.enableSmartRouting).toBe(true);
+        // Other settings should remain at defaults
+        expect(settings.enableTokenBudget).toBe(false);
+        expect(settings.enableContextIsolation).toBe(false);
+        expect(settings.enableSkillMcpAutoLoad).toBe(true);
+      });
+    });
+
+    describe('reset', () => {
+      it('should reset agent optimization settings to defaults', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentOptimizationSettings({
+            enableSmartRouting: true,
+            enableTokenBudget: true,
+            enableContextIsolation: true,
+            enableToolWarnings: false,
+            enableSkillMcpAutoLoad: false,
+            singleAgentThreshold: 0.9,
+            maxTokenBudget: 100000,
+          });
+          useSettingsStore.getState().resetAgentOptimizationSettings();
+        });
+        const settings = useSettingsStore.getState().agentOptimizationSettings;
+        expect(settings.enableSmartRouting).toBe(false);
+        expect(settings.enableTokenBudget).toBe(false);
+        expect(settings.enableContextIsolation).toBe(false);
+        expect(settings.enableToolWarnings).toBe(true);
+        expect(settings.enableSkillMcpAutoLoad).toBe(true);
+        expect(settings.singleAgentThreshold).toBe(0.6);
+        expect(settings.maxTokenBudget).toBe(50000);
+      });
+    });
+  });
 });

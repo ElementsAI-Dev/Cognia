@@ -44,6 +44,11 @@ jest.mock('./artifact-renderers', () => ({
   MarkdownRenderer: () => null,
 }));
 
+// Mock jupyter-renderer to avoid langfuse import chain
+jest.mock('./jupyter-renderer', () => ({
+  JupyterRenderer: () => null,
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (

@@ -75,13 +75,14 @@ describe('CarriedContextBanner', () => {
     const onDismiss = jest.fn();
     render(<CarriedContextBanner {...defaultProps} onDismiss={onDismiss} />);
     
-    // Find dismiss button (X icon button)
+    // Find all buttons and get the last one (dismiss button)
+    // The order is: CollapsibleTrigger, then Dismiss button
     const buttons = screen.getAllByRole('button');
-    const dismissButton = buttons.find(btn => btn.querySelector('svg'));
-    if (dismissButton) {
-      fireEvent.click(dismissButton);
-      expect(onDismiss).toHaveBeenCalled();
-    }
+    // Dismiss button is the second button (after collapsible trigger)
+    const dismissButton = buttons[buttons.length - 1];
+    expect(dismissButton).toBeTruthy();
+    fireEvent.click(dismissButton);
+    expect(onDismiss).toHaveBeenCalled();
   });
 
   it('applies custom className', () => {

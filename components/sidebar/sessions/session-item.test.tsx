@@ -127,7 +127,8 @@ describe('SessionItem', () => {
 
   it('applies active styles when isActive is true', () => {
     const { container } = render(<SessionItem {...defaultProps} isActive />);
-    const sessionDiv = container.querySelector('.bg-accent');
+    // Component uses bg-sidebar-accent for active state
+    const sessionDiv = container.querySelector('.bg-sidebar-accent');
     expect(sessionDiv).toBeInTheDocument();
   });
 

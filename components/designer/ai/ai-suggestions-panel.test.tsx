@@ -83,10 +83,11 @@ describe('AISuggestionsPanel', () => {
 
   it('should render all tabs', () => {
     render(<AISuggestionsPanel {...defaultProps} />);
-    expect(screen.getByText('Style')).toBeInTheDocument();
-    expect(screen.getByText('A11y')).toBeInTheDocument();
-    expect(screen.getByText('Responsive')).toBeInTheDocument();
-    expect(screen.getByText('Layout')).toBeInTheDocument();
+    // Tabs use translation keys
+    expect(screen.getByText('tabStyle')).toBeInTheDocument();
+    expect(screen.getByText('tabA11y')).toBeInTheDocument();
+    expect(screen.getByText('tabResponsive')).toBeInTheDocument();
+    expect(screen.getByText('tabLayout')).toBeInTheDocument();
   });
 
   it('should show empty state initially', () => {
@@ -125,7 +126,7 @@ describe('AISuggestionsPanel', () => {
   it('should render accessibility tab', () => {
     render(<AISuggestionsPanel {...defaultProps} />);
     
-    const a11yTab = screen.getByText('A11y');
+    const a11yTab = screen.getByText('tabA11y');
     expect(a11yTab).toBeInTheDocument();
   });
 
@@ -157,14 +158,14 @@ describe('AISuggestionsPanel', () => {
   it('should render responsive tab', () => {
     render(<AISuggestionsPanel {...defaultProps} />);
     
-    const responsiveTab = screen.getByText('Responsive');
+    const responsiveTab = screen.getByText('tabResponsive');
     expect(responsiveTab).toBeInTheDocument();
   });
 
   it('should render layout tab', () => {
     render(<AISuggestionsPanel {...defaultProps} />);
     
-    const layoutTab = screen.getByText('Layout');
+    const layoutTab = screen.getByText('tabLayout');
     expect(layoutTab).toBeInTheDocument();
   });
 });

@@ -9,6 +9,26 @@ import type { ChatWidgetMessage } from '@/stores/chat';
 // Mock scrollIntoView for JSDOM
 Element.prototype.scrollIntoView = jest.fn();
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      emptyTitle: '有什么可以帮您的？',
+      emptyDesc: '随时向我提问',
+      thinking: '思考中...',
+      continueGeneration: '继续生成',
+      edited: '(已编辑)',
+      edit: '编辑',
+      read: '朗读',
+      stopReading: '停止朗读',
+      helpful: '有帮助',
+      notHelpful: '没帮助',
+      regenerate: '重新生成',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock useSpeech hook
 jest.mock('@/hooks/media/use-speech', () => ({
   useSpeech: () => ({
@@ -32,7 +52,7 @@ jest.mock('streamdown', () => ({
 }));
 
 // Mock copy button
-jest.mock('@/components/chat/copy-button', () => ({
+jest.mock('@/components/chat/ui/copy-button', () => ({
   InlineCopyButton: ({ content }: { content: string }) => (
     <button data-testid="copy-button" data-content={content}>Copy</button>
   ),

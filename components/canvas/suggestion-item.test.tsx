@@ -37,8 +37,16 @@ jest.mock('@/components/ui/collapsible', () => ({
   Collapsible: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
     <div data-open={open}>{children}</div>
   ),
-  CollapsibleContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CollapsibleContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div className={className} data-testid="collapsible-content">{children}</div>
+  ),
   CollapsibleTrigger: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
+}));
+
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipContent: () => null,
 }));
 
 jest.mock('next-intl', () => ({
@@ -99,7 +107,7 @@ describe('SuggestionItem', () => {
         {...mockHandlers}
       />
     );
-    const applyButton = screen.getByText('Apply');
+    const applyButton = screen.getByRole('button', { name: /apply/i });
     fireEvent.click(applyButton);
     expect(mockHandlers.onApply).toHaveBeenCalledWith('sugg-1');
   });
@@ -111,7 +119,7 @@ describe('SuggestionItem', () => {
         {...mockHandlers}
       />
     );
-    const dismissButton = screen.getByText('Dismiss');
+    const dismissButton = screen.getByRole('button', { name: /dismiss/i });
     fireEvent.click(dismissButton);
     expect(mockHandlers.onReject).toHaveBeenCalledWith('sugg-1');
   });
@@ -170,8 +178,8 @@ describe('SuggestionItem', () => {
           {...mockHandlers}
         />
       );
-      const applyButton = screen.getByText('Apply').closest('button');
-      const dismissButton = screen.getByText('Dismiss').closest('button');
+      const applyButton = screen.getByRole('button', { name: /apply/i });
+      const dismissButton = screen.getByRole('button', { name: /dismiss/i });
       expect(applyButton).toHaveClass('h-9');
       expect(dismissButton).toHaveClass('h-9');
     });
@@ -197,8 +205,9 @@ describe('SuggestionItem', () => {
         />
       );
       // The collapsible content should have responsive font sizes
-      const collapsibleContent = document.querySelector('.text-xs.sm\\:text-sm');
-      expect(collapsibleContent).toBeInTheDocument();
+      const collapsibleContent = screen.getByTestId('collapsible-content');
+      expect(collapsibleContent).toHaveClass('text-xs');
+      expect(collapsibleContent).toHaveClass('sm:text-sm');
     });
   });
 

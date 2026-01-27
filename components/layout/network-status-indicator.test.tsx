@@ -32,7 +32,8 @@ describe('NetworkStatusIndicator', () => {
 
   it('renders with green background when online', () => {
     const { container } = render(<NetworkStatusIndicator />);
-    expect(container.firstChild).toHaveClass('bg-green-500/10');
+    const indicator = container.querySelector('.bg-green-500\\/10');
+    expect(indicator).toBeInTheDocument();
   });
 
   it('renders without label by default', () => {
@@ -42,7 +43,8 @@ describe('NetworkStatusIndicator', () => {
 
   it('applies custom className', () => {
     const { container } = render(<NetworkStatusIndicator className="custom-class" />);
-    expect(container.firstChild).toHaveClass('custom-class');
+    const indicator = container.querySelector('.custom-class');
+    expect(indicator).toBeInTheDocument();
   });
 });
 
@@ -63,7 +65,8 @@ describe('NetworkStatusIndicator offline', () => {
 
   it('renders with red background when offline', () => {
     const { container } = render(<NetworkStatusIndicator />);
-    expect(container.firstChild).toHaveClass('bg-destructive/10');
+    const indicator = container.querySelector('.bg-destructive\\/10');
+    expect(indicator).toBeInTheDocument();
   });
 });
 
@@ -84,7 +87,8 @@ describe('NetworkStatusIndicator slow', () => {
 
   it('renders with yellow background when slow', () => {
     const { container } = render(<NetworkStatusIndicator />);
-    expect(container.firstChild).toHaveClass('bg-yellow-500/10');
+    const indicator = container.querySelector('.bg-yellow-500\\/10');
+    expect(indicator).toBeInTheDocument();
   });
 });
 

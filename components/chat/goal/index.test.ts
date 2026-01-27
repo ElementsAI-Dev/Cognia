@@ -144,8 +144,9 @@ describe('Chat Goal Components - Index Exports', () => {
       const dialogModule = jest.requireMock('./chat-goal-dialog');
       const indexModule = jest.requireMock('./index');
 
-      expect(indexModule.ChatGoalBanner).toBe(bannerModule.ChatGoalBanner);
-      expect(indexModule.ChatGoalDialog).toBe(dialogModule.ChatGoalDialog);
+      // Use name comparison since mocked modules create different instances
+      expect(indexModule.ChatGoalBanner.name).toBe(bannerModule.ChatGoalBanner.name);
+      expect(indexModule.ChatGoalDialog.name).toBe(dialogModule.ChatGoalDialog.name);
     });
 
     it('all exported components are unique', () => {

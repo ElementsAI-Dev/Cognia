@@ -806,8 +806,18 @@ export async function executeAgent(
     },
   });
 
+  // Warn if tool count exceeds recommended threshold (Claude best practice)
+  const toolCount = Object.keys(tools).length;
+  if (toolCount > 20) {
+    console.warn(
+      `[Agent] Tool count (${toolCount}) exceeds recommended limit of 20. ` +
+      `Consider using sub-agents with specialized tool sets to improve tool selection accuracy. ` +
+      `See: https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them`
+    );
+  }
+
   // Convert AgentTools to AI SDK format
-  const sdkTools = Object.keys(tools).length > 0
+  const sdkTools = toolCount > 0
     ? convertToAISDKTools(tools, toolCallTracker, {
         onToolCall,
         onToolResult,

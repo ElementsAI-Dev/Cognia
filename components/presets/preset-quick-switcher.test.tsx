@@ -25,6 +25,8 @@ jest.mock('next-intl', () => ({
       orderUpdated: 'Order updated',
       searchPlaceholder: 'Search presets...',
       noResults: 'No matching presets found',
+      addToFavoritesTitle: 'Add to favorites',
+      removeFromFavoritesTitle: 'Remove from favorites',
     };
     return translations[key] || key;
   },

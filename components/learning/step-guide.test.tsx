@@ -113,7 +113,8 @@ describe('StepGuide', () => {
 
     it('renders first step content', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      // Text may appear in multiple places (step indicator + content)
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
       expect(screen.getByText('This is the first step content')).toBeInTheDocument();
     });
 
@@ -123,7 +124,7 @@ describe('StepGuide', () => {
         { wrapper }
       );
       // Guide should render with first step
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('renders skip button when allowSkip is true', () => {
@@ -148,21 +149,21 @@ describe('StepGuide', () => {
     it('disables previous on first step', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('advances to next step on next click', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('goes back to previous step', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('shows Complete button on last step', () => {
@@ -171,7 +172,7 @@ describe('StepGuide', () => {
       render(<StepGuide title="Guide" steps={twoSteps} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('calls onStepChange when step changes', () => {
@@ -187,7 +188,7 @@ describe('StepGuide', () => {
       );
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
   });
 
@@ -199,7 +200,7 @@ describe('StepGuide', () => {
       );
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('allows direct navigation when allowNavigation is true', () => {
@@ -214,7 +215,7 @@ describe('StepGuide', () => {
       );
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
   });
 
@@ -223,21 +224,21 @@ describe('StepGuide', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('disables next until confirmed', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('enables next after confirmation', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
   });
 
@@ -246,7 +247,7 @@ describe('StepGuide', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       
       // Guide should render with first step
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
   });
 
@@ -255,14 +256,14 @@ describe('StepGuide', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('reveals hints on click', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
   });
 
@@ -271,7 +272,7 @@ describe('StepGuide', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
   });
 
@@ -290,7 +291,7 @@ describe('StepGuide', () => {
       );
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
   });
 
@@ -325,7 +326,7 @@ describe('StepGuide', () => {
       render(<StepGuide title="Guide" steps={stepsWithCallback} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('calls onLeave when leaving a step', () => {
@@ -338,7 +339,7 @@ describe('StepGuide', () => {
       render(<StepGuide title="Guide" steps={stepsWithCallback} />, { wrapper });
       
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
   });
 
@@ -346,7 +347,7 @@ describe('StepGuide', () => {
     it('displays difficulty badge', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
   });
 
@@ -354,7 +355,7 @@ describe('StepGuide', () => {
     it('displays estimated time', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
       // Guide should render
-      expect(screen.getByText('Introduction')).toBeInTheDocument();
+      expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
   });
 
@@ -370,7 +371,7 @@ describe('StepGuide', () => {
       );
       
       // Guide should render with step 2
-      expect(screen.getByText('Main Concepts')).toBeInTheDocument();
+      expect(screen.getAllByText('Main Concepts').length).toBeGreaterThan(0);
     });
   });
 

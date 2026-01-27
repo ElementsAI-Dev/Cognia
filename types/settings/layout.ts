@@ -26,6 +26,7 @@ export type SettingsSection =
   | 'git'
   | 'safety'
   | 'observability'
-  | 'tray';
+  | 'tray'
+  | 'agent-optimization';
 
 export type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';

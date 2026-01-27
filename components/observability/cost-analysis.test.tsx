@@ -82,3 +82,56 @@ describe('CostAnalysis with different time ranges', () => {
     expect(screen.getByText(/30 days/i)).toBeInTheDocument();
   });
 });
+
+describe('CostAnalysis edge cases', () => {
+  it('should handle zero requests (costPerRequest = 0)', () => {
+    const zeroRequestsMetrics: MetricsData = {
+      ...mockMetrics,
+      totalRequests: 0,
+      totalCost: 0,
+    };
+    render(<CostAnalysis metrics={zeroRequestsMetrics} timeRange="24h" />);
+    // Multiple $0.0000 values expected for total cost and cost per request
+    expect(screen.getAllByText('$0.0000').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should handle zero tokens (costPerToken = 0)', () => {
+    const zeroTokensMetrics: MetricsData = {
+      ...mockMetrics,
+      totalTokens: 0,
+    };
+    render(<CostAnalysis metrics={zeroTokensMetrics} timeRange="24h" />);
+    expect(screen.getAllByText(/cost/i).length).toBeGreaterThan(0);
+  });
+
+  it('should handle empty costByProvider', () => {
+    const emptyProviderMetrics: MetricsData = {
+      ...mockMetrics,
+      costByProvider: {},
+    };
+    render(<CostAnalysis metrics={emptyProviderMetrics} timeRange="24h" />);
+    expect(screen.getAllByText(/no cost data/i).length).toBeGreaterThan(0);
+  });
+
+  it('should calculate projected monthly cost correctly for 1h', () => {
+    const hourlyMetrics: MetricsData = {
+      ...mockMetrics,
+      totalCost: 1.0,
+    };
+    render(<CostAnalysis metrics={hourlyMetrics} timeRange="1h" />);
+    // 1.0 * 24 * 30 = 720
+    expect(screen.getByText('$720.00')).toBeInTheDocument();
+  });
+
+  it('should display cost per 1k tokens', () => {
+    render(<CostAnalysis metrics={mockMetrics} timeRange="24h" />);
+    // costPerToken = 5.50 / 50000 = 0.00011, * 1000 = 0.11
+    expect(screen.getByText('$0.1100')).toBeInTheDocument();
+  });
+
+  it('should display provider percentage', () => {
+    render(<CostAnalysis metrics={mockMetrics} timeRange="24h" />);
+    // openai: 3.50 / 5.50 = 63.6%
+    expect(screen.getByText(/63\.6/)).toBeInTheDocument();
+  });
+});

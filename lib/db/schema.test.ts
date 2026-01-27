@@ -404,4 +404,257 @@ describe('CogniaDB Schema', () => {
       expect(message.role).toBeDefined();
     });
   });
+
+  describe('Projects Table', () => {
+    beforeEach(async () => {
+      await db.projects.clear();
+      await db.knowledgeFiles.clear();
+    });
+
+    it('has projects table', () => {
+      expect(db.projects).toBeDefined();
+    });
+
+    it('creates project with all fields', async () => {
+      const now = new Date();
+      await db.projects.add({
+        id: 'project-1',
+        name: 'Test Project',
+        description: 'A test project',
+        icon: 'Folder',
+        color: '#3B82F6',
+        customInstructions: 'Be helpful',
+        defaultProvider: 'openai',
+        defaultModel: 'gpt-4o',
+        defaultMode: 'chat',
+        sessionIds: JSON.stringify(['session-1']),
+        sessionCount: 1,
+        messageCount: 10,
+        createdAt: now,
+        updatedAt: now,
+        lastAccessedAt: now,
+      });
+
+      const retrieved = await db.projects.get('project-1');
+      expect(retrieved).toBeDefined();
+      expect(retrieved?.name).toBe('Test Project');
+      expect(retrieved?.sessionCount).toBe(1);
+    });
+
+    it('queries projects by name', async () => {
+      const now = new Date();
+      await db.projects.add({
+        id: 'project-1',
+        name: 'Test Project',
+        sessionCount: 0,
+        messageCount: 0,
+        createdAt: now,
+        updatedAt: now,
+        lastAccessedAt: now,
+      });
+
+      const projects = await db.projects.where('name').equals('Test Project').toArray();
+      expect(projects).toHaveLength(1);
+    });
+  });
+
+  describe('Knowledge Files Table', () => {
+    beforeEach(async () => {
+      await db.knowledgeFiles.clear();
+    });
+
+    it('has knowledgeFiles table', () => {
+      expect(db.knowledgeFiles).toBeDefined();
+    });
+
+    it('creates knowledge file', async () => {
+      const now = new Date();
+      await db.knowledgeFiles.add({
+        id: 'file-1',
+        projectId: 'project-1',
+        name: 'test.md',
+        type: 'markdown',
+        content: '# Test',
+        size: 6,
+        mimeType: 'text/markdown',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const retrieved = await db.knowledgeFiles.get('file-1');
+      expect(retrieved).toBeDefined();
+      expect(retrieved?.name).toBe('test.md');
+    });
+
+    it('queries files by projectId', async () => {
+      const now = new Date();
+      await db.knowledgeFiles.bulkAdd([
+        {
+          id: 'file-1',
+          projectId: 'project-1',
+          name: 'a.md',
+          type: 'markdown',
+          content: 'A',
+          size: 1,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'file-2',
+          projectId: 'project-1',
+          name: 'b.md',
+          type: 'markdown',
+          content: 'B',
+          size: 1,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'file-3',
+          projectId: 'project-2',
+          name: 'c.md',
+          type: 'markdown',
+          content: 'C',
+          size: 1,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+
+      const files = await db.knowledgeFiles.where('projectId').equals('project-1').toArray();
+      expect(files).toHaveLength(2);
+    });
+  });
+
+  describe('Workflows Table', () => {
+    beforeEach(async () => {
+      await db.workflows.clear();
+    });
+
+    it('has workflows table', () => {
+      expect(db.workflows).toBeDefined();
+    });
+
+    it('creates workflow', async () => {
+      const now = new Date();
+      await db.workflows.add({
+        id: 'workflow-1',
+        name: 'Test Workflow',
+        description: 'A test workflow',
+        category: 'automation',
+        icon: '🔄',
+        tags: JSON.stringify(['test']),
+        nodes: JSON.stringify([]),
+        edges: JSON.stringify([]),
+        version: 1,
+        isTemplate: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const retrieved = await db.workflows.get('workflow-1');
+      expect(retrieved).toBeDefined();
+      expect(retrieved?.name).toBe('Test Workflow');
+    });
+  });
+
+  describe('Workflow Executions Table', () => {
+    beforeEach(async () => {
+      await db.workflowExecutions.clear();
+    });
+
+    it('has workflowExecutions table', () => {
+      expect(db.workflowExecutions).toBeDefined();
+    });
+
+    it('creates workflow execution', async () => {
+      const now = new Date();
+      await db.workflowExecutions.add({
+        id: 'exec-1',
+        workflowId: 'workflow-1',
+        status: 'completed',
+        input: JSON.stringify({ key: 'value' }),
+        output: JSON.stringify({ result: 'success' }),
+        startedAt: now,
+        completedAt: now,
+      });
+
+      const retrieved = await db.workflowExecutions.get('exec-1');
+      expect(retrieved).toBeDefined();
+      expect(retrieved?.status).toBe('completed');
+    });
+  });
+
+  describe('Summaries Table', () => {
+    beforeEach(async () => {
+      await db.summaries.clear();
+    });
+
+    it('has summaries table', () => {
+      expect(db.summaries).toBeDefined();
+    });
+
+    it('creates summary', async () => {
+      const now = new Date();
+      await db.summaries.add({
+        id: 'summary-1',
+        sessionId: 'session-1',
+        type: 'chat',
+        summary: 'This is a summary of the conversation.',
+        messageCount: 10,
+        sourceTokens: 1000,
+        summaryTokens: 100,
+        compressionRatio: 0.1,
+        format: 'text',
+        usedAI: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const retrieved = await db.summaries.get('summary-1');
+      expect(retrieved).toBeDefined();
+      expect(retrieved?.summary).toBe('This is a summary of the conversation.');
+    });
+  });
+
+  describe('Folders Table', () => {
+    beforeEach(async () => {
+      await db.folders.clear();
+    });
+
+    it('has folders table', () => {
+      expect(db.folders).toBeDefined();
+    });
+
+    it('creates folder', async () => {
+      const now = new Date();
+      await db.folders.add({
+        id: 'folder-1',
+        name: 'My Folder',
+        order: 0,
+        isExpanded: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const retrieved = await db.folders.get('folder-1');
+      expect(retrieved).toBeDefined();
+      expect(retrieved?.name).toBe('My Folder');
+      expect(retrieved?.order).toBe(0);
+    });
+
+    it('orders folders by order field', async () => {
+      const now = new Date();
+      await db.folders.bulkAdd([
+        { id: 'folder-1', name: 'Third', order: 2, createdAt: now, updatedAt: now },
+        { id: 'folder-2', name: 'First', order: 0, createdAt: now, updatedAt: now },
+        { id: 'folder-3', name: 'Second', order: 1, createdAt: now, updatedAt: now },
+      ]);
+
+      const folders = await db.folders.orderBy('order').toArray();
+      expect(folders[0].name).toBe('First');
+      expect(folders[1].name).toBe('Second');
+      expect(folders[2].name).toBe('Third');
+    });
+  });
 });

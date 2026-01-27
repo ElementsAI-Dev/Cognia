@@ -2,6 +2,37 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TemplatesPanel } from "./templates-panel";
 
+// Mock next-intl
+jest.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      title: "Templates",
+      templateNamePlaceholder: "Template name",
+      briefDescPlaceholder: "Brief description",
+      promptPlaceholder: "Use {{text}} to insert selected text",
+      categoryPlaceholder: "Category",
+      createNewTemplate: "Create New Template",
+      createTemplate: "Create Template",
+      name: "Name",
+      descriptionOptional: "Description (optional)",
+      promptTemplate: "Prompt Template",
+      category: "Category",
+      cancel: "Cancel",
+      edit: "Edit",
+      delete: "Delete",
+      favorite: "Favorite",
+      unfavorite: "Unfavorite",
+      copyPrompt: "Copy Prompt",
+      selectedText: "Selected text",
+      footerHint: "Click a template to apply it",
+      editTemplate: "Edit Template",
+      saveChanges: "Save Changes",
+      description: "Description",
+    };
+    return translations[key] || key;
+  },
+}));
+
 const onApplyTemplate = jest.fn();
 
 describe("TemplatesPanel", () => {

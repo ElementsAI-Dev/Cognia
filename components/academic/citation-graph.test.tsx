@@ -8,6 +8,11 @@ import { CitationGraph } from './citation-graph';
 import * as citationNetworkModule from '@/lib/academic/citation-network';
 import type { Paper } from '@/types/learning/academic';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 // Mock the citation network module
 jest.mock('@/lib/academic/citation-network', () => ({
   buildCitationNetwork: jest.fn(),
@@ -82,7 +87,7 @@ describe('CitationGraph', () => {
 
     render(<CitationGraph paper={createMockPaper('paper-1')} />);
 
-    expect(screen.getByText(/Loading citation network/i)).toBeInTheDocument();
+    expect(screen.getByText('loading')).toBeInTheDocument();
   });
 
   it('should render citation network after loading', async () => {
@@ -125,7 +130,7 @@ describe('CitationGraph', () => {
     render(<CitationGraph paper={createMockPaper('paper-1')} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/No citation data available/i)).toBeInTheDocument();
+      expect(screen.getByText('emptyState')).toBeInTheDocument();
     });
   });
 

@@ -1,9 +1,32 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ProjectTemplatesDialog, PROJECT_TEMPLATES } from './project-templates';
 
-// Mock next-intl
+// Mock next-intl with key return
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) => {
+    // Return recognizable text for template names
+    const translations: Record<string, string> = {
+      createFromTemplate: 'createFromTemplate',
+      chooseTemplate: 'chooseTemplate',
+      all: 'all',
+      'categories.development': 'categories.development',
+      'categories.writing': 'categories.writing',
+      'categories.research': 'categories.research',
+      'categories.business': 'categories.business',
+      'categories.personal': 'categories.personal',
+      clickToCreate: 'clickToCreate',
+      'codingAssistant.name': 'Coding Assistant',
+      'codingAssistant.description': 'AI-powered coding help',
+      'codingAssistant.instructions': 'coding instructions',
+      'researchProject.name': 'Research Project',
+      'researchProject.description': 'Organize research',
+      'businessStrategy.name': 'Business Strategy',
+      'businessStrategy.description': 'Strategic planning',
+      'blankProject.name': 'Blank Project',
+      'blankProject.description': 'Start fresh with a clean slate',
+    };
+    return translations[key] || key;
+  },
 }));
 
 // Mock sonner
@@ -38,26 +61,26 @@ describe('ProjectTemplatesDialog', () => {
     await act(async () => {
       render(<ProjectTemplatesDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.getByText('Create from Template')).toBeInTheDocument();
+    expect(screen.getByText('createFromTemplate')).toBeInTheDocument();
   });
 
   it('displays dialog description', async () => {
     await act(async () => {
       render(<ProjectTemplatesDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.getByText('Choose a template to quickly set up your project')).toBeInTheDocument();
+    expect(screen.getByText('chooseTemplate')).toBeInTheDocument();
   });
 
   it('displays category filters', async () => {
     await act(async () => {
       render(<ProjectTemplatesDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.getByText('All')).toBeInTheDocument();
-    expect(screen.getByText('Development')).toBeInTheDocument();
-    expect(screen.getByText('Writing')).toBeInTheDocument();
-    expect(screen.getByText('Research')).toBeInTheDocument();
-    expect(screen.getByText('Business')).toBeInTheDocument();
-    expect(screen.getByText('Personal')).toBeInTheDocument();
+    expect(screen.getByText('all')).toBeInTheDocument();
+    expect(screen.getByText('categories.development')).toBeInTheDocument();
+    expect(screen.getByText('categories.writing')).toBeInTheDocument();
+    expect(screen.getByText('categories.research')).toBeInTheDocument();
+    expect(screen.getByText('categories.business')).toBeInTheDocument();
+    expect(screen.getByText('categories.personal')).toBeInTheDocument();
   });
 
   it('displays all templates', async () => {
@@ -65,7 +88,7 @@ describe('ProjectTemplatesDialog', () => {
       render(<ProjectTemplatesDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
     
-    // Check for some template names
+    // Check for some template names using the i18n keys
     expect(screen.getByText('Coding Assistant')).toBeInTheDocument();
     expect(screen.getByText('Research Project')).toBeInTheDocument();
     expect(screen.getByText('Business Strategy')).toBeInTheDocument();
@@ -86,7 +109,7 @@ describe('ProjectTemplatesDialog', () => {
       render(<ProjectTemplatesDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
     
-    const developmentFilter = screen.getByText('Development');
+    const developmentFilter = screen.getByText('categories.development');
     await act(async () => {
       fireEvent.click(developmentFilter);
     });
@@ -107,10 +130,14 @@ describe('ProjectTemplatesDialog', () => {
       );
     });
     
-    const codingTemplate = screen.getByText('Coding Assistant').closest('button');
-    await act(async () => {
-      fireEvent.click(codingTemplate!);
-    });
+    // Find template card by its name text
+    const codingTemplateText = screen.getByText('Coding Assistant');
+    const card = codingTemplateText.closest('[data-slot="card-content"]')?.parentElement;
+    if (card) {
+      await act(async () => {
+        fireEvent.click(card);
+      });
+    }
     
     expect(mockCreateProject).toHaveBeenCalled();
   });
@@ -119,7 +146,7 @@ describe('ProjectTemplatesDialog', () => {
     await act(async () => {
       render(<ProjectTemplatesDialog open={false} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.queryByText('Create from Template')).not.toBeInTheDocument();
+    expect(screen.queryByText('createFromTemplate')).not.toBeInTheDocument();
   });
 });
 

@@ -165,3 +165,185 @@ describe('RegionSelector selection behavior', () => {
     // Selection should stop
   });
 });
+
+describe('RegionSelector - onSelect callback', () => {
+  const mockOnSelect = jest.fn();
+  const mockOnCancel = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('calls onSelect with valid selection when start recording button is clicked', async () => {
+    const { container } = renderWithProviders(
+      <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
+    );
+
+    const overlay = container.firstChild as HTMLElement;
+    
+    // Mock getBoundingClientRect
+    jest.spyOn(overlay, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    
+    // Create a valid selection (larger than minWidth/minHeight of 100)
+    fireEvent.mouseDown(overlay, { clientX: 50, clientY: 50, button: 0 });
+    fireEvent.mouseMove(overlay, { clientX: 300, clientY: 300 });
+    fireEvent.mouseUp(overlay);
+
+    // Start recording button should be visible after valid selection
+    const startButton = screen.queryByRole('button', { name: /start recording/i });
+    if (startButton) {
+      fireEvent.click(startButton);
+      expect(mockOnSelect).toHaveBeenCalled();
+    }
+  });
+
+  it('calls onSelect on Enter key with valid selection', async () => {
+    const { container } = renderWithProviders(
+      <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
+    );
+
+    const overlay = container.firstChild as HTMLElement;
+    
+    // Mock getBoundingClientRect
+    jest.spyOn(overlay, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    
+    // Create a valid selection
+    fireEvent.mouseDown(overlay, { clientX: 50, clientY: 50, button: 0 });
+    fireEvent.mouseMove(overlay, { clientX: 300, clientY: 300 });
+    fireEvent.mouseUp(overlay);
+
+    // Press Enter to confirm selection
+    fireEvent.keyDown(window, { key: 'Enter' });
+    
+    // onSelect should be called with rounded coordinates
+    expect(mockOnSelect).toHaveBeenCalled();
+  });
+});
+
+describe('RegionSelector - Size Indicator', () => {
+  const mockOnSelect = jest.fn();
+  const mockOnCancel = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('displays size indicator during selection', () => {
+    const { container } = renderWithProviders(
+      <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
+    );
+
+    const overlay = container.firstChild as HTMLElement;
+    
+    // Mock getBoundingClientRect
+    jest.spyOn(overlay, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    
+    // Create a selection
+    fireEvent.mouseDown(overlay, { clientX: 100, clientY: 100, button: 0 });
+    fireEvent.mouseMove(overlay, { clientX: 350, clientY: 300 });
+    fireEvent.mouseUp(overlay);
+
+    // Size indicator should show dimensions (format: width × height)
+    const sizeIndicator = screen.getByText(/×/);
+    expect(sizeIndicator).toBeInTheDocument();
+  });
+});
+
+describe('RegionSelector - Resize Handles', () => {
+  const mockOnSelect = jest.fn();
+  const mockOnCancel = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('displays resize handles after selection is made', () => {
+    const { container } = renderWithProviders(
+      <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
+    );
+
+    const overlay = container.firstChild as HTMLElement;
+    
+    // Mock getBoundingClientRect
+    jest.spyOn(overlay, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    
+    // Create a selection
+    fireEvent.mouseDown(overlay, { clientX: 100, clientY: 100, button: 0 });
+    fireEvent.mouseMove(overlay, { clientX: 350, clientY: 300 });
+    fireEvent.mouseUp(overlay);
+
+    // Resize handles should be present (8 handles: 4 corners + 4 edges)
+    const handles = container.querySelectorAll('.cursor-nw-resize, .cursor-ne-resize, .cursor-sw-resize, .cursor-se-resize, .cursor-n-resize, .cursor-s-resize, .cursor-w-resize, .cursor-e-resize');
+    expect(handles.length).toBeGreaterThan(0);
+  });
+
+  it('displays move indicator in center of selection', () => {
+    const { container } = renderWithProviders(
+      <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
+    );
+
+    const overlay = container.firstChild as HTMLElement;
+    
+    // Mock getBoundingClientRect
+    jest.spyOn(overlay, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    
+    // Create a selection
+    fireEvent.mouseDown(overlay, { clientX: 100, clientY: 100, button: 0 });
+    fireEvent.mouseMove(overlay, { clientX: 350, clientY: 300 });
+    fireEvent.mouseUp(overlay);
+
+    // Move icon should be present
+    const moveIcon = container.querySelector('.lucide-move');
+    expect(moveIcon).toBeInTheDocument();
+  });
+});

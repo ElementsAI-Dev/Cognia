@@ -37,7 +37,7 @@ jest.mock('@/components/ui/badge', () => ({
     variant?: string;
     [key: string]: unknown;
   }) => (
-    <span data-testid="badge" className={className} variant={variant} {...props}>
+    <span data-testid="badge" className={className} data-variant={variant} {...props}>
       {children}
     </span>
   ),
@@ -62,28 +62,44 @@ const mockData: DelayNodeData = {
   label: 'Wait Before Processing',
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
   delayType: 'fixed',
   delayMs: 5000,
 };
 
+const mockProps = {
+  id: 'delay-1',
+  data: mockData,
+  selected: false,
+  type: 'delay',
+  dragging: false,
+  zIndex: 1,
+  selectable: true,
+  deletable: true,
+  draggable: true,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
+};
+
 describe('DelayNode', () => {
   it('renders without crashing', () => {
-    render(<DelayNode data={mockData} selected={false} />);
+    render(<DelayNode {...mockProps} />);
     expect(screen.getByText('Wait Before Processing')).toBeInTheDocument();
   });
 
   it('renders delay type badge', () => {
-    render(<DelayNode data={mockData} selected={false} />);
+    render(<DelayNode {...mockProps} />);
     expect(screen.getByText('fixed')).toBeInTheDocument();
   });
 
   it('renders delay value for fixed delay', () => {
-    render(<DelayNode data={mockData} selected={false} />);
+    render(<DelayNode {...mockProps} />);
     expect(screen.getByText('5.0s')).toBeInTheDocument();
   });
 
   it('renders timer icon for fixed delay', () => {
-    render(<DelayNode data={mockData} selected={false} />);
+    render(<DelayNode {...mockProps} />);
     expect(screen.getByTestId('timer-icon')).toBeInTheDocument();
   });
 
@@ -93,7 +109,7 @@ describe('DelayNode', () => {
       delayMs: undefined,
     };
 
-    render(<DelayNode data={noDelayData} selected={false} />);
+    render(<DelayNode {...mockProps} data={noDelayData} />);
     expect(screen.getByText('Not set')).toBeInTheDocument();
   });
 
@@ -104,8 +120,10 @@ describe('DelayNode', () => {
       untilTime: '2024-12-25T10:00:00Z',
     };
 
-    render(<DelayNode data={untilData} selected={false} />);
-    expect(screen.getByText(/12\/25\/2024/)).toBeInTheDocument();
+    render(<DelayNode {...mockProps} data={untilData} />);
+    // Date format varies by locale, so check for year and month/day presence
+    expect(screen.getByText(/2024/)).toBeInTheDocument();
+    expect(screen.getByText(/12.*25|25.*12/)).toBeInTheDocument();
   });
 
   it('renders calendar icon for until delay', () => {
@@ -115,7 +133,7 @@ describe('DelayNode', () => {
       untilTime: '2024-12-25T10:00:00Z',
     };
 
-    render(<DelayNode data={untilData} selected={false} />);
+    render(<DelayNode {...mockProps} data={untilData} />);
     expect(screen.getByTestId('calendar-icon')).toBeInTheDocument();
   });
 
@@ -126,7 +144,7 @@ describe('DelayNode', () => {
       cronExpression: '0 0 * * *',
     };
 
-    render(<DelayNode data={cronData} selected={false} />);
+    render(<DelayNode {...mockProps} data={cronData} />);
     expect(screen.getByText('0 0 * * *')).toBeInTheDocument();
   });
 
@@ -137,20 +155,20 @@ describe('DelayNode', () => {
       cronExpression: '0 0 * * *',
     };
 
-    render(<DelayNode data={cronData} selected={false} />);
+    render(<DelayNode {...mockProps} data={cronData} />);
     expect(screen.getByTestId('clock-icon')).toBeInTheDocument();
   });
 
   it('shows not configured when no delay settings', () => {
-    const noConfigData: DelayNodeData = {
+    const noConfigData = {
       ...mockData,
-      delayType: undefined,
+      delayType: undefined as unknown as 'fixed' | 'until' | 'cron',
       delayMs: undefined,
       untilTime: undefined,
       cronExpression: undefined,
     };
 
-    render(<DelayNode data={noConfigData} selected={false} />);
+    render(<DelayNode {...mockProps} data={noConfigData} />);
     expect(screen.getByText('Not configured')).toBeInTheDocument();
   });
 });
@@ -162,7 +180,7 @@ describe('DelayNode formatting', () => {
       delayMs: 500,
     };
 
-    render(<DelayNode data={msData} selected={false} />);
+    render(<DelayNode {...mockProps} data={msData} />);
     expect(screen.getByText('500ms')).toBeInTheDocument();
   });
 
@@ -172,7 +190,7 @@ describe('DelayNode formatting', () => {
       delayMs: 2500,
     };
 
-    render(<DelayNode data={secData} selected={false} />);
+    render(<DelayNode {...mockProps} data={secData} />);
     expect(screen.getByText('2.5s')).toBeInTheDocument();
   });
 
@@ -182,7 +200,7 @@ describe('DelayNode formatting', () => {
       delayMs: 90000,
     };
 
-    render(<DelayNode data={minData} selected={false} />);
+    render(<DelayNode {...mockProps} data={minData} />);
     expect(screen.getByText('1m 30s')).toBeInTheDocument();
   });
 
@@ -192,7 +210,7 @@ describe('DelayNode formatting', () => {
       delayMs: 3660000,
     };
 
-    render(<DelayNode data={hourData} selected={false} />);
+    render(<DelayNode {...mockProps} data={hourData} />);
     expect(screen.getByText('1h 1m')).toBeInTheDocument();
   });
 });
@@ -205,7 +223,7 @@ describe('DelayNode integration tests', () => {
       delayMs: 1500,
     };
 
-    render(<DelayNode data={fixedData} selected={false} />);
+    render(<DelayNode {...mockProps} data={fixedData} />);
 
     expect(screen.getByText('fixed')).toBeInTheDocument();
     expect(screen.getByText('1.5s')).toBeInTheDocument();
@@ -218,7 +236,7 @@ describe('DelayNode integration tests', () => {
       untilTime: '2024-06-15T14:30:00Z',
     };
 
-    render(<DelayNode data={untilData} selected={false} />);
+    render(<DelayNode {...mockProps} data={untilData} />);
 
     expect(screen.getByText('until')).toBeInTheDocument();
     expect(screen.getByText(/2024/)).toBeInTheDocument();
@@ -231,7 +249,7 @@ describe('DelayNode integration tests', () => {
       cronExpression: '*/5 * * * *',
     };
 
-    render(<DelayNode data={cronData} selected={false} />);
+    render(<DelayNode {...mockProps} data={cronData} />);
 
     expect(screen.getByText('cron')).toBeInTheDocument();
     expect(screen.getByText('*/5 * * * *')).toBeInTheDocument();

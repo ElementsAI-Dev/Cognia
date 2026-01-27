@@ -7,7 +7,17 @@ import { LanguageSelector } from './language-selector';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      detectingLanguage: "Detecting language...",
+      detected: "Detected:",
+      quickTranslate: "Quick Translate",
+      targetLanguage: "Target Language",
+      selected: "Selected",
+      quickTranslateHint: "Press T + number for quick translation",
+    };
+    return translations[key] || key;
+  },
 }));
 
 describe('LanguageSelector', () => {

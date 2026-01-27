@@ -4,11 +4,17 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { BackgroundRenderer } from './background-renderer';
 
+// Mock native utils first to prevent Tauri-related code paths
+jest.mock('@/lib/native/utils', () => ({
+  isTauri: () => false,
+}));
+
 jest.mock('@/stores', () => ({
   useSettingsStore: jest.fn((selector) => {
     const state = {
       backgroundSettings: {
         enabled: true,
+        source: 'url',
         mode: 'layers',
         layers: [
           {
@@ -43,10 +49,6 @@ jest.mock('@/stores', () => ({
   }),
 }));
 
-jest.mock('@/lib/native/utils', () => ({
-  isTauri: () => false,
-}));
-
 describe('BackgroundRenderer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -59,7 +61,8 @@ describe('BackgroundRenderer', () => {
 
   it('renders layer with correct styles', () => {
     const { container } = render(<BackgroundRenderer />);
-    const layer = container.querySelector('[style*="backgroundImage"]');
+    // React renders backgroundImage as background-image in the DOM
+    const layer = container.querySelector('[style*="background-image"]');
     expect(layer).toBeInTheDocument();
   });
 

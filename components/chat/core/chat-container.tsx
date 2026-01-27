@@ -44,6 +44,7 @@ import { WorkflowIndicator, type WorkflowStatus } from '../ui/workflow-indicator
 import { useKeyboardShortcuts } from '../ui/keyboard-shortcuts-handler';
 import {
   ContextSettingsDialog,
+  ContextDebugDialog,
   AISettingsDialog,
   type AISettings,
   ModelPickerDialog,
@@ -313,6 +314,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Context settings states
   const [showContextSettings, setShowContextSettings] = useState(false);
+  const [showContextDebug, setShowContextDebug] = useState(false);
   const [contextLimitPercent, setContextLimitPercent] = useState(50);
   const [showMemoryActivation, setShowMemoryActivation] = useState(false);
   const [showTokenUsageMeter, setShowTokenUsageMeter] = useState(true);
@@ -2222,6 +2224,13 @@ Be thorough in your thinking but concise in your final answer.`;
         modelMaxTokens={modelMaxTokens}
         messageCount={messages.length}
         onClearContext={() => setShowClearContextConfirm(true)}
+        onOpenDebug={() => setShowContextDebug(true)}
+      />
+
+      {/* Context Debug Dialog */}
+      <ContextDebugDialog
+        open={showContextDebug}
+        onOpenChange={setShowContextDebug}
       />
 
       {/* AI Settings Dialog */}

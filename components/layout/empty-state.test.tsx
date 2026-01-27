@@ -20,7 +20,7 @@ describe('EmptyState', () => {
 
   it('renders icon when provided as LucideIcon', () => {
     const { container } = render(
-      <EmptyState title="No results" icon={Search} />
+      <EmptyState title="No results" icon={<Search data-testid="search-icon" />} />
     );
     const icon = container.querySelector('svg');
     expect(icon).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe('EmptyState', () => {
 
   it('applies custom icon className', () => {
     const { container } = render(
-      <EmptyState title="No results" icon={Search} iconClassName="custom-icon" />
+      <EmptyState title="No results" icon={<Search className="custom-icon" />} iconClassName="custom-icon" />
     );
     const icon = container.querySelector('svg');
     expect(icon).toHaveClass('custom-icon');

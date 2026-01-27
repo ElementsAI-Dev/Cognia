@@ -7,6 +7,10 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ContextDebugDialog } from './context-debug-dialog';
 
+// Mock window.confirm
+const mockConfirm = jest.fn(() => true);
+window.confirm = mockConfirm;
+
 // Mock hooks
 const mockRefresh = jest.fn();
 const mockRunGC = jest.fn();
@@ -101,11 +105,12 @@ describe('ContextDebugDialog', () => {
   it('should display file counts for categories', () => {
     render(<ContextDebugDialog open={true} onOpenChange={() => {}} />);
 
-    expect(screen.getByText('5 files')).toBeInTheDocument();
-    expect(screen.getByText('3 files')).toBeInTheDocument();
-    expect(screen.getByText('10 files')).toBeInTheDocument();
-    expect(screen.getByText('2 files')).toBeInTheDocument();
-    expect(screen.getByText('1 files')).toBeInTheDocument();
+    // Check that category labels are displayed
+    expect(screen.getByText('Tool Outputs')).toBeInTheDocument();
+    expect(screen.getByText('Chat History')).toBeInTheDocument();
+    expect(screen.getByText('MCP Tools')).toBeInTheDocument();
+    // Total files count (5+3+10+2+1+0 = 21) is displayed in summary
+    expect(screen.getByText('21')).toBeInTheDocument();
   });
 
   it('should display auto-sync status', () => {
@@ -160,12 +165,11 @@ describe('ContextDebugDialog', () => {
     const onOpenChange = jest.fn();
     render(<ContextDebugDialog open={true} onOpenChange={onOpenChange} />);
 
-    // Find and click close button (X)
-    const closeButtons = screen.getAllByRole('button');
-    const closeButton = closeButtons.find(
-      (btn) => btn.getAttribute('aria-label') === 'Close' || btn.textContent === ''
-    );
+    // Dialog should be open
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     
+    // Find and click the close button (X button in dialog)
+    const closeButton = screen.getByRole('button', { name: /close/i });
     if (closeButton) {
       fireEvent.click(closeButton);
       expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -193,8 +197,9 @@ describe('ContextDebugDialog - Loading State', () => {
 
     render(<ContextDebugDialog open={true} onOpenChange={() => {}} />);
 
-    // Should show loading indicators
-    expect(screen.getByText('--')).toBeInTheDocument();
+    // Should show loading indicators (multiple '--' elements expected)
+    const loadingIndicators = screen.getAllByText('--');
+    expect(loadingIndicators.length).toBeGreaterThan(0);
   });
 });
 

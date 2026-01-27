@@ -393,4 +393,228 @@ describe('WebSocketProvider', () => {
       // Hook should register handler without error
     });
   });
+
+  describe('message handling', () => {
+    it('handles JSON messages with type', async () => {
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+      const messageHandler = jest.fn();
+
+      act(() => {
+        result.current.on('message', messageHandler);
+        result.current.connect(baseConfig);
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      // Simulate receiving a message
+      // The mock WebSocket has a simulateMessage helper
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    it('handles plain text messages', async () => {
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+      const messageHandler = jest.fn();
+
+      act(() => {
+        result.current.on('message', messageHandler);
+        result.current.connect(baseConfig);
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      expect(result.current.isConnected).toBe(true);
+    });
+  });
+
+  describe('error handling', () => {
+    it('transitions to error state on connection error', async () => {
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+      const errorHandler = jest.fn();
+
+      act(() => {
+        result.current.on('error', errorHandler);
+        result.current.connect(baseConfig);
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      // Connection successful, error handler not called yet
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    it('calls error handler when error occurs', async () => {
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+      const errorHandler = jest.fn();
+
+      act(() => {
+        result.current.on('error', errorHandler);
+        result.current.connect(baseConfig);
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      expect(result.current.connectionState).toBe('connected');
+    });
+  });
+
+  describe('heartbeat', () => {
+    it('does not start heartbeat when interval is 0', async () => {
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+
+      act(() => {
+        result.current.connect({ ...baseConfig, heartbeatInterval: 0 });
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    it('starts heartbeat when interval is set', async () => {
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+
+      act(() => {
+        result.current.connect({
+          ...baseConfig,
+          heartbeatInterval: 5000,
+          heartbeatMessage: 'ping',
+        });
+      });
+
+      // Use advanceTimersByTime instead of runAllTimers to avoid infinite loop from setInterval
+      await act(async () => {
+        jest.advanceTimersByTime(100);
+      });
+
+      expect(result.current.isConnected).toBe(true);
+    });
+  });
+
+  describe('auto reconnect', () => {
+    it('attempts reconnection when enabled', async () => {
+      const reconnectConfig = {
+        ...baseConfig,
+        enableReconnect: true,
+        maxReconnectAttempts: 3,
+        reconnectInterval: 1000,
+      };
+
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+
+      act(() => {
+        result.current.connect(reconnectConfig);
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    it('respects maxReconnectAttempts limit', async () => {
+      const reconnectConfig = {
+        ...baseConfig,
+        enableReconnect: true,
+        maxReconnectAttempts: 2,
+        reconnectInterval: 100,
+      };
+
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+
+      act(() => {
+        result.current.connect(reconnectConfig);
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    it('resets reconnect attempts on manual reconnect', async () => {
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+
+      act(() => {
+        result.current.connect(baseConfig);
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      const statsBefore = result.current.getStats();
+      expect(statsBefore.reconnectAttempts).toBe(0);
+
+      act(() => {
+        result.current.reconnect();
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      const statsAfter = result.current.getStats();
+      expect(statsAfter.reconnectAttempts).toBe(0);
+    });
+  });
+
+  describe('debug logging', () => {
+    it('logs when debug is enabled', async () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+
+      act(() => {
+        result.current.connect({ ...baseConfig, debug: true });
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      expect(consoleSpy).toHaveBeenCalledWith('[WebSocketProvider]', 'Connected', baseConfig.url);
+      consoleSpy.mockRestore();
+    });
+
+    it('does not log when debug is disabled', async () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+
+      act(() => {
+        result.current.connect({ ...baseConfig, debug: false });
+      });
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      expect(consoleSpy).not.toHaveBeenCalledWith('[WebSocketProvider]', expect.anything(), expect.anything());
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('sendJSON warning', () => {
+    it('warns when sending JSON while disconnected', () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+
+      act(() => {
+        result.current.sendJSON({ type: 'test' });
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith('Cannot send message: WebSocket is not connected');
+      warnSpy.mockRestore();
+    });
+  });
 });

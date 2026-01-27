@@ -202,6 +202,46 @@ const DEFAULT_OBSERVABILITY_SETTINGS: ObservabilitySettings = {
   serviceName: 'cognia-ai',
 };
 
+// Agent Optimization settings (Claude Best Practices)
+export interface AgentOptimizationSettings {
+  // Smart Routing - decide single vs multi-agent automatically
+  enableSmartRouting: boolean;
+  singleAgentThreshold: number; // 0-1, higher = more likely single agent
+  
+  // Token Budget - control costs in multi-agent scenarios
+  enableTokenBudget: boolean;
+  maxTokenBudget: number;
+  estimatedTokensPerSubAgent: number;
+  enableTokenWarnings: boolean;
+  
+  // Context Isolation - prevent context pollution
+  enableContextIsolation: boolean;
+  summarizeSubAgentResults: boolean;
+  maxResultTokens: number;
+  
+  // Tool Specialization - warn when tool count is high
+  enableToolWarnings: boolean;
+  toolWarningThreshold: number;
+  
+  // Skills-MCP Auto-loading
+  enableSkillMcpAutoLoad: boolean;
+}
+
+export const DEFAULT_AGENT_OPTIMIZATION_SETTINGS: AgentOptimizationSettings = {
+  enableSmartRouting: false, // Opt-in for backward compatibility
+  singleAgentThreshold: 0.6,
+  enableTokenBudget: false,
+  maxTokenBudget: 50000,
+  estimatedTokensPerSubAgent: 2000,
+  enableTokenWarnings: true,
+  enableContextIsolation: false,
+  summarizeSubAgentResults: false,
+  maxResultTokens: 500,
+  enableToolWarnings: true,
+  toolWarningThreshold: 20,
+  enableSkillMcpAutoLoad: true,
+};
+
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'zh-CN';
 
@@ -794,6 +834,19 @@ interface SettingsState {
   setSimplifiedModePreset: (preset: SimplifiedModePreset) => void;
   toggleSimplifiedMode: () => void;
   resetSimplifiedModeSettings: () => void;
+
+  // Agent Optimization settings (Claude Best Practices)
+  agentOptimizationSettings: AgentOptimizationSettings;
+  setAgentOptimizationSettings: (settings: Partial<AgentOptimizationSettings>) => void;
+  setSmartRoutingEnabled: (enabled: boolean) => void;
+  setSingleAgentThreshold: (threshold: number) => void;
+  setTokenBudgetEnabled: (enabled: boolean) => void;
+  setMaxTokenBudget: (budget: number) => void;
+  setContextIsolationEnabled: (enabled: boolean) => void;
+  setSummarizeSubAgentResults: (enabled: boolean) => void;
+  setToolWarningsEnabled: (enabled: boolean) => void;
+  setSkillMcpAutoLoadEnabled: (enabled: boolean) => void;
+  resetAgentOptimizationSettings: () => void;
 
   // Reset
   resetSettings: () => void;
@@ -2429,6 +2482,47 @@ export const useSettingsStore = create<SettingsState>()(
       resetSimplifiedModeSettings: () =>
         set({ simplifiedModeSettings: { ...DEFAULT_SIMPLIFIED_MODE_SETTINGS } }),
 
+      // Agent Optimization actions (Claude Best Practices)
+      agentOptimizationSettings: { ...DEFAULT_AGENT_OPTIMIZATION_SETTINGS },
+      setAgentOptimizationSettings: (settings) =>
+        set((state) => ({
+          agentOptimizationSettings: { ...state.agentOptimizationSettings, ...settings },
+        })),
+      setSmartRoutingEnabled: (enabled) =>
+        set((state) => ({
+          agentOptimizationSettings: { ...state.agentOptimizationSettings, enableSmartRouting: enabled },
+        })),
+      setSingleAgentThreshold: (threshold) =>
+        set((state) => ({
+          agentOptimizationSettings: { ...state.agentOptimizationSettings, singleAgentThreshold: threshold },
+        })),
+      setTokenBudgetEnabled: (enabled) =>
+        set((state) => ({
+          agentOptimizationSettings: { ...state.agentOptimizationSettings, enableTokenBudget: enabled },
+        })),
+      setMaxTokenBudget: (budget) =>
+        set((state) => ({
+          agentOptimizationSettings: { ...state.agentOptimizationSettings, maxTokenBudget: budget },
+        })),
+      setContextIsolationEnabled: (enabled) =>
+        set((state) => ({
+          agentOptimizationSettings: { ...state.agentOptimizationSettings, enableContextIsolation: enabled },
+        })),
+      setSummarizeSubAgentResults: (enabled) =>
+        set((state) => ({
+          agentOptimizationSettings: { ...state.agentOptimizationSettings, summarizeSubAgentResults: enabled },
+        })),
+      setToolWarningsEnabled: (enabled) =>
+        set((state) => ({
+          agentOptimizationSettings: { ...state.agentOptimizationSettings, enableToolWarnings: enabled },
+        })),
+      setSkillMcpAutoLoadEnabled: (enabled) =>
+        set((state) => ({
+          agentOptimizationSettings: { ...state.agentOptimizationSettings, enableSkillMcpAutoLoad: enabled },
+        })),
+      resetAgentOptimizationSettings: () =>
+        set({ agentOptimizationSettings: { ...DEFAULT_AGENT_OPTIMIZATION_SETTINGS } }),
+
       // Onboarding actions
       setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
 
@@ -2581,6 +2675,8 @@ export const useSettingsStore = create<SettingsState>()(
           welcomeSettings: state.welcomeSettings,
           // Onboarding
           hasCompletedOnboarding: state.hasCompletedOnboarding,
+          // Agent Optimization settings (Claude Best Practices)
+          agentOptimizationSettings: state.agentOptimizationSettings,
         };
       },
     }
@@ -2619,3 +2715,11 @@ export const selectFeatureRoutingEnabled = (state: SettingsState) =>
   state.featureRoutingSettings.enabled;
 export const selectWelcomeSettings = (state: SettingsState) => state.welcomeSettings;
 export const selectWelcomeEnabled = (state: SettingsState) => state.welcomeSettings.enabled;
+export const selectAgentOptimizationSettings = (state: SettingsState) =>
+  state.agentOptimizationSettings;
+export const selectSmartRoutingEnabled = (state: SettingsState) =>
+  state.agentOptimizationSettings.enableSmartRouting;
+export const selectContextIsolationEnabled = (state: SettingsState) =>
+  state.agentOptimizationSettings.enableContextIsolation;
+export const selectSkillMcpAutoLoadEnabled = (state: SettingsState) =>
+  state.agentOptimizationSettings.enableSkillMcpAutoLoad;

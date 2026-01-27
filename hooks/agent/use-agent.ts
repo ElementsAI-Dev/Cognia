@@ -30,7 +30,11 @@ import {
 } from '@/lib/ai/agent';
 import type { McpToolSelectionConfig, ToolUsageRecord } from '@/types/mcp';
 import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
-import { buildMultiSkillSystemPrompt, createSkillTools } from '@/lib/skills/executor';
+import { 
+  buildMultiSkillSystemPrompt, 
+  createSkillTools,
+  getAutoLoadSkillsForTools,
+} from '@/lib/skills/executor';
 import { useBackgroundAgentStore } from '@/stores/agent';
 import type { BackgroundAgent } from '@/types/agent/background-agent';
 
@@ -183,6 +187,9 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     return `## Current User Context\n${parts.join('\n')}\n`;
   }, [systemContext, options.enableSystemContext]);
 
+  // Get agent optimization settings for Skills-MCP auto-loading
+  const agentOptSettings = useSettingsStore((state) => state.agentOptimizationSettings);
+
   // Build skills system prompt using the optimized utility function
   const skillsSystemPrompt = useMemo(() => {
     if (!enableSkills || activeSkills.length === 0) return '';
@@ -321,6 +328,30 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     return tools;
   }, [ragConfig, getCollectionNames, vectorSettings.defaultCollectionName, vectorCollections]);
 
+  // Auto-load skills based on active MCP tools (Claude Best Practice)
+  const mcpAutoLoadedSkillsPrompt = useMemo(() => {
+    if (!agentOptSettings?.enableSkillMcpAutoLoad || !enableMcpTools) return '';
+    
+    // Get active MCP tool names
+    const mcpToolNames = Object.keys(mcpTools);
+    if (mcpToolNames.length === 0) return '';
+    
+    // Find skills that should be auto-loaded for these tools
+    const allSkills = Object.values(skills);
+    const autoLoadedSkills = getAutoLoadSkillsForTools(allSkills, mcpToolNames);
+    
+    if (autoLoadedSkills.length === 0) return '';
+    
+    // Build prompt for auto-loaded skills (avoiding duplicates with already active)
+    const newSkills = autoLoadedSkills.filter(s => !activeSkillIds.includes(s.id));
+    if (newSkills.length === 0) return '';
+    
+    return buildMultiSkillSystemPrompt(newSkills, {
+      maxContentLength: 4000, // Smaller budget for auto-loaded
+      includeResources: false,
+    });
+  }, [agentOptSettings?.enableSkillMcpAutoLoad, enableMcpTools, mcpTools, skills, activeSkillIds]);
+
   // Merge skill tools, MCP tools, RAG tools, and registered tools
   const allTools = useMemo(
     () => ({
@@ -332,12 +363,17 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     [skillTools, mcpTools, ragTools, registeredTools]
   );
 
-  // Build agent config
+  // Build agent config with enhanced system prompt including MCP auto-loaded skills
   const buildConfig = useCallback((): Omit<AgentConfig, 'provider' | 'model' | 'apiKey'> & {
     systemPrompt?: string;
   } => {
+    // Combine base prompt with auto-loaded skills for MCP tools
+    const enhancedPrompt = mcpAutoLoadedSkillsPrompt
+      ? `${effectiveSystemPrompt}\n\n---\n\n## Auto-Loaded Skills for MCP Tools\n${mcpAutoLoadedSkillsPrompt}`
+      : effectiveSystemPrompt;
+    
     return {
-      systemPrompt: effectiveSystemPrompt,
+      systemPrompt: enhancedPrompt,
       temperature,
       maxSteps,
       tools: allTools,
@@ -363,6 +399,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     };
   }, [
     effectiveSystemPrompt,
+    mcpAutoLoadedSkillsPrompt,
     temperature,
     maxSteps,
     allTools,

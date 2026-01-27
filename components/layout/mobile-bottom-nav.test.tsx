@@ -62,15 +62,15 @@ describe('MobileBottomNav', () => {
     expect(screen.getByText('Home')).toBeInTheDocument();
   });
 
-  it('renders sessions button with badge', () => {
+  it('renders sessions link with badge', () => {
     renderWithProviders(<MobileBottomNav />);
-    expect(screen.getByText('Sessions')).toBeInTheDocument();
+    expect(screen.getByText('Chats')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
   it('renders new chat button', () => {
     renderWithProviders(<MobileBottomNav />);
-    expect(screen.getByText('New Chat')).toBeInTheDocument();
+    expect(screen.getByText('New')).toBeInTheDocument();
   });
 
   it('renders projects link', () => {

@@ -62,6 +62,36 @@ const mockSession = {
 const messages = {
   export: {
     share: 'Share',
+    exportImage: 'Export as Image',
+    exportAsImage: 'Export as Image',
+    exportImageDescription: 'Export conversation as image for social media',
+    imagePreview: 'Preview',
+    imageFormatType: 'Format',
+    imageTheme: 'Theme',
+    lightTheme: 'Light',
+    darkTheme: 'Dark',
+    systemTheme: 'System',
+    imageScale: 'Resolution',
+    scale1x: '1x (Standard)',
+    scale2x: '2x (HD)',
+    scale3x: '3x (Ultra HD)',
+    imageQuality: 'Quality',
+    includeHeader: 'Include Header',
+    includeFooter: 'Include Footer',
+    showTimestampsOption: 'Show Timestamps',
+    showModelOption: 'Show Model Info',
+    messageCountLimit: '{count} messages (max {max})',
+    estimatedSize: 'Est. Size',
+    copyImageBtn: 'Copy Image',
+    downloadFormat: 'Download {format}',
+    copied: 'Copied!',
+    imageExported: 'Image exported',
+    exportFailed: 'Export failed',
+    imageCopied: 'Image copied',
+    copyFailed: 'Copy failed',
+    copyFailedTryDownload: 'Copy failed, try download',
+    exportingImage: 'Exporting...',
+    previewPlaceholder: 'Preview will appear here',
   },
 };
 
@@ -82,7 +112,7 @@ describe('ImageExportDialog', () => {
     renderWithProviders(<ImageExportDialog session={mockSession} />);
     
     expect(screen.getByRole('button')).toBeInTheDocument();
-    expect(screen.getByText('导出图片')).toBeInTheDocument();
+    expect(screen.getByText('Export as Image')).toBeInTheDocument();
   });
 
   it('should render custom trigger when provided', () => {
@@ -102,7 +132,8 @@ describe('ImageExportDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('导出为图片')).toBeInTheDocument();
+      // Dialog should open with description text
+      expect(screen.getByText('Export conversation as image for social media')).toBeInTheDocument();
     });
   });
 
@@ -124,9 +155,9 @@ describe('ImageExportDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('浅色')).toBeInTheDocument();
-      expect(screen.getByText('深色')).toBeInTheDocument();
-      expect(screen.getByText('跟随系统')).toBeInTheDocument();
+      expect(screen.getByText('Light')).toBeInTheDocument();
+      expect(screen.getByText('Dark')).toBeInTheDocument();
+      expect(screen.getByText('System')).toBeInTheDocument();
     });
   });
 
@@ -136,9 +167,9 @@ describe('ImageExportDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('1x (标准)')).toBeInTheDocument();
-      expect(screen.getByText('2x (高清)')).toBeInTheDocument();
-      expect(screen.getByText('3x (超清)')).toBeInTheDocument();
+      expect(screen.getByText('1x (Standard)')).toBeInTheDocument();
+      expect(screen.getByText('2x (HD)')).toBeInTheDocument();
+      expect(screen.getByText('3x (Ultra HD)')).toBeInTheDocument();
     });
   });
 
@@ -148,10 +179,10 @@ describe('ImageExportDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('包含标题头')).toBeInTheDocument();
-      expect(screen.getByText('包含页脚')).toBeInTheDocument();
-      expect(screen.getByText('显示时间戳')).toBeInTheDocument();
-      expect(screen.getByText('显示模型信息')).toBeInTheDocument();
+      expect(screen.getByText('Include Header')).toBeInTheDocument();
+      expect(screen.getByText('Include Footer')).toBeInTheDocument();
+      expect(screen.getByText('Show Timestamps')).toBeInTheDocument();
+      expect(screen.getByText('Show Model Info')).toBeInTheDocument();
     });
   });
 
@@ -161,7 +192,8 @@ describe('ImageExportDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText(/预估大小/)).toBeInTheDocument();
+      // Badge shows estimated size
+      expect(screen.getByText(/150 KB/)).toBeInTheDocument();
     });
   });
 
@@ -171,8 +203,8 @@ describe('ImageExportDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('复制图片')).toBeInTheDocument();
-      expect(screen.getByText(/下载/)).toBeInTheDocument();
+      expect(screen.getByText('Copy Image')).toBeInTheDocument();
+      expect(screen.getByText(/Download/)).toBeInTheDocument();
     });
   });
 
@@ -184,10 +216,10 @@ describe('ImageExportDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText(/下载 PNG/)).toBeInTheDocument();
+      expect(screen.getByText(/Download PNG/)).toBeInTheDocument();
     });
     
-    fireEvent.click(screen.getByText(/下载 PNG/));
+    fireEvent.click(screen.getByText(/Download PNG/));
     
     await waitFor(() => {
       expect(imageExport.downloadAsImage).toHaveBeenCalled();
@@ -202,10 +234,10 @@ describe('ImageExportDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('复制图片')).toBeInTheDocument();
+      expect(screen.getByText('Copy Image')).toBeInTheDocument();
     });
     
-    fireEvent.click(screen.getByText('复制图片'));
+    fireEvent.click(screen.getByText('Copy Image'));
     
     await waitFor(() => {
       expect(imageExport.copyImageToClipboard).toHaveBeenCalled();
@@ -218,7 +250,7 @@ describe('ImageExportDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('预览')).toBeInTheDocument();
+      expect(screen.getByText('Preview')).toBeInTheDocument();
     });
   });
 });

@@ -115,6 +115,16 @@ export interface SubAgentConfig {
   dependencies?: string[];
   /** Condition for conditional execution */
   condition?: string | ((context: SubAgentContext) => boolean);
+  
+  // === Context Isolation (Claude Best Practice) ===
+  // Prevent context pollution by summarizing results before returning to parent.
+  
+  /** Summarize results before returning to parent agent */
+  summarizeResults?: boolean;
+  /** Maximum tokens for summarized result */
+  maxResultTokens?: number;
+  /** Custom summarization prompt */
+  summarizationPrompt?: string;
 }
 
 /**

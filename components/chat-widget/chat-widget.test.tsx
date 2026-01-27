@@ -5,6 +5,18 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatWidget } from './chat-widget';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      continueGeneration: '请继续',
+      'export.user': '用户',
+      'export.assistant': '助手',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock useChatWidget hook
 const mockHide = jest.fn();
 const mockSetInputValue = jest.fn();

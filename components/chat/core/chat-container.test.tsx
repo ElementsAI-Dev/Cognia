@@ -30,6 +30,85 @@ const mockMessages = [
   { id: 'msg-2', role: 'assistant', content: 'Hi there!', createdAt: new Date() },
 ];
 
+// Stable mock references to prevent infinite re-renders
+const mockScrollRef = { current: null as HTMLDivElement | null };
+const mockScrollToBottom = jest.fn();
+const mockStickToBottomContext = {
+  isAtBottom: true,
+  scrollToBottom: mockScrollToBottom,
+  scrollRef: mockScrollRef,
+};
+
+// Stable hook return values
+const mockAddMessage = jest.fn();
+const mockUpdateMessage = jest.fn();
+const mockDeleteMessagesAfter = jest.fn();
+const mockClearMessages = jest.fn();
+const mockAppendToMessage = jest.fn();
+const mockCreateStreamingMessage = jest.fn(() => ({ id: 'stream-1', role: 'assistant', content: '' }));
+const mockCopyMessagesForBranch = jest.fn();
+const mockMessagesHook = {
+  messages: mockMessages,
+  isLoading: false,
+  isInitialized: true,
+  addMessage: mockAddMessage,
+  updateMessage: mockUpdateMessage,
+  deleteMessagesAfter: mockDeleteMessagesAfter,
+  clearMessages: mockClearMessages,
+  appendToMessage: mockAppendToMessage,
+  createStreamingMessage: mockCreateStreamingMessage,
+  copyMessagesForBranch: mockCopyMessagesForBranch,
+};
+
+const mockAgentRun = jest.fn();
+const mockAgentStop = jest.fn();
+const mockAgentReset = jest.fn();
+const mockAgentHook = {
+  isRunning: false,
+  currentStep: 0,
+  error: null,
+  toolCalls: [],
+  run: mockAgentRun,
+  stop: mockAgentStop,
+  reset: mockAgentReset,
+};
+
+const mockProjectContextHook = { hasKnowledge: false };
+
+const mockTTSSpeak = jest.fn();
+const mockTTSStop = jest.fn();
+const mockTTSHook = {
+  speak: mockTTSSpeak,
+  stop: mockTTSStop,
+  isSpeaking: false,
+  isSupported: true,
+};
+
+// Stable AI lib mocks
+const mockSendMessage = jest.fn();
+const mockAIChatStop = jest.fn();
+const mockAIChatHook = {
+  sendMessage: mockSendMessage,
+  stop: mockAIChatStop,
+};
+
+const mockSelectModel = jest.fn(() => ({ provider: 'openai', model: 'gpt-4o', reason: 'default' }));
+const mockAutoRouterHook = {
+  selectModel: mockSelectModel,
+};
+
+const mockCheckIntent = jest.fn(() => Promise.resolve(null));
+const mockIntentDetectionHook = { checkIntent: mockCheckIntent };
+
+const mockCheckFeatureIntent = jest.fn(() => Promise.resolve(null));
+const mockFeatureRoutingHook = { checkFeatureIntent: mockCheckFeatureIntent };
+
+const mockGenerateChatSummary = jest.fn();
+const mockSummaryHook = { generateChatSummary: mockGenerateChatSummary };
+
+const mockVerifySource = jest.fn();
+const mockSourceVerificationHook = { verifySource: mockVerifySource, isVerifying: false };
+
 jest.mock('@/stores', () => ({
   useSessionStore: (selector: (state: unknown) => unknown) => {
     const state = {
@@ -40,6 +119,9 @@ jest.mock('@/stores', () => ({
       getActiveSession: jest.fn(() => mockSession),
       createSession: jest.fn(() => mockSession),
       updateSession: jest.fn(),
+      getViewMode: jest.fn(() => 'list'),
+      getFlowCanvasState: jest.fn(() => undefined),
+      getBranches: jest.fn(() => [{ id: 'branch-1', name: 'Main', isActive: true }]),
     };
     return selector ? selector(state) : state;
   },
@@ -49,6 +131,21 @@ jest.mock('@/stores', () => ({
         openai: { apiKey: 'test-key', enabled: true },
         tavily: { apiKey: 'tavily-key' },
       },
+      simplifiedModeSettings: { enabled: false, preset: 'default' },
+      autoRouterSettings: { 
+        enabled: false, 
+        showRoutingIndicator: false,
+        tier: 'balanced',
+      },
+      chatHistoryContextSettings: {
+        enabled: true,
+        maxMessages: 10,
+        maxTokens: 4000,
+      },
+      sourceVerification: { enabled: false },
+      streamingEnabled: true,
+      addAlwaysAllowedTool: jest.fn(),
+      alwaysAllowedTools: [],
     };
     return selector ? selector(state) : state;
   },
@@ -112,6 +209,27 @@ jest.mock('@/stores', () => ({
     };
     return selector ? selector(state) : state;
   },
+  useUIStore: (selector: (state: unknown) => unknown) => {
+    const state = {
+      sidebarOpen: true,
+      setSidebarOpen: jest.fn(),
+      rightPanelOpen: false,
+      setRightPanelOpen: jest.fn(),
+      activeTab: 'chat',
+      setActiveTab: jest.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
+  useToolApprovalStore: (selector: (state: unknown) => unknown) => {
+    const state = {
+      pendingApprovals: [],
+      addApproval: jest.fn(),
+      removeApproval: jest.fn(),
+      approveAll: jest.fn(),
+      rejectAll: jest.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 jest.mock('@/stores/skills', () => ({
@@ -133,32 +251,11 @@ jest.mock('@/stores/workflow', () => ({
   },
 }));
 
-// Mock hooks
+// Mock hooks with stable references
 jest.mock('@/hooks', () => ({
-  useMessages: () => ({
-    messages: mockMessages,
-    isLoading: false,
-    isInitialized: true,
-    addMessage: jest.fn(),
-    updateMessage: jest.fn(),
-    deleteMessagesAfter: jest.fn(),
-    clearMessages: jest.fn(),
-    appendToMessage: jest.fn(),
-    createStreamingMessage: jest.fn(() => ({ id: 'stream-1', role: 'assistant', content: '' })),
-    copyMessagesForBranch: jest.fn(),
-  }),
-  useAgent: () => ({
-    isRunning: false,
-    currentStep: 0,
-    error: null,
-    toolCalls: [],
-    run: jest.fn(),
-    stop: jest.fn(),
-    reset: jest.fn(),
-  }),
-  useProjectContext: () => ({
-    hasKnowledge: false,
-  }),
+  useMessages: () => mockMessagesHook,
+  useAgent: () => mockAgentHook,
+  useProjectContext: () => mockProjectContextHook,
   calculateTokenBreakdown: jest.fn(() => ({
     systemPrompt: 0,
     messages: 0,
@@ -167,23 +264,13 @@ jest.mock('@/hooks', () => ({
     limit: 128000,
     percent: 0,
   })),
-  useTTS: () => ({
-    speak: jest.fn(),
-    stop: jest.fn(),
-    isSpeaking: false,
-    isSupported: true,
-  }),
+  useTTS: () => mockTTSHook,
 }));
 
-// Mock AI lib
+// Mock AI lib with stable references
 jest.mock('@/lib/ai', () => ({
-  useAIChat: () => ({
-    sendMessage: jest.fn(),
-    stop: jest.fn(),
-  }),
-  useAutoRouter: () => ({
-    selectModel: jest.fn(() => ({ provider: 'openai', model: 'gpt-4o', reason: 'default' })),
-  }),
+  useAIChat: () => mockAIChatHook,
+  useAutoRouter: () => mockAutoRouterHook,
   isVisionModel: jest.fn(() => false),
   buildMultimodalContent: jest.fn(),
 }));
@@ -221,19 +308,22 @@ jest.mock('@/types/provider', () => ({
 }));
 
 // Mock child components
-jest.mock('./message/error-message', () => ({
+jest.mock('../message', () => ({
   ErrorMessage: ({ error, onDismiss }: { error: string; onDismiss: () => void }) => (
     <div data-testid="error-message" onClick={onDismiss}>{error}</div>
   ),
+  MessageReactions: () => <div data-testid="message-reactions">Reactions</div>,
+  QuotedContent: () => null,
 }));
 
 jest.mock('./chat-header', () => ({
+  ...jest.requireActual('./chat-header'),
   ChatHeader: ({ sessionId }: { sessionId?: string }) => (
     <header data-testid="chat-header" data-session={sessionId}>Header</header>
   ),
 }));
 
-jest.mock('./chat-input', () => ({
+jest.mock('../chat-input', () => ({
   ChatInput: ({ 
     value, 
     onChange, 
@@ -272,7 +362,7 @@ jest.mock('./chat-input', () => ({
   ),
 }));
 
-jest.mock('./welcome-state', () => ({
+jest.mock('../welcome/welcome-state', () => ({
   WelcomeState: ({ mode, onSuggestionClick }: { mode: string; onSuggestionClick: (s: string) => void }) => (
     <div data-testid="welcome-state" data-mode={mode}>
       <button onClick={() => onSuggestionClick('Hello')}>Suggestion</button>
@@ -280,17 +370,17 @@ jest.mock('./welcome-state', () => ({
   ),
 }));
 
-jest.mock('./dialogs/ai-settings-dialog', () => ({
+jest.mock('../dialogs/ai-settings-dialog', () => ({
   AISettingsDialog: ({ open }: { open: boolean }) => 
     open ? <div data-testid="ai-settings-dialog">AI Settings</div> : null,
 }));
 
-jest.mock('./dialogs/model-picker-dialog', () => ({
+jest.mock('../dialogs/model-picker-dialog', () => ({
   ModelPickerDialog: ({ open }: { open: boolean }) => 
     open ? <div data-testid="model-picker-dialog">Model Picker</div> : null,
 }));
 
-jest.mock('./dialogs/context-settings-dialog', () => ({
+jest.mock('../dialogs/context-settings-dialog', () => ({
   ContextSettingsDialog: ({ open }: { open: boolean }) => 
     open ? <div data-testid="context-settings-dialog">Context Settings</div> : null,
 }));
@@ -302,28 +392,27 @@ jest.mock('@/components/prompt', () => ({
     open ? <div data-testid="prompt-optimization-hub">Prompt Optimization Hub</div> : null,
 }));
 
-jest.mock('./dialogs/preset-manager-dialog', () => ({
+jest.mock('../dialogs/preset-manager-dialog', () => ({
   PresetManagerDialog: ({ open }: { open: boolean }) => 
     open ? <div data-testid="preset-manager-dialog">Preset Manager</div> : null,
 }));
 
-jest.mock('./selectors/branch-selector', () => ({
+jest.mock('../selectors/branch-selector', () => ({
   BranchButton: () => <button data-testid="branch-button">Branch</button>,
 }));
 
-jest.mock('./popovers/text-selection-popover', () => ({
+jest.mock('../popovers/text-selection-popover', () => ({
   TextSelectionPopover: () => null,
 }));
 
-jest.mock('./message/quoted-content', () => ({
-  QuotedContent: () => null,
-}));
+// QuotedContent is mocked in ../message above
 
-jest.mock('./message-parts', () => ({
+jest.mock('../message-parts', () => ({
   TextPart: ({ part }: { part: { content: string } }) => <span>{part.content}</span>,
   ReasoningPart: () => <div>Reasoning</div>,
   ToolPart: () => <div>Tool</div>,
   SourcesPart: () => <div>Sources</div>,
+  A2UIPart: () => <div>A2UI</div>,
 }));
 
 jest.mock('@/components/ai-elements/conversation', () => ({
@@ -389,9 +478,124 @@ jest.mock('@/components/skills', () => ({
   SkillSuggestions: () => <div data-testid="skill-suggestions">Skills</div>,
 }));
 
+jest.mock('@/components/learning', () => ({
+  LearningModePanel: () => <div data-testid="learning-panel">Learning</div>,
+  LearningStartDialog: ({ open }: { open: boolean }) => 
+    open ? <div data-testid="learning-dialog">Learning Dialog</div> : null,
+}));
+
+jest.mock('@/components/search/source-verification-dialog', () => ({
+  SourceVerificationDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="source-verification-dialog">Source Verification</div> : null,
+}));
+
+jest.mock('@/components/a2ui', () => ({
+  A2UIMessageRenderer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  hasA2UIContent: jest.fn(() => false),
+  useA2UIMessageIntegration: () => ({ handleA2UIMessage: jest.fn() }),
+}));
+
+jest.mock('@/components/artifacts', () => ({
+  MessageArtifacts: () => <div data-testid="message-artifacts">Artifacts</div>,
+}));
+
+// ../message mock is defined earlier in the file
+
+jest.mock('../ui/quick-reply-bar', () => ({
+  QuickReplyBar: () => <div data-testid="quick-reply-bar">Quick Reply</div>,
+}));
+
+jest.mock('../ui/workflow-indicator', () => ({
+  WorkflowIndicator: () => <div data-testid="workflow-indicator">Workflow</div>,
+}));
+
+jest.mock('../ui/keyboard-shortcuts-handler', () => ({
+  useKeyboardShortcuts: () => {},
+}));
+
+jest.mock('../ui/carried-context-banner', () => ({
+  CarriedContextBanner: () => null,
+}));
+
+jest.mock('../ui/mode-switch-suggestion', () => ({
+  ModeSwitchSuggestion: () => null,
+}));
+
+jest.mock('../ui/feature-navigation-dialog', () => ({
+  FeatureNavigationDialog: () => null,
+}));
+
+jest.mock('../ui/routing-indicator', () => ({
+  RoutingIndicator: () => null,
+}));
+
+jest.mock('../ui/message-swipe-actions', () => ({
+  MessageSwipeActions: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+jest.mock('../goal', () => ({
+  ChatGoalBanner: () => null,
+}));
+
+jest.mock('../workflow/workflow-picker-dialog', () => ({
+  WorkflowPickerDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="workflow-picker">Workflow Picker</div> : null,
+}));
+
+jest.mock('../workflow/workflow-result-card', () => ({
+  WorkflowResultCard: () => <div data-testid="workflow-result">Workflow Result</div>,
+}));
+
+jest.mock('../flow', () => ({
+  FlowChatCanvas: () => <div data-testid="flow-canvas">Flow Canvas</div>,
+}));
+
+jest.mock('@/stores/agent/custom-mode-store', () => ({
+  useCustomModeStore: () => ({
+    customModes: [],
+    getCustomMode: jest.fn(() => null),
+  }),
+  processPromptTemplateVariables: jest.fn((prompt: string) => prompt),
+}));
+
+jest.mock('@/hooks/chat/use-intent-detection', () => ({
+  useIntentDetection: () => mockIntentDetectionHook,
+}));
+
+jest.mock('@/hooks/chat/use-feature-routing', () => ({
+  useFeatureRouting: () => mockFeatureRoutingHook,
+}));
+
+jest.mock('@/hooks/chat', () => ({
+  useSummary: () => mockSummaryHook,
+}));
+
+jest.mock('@/hooks/search/use-source-verification', () => ({
+  useSourceVerification: () => mockSourceVerificationHook,
+}));
+
+jest.mock('use-stick-to-bottom', () => ({
+  useStickToBottomContext: () => mockStickToBottomContext,
+}));
+
+jest.mock('react-virtuoso', () => ({
+  Virtuoso: ({ data, itemContent }: { data: unknown[]; itemContent: (index: number, item: unknown) => React.ReactNode }) => (
+    <div data-testid="virtuoso">
+      {data?.map((item, index) => (
+        <div key={index}>{itemContent(index, item)}</div>
+      ))}
+    </div>
+  ),
+}));
+
 describe('ChatContainer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('renders without crashing', () => {

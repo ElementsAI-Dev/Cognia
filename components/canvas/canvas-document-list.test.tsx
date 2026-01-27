@@ -228,8 +228,8 @@ describe('CanvasDocumentList', () => {
       selectTriggers.forEach(trigger => {
         const className = trigger.getAttribute('data-className');
         expect(className).toContain('w-full');
-        expect(className).toContain('sm:w-[100px]');
-        expect(className).toContain('min-w-[80px]');
+        expect(className).toContain('sm:w-25');
+        expect(className).toContain('min-w-20');
       });
     });
 
@@ -249,12 +249,12 @@ describe('CanvasDocumentList', () => {
       if (dialogContent) {
         const className = dialogContent.getAttribute('data-className');
         expect(className).toContain('w-[95vw]');
-        expect(className).toContain('sm:max-w-[400px]');
+        expect(className).toContain('sm:max-w-100');
       }
     });
 
     it('has flex-wrap on filter container for mobile', () => {
-      render(
+      const { container } = render(
         <CanvasDocumentList
           documents={mockDocuments}
           activeDocumentId="doc-1"
@@ -262,8 +262,8 @@ describe('CanvasDocumentList', () => {
         />
       );
       // The filter container should have flex-wrap class
-      const container = screen.getByPlaceholderText('Search documents').closest('.flex-wrap');
-      expect(container).toBeInTheDocument();
+      const filterContainer = container.querySelector('.flex-wrap');
+      expect(filterContainer).toBeInTheDocument();
     });
   });
 

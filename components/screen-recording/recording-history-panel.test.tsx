@@ -60,10 +60,15 @@ describe('RecordingHistoryPanel', () => {
     history: [],
     isInitialized: true,
     isLoading: false,
+    storageStats: null,
+    storageUsagePercent: 0,
+    isStorageExceeded: false,
     initialize: jest.fn(),
     refreshHistory: jest.fn(),
+    refreshStorageStats: jest.fn(),
     deleteFromHistory: jest.fn(),
     clearHistory: jest.fn(),
+    runStorageCleanup: jest.fn(),
   };
 
   beforeEach(() => {
@@ -286,7 +291,7 @@ describe('RecordingHistoryPanel', () => {
     expect(screen.getByText('2 recordings')).toBeInTheDocument();
   });
 
-  it('calls clearHistory when clear button is clicked', () => {
+  it('calls clearHistory when clear button is clicked and confirmed', async () => {
     const mockHistory = [
       {
         id: '1',
@@ -307,8 +312,15 @@ describe('RecordingHistoryPanel', () => {
 
     render(<RecordingHistoryPanel />);
     
+    // Click Clear History to open AlertDialog
     const clearButton = screen.getByText('Clear History');
     fireEvent.click(clearButton);
+
+    // Wait for dialog and click confirm button
+    await waitFor(() => {
+      const confirmButton = screen.getByText('confirm');
+      fireEvent.click(confirmButton);
+    });
 
     expect(mockStore.clearHistory).toHaveBeenCalled();
   });
@@ -363,5 +375,165 @@ describe('RecordingHistoryPanel - Web Environment', () => {
   it('shows desktop-only message when not in Tauri', () => {
     render(<RecordingHistoryPanel />);
     expect(screen.getByText('Screen recording is only available in the desktop app')).toBeInTheDocument();
+  });
+});
+
+describe('RecordingHistoryPanel - Storage Stats', () => {
+  const mockStore = {
+    history: [
+      {
+        id: '1',
+        timestamp: Date.now(),
+        duration_ms: 60000,
+        mode: 'fullscreen',
+        file_path: '/path/to/video.mp4',
+        file_size: 1024 * 1024 * 100, // 100MB
+        is_pinned: false,
+        tags: [],
+      },
+    ],
+    isInitialized: true,
+    isLoading: false,
+    storageStats: {
+      recordingsSize: 1024 * 1024 * 100, // 100MB
+      screenshotsSize: 1024 * 1024 * 50, // 50MB
+      totalSize: 1024 * 1024 * 150,
+    },
+    storageUsagePercent: 75,
+    isStorageExceeded: false,
+    initialize: jest.fn(),
+    refreshHistory: jest.fn(),
+    refreshStorageStats: jest.fn(),
+    deleteFromHistory: jest.fn(),
+    clearHistory: jest.fn(),
+    runStorageCleanup: jest.fn().mockResolvedValue({ filesDeleted: 5, bytesFreed: 1024 * 1024 * 50 }),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Reset isTauri to return true for this test suite
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
+    (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
+  });
+
+  it('displays storage usage percentage', () => {
+    render(<RecordingHistoryPanel />);
+    expect(screen.getByText('75% used')).toBeInTheDocument();
+  });
+
+  it('displays total storage size', () => {
+    render(<RecordingHistoryPanel />);
+    // 100MB + 50MB = 150MB, formatFileSize returns "150 MB" (no decimal when whole number)
+    expect(screen.getByText('150 MB')).toBeInTheDocument();
+  });
+
+  it('shows cleanup button when storage is exceeded', async () => {
+    (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue({
+      ...mockStore,
+      isStorageExceeded: true,
+      storageUsagePercent: 110,
+    });
+
+    render(<RecordingHistoryPanel />);
+    
+    // cleanup button only shows when isStorageExceeded is true
+    await waitFor(() => {
+      expect(screen.getByText('cleanup')).toBeInTheDocument();
+    });
+  });
+
+  it('calls runStorageCleanup when cleanup button is clicked', async () => {
+    const cleanupMock = jest.fn().mockResolvedValue({ filesDeleted: 5, bytesFreed: 1024 * 1024 * 50 });
+    (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue({
+      ...mockStore,
+      isStorageExceeded: true,
+      runStorageCleanup: cleanupMock,
+    });
+
+    render(<RecordingHistoryPanel />);
+    
+    await waitFor(() => {
+      const cleanupButton = screen.getByText('cleanup');
+      fireEvent.click(cleanupButton);
+    });
+
+    await waitFor(() => {
+      expect(cleanupMock).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('RecordingHistoryPanel - Pinned Recordings', () => {
+  const mockStore = {
+    history: [
+      {
+        id: '1',
+        timestamp: Date.now(),
+        duration_ms: 60000,
+        mode: 'fullscreen',
+        file_path: '/path/to/video.mp4',
+        file_size: 1024,
+        is_pinned: true,
+        tags: ['important'],
+      },
+    ],
+    isInitialized: true,
+    isLoading: false,
+    storageStats: null,
+    storageUsagePercent: 0,
+    isStorageExceeded: false,
+    initialize: jest.fn(),
+    refreshHistory: jest.fn(),
+    refreshStorageStats: jest.fn(),
+    deleteFromHistory: jest.fn(),
+    clearHistory: jest.fn(),
+    runStorageCleanup: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Reset isTauri to return true for this test suite
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
+    (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
+  });
+
+  it('displays pin icon for pinned recordings', () => {
+    render(<RecordingHistoryPanel />);
+    
+    // Find the pin icon
+    const pinIcon = document.querySelector('.lucide-pin');
+    expect(pinIcon).toBeInTheDocument();
+  });
+});
+
+describe('RecordingHistoryPanel - className prop', () => {
+  const mockStore = {
+    history: [],
+    isInitialized: true,
+    isLoading: false,
+    storageStats: null,
+    storageUsagePercent: 0,
+    isStorageExceeded: false,
+    initialize: jest.fn(),
+    refreshHistory: jest.fn(),
+    refreshStorageStats: jest.fn(),
+    deleteFromHistory: jest.fn(),
+    clearHistory: jest.fn(),
+    runStorageCleanup: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Reset isTauri to return true for this test suite
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
+    (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
+  });
+
+  it('applies custom className to container', () => {
+    const { container } = render(<RecordingHistoryPanel className="custom-panel-class" />);
+    expect(container.firstChild).toHaveClass('custom-panel-class');
   });
 });

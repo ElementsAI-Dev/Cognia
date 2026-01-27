@@ -2,6 +2,20 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { ChatAssistantFab } from "./chat-assistant-fab";
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      openAssistant: 'Open chat assistant',
+      closeAssistant: 'Close chat assistant',
+      title: 'AI 助手',
+      clickToStart: '点击开始对话',
+      shortcutHint: '快捷键: Ctrl+Shift+Space',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock framer-motion
 jest.mock("motion/react", () => ({
   motion: {

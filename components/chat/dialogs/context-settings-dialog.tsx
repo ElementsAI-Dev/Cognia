@@ -66,6 +66,8 @@ interface ContextSettingsDialogProps {
   // May be sync or async
   onOptimizeContext?: () => void | Promise<void>;
   messageCount?: number;
+  // Debug dialog callback
+  onOpenDebug?: () => void;
 }
 
 type EncoderType = 'tiktoken' | 'regex';
@@ -91,6 +93,7 @@ export function ContextSettingsDialog({
   onClearContext,
   onOptimizeContext,
   messageCount = 0,
+  onOpenDebug,
 }: ContextSettingsDialogProps) {
   const t = useTranslations('contextSettings');
   const [encoderType, setEncoderType] = useState<EncoderType>('tiktoken');
@@ -549,7 +552,12 @@ export function ContextSettingsDialog({
           </Collapsible>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex justify-between sm:justify-between">
+          {onOpenDebug && (
+            <Button variant="ghost" size="sm" onClick={onOpenDebug}>
+              {t('debug') || 'Debug'}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             {t('done') || 'Done'}
           </Button>

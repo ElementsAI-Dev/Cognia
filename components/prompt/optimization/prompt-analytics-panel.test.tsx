@@ -211,10 +211,11 @@ describe('PromptAnalyticsPanel', () => {
     it('should display all effectiveness categories', () => {
       render(<PromptAnalyticsPanel template={mockTemplate} />);
       
-      expect(screen.getByText('Excellent')).toBeInTheDocument();
-      expect(screen.getByText('Good')).toBeInTheDocument();
-      expect(screen.getByText('Average')).toBeInTheDocument();
-      expect(screen.getByText('Poor')).toBeInTheDocument();
+      // Multiple instances of these labels exist (in breakdown and feedback badges)
+      expect(screen.getAllByText('Excellent').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Good').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Average').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Poor').length).toBeGreaterThan(0);
     });
 
     it('should render progress bars', () => {
@@ -293,8 +294,9 @@ describe('PromptAnalyticsPanel', () => {
 
       render(<PromptAnalyticsPanel template={mockTemplate} />);
       
-      // Should show 0 for total uses
-      expect(screen.getByText('0')).toBeInTheDocument();
+      // Should show 0 for total uses (multiple 0s exist for different metrics)
+      const zeroElements = screen.getAllByText('0');
+      expect(zeroElements.length).toBeGreaterThan(0);
     });
   });
 
@@ -302,7 +304,8 @@ describe('PromptAnalyticsPanel', () => {
     it('should display model information in feedback', () => {
       render(<PromptAnalyticsPanel template={mockTemplate} />);
       
-      expect(screen.getByText(/gpt-4/)).toBeInTheDocument();
+      const modelElements = screen.getAllByText(/gpt-4/);
+      expect(modelElements.length).toBeGreaterThan(0);
     });
   });
 });

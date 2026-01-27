@@ -282,4 +282,183 @@ describe('documentRepository', () => {
       expect(count).toBe(0);
     });
   });
+
+  describe('getByCollectionId', () => {
+    it('returns documents for a collection', async () => {
+      await documentRepository.create({
+        filename: 'a.md',
+        type: 'markdown',
+        content: 'A',
+        collectionId: 'collection-1',
+      });
+      await documentRepository.create({
+        filename: 'b.md',
+        type: 'markdown',
+        content: 'B',
+        collectionId: 'collection-1',
+      });
+      await documentRepository.create({
+        filename: 'c.md',
+        type: 'markdown',
+        content: 'C',
+        collectionId: 'collection-2',
+      });
+
+      const docs = await documentRepository.getByCollectionId('collection-1');
+      expect(docs).toHaveLength(2);
+    });
+  });
+
+  describe('deleteByProjectId', () => {
+    it('deletes all documents for a project', async () => {
+      await documentRepository.create({
+        filename: 'a.md',
+        type: 'markdown',
+        content: 'A',
+        projectId: 'project-1',
+      });
+      await documentRepository.create({
+        filename: 'b.md',
+        type: 'markdown',
+        content: 'B',
+        projectId: 'project-1',
+      });
+      await documentRepository.create({
+        filename: 'c.md',
+        type: 'markdown',
+        content: 'C',
+        projectId: 'project-2',
+      });
+
+      await documentRepository.deleteByProjectId('project-1');
+
+      const project1Docs = await documentRepository.getByProjectId('project-1');
+      const project2Docs = await documentRepository.getByProjectId('project-2');
+
+      expect(project1Docs).toHaveLength(0);
+      expect(project2Docs).toHaveLength(1);
+    });
+  });
+
+  describe('deleteByCollectionId', () => {
+    it('deletes all documents for a collection', async () => {
+      await documentRepository.create({
+        filename: 'a.md',
+        type: 'markdown',
+        content: 'A',
+        collectionId: 'collection-1',
+      });
+      await documentRepository.create({
+        filename: 'b.md',
+        type: 'markdown',
+        content: 'B',
+        collectionId: 'collection-2',
+      });
+
+      await documentRepository.deleteByCollectionId('collection-1');
+
+      const collection1Docs = await documentRepository.getByCollectionId('collection-1');
+      const collection2Docs = await documentRepository.getByCollectionId('collection-2');
+
+      expect(collection1Docs).toHaveLength(0);
+      expect(collection2Docs).toHaveLength(1);
+    });
+  });
+
+  describe('bulkDelete', () => {
+    it('deletes multiple documents by IDs', async () => {
+      const doc1 = await documentRepository.create({
+        filename: 'a.md',
+        type: 'markdown',
+        content: 'A',
+      });
+      const doc2 = await documentRepository.create({
+        filename: 'b.md',
+        type: 'markdown',
+        content: 'B',
+      });
+      const doc3 = await documentRepository.create({
+        filename: 'c.md',
+        type: 'markdown',
+        content: 'C',
+      });
+
+      await documentRepository.bulkDelete([doc1.id, doc2.id]);
+
+      const remaining = await documentRepository.getAll();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].id).toBe(doc3.id);
+    });
+  });
+
+  describe('searchByFilename', () => {
+    it('finds documents by filename', async () => {
+      await documentRepository.create({
+        filename: 'readme.md',
+        type: 'markdown',
+        content: 'README',
+      });
+      await documentRepository.create({
+        filename: 'index.ts',
+        type: 'code',
+        content: 'export {}',
+      });
+      await documentRepository.create({
+        filename: 'readme-old.md',
+        type: 'markdown',
+        content: 'Old README',
+      });
+
+      const results = await documentRepository.searchByFilename('readme');
+      expect(results).toHaveLength(2);
+    });
+
+    it('is case insensitive', async () => {
+      await documentRepository.create({
+        filename: 'README.md',
+        type: 'markdown',
+        content: 'README',
+      });
+
+      const results = await documentRepository.searchByFilename('readme');
+      expect(results).toHaveLength(1);
+    });
+  });
+
+  describe('getWithEmbeddings', () => {
+    it('returns only documents with embeddings', async () => {
+      await documentRepository.create({
+        filename: 'a.md',
+        type: 'markdown',
+        content: 'A',
+        embedding: [0.1, 0.2, 0.3],
+      });
+      await documentRepository.create({
+        filename: 'b.md',
+        type: 'markdown',
+        content: 'B',
+      });
+
+      const withEmbeddings = await documentRepository.getWithEmbeddings();
+      expect(withEmbeddings).toHaveLength(1);
+      expect(withEmbeddings[0].embedding).toEqual([0.1, 0.2, 0.3]);
+    });
+  });
+
+  describe('markAsIndexed', () => {
+    it('marks document as indexed', async () => {
+      const doc = await documentRepository.create({
+        filename: 'test.md',
+        type: 'markdown',
+        content: 'Test',
+      });
+
+      expect(doc.isIndexed).toBe(false);
+
+      await documentRepository.markAsIndexed(doc.id);
+
+      const updated = await documentRepository.getById(doc.id);
+      expect(updated?.isIndexed).toBe(true);
+    });
+  });
 });

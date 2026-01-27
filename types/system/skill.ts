@@ -111,6 +111,33 @@ export interface Skill {
   usageCount?: number;
   /** Last used timestamp */
   lastUsedAt?: Date;
+  
+  // === MCP Tool Association (Claude Best Practice) ===
+  // Skills provide workflow knowledge, MCP provides tool connectivity.
+  // Associating skills with MCP tools enables automatic skill loading when tools are used.
+  
+  /** MCP server IDs this skill is designed to work with */
+  associatedMcpServers?: string[];
+  /** Specific MCP tool names this skill provides guidance for */
+  recommendedTools?: string[];
+  /** Keywords that trigger this skill when matching MCP tool descriptions */
+  toolMatchKeywords?: string[];
+}
+
+/**
+ * Configuration for skill-MCP tool association
+ */
+export interface SkillMcpAssociation {
+  /** Skill ID */
+  skillId: string;
+  /** Associated MCP server IDs */
+  serverIds: string[];
+  /** Specific tool names (format: serverId_toolName) */
+  toolNames: string[];
+  /** Match priority (higher = more preferred) */
+  priority: number;
+  /** Whether to auto-load skill when associated tools are used */
+  autoLoad: boolean;
 }
 
 /**
@@ -169,6 +196,12 @@ export interface CreateSkillInput {
   author?: string;
   /** Version */
   version?: string;
+  /** MCP server IDs this skill works with */
+  associatedMcpServers?: string[];
+  /** MCP tool names this skill provides guidance for */
+  recommendedTools?: string[];
+  /** Keywords for matching against MCP tool descriptions */
+  toolMatchKeywords?: string[];
 }
 
 /**
@@ -187,6 +220,12 @@ export interface UpdateSkillInput {
   resources?: SkillResource[];
   /** Updated status */
   status?: SkillStatus;
+  /** Updated MCP server associations */
+  associatedMcpServers?: string[];
+  /** Updated recommended tools */
+  recommendedTools?: string[];
+  /** Updated tool match keywords */
+  toolMatchKeywords?: string[];
 }
 
 /**

@@ -10,6 +10,47 @@ const mockClosePanel = jest.fn();
 const mockUpdateCanvasDocument = jest.fn();
 const mockSaveCanvasVersion = jest.fn();
 
+// Mock canvas hooks
+jest.mock('@/hooks/canvas', () => ({
+  useCanvasCodeExecution: () => ({
+    isExecuting: false,
+    result: null,
+    execute: jest.fn(),
+    cancel: jest.fn(),
+    clear: jest.fn(),
+  }),
+  useCanvasDocuments: () => ({
+    documents: [],
+    openDocument: jest.fn(),
+    closeDocument: jest.fn(),
+    renameDocument: jest.fn(),
+    duplicateDocument: jest.fn(),
+    deleteDocument: jest.fn(),
+    createDocument: jest.fn(),
+  }),
+  useCanvasSuggestions: () => ({
+    suggestions: [],
+    isGenerating: false,
+    generateSuggestions: jest.fn(),
+  }),
+}));
+
+// Mock keybinding store
+jest.mock('@/stores/canvas/keybinding-store', () => ({
+  useKeybindingStore: () => ({
+    bindings: {},
+    setBinding: jest.fn(),
+  }),
+}));
+
+// Mock theme registry
+jest.mock('@/lib/canvas/themes/theme-registry', () => ({
+  themeRegistry: {
+    getTheme: () => 'vs-light',
+    getAllThemes: () => ['vs-light', 'vs-dark'],
+  },
+}));
+
 jest.mock('@/stores', () => ({
   useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
@@ -91,6 +132,12 @@ jest.mock('@/components/ui/tooltip', () => ({
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
+jest.mock('@/components/ui/skeleton', () => ({
+  Skeleton: ({ className }: { className?: string }) => (
+    <div data-testid="skeleton" className={className} />
+  ),
+}));
+
 jest.mock('@/components/ui/alert', () => ({
   Alert: ({ children }: { children: React.ReactNode }) => <div role="alert">{children}</div>,
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
@@ -134,6 +181,22 @@ jest.mock('@/components/ui/select', () => ({
 
 jest.mock('./version-history-panel', () => ({
   VersionHistoryPanel: () => <div data-testid="version-history-panel" />,
+}));
+
+jest.mock('./code-execution-panel', () => ({
+  CodeExecutionPanel: () => <div data-testid="code-execution-panel" />,
+}));
+
+jest.mock('./canvas-document-tabs', () => ({
+  CanvasDocumentTabs: () => <div data-testid="canvas-document-tabs" />,
+}));
+
+jest.mock('./suggestion-item', () => ({
+  SuggestionItem: () => <div data-testid="suggestion-item" />,
+}));
+
+jest.mock('./canvas-error-boundary', () => ({
+  CanvasErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 jest.mock('@/components/designer', () => ({

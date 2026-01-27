@@ -66,8 +66,11 @@ describe('ModeSwitchSuggestion', () => {
   it('calls onAccept when accept button is clicked', async () => {
     render(<ModeSwitchSuggestion {...defaultProps} />);
     
-    const acceptButton = screen.getByText(/切换到学习模式/);
-    fireEvent.click(acceptButton);
+    // Find the button that contains "切换到" text (not the header)
+    const buttons = screen.getAllByRole('button');
+    const acceptButton = buttons.find(btn => btn.textContent?.includes('切换到') && btn.textContent?.includes('学习模式'));
+    expect(acceptButton).toBeTruthy();
+    fireEvent.click(acceptButton!);
     
     await waitFor(() => {
       expect(defaultProps.onAccept).toHaveBeenCalledWith('learning');

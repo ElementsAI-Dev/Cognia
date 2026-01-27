@@ -399,3 +399,141 @@ describe('AudioProvider with callbacks', () => {
     expect(result.current).toBeDefined();
   });
 });
+
+describe('AudioProvider with custom speech recognition', () => {
+  it('uses custom speech recognition when provided', () => {
+    class CustomSpeechRecognition {
+      continuous = false;
+      interimResults = false;
+      lang = 'en-US';
+      onresult: ((event: unknown) => void) | null = null;
+      onerror: ((event: unknown) => void) | null = null;
+      onend: (() => void) | null = null;
+      start = jest.fn();
+      stop = jest.fn();
+      abort = jest.fn();
+    }
+
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AudioProvider customSpeechRecognition={CustomSpeechRecognition as unknown as { new (): never }}>
+        {children}
+      </AudioProvider>
+    );
+
+    const { result } = renderHook(() => useAudio(), { wrapper });
+
+    expect(result.current).toBeDefined();
+    expect(result.current.startRecording).toBeInstanceOf(Function);
+  });
+});
+
+describe('AudioProvider speech synthesis edge cases', () => {
+  it('speaks with specific voice', async () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AudioProvider>{children}</AudioProvider>
+    );
+
+    const { result } = renderHook(() => useAudio(), { wrapper });
+
+    await act(async () => {
+      await result.current.speak('Hello', 'Voice 1');
+    });
+
+    expect(mockSpeak).toHaveBeenCalled();
+  });
+
+  it('handles speak with non-existent voice', async () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AudioProvider>{children}</AudioProvider>
+    );
+
+    const { result } = renderHook(() => useAudio(), { wrapper });
+
+    await act(async () => {
+      await result.current.speak('Hello', 'NonExistentVoice');
+    });
+
+    expect(mockSpeak).toHaveBeenCalled();
+  });
+});
+
+describe('AudioProvider recording edge cases', () => {
+  it('stopRecording returns empty string when no recognition', async () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AudioProvider>{children}</AudioProvider>
+    );
+
+    const { result } = renderHook(() => useAudio(), { wrapper });
+
+    let transcript = '';
+    await act(async () => {
+      transcript = await result.current.stopRecording();
+    });
+
+    expect(transcript).toBe('');
+  });
+
+  it('pauseRecording sets state to paused', () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AudioProvider>{children}</AudioProvider>
+    );
+
+    const { result } = renderHook(() => useAudio(), { wrapper });
+
+    act(() => {
+      result.current.pauseRecording();
+    });
+
+    expect(result.current.recordingState).toBe('paused');
+  });
+
+  it('resumeRecording attempts to restart recognition', () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AudioProvider>{children}</AudioProvider>
+    );
+
+    const { result } = renderHook(() => useAudio(), { wrapper });
+
+    act(() => {
+      result.current.resumeRecording();
+    });
+
+    // Should not throw even without active recognition
+    expect(result.current).toBeDefined();
+  });
+});
+
+describe('AudioProvider isAudioSupported', () => {
+  it('returns true when speech synthesis is available', () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AudioProvider>{children}</AudioProvider>
+    );
+
+    const { result } = renderHook(() => useAudio(), { wrapper });
+
+    expect(result.current.isAudioSupported).toBe(true);
+  });
+});
+
+describe('AudioProvider audio playback edge cases', () => {
+  it('cleans up object URLs on playAudio', async () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AudioProvider>{children}</AudioProvider>
+    );
+
+    const { result } = renderHook(() => useAudio(), { wrapper });
+    const blob1 = new Blob(['audio1'], { type: 'audio/mp3' });
+    const blob2 = new Blob(['audio2'], { type: 'audio/mp3' });
+
+    await act(async () => {
+      result.current.playAudio(blob1);
+    });
+
+    await act(async () => {
+      result.current.playAudio(blob2);
+    });
+
+    // Previous object URLs should be revoked
+    expect(mockRevokeObjectURL).toHaveBeenCalled();
+  });
+});

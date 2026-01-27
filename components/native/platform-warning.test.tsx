@@ -127,7 +127,7 @@ describe('PlatformWarning', () => {
       />,
       { wrapper }
     );
-    expect(screen.getByText('Limited Platform Support')).toBeInTheDocument();
+    expect(screen.getByText('Limited Support')).toBeInTheDocument();
   });
 
   it('renders badge mode correctly', () => {
@@ -260,7 +260,7 @@ describe('DesktopOnly', () => {
       { wrapper }
     );
     expect(screen.queryByText('Desktop content')).not.toBeInTheDocument();
-    expect(screen.getByText('This feature requires the desktop app')).toBeInTheDocument();
+    expect(screen.getByText('This feature is only available in the desktop app.')).toBeInTheDocument();
   });
 
   it('renders custom fallback in web environment', () => {

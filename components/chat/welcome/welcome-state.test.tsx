@@ -44,6 +44,13 @@ jest.mock('@/stores', () => ({
         maxSuggestionsPerMode: 4,
         defaultMode: 'chat',
       },
+      simplifiedModeSettings: {
+        enabled: false,
+        preset: 'default',
+        hideSuggestionDescriptions: false,
+        hideFeatureBadges: false,
+        hideQuickAccessLinks: false,
+      },
     };
     return selector ? selector(state) : state;
   }),
@@ -219,6 +226,13 @@ describe('WelcomeState', () => {
           customGreeting: 'Hello Custom World',
           customDescription: 'Custom Description',
         },
+        simplifiedModeSettings: {
+          enabled: false,
+          preset: 'default',
+          hideSuggestionDescriptions: false,
+          hideFeatureBadges: false,
+          hideQuickAccessLinks: false,
+        },
       };
       return selector ? selector(state) : state;
     });
@@ -235,6 +249,13 @@ describe('WelcomeState', () => {
         welcomeSettings: {
           sectionsVisibility: { header: false },
           customSuggestions: { chat: [] },
+        },
+        simplifiedModeSettings: {
+          enabled: false,
+          preset: 'default',
+          hideSuggestionDescriptions: false,
+          hideFeatureBadges: false,
+          hideQuickAccessLinks: false,
         },
       };
       return selector ? selector(state) : state;

@@ -8,6 +8,9 @@ import { PromptTemplateAdvancedEditor } from './prompt-template-advanced-editor'
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useFormatter: () => ({
+    dateTime: (date: Date) => date.toLocaleDateString(),
+  }),
 }));
 
 // Mock stores
@@ -17,6 +20,8 @@ jest.mock('@/stores', () => ({
       templates: [],
       createTemplate: jest.fn(),
       updateTemplate: jest.fn(),
+      saveVersion: jest.fn(),
+      getVersionHistory: jest.fn().mockReturnValue([]),
     };
     return selector(state);
   },
@@ -93,12 +98,12 @@ describe('PromptTemplateAdvancedEditor', () => {
     jest.clearAllMocks();
   });
 
-  it('renders correctly', () => {
+  it('renders editor with header', () => {
     render(<PromptTemplateAdvancedEditor {...defaultProps} />);
-    expect(screen.getByTestId('card')).toBeInTheDocument();
+    expect(screen.getByText('editTemplate')).toBeInTheDocument();
   });
 
-  it('displays template name', () => {
+  it('displays template name in input', () => {
     render(<PromptTemplateAdvancedEditor {...defaultProps} />);
     expect(screen.getByDisplayValue('Test Template')).toBeInTheDocument();
   });
@@ -106,6 +111,8 @@ describe('PromptTemplateAdvancedEditor', () => {
   it('has tabs for different sections', () => {
     render(<PromptTemplateAdvancedEditor {...defaultProps} />);
     expect(screen.getByRole('tablist')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /previewTab/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /variablesTab/i })).toBeInTheDocument();
   });
 
   it('displays template content in textarea', () => {
@@ -124,6 +131,7 @@ describe('PromptTemplateAdvancedEditor', () => {
       btn.textContent?.toLowerCase().includes('save')
     );
     
+    expect(saveButton).toBeDefined();
     if (saveButton) {
       fireEvent.click(saveButton);
       expect(defaultProps.onSubmit).toHaveBeenCalled();
@@ -137,6 +145,7 @@ describe('PromptTemplateAdvancedEditor', () => {
       btn.textContent?.toLowerCase().includes('cancel')
     );
     
+    expect(cancelButton).toBeDefined();
     if (cancelButton) {
       fireEvent.click(cancelButton);
       expect(defaultProps.onCancel).toHaveBeenCalled();
@@ -149,6 +158,19 @@ describe('PromptTemplateAdvancedEditor', () => {
       onSubmit={jest.fn()} 
       onCancel={jest.fn()} 
     />);
-    expect(screen.getByTestId('card')).toBeInTheDocument();
+    expect(screen.getByText('newTemplate')).toBeInTheDocument();
+  });
+
+  it('detects variables from content', () => {
+    render(<PromptTemplateAdvancedEditor {...defaultProps} />);
+    // Variables badge should show the count
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('allows editing template name', () => {
+    render(<PromptTemplateAdvancedEditor {...defaultProps} />);
+    const nameInput = screen.getByDisplayValue('Test Template');
+    fireEvent.change(nameInput, { target: { value: 'New Name' } });
+    expect(nameInput).toHaveValue('New Name');
   });
 });

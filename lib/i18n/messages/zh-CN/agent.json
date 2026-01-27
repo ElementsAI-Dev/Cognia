@@ -227,5 +227,54 @@
     "templateVarsHint": "点击插入。变量在运行时替换。",
     "toolsUnavailable": "部分工具需要配置",
     "modePreview": "模式预览"
+  },
+  "agentOptimization": {
+    "title": "智能体优化",
+    "description": "配置 Claude 智能体系统最佳实践，包括智能路由、Token 预算和上下文隔离。",
+    "resetToDefaults": "恢复默认设置",
+    "smartRouting": {
+      "title": "智能路由",
+      "subtitle": "自动决定单智能体或多智能体执行",
+      "enable": "启用智能路由",
+      "enableDesc": "让系统分析任务复杂度并选择最优执行策略",
+      "threshold": "单智能体阈值",
+      "thresholdDesc": "较高的值倾向于对简单任务使用单智能体执行",
+      "preferMulti": "倾向多智能体",
+      "preferSingle": "倾向单智能体"
+    },
+    "tokenBudget": {
+      "title": "Token 预算",
+      "subtitle": "控制多智能体场景的成本",
+      "enable": "启用 Token 预算",
+      "enableDesc": "限制子智能体使用的总 Token 数以控制成本",
+      "maxBudget": "最大 Token 预算",
+      "perSubAgent": "每个子智能体预估 Token 数",
+      "maxSubAgents": "最多约 {count} 个子智能体",
+      "showWarnings": "显示预算警告"
+    },
+    "contextIsolation": {
+      "title": "上下文隔离",
+      "subtitle": "防止智能体间的上下文污染",
+      "enable": "启用上下文隔离",
+      "enableDesc": "隔离子智能体上下文以防止信息溢出",
+      "summarize": "摘要子智能体结果",
+      "summarizeDesc": "在传递给父智能体前压缩子智能体输出",
+      "maxTokens": "最大摘要 Token 数"
+    },
+    "skillsMcp": {
+      "title": "Skills-MCP 自动加载",
+      "subtitle": "为 MCP 工具自动加载相关技能",
+      "enable": "启用自动加载",
+      "enableDesc": "当匹配的 MCP 工具被使用时自动注入技能知识",
+      "info": "启用后，具有关联 MCP 服务器或工具关键词的技能将在这些工具激活时自动加载到智能体上下文中。这将程序化知识（技能）与工具连接性（MCP）相结合。"
+    },
+    "toolWarnings": {
+      "title": "工具警告",
+      "subtitle": "当工具数量过多时发出警报",
+      "enable": "启用工具警告",
+      "enableDesc": "当活跃工具超过推荐限制时显示警告",
+      "threshold": "警告阈值",
+      "tools": "个工具"
+    }
   }
 }

@@ -33,6 +33,15 @@ jest.mock('next/image', () => ({
   ),
 }));
 
+// Mock copy-button to avoid langfuse import issues
+jest.mock('@/components/chat/ui/copy-button', () => ({
+  CopyButton: ({ content, className }: { content: string; className?: string }) => (
+    <button data-testid="copy-button" className={className} data-content={content}>
+      Copy
+    </button>
+  ),
+}));
+
 // Mock screenshot hooks
 const mockCaptureFullscreen = jest.fn().mockResolvedValue({
   image_base64: 'base64imagedata',

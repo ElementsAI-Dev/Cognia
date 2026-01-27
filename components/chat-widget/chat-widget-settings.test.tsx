@@ -6,6 +6,37 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatWidgetSettings } from './chat-widget-settings';
 import type { ChatWidgetConfig } from '@/stores/chat';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      title: '助手设置',
+      description: '配置 AI 助手的模型和行为',
+      aiModel: 'AI 模型',
+      provider: '提供商',
+      selectProvider: '选择提供商',
+      model: '模型',
+      selectModel: '选择模型',
+      systemPrompt: '系统提示词',
+      systemPromptPlaceholder: '设置 AI 的角色和行为...',
+      behavior: '行为设置',
+      alwaysOnTop: '窗口置顶',
+      alwaysOnTopDesc: '保持窗口在最前面',
+      autoFocus: '自动聚焦',
+      autoFocusDesc: '打开时自动聚焦输入框',
+      showTimestamps: '显示时间',
+      showTimestampsDesc: '在消息旁显示时间戳',
+      rememberPosition: '记住位置',
+      rememberPositionDesc: '记住窗口位置',
+      shortcuts: '快捷键',
+      toggleAssistant: '唤起/隐藏助手',
+      reset: '重置',
+      save: '保存',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (

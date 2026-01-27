@@ -21,6 +21,32 @@ jest.mock('next-intl', () => ({
   },
 }));
 
+// Mock ProviderContext
+jest.mock('@/components/providers/ai/provider-context', () => ({
+  useProviderContext: () => ({
+    enabledProviders: ['openai', 'anthropic'],
+    getProviderModels: (providerId: string) => {
+      const models: Record<string, Array<{ id: string; name: string; contextLength: number; supportsTools: boolean; supportsVision: boolean }>> = {
+        openai: [
+          { id: 'gpt-4o', name: 'GPT-4o', contextLength: 128000, supportsTools: true, supportsVision: true },
+          { id: 'gpt-4o-mini', name: 'GPT-4o Mini', contextLength: 128000, supportsTools: true, supportsVision: true },
+        ],
+        anthropic: [
+          { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', contextLength: 200000, supportsTools: true, supportsVision: true },
+        ],
+      };
+      return models[providerId] || [];
+    },
+    getProvider: (providerId: string) => ({
+      id: providerId,
+      name: providerId === 'openai' ? 'OpenAI' : 'Anthropic',
+      metadata: { icon: 'default' },
+    }),
+    isProviderEnabled: () => true,
+  }),
+  ProviderProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 // Mock stores
 jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: unknown) => unknown) => {

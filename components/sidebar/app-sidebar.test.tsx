@@ -38,6 +38,14 @@ jest.mock('@/stores', () => ({
     const state = {
       theme: 'light',
       setTheme: mockSetTheme,
+      observabilitySettings: {
+        enabled: false,
+        provider: 'none',
+      },
+      backgroundSettings: {
+        enabled: false,
+        source: 'none',
+      },
     };
     return selector(state);
   },
@@ -202,9 +210,11 @@ describe('AppSidebar', () => {
     expect(screen.getByTestId('sidebar-search')).toBeInTheDocument();
   });
 
-  it('renders keyboard shortcuts dialog', () => {
+  it('renders sidebar content with footer', () => {
     render(<AppSidebar />);
-    expect(screen.getByTestId('keyboard-shortcuts-dialog')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-footer')).toBeInTheDocument();
+    // Usage stats widget should be visible
+    expect(screen.getByTestId('usage-stats')).toBeInTheDocument();
   });
 
   it('shows grouped sessions and pinned ordering', () => {

@@ -227,5 +227,54 @@
     "templateVarsHint": "Click to insert. Variables are replaced at runtime.",
     "toolsUnavailable": "Some tools require configuration",
     "modePreview": "Mode Preview"
+  },
+  "agentOptimization": {
+    "title": "Agent Optimization",
+    "description": "Configure Claude best practices for agent systems including smart routing, token budget, and context isolation.",
+    "resetToDefaults": "Reset to Defaults",
+    "smartRouting": {
+      "title": "Smart Routing",
+      "subtitle": "Automatically decide single vs multi-agent execution",
+      "enable": "Enable Smart Routing",
+      "enableDesc": "Let the system analyze task complexity and choose the optimal execution strategy",
+      "threshold": "Single Agent Threshold",
+      "thresholdDesc": "Higher values prefer single agent execution for simpler tasks",
+      "preferMulti": "Prefer Multi-Agent",
+      "preferSingle": "Prefer Single Agent"
+    },
+    "tokenBudget": {
+      "title": "Token Budget",
+      "subtitle": "Control costs in multi-agent scenarios",
+      "enable": "Enable Token Budget",
+      "enableDesc": "Limit total tokens used by sub-agents to control costs",
+      "maxBudget": "Maximum Token Budget",
+      "perSubAgent": "Estimated Tokens Per Sub-Agent",
+      "maxSubAgents": "Maximum ~{count} sub-agents",
+      "showWarnings": "Show Budget Warnings"
+    },
+    "contextIsolation": {
+      "title": "Context Isolation",
+      "subtitle": "Prevent context pollution between agents",
+      "enable": "Enable Context Isolation",
+      "enableDesc": "Isolate sub-agent contexts to prevent information overflow",
+      "summarize": "Summarize Sub-Agent Results",
+      "summarizeDesc": "Compress sub-agent outputs before passing to parent agent",
+      "maxTokens": "Maximum Summary Tokens"
+    },
+    "skillsMcp": {
+      "title": "Skills-MCP Auto-Loading",
+      "subtitle": "Automatically load relevant skills for MCP tools",
+      "enable": "Enable Auto-Loading",
+      "enableDesc": "Automatically inject skill knowledge when matching MCP tools are used",
+      "info": "When enabled, skills with associated MCP servers or tool keywords will be automatically loaded into the agent context when those tools are active. This combines procedural knowledge (skills) with tool connectivity (MCP)."
+    },
+    "toolWarnings": {
+      "title": "Tool Warnings",
+      "subtitle": "Alert when tool count is too high",
+      "enable": "Enable Tool Warnings",
+      "enableDesc": "Show warnings when active tools exceed the recommended limit",
+      "threshold": "Warning Threshold",
+      "tools": "tools"
+    }
   }
 }

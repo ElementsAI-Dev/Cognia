@@ -5,6 +5,42 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatWidgetSuggestions } from './chat-widget-suggestions';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      explain: '解释一下',
+      explainPrompt: '请用简单的语言解释一下这个概念：',
+      writeCode: '写代码',
+      writeCodePrompt: '帮我写一段代码来实现：',
+      translate: '翻译',
+      translatePrompt: '请将以下内容翻译成中文/英文：',
+      howTo: '怎么做',
+      howToPrompt: '请告诉我如何：',
+      summarize: '总结文章',
+      summarizePrompt: '请帮我总结以下内容的要点：',
+      optimize: '优化文字',
+      optimizePrompt: '请帮我优化以下文字，使其更加清晰流畅：',
+      brainstorm: '头脑风暴',
+      brainstormPrompt: '帮我头脑风暴一下关于这个话题的想法：',
+      checkErrors: '检查错误',
+      checkErrorsPrompt: '请帮我检查以下内容是否有错误：',
+      more: '更多',
+      collapse: '收起',
+    };
+    return translations[key] || key;
+  },
+}));
+
+// Mock framer-motion
+jest.mock('framer-motion', () => ({
+  motion: {
+    div: ({ children, ...props }: React.ComponentProps<'div'>) => <div {...props}>{children}</div>,
+    span: ({ children, ...props }: React.ComponentProps<'span'>) => <span {...props}>{children}</span>,
+  },
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 describe('ChatWidgetSuggestions', () => {
   const defaultProps = {
     onSelect: jest.fn(),

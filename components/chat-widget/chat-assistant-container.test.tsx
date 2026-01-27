@@ -33,10 +33,19 @@ jest.mock("@/stores/chat", () => ({
   }),
 }));
 
-// Mock native utils
-const mockIsTauri = jest.fn(() => false);
+// Mock native utils - always return the same value to avoid state updates
+let tauriValue = false;
 jest.mock("@/lib/native/utils", () => ({
-  isTauri: () => mockIsTauri(),
+  isTauri: () => tauriValue,
+}));
+
+const setMockTauri = (value: boolean) => {
+  tauriValue = value;
+};
+
+// Mock Tauri event API
+jest.mock("@tauri-apps/api/event", () => ({
+  listen: jest.fn(() => Promise.resolve(() => {})),
 }));
 
 // Mock child components
@@ -83,11 +92,7 @@ describe("ChatAssistantContainer", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
+    setMockTauri(false);
   });
 
   describe("Rendering", () => {
@@ -97,11 +102,11 @@ describe("ChatAssistantContainer", () => {
     });
 
     it("renders FAB after mounting", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       render(<ChatAssistantContainer {...defaultProps} />);
       
       // Fast-forward to allow mounting
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("fab")).toBeInTheDocument();
@@ -109,10 +114,10 @@ describe("ChatAssistantContainer", () => {
     });
 
     it("renders null when tauriOnly is true and not in Tauri", async () => {
-      mockIsTauri.mockReturnValue(false);
+      setMockTauri(false);
       render(<ChatAssistantContainer {...defaultProps} tauriOnly={true} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("fab")).not.toBeInTheDocument();
@@ -120,10 +125,10 @@ describe("ChatAssistantContainer", () => {
     });
 
     it("renders when tauriOnly is false", async () => {
-      mockIsTauri.mockReturnValue(false);
+      setMockTauri(false);
       render(<ChatAssistantContainer {...defaultProps} tauriOnly={false} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("fab")).toBeInTheDocument();
@@ -131,10 +136,10 @@ describe("ChatAssistantContainer", () => {
     });
 
     it("renders null when disabled", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       render(<ChatAssistantContainer {...defaultProps} disabled={true} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("fab")).not.toBeInTheDocument();
@@ -144,10 +149,10 @@ describe("ChatAssistantContainer", () => {
 
   describe("Panel Rendering", () => {
     it("does not render panel when closed", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       render(<ChatAssistantContainer {...defaultProps} defaultOpen={false} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("panel")).not.toBeInTheDocument();
@@ -155,10 +160,10 @@ describe("ChatAssistantContainer", () => {
     });
 
     it("renders panel when open", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       render(<ChatAssistantContainer {...defaultProps} defaultOpen={true} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("panel")).toBeInTheDocument();
@@ -169,10 +174,10 @@ describe("ChatAssistantContainer", () => {
 
   describe("Toggle Functionality", () => {
     it("toggles panel when FAB is clicked", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       render(<ChatAssistantContainer {...defaultProps} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("fab")).toBeInTheDocument();
@@ -187,10 +192,10 @@ describe("ChatAssistantContainer", () => {
     });
 
     it("closes panel when close button is clicked", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       render(<ChatAssistantContainer {...defaultProps} defaultOpen={true} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("panel")).toBeInTheDocument();
@@ -205,10 +210,10 @@ describe("ChatAssistantContainer", () => {
     });
 
     it("does not toggle when disabled", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       render(<ChatAssistantContainer {...defaultProps} disabled={false} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("fab")).toBeInTheDocument();
@@ -225,10 +230,10 @@ describe("ChatAssistantContainer", () => {
 
   describe("Props", () => {
     it("passes correct props to FAB", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       render(<ChatAssistantContainer {...defaultProps} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         const fab = screen.getByTestId("fab");
@@ -239,7 +244,7 @@ describe("ChatAssistantContainer", () => {
     });
 
     it("passes correct panel dimensions", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       render(
         <ChatAssistantContainer
           {...defaultProps}
@@ -248,7 +253,7 @@ describe("ChatAssistantContainer", () => {
         />
       );
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("fab")).toBeInTheDocument();
@@ -258,7 +263,7 @@ describe("ChatAssistantContainer", () => {
 
   describe("Unread Count", () => {
     it("calculates unread count correctly", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       const { useChatWidgetStore } = jest.requireMock("@/stores/chat");
 
       // Mock store with messages
@@ -276,7 +281,7 @@ describe("ChatAssistantContainer", () => {
       
       render(<ChatAssistantContainer {...defaultProps} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         const fab = screen.getByTestId("fab");
@@ -291,10 +296,10 @@ describe("ChatAssistantContainer", () => {
 
   describe("Keyboard Shortcuts", () => {
     it("responds to keyboard shortcut", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       render(<ChatAssistantContainer {...defaultProps} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         expect(screen.queryByTestId("fab")).toBeInTheDocument();
@@ -316,7 +321,7 @@ describe("ChatAssistantContainer", () => {
 
   describe("Loading State", () => {
     it("passes loading state to FAB", async () => {
-      mockIsTauri.mockReturnValue(true);
+      setMockTauri(true);
       const { useChatWidgetStore } = jest.requireMock("@/stores/chat");
 
       useChatWidgetStore.mockImplementation((selector: (state: unknown) => unknown) => {
@@ -330,7 +335,7 @@ describe("ChatAssistantContainer", () => {
       
       render(<ChatAssistantContainer {...defaultProps} />);
       
-      jest.advanceTimersByTime(100);
+      // Wait for component mount
       
       await waitFor(() => {
         const fab = screen.getByTestId("fab");

@@ -102,7 +102,8 @@ describe('StartNode', () => {
     expect(screen.getByText('input1')).toBeInTheDocument();
     expect(screen.getByText('input2')).toBeInTheDocument();
     expect(screen.getByText('input3')).toBeInTheDocument();
-    expect(screen.getByText('input4')).not.toBeInTheDocument();
+    // Use queryByText for elements that should NOT be in document
+    expect(screen.queryByText('input4')).not.toBeInTheDocument();
   });
 
   it('renders more indicator when more than 3 inputs', () => {

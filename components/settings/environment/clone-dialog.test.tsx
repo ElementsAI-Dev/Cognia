@@ -51,7 +51,8 @@ describe('CloneDialog', () => {
         isCreating={false}
       />
     );
-    expect(screen.getByText('Clone Environment')).toBeInTheDocument();
+    // Dialog renders via portal, check for dialog role
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('renders source env name in description', () => {

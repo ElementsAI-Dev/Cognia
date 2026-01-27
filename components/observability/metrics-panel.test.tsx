@@ -52,43 +52,45 @@ describe('MetricsPanel', () => {
   it('should display total requests', () => {
     render(<MetricsPanel {...defaultProps} />);
     
-    // Component renders metrics
-    expect(screen.getByText(/metrics/i) || true).toBeTruthy();
+    // 1000 requests formatted with locale
+    expect(screen.getByText('1,000')).toBeInTheDocument();
   });
 
   it('should display total tokens', () => {
     render(<MetricsPanel {...defaultProps} />);
     
-    // Component renders metrics
-    expect(screen.getByText(/metrics/i) || true).toBeTruthy();
+    // 500000 tokens formatted with locale
+    expect(screen.getByText('500,000')).toBeInTheDocument();
   });
 
-  it('should display total cost', () => {
+  it('should display average latency', () => {
     render(<MetricsPanel {...defaultProps} />);
     
-    // Component renders metrics
-    expect(screen.getByText(/metrics/i) || true).toBeTruthy();
+    // 1500ms average latency
+    expect(screen.getByText('1500ms')).toBeInTheDocument();
   });
 
   it('should display error rate', () => {
     render(<MetricsPanel {...defaultProps} />);
     
-    // Component renders metrics
-    expect(screen.getByText(/metrics/i) || true).toBeTruthy();
+    // 0.02 * 100 = 2.0%
+    expect(screen.getByText('2.0%')).toBeInTheDocument();
   });
 
   it('should display latency percentiles', () => {
     render(<MetricsPanel {...defaultProps} />);
     
-    // Component renders metrics
-    expect(screen.getByText(/metrics/i) || true).toBeTruthy();
+    expect(screen.getByText('1000ms')).toBeInTheDocument(); // p50
+    expect(screen.getByText('2500ms')).toBeInTheDocument(); // p90
+    expect(screen.getByText('5000ms')).toBeInTheDocument(); // p99
   });
 
   it('should display provider breakdown', () => {
     render(<MetricsPanel {...defaultProps} />);
     
-    // Component renders metrics
-    expect(screen.getByText(/metrics/i) || true).toBeTruthy();
+    // Provider names appear in multiple sections
+    expect(screen.getAllByText('openai').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('anthropic').length).toBeGreaterThan(0);
   });
 
   it('should handle null metrics', () => {
@@ -98,11 +100,11 @@ describe('MetricsPanel', () => {
     expect(screen.getByText(/no metrics data/i)).toBeInTheDocument();
   });
 
-  it('should display average latency', () => {
+  it('should display model breakdown', () => {
     render(<MetricsPanel {...defaultProps} />);
     
-    // Component renders metrics
-    expect(screen.getByText(/metrics/i) || true).toBeTruthy();
+    expect(screen.getByText('gpt-4')).toBeInTheDocument();
+    expect(screen.getByText('claude-3')).toBeInTheDocument();
   });
 });
 

@@ -14,16 +14,33 @@ jest.mock('next-intl', () => ({
 jest.mock('@/stores/prompt/prompt-marketplace-store', () => ({
   usePromptMarketplaceStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
-      prompts: [],
+      prompts: {},
+      collections: {},
       filteredPrompts: [],
       isLoading: false,
       searchQuery: '',
+      featuredIds: [],
+      trendingIds: [],
+      userActivity: {
+        installed: [],
+        favorites: [],
+        reviewed: [],
+        recentlyViewed: [],
+      },
       setSearchQuery: jest.fn(),
       selectedCategory: 'all',
       setSelectedCategory: jest.fn(),
       sortBy: 'popular',
       setSortBy: jest.fn(),
       fetchPrompts: jest.fn(),
+      fetchFeatured: jest.fn(),
+      fetchTrending: jest.fn(),
+      initializeSampleData: jest.fn(),
+      searchPrompts: jest.fn().mockResolvedValue({ prompts: [], total: 0 }),
+      getPromptById: jest.fn().mockReturnValue(null),
+      checkForUpdates: jest.fn().mockResolvedValue([]),
+      updateInstalledPrompt: jest.fn(),
+      getRecentlyViewed: jest.fn().mockReturnValue([]),
       getCategoryCounts: jest.fn().mockReturnValue({}),
     };
     return selector(state);
@@ -61,14 +78,30 @@ jest.mock('@/components/ui/tabs', () => ({
 }));
 
 // Mock child components
-jest.mock('./prompt-marketplace-category-nav', () => ({
-  PromptMarketplaceCategoryNav: () => <div data-testid="category-nav">Category Nav</div>,
+jest.mock('./prompt-marketplace-sidebar', () => ({
+  PromptMarketplaceSidebar: () => <div data-testid="sidebar">Sidebar</div>,
 }));
 
 jest.mock('./prompt-marketplace-card', () => ({
-  PromptMarketplaceCard: ({ prompt }: { prompt: { title: string } }) => (
-    <div data-testid="marketplace-card">{prompt.title}</div>
+  PromptMarketplaceCard: ({ prompt }: { prompt: { name: string } }) => (
+    <div data-testid="marketplace-card">{prompt.name}</div>
   ),
+}));
+
+jest.mock('./prompt-marketplace-detail', () => ({
+  PromptMarketplaceDetail: () => <div data-testid="detail">Detail</div>,
+}));
+
+jest.mock('./prompt-collection-card', () => ({
+  PromptCollectionCard: () => <div data-testid="collection-card">Collection</div>,
+}));
+
+jest.mock('./prompt-author-profile', () => ({
+  PromptAuthorProfile: () => <div data-testid="author-profile">Author Profile</div>,
+}));
+
+jest.mock('./prompt-import-export', () => ({
+  PromptImportExport: () => <div data-testid="import-export">Import Export</div>,
 }));
 
 describe('PromptMarketplaceBrowser', () => {
@@ -78,7 +111,7 @@ describe('PromptMarketplaceBrowser', () => {
 
   it('renders correctly', () => {
     render(<PromptMarketplaceBrowser />);
-    expect(screen.getByTestId('category-nav')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
   });
 
   it('has a search input', () => {
@@ -88,7 +121,18 @@ describe('PromptMarketplaceBrowser', () => {
 
   it('renders empty state when no prompts', () => {
     render(<PromptMarketplaceBrowser />);
-    // Should show empty state or loading
-    expect(screen.getByTestId('category-nav')).toBeInTheDocument();
+    // Should show sidebar
+    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+  });
+
+  it('renders tabs for navigation', () => {
+    render(<PromptMarketplaceBrowser />);
+    expect(screen.getByRole('tablist')).toBeInTheDocument();
+  });
+
+  it('renders multiple tabs', () => {
+    render(<PromptMarketplaceBrowser />);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.length).toBeGreaterThan(0);
   });
 });

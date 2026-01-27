@@ -38,7 +38,7 @@ describe('FlowToolPanel', () => {
     (useMcpStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
         servers: [
-          { id: 'server-1', config: { name: 'Test Server' }, status: 'connected' },
+          { id: 'server-1', config: { name: 'Test Server' }, status: { type: 'connected' } },
         ],
         getAllTools: mockGetAllTools,
         callTool: mockCallTool,

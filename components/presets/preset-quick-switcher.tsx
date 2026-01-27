@@ -385,6 +385,7 @@ interface PresetItemProps {
 }
 
 function PresetItem({ preset, isActive, onSelect, onToggleFavorite, isDragging, dragHandleProps }: PresetItemProps) {
+  const t = useTranslations('presetQuickSwitcher');
   return (
     <div
       className={cn(

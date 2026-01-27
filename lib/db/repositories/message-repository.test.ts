@@ -395,4 +395,206 @@ describe('messageRepository', () => {
       expect(count).toBe(0);
     });
   });
+
+  describe('createWithBranch', () => {
+    it('creates message with branch ID', async () => {
+      const message = await messageRepository.createWithBranch(testSessionId, 'branch-1', {
+        role: 'user' as const,
+        content: 'Branch message',
+      });
+
+      expect(message.branchId).toBe('branch-1');
+      expect(message.content).toBe('Branch message');
+    });
+
+    it('creates message without branch ID (main branch)', async () => {
+      const message = await messageRepository.createWithBranch(testSessionId, undefined, {
+        role: 'user' as const,
+        content: 'Main branch message',
+      });
+
+      expect(message.branchId).toBeUndefined();
+    });
+
+    it('updates session message count', async () => {
+      await messageRepository.createWithBranch(testSessionId, 'branch-1', {
+        role: 'user' as const,
+        content: 'Test',
+      });
+
+      const session = await db.sessions.get(testSessionId);
+      expect(session?.messageCount).toBe(1);
+    });
+  });
+
+  describe('getBySessionIdAndBranch', () => {
+    it('returns messages for specific branch', async () => {
+      await messageRepository.createWithBranch(testSessionId, 'branch-1', {
+        role: 'user' as const,
+        content: 'Branch 1 message',
+      });
+      await messageRepository.createWithBranch(testSessionId, 'branch-2', {
+        role: 'user' as const,
+        content: 'Branch 2 message',
+      });
+
+      const branch1Messages = await messageRepository.getBySessionIdAndBranch(
+        testSessionId,
+        'branch-1'
+      );
+
+      expect(branch1Messages).toHaveLength(1);
+      expect(branch1Messages[0].content).toBe('Branch 1 message');
+    });
+
+    it('returns messages for branch-2', async () => {
+      await messageRepository.createWithBranch(testSessionId, 'branch-1', {
+        role: 'user' as const,
+        content: 'Branch 1 message',
+      });
+      await messageRepository.createWithBranch(testSessionId, 'branch-2', {
+        role: 'user' as const,
+        content: 'Branch 2 message',
+      });
+
+      const branch2Messages = await messageRepository.getBySessionIdAndBranch(
+        testSessionId,
+        'branch-2'
+      );
+
+      expect(branch2Messages).toHaveLength(1);
+      expect(branch2Messages[0].content).toBe('Branch 2 message');
+    });
+  });
+
+  describe('getCountBySessionIdAndBranch', () => {
+    it('returns count for specific branch', async () => {
+      await messageRepository.createWithBranch(testSessionId, 'branch-1', {
+        role: 'user' as const,
+        content: 'M1',
+      });
+      await messageRepository.createWithBranch(testSessionId, 'branch-1', {
+        role: 'assistant' as const,
+        content: 'M2',
+      });
+      await messageRepository.createWithBranch(testSessionId, 'branch-2', {
+        role: 'user' as const,
+        content: 'M3',
+      });
+
+      const count = await messageRepository.getCountBySessionIdAndBranch(testSessionId, 'branch-1');
+      expect(count).toBe(2);
+    });
+  });
+
+  describe('deleteByBranchId', () => {
+    it('deletes all messages for a branch', async () => {
+      await messageRepository.createWithBranch(testSessionId, 'branch-1', {
+        role: 'user' as const,
+        content: 'M1',
+      });
+      await messageRepository.createWithBranch(testSessionId, 'branch-1', {
+        role: 'assistant' as const,
+        content: 'M2',
+      });
+      await messageRepository.createWithBranch(testSessionId, 'branch-2', {
+        role: 'user' as const,
+        content: 'M3',
+      });
+
+      await messageRepository.deleteByBranchId(testSessionId, 'branch-1');
+
+      const branch1Messages = await messageRepository.getBySessionIdAndBranch(
+        testSessionId,
+        'branch-1'
+      );
+      const branch2Messages = await messageRepository.getBySessionIdAndBranch(
+        testSessionId,
+        'branch-2'
+      );
+
+      expect(branch1Messages).toHaveLength(0);
+      expect(branch2Messages).toHaveLength(1);
+    });
+  });
+
+  describe('copyMessagesForBranch', () => {
+    it('copies messages from source branch up to branch point', async () => {
+      // Create messages in a specific branch
+      await messageRepository.createWithBranch(testSessionId, 'source-branch', {
+        role: 'user' as const,
+        content: 'First',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      const msg2 = await messageRepository.createWithBranch(testSessionId, 'source-branch', {
+        role: 'assistant' as const,
+        content: 'Second',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      await messageRepository.createWithBranch(testSessionId, 'source-branch', {
+        role: 'user' as const,
+        content: 'Third',
+      });
+
+      const copied = await messageRepository.copyMessagesForBranch(
+        testSessionId,
+        msg2.id,
+        'new-branch',
+        'source-branch'
+      );
+
+      expect(copied).toHaveLength(2);
+      expect(copied[0].content).toBe('First');
+      expect(copied[1].content).toBe('Second');
+      expect(copied[0].branchId).toBe('new-branch');
+    });
+
+    it('returns empty array for non-existent branch point', async () => {
+      await messageRepository.createWithBranch(testSessionId, 'source-branch', {
+        role: 'user' as const,
+        content: 'Test',
+      });
+
+      const copied = await messageRepository.copyMessagesForBranch(
+        testSessionId,
+        'non-existent',
+        'new-branch',
+        'source-branch'
+      );
+
+      expect(copied).toHaveLength(0);
+    });
+  });
+
+  describe('getPageBySessionIdAndBranch', () => {
+    it('returns paginated messages with limit', async () => {
+      // Create multiple messages in a branch
+      for (let i = 1; i <= 5; i++) {
+        await messageRepository.createWithBranch(testSessionId, 'paginated-branch', {
+          role: 'user' as const,
+          content: `Message ${i}`,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 15));
+      }
+
+      const page = await messageRepository.getPageBySessionIdAndBranch(
+        testSessionId,
+        'paginated-branch',
+        { limit: 3 }
+      );
+
+      // Should return up to 3 messages
+      expect(page.length).toBeLessThanOrEqual(3);
+    });
+
+    it('returns empty array for non-existent branch', async () => {
+      const page = await messageRepository.getPageBySessionIdAndBranch(
+        testSessionId,
+        'non-existent-branch',
+        { limit: 10 }
+      );
+
+      expect(page).toHaveLength(0);
+    });
+  });
 });

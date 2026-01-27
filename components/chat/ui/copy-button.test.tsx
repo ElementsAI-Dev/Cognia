@@ -10,8 +10,14 @@ jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-// Mock the useCopy hook
-const mockCopy = jest.fn().mockResolvedValue({ success: true });
+// Mock the useCopy hook - need to call onSuccess callback
+const mockCopy = jest.fn().mockImplementation((_content: string, options?: { onSuccess?: () => void }) => {
+  // Simulate successful copy by calling onSuccess
+  if (options?.onSuccess) {
+    options.onSuccess();
+  }
+  return Promise.resolve({ success: true });
+});
 jest.mock('@/hooks/ui', () => ({
   useCopy: () => ({
     copy: mockCopy,

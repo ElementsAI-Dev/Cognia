@@ -53,7 +53,6 @@ test-results/
 # AI & Developer Tools
 .ace-tool/
 .claude/
-.windsurf/
 .serena/
 .specify/
 .mypy_cache/

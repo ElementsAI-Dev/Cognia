@@ -104,16 +104,24 @@ jest.mock('@/types/provider', () => ({
   getModelConfig: () => ({ name: 'GPT-4o' }),
 }));
 
-jest.mock('./dialogs/export-dialog', () => ({
+jest.mock('../dialogs/export-dialog', () => ({
   ExportDialog: () => <div data-testid="export-dialog" />,
 }));
 
-jest.mock('./dialogs/image-generation-dialog', () => ({
+jest.mock('../dialogs/image-generation-dialog', () => ({
   ImageGenerationDialog: () => <div data-testid="image-dialog" />,
 }));
 
-jest.mock('./selectors/branch-selector', () => ({
+jest.mock('../selectors/branch-selector', () => ({
   BranchSelector: () => <div data-testid="branch-selector" />,
+}));
+
+jest.mock('../selectors/project-selector', () => ({
+  ProjectSelector: () => <div data-testid="project-selector" />,
+}));
+
+jest.mock('../selectors/session-env-selector', () => ({
+  SessionEnvSelector: () => <div data-testid="session-env-selector" />,
 }));
 
 jest.mock('@/components/presets', () => ({

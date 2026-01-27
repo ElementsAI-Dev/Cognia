@@ -38,7 +38,12 @@ export default defineConfig({
   projects: [
     {
       name: 'unit-like',
-      testMatch: /\/(stores|core|ai)\.spec\.ts$/,
+      testMatch: /\/(stores|core)\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'ai',
+      testMatch: /\/ai\/.*\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
     {

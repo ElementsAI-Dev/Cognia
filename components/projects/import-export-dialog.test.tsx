@@ -1,9 +1,31 @@
 import { render, screen, act } from '@testing-library/react';
 import { ImportExportDialog } from './import-export-dialog';
 
-// Mock next-intl
+// Mock next-intl with interpolation support
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    const translations: Record<string, string | ((p: Record<string, unknown>) => string)> = {
+      title: 'title',
+      description: 'description',
+      export: 'export',
+      import: 'import',
+      noProjects: 'No projects',
+      selectProjects: 'selectProjects',
+      selectAll: 'selectAll',
+      deselectAll: 'deselectAll',
+      exportJson: 'exportJson',
+      exportZip: 'exportZip',
+      dropHint: 'dropHint',
+      supportedFormats: 'supportedFormats',
+      importing: 'importing',
+      filesCount: (p: Record<string, unknown>) => `${p.count} files`,
+    };
+    const val = translations[key];
+    if (typeof val === 'function' && params) {
+      return val(params);
+    }
+    return typeof val === 'string' ? val : key;
+  },
 }));
 
 // Mock sonner
@@ -66,22 +88,22 @@ describe('ImportExportDialog', () => {
     await act(async () => {
       render(<ImportExportDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.getByText('Import / Export Projects')).toBeInTheDocument();
+    expect(screen.getByText('title')).toBeInTheDocument();
   });
 
   it('displays dialog description', async () => {
     await act(async () => {
       render(<ImportExportDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.getByText('Backup your projects or import from a previous export')).toBeInTheDocument();
+    expect(screen.getByText('description')).toBeInTheDocument();
   });
 
   it('has Export and Import tabs', async () => {
     await act(async () => {
       render(<ImportExportDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.getByText('Export')).toBeInTheDocument();
-    expect(screen.getByText('Import')).toBeInTheDocument();
+    expect(screen.getByText('export')).toBeInTheDocument();
+    expect(screen.getByText('import')).toBeInTheDocument();
   });
 
   it('shows projects list in export tab', async () => {
@@ -96,15 +118,15 @@ describe('ImportExportDialog', () => {
     await act(async () => {
       render(<ImportExportDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.getByText('Select All')).toBeInTheDocument();
+    expect(screen.getByText('selectAll')).toBeInTheDocument();
   });
 
   it('has export buttons', async () => {
     await act(async () => {
       render(<ImportExportDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.getByText('Export JSON')).toBeInTheDocument();
-    expect(screen.getByText('Export ZIP')).toBeInTheDocument();
+    expect(screen.getByText('exportJson')).toBeInTheDocument();
+    expect(screen.getByText('exportZip')).toBeInTheDocument();
   });
 
   it('switches to import tab', async () => {
@@ -113,21 +135,21 @@ describe('ImportExportDialog', () => {
     });
     
     // When starting in import tab, the drop zone should be visible
-    expect(screen.getByText(/Drop a file here/)).toBeInTheDocument();
+    expect(screen.getByText('dropHint')).toBeInTheDocument();
   });
 
   it('shows file type hint in import tab', async () => {
     await act(async () => {
       render(<ImportExportDialog open={true} onOpenChange={mockOnOpenChange} initialTab="import" />);
     });
-    expect(screen.getByText('Supports .json or .zip files')).toBeInTheDocument();
+    expect(screen.getByText('supportedFormats')).toBeInTheDocument();
   });
 
   it('does not render when closed', async () => {
     await act(async () => {
       render(<ImportExportDialog open={false} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.queryByText('Import / Export Projects')).not.toBeInTheDocument();
+    expect(screen.queryByText('title')).not.toBeInTheDocument();
   });
 });
 
@@ -138,7 +160,7 @@ describe('ImportExportDialog - Export Tab', () => {
     await act(async () => {
       render(<ImportExportDialog open={true} onOpenChange={mockOnOpenChange} />);
     });
-    expect(screen.getByText('Select projects to export')).toBeInTheDocument();
+    expect(screen.getByText('selectProjects')).toBeInTheDocument();
   });
 
   it('displays project file counts', async () => {

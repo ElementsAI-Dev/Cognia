@@ -66,9 +66,13 @@ describe('VariableInspector', () => {
       const variables = createMockVariables();
       renderWithIntl(<VariableInspector variables={variables} />);
 
-      expect(screen.getByText('x')).toBeInTheDocument();
-      expect(screen.getByText('y')).toBeInTheDocument();
-      expect(screen.getByText('name')).toBeInTheDocument();
+      // Variables appear multiple times (code element + tooltip), check code elements exist
+      const xElements = screen.getAllByText('x');
+      const yElements = screen.getAllByText('y');
+      const nameElements = screen.getAllByText('name');
+      expect(xElements.some((el) => el.tagName === 'CODE')).toBe(true);
+      expect(yElements.some((el) => el.tagName === 'CODE')).toBe(true);
+      expect(nameElements.some((el) => el.tagName === 'CODE')).toBe(true);
     });
 
     it('should render variable types', () => {
@@ -84,9 +88,10 @@ describe('VariableInspector', () => {
       const variables = createMockVariables();
       renderWithIntl(<VariableInspector variables={variables} />);
 
-      expect(screen.getByText('10')).toBeInTheDocument();
-      expect(screen.getByText('3.14')).toBeInTheDocument();
-      expect(screen.getByText("'Hello'")).toBeInTheDocument();
+      // Values appear multiple times (value display + tooltip), check at least one exists
+      expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('3.14').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("'Hello'").length).toBeGreaterThanOrEqual(1);
     });
 
     it('should render variable sizes when available', () => {
@@ -168,8 +173,12 @@ describe('VariableInspector', () => {
       const searchInput = screen.getByPlaceholderText('Search variables...');
       fireEvent.change(searchInput, { target: { value: 'name' } });
 
-      expect(screen.getByText('name')).toBeInTheDocument();
-      expect(screen.queryByText('x')).not.toBeInTheDocument();
+      // Check code element with 'name' exists
+      const nameElements = screen.getAllByText('name');
+      expect(nameElements.some((el) => el.tagName === 'CODE')).toBe(true);
+      // Check code element with 'x' does NOT exist
+      const xElements = screen.queryAllByText('x');
+      expect(xElements.some((el) => el.tagName === 'CODE')).toBe(false);
     });
 
     it('should show no matching variables message when search has no results', () => {
@@ -195,7 +204,9 @@ describe('VariableInspector', () => {
       const searchInput = screen.getByPlaceholderText('Search variables...');
       fireEvent.change(searchInput, { target: { value: 'MYVARIABLE' } });
 
-      expect(screen.getByText('MyVariable')).toBeInTheDocument();
+      // Check code element with 'MyVariable' exists
+      const myVarElements = screen.getAllByText('MyVariable');
+      expect(myVarElements.some((el) => el.tagName === 'CODE')).toBe(true);
     });
   });
 
@@ -204,8 +215,9 @@ describe('VariableInspector', () => {
       const variables = createMockVariables();
       renderWithIntl(<VariableInspector variables={variables} />);
 
-      // Variable content should be visible
-      expect(screen.getByText('x')).toBeInTheDocument();
+      // Variable content should be visible - check code elements exist
+      const xElements = screen.getAllByText('x');
+      expect(xElements.some((el) => el.tagName === 'CODE')).toBe(true);
     });
 
     it('should toggle collapse when clicking header button', () => {
@@ -224,8 +236,9 @@ describe('VariableInspector', () => {
         fireEvent.click(collapseButton);
       }
 
-      // Content should be collapsed
-      expect(screen.queryByText('x')).not.toBeInTheDocument();
+      // Content should be collapsed - no code elements with 'x' should exist
+      const xElements = screen.queryAllByText('x');
+      expect(xElements.some((el) => el.tagName === 'CODE')).toBe(false);
     });
   });
 
@@ -297,9 +310,11 @@ describe('VariableInspector', () => {
       const variables = createMockVariables();
       renderWithIntl(<VariableInspector variables={variables} onInspect={onInspect} />);
 
-      // Click on a variable row (the name element's parent div)
-      const varName = screen.getByText('x');
-      const varRow = varName.closest('.hover\\:bg-muted\\/50');
+      // Click on a variable row - find the code element containing 'x'
+      const varNames = screen.getAllByText('x');
+      const varName = varNames.find((el) => el.tagName === 'CODE');
+      expect(varName).toBeDefined();
+      const varRow = varName?.closest('.hover\\:bg-muted\\/50');
       if (varRow) {
         fireEvent.click(varRow);
       }
@@ -312,8 +327,10 @@ describe('VariableInspector', () => {
       const variables = createMockVariables();
       renderWithIntl(<VariableInspector variables={variables} onInspect={onInspect} />);
 
-      const varName = screen.getByText('x');
-      const varRow = varName.closest('.hover\\:bg-muted\\/50');
+      const varNames = screen.getAllByText('x');
+      const varName = varNames.find((el) => el.tagName === 'CODE');
+      expect(varName).toBeDefined();
+      const varRow = varName?.closest('.hover\\:bg-muted\\/50');
       expect(varRow).toHaveClass('cursor-pointer');
     });
 
@@ -321,8 +338,10 @@ describe('VariableInspector', () => {
       const variables = createMockVariables();
       renderWithIntl(<VariableInspector variables={variables} />);
 
-      const varName = screen.getByText('x');
-      const varRow = varName.closest('.hover\\:bg-muted\\/50');
+      const varNames = screen.getAllByText('x');
+      const varName = varNames.find((el) => el.tagName === 'CODE');
+      expect(varName).toBeDefined();
+      const varRow = varName?.closest('.hover\\:bg-muted\\/50');
       expect(varRow).not.toHaveClass('cursor-pointer');
     });
   });

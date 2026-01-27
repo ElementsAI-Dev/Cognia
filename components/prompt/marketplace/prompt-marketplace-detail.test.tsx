@@ -9,6 +9,10 @@ import type { MarketplacePrompt } from '@/types/content/prompt-marketplace';
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useFormatter: () => ({
+    dateTime: (_date: Date) => '2024-01-01',
+    relativeTime: (_date: Date) => '2 days ago',
+  }),
 }));
 
 // Mock store
@@ -19,11 +23,34 @@ jest.mock('@/stores/prompt/prompt-marketplace-store', () => ({
       isFavorite: jest.fn().mockReturnValue(false),
       addToFavorites: jest.fn(),
       removeFromFavorites: jest.fn(),
-      installPrompt: jest.fn(),
+      installPrompt: jest.fn().mockResolvedValue(undefined),
+      uninstallPrompt: jest.fn(),
       recordView: jest.fn(),
+      fetchPromptReviews: jest.fn().mockResolvedValue([]),
+      submitReview: jest.fn().mockResolvedValue(undefined),
+      markReviewHelpful: jest.fn().mockResolvedValue(undefined),
+      userActivity: {
+        installed: [],
+        favorites: [],
+        reviewed: [],
+        recentlyViewed: [],
+      },
     };
     return selector(state);
   },
+}));
+
+// Mock sonner toast
+jest.mock('@/components/ui/sonner', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+// Mock PromptPreviewDialog to avoid nested dependencies
+jest.mock('./prompt-preview-dialog', () => ({
+  PromptPreviewDialog: () => <div data-testid="preview-dialog">Preview</div>,
 }));
 
 // Mock UI components

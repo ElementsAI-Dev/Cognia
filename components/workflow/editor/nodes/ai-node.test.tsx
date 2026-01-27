@@ -114,7 +114,8 @@ describe('AINode', () => {
     };
 
     render(<AINode data={noModelData} selected={false} />);
-    expect(screen.queryByTestId('badge')).not.toBeInTheDocument();
+    // Model badge not rendered, but temperature badge still exists
+    expect(screen.queryByText('gpt-4')).not.toBeInTheDocument();
   });
 
   it('does not render temperature when not set', () => {
@@ -151,7 +152,9 @@ describe('AINode integration tests', () => {
     render(<AINode data={minimalData} selected={false} />);
 
     expect(screen.getByText('AI Assistant')).toBeInTheDocument();
-    expect(screen.queryByTestId('badge')).not.toBeInTheDocument();
+    // No model, temp, or response format badges
+    expect(screen.queryByText('gpt-4')).not.toBeInTheDocument();
+    expect(screen.queryByText(/T:/)).not.toBeInTheDocument();
   });
 
   it('handles AI node with different models', () => {

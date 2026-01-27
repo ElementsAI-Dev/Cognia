@@ -186,13 +186,14 @@ describe('PromptOptimizerDialog', () => {
 
   it('displays style options', () => {
     render(<PromptOptimizerDialog {...defaultProps} />);
-    expect(screen.getByText('Concise')).toBeInTheDocument();
-    expect(screen.getByText('Detailed')).toBeInTheDocument();
-    expect(screen.getByText('Creative')).toBeInTheDocument();
-    expect(screen.getByText('Professional')).toBeInTheDocument();
-    expect(screen.getByText('Academic')).toBeInTheDocument();
-    expect(screen.getByText('Technical')).toBeInTheDocument();
-    expect(screen.getByText('Custom')).toBeInTheDocument();
+    // Style labels are returned as lowercase keys since mock doesn't have full translations
+    expect(screen.getByText('concise')).toBeInTheDocument();
+    expect(screen.getByText('detailed')).toBeInTheDocument();
+    expect(screen.getByText('creative')).toBeInTheDocument();
+    expect(screen.getByText('professional')).toBeInTheDocument();
+    expect(screen.getByText('academic')).toBeInTheDocument();
+    expect(screen.getByText('technical')).toBeInTheDocument();
+    expect(screen.getByText('custom')).toBeInTheDocument();
   });
 
   it('displays preserve intent toggle', () => {
@@ -245,8 +246,9 @@ describe('PromptOptimizerDialog', () => {
 
   it('displays style descriptions', () => {
     render(<PromptOptimizerDialog {...defaultProps} />);
-    expect(screen.getByText('Shorter and more direct')).toBeInTheDocument();
-    expect(screen.getByText('More context and specificity')).toBeInTheDocument();
+    // Style descriptions are returned as keys since mock doesn't have full translations
+    expect(screen.getByText('conciseDesc')).toBeInTheDocument();
+    expect(screen.getByText('detailedDesc')).toBeInTheDocument();
   });
 
   it('shows no prompt message when prompt is empty', () => {

@@ -252,6 +252,85 @@ function convertToSubAgentResult(agentResult: AgentResult): SubAgentResult {
   };
 }
 
+// =============================================================================
+// Context Isolation (Claude Best Practice)
+// Prevent context pollution by summarizing results before returning to parent.
+// =============================================================================
+
+/**
+ * Default summarization prompt for sub-agent results
+ */
+const DEFAULT_SUMMARIZATION_PROMPT = `Summarize the following sub-agent execution result concisely. 
+Focus on:
+1. Key findings and conclusions
+2. Important data or metrics discovered
+3. Actions taken and their outcomes
+4. Any warnings or issues encountered
+
+Keep the summary focused and actionable for the parent agent.
+Omit verbose details, intermediate steps, and raw data dumps.
+
+Sub-agent result to summarize:
+{{result}}
+
+Provide a concise summary (max {{maxTokens}} tokens):`;
+
+/**
+ * Estimate token count for a string (rough approximation)
+ */
+function estimateTokens(text: string): number {
+  // Rough estimate: 1 token ≈ 4 characters
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Summarize sub-agent result to prevent context pollution
+ * This implements Claude's recommendation for context isolation in multi-agent systems
+ */
+export async function summarizeSubAgentResult(
+  result: SubAgentResult,
+  config: SubAgentConfig,
+  executorConfig: SubAgentExecutorConfig
+): Promise<string> {
+  const maxTokens = config.maxResultTokens ?? 500;
+  const originalResponse = result.finalResponse;
+  
+  // If response is already short enough, return as-is
+  const estimatedTokens = estimateTokens(originalResponse);
+  if (estimatedTokens <= maxTokens) {
+    return originalResponse;
+  }
+  
+  // Build summarization prompt
+  const prompt = (config.summarizationPrompt || DEFAULT_SUMMARIZATION_PROMPT)
+    .replace('{{result}}', originalResponse.slice(0, 8000)) // Limit input to avoid token overflow
+    .replace('{{maxTokens}}', maxTokens.toString());
+  
+  try {
+    const { generateText } = await import('ai');
+    const { getProviderModel } = await import('../core/client');
+    
+    const modelInstance = getProviderModel(
+      executorConfig.provider,
+      executorConfig.model,
+      executorConfig.apiKey,
+      executorConfig.baseURL
+    );
+    
+    const summaryResult = await generateText({
+      model: modelInstance,
+      prompt,
+      temperature: 0.3, // Lower temperature for consistent summarization
+    });
+    
+    return summaryResult.text || originalResponse.slice(0, maxTokens * 4);
+  } catch (error) {
+    // Fallback to simple truncation if summarization fails
+    console.warn('[SubAgent] Result summarization failed, using truncation:', error);
+    return originalResponse.slice(0, maxTokens * 4) + '\n\n[Result truncated for context efficiency]';
+  }
+}
+
 /**
  * Execute a single sub-agent
  */
@@ -374,6 +453,22 @@ export async function executeSubAgent(
     // Convert result
     const result = convertToSubAgentResult(agentResult);
     result.duration = Date.now() - startTime;
+
+    // Apply context isolation: summarize results if configured (Claude Best Practice)
+    if (result.success && subAgent.config.summarizeResults) {
+      try {
+        const summarizedResponse = await summarizeSubAgentResult(
+          result,
+          subAgent.config,
+          executorConfig
+        );
+        result.finalResponse = summarizedResponse;
+        addLog(subAgent, 'debug', 'Result summarized for context isolation');
+      } catch (summarizeError) {
+        addLog(subAgent, 'warn', `Result summarization failed: ${summarizeError}`);
+        // Continue with original response if summarization fails
+      }
+    }
 
     // Update sub-agent state
     subAgent.result = result;

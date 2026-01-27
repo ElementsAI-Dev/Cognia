@@ -57,6 +57,7 @@ describe('WorkflowResultCard', () => {
     progress: 100,
     startedAt: new Date(Date.now() - 60000),
     completedAt: new Date(),
+    input: { message: 'test input' },
     output: { result: 'success' },
   };
 
@@ -119,13 +120,11 @@ describe('WorkflowResultCard', () => {
   it('calls onRerun when rerun button is clicked', () => {
     render(<WorkflowResultCard {...defaultProps} />);
     
-    const buttons = screen.getAllByRole('button');
-    const rerunButton = buttons.find(btn => btn.textContent?.includes('Rerun') || btn.querySelector('svg'));
+    // Find the Re-run button by its text content (case insensitive, with hyphen)
+    const rerunButton = screen.getByText(/Re-run/i);
+    fireEvent.click(rerunButton);
     
-    if (rerunButton) {
-      fireEvent.click(rerunButton);
-      expect(defaultProps.onRerun).toHaveBeenCalled();
-    }
+    expect(defaultProps.onRerun).toHaveBeenCalledWith({ message: 'test input' });
   });
 
   it('shows progress for running workflows', () => {
@@ -138,8 +137,9 @@ describe('WorkflowResultCard', () => {
   it('displays output for completed workflows', () => {
     render(<WorkflowResultCard {...defaultProps} />);
     
-    // The output should be visible when expanded
-    expect(screen.getByText(/"result":\s*"success"/)).toBeInTheDocument();
+    // The output should be visible (appears in preview and expanded section)
+    const outputElements = screen.getAllByText(/result.*success/i);
+    expect(outputElements.length).toBeGreaterThan(0);
   });
 
   it('applies custom className', () => {

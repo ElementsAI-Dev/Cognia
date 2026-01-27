@@ -7,6 +7,24 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ImageCropper } from './image-cropper';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      aspectRatio: 'Aspect',
+      loading: 'Loading image...',
+      crop: 'Crop',
+      rotation: 'Rotation',
+      flippedH: 'Flipped H',
+      flippedV: 'Flipped V',
+      reset: 'Reset',
+      apply: 'Apply',
+      cancel: 'Cancel',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock canvas context
 const mockContext2D = {
   drawImage: jest.fn(),
@@ -85,13 +103,13 @@ describe('ImageCropper', () => {
 
     it('should show loading state initially', () => {
       render(<ImageCropper {...defaultProps} />);
-      expect(screen.getByText('Loading image...')).toBeInTheDocument();
+      expect(screen.getByText(/loading/i)).toBeInTheDocument();
     });
 
     it('should display crop dimensions after loading', async () => {
       render(<ImageCropper {...defaultProps} />);
       await waitFor(() => {
-        expect(screen.getByText(/Crop:/)).toBeInTheDocument();
+        expect(screen.getByText(/Crop:.*px/)).toBeInTheDocument();
       });
     });
   });
@@ -99,7 +117,7 @@ describe('ImageCropper', () => {
   describe('Aspect Ratio Presets', () => {
     it('should render aspect ratio preset buttons', () => {
       render(<ImageCropper {...defaultProps} />);
-      expect(screen.getByText('Aspect:')).toBeInTheDocument();
+      expect(screen.getByText(/aspect/i)).toBeInTheDocument();
     });
 
     it('should have Free aspect ratio by default', async () => {
@@ -168,7 +186,7 @@ describe('ImageCropper', () => {
       if (rotateRightButton) {
         await user.click(rotateRightButton);
         await waitFor(() => {
-          expect(screen.getByText(/Rotation: 90°/)).toBeInTheDocument();
+          expect(screen.getByText(/rotation.*90/i)).toBeInTheDocument();
         });
       }
     });
@@ -186,7 +204,7 @@ describe('ImageCropper', () => {
       if (flipHButton) {
         await user.click(flipHButton);
         await waitFor(() => {
-          expect(screen.getByText(/Flipped H/)).toBeInTheDocument();
+          expect(screen.getByText(/flipped.*h/i)).toBeInTheDocument();
         });
       }
     });
@@ -195,12 +213,12 @@ describe('ImageCropper', () => {
   describe('Action Buttons', () => {
     it('should render Cancel button', () => {
       render(<ImageCropper {...defaultProps} />);
-      expect(screen.getByText('Cancel')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
 
     it('should render Apply button', () => {
       render(<ImageCropper {...defaultProps} />);
-      expect(screen.getByText('Apply')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /apply/i })).toBeInTheDocument();
     });
 
     it('should call onCancel when Cancel is clicked', async () => {
@@ -208,7 +226,7 @@ describe('ImageCropper', () => {
       const user = userEvent.setup();
       render(<ImageCropper {...defaultProps} onCancel={onCancel} />);
 
-      await user.click(screen.getByText('Cancel'));
+      await user.click(screen.getByRole('button', { name: /cancel/i }));
       expect(onCancel).toHaveBeenCalled();
     });
 
@@ -217,16 +235,17 @@ describe('ImageCropper', () => {
       const user = userEvent.setup();
       render(<ImageCropper {...defaultProps} onApply={onApply} />);
 
+      const applyBtn = screen.getByRole('button', { name: /apply/i });
       await waitFor(() => {
-        expect(screen.getByText('Apply')).toBeInTheDocument();
+        expect(applyBtn).toBeInTheDocument();
       });
 
       // Click the Apply button - the callback may not be called in test environment
       // because the image ref is not properly loaded in JSDOM
-      await user.click(screen.getByText('Apply'));
+      await user.click(applyBtn);
       
       // Just verify the button is clickable - actual callback requires real image loading
-      expect(screen.getByText('Apply')).toBeEnabled();
+      expect(applyBtn).toBeEnabled();
     });
   });
 

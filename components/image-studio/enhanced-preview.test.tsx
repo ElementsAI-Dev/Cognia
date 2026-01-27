@@ -27,6 +27,19 @@ class MockImageData {
 
 global.ImageData = MockImageData as unknown as typeof ImageData;
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      noImageLoaded: 'No image loaded',
+      original: 'Original',
+      edited: 'Edited',
+      toggle: 'Toggle',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock ResizeObserver
 class MockResizeObserver {
   observe = jest.fn();
@@ -54,7 +67,7 @@ describe('EnhancedPreview', () => {
   describe('rendering', () => {
     it('should render without images', () => {
       render(<EnhancedPreview originalImage={null} editedImage={null} />);
-      expect(screen.getByText('No image loaded')).toBeInTheDocument();
+      expect(screen.getByText(/no image loaded/i)).toBeInTheDocument();
     });
 
     it('should render with images', () => {
@@ -107,8 +120,8 @@ describe('EnhancedPreview', () => {
           comparisonMode="side-by-side"
         />
       );
-      expect(screen.getByText('Original')).toBeInTheDocument();
-      expect(screen.getByText('Edited')).toBeInTheDocument();
+      expect(screen.getByText(/original/i)).toBeInTheDocument();
+      expect(screen.getByText(/edited/i)).toBeInTheDocument();
     });
 
     it('should render toggle mode', () => {

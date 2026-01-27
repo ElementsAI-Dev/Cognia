@@ -191,8 +191,9 @@ describe('PromptFeedbackDialog', () => {
       // Click on the 4th star
       await user.click(buttons[3]);
       
-      // Rating label should update
-      expect(screen.getByText(/Good|rate/i)).toBeInTheDocument();
+      // Rating label should update - multiple elements may match
+      const ratingElements = screen.getAllByText(/Good|rate/i);
+      expect(ratingElements.length).toBeGreaterThan(0);
     });
   });
 

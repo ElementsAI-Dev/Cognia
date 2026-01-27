@@ -91,10 +91,13 @@ describe('LoopNode', () => {
     const noIteratorData: LoopNodeData = {
       ...mockData,
       iteratorVariable: undefined,
+      collection: 'data', // Use different collection name to avoid 'item' match
+      condition: 'x > 0', // Use different condition to avoid 'item' match
     };
 
     render(<LoopNode data={noIteratorData} selected={false} />);
-    expect(screen.queryByText(/item/)).not.toBeInTheDocument();
+    // Check iterator variable is not shown as a standalone element
+    expect(screen.queryByText('Iterator:')).not.toBeInTheDocument();
   });
 
   it('does not render collection when not set', () => {

@@ -20,6 +20,8 @@ const mockOpenModal = jest.fn();
 const mockCreateSession = jest.fn();
 const mockSetActiveSession = jest.fn();
 
+const mockToggleSimplifiedMode = jest.fn();
+
 jest.mock('@/stores', () => ({
   useUIStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
@@ -36,6 +38,12 @@ jest.mock('@/stores', () => ({
       sessions: [{ id: 'session-1' }, { id: 'session-2' }],
       activeSessionId: 'session-1',
       setActiveSession: mockSetActiveSession,
+    };
+    return selector(state);
+  },
+  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      toggleSimplifiedMode: mockToggleSimplifiedMode,
     };
     return selector(state);
   },

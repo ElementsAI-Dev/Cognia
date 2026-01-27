@@ -161,6 +161,10 @@ export const useSkillStore = create<SkillState>()(
           createdAt: now,
           updatedAt: now,
           usageCount: 0,
+          // MCP Tool Association (Claude Best Practice)
+          associatedMcpServers: input.associatedMcpServers,
+          recommendedTools: input.recommendedTools,
+          toolMatchKeywords: input.toolMatchKeywords,
         };
 
         // Validate the skill
@@ -198,6 +202,10 @@ export const useSkillStore = create<SkillState>()(
             resources: updates.resources ?? skill.resources,
             status: updates.status ?? skill.status,
             updatedAt: new Date(),
+            // MCP Tool Association updates
+            associatedMcpServers: updates.associatedMcpServers ?? skill.associatedMcpServers,
+            recommendedTools: updates.recommendedTools ?? skill.recommendedTools,
+            toolMatchKeywords: updates.toolMatchKeywords ?? skill.toolMatchKeywords,
           };
 
           // Re-validate after update

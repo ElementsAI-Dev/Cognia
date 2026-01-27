@@ -62,6 +62,9 @@ export const createSettingsStoreState = (overrides = {}) => ({
   providerSettings: { openai: { enabled: true, apiKey: 'test' } },
   theme: 'dark',
   language: 'en',
+  simplifiedModeSettings: { enabled: false, preset: 'default' },
+  autoRouterSettings: { showRoutingIndicator: false },
+  addAlwaysAllowedTool: jest.fn(),
   backgroundSettings: {
     mode: 'single' as const,
     layers: [

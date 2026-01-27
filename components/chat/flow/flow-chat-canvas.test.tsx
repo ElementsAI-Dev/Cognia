@@ -62,7 +62,19 @@ jest.mock('./flow-keyboard-shortcuts', () => ({
   FlowKeyboardShortcuts: () => <div data-testid="flow-keyboard-shortcuts" />,
 }));
 
-// Mock translations
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      emptyCanvas: 'Start a conversation',
+      emptyCanvasHint: 'Type a message to begin',
+    };
+    return translations[key] || key;
+  },
+  NextIntlClientProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock translations for NextIntlClientProvider
 const messages = {
   flowChat: {
     emptyCanvas: 'Start a conversation',

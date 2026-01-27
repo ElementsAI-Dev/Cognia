@@ -98,7 +98,7 @@ describe('SandboxFileExplorer', () => {
 
   it('should render the files header', () => {
     render(<SandboxFileExplorer files={mockFiles} />);
-    expect(screen.getByText('Files')).toBeInTheDocument();
+    expect(screen.getByText('files')).toBeInTheDocument();
   });
 
   it('should render add file button', () => {
@@ -249,7 +249,7 @@ describe('SandboxFileExplorer callbacks', () => {
   it('should call onFileCreate when provided', () => {
     const onFileCreate = jest.fn();
     render(<SandboxFileExplorer files={mockFiles} onFileCreate={onFileCreate} />);
-    expect(screen.getByText('Files')).toBeInTheDocument();
+    expect(screen.getByText('files')).toBeInTheDocument();
   });
 
   it('should call onFileDelete when provided', () => {
@@ -262,7 +262,7 @@ describe('SandboxFileExplorer callbacks', () => {
 describe('SandboxFileExplorer empty state', () => {
   it('should render with empty files', () => {
     render(<SandboxFileExplorer files={{}} />);
-    expect(screen.getByText('Files')).toBeInTheDocument();
+    expect(screen.getByText('files')).toBeInTheDocument();
   });
 });
 

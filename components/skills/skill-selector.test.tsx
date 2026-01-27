@@ -111,15 +111,15 @@ describe('SkillSelector', () => {
     it('displays skill names', () => {
       renderWithProviders(<SkillSelector onSkillsChange={mockOnSkillsChange} />);
 
-      expect(screen.getByText('skill-one')).toBeInTheDocument();
-      expect(screen.getByText('skill-two')).toBeInTheDocument();
+      expect(screen.getAllByText('skill-one').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('skill-two').length).toBeGreaterThan(0);
     });
 
     it('displays skill descriptions', () => {
       renderWithProviders(<SkillSelector onSkillsChange={mockOnSkillsChange} />);
 
-      expect(screen.getByText('First test skill')).toBeInTheDocument();
-      expect(screen.getByText('Second test skill')).toBeInTheDocument();
+      expect(screen.getAllByText('First test skill').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Second test skill').length).toBeGreaterThan(0);
     });
 
     it('does not display disabled skills', () => {
@@ -134,7 +134,7 @@ describe('SkillSelector', () => {
       const searchInput = screen.getByPlaceholderText(/search skills/i);
       fireEvent.change(searchInput, { target: { value: 'one' } });
 
-      expect(screen.getByText('skill-one')).toBeInTheDocument();
+      expect(screen.getAllByText('skill-one').length).toBeGreaterThan(0);
       expect(screen.queryByText('skill-two')).not.toBeInTheDocument();
     });
 
@@ -145,13 +145,14 @@ describe('SkillSelector', () => {
       fireEvent.change(searchInput, { target: { value: 'productivity' } });
 
       expect(screen.queryByText('skill-one')).not.toBeInTheDocument();
-      expect(screen.getByText('skill-two')).toBeInTheDocument();
+      expect(screen.getAllByText('skill-two').length).toBeGreaterThan(0);
     });
 
     it('activates skill when clicked', () => {
       renderWithProviders(<SkillSelector onSkillsChange={mockOnSkillsChange} />);
 
-      const skillButton = screen.getByText('skill-one').closest('button');
+      const skillButtons = screen.getAllByText('skill-one');
+      const skillButton = skillButtons[0].closest('button');
       fireEvent.click(skillButton!);
 
       expect(mockActivateSkill).toHaveBeenCalledWith('skill-1');
@@ -160,7 +161,8 @@ describe('SkillSelector', () => {
     it('calls onSkillsChange when skill is activated', () => {
       renderWithProviders(<SkillSelector onSkillsChange={mockOnSkillsChange} />);
 
-      const skillButton = screen.getByText('skill-one').closest('button');
+      const skillButtons = screen.getAllByText('skill-one');
+      const skillButton = skillButtons[0].closest('button');
       fireEvent.click(skillButton!);
 
       expect(mockOnSkillsChange).toHaveBeenCalled();
@@ -263,7 +265,8 @@ describe('SkillSelector', () => {
 
       renderWithProviders(<SkillSelector onSkillsChange={mockOnSkillsChange} maxSkills={1} />);
 
-      const skillButton = screen.getByText('skill-two').closest('button');
+      const skillButtons = screen.getAllByText('skill-two');
+      const skillButton = skillButtons[0].closest('button');
       fireEvent.click(skillButton!);
 
       expect(mockActivateSkill).not.toHaveBeenCalled();

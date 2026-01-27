@@ -229,9 +229,9 @@ describe('ScreenshotEditor', () => {
         />
       );
 
-      // Should show loading spinner
-      const spinner = container.querySelector('.animate-spin');
-      expect(spinner).toBeTruthy();
+      // Should show loading skeleton (Skeleton uses animate-pulse)
+      const skeleton = container.querySelector('.animate-pulse');
+      expect(skeleton).toBeTruthy();
     });
 
     it('should render editor after image loads', async () => {
@@ -246,8 +246,8 @@ describe('ScreenshotEditor', () => {
       );
 
       await waitFor(() => {
-        const spinner = container.querySelector('.animate-spin');
-        expect(spinner).toBeFalsy();
+        const skeleton = container.querySelector('.animate-pulse');
+        expect(skeleton).toBeFalsy();
       });
     });
 
@@ -336,11 +336,11 @@ describe('ScreenshotEditor', () => {
 
       // Wait for loading to complete and size info to render
       await waitFor(() => {
-        expect(container.querySelector('.animate-spin')).toBeFalsy();
+        expect(container.querySelector('.animate-pulse')).toBeFalsy();
       });
 
       await waitFor(() => {
-        expect(container.textContent).toContain('1 个标注');
+        expect(container.textContent).toContain('1 annotation(s)');
       });
     });
 
@@ -923,8 +923,8 @@ describe('ScreenshotEditor', () => {
       );
 
       await waitFor(() => {
-        const spinner = container.querySelector('.animate-spin');
-        expect(spinner).toBeFalsy();
+        const skeleton = container.querySelector('.animate-pulse');
+        expect(skeleton).toBeFalsy();
       });
     });
 
@@ -1010,7 +1010,7 @@ describe('ScreenshotEditor', () => {
       );
 
       await waitFor(() => {
-        expect(container.textContent).not.toContain('个标注');
+        expect(container.textContent).not.toContain('annotation(s)');
       });
     });
 
@@ -1052,7 +1052,7 @@ describe('ScreenshotEditor', () => {
       );
 
       await waitFor(() => {
-        expect(container.textContent).toContain('3 个标注');
+        expect(container.textContent).toContain('3 annotation(s)');
       });
     });
   });

@@ -1,11 +1,143 @@
 /**
- * Tests for custom theme integration in export functionality
- * 
- * These tests verify the custom theme data flow and integration points.
- * Full component testing requires complex mocking of many dependencies.
+ * Tests for BeautifulExportDialog component and custom theme integration
  */
 
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import { BeautifulExportDialog } from './beautiful-export-dialog';
 import { getSyntaxTheme, type SyntaxTheme } from '@/lib/export/syntax-themes';
+import type { Session } from '@/types';
+
+// Mock the message repository
+jest.mock('@/lib/db', () => ({
+  messageRepository: {
+    getBySessionId: jest.fn().mockResolvedValue([
+      {
+        id: 'msg-1',
+        role: 'user',
+        content: 'Hello',
+        createdAt: new Date(),
+        tokens: { total: 10 },
+      },
+      {
+        id: 'msg-2',
+        role: 'assistant',
+        content: 'Hi there!',
+        createdAt: new Date(),
+        tokens: { total: 20 },
+      },
+    ]),
+  },
+}));
+
+// Mock exports
+jest.mock('@/lib/export', () => ({
+  exportToBeautifulHTML: jest.fn().mockReturnValue('<!DOCTYPE html>'),
+  downloadFile: jest.fn(),
+  generateFilename: jest.fn().mockReturnValue('test.html'),
+}));
+
+jest.mock('@/lib/export/beautiful-html', () => ({
+  exportToBeautifulHTML: jest.fn().mockReturnValue('<!DOCTYPE html>'),
+}));
+
+jest.mock('@/lib/export/beautiful-pdf', () => ({
+  exportToBeautifulPDF: jest.fn().mockResolvedValue(undefined),
+}));
+
+// Mock custom theme store
+jest.mock('@/stores/settings', () => ({
+  useCustomThemeStore: () => ({
+    customThemes: [],
+    deleteTheme: jest.fn(),
+  }),
+}));
+
+// Mock sub-components
+jest.mock('./custom-theme-editor', () => ({
+  CustomThemeEditor: () => null,
+}));
+
+jest.mock('./social-share-dialog', () => ({
+  SocialShareDialog: () => <button>Share</button>,
+}));
+
+jest.mock('./image-export-dialog', () => ({
+  ImageExportDialog: () => <button>Image</button>,
+}));
+
+const mockSession = {
+  id: 'test-session',
+  title: 'Test Conversation',
+  provider: 'openai',
+  model: 'gpt-4',
+  mode: 'chat',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+} as Session;
+
+const messages = {
+  export: {
+    title: 'Export Conversation',
+    description: 'Choose format and customize export options',
+    exportNow: 'Export',
+    format: 'Format',
+    options: 'Options',
+    theme: 'Theme',
+    light: 'Light',
+    dark: 'Dark',
+    auto: 'Auto',
+    display: 'Display',
+    showTimestamps: 'Show Timestamps',
+    showTimestampsDesc: 'Include message timestamps',
+    showTokenCount: 'Show Token Count',
+    showTokenCountDesc: 'Display token usage',
+    showThinking: 'Show Thinking',
+    showThinkingDesc: 'Include AI thinking process',
+    showToolCalls: 'Show Tool Calls',
+    showToolCallsDesc: 'Include tool call details',
+    document: 'Document',
+    coverPage: 'Cover Page',
+    coverPageDesc: 'Include a cover page',
+    tableOfContents: 'Table of Contents',
+    tableOfContentsDesc: 'Generate table of contents',
+    codeTheme: 'Code Theme',
+    custom: 'Custom',
+    yourThemes: 'Your Themes',
+    builtInThemes: 'Built-in Themes',
+    moreThemes: '+{count} more themes',
+    syntaxHighlighting: 'Syntax Highlighting',
+    syntaxHighlightingDesc: 'Highlight code blocks',
+    compactMode: 'Compact Mode',
+    compactModeDesc: 'Reduce spacing',
+    exportSummary: 'Export Summary',
+    messages: 'Messages',
+    tokens: 'Tokens',
+    user: 'User',
+    assistant: 'Assistant',
+    preview: 'Preview',
+    previewNotAvailable: 'Preview not available',
+    exportToSeeResult: 'Export to see result',
+    cancel: 'Cancel',
+    exporting: 'Exporting...',
+    exportFormat: 'Export {ext}',
+    exportedAs: 'Exported as {format}',
+    share: 'Share',
+    imageFormatShare: 'Image',
+    openInGoogleSheets: 'Open in Google Sheets',
+    googleSheetsHint: 'Export CSV and open in Google Sheets',
+    wordOptions: 'Word Options',
+  },
+};
+
+const renderWithProviders = (ui: React.ReactElement) => {
+  return render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {ui}
+    </NextIntlClientProvider>
+  );
+};
 
 // Sample custom theme for testing
 const customTheme: SyntaxTheme = {
@@ -32,6 +164,92 @@ const customTheme: SyntaxTheme = {
     lineHighlight: '#2c313c',
   },
 };
+
+describe('BeautifulExportDialog Component', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should render trigger button', () => {
+    renderWithProviders(<BeautifulExportDialog session={mockSession} />);
+    
+    expect(screen.getByRole('button')).toBeInTheDocument();
+    expect(screen.getByText('Export')).toBeInTheDocument();
+  });
+
+  it('should render custom trigger when provided', () => {
+    renderWithProviders(
+      <BeautifulExportDialog
+        session={mockSession}
+        trigger={<button data-testid="custom-trigger">Custom Export</button>}
+      />
+    );
+    
+    expect(screen.getByTestId('custom-trigger')).toBeInTheDocument();
+  });
+
+  it('should open dialog when trigger is clicked', async () => {
+    renderWithProviders(<BeautifulExportDialog session={mockSession} />);
+    
+    fireEvent.click(screen.getByRole('button'));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Export Conversation')).toBeInTheDocument();
+    });
+  });
+
+  it('should display format and options tabs', async () => {
+    renderWithProviders(<BeautifulExportDialog session={mockSession} />);
+    
+    fireEvent.click(screen.getByRole('button'));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Format')).toBeInTheDocument();
+      expect(screen.getByText('Options')).toBeInTheDocument();
+    });
+  });
+
+  it('should display export summary after loading messages', async () => {
+    renderWithProviders(<BeautifulExportDialog session={mockSession} />);
+    
+    fireEvent.click(screen.getByRole('button'));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Export Summary')).toBeInTheDocument();
+    });
+  });
+
+  it('should display preview section', async () => {
+    renderWithProviders(<BeautifulExportDialog session={mockSession} />);
+    
+    fireEvent.click(screen.getByRole('button'));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Preview')).toBeInTheDocument();
+    });
+  });
+
+  it('should have Cancel button', async () => {
+    renderWithProviders(<BeautifulExportDialog session={mockSession} />);
+    
+    fireEvent.click(screen.getByRole('button'));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Cancel')).toBeInTheDocument();
+    });
+  });
+
+  it('should have Share and Image buttons', async () => {
+    renderWithProviders(<BeautifulExportDialog session={mockSession} />);
+    
+    fireEvent.click(screen.getByRole('button'));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Share')).toBeInTheDocument();
+      expect(screen.getByText('Image')).toBeInTheDocument();
+    });
+  });
+});
 
 describe('Custom theme integration with export', () => {
   describe('getSyntaxTheme with custom themes', () => {

@@ -99,6 +99,21 @@ jest.mock('sonner', () => ({
   },
 }));
 
+// Mock hooks/ui to avoid langfuse import
+jest.mock('@/hooks/ui', () => ({
+  useSelectionToolbar: () => ({
+    isVisible: false,
+    position: { x: 0, y: 0 },
+    selectedText: '',
+    show: jest.fn(),
+    hide: jest.fn(),
+  }),
+  useCopy: () => ({
+    copy: jest.fn(),
+    isCopying: false,
+  }),
+}));
+
 // Mock messages
 const mockMessages: UIMessage[] = [
   {

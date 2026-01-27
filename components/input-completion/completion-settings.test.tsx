@@ -10,15 +10,33 @@ import { DEFAULT_COMPLETION_CONFIG } from '@/types/input-completion';
 const mockUpdateConfig = jest.fn().mockResolvedValue(undefined);
 const mockStart = jest.fn().mockResolvedValue(undefined);
 const mockStop = jest.fn().mockResolvedValue(undefined);
+const mockGetStats = jest.fn().mockResolvedValue({
+  total_requests: 100,
+  successful_completions: 85,
+  failed_completions: 15,
+  avg_latency_ms: 150,
+  cache_hit_rate: 0.25,
+});
+const mockResetStats = jest.fn().mockResolvedValue(undefined);
+const mockClearCache = jest.fn().mockResolvedValue(undefined);
+const mockTestConnection = jest.fn().mockResolvedValue({
+  suggestions: [{ id: 'test', text: 'test' }],
+  latency_ms: 120,
+});
 
 const mockConfig = { ...DEFAULT_COMPLETION_CONFIG };
 
-let mockHookState = {
+let mockHookState: Record<string, unknown> = {
   config: mockConfig,
   updateConfig: mockUpdateConfig,
   isRunning: false,
   start: mockStart,
   stop: mockStop,
+  getStats: mockGetStats,
+  resetStats: mockResetStats,
+  clearCache: mockClearCache,
+  testConnection: mockTestConnection,
+  isLoading: false,
 };
 
 jest.mock('@/hooks/input-completion', () => ({
@@ -90,18 +108,13 @@ jest.mock('@/components/ui/slider', () => ({
 }));
 
 jest.mock('@/components/ui/select', () => ({
-  Select: ({ children, value, onValueChange }: {
+  Select: ({ children, value }: {
     children: React.ReactNode;
     value?: string;
     onValueChange?: (value: string) => void;
   }) => (
     <div data-testid="select" data-value={value}>
-      {React.Children.map(children, (child) => {
-        if (React.isValidElement(child) && child.type.name === 'SelectTrigger') {
-          return React.cloneElement(child as React.ReactElement, { onValueChange });
-        }
-        return child;
-      })}
+      {children}
     </div>
   ),
   SelectContent: ({ children }: { children: React.ReactNode }) => <div data-testid="select-content">{children}</div>,
@@ -110,8 +123,8 @@ jest.mock('@/components/ui/select', () => ({
       {children}
     </option>
   ),
-  SelectTrigger: ({ children, onValueChange }: { children: React.ReactNode; onValueChange?: (value: string) => void }) => (
-    <button data-testid="select-trigger" onClick={() => onValueChange?.('test-value')}>
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+    <button data-testid="select-trigger">
       {children}
     </button>
   ),
@@ -168,6 +181,22 @@ jest.mock('@/components/ui/button', () => ({
 }));
 
 describe('CompletionSettings', () => {
+  // Suppress console.error for act() warnings in async state updates
+  const originalError = console.error;
+
+  beforeAll(() => {
+    console.error = (...args: unknown[]) => {
+      if (typeof args[0] === 'string' && args[0].includes('not wrapped in act')) {
+        return;
+      }
+      originalError.call(console, ...args);
+    };
+  });
+
+  afterAll(() => {
+    console.error = originalError;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset mock hook state
@@ -177,6 +206,11 @@ describe('CompletionSettings', () => {
       isRunning: false,
       start: mockStart,
       stop: mockStop,
+      getStats: mockGetStats,
+      resetStats: mockResetStats,
+      clearCache: mockClearCache,
+      testConnection: mockTestConnection,
+      isLoading: false,
     };
   });
 
@@ -600,6 +634,149 @@ describe('CompletionSettings', () => {
       // Save button should be enabled after change
       const saveButton = screen.getByText('Save Changes').closest('button');
       expect(saveButton).not.toBeDisabled();
+    });
+  });
+
+  describe('Statistics Section', () => {
+    it('displays statistics section header', async () => {
+      render(<CompletionSettings />);
+      await waitFor(() => {
+        expect(screen.getByText('Statistics')).toBeInTheDocument();
+      });
+    });
+
+    it('displays no statistics message when getStats returns null', async () => {
+      mockGetStats.mockResolvedValueOnce(null);
+
+      render(<CompletionSettings />);
+
+      // Initially shows no stats message before async load
+      expect(screen.getByText('No statistics available')).toBeInTheDocument();
+    });
+
+    it('displays stats after they are loaded', async () => {
+      render(<CompletionSettings />);
+
+      await waitFor(() => {
+        expect(mockGetStats).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Total Requests:')).toBeInTheDocument();
+      });
+    });
+
+    it('displays reset stats button', async () => {
+      render(<CompletionSettings />);
+      await waitFor(() => {
+        expect(screen.getByText('Reset Stats')).toBeInTheDocument();
+      });
+    });
+
+    it('displays clear cache button', async () => {
+      render(<CompletionSettings />);
+      await waitFor(() => {
+        expect(screen.getByText('Clear Cache')).toBeInTheDocument();
+      });
+    });
+
+    it('calls resetStats when reset stats button is clicked', async () => {
+      render(<CompletionSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Reset Stats')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Reset Stats'));
+
+      await waitFor(() => {
+        expect(mockResetStats).toHaveBeenCalled();
+      });
+    });
+
+    it('calls clearCache when clear cache button is clicked', async () => {
+      render(<CompletionSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Clear Cache')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Clear Cache'));
+
+      await waitFor(() => {
+        expect(mockClearCache).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Connection Test Section', () => {
+    it('displays connection test section header', async () => {
+      render(<CompletionSettings />);
+      await waitFor(() => {
+        expect(screen.getByText('Connection Test')).toBeInTheDocument();
+      });
+    });
+
+    it('displays test connection button', async () => {
+      render(<CompletionSettings />);
+      await waitFor(() => {
+        expect(screen.getByText('Test Connection')).toBeInTheDocument();
+      });
+    });
+
+    it('calls testConnection when test button is clicked', async () => {
+      render(<CompletionSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Connection')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Test Connection'));
+
+      await waitFor(() => {
+        expect(mockTestConnection).toHaveBeenCalled();
+      });
+    });
+
+    it('shows success message after successful connection test', async () => {
+      render(<CompletionSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Connection')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Test Connection'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Success/)).toBeInTheDocument();
+      });
+    });
+
+    it('shows error message after failed connection test', async () => {
+      mockTestConnection.mockResolvedValueOnce({ suggestions: [], latency_ms: 0 });
+
+      render(<CompletionSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Connection')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Test Connection'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Connection failed')).toBeInTheDocument();
+      });
+    });
+
+    it('disables test button when loading', async () => {
+      mockHookState = { ...mockHookState, isLoading: true };
+
+      render(<CompletionSettings />);
+
+      await waitFor(() => {
+        const testButton = screen.getByText('Test Connection').closest('button');
+        expect(testButton).toBeDisabled();
+      });
     });
   });
 });

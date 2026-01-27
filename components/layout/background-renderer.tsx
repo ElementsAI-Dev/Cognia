@@ -120,10 +120,21 @@ export function BackgroundRenderer() {
           if (existingUrl) nextMap[assetId] = existingUrl;
         }
 
+        // Revoke URLs no longer needed
         for (const [assetId, objectUrl] of Object.entries(prev)) {
           if (!requiredAssetIds.has(assetId)) {
             URL.revokeObjectURL(objectUrl);
           }
+        }
+
+        // Avoid state update if nothing changed (prevents infinite loop)
+        const prevKeys = Object.keys(prev).sort();
+        const nextKeys = Object.keys(nextMap).sort();
+        if (
+          prevKeys.length === nextKeys.length &&
+          prevKeys.every((k, i) => k === nextKeys[i] && prev[k] === nextMap[k])
+        ) {
+          return prev;
         }
 
         return nextMap;

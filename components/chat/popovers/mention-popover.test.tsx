@@ -6,6 +6,23 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MentionPopover, MentionBadge, MentionChip } from './mention-popover';
 import type { MentionItem } from '@/types/mcp';
 
+// Mock stores
+jest.mock('@/stores', () => ({
+  useToolHistoryStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      usageStats: {},
+      settings: {
+        showRecentInPopover: false,
+        recentToolsCount: 5,
+      },
+      toggleFavorite: jest.fn(),
+      togglePinned: jest.fn(),
+    };
+    return selector(state);
+  },
+  createToolId: (provider: string, name: string, serverId: string) => `${provider}:${serverId}:${name}`,
+}));
+
 // Mock UI components - inline to avoid hoisting issues
 jest.mock('@/components/ui/command', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports

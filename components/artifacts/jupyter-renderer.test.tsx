@@ -6,6 +6,28 @@ import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { JupyterRenderer } from './jupyter-renderer';
 
+// Mock sandbox hooks to avoid infinite loop issues
+jest.mock('@/hooks/sandbox', () => ({
+  useSandbox: () => ({ isAvailable: false }),
+  useCodeExecution: () => ({
+    result: null,
+    executing: false,
+    error: null,
+    quickExecute: jest.fn(),
+    reset: jest.fn(),
+  }),
+  useSnippets: () => ({ createSnippet: jest.fn() }),
+}));
+
+jest.mock('@/hooks/sandbox/use-sandbox-db', () => ({
+  useSandboxDb: () => ({
+    snippets: [],
+    refresh: jest.fn(),
+    saveSnippet: jest.fn(),
+    deleteSnippet: jest.fn(),
+  }),
+}));
+
 // Mock clipboard API
 Object.assign(navigator, {
   clipboard: {

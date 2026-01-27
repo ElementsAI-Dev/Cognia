@@ -5,6 +5,21 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AppShell } from './app-shell';
 
+// Mock useNetworkStatus hook to prevent act() warnings from async state updates
+jest.mock('@/hooks/network/use-network-status', () => ({
+  useNetworkStatus: () => ({
+    isOnline: true,
+    isSlowConnection: false,
+    connectionType: 'wifi',
+  }),
+  __esModule: true,
+  default: () => ({
+    isOnline: true,
+    isSlowConnection: false,
+    connectionType: 'wifi',
+  }),
+}));
+
 // Mock stores
 const mockSetSidebarCollapsed = jest.fn();
 

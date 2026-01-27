@@ -386,4 +386,83 @@ describe('projectRepository', () => {
       expect(count).toBe(0);
     });
   });
+
+  describe('updateMessageCount', () => {
+    it('increases message count', async () => {
+      const project = await projectRepository.create({ name: 'Test Project' });
+
+      await projectRepository.updateMessageCount(project.id, 5);
+
+      const updated = await projectRepository.getById(project.id);
+      expect(updated?.messageCount).toBe(5);
+    });
+
+    it('decreases message count', async () => {
+      const project = await projectRepository.create({ name: 'Test Project' });
+      await projectRepository.updateMessageCount(project.id, 10);
+      await projectRepository.updateMessageCount(project.id, -3);
+
+      const updated = await projectRepository.getById(project.id);
+      expect(updated?.messageCount).toBe(7);
+    });
+
+    it('does not go below zero', async () => {
+      const project = await projectRepository.create({ name: 'Test Project' });
+      await projectRepository.updateMessageCount(project.id, -100);
+
+      const updated = await projectRepository.getById(project.id);
+      expect(updated?.messageCount).toBe(0);
+    });
+  });
+
+  describe('getKnowledgeFile', () => {
+    it('returns a single knowledge file by ID', async () => {
+      const project = await projectRepository.create({ name: 'Test Project' });
+      const file = await projectRepository.addKnowledgeFile(project.id, {
+        name: 'test.md',
+        type: 'markdown',
+        content: 'Test content',
+        size: 12,
+      });
+
+      const found = await projectRepository.getKnowledgeFile(file.id);
+
+      expect(found).toBeDefined();
+      expect(found?.name).toBe('test.md');
+      expect(found?.content).toBe('Test content');
+    });
+
+    it('returns undefined for non-existent file', async () => {
+      const found = await projectRepository.getKnowledgeFile('non-existent');
+      expect(found).toBeUndefined();
+    });
+  });
+
+  describe('getKnowledgeFilesCount', () => {
+    it('returns correct count of knowledge files', async () => {
+      const project = await projectRepository.create({ name: 'Test Project' });
+      await projectRepository.addKnowledgeFile(project.id, {
+        name: 'a.md',
+        type: 'markdown',
+        content: 'A',
+        size: 1,
+      });
+      await projectRepository.addKnowledgeFile(project.id, {
+        name: 'b.md',
+        type: 'markdown',
+        content: 'B',
+        size: 1,
+      });
+
+      const count = await projectRepository.getKnowledgeFilesCount(project.id);
+      expect(count).toBe(2);
+    });
+
+    it('returns 0 for project with no files', async () => {
+      const project = await projectRepository.create({ name: 'Test Project' });
+
+      const count = await projectRepository.getKnowledgeFilesCount(project.id);
+      expect(count).toBe(0);
+    });
+  });
 });

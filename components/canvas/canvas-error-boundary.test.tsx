@@ -59,7 +59,7 @@ describe('CanvasErrorBoundary', () => {
         <ThrowError shouldThrow={true} />
       </CanvasErrorBoundary>
     );
-    expect(screen.getByText('errorTitle')).toBeInTheDocument();
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
   });
 
   it('renders custom fallback when provided', () => {
@@ -87,7 +87,7 @@ describe('CanvasErrorBoundary', () => {
         <ThrowError shouldThrow={true} />
       </CanvasErrorBoundary>
     );
-    expect(screen.getByText('tryAgain')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
   });
 
   it('renders copy error button', () => {
@@ -96,7 +96,7 @@ describe('CanvasErrorBoundary', () => {
         <ThrowError shouldThrow={true} />
       </CanvasErrorBoundary>
     );
-    expect(screen.getByText('copyError')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Copy Error/i })).toBeInTheDocument();
   });
 
   it('renders show details button', () => {
@@ -105,7 +105,7 @@ describe('CanvasErrorBoundary', () => {
         <ThrowError shouldThrow={true} />
       </CanvasErrorBoundary>
     );
-    expect(screen.getByText('showDetails')).toBeInTheDocument();
+    expect(screen.getByText('Show Details')).toBeInTheDocument();
   });
 
   it('calls onReset when try again clicked', () => {
@@ -115,7 +115,7 @@ describe('CanvasErrorBoundary', () => {
         <ThrowError shouldThrow={true} />
       </CanvasErrorBoundary>
     );
-    fireEvent.click(screen.getByText('tryAgain'));
+    fireEvent.click(screen.getByRole('button', { name: /Try Again/i }));
     expect(onReset).toHaveBeenCalled();
   });
 });

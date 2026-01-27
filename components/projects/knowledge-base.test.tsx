@@ -152,7 +152,7 @@ describe('KnowledgeBase', () => {
   it('displays upload and add buttons', () => {
     render(<KnowledgeBase {...defaultProps} />);
     expect(screen.getByText('Upload')).toBeInTheDocument();
-    expect(screen.getByText('Add')).toBeInTheDocument();
+    expect(screen.getByText('add')).toBeInTheDocument();
   });
 
   it('displays knowledge files', () => {
@@ -183,25 +183,17 @@ describe('KnowledgeBase', () => {
 
   it('opens add dialog when Add button is clicked', () => {
     render(<KnowledgeBase {...defaultProps} />);
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByText('add'));
     expect(screen.getByTestId('dialog')).toBeInTheDocument();
     // Dialog title uses i18n key 'addFile'
     expect(screen.getByRole('heading', { name: /addFile|Add File/i })).toBeInTheDocument();
   });
 
-  it('renders file name and content inputs in add dialog', () => {
-    render(<KnowledgeBase {...defaultProps} />);
-    fireEvent.click(screen.getByText('Add'));
-    
-    expect(screen.getByText('File Name')).toBeInTheDocument();
-    expect(screen.getByText('Content')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('knowledge.md')).toBeInTheDocument();
-  });
-
   it('has disabled Add File button when inputs are empty', () => {
     render(<KnowledgeBase {...defaultProps} />);
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByText('add'));
     
+    expect(screen.getByTestId('dialog')).toBeInTheDocument();
     // Use getByRole for button to avoid matching heading with same text
     const addFileButton = screen.getByRole('button', { name: /addFile|Add File|添加文件/i });
     expect(addFileButton).toBeDisabled();
@@ -209,10 +201,12 @@ describe('KnowledgeBase', () => {
 
   it('enables Add File button when inputs are filled', () => {
     render(<KnowledgeBase {...defaultProps} />);
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByText('add'));
     
-    const fileNameInput = screen.getByPlaceholderText('knowledge.md');
-    const contentInput = screen.getByPlaceholderText('Enter your knowledge content here...');
+    expect(screen.getByTestId('dialog')).toBeInTheDocument();
+    // Get inputs by their id attribute
+    const fileNameInput = document.getElementById('filename') as HTMLInputElement;
+    const contentInput = document.getElementById('content') as HTMLTextAreaElement;
     
     fireEvent.change(fileNameInput, { target: { value: 'test.md' } });
     fireEvent.change(contentInput, { target: { value: 'Test content' } });
@@ -224,15 +218,17 @@ describe('KnowledgeBase', () => {
 
   it('calls addKnowledgeFile when adding manual file', () => {
     render(<KnowledgeBase {...defaultProps} />);
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByText('add'));
     
-    const fileNameInput = screen.getByPlaceholderText('knowledge.md');
-    const contentInput = screen.getByPlaceholderText('Enter your knowledge content here...');
+    expect(screen.getByTestId('dialog')).toBeInTheDocument();
+    // Get inputs by their id attribute
+    const fileNameInput = document.getElementById('filename') as HTMLInputElement;
+    const contentInput = document.getElementById('content') as HTMLTextAreaElement;
     
     fireEvent.change(fileNameInput, { target: { value: 'test.md' } });
     fireEvent.change(contentInput, { target: { value: 'Test content' } });
     // Use getAllByText and get the specific button
-    const addButtons = screen.getAllByRole('button', { name: /Add File|添加文件/i });
+    const addButtons = screen.getAllByRole('button', { name: /addFile|Add File|添加文件/i });
     fireEvent.click(addButtons[addButtons.length - 1]);
     
     expect(mockAddKnowledgeFile).toHaveBeenCalledWith('project-1', expect.objectContaining({

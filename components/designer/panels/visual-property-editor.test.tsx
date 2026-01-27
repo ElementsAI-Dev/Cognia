@@ -39,12 +39,12 @@ describe('VisualPropertyEditor', () => {
 
   it('renders empty state when no element selected', () => {
     renderWithProviders(<VisualPropertyEditor />);
-    expect(screen.getByText('noSelection')).toBeInTheDocument();
+    expect(screen.getByText('No element selected')).toBeInTheDocument();
   });
 
   it('renders empty state description', () => {
     renderWithProviders(<VisualPropertyEditor />);
-    expect(screen.getByText('noSelectionDesc')).toBeInTheDocument();
+    expect(screen.getByText('Select an element to edit its properties')).toBeInTheDocument();
   });
 
   it('applies custom className', () => {

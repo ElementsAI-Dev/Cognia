@@ -44,7 +44,7 @@ describe('AudioMixerPanel', () => {
   it('renders audio mixer panel with tracks', () => {
     render(<AudioMixerPanel {...defaultProps} />);
     
-    expect(screen.getByText('Audio Mixer')).toBeInTheDocument();
+    expect(screen.getByText('title')).toBeInTheDocument();
     expect(screen.getByText('Main Audio')).toBeInTheDocument();
     expect(screen.getByText('Background Music')).toBeInTheDocument();
   });
@@ -52,13 +52,13 @@ describe('AudioMixerPanel', () => {
   it('renders master volume control', () => {
     render(<AudioMixerPanel {...defaultProps} />);
     
-    expect(screen.getByText('Master')).toBeInTheDocument();
+    expect(screen.getByText('master')).toBeInTheDocument();
   });
 
   it('displays empty state when no tracks', () => {
     render(<AudioMixerPanel {...defaultProps} tracks={[]} />);
     
-    expect(screen.getByText('No audio tracks')).toBeInTheDocument();
+    expect(screen.getByText('noTracks')).toBeInTheDocument();
   });
 
   it('renders track control buttons', () => {

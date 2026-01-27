@@ -225,8 +225,9 @@ describe('SubworkflowNode styling', () => {
   it('workflow icon has correct size', () => {
     render(<SubworkflowNode {...mockProps} />);
     const icon = screen.getByTestId('workflow-icon');
-    expect(icon).toHaveClass('h-3\\.5');
-    expect(icon).toHaveClass('w-3\\.5');
+    // Class names with dots don't need escaping in toHaveClass
+    expect(icon).toHaveClass('h-3.5');
+    expect(icon).toHaveClass('w-3.5');
   });
 
   it('external link icon has muted-foreground color', () => {

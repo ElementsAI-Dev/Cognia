@@ -5,7 +5,7 @@
  * including execution history, code snippets, sessions, and statistics.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   CodeSnippet,
   CreateSnippetRequest,
@@ -179,6 +179,9 @@ export function useSnippets(options: UseSnippetsOptions = {}): UseSnippetsReturn
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Stabilize filter to prevent infinite loop from object reference changes
+  const filterKey = useMemo(() => JSON.stringify(filter), [filter]);
+
   const refresh = useCallback(async () => {
     if (!isTauri) {
       setSnippets([]);
@@ -190,14 +193,15 @@ export function useSnippets(options: UseSnippetsOptions = {}): UseSnippetsReturn
       setLoading(true);
       setError(null);
       const api = await getSandboxApi();
-      const result = await api.querySnippets(filter);
+      const stableFilter = JSON.parse(filterKey) as SnippetFilter;
+      const result = await api.querySnippets(stableFilter);
       setSnippets(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filterKey]);
 
   const createSnippet = useCallback(async (request: CreateSnippetRequest) => {
     if (!isTauri) return null;

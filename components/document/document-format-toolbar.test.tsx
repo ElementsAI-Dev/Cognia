@@ -210,4 +210,235 @@ describe('DocumentFormatToolbar', () => {
       expect(insertButton).toBeInTheDocument();
     });
   });
+
+  describe('Font Changes', () => {
+    const mockOnFontChange = jest.fn();
+    const mockOnFontColorChange = jest.fn();
+    const mockOnHighlightColorChange = jest.fn();
+
+    beforeEach(() => {
+      mockOnFontChange.mockClear();
+      mockOnFontColorChange.mockClear();
+      mockOnHighlightColorChange.mockClear();
+    });
+
+    it('should render font size select with correct props', () => {
+      renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          onFontSizeChange={mockOnFontSizeChange}
+        />
+      );
+
+      const comboboxes = screen.getAllByRole('combobox');
+      // Font size select should be present
+      expect(comboboxes.length).toBeGreaterThan(0);
+    });
+
+    it('should render font family select when not compact', () => {
+      renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          onFontChange={mockOnFontChange}
+          compact={false}
+        />
+      );
+
+      const comboboxes = screen.getAllByRole('combobox');
+      // Both font family and font size selects should be present
+      expect(comboboxes.length).toBe(2);
+    });
+
+    it('should render with custom font color in formatState', () => {
+      const formatState: FormatState = { fontColor: '#2563EB' };
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          onFontColorChange={mockOnFontColorChange}
+          formatState={formatState}
+        />
+      );
+
+      // Font color indicator should be present
+      const colorIndicators = container.querySelectorAll('[style*="background-color"]');
+      expect(colorIndicators.length).toBeGreaterThan(0);
+    });
+
+    it('should render with custom highlight color in formatState', () => {
+      const formatState: FormatState = { highlightColor: '#BBF7D0' };
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          onHighlightColorChange={mockOnHighlightColorChange}
+          formatState={formatState}
+        />
+      );
+
+      // Highlight color indicator should be present
+      const colorIndicators = container.querySelectorAll('[style*="background-color"]');
+      expect(colorIndicators.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Multiple Format Actions', () => {
+    it('should call onFormatAction with redo action', async () => {
+      renderWithProviders(
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
+      );
+
+      const buttons = screen.getAllByRole('button');
+      // Second button is redo (index 1)
+      await userEvent.click(buttons[1]);
+
+      expect(mockOnFormatAction).toHaveBeenCalledWith('redo');
+    });
+
+    it('should call onFormatAction with bold action', async () => {
+      renderWithProviders(
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
+      );
+
+      const buttons = screen.getAllByRole('button');
+      // Find a button with bold formatting (after font selects)
+      // Button order: undo, redo, [font selects], bold, italic, underline...
+      const boldButtonIndex = 2; // Adjust based on actual DOM
+      await userEvent.click(buttons[boldButtonIndex]);
+
+      expect(mockOnFormatAction).toHaveBeenCalled();
+    });
+  });
+
+  describe('Format State Active Classes', () => {
+    it('should apply active class when italic is true', () => {
+      const formatState: FormatState = { italic: true };
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          formatState={formatState}
+        />
+      );
+
+      const activeButtons = container.querySelectorAll('.bg-accent');
+      expect(activeButtons.length).toBeGreaterThan(0);
+    });
+
+    it('should apply active class when underline is true', () => {
+      const formatState: FormatState = { underline: true };
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          formatState={formatState}
+        />
+      );
+
+      const activeButtons = container.querySelectorAll('.bg-accent');
+      expect(activeButtons.length).toBeGreaterThan(0);
+    });
+
+    it('should apply active class when alignment is center', () => {
+      const formatState: FormatState = { alignment: 'center' };
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          formatState={formatState}
+        />
+      );
+
+      const activeButtons = container.querySelectorAll('.bg-accent');
+      expect(activeButtons.length).toBeGreaterThan(0);
+    });
+
+    it('should apply active class when listType is bullet', () => {
+      const formatState: FormatState = { listType: 'bullet' };
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          formatState={formatState}
+        />
+      );
+
+      const activeButtons = container.querySelectorAll('.bg-accent');
+      expect(activeButtons.length).toBeGreaterThan(0);
+    });
+
+    it('should apply active class when isQuote is true', () => {
+      const formatState: FormatState = { isQuote: true };
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          formatState={formatState}
+        />
+      );
+
+      const activeButtons = container.querySelectorAll('.bg-accent');
+      expect(activeButtons.length).toBeGreaterThan(0);
+    });
+
+    it('should apply active class when isCode is true', () => {
+      const formatState: FormatState = { isCode: true };
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          formatState={formatState}
+        />
+      );
+
+      const activeButtons = container.querySelectorAll('.bg-accent');
+      expect(activeButtons.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Font Color Display', () => {
+    it('should display current font color indicator', () => {
+      const formatState: FormatState = { fontColor: '#DC2626' };
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          formatState={formatState}
+        />
+      );
+
+      // Find color indicator elements
+      const colorIndicators = container.querySelectorAll('[style*="background-color"]');
+      expect(colorIndicators.length).toBeGreaterThan(0);
+    });
+
+    it('should display current highlight color indicator', () => {
+      const formatState: FormatState = { highlightColor: '#FEF08A' };
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          formatState={formatState}
+        />
+      );
+
+      const colorIndicators = container.querySelectorAll('[style*="background-color"]');
+      expect(colorIndicators.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Default Values', () => {
+    it('should use default font family when not provided', () => {
+      renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          compact={false}
+        />
+      );
+
+      // Default font family should be Calibri
+      const comboboxes = screen.getAllByRole('combobox');
+      expect(comboboxes[0]).toBeInTheDocument();
+    });
+
+    it('should use default font size when not provided', () => {
+      renderWithProviders(
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
+      );
+
+      // Default font size should be 11
+      const comboboxes = screen.getAllByRole('combobox');
+      expect(comboboxes.length).toBeGreaterThan(0);
+    });
+  });
 });

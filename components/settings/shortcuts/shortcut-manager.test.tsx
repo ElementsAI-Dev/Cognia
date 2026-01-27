@@ -376,7 +376,7 @@ describe('ShortcutManager', () => {
       
       render(<ShortcutManager />);
       expect(screen.getByTestId('button-destructive')).toBeInTheDocument();
-      expect(screen.getByText('1 Conflict')).toBeInTheDocument();
+      expect(screen.getAllByText('1 Conflict(s)').length).toBeGreaterThan(0);
     });
 
     it('shows plural conflicts text', () => {
@@ -400,7 +400,7 @@ describe('ShortcutManager', () => {
       );
       
       render(<ShortcutManager />);
-      expect(screen.getByText('2 Conflicts')).toBeInTheDocument();
+      expect(screen.getAllByText('2 Conflict(s)').length).toBeGreaterThan(0);
     });
 
     it('opens conflict dialog when conflict button clicked', () => {

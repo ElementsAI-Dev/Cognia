@@ -51,7 +51,7 @@ import {
   PAGE_SIZES,
   MARGIN_PRESETS,
 } from '@/types/document/document-formatting';
-import { useMediaQuery } from '@/hooks';
+import { useMediaQuery } from '@/hooks/ui/use-media-query';
 
 export interface PageLayoutSettings {
   pageSize: PageSize;

@@ -6,6 +6,22 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatWidgetHeader } from './chat-widget-header';
 import type { ChatWidgetConfig, ChatWidgetMessage } from '@/stores/chat';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      pin: '置顶',
+      unpin: '取消置顶',
+      newSession: '新会话',
+      clearMessages: '清空消息',
+      exportChat: '导出对话',
+      settings: '设置',
+      close: '关闭',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (

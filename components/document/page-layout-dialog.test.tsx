@@ -432,4 +432,352 @@ describe('PageLayoutDialog', () => {
       expect(mockOnSettingsChange).toHaveBeenCalled();
     });
   });
+
+  describe('Reset Functionality', () => {
+    it('should reset settings to defaults when reset button is clicked', async () => {
+      const customSettings: PageLayoutSettings = {
+        pageSize: 'letter',
+        orientation: 'landscape',
+        margins: MARGIN_PRESETS.wide,
+        headerEnabled: true,
+        headerContent: 'My Header',
+        footerEnabled: false,
+        showPageNumbers: false,
+      };
+
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={customSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      const resetButton = screen.getByRole('button', { name: /reset/i });
+      await userEvent.click(resetButton);
+
+      // After reset, apply to check the reset values
+      const applyButton = screen.getByRole('button', { name: /apply/i });
+      await userEvent.click(applyButton);
+
+      expect(mockOnSettingsChange).toHaveBeenCalled();
+      const calledSettings = mockOnSettingsChange.mock.calls[0][0];
+      expect(calledSettings.pageSize).toBe('a4');
+      expect(calledSettings.orientation).toBe('portrait');
+    });
+  });
+
+  describe('Orientation Change', () => {
+    it('should change orientation when portrait is selected', async () => {
+      const landscapeSettings: PageLayoutSettings = {
+        ...defaultSettings,
+        orientation: 'landscape',
+      };
+
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={landscapeSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Click portrait radio
+      const portraitRadio = screen.getByLabelText(/portrait/i);
+      await userEvent.click(portraitRadio);
+
+      // Apply and check
+      const applyButton = screen.getByRole('button', { name: /apply/i });
+      await userEvent.click(applyButton);
+
+      expect(mockOnSettingsChange).toHaveBeenCalled();
+      const calledSettings = mockOnSettingsChange.mock.calls[0][0];
+      expect(calledSettings.orientation).toBe('portrait');
+    });
+
+    it('should change orientation when landscape is selected', async () => {
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={defaultSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Click landscape radio
+      const landscapeRadio = screen.getByLabelText(/landscape/i);
+      await userEvent.click(landscapeRadio);
+
+      // Apply and check
+      const applyButton = screen.getByRole('button', { name: /apply/i });
+      await userEvent.click(applyButton);
+
+      expect(mockOnSettingsChange).toHaveBeenCalled();
+      const calledSettings = mockOnSettingsChange.mock.calls[0][0];
+      expect(calledSettings.orientation).toBe('landscape');
+    });
+  });
+
+  describe('Margin Preset Selection', () => {
+    it('should apply narrow margin preset when clicked', async () => {
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={defaultSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Switch to margins tab
+      const marginsTab = screen.getByRole('tab', { name: /margins/i });
+      await userEvent.click(marginsTab);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /narrow/i })).toBeInTheDocument();
+      });
+
+      // Click narrow preset
+      const narrowButton = screen.getByRole('button', { name: /narrow/i });
+      await userEvent.click(narrowButton);
+
+      // Apply and check
+      const applyButton = screen.getByRole('button', { name: /apply/i });
+      await userEvent.click(applyButton);
+
+      expect(mockOnSettingsChange).toHaveBeenCalled();
+      const calledSettings = mockOnSettingsChange.mock.calls[0][0];
+      expect(calledSettings.margins).toEqual(MARGIN_PRESETS.narrow);
+    });
+
+    it('should apply wide margin preset when clicked', async () => {
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={defaultSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Switch to margins tab
+      const marginsTab = screen.getByRole('tab', { name: /margins/i });
+      await userEvent.click(marginsTab);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /wide/i })).toBeInTheDocument();
+      });
+
+      // Click wide preset
+      const wideButton = screen.getByRole('button', { name: /wide/i });
+      await userEvent.click(wideButton);
+
+      // Apply and check
+      const applyButton = screen.getByRole('button', { name: /apply/i });
+      await userEvent.click(applyButton);
+
+      expect(mockOnSettingsChange).toHaveBeenCalled();
+      const calledSettings = mockOnSettingsChange.mock.calls[0][0];
+      expect(calledSettings.margins).toEqual(MARGIN_PRESETS.wide);
+    });
+  });
+
+  describe('Header/Footer Toggle', () => {
+    it('should toggle header enabled state', async () => {
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={defaultSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Switch to header/footer tab
+      const headerFooterTab = screen.getByRole('tab', { name: /header.*footer/i });
+      await userEvent.click(headerFooterTab);
+
+      await waitFor(() => {
+        expect(screen.getByText(/^header$/i)).toBeInTheDocument();
+      });
+
+      // Find and click header switch (first switch)
+      const switches = screen.getAllByRole('switch');
+      await userEvent.click(switches[0]); // Header switch
+
+      // Apply and check
+      const applyButton = screen.getByRole('button', { name: /apply/i });
+      await userEvent.click(applyButton);
+
+      expect(mockOnSettingsChange).toHaveBeenCalled();
+      const calledSettings = mockOnSettingsChange.mock.calls[0][0];
+      expect(calledSettings.headerEnabled).toBe(true);
+    });
+
+    it('should toggle footer enabled state', async () => {
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={defaultSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Switch to header/footer tab
+      const headerFooterTab = screen.getByRole('tab', { name: /header.*footer/i });
+      await userEvent.click(headerFooterTab);
+
+      await waitFor(() => {
+        expect(screen.getByText(/^footer$/i)).toBeInTheDocument();
+      });
+
+      // Find and click footer switch (second switch)
+      const switches = screen.getAllByRole('switch');
+      await userEvent.click(switches[1]); // Footer switch
+
+      // Apply and check
+      const applyButton = screen.getByRole('button', { name: /apply/i });
+      await userEvent.click(applyButton);
+
+      expect(mockOnSettingsChange).toHaveBeenCalled();
+      const calledSettings = mockOnSettingsChange.mock.calls[0][0];
+      expect(calledSettings.footerEnabled).toBe(false); // Was true, now false
+    });
+  });
+
+  describe('Custom Margin Input', () => {
+    it('should update top margin when input changes', async () => {
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={defaultSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Switch to margins tab
+      const marginsTab = screen.getByRole('tab', { name: /margins/i });
+      await userEvent.click(marginsTab);
+
+      await waitFor(() => {
+        expect(screen.getByText(/top/i)).toBeInTheDocument();
+      });
+
+      // Find top margin input
+      const inputs = screen.getAllByRole('spinbutton');
+      const topInput = inputs[0]; // First input is top margin
+
+      // Clear and type new value
+      await userEvent.clear(topInput);
+      await userEvent.type(topInput, '30');
+
+      // Apply and check
+      const applyButton = screen.getByRole('button', { name: /apply/i });
+      await userEvent.click(applyButton);
+
+      expect(mockOnSettingsChange).toHaveBeenCalled();
+      const calledSettings = mockOnSettingsChange.mock.calls[0][0];
+      expect(calledSettings.margins.top).toBe(30);
+    });
+  });
+
+  describe('Page Size Change', () => {
+    it('should render page size selector with current value', () => {
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={defaultSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Page size select should be present
+      const selects = screen.getAllByRole('combobox');
+      expect(selects.length).toBeGreaterThan(0);
+    });
+
+    it('should display A4 dimensions for default settings', () => {
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={defaultSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // A4 dimensions should be shown
+      const dimensionElements = screen.getAllByText(/210.*297/i);
+      expect(dimensionElements.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Custom Page Size', () => {
+    it('should show custom dimension inputs when custom size is selected', async () => {
+      const customSettings: PageLayoutSettings = {
+        ...defaultSettings,
+        pageSize: 'custom',
+        customWidth: 200,
+        customHeight: 300,
+      };
+
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={customSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Should see width and height inputs
+      expect(screen.getByText(/width/i)).toBeInTheDocument();
+      expect(screen.getByText(/height/i)).toBeInTheDocument();
+
+      // Find dimension inputs
+      const spinbuttons = screen.getAllByRole('spinbutton');
+      expect(spinbuttons.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should render custom width and height inputs with initial values', () => {
+      const customSettings: PageLayoutSettings = {
+        ...defaultSettings,
+        pageSize: 'custom',
+        customWidth: 200,
+        customHeight: 300,
+      };
+
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={customSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Find dimension inputs
+      const spinbuttons = screen.getAllByRole('spinbutton');
+      expect(spinbuttons.length).toBeGreaterThanOrEqual(2);
+
+      // Check that inputs exist for width and height
+      expect(screen.getByText(/width/i)).toBeInTheDocument();
+      expect(screen.getByText(/height/i)).toBeInTheDocument();
+    });
+
+    it('should display custom dimensions in preview', () => {
+      const customSettings: PageLayoutSettings = {
+        ...defaultSettings,
+        pageSize: 'custom',
+        customWidth: 200,
+        customHeight: 300,
+      };
+
+      renderWithProviders(
+        <PageLayoutDialog
+          settings={customSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Custom dimensions should be shown in preview
+      const dimensionElements = screen.getAllByText(/200.*300/i);
+      expect(dimensionElements.length).toBeGreaterThan(0);
+    });
+  });
 });

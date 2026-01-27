@@ -1,6 +1,18 @@
 import { render, screen, act } from '@testing-library/react';
 import BackgroundAgentPanel from './background-agent-panel';
 
+// Mock langfuse to avoid dynamic import issues in Jest
+jest.mock('langfuse', () => ({
+  Langfuse: jest.fn().mockImplementation(() => ({
+    trace: jest.fn(),
+    span: jest.fn(),
+    generation: jest.fn(),
+    score: jest.fn(),
+    flush: jest.fn(),
+    shutdown: jest.fn(),
+  })),
+}));
+
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,

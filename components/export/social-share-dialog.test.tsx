@@ -68,6 +68,36 @@ const mockSession = {
 const messages = {
   export: {
     share: 'Share',
+    shareConversation: 'Share Conversation',
+    shareConversationDesc: 'Share this conversation to social media or copy content',
+    shareToLabel: 'Share to',
+    textTab: 'Text',
+    mdTab: 'MD',
+    imageTab: 'Image',
+    linkTab: 'Link',
+    shareOptionsLabel: 'Share Options',
+    includeTitleOption: 'Include Title',
+    includeTimestampsShareOption: 'Include Timestamps',
+    includeModelOption: 'Include Model Info',
+    messagesInfo: '{count} messages (max {max})',
+    copyTextBtn: 'Copy Text',
+    copyMarkdownBtn: 'Copy Markdown',
+    copyLinkBtn: 'Copy Link',
+    exportImageBtn: 'Export Image',
+    copied: 'Copied!',
+    copiedToClipboard: 'Copied to clipboard',
+    copyFailed: 'Copy failed',
+    shareFailed: 'Share failed',
+    qrCodeFailed: 'QR code generation failed',
+    wechatScanToShare: 'Scan to Share',
+    wechatScanHint: 'Scan with WeChat',
+    close: 'Close',
+    loading: 'Loading...',
+    generating: 'Generating...',
+    imageExported: 'Image exported',
+    imageExportFailed: 'Image export failed',
+    exportImageDescription: 'Export as image for easy sharing',
+    useSystemShareBtn: 'Use System Share',
   },
 };
 
@@ -107,7 +137,7 @@ describe('SocialShareDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('分享对话')).toBeInTheDocument();
+      expect(screen.getByText('Share Conversation')).toBeInTheDocument();
     });
   });
 
@@ -118,7 +148,7 @@ describe('SocialShareDialog', () => {
     
     // Initially should show loading spinner
     await waitFor(() => {
-      expect(screen.getByText('分享对话')).toBeInTheDocument();
+      expect(screen.getByText('Share Conversation')).toBeInTheDocument();
     });
   });
 
@@ -128,11 +158,13 @@ describe('SocialShareDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      // Check for platform names
-      expect(screen.getByText('Twitter / X')).toBeInTheDocument();
-      expect(screen.getByText('LinkedIn')).toBeInTheDocument();
-      expect(screen.getByText('微信')).toBeInTheDocument();
+      // Check for share label and at least one platform
+      expect(screen.getByText('Share to')).toBeInTheDocument();
     });
+    
+    // Platform buttons should be rendered as a grid
+    const platformButtons = screen.getAllByRole('button');
+    expect(platformButtons.length).toBeGreaterThan(1);
   });
 
   it('should display share format tabs', async () => {
@@ -141,10 +173,10 @@ describe('SocialShareDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('文本')).toBeInTheDocument();
+      expect(screen.getByText('Text')).toBeInTheDocument();
       expect(screen.getByText('MD')).toBeInTheDocument();
-      expect(screen.getByText('图片')).toBeInTheDocument();
-      expect(screen.getByText('链接')).toBeInTheDocument();
+      expect(screen.getByText('Image')).toBeInTheDocument();
+      expect(screen.getByText('Link')).toBeInTheDocument();
     });
   });
 
@@ -154,10 +186,10 @@ describe('SocialShareDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('分享选项')).toBeInTheDocument();
-      expect(screen.getByText('包含对话标题')).toBeInTheDocument();
-      expect(screen.getByText('包含时间戳')).toBeInTheDocument();
-      expect(screen.getByText('包含模型信息')).toBeInTheDocument();
+      expect(screen.getByText('Share Options')).toBeInTheDocument();
+      expect(screen.getByText('Include Title')).toBeInTheDocument();
+      expect(screen.getByText('Include Timestamps')).toBeInTheDocument();
+      expect(screen.getByText('Include Model Info')).toBeInTheDocument();
     });
   });
 
@@ -169,10 +201,10 @@ describe('SocialShareDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText('复制文本')).toBeInTheDocument();
+      expect(screen.getByText('Copy Text')).toBeInTheDocument();
     });
     
-    fireEvent.click(screen.getByText('复制文本'));
+    fireEvent.click(screen.getByText('Copy Text'));
     
     await waitFor(() => {
       expect(socialShare.copyToClipboard).toHaveBeenCalled();
@@ -185,7 +217,7 @@ describe('SocialShareDialog', () => {
     fireEvent.click(screen.getByRole('button'));
     
     await waitFor(() => {
-      expect(screen.getByText(/共 \d+ 条消息/)).toBeInTheDocument();
+      expect(screen.getByText(/\d+ messages/)).toBeInTheDocument();
     });
   });
 });

@@ -40,6 +40,14 @@ jest.mock('@/lib/native/updater', () => ({
   checkForUpdates: jest.fn(),
 }));
 
+// Mock deep-link module
+const mockRegisterHandler = jest.fn();
+const mockInitializeDeepLinks = jest.fn();
+jest.mock('@/lib/native/deep-link', () => ({
+  registerHandler: (...args: unknown[]) => mockRegisterHandler(...args),
+  initializeDeepLinks: (...args: unknown[]) => mockInitializeDeepLinks(...args),
+}));
+
 const mockIsTauri = nativeUtils.isTauri as jest.Mock;
 const mockGetSystemInfo = systemApi.getSystemInfo as jest.Mock;
 const mockIsNotificationPermissionGranted = notificationApi.isNotificationPermissionGranted as jest.Mock;
@@ -278,6 +286,57 @@ describe('NativeProvider', () => {
       await waitFor(() => {
         expect(mockCheckForUpdates).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('deep link handlers', () => {
+    beforeEach(() => {
+      mockIsTauri.mockReturnValue(true);
+      mockRegisterHandler.mockClear();
+      mockInitializeDeepLinks.mockResolvedValue(undefined);
+    });
+
+    it('registers deep link handlers when in Tauri environment', async () => {
+      render(
+        <NativeProvider>
+          <div>Test</div>
+        </NativeProvider>
+      );
+
+      await waitFor(() => {
+        expect(mockRegisterHandler).toHaveBeenCalledWith('chat/open', expect.any(Function));
+        expect(mockRegisterHandler).toHaveBeenCalledWith('chat/new', expect.any(Function));
+        expect(mockRegisterHandler).toHaveBeenCalledWith('settings/open', expect.any(Function));
+        expect(mockRegisterHandler).toHaveBeenCalledWith('project/open', expect.any(Function));
+      });
+    });
+
+    it('initializes deep links', async () => {
+      render(
+        <NativeProvider>
+          <div>Test</div>
+        </NativeProvider>
+      );
+
+      await waitFor(() => {
+        expect(mockInitializeDeepLinks).toHaveBeenCalledWith(expect.any(Function));
+      });
+    });
+
+    it('does not register deep link handlers when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+
+      render(
+        <NativeProvider>
+          <div>Test</div>
+        </NativeProvider>
+      );
+
+      await waitFor(() => {
+        expect(mockSetIsDesktop).toHaveBeenCalledWith(false);
+      });
+
+      expect(mockRegisterHandler).not.toHaveBeenCalled();
     });
   });
 });

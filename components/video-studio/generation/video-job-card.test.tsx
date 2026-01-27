@@ -203,28 +203,30 @@ describe('VideoJobCard', () => {
 });
 
 describe('getStatusBadge', () => {
+  const mockT = (key: string) => key;
+
   it('returns correct badge for pending status', () => {
-    const badge = getStatusBadge('pending');
+    const badge = getStatusBadge('pending', mockT);
     expect(badge).toBeTruthy();
   });
 
   it('returns correct badge for processing status', () => {
-    const badge = getStatusBadge('processing');
+    const badge = getStatusBadge('processing', mockT);
     expect(badge).toBeTruthy();
   });
 
   it('returns correct badge for completed status', () => {
-    const badge = getStatusBadge('completed');
+    const badge = getStatusBadge('completed', mockT);
     expect(badge).toBeTruthy();
   });
 
   it('returns correct badge for failed status', () => {
-    const badge = getStatusBadge('failed');
+    const badge = getStatusBadge('failed', mockT);
     expect(badge).toBeTruthy();
   });
 
   it('returns default badge for unknown status', () => {
-    const badge = getStatusBadge('cancelled');
+    const badge = getStatusBadge('cancelled', mockT);
     expect(badge).toBeTruthy();
   });
 });

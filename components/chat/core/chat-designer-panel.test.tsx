@@ -124,12 +124,12 @@ describe('ChatDesignerPanel', () => {
 
   it('displays AI panel when showAIPanel is true', () => {
     render(<ChatDesignerPanel {...defaultProps} showAIPanel={true} />);
-    expect(screen.getByPlaceholderText('Describe what you want to change...')).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
   it('hides AI panel initially when showAIPanel is false', () => {
     render(<ChatDesignerPanel {...defaultProps} showAIPanel={false} />);
-    expect(screen.queryByPlaceholderText('Describe what you want to change...')).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
   it('displays AI suggestions when AI panel is open', () => {
@@ -179,7 +179,7 @@ describe('ChatDesignerPanel', () => {
     const suggestionBadge = screen.getByText('Add dark mode');
     fireEvent.click(suggestionBadge);
     
-    const textarea = screen.getByPlaceholderText('Describe what you want to change...');
+    const textarea = screen.getByRole('textbox');
     expect(textarea).toHaveValue('Add dark mode');
   });
 });

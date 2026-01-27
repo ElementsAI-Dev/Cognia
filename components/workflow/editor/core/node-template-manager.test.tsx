@@ -4,6 +4,28 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NodeTemplatePanel } from './node-template-manager';
 
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      searchNodes: 'Search templates...',
+      saveAsTemplate: 'Save as Template',
+      createFromSelection: 'Create from Selection',
+      noResultsFound: 'No templates found',
+      noTemplates: 'No templates yet',
+      tryDifferentSearch: 'Try a different search',
+      createFirstTemplate: 'Create your first template',
+      createTemplate: 'Create Template',
+      templateName: 'Template Name',
+      templateNamePlaceholder: 'Enter template name',
+      templateDescription: 'Description',
+      templateDescriptionPlaceholder: 'Enter description',
+      deleteTemplate: 'Delete Template',
+      confirmDeleteTemplate: 'Are you sure?',
+    };
+    return translations[key] || key;
+  },
+}));
+
 jest.mock('@/stores/workflow', () => ({
   useWorkflowEditorStore: jest.fn(() => ({
     nodeTemplates: [
@@ -34,7 +56,7 @@ describe('NodeTemplatePanel', () => {
 
   it('renders create from selection button', () => {
     render(<NodeTemplatePanel onAddTemplate={mockOnAddTemplate} />);
-    expect(screen.getByText('Create from Selection')).toBeInTheDocument();
+    expect(screen.getByText('Save as Template')).toBeInTheDocument();
   });
 
   it('renders template list', () => {

@@ -49,13 +49,15 @@ jest.mock('@/components/ui/scroll-area', () => ({
   ScrollBar: () => <div />,
 }));
 
+const mockTabsOnValueChange = { current: null as ((v: string) => void) | null };
 jest.mock('@/components/ui/tabs', () => ({
-  Tabs: ({ children, value, onValueChange }: { children: React.ReactNode; value: string; onValueChange: (v: string) => void }) => (
-    <div data-value={value} onChange={(e) => onValueChange((e.target as HTMLInputElement).value)}>{children}</div>
-  ),
+  Tabs: ({ children, value, onValueChange }: { children: React.ReactNode; value: string; onValueChange: (v: string) => void }) => {
+    mockTabsOnValueChange.current = onValueChange;
+    return <div data-value={value}>{children}</div>;
+  },
   TabsList: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TabsTrigger: ({ children, value, onClick }: { children: React.ReactNode; value: string; onClick?: () => void }) => (
-    <button data-value={value} onClick={onClick}>{children}</button>
+  TabsTrigger: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <button data-value={value} onClick={() => mockTabsOnValueChange.current?.(value)}>{children}</button>
   ),
 }));
 
@@ -150,9 +152,12 @@ describe('CanvasDocumentTabs', () => {
         {...mockHandlers}
       />
     );
-    const tab2 = screen.getByText('Document 2').closest('button');
-    if (tab2) fireEvent.click(tab2);
-    expect(mockHandlers.onSelectDocument).toHaveBeenCalledWith('doc-2');
+    const tab2Button = screen.getByText('Document 2').closest('button');
+    expect(tab2Button).toBeInTheDocument();
+    if (tab2Button) {
+      fireEvent.click(tab2Button);
+      expect(mockHandlers.onSelectDocument).toHaveBeenCalledWith('doc-2');
+    }
   });
 
   it('calls onCreateDocument when clicking add button', () => {
@@ -163,7 +168,10 @@ describe('CanvasDocumentTabs', () => {
         {...mockHandlers}
       />
     );
-    const addButton = screen.getAllByTestId('touch-target-button').find(btn => btn.textContent === '+');
+    // The add button has h-9 w-9 shrink-0 classes, find by checking for Plus icon content
+    const touchTargetButtons = screen.getAllByTestId('touch-target-button');
+    // The add button is the last touch-target-button that's not inside a tab (shrink-0 class)
+    const addButton = touchTargetButtons[touchTargetButtons.length - 1];
     if (addButton) fireEvent.click(addButton);
     expect(mockHandlers.onCreateDocument).toHaveBeenCalled();
   });
@@ -213,8 +221,12 @@ describe('CanvasDocumentTabs', () => {
           {...mockHandlers}
         />
       );
-      const addButton = screen.getAllByTestId('touch-target-button').find(btn => btn.textContent === '+');
-      expect(addButton).toBeInTheDocument();
+      // Find all touch target buttons - the add button is among them with h-9 w-9 shrink-0
+      const touchTargetButtons = screen.getAllByTestId('touch-target-button');
+      expect(touchTargetButtons.length).toBeGreaterThan(0);
+      // Verify at least one button has the expected class pattern
+      const addButton = touchTargetButtons[touchTargetButtons.length - 1];
+      expect(addButton).toHaveClass('h-9');
     });
   });
 

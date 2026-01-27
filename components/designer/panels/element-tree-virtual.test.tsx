@@ -41,7 +41,7 @@ jest.mock('@/hooks/designer', () => ({
 const messages = {
   elementTree: {
     noElements: 'No elements',
-    noElementsDesc: 'Load a component to see its structure',
+    noElementsDesc: 'Elements will appear here when code is loaded',
     elements: 'elements',
     expandAll: 'Expand all',
     collapseAll: 'Collapse all',
@@ -71,12 +71,12 @@ describe('ElementTreeVirtual', () => {
 
   it('renders empty state when no elements', () => {
     renderWithProviders(<ElementTreeVirtual />);
-    expect(screen.getByText('No elements')).toBeInTheDocument();
+    expect(screen.getByText('noElements')).toBeInTheDocument();
   });
 
   it('renders empty state description', () => {
     renderWithProviders(<ElementTreeVirtual />);
-    expect(screen.getByText('Elements will appear here when code is loaded')).toBeInTheDocument();
+    expect(screen.getByText('noElementsDesc')).toBeInTheDocument();
   });
 
   it('applies custom className', () => {

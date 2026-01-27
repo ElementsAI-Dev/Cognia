@@ -223,8 +223,12 @@ export class PluginManager {
       // Load the plugin module
       const definition = await this.loader.load(plugin);
 
-      // Create plugin context
-      const context = createFullPluginContext(plugin, this);
+      // Check if debug mode is enabled for this plugin
+      const enableDebug = plugin.config?.debug === true || 
+        process.env.NODE_ENV === 'development' && plugin.config?.devMode === true;
+
+      // Create plugin context with optional debug instrumentation
+      const context = createFullPluginContext(plugin, this, { enableDebug });
       this.contexts.set(pluginId, context);
 
       // Activate the plugin

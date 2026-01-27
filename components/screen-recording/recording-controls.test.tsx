@@ -69,8 +69,8 @@ describe('RecordingControls', () => {
     });
 
     renderWithProviders(<RecordingControls />);
-    // Now renders FFmpegStatus component in compact mode which shows notAvailable text
-    expect(screen.getByText('notAvailable')).toBeInTheDocument();
+    // FFmpegStatus component in compact mode shows translated text
+    expect(screen.getByText('FFmpeg Not Available')).toBeInTheDocument();
   });
 
   it('shows loading spinner when initializing', () => {
@@ -377,5 +377,66 @@ describe('RecordingControls - Compact Mode', () => {
   it('hides text label in compact mode', () => {
     renderWithProviders(<RecordingControls compact />);
     expect(screen.queryByText('Record')).not.toBeInTheDocument();
+  });
+});
+
+describe('RecordingControls - Props', () => {
+  const mockStore = {
+    status: 'Idle',
+    duration: 0,
+    monitors: [],
+    selectedMode: 'fullscreen',
+    selectedMonitor: 0,
+    ffmpegAvailable: true,
+    isLoading: false,
+    isInitialized: true,
+    error: null,
+    initialize: jest.fn(),
+    startRecording: jest.fn(),
+    pause: jest.fn(),
+    resume: jest.fn(),
+    stop: jest.fn(),
+    cancel: jest.fn(),
+    updateDuration: jest.fn(),
+    setSelectedMonitor: jest.fn(),
+    clearError: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
+    (useIsRecording as jest.Mock).mockReturnValue(false);
+  });
+
+  it('applies custom className', () => {
+    const { container } = renderWithProviders(
+      <RecordingControls className="custom-test-class" />
+    );
+    expect(container.firstChild).toHaveClass('custom-test-class');
+  });
+
+  it('renders with showSettings false', () => {
+    // Component should render without errors with showSettings=false
+    const { container } = renderWithProviders(<RecordingControls showSettings={false} />);
+    expect(container.firstChild).toBeInTheDocument();
+  });
+
+  it('renders with showSettings true (default)', () => {
+    // Component should render without errors with showSettings=true
+    const { container } = renderWithProviders(<RecordingControls showSettings={true} />);
+    expect(container.firstChild).toBeInTheDocument();
+  });
+});
+
+describe('RecordingControls - Web Environment', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(false);
+  });
+
+  it('returns null when not in Tauri environment', () => {
+    const { container } = renderWithProviders(<RecordingControls />);
+    expect(container.firstChild).toBeNull();
   });
 });

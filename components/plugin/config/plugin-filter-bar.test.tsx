@@ -69,12 +69,12 @@ describe('PluginFilterBar', () => {
 
   it('renders status filter button', () => {
     renderWithProviders(<PluginFilterBar {...mockProps} />);
-    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getAllByText('Status').length).toBeGreaterThan(0);
   });
 
   it('renders type filter button', () => {
     renderWithProviders(<PluginFilterBar {...mockProps} />);
-    expect(screen.getByText('Type')).toBeInTheDocument();
+    expect(screen.getAllByText('Type').length).toBeGreaterThan(0);
   });
 
   it('renders capability filter button', () => {
@@ -99,7 +99,7 @@ describe('PluginFilterBar', () => {
 
   it('shows active count when no filters', () => {
     renderWithProviders(<PluginFilterBar {...mockProps} />);
-    expect(screen.getByText(/showing 5 plugins/i)).toBeInTheDocument();
+    expect(screen.getByText(/5\s*plugins/i)).toBeInTheDocument();
   });
 
   it('applies custom className', () => {

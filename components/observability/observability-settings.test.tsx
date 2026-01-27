@@ -135,3 +135,76 @@ describe('ObservabilitySettings validation', () => {
     expect(screen.queryByText(/required|invalid/i)).toBeNull();
   });
 });
+
+describe('ObservabilitySettings test connection', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    const stores = jest.requireMock('@/stores');
+    stores.useSettingsStore.mockImplementation((selector: (state: unknown) => unknown) => {
+      const state = {
+        observabilitySettings: {
+          enabled: true,
+          langfuseEnabled: true,
+          langfusePublicKey: 'pk-test',
+          langfuseSecretKey: 'sk-test',
+          langfuseHost: 'https://cloud.langfuse.com',
+          openTelemetryEnabled: false,
+          openTelemetryEndpoint: '',
+          serviceName: 'cognia-ai',
+        },
+        updateObservabilitySettings: mockSetObservabilitySettings,
+      };
+      return selector(state);
+    });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should render test connection button when langfuse is enabled', () => {
+    render(<ObservabilitySettings />);
+    
+    expect(screen.getByText(/test connection/i)).toBeInTheDocument();
+  });
+
+  it('should render external link to get API keys', () => {
+    render(<ObservabilitySettings />);
+    
+    expect(screen.getByText(/get api keys/i)).toBeInTheDocument();
+  });
+});
+
+describe('ObservabilitySettings OpenTelemetry section', () => {
+  beforeEach(() => {
+    const stores = jest.requireMock('@/stores');
+    stores.useSettingsStore.mockImplementation((selector: (state: unknown) => unknown) => {
+      const state = {
+        observabilitySettings: {
+          enabled: true,
+          langfuseEnabled: false,
+          langfusePublicKey: '',
+          langfuseSecretKey: '',
+          langfuseHost: '',
+          openTelemetryEnabled: true,
+          openTelemetryEndpoint: 'http://localhost:4318/v1/traces',
+          serviceName: 'my-service',
+        },
+        updateObservabilitySettings: mockSetObservabilitySettings,
+      };
+      return selector(state);
+    });
+  });
+
+  it('should display OpenTelemetry endpoint input when enabled', () => {
+    render(<ObservabilitySettings />);
+    
+    expect(screen.getByDisplayValue('http://localhost:4318/v1/traces')).toBeInTheDocument();
+  });
+
+  it('should display service name input when OTel is enabled', () => {
+    render(<ObservabilitySettings />);
+    
+    expect(screen.getByDisplayValue('my-service')).toBeInTheDocument();
+  });
+});

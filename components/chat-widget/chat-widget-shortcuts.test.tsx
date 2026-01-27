@@ -5,6 +5,23 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ChatWidgetShortcuts } from './chat-widget-shortcuts';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      title: '快捷键',
+      sendMessage: '发送消息',
+      newLine: '换行',
+      hideAssistant: '隐藏助手',
+      previousMessage: '上一条消息',
+      nextMessage: '下一条消息',
+      toggleAssistant: '唤起/隐藏助手',
+      openPanel: '打开此面板',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock Dialog to avoid portal issues in tests
 jest.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-wrapper">{children}</div>,

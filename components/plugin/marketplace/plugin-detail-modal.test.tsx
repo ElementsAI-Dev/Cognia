@@ -85,7 +85,7 @@ describe('PluginDetailModal', () => {
     renderWithProviders(
       <PluginDetailModal plugin={mockPlugin} open={true} {...mockHandlers} />
     );
-    expect(screen.getByText('Test Plugin')).toBeInTheDocument();
+    expect(screen.getAllByText('Test Plugin').length).toBeGreaterThan(0);
   });
 
   it('renders author name', () => {
@@ -170,6 +170,6 @@ describe('PluginDetailModal', () => {
         {...mockHandlers}
       />
     );
-    expect(screen.getByText('Test Plugin')).toBeInTheDocument();
+    expect(screen.getAllByText('Test Plugin').length).toBeGreaterThan(0);
   });
 });

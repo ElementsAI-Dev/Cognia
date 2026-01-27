@@ -53,15 +53,16 @@ describe('ObservabilityDashboard', () => {
   it('should render time range selector', () => {
     render(<ObservabilityDashboard />);
     
-    // Component renders without crashing
-    expect(screen.getByText(/observability/i) || true).toBeTruthy();
+    // Time range options should be present
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
   it('should render refresh button', () => {
     render(<ObservabilityDashboard />);
     
-    // Component renders without crashing
-    expect(screen.getByText(/observability/i) || true).toBeTruthy();
+    // Refresh button should be present
+    const refreshButton = screen.getByRole('button', { name: '' });
+    expect(refreshButton).toBeInTheDocument();
   });
 
   it('should switch between tabs', async () => {
@@ -69,15 +70,15 @@ describe('ObservabilityDashboard', () => {
     
     // Dashboard renders with tabs
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.length).toBeGreaterThan(0);
+    expect(tabs.length).toBe(3); // traces, metrics, costs
   });
 
   it('should call onClose when provided', () => {
     const onClose = jest.fn();
     render(<ObservabilityDashboard onClose={onClose} />);
     
-    // Dashboard should render without calling onClose
-    expect(onClose).not.toHaveBeenCalled();
+    // Close button should be rendered
+    expect(screen.getByText(/close/i)).toBeInTheDocument();
   });
 
   it('should render without crashing', () => {
@@ -85,5 +86,42 @@ describe('ObservabilityDashboard', () => {
     
     // Dashboard should render without crashing
     expect(screen.getByText(/observability/i)).toBeInTheDocument();
+  });
+
+  it('should render summary cards', () => {
+    render(<ObservabilityDashboard />);
+    
+    // Summary cards should be present
+    expect(screen.getByText(/total requests/i)).toBeInTheDocument();
+    expect(screen.getByText(/avg latency/i)).toBeInTheDocument();
+    expect(screen.getByText(/total cost/i)).toBeInTheDocument();
+    expect(screen.getByText(/error rate/i)).toBeInTheDocument();
+  });
+
+  it('should show no traces message when empty', () => {
+    render(<ObservabilityDashboard />);
+    
+    expect(screen.getByText(/no traces/i)).toBeInTheDocument();
+  });
+});
+
+describe('ObservabilityDashboard when disabled', () => {
+  beforeEach(() => {
+    const stores = jest.requireMock('@/stores');
+    stores.useSettingsStore.mockImplementation((selector: (state: unknown) => unknown) => {
+      const state = {
+        observabilitySettings: {
+          enabled: false,
+        },
+      };
+      return selector(state);
+    });
+  });
+
+  it('should show disabled alert when observability is disabled', () => {
+    render(<ObservabilityDashboard />);
+    
+    // The alert title is "Observability Disabled"
+    expect(screen.getByText(/observability disabled/i)).toBeInTheDocument();
   });
 });

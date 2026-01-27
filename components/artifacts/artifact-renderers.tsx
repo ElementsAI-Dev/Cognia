@@ -81,6 +81,10 @@ export function ChartRenderer({ content, chartType = 'line', chartData, classNam
   const [error, setError] = useState<string | null>(null);
   const [detectedType, setDetectedType] = useState<string>(chartType);
 
+  // Store translation strings to avoid dependency on unstable t function
+  const invalidChartFormatMsg = t('invalidChartFormat');
+  const failedToParseChartMsg = t('failedToParseChart');
+
   useEffect(() => {
     try {
       if (chartData) {
@@ -98,14 +102,14 @@ export function ChartRenderer({ content, chartType = 'line', chartData, classNam
         } else if (parsed.data && Array.isArray(parsed.data)) {
           setData(parsed.data);
         } else {
-          throw new Error(t('invalidChartFormat'));
+          throw new Error(invalidChartFormatMsg);
         }
       }
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('failedToParseChart'));
+      setError(err instanceof Error ? err.message : failedToParseChartMsg);
     }
-  }, [content, chartData, t]);
+  }, [content, chartData, invalidChartFormatMsg, failedToParseChartMsg]);
 
   if (error) {
     return (

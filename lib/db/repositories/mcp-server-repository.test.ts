@@ -265,4 +265,36 @@ describe('mcpServerRepository', () => {
       expect(count).toBe(0);
     });
   });
+
+  describe('getConnectedCount', () => {
+    it('returns count of connected servers', async () => {
+      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3000', connected: true });
+      await mcpServerRepository.create({ name: 'Server 2', url: 'http://localhost:3002', connected: true });
+      await mcpServerRepository.create({ name: 'Server 3', url: 'http://localhost:3003', connected: false });
+
+      const count = await mcpServerRepository.getConnectedCount();
+      expect(count).toBe(2);
+    });
+
+    it('returns 0 when no servers are connected', async () => {
+      await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3000', connected: false });
+
+      const count = await mcpServerRepository.getConnectedCount();
+      expect(count).toBe(0);
+    });
+  });
+
+  describe('bulkDelete', () => {
+    it('deletes multiple servers by IDs', async () => {
+      const server1 = await mcpServerRepository.create({ name: 'Server 1', url: 'http://localhost:3000' });
+      const server2 = await mcpServerRepository.create({ name: 'Server 2', url: 'http://localhost:3002' });
+      await mcpServerRepository.create({ name: 'Server 3', url: 'http://localhost:3003' });
+
+      await mcpServerRepository.bulkDelete([server1.id, server2.id]);
+
+      const remaining = await mcpServerRepository.getAll();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].name).toBe('Server 3');
+    });
+  });
 });

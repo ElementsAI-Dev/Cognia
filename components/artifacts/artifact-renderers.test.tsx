@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
 import {
   MermaidRenderer,
   ChartRenderer,
@@ -11,6 +12,22 @@ import {
   CodeRenderer,
   ArtifactRenderer,
 } from './artifact-renderers';
+
+const messages = {
+  renderer: {
+    invalidChartFormat: 'Invalid chart format',
+    failedToParseChart: 'Failed to parse chart data',
+    noData: 'No data available',
+  },
+};
+
+const renderWithIntl = (ui: React.ReactElement) => {
+  return render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      {ui}
+    </NextIntlClientProvider>
+  );
+};
 
 // Mock mermaid
 jest.mock('mermaid', () => ({
@@ -21,12 +38,50 @@ jest.mock('mermaid', () => ({
   },
 }));
 
+// Mock chat renderers to avoid langfuse import chain
+jest.mock('@/components/chat/renderers/mermaid-block', () => ({
+  MermaidBlock: ({ content }: { content: string }) => <div data-testid="mermaid-block">{content}</div>,
+}));
+
+jest.mock('@/components/chat/renderers/math-block', () => ({
+  MathBlock: ({ content }: { content: string }) => <div data-testid="math-block">{content}</div>,
+}));
+
+jest.mock('@/components/chat/renderers/code-block', () => ({
+  CodeBlock: ({ code, className }: { code: string; className?: string }) => (
+    <pre className={className} data-testid="code-block">{code}</pre>
+  ),
+}));
+
+
 // Mock katex
 jest.mock('katex', () => ({
   renderToString: jest.fn((content) => `<span class="katex">${content}</span>`),
 }));
 
 // Note: react-markdown and remark/rehype plugins are mocked globally in jest.setup.ts
+
+// Mock sandbox hooks to avoid infinite loop issues
+jest.mock('@/hooks/sandbox', () => ({
+  useSandbox: () => ({ isAvailable: false }),
+  useCodeExecution: () => ({
+    result: null,
+    executing: false,
+    error: null,
+    quickExecute: jest.fn(),
+    reset: jest.fn(),
+  }),
+  useSnippets: () => ({ createSnippet: jest.fn() }),
+}));
+
+jest.mock('@/hooks/sandbox/use-sandbox-db', () => ({
+  useSandboxDb: () => ({
+    snippets: [],
+    refresh: jest.fn(),
+    saveSnippet: jest.fn(),
+    deleteSnippet: jest.fn(),
+  }),
+}));
 
 // Mock recharts
 jest.mock('recharts', () => ({
@@ -55,21 +110,14 @@ jest.mock('recharts', () => ({
 }));
 
 describe('MermaidRenderer', () => {
-  it('shows loading state initially', async () => {
+  it('renders mermaid content via MermaidBlock', () => {
     render(<MermaidRenderer content="graph TD; A-->B;" />);
-    // MermaidBlock from chat/renderers uses 'Rendering diagram...' text
-    expect(screen.getByText('Rendering diagram...')).toBeInTheDocument();
-    // Wait for async rendering to complete to avoid act() warnings
-    await waitFor(() => {
-      expect(screen.queryByText('Rendering diagram...')).not.toBeInTheDocument();
-    });
+    expect(screen.getByTestId('mermaid-block')).toBeInTheDocument();
   });
 
-  it('renders mermaid diagram after loading', async () => {
-    render(<MermaidRenderer content="graph TD; A-->B;" />);
-    await waitFor(() => {
-      expect(screen.queryByText('Loading diagram...')).not.toBeInTheDocument();
-    });
+  it('passes content to MermaidBlock', () => {
+    render(<MermaidRenderer content="graph LR; X-->Y;" />);
+    expect(screen.getByText(/graph LR/)).toBeInTheDocument();
   });
 });
 
@@ -79,7 +127,7 @@ describe('ChartRenderer', () => {
       { name: 'A', value: 10 },
       { name: 'B', value: 20 },
     ]);
-    render(<ChartRenderer content={chartData} />);
+    renderWithIntl(<ChartRenderer content={chartData} />);
     expect(screen.getByTestId('responsive-container')).toBeInTheDocument();
   });
 
@@ -88,7 +136,7 @@ describe('ChartRenderer', () => {
       { name: 'A', value: 10 },
       { name: 'B', value: 20 },
     ]);
-    render(<ChartRenderer content={chartData} chartType="bar" />);
+    renderWithIntl(<ChartRenderer content={chartData} chartType="bar" />);
     expect(screen.getByTestId('bar-chart')).toBeInTheDocument();
   });
 
@@ -97,7 +145,7 @@ describe('ChartRenderer', () => {
       { name: 'A', value: 10 },
       { name: 'B', value: 20 },
     ]);
-    render(<ChartRenderer content={chartData} chartType="pie" />);
+    renderWithIntl(<ChartRenderer content={chartData} chartType="pie" />);
     expect(screen.getByTestId('pie-chart')).toBeInTheDocument();
   });
 
@@ -106,7 +154,7 @@ describe('ChartRenderer', () => {
       { name: 'A', value: 10 },
       { name: 'B', value: 20 },
     ]);
-    render(<ChartRenderer content={chartData} chartType="area" />);
+    renderWithIntl(<ChartRenderer content={chartData} chartType="area" />);
     expect(screen.getByTestId('area-chart')).toBeInTheDocument();
   });
 
@@ -115,7 +163,7 @@ describe('ChartRenderer', () => {
       { name: 'A', x: 10, y: 20 },
       { name: 'B', x: 30, y: 40 },
     ]);
-    render(<ChartRenderer content={chartData} chartType="scatter" />);
+    renderWithIntl(<ChartRenderer content={chartData} chartType="scatter" />);
     expect(screen.getByTestId('scatter-chart')).toBeInTheDocument();
   });
 
@@ -124,7 +172,7 @@ describe('ChartRenderer', () => {
       { name: 'A', value: 10 },
       { name: 'B', value: 20 },
     ]);
-    render(<ChartRenderer content={chartData} chartType="radar" />);
+    renderWithIntl(<ChartRenderer content={chartData} chartType="radar" />);
     expect(screen.getByTestId('radar-chart')).toBeInTheDocument();
   });
 
@@ -133,18 +181,18 @@ describe('ChartRenderer', () => {
       { name: 'A', value: 10 },
       { name: 'B', value: 20 },
     ];
-    render(<ChartRenderer content="" chartData={chartData} />);
+    renderWithIntl(<ChartRenderer content="" chartData={chartData} />);
     expect(screen.getByTestId('responsive-container')).toBeInTheDocument();
   });
 
   it('shows error for invalid JSON', () => {
-    const { container } = render(<ChartRenderer content="invalid json" />);
+    const { container } = renderWithIntl(<ChartRenderer content="invalid json" />);
     // Component should handle invalid JSON gracefully
     expect(container).toBeInTheDocument();
   });
 
   it('shows no data message for empty array', () => {
-    render(<ChartRenderer content="[]" />);
+    renderWithIntl(<ChartRenderer content="[]" />);
     expect(screen.getByText('No data to display')).toBeInTheDocument();
   });
 
@@ -153,7 +201,7 @@ describe('ChartRenderer', () => {
       type: 'bar',
       data: [{ name: 'A', value: 10 }],
     });
-    render(<ChartRenderer content={chartData} />);
+    renderWithIntl(<ChartRenderer content={chartData} />);
     expect(screen.getByTestId('bar-chart')).toBeInTheDocument();
   });
 });
@@ -192,18 +240,14 @@ describe('CodeRenderer', () => {
 });
 
 describe('ArtifactRenderer', () => {
-  it('routes mermaid type to MermaidRenderer', async () => {
+  it('routes mermaid type to MermaidRenderer', () => {
     render(<ArtifactRenderer type="mermaid" content="graph TD; A-->B;" />);
-    // MermaidBlock from chat/renderers uses 'Rendering diagram...' text
-    expect(screen.getByText('Rendering diagram...')).toBeInTheDocument();
-    // Wait for async rendering to complete
-    await waitFor(() => {
-      expect(screen.queryByText('Rendering diagram...')).not.toBeInTheDocument();
-    });
+    // Uses mocked MermaidBlock
+    expect(screen.getByTestId('mermaid-block')).toBeInTheDocument();
   });
 
   it('routes chart type to ChartRenderer', () => {
-    render(<ArtifactRenderer type="chart" content="[]" />);
+    renderWithIntl(<ArtifactRenderer type="chart" content="[]" />);
     expect(screen.getByText('No data to display')).toBeInTheDocument();
   });
 

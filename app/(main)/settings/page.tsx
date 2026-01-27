@@ -98,6 +98,7 @@ import {
   NativeToolsSettings,
   SkillSettings,
   SearchSettings,
+  AgentOptimizationSettings,
   SandboxSettings,
   GitSettings,
   SafetySettings,
@@ -405,6 +406,13 @@ export default function SettingsPage() {
         group: 'ai',
       },
       {
+        id: 'agent-optimization',
+        label: t('tabAgentOptimization') || 'Agent Optimization',
+        icon: <Brain className="h-4 w-4" />,
+        description: t('descAgentOptimization') || 'Claude best practices for agent systems',
+        group: 'ai',
+      },
+      {
         id: 'appearance',
         label: t('tabAppearance'),
         icon: <Palette className="h-4 w-4" />,
@@ -594,6 +602,8 @@ export default function SettingsPage() {
         return <SafetySettings />;
       case 'observability':
         return <ObservabilitySettings />;
+      case 'agent-optimization':
+        return <AgentOptimizationSettings />;
       default:
         return <ProviderSettings />;
     }
