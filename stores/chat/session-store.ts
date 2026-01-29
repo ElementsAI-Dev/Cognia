@@ -123,6 +123,16 @@ interface SessionState {
   removeStep: (sessionId: string, stepId: string) => void;
   toggleStepComplete: (sessionId: string, stepId: string) => void;
   reorderSteps: (sessionId: string, stepIds: string[]) => void;
+
+  // Bulk operations
+  selectedSessionIds: string[];
+  selectSession: (id: string) => void;
+  deselectSession: (id: string) => void;
+  selectAllSessions: () => void;
+  clearSelection: () => void;
+  bulkDeleteSessions: (ids: string[]) => void;
+  bulkMoveSessions: (ids: string[], folderId: string | null) => void;
+  bulkPinSessions: (ids: string[], pinned: boolean) => void;
 }
 
 const DEFAULT_PROVIDER: ProviderName = 'openai';
@@ -896,6 +906,68 @@ export const useSessionStore = create<SessionState>()(
             };
           }),
         })),
+
+      // Bulk operations
+      selectedSessionIds: [],
+
+      selectSession: (id) =>
+        set((state) => ({
+          selectedSessionIds: state.selectedSessionIds.includes(id)
+            ? state.selectedSessionIds
+            : [...state.selectedSessionIds, id],
+        })),
+
+      deselectSession: (id) =>
+        set((state) => ({
+          selectedSessionIds: state.selectedSessionIds.filter((sid) => sid !== id),
+        })),
+
+      selectAllSessions: () =>
+        set((state) => ({
+          selectedSessionIds: state.sessions.map((s) => s.id),
+        })),
+
+      clearSelection: () =>
+        set(() => ({
+          selectedSessionIds: [],
+        })),
+
+      bulkDeleteSessions: (ids) =>
+        set((state) => {
+          const idsToDelete = new Set(ids);
+          const newActiveId =
+            state.activeSessionId && idsToDelete.has(state.activeSessionId)
+              ? state.sessions.find((s) => !idsToDelete.has(s.id))?.id ?? null
+              : state.activeSessionId;
+
+          return {
+            sessions: state.sessions.filter((s) => !idsToDelete.has(s.id)),
+            activeSessionId: newActiveId,
+            selectedSessionIds: state.selectedSessionIds.filter((id) => !idsToDelete.has(id)),
+          };
+        }),
+
+      bulkMoveSessions: (ids, folderId) =>
+        set((state) => {
+          const idsToMove = new Set(ids);
+          const now = new Date();
+          return {
+            sessions: state.sessions.map((s) =>
+              idsToMove.has(s.id) ? { ...s, folderId: folderId ?? undefined, updatedAt: now } : s
+            ),
+          };
+        }),
+
+      bulkPinSessions: (ids, pinned) =>
+        set((state) => {
+          const idsToPin = new Set(ids);
+          const now = new Date();
+          return {
+            sessions: state.sessions.map((s) =>
+              idsToPin.has(s.id) ? { ...s, pinned, updatedAt: now } : s
+            ),
+          };
+        }),
     }),
     {
       name: 'cognia-sessions',

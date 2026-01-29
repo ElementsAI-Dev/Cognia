@@ -340,6 +340,140 @@ export const messageRepository = {
 
     return message;
   },
+
+  /**
+   * Search messages across all sessions or specific sessions
+   * Returns matching messages with session context
+   */
+  async searchMessages(
+    query: string,
+    options?: {
+      sessionIds?: string[];
+      dateRange?: { start: Date; end: Date };
+      limit?: number;
+      roles?: Array<'user' | 'assistant' | 'system'>;
+    }
+  ): Promise<Array<{
+    message: UIMessage;
+    sessionId: string;
+    matchContext: string;
+  }>> {
+    if (!query.trim()) return [];
+
+    const lowerQuery = query.toLowerCase();
+    const limit = options?.limit ?? 50;
+    const results: Array<{
+      message: UIMessage;
+      sessionId: string;
+      matchContext: string;
+    }> = [];
+
+    // Build base query
+    let messagesQuery = db.messages.orderBy('createdAt').reverse();
+
+    // Apply session filter if provided
+    if (options?.sessionIds?.length) {
+      const sessionSet = new Set(options.sessionIds);
+      messagesQuery = messagesQuery.filter((m) => sessionSet.has(m.sessionId));
+    }
+
+    // Apply date range filter
+    if (options?.dateRange) {
+      const { start, end } = options.dateRange;
+      messagesQuery = messagesQuery.filter(
+        (m) => m.createdAt >= start && m.createdAt <= end
+      );
+    }
+
+    // Apply role filter
+    if (options?.roles?.length) {
+      const roleSet = new Set(options.roles);
+      messagesQuery = messagesQuery.filter((m) => roleSet.has(m.role as 'user' | 'assistant' | 'system'));
+    }
+
+    // Search through messages
+    await messagesQuery.each((dbMessage) => {
+      if (results.length >= limit) return;
+
+      const contentLower = dbMessage.content.toLowerCase();
+      const matchIndex = contentLower.indexOf(lowerQuery);
+
+      if (matchIndex !== -1) {
+        // Extract context around the match (50 chars before and after)
+        const contextStart = Math.max(0, matchIndex - 50);
+        const contextEnd = Math.min(dbMessage.content.length, matchIndex + query.length + 50);
+        let matchContext = dbMessage.content.slice(contextStart, contextEnd);
+
+        // Add ellipsis if truncated
+        if (contextStart > 0) matchContext = '...' + matchContext;
+        if (contextEnd < dbMessage.content.length) matchContext = matchContext + '...';
+
+        results.push({
+          message: toUIMessage(dbMessage),
+          sessionId: dbMessage.sessionId,
+          matchContext,
+        });
+      }
+    });
+
+    return results;
+  },
+
+  /**
+   * Bulk delete messages by IDs (optimized)
+   */
+  async bulkDelete(messageIds: string[]): Promise<number> {
+    if (messageIds.length === 0) return 0;
+
+    return withRetry(async () => {
+      await db.messages.bulkDelete(messageIds);
+      return messageIds.length;
+    }, 'messageRepository.bulkDelete');
+  },
+
+  /**
+   * Delete all messages after a specific message (optimized using bulk delete)
+   */
+  async deleteMessagesAfterOptimized(
+    sessionId: string,
+    messageId: string,
+    branchId?: string | null
+  ): Promise<number> {
+    // Get the target message to find its createdAt
+    const targetMessage = await db.messages.get(messageId);
+    if (!targetMessage) return 0;
+
+    const effectiveBranchId = branchId ?? '';
+
+    // Find all messages after the target in the same session/branch
+    const messagesToDelete = await db.messages
+      .where('[sessionId+branchId+createdAt]')
+      .between(
+        [sessionId, effectiveBranchId, targetMessage.createdAt],
+        [sessionId, effectiveBranchId, Dexie.maxKey],
+        false, // exclude lower bound (the target message itself)
+        true   // include upper bound
+      )
+      .primaryKeys();
+
+    if (messagesToDelete.length === 0) return 0;
+
+    return withRetry(async () => {
+      await db.messages.bulkDelete(messagesToDelete);
+
+      // Update session message count
+      const session = await db.sessions.get(sessionId);
+      if (session) {
+        const newCount = Math.max(0, (session.messageCount || 0) - messagesToDelete.length);
+        await db.sessions.update(sessionId, {
+          messageCount: newCount,
+          updatedAt: new Date(),
+        });
+      }
+
+      return messagesToDelete.length;
+    }, 'messageRepository.deleteMessagesAfterOptimized');
+  },
 };
 
 export default messageRepository;

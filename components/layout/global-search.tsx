@@ -4,8 +4,9 @@
  * GlobalSearch - Search across all sessions and messages
  */
 
-import { useState, useMemo, useCallback } from 'react';
-import { Search, X, MessageSquare, FolderKanban, Clock } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Search, X, MessageSquare, FolderKanban, Clock, FileText } from 'lucide-react';
+import { messageRepository } from '@/lib/db';
 import { Button as _Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,20 +26,23 @@ import {
 import { useSessionStore, useProjectStore, useUIStore } from '@/stores';
 import { cn } from '@/lib/utils';
 
-type SearchTab = 'all' | 'sessions' | 'projects';
+type SearchTab = 'all' | 'sessions' | 'projects' | 'messages';
 
 interface SearchResult {
-  type: 'session' | 'project';
+  type: 'session' | 'project' | 'message';
   id: string;
   title: string;
   description?: string;
   matchText?: string;
   updatedAt: Date;
+  sessionId?: string; // For message results
 }
 
 export function GlobalSearch() {
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<SearchTab>('all');
+  const [messageResults, setMessageResults] = useState<SearchResult[]>([]);
+  const [isSearchingMessages, setIsSearchingMessages] = useState(false);
 
   const sessions = useSessionStore((state) => state.sessions);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
@@ -48,6 +52,41 @@ export function GlobalSearch() {
 
   const globalSearchOpen = useUIStore((state) => state.commandPaletteOpen);
   const setGlobalSearchOpen = useUIStore((state) => state.setCommandPaletteOpen);
+
+  // Search messages in IndexedDB when query changes
+  useEffect(() => {
+    if (!query.trim() || (activeTab !== 'all' && activeTab !== 'messages')) {
+      setMessageResults([]);
+      return;
+    }
+
+    const searchTimeout = setTimeout(async () => {
+      setIsSearchingMessages(true);
+      try {
+        const results = await messageRepository.searchMessages(query, { limit: 20 });
+        const sessionMap = new Map(sessions.map(s => [s.id, s]));
+        
+        setMessageResults(
+          results.map(r => ({
+            type: 'message' as const,
+            id: r.message.id,
+            title: sessionMap.get(r.sessionId)?.title || 'Unknown Session',
+            description: r.matchContext,
+            matchText: r.matchContext,
+            updatedAt: r.message.createdAt,
+            sessionId: r.sessionId,
+          }))
+        );
+      } catch (error) {
+        console.error('Failed to search messages:', error);
+        setMessageResults([]);
+      } finally {
+        setIsSearchingMessages(false);
+      }
+    }, 300); // Debounce 300ms
+
+    return () => clearTimeout(searchTimeout);
+  }, [query, activeTab, sessions]);
 
   const searchResults = useMemo(() => {
     if (!query.trim()) return [];
@@ -93,15 +132,22 @@ export function GlobalSearch() {
       }
     }
 
+    // Include message results
+    if (activeTab === 'all' || activeTab === 'messages') {
+      results.push(...messageResults);
+    }
+
     // Sort by updated date
     return results.sort((a, b) => 
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
-  }, [query, activeTab, sessions, projects]);
+  }, [query, activeTab, sessions, projects, messageResults]);
 
   const handleResultClick = useCallback((result: SearchResult) => {
     if (result.type === 'session') {
       setActiveSession(result.id);
+    } else if (result.type === 'message' && result.sessionId) {
+      setActiveSession(result.sessionId);
     } else {
       setActiveProject(result.id);
     }
@@ -135,6 +181,8 @@ export function GlobalSearch() {
     ).length,
     [projects, query]
   );
+
+  const messageCount = messageResults.length;
 
   return (
     <Dialog open={globalSearchOpen} onOpenChange={setGlobalSearchOpen}>
@@ -178,6 +226,9 @@ export function GlobalSearch() {
               <TabsTrigger value="projects" className="data-[state=active]:bg-transparent">
                 Projects ({projectCount})
               </TabsTrigger>
+              <TabsTrigger value="messages" className="data-[state=active]:bg-transparent">
+                Messages {isSearchingMessages ? '...' : `(${messageCount})`}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="mt-0">
@@ -198,10 +249,14 @@ export function GlobalSearch() {
                             'flex h-9 w-9 items-center justify-center rounded-lg shrink-0',
                             result.type === 'session' 
                               ? 'bg-blue-500/10 text-blue-500' 
-                              : 'bg-purple-500/10 text-purple-500'
+                              : result.type === 'message'
+                                ? 'bg-green-500/10 text-green-500'
+                                : 'bg-purple-500/10 text-purple-500'
                           )}>
                             {result.type === 'session' ? (
                               <MessageSquare className="h-4 w-4" />
+                            ) : result.type === 'message' ? (
+                              <FileText className="h-4 w-4" />
                             ) : (
                               <FolderKanban className="h-4 w-4" />
                             )}
@@ -210,7 +265,7 @@ export function GlobalSearch() {
                             <div className="flex items-center gap-2">
                               <span className="font-medium truncate">{result.title}</span>
                               <Badge variant="outline" className="text-xs shrink-0">
-                                {result.type === 'session' ? 'Session' : 'Project'}
+                                {result.type === 'session' ? 'Session' : result.type === 'message' ? 'Message' : 'Project'}
                               </Badge>
                             </div>
                             {result.description && (
