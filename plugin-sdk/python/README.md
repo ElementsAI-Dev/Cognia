@@ -96,6 +96,7 @@ async def on_start(self, agent_id: str, config: dict):
 ```
 
 Available hooks:
+
 - `on_load` - Plugin loaded
 - `on_enable` - Plugin enabled
 - `on_disable` - Plugin disabled
@@ -150,7 +151,7 @@ Or manually create `plugin.json`:
 
 ## Project Structure
 
-```
+```text
 my-plugin/
 ├── plugin.json       # Plugin manifest
 ├── main.py          # Main entry point
@@ -401,14 +402,154 @@ result = await self.context.network.download(
 
 - `on_documents_indexed`, `on_vector_search`, `on_rag_context_retrieved`
 
+## Schema Helpers
+
+Use the `Schema` class for type-safe parameter definitions:
+
+```python
+from cognia import Schema, parameters, tool
+
+@tool(
+    name="create_user",
+    description="Create a new user",
+    parameters=parameters({
+        "name": Schema.string("User's full name", min_length=1, max_length=100),
+        "email": Schema.string("Email address", format="email"),
+        "age": Schema.integer("User's age", minimum=0, maximum=150),
+        "role": Schema.string("User role", enum=["admin", "user", "guest"]),
+        "tags": Schema.optional(Schema.array(Schema.string(), "User tags")),
+        "metadata": Schema.optional(Schema.object({
+            "department": Schema.string("Department name"),
+            "manager_id": Schema.optional(Schema.string("Manager ID"))
+        }))
+    })
+)
+async def create_user(self, name: str, email: str, age: int, role: str, 
+                      tags: list = None, metadata: dict = None):
+    ...
+```
+
+## A2UI Components
+
+Create interactive UI components with A2UI:
+
+```python
+from cognia import A2UIBuilder, A2UIComponentType, a2ui_component, a2ui_template
+
+# Using the builder
+chart = (
+    A2UIBuilder()
+    .type(A2UIComponentType.BAR_CHART)
+    .name("Sales Chart")
+    .props({"data": sales_data, "xAxis": "month", "yAxis": "revenue"})
+    .action("refresh", "Refresh Data", icon="refresh-cw")
+    .action("export", "Export CSV", icon="download")
+    .style(height="300px", border_radius="8px")
+    .build()
+)
+
+# Using decorators
+@a2ui_component(
+    "custom-card",
+    "Custom Card",
+    "A custom card component",
+    category="widgets"
+)
+class CustomCardRenderer(A2UIComponentRenderer):
+    async def render(self, props, context):
+        return {"type": "card", "props": props}
+```
+
+## Custom Modes
+
+Define custom AI chat modes:
+
+```python
+from cognia import mode, ModeBuilder, ModeTemplates, OutputFormat
+
+# Using decorator
+@mode(
+    "python-expert",
+    "Python Expert",
+    "Expert Python development mode",
+    "code",
+    system_prompt="You are an expert Python developer...",
+    tools=["read_file", "write_file", "run_command"],
+    output_format=OutputFormat.CODE,
+    temperature=0.2
+)
+def configure_python_mode(context):
+    return {}
+
+# Using builder
+code_reviewer = (
+    ModeBuilder("code-reviewer")
+    .name("Code Reviewer")
+    .description("Thorough code review mode")
+    .icon("search")
+    .system_prompt("You are a senior code reviewer...")
+    .tool("read_file", required=True)
+    .tool("grep_search", required=True)
+    .temperature(0.3)
+    .build()
+)
+
+# Using templates
+analyst = ModeTemplates.data_analyst("my-analyst")
+```
+
+## CLI Tools
+
+The SDK includes CLI tools for development:
+
+```bash
+# Create a new plugin from template
+cognia new my-plugin --description "My awesome plugin"
+
+# Generate/validate plugin.json
+cognia manifest
+cognia manifest --validate
+
+# Run tests
+cognia test
+cognia test --verbose
+
+# Package for distribution
+cognia pack
+
+# Start development server
+cognia dev
+
+# Show SDK version
+cognia version
+```
+
+## Extended Hooks
+
+All available hooks organized by category:
+
+```python
+from cognia import hook, HookType
+
+# Use enum for type safety
+@hook(HookType.ON_PROJECT_CREATE)
+async def on_project(self, project):
+    ...
+
+# Or use string
+@hook("on_artifact_create", priority=10)
+async def on_artifact(self, artifact):
+    ...
+```
+
 ## Examples
 
 See the `examples/` directory for complete plugin examples:
 
-- **`data_analysis/`** - Analyze CSV/JSON data with pandas
+- **`python-plugin/`** - Basic plugin with tools and hooks
 - **`rag_integration/`** - Semantic search and RAG capabilities
-- **`session_manager/`** - Session management and export
-- **`theme_customizer/`** - Custom theme creation with predefined palettes
+- **`a2ui_dashboard/`** - Interactive A2UI dashboards
+- **`custom_mode/`** - Custom AI chat modes
 
 ## License
 

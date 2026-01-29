@@ -309,6 +309,7 @@ describe('useSettingsStore', () => {
           defaultModel: 'model-1',
           apiKey: 'key',
           baseURL: 'http://localhost:8000',
+          apiProtocol: 'openai',
           enabled: true,
         });
       });
@@ -327,6 +328,7 @@ describe('useSettingsStore', () => {
           customModels: ['model-1'],
           defaultModel: 'model-1',
           apiKey: 'custom-key',
+          apiProtocol: 'openai',
           enabled: true,
         });
       });
@@ -342,6 +344,7 @@ describe('useSettingsStore', () => {
           customName: 'Original',
           customModels: ['model-1'],
           defaultModel: 'model-1',
+          apiProtocol: 'openai',
           enabled: true,
         });
       });
@@ -363,6 +366,7 @@ describe('useSettingsStore', () => {
           customName: 'To Remove',
           customModels: ['model-1'],
           defaultModel: 'model-1',
+          apiProtocol: 'openai',
           enabled: true,
         });
         useSettingsStore.getState().setDefaultProvider(providerId!);

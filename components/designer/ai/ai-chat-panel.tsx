@@ -241,7 +241,7 @@ export function AIChatPanel({
 
   return (
     <TooltipProvider>
-      <div className={cn('flex flex-col h-full bg-background border-l', className)}>
+      <div className={cn('flex flex-col h-full min-h-0 bg-background border-l', className)}>
         {/* Header */}
         <div className="flex items-center justify-between border-b px-3 py-2">
           <div className="flex items-center gap-2">
@@ -391,7 +391,7 @@ export function AIChatPanel({
         )}
 
         {/* Conversation */}
-        <ScrollArea className="flex-1" ref={scrollRef}>
+        <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
           <div className="p-3 space-y-3">
             {conversation.length === 0 ? (
               <div className="text-center py-8">

@@ -22,7 +22,7 @@ import {
   EyeOff,
   BarChart3,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDurationShort } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CopyButton } from '@/components/chat/ui/copy-button';
@@ -133,11 +133,7 @@ const stateConfig: Record<ToolState, { icon: React.ElementType; color: string; l
   },
 };
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
-}
+// Use formatDurationShort from lib/utils
 
 function formatToolName(name: string): string {
   return name
@@ -152,12 +148,11 @@ export function ToolTimeline({
   onCheckpointRestore,
   onCancelPending,
   showStatistics = true,
+  // TODO: Implement groupByServer feature for server-grouped view
   groupByServer: _groupByServer = false,
   className 
 }: ToolTimelineProps) {
   const t = useTranslations('agent');
-  // Note: groupByServer and tMcp reserved for future server grouping feature
-  void _groupByServer;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showQueue, setShowQueue] = useState(true);
   const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
@@ -255,7 +250,7 @@ export function ToolTimeline({
                 <Bookmark className="h-3 w-3" /> {statistics.checkpointCount}
               </span>
             )}
-            <span className="ml-1">{formatDuration(statistics.totalDuration)}</span>
+            <span className="ml-1">{formatDurationShort(statistics.totalDuration)}</span>
           </div>
           <span className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-accent">
             {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
@@ -276,7 +271,7 @@ export function ToolTimeline({
           <Tooltip>
             <TooltipTrigger className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              <span>{formatDuration(statistics.avgDuration)}</span>
+              <span>{formatDurationShort(statistics.avgDuration)}</span>
             </TooltipTrigger>
             <TooltipContent>{t('avgDuration')}</TooltipContent>
           </Tooltip>
@@ -313,7 +308,7 @@ export function ToolTimeline({
                         {formatToolName(tool.toolName)}
                         {tool.estimatedDuration && (
                           <span className="text-muted-foreground ml-1">
-                            (~{formatDuration(tool.estimatedDuration)})
+                            (~{formatDurationShort(tool.estimatedDuration)})
                           </span>
                         )}
                       </QueueItemContent>
@@ -465,7 +460,7 @@ export function ToolTimeline({
                       )}
                       {duration !== null && (
                         <Badge variant="secondary" className="text-[10px] shrink-0">
-                          {formatDuration(duration)}
+                          {formatDurationShort(duration)}
                         </Badge>
                       )}
                     </div>

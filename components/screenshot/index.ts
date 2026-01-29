@@ -8,3 +8,4 @@ export * from './color-picker';
 export * from './magnifier';
 export * from './resize-handles';
 export * from './screenshot-editor';
+export * from './text-input';

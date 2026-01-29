@@ -15,9 +15,7 @@ pub use app_context::{AppContext, AppType};
 pub use browser_context::BrowserContext;
 pub use editor_context::EditorContext;
 pub use file_context::FileContext;
-pub use screen_content::{
-    ScreenContent, ScreenContentAnalyzer, TextBlock, UiElement, UiElementType,
-};
+pub use screen_content::{ScreenContentAnalyzer, UiElement};
 pub use window_info::{WindowInfo, WindowManager};
 
 use log::{debug, trace};

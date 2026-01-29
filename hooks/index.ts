@@ -61,3 +61,9 @@ export * from './skills';
 
 // Settings hooks
 export * from './settings';
+
+// LaTeX hooks
+export * from './latex';
+
+// Storage management hooks
+export * from './storage';

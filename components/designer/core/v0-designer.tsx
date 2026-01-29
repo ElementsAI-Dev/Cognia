@@ -445,8 +445,8 @@ export function V0Designer({
           )}
 
           {/* Main content */}
-          <div className="flex-1 overflow-hidden">
-            <ResizablePanelGroup direction="horizontal" className="h-full">
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
               {/* Main sandbox area */}
               <ResizablePanel defaultSize={showAIChatPanel ? 70 : 100} minSize={50}>
                 <DesignerDndProvider>
@@ -502,7 +502,7 @@ export function V0Designer({
                 ))}
               </TabsList>
 
-              <ScrollArea className="flex-1 mt-4">
+              <ScrollArea className="flex-1 min-h-0 mt-4">
                 <TabsContent value="all" className="mt-0">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
                     {DESIGNER_TEMPLATES.map((template) => (

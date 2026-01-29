@@ -10,6 +10,7 @@ import { getProviderModel, type ProviderName } from '@/lib/ai/core/client';
 import { useSettingsStore, useSessionStore, useArtifactStore } from '@/stores';
 import type { CanvasSuggestion, ArtifactLanguage } from '@/types';
 import { nanoid } from 'nanoid';
+import { contextAnalyzer } from '@/lib/canvas/ai/context-analyzer';
 
 export interface SuggestionContext {
   content: string;
@@ -103,6 +104,14 @@ export function useCanvasSuggestions(): UseSuggestionsReturn {
           focusInstruction = focusMap[focusArea];
         }
 
+        // Analyze context for better suggestions
+        const documentContext = contextAnalyzer.analyzeContext(
+          context.content,
+          { line: context.cursorLine || 1, column: 1 },
+          context.language
+        );
+        const contextualInfo = contextAnalyzer.generateContextualPrompt(documentContext, 'review');
+
         const prompt = `${SUGGESTION_PROMPT}
 
 ${focusInstruction}
@@ -111,6 +120,9 @@ Language: ${context.language}
 Maximum suggestions: ${maxSuggestions}
 ${context.cursorLine ? `Cursor at line: ${context.cursorLine}` : ''}
 ${context.selection ? `Selected text:\n${context.selection}\n` : ''}
+
+Context Analysis:
+${contextualInfo}
 
 Content:
 \`\`\`${context.language}

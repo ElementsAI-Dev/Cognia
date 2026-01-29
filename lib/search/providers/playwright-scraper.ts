@@ -88,7 +88,7 @@ export async function isPlaywrightAvailable(): Promise<boolean> {
       return false;
     }
     // Dynamic import to check availability at runtime (server-side only)
-    // @ts-expect-error - playwright is optional peer dependency, only available server-side
+    // Dynamic import for optional dependency
     await import('playwright');
     return true;
   } catch {
@@ -120,7 +120,6 @@ export async function scrapePageWithPlaywright(
   } = options;
 
   try {
-    // @ts-expect-error - playwright is optional peer dependency, only available server-side
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const playwright = await import('playwright') as any;
     const chromium = playwright.chromium;

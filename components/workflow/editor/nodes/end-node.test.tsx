@@ -39,7 +39,7 @@ jest.mock('@/components/ui/badge', () => ({
     variant?: string;
     [key: string]: unknown;
   }) => (
-    <span data-testid="badge" className={className} variant={variant} {...props}>
+    <span data-testid="badge" className={className} data-variant={variant} {...props}>
       {children}
     </span>
   ),
@@ -51,37 +51,52 @@ const mockData: EndNodeData = {
   label: 'End',
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
   workflowOutputs: {
-    result: { type: 'object' },
-    statusCode: { type: 'number' },
-    message: { type: 'string' },
+    result: { type: 'object', description: 'Result object' },
+    statusCode: { type: 'number', description: 'Status code' },
+    message: { type: 'string', description: 'Message' },
   },
+  outputMapping: {},
+};
+
+const baseProps = {
+  id: 'end-1',
+  type: 'end',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
 };
 
 describe('EndNode', () => {
   it('renders without crashing', () => {
-    render(<EndNode data={mockData} selected={false} />);
+    render(<EndNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('End')).toBeInTheDocument();
   });
 
   it('renders node label', () => {
-    render(<EndNode data={mockData} selected={false} />);
+    render(<EndNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('End')).toBeInTheDocument();
   });
 
   it('passes showSourceHandle={false} to BaseNode', () => {
-    render(<EndNode data={mockData} selected={false} />);
+    render(<EndNode {...baseProps} data={mockData} selected={false} />);
     const baseNode = screen.getByTestId('base-node');
     expect(baseNode).toHaveAttribute('data-show-source-handle', 'false');
   });
 
   it('renders output count when outputs are defined', () => {
-    render(<EndNode data={mockData} selected={false} />);
+    render(<EndNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('3 output(s) defined')).toBeInTheDocument();
   });
 
   it('renders output badges', () => {
-    render(<EndNode data={mockData} selected={false} />);
+    render(<EndNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('result')).toBeInTheDocument();
     expect(screen.getByText('statusCode')).toBeInTheDocument();
     expect(screen.getByText('message')).toBeInTheDocument();
@@ -91,15 +106,15 @@ describe('EndNode', () => {
     const dataWithManyOutputs: EndNodeData = {
       ...mockData,
       workflowOutputs: {
-        output1: { type: 'string' },
-        output2: { type: 'string' },
-        output3: { type: 'string' },
-        output4: { type: 'string' },
-        output5: { type: 'string' },
+        output1: { type: 'string', description: 'Output 1' },
+        output2: { type: 'string', description: 'Output 2' },
+        output3: { type: 'string', description: 'Output 3' },
+        output4: { type: 'string', description: 'Output 4' },
+        output5: { type: 'string', description: 'Output 5' },
       },
     };
 
-    render(<EndNode data={dataWithManyOutputs} selected={false} />);
+    render(<EndNode {...baseProps} data={dataWithManyOutputs} selected={false} />);
 
     expect(screen.getByText('output1')).toBeInTheDocument();
     expect(screen.getByText('output2')).toBeInTheDocument();
@@ -111,14 +126,14 @@ describe('EndNode', () => {
     const dataWithManyOutputs: EndNodeData = {
       ...mockData,
       workflowOutputs: {
-        output1: { type: 'string' },
-        output2: { type: 'string' },
-        output3: { type: 'string' },
-        output4: { type: 'string' },
+        output1: { type: 'string', description: 'Output 1' },
+        output2: { type: 'string', description: 'Output 2' },
+        output3: { type: 'string', description: 'Output 3' },
+        output4: { type: 'string', description: 'Output 4' },
       },
     };
 
-    render(<EndNode data={dataWithManyOutputs} selected={false} />);
+    render(<EndNode {...baseProps} data={dataWithManyOutputs} selected={false} />);
     expect(screen.getByText('+1 more')).toBeInTheDocument();
   });
 
@@ -128,7 +143,7 @@ describe('EndNode', () => {
       workflowOutputs: {},
     };
 
-    render(<EndNode data={dataWithNoOutputs} selected={false} />);
+    render(<EndNode {...baseProps} data={dataWithNoOutputs} selected={false} />);
     expect(screen.queryByText(/output\(s\) defined/)).not.toBeInTheDocument();
   });
 });
@@ -138,13 +153,13 @@ describe('EndNode integration tests', () => {
     const dataWithOutputs: EndNodeData = {
       ...mockData,
       workflowOutputs: {
-        result: { type: 'object' },
-        status: { type: 'string' },
-        timestamp: { type: 'string' },
+        result: { type: 'object', description: 'Result' },
+        status: { type: 'string', description: 'Status' },
+        timestamp: { type: 'string', description: 'Timestamp' },
       },
     };
 
-    render(<EndNode data={dataWithOutputs} selected={false} />);
+    render(<EndNode {...baseProps} data={dataWithOutputs} selected={false} />);
 
     expect(screen.getByText('3 output(s) defined')).toBeInTheDocument();
     expect(screen.getByText('result')).toBeInTheDocument();
@@ -158,7 +173,7 @@ describe('EndNode integration tests', () => {
       workflowOutputs: {},
     };
 
-    render(<EndNode data={dataWithNoOutputs} selected={false} />);
+    render(<EndNode {...baseProps} data={dataWithNoOutputs} selected={false} />);
 
     expect(screen.getByText('End')).toBeInTheDocument();
     expect(screen.queryByText(/output\(s\)/)).not.toBeInTheDocument();
@@ -168,11 +183,11 @@ describe('EndNode integration tests', () => {
     const dataWith10Outputs: EndNodeData = {
       ...mockData,
       workflowOutputs: Object.fromEntries(
-        Array.from({ length: 10 }, (_, i) => [`output${i}`, { type: 'string' }])
-      ) as Record<string, { type: string }>,
+        Array.from({ length: 10 }, (_, i) => [`output${i}`, { type: 'string' as const, description: `Output ${i}` }])
+      ),
     };
 
-    render(<EndNode data={dataWith10Outputs} selected={false} />);
+    render(<EndNode {...baseProps} data={dataWith10Outputs} selected={false} />);
 
     expect(screen.getByText('10 output(s) defined')).toBeInTheDocument();
     expect(screen.getByText('+7 more')).toBeInTheDocument();

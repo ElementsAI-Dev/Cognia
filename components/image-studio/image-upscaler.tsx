@@ -112,7 +112,7 @@ export function ImageUpscaler({
       setError(t('failedToLoad'));
     };
     img.src = imageUrl;
-  }, [imageUrl]);
+  }, [imageUrl, t]);
 
   // Bilinear interpolation
   const bilinearInterpolate = useCallback(

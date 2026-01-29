@@ -45,22 +45,34 @@ jest.mock('@/components/ui/badge', () => ({
 const mockData: ToolNodeData = {
   id: 'tool-1',
   nodeType: 'tool',
-  label: 'Execute Tool',
-  description: 'Execute a function call',
+  label: 'Web Search',
+  description: 'Search the web',
   toolName: 'web_search',
   toolCategory: 'search',
   parameterMapping: {
-    query: 'user-input',
+    query: 'search_query',
     results: '10',
   },
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
+  inputs: {},
+  outputs: {},
 };
 
 const mockProps = {
   id: 'tool-1',
   data: mockData,
   selected: false,
+  type: 'tool',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
 };
 
 describe('ToolNode', () => {

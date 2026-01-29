@@ -94,7 +94,7 @@ jest.mock('@/components/ui/switch', () => ({
   }) => (
     <button
       role="switch"
-      aria-checked={String(checked)}
+      aria-checked={checked ? 'true' : 'false'}
       onClick={() => onCheckedChange?.(!checked)}
       data-testid="switch"
     >
@@ -137,8 +137,8 @@ jest.mock('@/components/ui/alert', () => ({
   AlertTitle: ({ children }: { children: React.ReactNode }) => <h4>{children}</h4>,
 }));
 
-// Mock translations
-const mockT = (key: string) => {
+// Mock translations - cast to any to avoid complex Translator type
+const mockT = ((key: string) => {
   const translations: Record<string, string> = {
     builtin: 'Built-in',
     active: 'Active',
@@ -157,7 +157,8 @@ const mockT = (key: string) => {
     'categories.productivity': 'Productivity',
   };
   return translations[key] || key;
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+}) as any;
 
 // Sample skill data
 const createMockSkill = (overrides: Partial<Skill> = {}): Skill => ({
@@ -566,7 +567,7 @@ describe('SkillCard', () => {
     render(
       <SkillCard
         skill={createMockSkill({
-          validationErrors: [{ message: 'Missing required field' }, { message: 'Invalid syntax' }],
+          validationErrors: [{ field: 'name', message: 'Missing required field', severity: 'error' }, { field: 'content', message: 'Invalid syntax', severity: 'warning' }],
         })}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}

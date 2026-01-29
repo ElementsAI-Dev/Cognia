@@ -208,8 +208,8 @@ jest.mock('@/components/ui/select', () => ({
   SelectValue: () => <span>Select</span>,
 }));
 
-// Mock translation function
-const mockT = (key: string) => {
+// Mock translation function - cast to any to avoid complex Translator type
+const mockT = ((key: string) => {
   const translations: Record<string, string> = {
     createNewSkill: 'Create New Skill',
     createNewSkillDesc: 'Create a new skill from scratch or use a template',
@@ -227,7 +227,8 @@ const mockT = (key: string) => {
     createSkill: 'Create Skill',
   };
   return translations[key] || key;
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+}) as any;
 
 describe('CreateSkillDialog', () => {
   const mockOnOpenChange = jest.fn();

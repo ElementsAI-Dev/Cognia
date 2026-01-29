@@ -18,6 +18,7 @@ export interface ModeDetectionResult {
   reason: string;
   reasonZh: string;
   detectedTime?: number; // minutes
+  detectedUrgencyDays?: number; // days until exam
   alternatives: Array<{
     mode: SpeedLearningMode;
     confidence: number;
@@ -109,43 +110,73 @@ const MODE_PATTERNS: Record<SpeedLearningMode, {
 };
 
 /**
+ * Parse Chinese number string to numeric value
+ * Handles: 一-十, 十一-十九, 二十, 两
+ */
+function parseChineseNumber(str: string): number | undefined {
+  const basicNumbers: Record<string, number> = {
+    '零': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5,
+    '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+  };
+  
+  // Handle compound numbers like 十一, 十二, 二十, 二十五
+  if (str.includes('十')) {
+    const parts = str.split('十');
+    const tens = parts[0] ? (basicNumbers[parts[0]] ?? 1) : 1;
+    const ones = parts[1] ? (basicNumbers[parts[1]] ?? 0) : 0;
+    return tens * 10 + ones;
+  }
+  
+  return basicNumbers[str];
+}
+
+/**
  * Extract time duration from user input (in minutes)
+ * Supports: hours, minutes, half-hour, relative time expressions
  */
 function extractTimeFromInput(input: string): number | undefined {
-  // Match hours
-  const hourPatterns = [
-    /(\d+(?:\.\d+)?)\s*(?:小时|hour|h(?:rs?)?)/i,
-    /(?:一|二|两|三|四|五|六|七|八|九|十)\s*(?:小时|个小时)/i,
-  ];
+  // Match "半小时" = 30 minutes
+  if (/半小时|半个小时|half\s*(?:an?\s*)?hour/i.test(input)) {
+    return 30;
+  }
   
-  for (const pattern of hourPatterns) {
-    const match = input.match(pattern);
-    if (match) {
-      if (match[1]) {
-        return parseFloat(match[1]) * 60;
-      }
-      // Chinese number mapping
-      const chineseNumbers: Record<string, number> = {
-        '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5,
-        '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
-      };
-      for (const [cn, num] of Object.entries(chineseNumbers)) {
-        if (match[0].includes(cn)) {
-          return num * 60;
-        }
-      }
+  // Match "半天" = ~4 hours (240 minutes)
+  if (/半天/i.test(input)) {
+    return 240;
+  }
+  
+  // Match "一下午/一上午" = ~3-4 hours
+  if (/[一]?(?:下午|上午|晚上)/i.test(input) && /整个|一整?/i.test(input)) {
+    return 180;
+  }
+  
+  // Match numeric hours (e.g., "3小时", "2.5 hours")
+  const numericHourMatch = input.match(/(\d+(?:\.\d+)?)\s*(?:小时|个小时|hour|h(?:rs?)?)/i);
+  if (numericHourMatch && numericHourMatch[1]) {
+    return parseFloat(numericHourMatch[1]) * 60;
+  }
+  
+  // Match Chinese hours (e.g., "两小时", "十二小时")
+  const chineseHourMatch = input.match(/([一二两三四五六七八九十]+)\s*(?:小时|个小时)/i);
+  if (chineseHourMatch && chineseHourMatch[1]) {
+    const hours = parseChineseNumber(chineseHourMatch[1]);
+    if (hours !== undefined) {
+      return hours * 60;
     }
   }
   
-  // Match minutes
-  const minutePatterns = [
-    /(\d+)\s*(?:分钟|minutes?|min)/i,
-  ];
+  // Match numeric minutes (e.g., "30分钟", "45 minutes")
+  const minuteMatch = input.match(/(\d+)\s*(?:分钟|分|minutes?|min)/i);
+  if (minuteMatch && minuteMatch[1]) {
+    return parseInt(minuteMatch[1], 10);
+  }
   
-  for (const pattern of minutePatterns) {
-    const match = input.match(pattern);
-    if (match && match[1]) {
-      return parseInt(match[1], 10);
+  // Match Chinese minutes (e.g., "三十分钟")
+  const chineseMinMatch = input.match(/([一二两三四五六七八九十]+)\s*(?:分钟|分)/i);
+  if (chineseMinMatch && chineseMinMatch[1]) {
+    const minutes = parseChineseNumber(chineseMinMatch[1]);
+    if (minutes !== undefined) {
+      return minutes;
     }
   }
   
@@ -153,21 +184,63 @@ function extractTimeFromInput(input: string): number | undefined {
 }
 
 /**
+ * Detect exam urgency from input (returns days until exam, or undefined)
+ */
+function detectExamUrgency(input: string): number | undefined {
+  // Today/now
+  if (/今天|待会|一会|马上|立刻|现在|today|now|right\s*now/i.test(input)) {
+    return 0;
+  }
+  
+  // Tomorrow
+  if (/明天|tomorrow/i.test(input)) {
+    return 1;
+  }
+  
+  // Day after tomorrow
+  if (/后天|day\s*after\s*tomorrow/i.test(input)) {
+    return 2;
+  }
+  
+  // This week
+  if (/这周|本周|this\s*week/i.test(input)) {
+    return 3;
+  }
+  
+  // Next week
+  if (/下周|next\s*week/i.test(input)) {
+    return 7;
+  }
+  
+  // N days
+  const daysMatch = input.match(/(\d+)\s*(?:天|days?)/i);
+  if (daysMatch && daysMatch[1]) {
+    return parseInt(daysMatch[1], 10);
+  }
+  
+  return undefined;
+}
+
+/**
  * Calculate confidence score for a mode based on pattern matches
+ * Uses weighted scoring with diminishing returns for multiple matches
  */
 function calculateModeConfidence(
   input: string,
   mode: SpeedLearningMode
-): { confidence: number; matches: string[] } {
+): { confidence: number; matches: string[]; urgencyDays?: number } {
   const patterns = MODE_PATTERNS[mode];
   const matches: string[] = [];
   let score = 0;
+  let matchCount = 0;
   
-  // Check Chinese patterns
+  // Check Chinese patterns (weight: 0.3 first match, diminishing after)
   for (const pattern of patterns.chinese) {
     const match = input.match(pattern);
     if (match) {
-      score += 0.3;
+      matchCount++;
+      // Diminishing returns: 0.3, 0.2, 0.15, 0.1...
+      score += 0.3 / Math.sqrt(matchCount);
       matches.push(match[0]);
     }
   }
@@ -176,17 +249,30 @@ function calculateModeConfidence(
   for (const pattern of patterns.english) {
     const match = input.match(pattern);
     if (match) {
-      score += 0.3;
+      matchCount++;
+      score += 0.3 / Math.sqrt(matchCount);
       matches.push(match[0]);
     }
   }
   
-  // Check time keywords
+  // Check time keywords (slightly lower weight)
   for (const pattern of patterns.timeKeywords) {
     const match = input.match(pattern);
     if (match) {
-      score += 0.2;
+      score += 0.15;
       matches.push(match[0]);
+    }
+  }
+  
+  // Detect exam urgency and boost extreme mode confidence
+  const urgencyDays = detectExamUrgency(input);
+  if (urgencyDays !== undefined) {
+    if (mode === 'extreme' && urgencyDays <= 1) {
+      score += 0.4; // Strong boost for extreme mode when exam is imminent
+    } else if (mode === 'speed' && urgencyDays <= 3) {
+      score += 0.2; // Moderate boost for speed mode
+    } else if (mode === 'comprehensive' && urgencyDays >= 7) {
+      score += 0.2; // Boost comprehensive for longer prep time
     }
   }
   
@@ -194,6 +280,7 @@ function calculateModeConfidence(
   return {
     confidence: Math.min(score, 1.0),
     matches,
+    urgencyDays,
   };
 }
 
@@ -227,12 +314,16 @@ export function detectSpeedLearningMode(
     mode: SpeedLearningMode;
     confidence: number;
     matches: string[];
+    urgencyDays?: number;
   }> = [];
   
   for (const mode of ['extreme', 'speed', 'comprehensive'] as SpeedLearningMode[]) {
-    const { confidence, matches } = calculateModeConfidence(normalizedInput, mode);
-    modeScores.push({ mode, confidence, matches });
+    const { confidence, matches, urgencyDays } = calculateModeConfidence(normalizedInput, mode);
+    modeScores.push({ mode, confidence, matches, urgencyDays });
   }
+  
+  // Get urgency from the first mode score (same for all)
+  const detectedUrgencyDays = modeScores[0]?.urgencyDays;
   
   // Sort by confidence
   modeScores.sort((a, b) => b.confidence - a.confidence);
@@ -303,6 +394,7 @@ export function detectSpeedLearningMode(
     reason,
     reasonZh,
     detectedTime,
+    detectedUrgencyDays,
     alternatives,
   };
 }

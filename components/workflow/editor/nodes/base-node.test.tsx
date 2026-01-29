@@ -83,65 +83,87 @@ const mockData: WorkflowNodeData = {
   description: 'An AI processing node',
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
+  inputs: {},
+  outputs: {},
+  model: 'gpt-4',
+  temperature: 0.7,
+  maxTokens: 1000,
+  aiPrompt: 'Test prompt',
+  responseFormat: 'text',
+};
+
+const baseProps = {
+  id: 'node-1',
+  type: 'ai',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
 };
 
 describe('BaseNode', () => {
   it('renders without crashing', () => {
-    render(<BaseNode data={mockData} selected={false} />);
+    render(<BaseNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('AI Node')).toBeInTheDocument();
   });
 
   it('renders node label', () => {
-    render(<BaseNode data={mockData} selected={false} />);
+    render(<BaseNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('AI Node')).toBeInTheDocument();
   });
 
   it('renders node description', () => {
-    render(<BaseNode data={mockData} selected={false} />);
+    render(<BaseNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('An AI processing node')).toBeInTheDocument();
   });
 
   it('renders color indicator bar', () => {
-    const { container } = render(<BaseNode data={mockData} selected={false} />);
+    const { container } = render(<BaseNode {...baseProps} data={mockData} selected={false} />);
     const colorBar = container.querySelector('.absolute.left-0');
     expect(colorBar).toBeInTheDocument();
   });
 
   it('renders node type icon', () => {
-    render(<BaseNode data={mockData} selected={false} />);
+    render(<BaseNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByTestId('sparkles-icon')).toBeInTheDocument();
   });
 
   it('applies selected styling when selected', () => {
-    const { container } = render(<BaseNode data={mockData} selected={true} />);
+    const { container } = render(<BaseNode {...baseProps} data={mockData} selected={true} />);
     const node = container.querySelector('.ring-2');
     expect(node).toBeInTheDocument();
   });
 
   it('renders source handle by default', () => {
-    render(<BaseNode data={mockData} selected={false} />);
+    render(<BaseNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByTestId('handle-source-default')).toBeInTheDocument();
   });
 
   it('renders target handle by default', () => {
-    const newData = { ...mockData, nodeType: 'tool' as const };
-    render(<BaseNode data={newData} selected={false} />);
+    const newData = { ...mockData, nodeType: 'tool' as const, toolName: 'test', parameterMapping: {} };
+    render(<BaseNode {...baseProps} data={newData} selected={false} />);
     expect(screen.getByTestId('handle-target-default')).toBeInTheDocument();
   });
 
   it('does not render source handle when showSourceHandle is false', () => {
-    render(<BaseNode data={mockData} selected={false} showSourceHandle={false} />);
+    render(<BaseNode {...baseProps} data={mockData} selected={false} showSourceHandle={false} />);
     expect(screen.queryByTestId('handle-source-default')).not.toBeInTheDocument();
   });
 
   it('does not render target handle when showTargetHandle is false', () => {
-    render(<BaseNode data={mockData} selected={false} showTargetHandle={false} />);
+    render(<BaseNode {...baseProps} data={mockData} selected={false} showTargetHandle={false} />);
     expect(screen.queryByTestId('handle-target-default')).not.toBeInTheDocument();
   });
 
   it('renders custom handle positions', () => {
     render(
       <BaseNode
+        {...baseProps}
         data={mockData}
         selected={false}
         sourceHandlePosition={Position.Right}
@@ -158,7 +180,7 @@ describe('BaseNode', () => {
       { id: 'output-2', position: Position.Right },
     ];
 
-    render(<BaseNode data={mockData} selected={false} multipleSourceHandles={multipleHandles} />);
+    render(<BaseNode {...baseProps} data={mockData} selected={false} multipleSourceHandles={multipleHandles} />);
 
     expect(screen.getByTestId('handle-source-output-1')).toBeInTheDocument();
     expect(screen.getByTestId('handle-source-output-2')).toBeInTheDocument();
@@ -170,7 +192,7 @@ describe('BaseNode', () => {
       { id: 'input-2', position: Position.Left },
     ];
 
-    render(<BaseNode data={mockData} selected={false} multipleTargetHandles={multipleHandles} />);
+    render(<BaseNode {...baseProps} data={mockData} selected={false} multipleTargetHandles={multipleHandles} />);
 
     expect(screen.getByTestId('handle-target-input-1')).toBeInTheDocument();
     expect(screen.getByTestId('handle-target-input-2')).toBeInTheDocument();
@@ -178,7 +200,7 @@ describe('BaseNode', () => {
 
   it('renders error state when hasError is true', () => {
     const errorData = { ...mockData, hasError: true, errorMessage: 'Something went wrong' };
-    const { container } = render(<BaseNode data={errorData} selected={false} />);
+    const { container } = render(<BaseNode {...baseProps} data={errorData} selected={false} />);
 
     const errorNode = container.querySelector('.border-destructive');
     expect(errorNode).toBeInTheDocument();
@@ -187,13 +209,13 @@ describe('BaseNode', () => {
 
   it('renders error icon', () => {
     const errorData = { ...mockData, hasError: true, errorMessage: 'Error' };
-    render(<BaseNode data={errorData} selected={false} />);
+    render(<BaseNode {...baseProps} data={errorData} selected={false} />);
     expect(screen.getByTestId('alert-circle-icon')).toBeInTheDocument();
   });
 
   it('renders running status', () => {
     const runningData = { ...mockData, executionStatus: 'running' as const };
-    const { container } = render(<BaseNode data={runningData} selected={false} />);
+    const { container } = render(<BaseNode {...baseProps} data={runningData} selected={false} />);
 
     const runningNode = container.querySelector('.border-blue-500');
     expect(runningNode).toBeInTheDocument();
@@ -202,7 +224,7 @@ describe('BaseNode', () => {
 
   it('renders completed status', () => {
     const completedData = { ...mockData, executionStatus: 'completed' as const };
-    const { container } = render(<BaseNode data={completedData} selected={false} />);
+    const { container } = render(<BaseNode {...baseProps} data={completedData} selected={false} />);
 
     const completedNode = container.querySelector('.border-green-500');
     expect(completedNode).toBeInTheDocument();
@@ -211,7 +233,7 @@ describe('BaseNode', () => {
 
   it('renders failed status', () => {
     const failedData = { ...mockData, executionStatus: 'failed' as const };
-    const { container } = render(<BaseNode data={failedData} selected={false} />);
+    const { container } = render(<BaseNode {...baseProps} data={failedData} selected={false} />);
 
     const failedNode = container.querySelector('.border-red-500');
     expect(failedNode).toBeInTheDocument();
@@ -220,7 +242,7 @@ describe('BaseNode', () => {
 
   it('renders pending status', () => {
     const pendingData = { ...mockData, executionStatus: 'pending' as const };
-    const { container } = render(<BaseNode data={pendingData} selected={false} />);
+    const { container } = render(<BaseNode {...baseProps} data={pendingData} selected={false} />);
 
     const pendingNode = container.querySelector('.border-yellow-500');
     expect(pendingNode).toBeInTheDocument();
@@ -229,7 +251,7 @@ describe('BaseNode', () => {
 
   it('renders skipped status', () => {
     const skippedData = { ...mockData, executionStatus: 'skipped' as const };
-    const { container } = render(<BaseNode data={skippedData} selected={false} />);
+    const { container } = render(<BaseNode {...baseProps} data={skippedData} selected={false} />);
 
     const skippedNode = container.querySelector('.border-gray-400');
     expect(skippedNode).toBeInTheDocument();
@@ -238,19 +260,19 @@ describe('BaseNode', () => {
 
   it('renders execution time when provided', () => {
     const dataWithTime = { ...mockData, executionTime: 2500 };
-    render(<BaseNode data={dataWithTime} selected={false} />);
+    render(<BaseNode {...baseProps} data={dataWithTime} selected={false} />);
     expect(screen.getByText('2.50s')).toBeInTheDocument();
   });
 
   it('renders not configured indicator', () => {
-    const notConfiguredData = { ...mockData, isConfigured: false, nodeType: 'tool' as const };
-    render(<BaseNode data={notConfiguredData} selected={false} />);
+    const notConfiguredData = { ...mockData, isConfigured: false, nodeType: 'tool' as const, toolName: 'test', parameterMapping: {} };
+    render(<BaseNode {...baseProps} data={notConfiguredData} selected={false} />);
     expect(screen.getByText('Not configured')).toBeInTheDocument();
   });
 
   it('renders children when provided', () => {
     render(
-      <BaseNode data={mockData} selected={false}>
+      <BaseNode {...baseProps} data={mockData} selected={false}>
         <div data-testid="custom-content">Custom Content</div>
       </BaseNode>
     );
@@ -258,19 +280,19 @@ describe('BaseNode', () => {
   });
 
   it('applies hover effects', () => {
-    const { container } = render(<BaseNode data={mockData} selected={false} />);
+    const { container } = render(<BaseNode {...baseProps} data={mockData} selected={false} />);
     const node = container.querySelector('.hover\\:shadow-lg');
     expect(node).toBeInTheDocument();
   });
 
   it('has proper border styling', () => {
-    const { container } = render(<BaseNode data={mockData} selected={false} />);
+    const { container } = render(<BaseNode {...baseProps} data={mockData} selected={false} />);
     const node = container.querySelector('.border-2');
     expect(node).toBeInTheDocument();
   });
 
   it('has proper card styling', () => {
-    const { container } = render(<BaseNode data={mockData} selected={false} />);
+    const { container } = render(<BaseNode {...baseProps} data={mockData} selected={false} />);
     const node = container.querySelector('.rounded-lg');
     expect(node).toBeInTheDocument();
   });
@@ -285,7 +307,7 @@ describe('BaseNode integration tests', () => {
       hasError: false,
     };
 
-    render(<BaseNode data={completeData} selected={true} />);
+    render(<BaseNode {...baseProps} data={completeData} selected={true} />);
 
     expect(screen.getByText('AI Node')).toBeInTheDocument();
     expect(screen.getByText('An AI processing node')).toBeInTheDocument();
@@ -301,7 +323,7 @@ describe('BaseNode integration tests', () => {
       executionTime: 5000,
     };
 
-    render(<BaseNode data={errorData} selected={false} />);
+    render(<BaseNode {...baseProps} data={errorData} selected={false} />);
 
     expect(screen.getByText('Connection failed')).toBeInTheDocument();
     expect(screen.getByText('5.00s')).toBeInTheDocument();
@@ -311,6 +333,8 @@ describe('BaseNode integration tests', () => {
     const multiHandleData: WorkflowNodeData = {
       ...mockData,
       nodeType: 'conditional',
+      condition: 'x > 0',
+      conditionType: 'expression',
     };
 
     const multipleSourceHandles = [
@@ -320,6 +344,7 @@ describe('BaseNode integration tests', () => {
 
     render(
       <BaseNode
+        {...baseProps}
         data={multiHandleData}
         selected={false}
         multipleSourceHandles={multipleSourceHandles}

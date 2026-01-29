@@ -106,19 +106,16 @@ impl SessionManager {
     }
 
     /// Get a session by ID
-    #[allow(dead_code)]
     pub fn get_session(&self, session_id: &str) -> Option<&JupyterSession> {
         self.sessions.get(session_id)
     }
 
     /// Get a kernel by ID
-    #[allow(dead_code)]
     pub fn get_kernel(&self, kernel_id: &str) -> Option<&JupyterKernel> {
         self.kernels.get(kernel_id)
     }
 
     /// Get a mutable kernel by ID
-    #[allow(dead_code)]
     pub fn get_kernel_mut(&mut self, kernel_id: &str) -> Option<&mut JupyterKernel> {
         self.kernels.get_mut(kernel_id)
     }
@@ -333,11 +330,35 @@ impl SessionManager {
     }
 
     /// Get kernel status
-    #[allow(dead_code)]
     pub fn get_kernel_status(&self, kernel_id: &str) -> Option<KernelStatus> {
         let status = self.kernels.get(kernel_id).map(|k| k.status);
         trace!("Kernel {} status: {:?}", kernel_id, status);
         status
+    }
+
+    /// Check if a kernel is alive (not dead)
+    pub fn is_kernel_alive(&self, kernel_id: &str) -> bool {
+        self.kernels
+            .get(kernel_id)
+            .map(|k| k.status != KernelStatus::Dead)
+            .unwrap_or(false)
+    }
+
+    /// Get kernel status for a session
+    pub fn get_session_kernel_status(&self, session_id: &str) -> Option<KernelStatus> {
+        self.sessions
+            .get(session_id)
+            .and_then(|s| s.kernel_id.as_ref())
+            .and_then(|kid| self.get_kernel_status(kid))
+    }
+
+    /// Check if session's kernel is alive
+    pub fn is_session_kernel_alive(&self, session_id: &str) -> bool {
+        self.sessions
+            .get(session_id)
+            .and_then(|s| s.kernel_id.as_ref())
+            .map(|kid| self.is_kernel_alive(kid))
+            .unwrap_or(false)
     }
 
     /// Cleanup dead kernels
@@ -541,6 +562,24 @@ impl SharedSessionManager {
     pub async fn cleanup_idle_kernels(&self, timeout_secs: u64) {
         trace!("SharedSessionManager: Acquiring write lock for cleanup_idle_kernels");
         self.0.write().await.cleanup_idle_kernels(timeout_secs).await
+    }
+
+    /// Get kernel status for a session
+    pub async fn get_session_kernel_status(&self, session_id: &str) -> Option<KernelStatus> {
+        trace!("SharedSessionManager: Acquiring read lock for get_session_kernel_status");
+        self.0.read().await.get_session_kernel_status(session_id)
+    }
+
+    /// Check if session's kernel is alive
+    pub async fn is_session_kernel_alive(&self, session_id: &str) -> bool {
+        trace!("SharedSessionManager: Acquiring read lock for is_session_kernel_alive");
+        self.0.read().await.is_session_kernel_alive(session_id)
+    }
+
+    /// Get a session by ID
+    pub async fn get_session(&self, session_id: &str) -> Option<JupyterSession> {
+        trace!("SharedSessionManager: Acquiring read lock for get_session");
+        self.0.read().await.get_session(session_id).cloned()
     }
 }
 

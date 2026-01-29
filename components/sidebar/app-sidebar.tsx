@@ -36,6 +36,7 @@ import {
   Folder,
   FolderPlus,
   FolderOpen,
+  FileCode,
 } from 'lucide-react';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
@@ -789,6 +790,14 @@ export function AppSidebar() {
                   </div>
                 </Link>
               </div>
+              <div className="flex gap-2">
+                <Link href="/latex" className="flex-1">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
+                    <FileCode className="h-4 w-4 text-teal-500" />
+                    <span>{t('latex') || 'LaTeX'}</span>
+                  </div>
+                </Link>
+              </div>
             </CollapsibleContent>
           </Collapsible>
         )}
@@ -842,6 +851,14 @@ export function AppSidebar() {
                   <Link href="/git">
                     <GitBranch className="h-4 w-4 text-cyan-500" />
                     <span>Git</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip={t('latex') || 'LaTeX'}>
+                  <Link href="/latex">
+                    <FileCode className="h-4 w-4 text-teal-500" />
+                    <span>LaTeX</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

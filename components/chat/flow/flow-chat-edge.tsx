@@ -10,8 +10,6 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
-  MarkerType,
-  type EdgeMarker,
   type EdgeProps,
 } from '@xyflow/react';
 import { Badge } from '@/components/ui/badge';
@@ -80,9 +78,8 @@ function FlowChatEdgeComponent({
   const currentStyle = edgeStyles[edgeType] || edgeStyles.conversation;
   const currentClassName = edgeClassNames[edgeType] || edgeClassNames.conversation;
 
-  // Helper to get marker color based on type
-  // This is a simplified mapping that matches the Tailwind classes
-  const getMarkerColor = (type: FlowChatEdgeType) => {
+  // Helper to get marker color based on type (reserved for future SVG marker use)
+  const _getMarkerColor = (type: FlowChatEdgeType) => {
     switch (type) {
       case 'branch':
         return 'var(--orange-500)';
@@ -105,14 +102,7 @@ function FlowChatEdgeComponent({
           ...currentStyle,
           ...(style || {}),
         }}
-        markerEnd={
-          {
-            type: MarkerType.ArrowClosed,
-            width: 20,
-            height: 20,
-            color: (style?.stroke as string) || getMarkerColor(edgeType),
-          } satisfies EdgeMarker
-        }
+        markerEnd={`url(#arrow-${id})`}
         className={cn(
           'transition-all duration-200',
           currentClassName,

@@ -5,6 +5,31 @@
 
 import { GLProcessor } from './gl-processor';
 
+// Polyfill ImageData for Node.js environment
+class MockImageData {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+  colorSpace: PredefinedColorSpace = 'srgb';
+
+  constructor(dataOrWidth: Uint8ClampedArray | number, widthOrHeight: number, height?: number) {
+    if (typeof dataOrWidth === 'number') {
+      this.width = dataOrWidth;
+      this.height = widthOrHeight;
+      this.data = new Uint8ClampedArray(this.width * this.height * 4);
+    } else {
+      this.data = dataOrWidth;
+      this.width = widthOrHeight;
+      this.height = height ?? dataOrWidth.length / (widthOrHeight * 4);
+    }
+  }
+}
+
+if (typeof globalThis.ImageData === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).ImageData = MockImageData;
+}
+
 const mockWebGLContext = {
   createBuffer: jest.fn(() => ({})),
   bindBuffer: jest.fn(),
@@ -233,6 +258,72 @@ describe('GLProcessor', () => {
       const imageData = new ImageData(10, 10);
 
       const result = processor.processVibrance(imageData, 50);
+
+      expect(result).toBeInstanceOf(ImageData);
+    });
+  });
+
+  describe('processCurves', () => {
+    it('should process curves with LUT', () => {
+      const processor = new GLProcessor();
+      const imageData = new ImageData(10, 10);
+
+      // Create a simple identity LUT (256x1 RGBA)
+      const lut = new Uint8Array(256 * 4);
+      for (let i = 0; i < 256; i++) {
+        lut[i * 4] = i; // R
+        lut[i * 4 + 1] = i; // G
+        lut[i * 4 + 2] = i; // B
+        lut[i * 4 + 3] = 255; // A
+      }
+
+      const result = processor.processCurves(imageData, lut);
+
+      expect(result).toBeInstanceOf(ImageData);
+      expect(result.width).toBe(10);
+      expect(result.height).toBe(10);
+    });
+  });
+
+  describe('processColorBalance', () => {
+    it('should process color balance', () => {
+      const processor = new GLProcessor();
+      const imageData = new ImageData(10, 10);
+
+      const result = processor.processColorBalance(imageData, {
+        shadows: [0.1, 0, -0.1],
+        midtones: [0, 0.05, 0],
+        highlights: [-0.05, 0, 0.1],
+      });
+
+      expect(result).toBeInstanceOf(ImageData);
+    });
+
+    it('should use default values when params not provided', () => {
+      const processor = new GLProcessor();
+      const imageData = new ImageData(10, 10);
+
+      const result = processor.processColorBalance(imageData, {});
+
+      expect(result).toBeInstanceOf(ImageData);
+    });
+  });
+
+  describe('processNoiseReduction', () => {
+    it('should process noise reduction', () => {
+      const processor = new GLProcessor();
+      const imageData = new ImageData(10, 10);
+
+      const result = processor.processNoiseReduction(imageData, 50, 0.1);
+
+      expect(result).toBeInstanceOf(ImageData);
+    });
+
+    it('should use default preserveDetail value', () => {
+      const processor = new GLProcessor();
+      const imageData = new ImageData(10, 10);
+
+      const result = processor.processNoiseReduction(imageData, 30);
 
       expect(result).toBeInstanceOf(ImageData);
     });

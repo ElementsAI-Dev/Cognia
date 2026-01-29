@@ -17,5 +17,8 @@ export {
   type ProviderHealthStatus,
 } from './provider-context';
 
+// Provider icon component
+export { ProviderIcon } from './provider-icon';
+
 // Default export for convenience
 export { default } from './provider-context';

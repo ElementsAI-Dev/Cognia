@@ -1,10 +1,11 @@
 /**
  * TTS Types - Type definitions for Text-to-Speech functionality
- * Supports multiple providers: Browser (Web Speech API), OpenAI, Gemini, Edge-TTS
+ * Supports multiple providers: Browser (Web Speech API), OpenAI, Gemini, Edge-TTS,
+ * ElevenLabs, LMNT, and Hume
  */
 
 // TTS Provider types
-export type TTSProvider = 'system' | 'openai' | 'gemini' | 'edge';
+export type TTSProvider = 'system' | 'openai' | 'gemini' | 'edge' | 'elevenlabs' | 'lmnt' | 'hume';
 
 // TTS Provider display info
 export interface TTSProviderInfo {
@@ -52,6 +53,33 @@ export const TTS_PROVIDERS: Record<TTSProvider, TTSProviderInfo> = {
     requiresApiKey: false,
     supportsStreaming: true,
     maxTextLength: 10000,
+  },
+  elevenlabs: {
+    id: 'elevenlabs',
+    name: 'ElevenLabs',
+    description: 'Industry-leading AI voice synthesis',
+    requiresApiKey: true,
+    apiKeyProvider: 'elevenlabs',
+    supportsStreaming: true,
+    maxTextLength: 5000,
+  },
+  lmnt: {
+    id: 'lmnt',
+    name: 'LMNT',
+    description: 'Ultra-low latency voice synthesis',
+    requiresApiKey: true,
+    apiKeyProvider: 'lmnt',
+    supportsStreaming: true,
+    maxTextLength: 3000,
+  },
+  hume: {
+    id: 'hume',
+    name: 'Hume AI',
+    description: 'Emotionally expressive voice synthesis',
+    requiresApiKey: true,
+    apiKeyProvider: 'hume',
+    supportsStreaming: true,
+    maxTextLength: 5000,
   },
 };
 
@@ -146,6 +174,53 @@ export const EDGE_TTS_VOICES = [
 
 export type EdgeTTSVoice = (typeof EDGE_TTS_VOICES)[number]['id'];
 
+// ElevenLabs TTS voices
+export const ELEVENLABS_TTS_VOICES = [
+  { id: 'rachel', name: 'Rachel', description: 'Calm, young female' },
+  { id: 'domi', name: 'Domi', description: 'Strong, young female' },
+  { id: 'bella', name: 'Bella', description: 'Soft, young female' },
+  { id: 'antoni', name: 'Antoni', description: 'Well-rounded, young male' },
+  { id: 'elli', name: 'Elli', description: 'Emotional, young female' },
+  { id: 'josh', name: 'Josh', description: 'Deep, young male' },
+  { id: 'arnold', name: 'Arnold', description: 'Crisp, middle-aged male' },
+  { id: 'adam', name: 'Adam', description: 'Deep, middle-aged male' },
+  { id: 'sam', name: 'Sam', description: 'Raspy, young male' },
+] as const;
+
+export type ElevenLabsTTSVoice = (typeof ELEVENLABS_TTS_VOICES)[number]['id'];
+
+// ElevenLabs TTS models
+export const ELEVENLABS_TTS_MODELS = [
+  { id: 'eleven_multilingual_v2', name: 'Multilingual v2', description: 'Best quality, 29 languages' },
+  { id: 'eleven_turbo_v2_5', name: 'Turbo v2.5', description: 'Low latency, high quality' },
+  { id: 'eleven_turbo_v2', name: 'Turbo v2', description: 'Low latency' },
+  { id: 'eleven_monolingual_v1', name: 'Monolingual v1', description: 'English only, fast' },
+] as const;
+
+export type ElevenLabsTTSModel = (typeof ELEVENLABS_TTS_MODELS)[number]['id'];
+
+// LMNT TTS voices
+export const LMNT_TTS_VOICES = [
+  { id: 'lily', name: 'Lily', description: 'Friendly, conversational female' },
+  { id: 'daniel', name: 'Daniel', description: 'Professional, male' },
+  { id: 'mia', name: 'Mia', description: 'Warm, female' },
+  { id: 'morgan', name: 'Morgan', description: 'Neutral, androgynous' },
+  { id: 'zoe', name: 'Zoe', description: 'Energetic, young female' },
+] as const;
+
+export type LMNTTTSVoice = (typeof LMNT_TTS_VOICES)[number]['id'];
+
+// Hume TTS voices
+export const HUME_TTS_VOICES = [
+  { id: 'ito', name: 'Ito', description: 'Calm, male' },
+  { id: 'kora', name: 'Kora', description: 'Warm, female' },
+  { id: 'dacher', name: 'Dacher', description: 'Friendly, male' },
+  { id: 'aura', name: 'Aura', description: 'Soothing, female' },
+  { id: 'finn', name: 'Finn', description: 'Energetic, male' },
+] as const;
+
+export type HumeTTSVoice = (typeof HUME_TTS_VOICES)[number]['id'];
+
 // TTS Settings interface (extends existing speech settings)
 export interface TTSSettings {
   // Provider configuration
@@ -167,12 +242,26 @@ export interface TTSSettings {
   edgeRate: string; // e.g., '+0%', '-10%', '+20%'
   edgePitch: string; // e.g., '+0Hz', '-10Hz', '+20Hz'
 
+  // ElevenLabs TTS settings
+  elevenlabsVoice: ElevenLabsTTSVoice;
+  elevenlabsModel: ElevenLabsTTSModel;
+  elevenlabsStability: number; // 0 - 1
+  elevenlabsSimilarityBoost: number; // 0 - 1
+
+  // LMNT TTS settings
+  lmntVoice: LMNTTTSVoice;
+  lmntSpeed: number; // 0.5 - 2.0
+
+  // Hume TTS settings
+  humeVoice: HumeTTSVoice;
+
   // Common settings
   ttsEnabled: boolean;
   ttsRate: number; // 0.1 - 10
   ttsPitch: number; // 0 - 2
   ttsVolume: number; // 0 - 1
   ttsAutoPlay: boolean; // Auto-play AI responses
+  ttsCacheEnabled: boolean; // Enable audio caching
 }
 
 // Default TTS settings
@@ -195,12 +284,26 @@ export const DEFAULT_TTS_SETTINGS: TTSSettings = {
   edgeRate: '+0%',
   edgePitch: '+0Hz',
 
+  // ElevenLabs
+  elevenlabsVoice: 'rachel',
+  elevenlabsModel: 'eleven_multilingual_v2',
+  elevenlabsStability: 0.5,
+  elevenlabsSimilarityBoost: 0.75,
+
+  // LMNT
+  lmntVoice: 'lily',
+  lmntSpeed: 1.0,
+
+  // Hume
+  humeVoice: 'kora',
+
   // Common
   ttsEnabled: false,
   ttsRate: 1.0,
   ttsPitch: 1.0,
   ttsVolume: 1.0,
   ttsAutoPlay: false,
+  ttsCacheEnabled: true,
 };
 
 // TTS Request options

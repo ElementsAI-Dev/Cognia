@@ -58,9 +58,14 @@ import { VersionHistoryPanel } from './version-history-panel';
 import { CodeExecutionPanel } from './code-execution-panel';
 import { CanvasDocumentTabs } from './canvas-document-tabs';
 import { SuggestionItem } from './suggestion-item';
+import { CollaborationPanel } from './collaboration-panel';
+import { CommentPanel } from './comment-panel';
+import { KeybindingSettings } from './keybinding-settings';
 import type { CanvasSuggestion } from '@/types';
-import { useCanvasCodeExecution, useCanvasDocuments, useCanvasSuggestions } from '@/hooks/canvas';
+import { useCanvasCodeExecution, useCanvasDocuments, useCanvasSuggestions, useChunkLoader } from '@/hooks/canvas';
 import { useKeybindingStore } from '@/stores/canvas/keybinding-store';
+import { useChunkedDocumentStore } from '@/stores/canvas/chunked-document-store';
+import { isLargeDocument } from '@/lib/canvas/utils';
 import { themeRegistry } from '@/lib/canvas/themes/theme-registry';
 import { CanvasErrorBoundary } from './canvas-error-boundary';
 import {
@@ -212,6 +217,26 @@ function CanvasPanelContent() {
     isGenerating: isGeneratingSuggestions,
     generateSuggestions,
   } = useCanvasSuggestions();
+
+  // Large file optimization
+  const { addChunkedDocument, removeChunkedDocument } = useChunkedDocumentStore();
+  const { isLargeDocument: isLargeDoc, state: chunkState } = useChunkLoader(activeCanvasId);
+  const isLargeFile = activeDocument ? isLargeDocument(activeDocument.content || '') : false;
+  
+  // Use chunk loader state for large documents
+  const _chunkLoaderInfo = isLargeDoc ? { totalLines: chunkState.totalLines, isLoading: chunkState.isLoading } : null;
+
+  // Initialize chunked document for large files
+  useEffect(() => {
+    if (activeCanvasId && activeDocument && isLargeFile) {
+      addChunkedDocument(activeCanvasId, activeDocument.content || '');
+    }
+    return () => {
+      if (activeCanvasId) {
+        removeChunkedDocument(activeCanvasId);
+      }
+    };
+  }, [activeCanvasId, activeDocument, isLargeFile, addChunkedDocument, removeChunkedDocument]);
 
   // Editor settings state
   const [editorSettings, setEditorSettings] = useState({
@@ -623,6 +648,20 @@ function CanvasPanelContent() {
                     </Button>
                   }
                 />
+
+                {/* Collaboration Panel */}
+                <CollaborationPanel
+                  documentId={activeDocument.id}
+                  documentContent={localContent}
+                />
+
+                {/* Comment Panel */}
+                <CommentPanel
+                  documentId={activeDocument.id}
+                />
+
+                {/* Keybinding Settings */}
+                <KeybindingSettings />
 
                 {/* Designer Buttons - More prominent for web code */}
                 {canOpenInDesigner && (

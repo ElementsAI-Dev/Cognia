@@ -100,7 +100,8 @@ export const useProjectActivityStore = create<ProjectActivityState>()(
       name: 'cognia-project-activities',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        activities: state.activities.map((a) => ({
+        // Limit to last 200 activities to prevent storage bloat
+        activities: state.activities.slice(-200).map((a) => ({
           ...a,
           timestamp: a.timestamp instanceof Date ? a.timestamp.toISOString() : a.timestamp,
         })),

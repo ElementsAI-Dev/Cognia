@@ -14,7 +14,7 @@ import {
   secureStoreCustomProviderApiKey,
   secureRemoveProviderApiKey,
 } from '@/lib/native/stronghold-integration';
-import type { UserProviderSettings, ApiKeyRotationStrategy, ProviderName } from '@/types/provider';
+import type { UserProviderSettings, ApiKeyRotationStrategy, ProviderName, ApiProtocol } from '@/types/provider';
 import {
   getNextApiKey,
   recordApiKeySuccess,
@@ -304,6 +304,7 @@ export interface CustomProviderSettings extends UserProviderSettings {
   isCustom: true;
   customName: string;
   customModels: string[];
+  apiProtocol: ApiProtocol;
 }
 
 // Simplified Mode settings - clean, minimal interface like OpenAI/Claude

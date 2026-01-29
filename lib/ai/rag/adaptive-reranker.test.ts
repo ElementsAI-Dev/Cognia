@@ -2,7 +2,7 @@
  * Tests for Adaptive Reranker
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+// Jest globals are auto-imported
 import {
   AdaptiveReranker,
   createAdaptiveReranker,

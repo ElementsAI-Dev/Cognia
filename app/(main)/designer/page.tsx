@@ -9,6 +9,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSettingsStore, useArtifactStore } from '@/stores';
 import { useDesignerStore } from '@/stores/designer';
+import { useDebouncedCallback } from '@/hooks/utils/use-debounce';
 import {
   ReactSandbox,
   ElementTree,
@@ -90,7 +91,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
-import type { DesignerMode, ViewportSize } from '@/types/designer';
+// Types now come from store, no need to import
 
 export default function DesignerPage() {
   const searchParams = useSearchParams();
@@ -105,12 +106,17 @@ export default function DesignerPage() {
   const [templateViewMode, setTemplateViewMode] = useState<'grid' | 'list'>('grid');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   
-  // Panel visibility states
-  const [showElementTree, setShowElementTree] = useState(false);
-  const [showStylePanel, setShowStylePanel] = useState(false);
-  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
-  const [designerMode, setDesignerMode] = useState<DesignerMode>('preview');
-  const [viewport, setViewport] = useState<ViewportSize>('desktop');
+  // Panel visibility states - use store for persistence
+  const showElementTree = useDesignerStore((state) => state.showElementTree);
+  const showStylePanel = useDesignerStore((state) => state.showStylePanel);
+  const showHistoryPanel = useDesignerStore((state) => state.showHistoryPanel);
+  const toggleElementTree = useDesignerStore((state) => state.toggleElementTree);
+  const toggleStylePanel = useDesignerStore((state) => state.toggleStylePanel);
+  const toggleHistoryPanel = useDesignerStore((state) => state.toggleHistoryPanel);
+  const designerMode = useDesignerStore((state) => state.mode);
+  const setDesignerMode = useDesignerStore((state) => state.setMode);
+  const viewport = useDesignerStore((state) => state.viewport);
+  const setViewport = useDesignerStore((state) => state.setViewport);
   
   // History for undo/redo
   const [history, setHistory] = useState<string[]>([DESIGNER_TEMPLATES[0].code]);
@@ -241,11 +247,16 @@ export default function DesignerPage() {
     setShowTemplates(false);
   }, [addToHistory]);
 
+  // Debounced history update for manual edits (1 second delay)
+  const debouncedAddToHistory = useDebouncedCallback((newCode: unknown) => {
+    addToHistory(newCode as string);
+  }, 1000);
+
   // Handle code change from editor
   const handleCodeChange = useCallback((newCode: string) => {
     setCode(newCode);
-    // Debounce history updates for manual edits
-  }, []);
+    debouncedAddToHistory(newCode);
+  }, [debouncedAddToHistory]);
 
   const handleAIEdit = useCallback(async () => {
     if (!aiPrompt.trim()) return;
@@ -272,7 +283,7 @@ export default function DesignerPage() {
   }, [aiPrompt, code, defaultProvider, providerSettings, addToHistory]);
 
   return (
-    <div className="h-full flex flex-col bg-background" data-page="designer">
+    <div className="h-[calc(100vh-var(--titlebar-height,0px))] flex flex-col bg-background" data-page="designer">
       {/* Header */}
       <header className="flex items-center justify-between border-b px-4 py-2">
         <div className="flex items-center gap-4">
@@ -364,7 +375,7 @@ export default function DesignerPage() {
                     variant={showElementTree ? 'secondary' : 'ghost'}
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => setShowElementTree(!showElementTree)}
+                    onClick={toggleElementTree}
                   >
                     <PanelLeft className="h-4 w-4" />
                   </Button>
@@ -378,7 +389,7 @@ export default function DesignerPage() {
                     variant={showStylePanel ? 'secondary' : 'ghost'}
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => setShowStylePanel(!showStylePanel)}
+                    onClick={toggleStylePanel}
                   >
                     <PanelRight className="h-4 w-4" />
                   </Button>
@@ -392,7 +403,7 @@ export default function DesignerPage() {
                     variant={showHistoryPanel ? 'secondary' : 'ghost'}
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => setShowHistoryPanel(!showHistoryPanel)}
+                    onClick={toggleHistoryPanel}
                   >
                     <History className="h-4 w-4" />
                   </Button>
@@ -565,9 +576,9 @@ export default function DesignerPage() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <DesignerDndProvider>
-          <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
             {/* Element Tree Panel */}
             {showElementTree && (
               <>
@@ -579,7 +590,7 @@ export default function DesignerPage() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => setShowElementTree(false)}
+                        onClick={toggleElementTree}
                       >
                         <X className="h-3 w-3" />
                       </Button>
@@ -615,7 +626,7 @@ export default function DesignerPage() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => setShowStylePanel(false)}
+                        onClick={toggleStylePanel}
                       >
                         <X className="h-3 w-3" />
                       </Button>
@@ -638,7 +649,7 @@ export default function DesignerPage() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => setShowHistoryPanel(false)}
+                        onClick={toggleHistoryPanel}
                       >
                         <X className="h-3 w-3" />
                       </Button>

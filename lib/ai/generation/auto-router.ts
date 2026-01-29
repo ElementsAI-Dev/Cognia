@@ -84,13 +84,156 @@ export interface RouterModelConfig {
   priority?: number;
 }
 
+// Router health state
+export interface RouterHealthState {
+  provider: ProviderName;
+  model: string;
+  isHealthy: boolean;
+  lastCheckTime: number;
+  failureCount: number;
+  avgLatency: number;
+  successRate: number;
+}
+
 // Default small models for LLM-based routing (ordered by priority)
 const DEFAULT_ROUTER_MODELS: RouterModelConfig[] = [
   { provider: 'groq', model: 'llama-3.1-8b-instant', priority: 1 },
   { provider: 'google', model: 'gemini-2.0-flash-exp', priority: 2 },
   { provider: 'openai', model: 'gpt-4o-mini', priority: 3 },
   { provider: 'anthropic', model: 'claude-3-5-haiku-20241022', priority: 4 },
+  { provider: 'deepseek', model: 'deepseek-chat', priority: 5 },
 ];
+
+// ============================================================================
+// ROUTER HEALTH MANAGER
+// ============================================================================
+
+class RouterHealthManager {
+  private healthStates: Map<string, RouterHealthState> = new Map();
+  private readonly healthCheckInterval = 60000; // 1 minute
+  private readonly maxFailures = 3;
+  private readonly recoveryTime = 300000; // 5 minutes
+
+  private getKey(provider: ProviderName, model: string): string {
+    return `${provider}:${model}`;
+  }
+
+  getHealth(provider: ProviderName, model: string): RouterHealthState {
+    const key = this.getKey(provider, model);
+    let state = this.healthStates.get(key);
+    
+    if (!state) {
+      state = {
+        provider,
+        model,
+        isHealthy: true,
+        lastCheckTime: 0,
+        failureCount: 0,
+        avgLatency: 0,
+        successRate: 1,
+      };
+      this.healthStates.set(key, state);
+    }
+    
+    // Auto-recover after recovery time
+    if (!state.isHealthy && Date.now() - state.lastCheckTime > this.recoveryTime) {
+      state.isHealthy = true;
+      state.failureCount = 0;
+    }
+    
+    return state;
+  }
+
+  recordSuccess(provider: ProviderName, model: string, latencyMs: number): void {
+    const key = this.getKey(provider, model);
+    const state = this.getHealth(provider, model);
+    
+    state.lastCheckTime = Date.now();
+    state.failureCount = Math.max(0, state.failureCount - 1);
+    state.isHealthy = true;
+    
+    // Update average latency (exponential moving average)
+    if (state.avgLatency === 0) {
+      state.avgLatency = latencyMs;
+    } else {
+      state.avgLatency = state.avgLatency * 0.8 + latencyMs * 0.2;
+    }
+    
+    // Update success rate
+    const totalAttempts = Math.max(1, state.successRate > 0 ? 10 : 1);
+    state.successRate = (state.successRate * (totalAttempts - 1) + 1) / totalAttempts;
+    
+    this.healthStates.set(key, state);
+  }
+
+  recordFailure(provider: ProviderName, model: string): void {
+    const key = this.getKey(provider, model);
+    const state = this.getHealth(provider, model);
+    
+    state.lastCheckTime = Date.now();
+    state.failureCount++;
+    
+    if (state.failureCount >= this.maxFailures) {
+      state.isHealthy = false;
+    }
+    
+    // Update success rate
+    const totalAttempts = Math.max(1, state.successRate > 0 ? 10 : 1);
+    state.successRate = (state.successRate * (totalAttempts - 1)) / totalAttempts;
+    
+    this.healthStates.set(key, state);
+  }
+
+  isHealthy(provider: ProviderName, model: string): boolean {
+    return this.getHealth(provider, model).isHealthy;
+  }
+
+  getBestRouter(
+    availableRouters: RouterModelConfig[],
+    enabledProviders: ProviderName[]
+  ): RouterModelConfig | null {
+    // Filter by enabled providers and health
+    const healthyRouters = availableRouters.filter(r => 
+      enabledProviders.includes(r.provider) && this.isHealthy(r.provider, r.model)
+    );
+    
+    if (healthyRouters.length === 0) {
+      // Fallback: try any enabled router even if unhealthy
+      const enabledRouters = availableRouters.filter(r => 
+        enabledProviders.includes(r.provider)
+      );
+      return enabledRouters[0] || null;
+    }
+    
+    // Sort by: priority (lower first), then latency (lower first), then success rate (higher first)
+    healthyRouters.sort((a, b) => {
+      const stateA = this.getHealth(a.provider, a.model);
+      const stateB = this.getHealth(b.provider, b.model);
+      
+      // Priority first
+      const priorityDiff = (a.priority || 99) - (b.priority || 99);
+      if (priorityDiff !== 0) return priorityDiff;
+      
+      // Success rate (higher is better)
+      const successDiff = stateB.successRate - stateA.successRate;
+      if (Math.abs(successDiff) > 0.1) return successDiff;
+      
+      // Latency (lower is better)
+      return stateA.avgLatency - stateB.avgLatency;
+    });
+    
+    return healthyRouters[0];
+  }
+
+  reset(): void {
+    this.healthStates.clear();
+  }
+}
+
+// Global router health manager
+const routerHealthManager = new RouterHealthManager();
+
+export { routerHealthManager };
 
 // LLM routing prompt
 const LLM_ROUTER_PROMPT = `You are a task router that classifies user queries to select the best AI model tier.
@@ -114,6 +257,25 @@ Tier guidelines:
 
 Query to classify:`;
 
+// ============================================================================
+// ENHANCED PATTERN DETECTION SYSTEM
+// ============================================================================
+
+// Expert-level patterns (require most capable models)
+const EXPERT_PATTERNS = [
+  /prove.*theorem|mathematical.*proof|formal.*verification/i,
+  /architect.*distributed|design.*scalable.*system/i,
+  /security.*audit|penetration.*test|vulnerability.*analysis/i,
+  /machine.*learning.*model|train.*neural.*network|deep.*learning/i,
+  /compiler.*design|language.*implementation|parser.*generator/i,
+  /concurrent.*programming|lock-free|memory.*model/i,
+  /cryptograph|encryption.*algorithm|secure.*protocol/i,
+  // Chinese expert patterns
+  /设计.*分布式|架构.*微服务|高可用.*系统/i,
+  /机器学习|深度学习|神经网络.*训练/i,
+  /数学证明|形式化验证|定理.*证明/i,
+];
+
 // Patterns to detect task complexity
 const COMPLEX_PATTERNS = [
   /write.*code|implement|create.*function|build.*app/i,
@@ -124,6 +286,15 @@ const COMPLEX_PATTERNS = [
   /debug|fix.*bug|troubleshoot/i,
   /architect|design.*system/i,
   /refactor|optimize|improve.*performance/i,
+  /algorithm|data.*structure|complexity.*analysis/i,
+  /integrate|migration|upgrade.*system/i,
+  /test.*coverage|unit.*test|integration.*test/i,
+  // Chinese complex patterns
+  /编写.*代码|实现.*功能|开发.*应用/i,
+  /分析.*数据|研究|调查/i,
+  /详细.*解释|全面|深入/i,
+  /调试|修复.*bug|排查.*问题/i,
+  /重构|优化|提升.*性能/i,
 ];
 
 const REASONING_PATTERNS = [
@@ -134,6 +305,17 @@ const REASONING_PATTERNS = [
   /think.*through|reason.*about/i,
   /step.*by.*step.*reasoning/i,
   /chain.*of.*thought/i,
+  /deduce|infer|conclude.*from/i,
+  /analyze.*implications|evaluate.*trade-?offs/i,
+  /what.*if|hypothetical|scenario.*analysis/i,
+  /root.*cause|diagnose|troubleshoot.*why/i,
+  /optimize.*for|balance.*between|prioritize/i,
+  // Chinese reasoning patterns
+  /为什么|如何.*工作|解释.*原因/i,
+  /证明|推导|计算/i,
+  /逻辑|数学|定理/i,
+  /解决.*问题|分析.*原因/i,
+  /逐步.*推理|思考.*过程/i,
 ];
 
 const CODE_PATTERNS = [
@@ -142,6 +324,18 @@ const CODE_PATTERNS = [
   /refactor|optimize.*code/i,
   /\bapi\b|endpoint|backend/i,
   /\bsql\b|database|query/i,
+  /\bhtml\b|\bcss\b|\bjavascript\b|\btypescript\b/i,
+  /\breact\b|\bvue\b|\bangular\b|\bnext\.?js\b/i,
+  /\bpython\b|\bjava\b|\brust\b|\bgo\b|\bc\+\+\b/i,
+  /git.*commit|pull.*request|merge.*branch/i,
+  /docker|kubernetes|ci\/cd|deploy/i,
+  /unit.*test|integration.*test|e2e.*test/i,
+  /\borm\b|\bgraphql\b|\brest\b|\bgrpc\b/i,
+  // Chinese code patterns
+  /编写.*代码|实现.*函数|创建.*方法/i,
+  /调试|修复.*错误|代码.*bug/i,
+  /重构|优化.*代码/i,
+  /接口|后端|数据库.*查询/i,
 ];
 
 const SIMPLE_PATTERNS = [
@@ -151,6 +345,17 @@ const SIMPLE_PATTERNS = [
   /yes.*or.*no|true.*or.*false/i,
   /list|enumerate/i,
   /^hi|^hello|^hey/i,
+  /^thanks|^thank.*you|^ok|^okay/i,
+  /how.*spell|correct.*spelling/i,
+  /what.*time|what.*date|when.*is/i,
+  /who.*is|where.*is|which.*is/i,
+  // Chinese simple patterns
+  /什么是|定义|意思/i,
+  /翻译|转换/i,
+  /总结|简述|概括/i,
+  /是否|对不对/i,
+  /列出|枚举/i,
+  /^你好|^嗨|^早上好|^晚上好/i,
 ];
 
 // Creative patterns
@@ -158,6 +363,16 @@ const CREATIVE_PATTERNS = [
   /write.*story|creative.*writing|poem|fiction/i,
   /brainstorm|ideas.*for|suggest/i,
   /imagine|creative|innovative/i,
+  /design.*logo|create.*brand|visual.*identity/i,
+  /write.*essay|compose|draft.*article/i,
+  /marketing.*copy|slogan|tagline/i,
+  /name.*suggestions|naming|brand.*name/i,
+  /role-?play|pretend|act.*as/i,
+  // Chinese creative patterns
+  /写.*故事|创意.*写作|诗歌|小说/i,
+  /头脑风暴|创意|建议/i,
+  /想象|创新|设计/i,
+  /撰写.*文章|起草|编写/i,
 ];
 
 // Research patterns
@@ -165,6 +380,49 @@ const RESEARCH_PATTERNS = [
   /research|investigate|find.*information/i,
   /search.*for|look.*up|what.*latest/i,
   /sources|references|citations/i,
+  /academic.*paper|scientific.*study|peer.*review/i,
+  /literature.*review|state.*of.*art|survey/i,
+  /fact.*check|verify.*claim|evidence/i,
+  /current.*trends|market.*analysis|industry.*report/i,
+  // Chinese research patterns
+  /研究|调查|查找.*信息/i,
+  /搜索|查询|最新/i,
+  /来源|参考|引用/i,
+  /学术.*论文|科学.*研究/i,
+];
+
+// Math patterns (for specialized routing)
+const MATH_PATTERNS = [
+  /calculate|compute|solve.*equation/i,
+  /\bmath\b|mathematical|arithmetic/i,
+  /integral|derivative|differential/i,
+  /matrix|vector|linear.*algebra/i,
+  /probability|statistics|distribution/i,
+  /geometry|trigonometry|calculus/i,
+  // Chinese math patterns
+  /计算|求解|方程/i,
+  /数学|算术|运算/i,
+  /积分|微分|导数/i,
+  /矩阵|向量|线性代数/i,
+  /概率|统计|分布/i,
+];
+
+// Translation patterns
+const TRANSLATION_PATTERNS = [
+  /translate.*to|translate.*from|翻译/i,
+  /in.*english|in.*chinese|in.*japanese|in.*korean/i,
+  /用.*英文|用.*中文|用.*日文/i,
+  /convert.*language|localize/i,
+];
+
+// Summarization patterns
+const SUMMARIZATION_PATTERNS = [
+  /summarize|summary|tldr|tl;dr/i,
+  /brief.*overview|key.*points|main.*ideas/i,
+  /condense|shorten|abstract/i,
+  // Chinese
+  /总结|概述|要点/i,
+  /简述|摘要|精简/i,
 ];
 
 /**
@@ -177,6 +435,10 @@ function classifyTaskRuleBased(input: string): TaskClassification {
   const requiresCoding = CODE_PATTERNS.some((p) => p.test(input));
   const requiresCreativity = CREATIVE_PATTERNS.some((p) => p.test(input));
   const isResearch = RESEARCH_PATTERNS.some((p) => p.test(input));
+  const isExpertLevel = EXPERT_PATTERNS.some((p) => p.test(input));
+  const isMathTask = MATH_PATTERNS.some((p) => p.test(input));
+  const isTranslation = TRANSLATION_PATTERNS.some((p) => p.test(input));
+  const isSummarization = SUMMARIZATION_PATTERNS.some((p) => p.test(input));
 
   // Estimate complexity based on input length and patterns
   const wordCount = input.split(/\s+/).length;
@@ -186,10 +448,18 @@ function classifyTaskRuleBased(input: string): TaskClassification {
   // More nuanced complexity detection
   let complexity: TaskComplexity = 'moderate';
   
-  if (isSimple && wordCount < 20 && !requiresCoding) {
-    complexity = 'simple';
-  } else if (isComplex || wordCount > 100 || requiresReasoning || requiresCoding) {
+  // Expert-level tasks always require complex handling
+  if (isExpertLevel) {
     complexity = 'complex';
+  } else if (isSimple && wordCount < 20 && !requiresCoding && !isMathTask) {
+    complexity = 'simple';
+  } else if (isComplex || wordCount > 100 || requiresReasoning || requiresCoding || isMathTask) {
+    complexity = 'complex';
+  }
+  
+  // Translation and summarization are typically simpler if not combined with other complex tasks
+  if ((isTranslation || isSummarization) && !isComplex && !requiresCoding && !isExpertLevel) {
+    complexity = 'moderate';
   }
 
   // Check for tool requirements
@@ -201,18 +471,21 @@ function classifyTaskRuleBased(input: string): TaskClassification {
   // Check for long context requirements
   const requiresLongContext = wordCount > 500 || /entire|full|complete|all.*of/i.test(input);
 
-  // Determine category
+  // Determine category with enhanced pattern detection
   let category: TaskCategory = 'general';
   if (requiresCoding) category = 'coding';
-  else if (requiresReasoning) category = 'analysis';
+  else if (isMathTask || requiresReasoning) category = 'analysis';
   else if (requiresCreativity) category = 'creative';
   else if (isResearch) category = 'research';
+  else if (isTranslation) category = 'general'; // Translation stays general but noted
+  else if (isSummarization) category = 'analysis'; // Summarization is analytical
   else if (isSimple && wordCount < 30) category = 'conversation';
 
   // Calculate confidence based on pattern matches
   const patternMatches = [
     isComplex, isSimple, requiresReasoning, requiresCoding, 
-    requiresCreativity, isResearch, requiresTools, requiresVision
+    requiresCreativity, isResearch, requiresTools, requiresVision,
+    isExpertLevel, isMathTask, isTranslation, isSummarization
   ].filter(Boolean).length;
   const confidence = Math.min(0.95, 0.5 + patternMatches * 0.1);
 
@@ -233,13 +506,16 @@ function classifyTaskRuleBased(input: string): TaskClassification {
 
 /**
  * LLM-based task classification (accurate, uses API call)
+ * Now integrated with RouterHealthManager for adaptive router selection
  */
 export async function classifyTaskWithLLM(
   input: string,
   routerModel: RouterModelConfig,
   apiKey: string,
   baseURL?: string
-): Promise<{ classification: TaskClassification; recommendedTier: 'fast' | 'balanced' | 'powerful' }> {
+): Promise<{ classification: TaskClassification; recommendedTier: 'fast' | 'balanced' | 'powerful' | 'reasoning' }> {
+  const startTime = Date.now();
+  
   try {
     const model = getProviderModel(routerModel.provider, routerModel.model, apiKey, baseURL);
     
@@ -248,6 +524,10 @@ export async function classifyTaskWithLLM(
       prompt: `${LLM_ROUTER_PROMPT}\n\n"${input.slice(0, 500)}"`, // Limit input length
       temperature: 0,
     });
+
+    // Record success with latency
+    const latencyMs = Date.now() - startTime;
+    routerHealthManager.recordSuccess(routerModel.provider, routerModel.model, latencyMs);
 
     // Parse JSON response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -260,6 +540,13 @@ export async function classifyTaskWithLLM(
     const wordCount = input.split(/\s+/).length;
     
     const estimatedInputTokens = Math.ceil(wordCount * 1.3);
+    
+    // Determine if reasoning tier is needed
+    let recommendedTier = result.recommendedTier || 'balanced';
+    if (result.requiresReasoning && result.complexity === 'complex') {
+      recommendedTier = 'reasoning';
+    }
+    
     return {
       classification: {
         complexity: result.complexity || 'moderate',
@@ -274,15 +561,75 @@ export async function classifyTaskWithLLM(
         estimatedOutputTokens: estimatedInputTokens * 2,
         confidence: 0.85, // LLM classification is more confident
       },
-      recommendedTier: result.recommendedTier || 'balanced',
+      recommendedTier,
     };
   } catch (error) {
+    // Record failure
+    routerHealthManager.recordFailure(routerModel.provider, routerModel.model);
+    
     console.warn('LLM routing failed, falling back to rule-based:', error);
     // Fallback to rule-based
     const classification = classifyTaskRuleBased(input);
     const tier = classification.complexity === 'simple' ? 'fast' :
                  classification.complexity === 'complex' ? 'powerful' : 'balanced';
     return { classification, recommendedTier: tier };
+  }
+}
+
+/**
+ * Hybrid task classification - combines rule-based and LLM-based routing
+ * Uses rule-based for high-confidence classifications, LLM for uncertain cases
+ */
+export async function classifyTaskHybrid(
+  input: string,
+  routerModel: RouterModelConfig | null,
+  apiKey: string,
+  baseURL?: string,
+  confidenceThreshold: number = 0.75
+): Promise<{ classification: TaskClassification; recommendedTier: ModelTier; routingMethod: 'rule' | 'llm' | 'hybrid' }> {
+  // First, try rule-based classification
+  const ruleClassification = classifyTaskRuleBased(input);
+  
+  // If confidence is high enough, use rule-based result
+  if (ruleClassification.confidence >= confidenceThreshold || !routerModel || !apiKey) {
+    const tier: ModelTier = ruleClassification.complexity === 'simple' ? 'fast' :
+                           ruleClassification.complexity === 'complex' ? 
+                             (ruleClassification.requiresReasoning ? 'reasoning' : 'powerful') : 
+                           'balanced';
+    return {
+      classification: ruleClassification,
+      recommendedTier: tier,
+      routingMethod: 'rule',
+    };
+  }
+  
+  // For uncertain cases, use LLM-based classification
+  try {
+    const llmResult = await classifyTaskWithLLM(input, routerModel, apiKey, baseURL);
+    
+    // Merge classifications - LLM takes precedence but keep rule-based requirements
+    const mergedClassification: TaskClassification = {
+      ...llmResult.classification,
+      requiresTools: ruleClassification.requiresTools || llmResult.classification.requiresTools,
+      requiresVision: ruleClassification.requiresVision || llmResult.classification.requiresVision,
+      requiresCoding: ruleClassification.requiresCoding || llmResult.classification.requiresCoding,
+      confidence: Math.max(ruleClassification.confidence, llmResult.classification.confidence),
+    };
+    
+    return {
+      classification: mergedClassification,
+      recommendedTier: llmResult.recommendedTier as ModelTier,
+      routingMethod: 'hybrid',
+    };
+  } catch {
+    // Fallback to rule-based on any error
+    const tier: ModelTier = ruleClassification.complexity === 'simple' ? 'fast' :
+                           ruleClassification.complexity === 'complex' ? 'powerful' : 'balanced';
+    return {
+      classification: ruleClassification,
+      recommendedTier: tier,
+      routingMethod: 'rule',
+    };
   }
 }
 
@@ -317,8 +664,16 @@ const MODEL_TIERS = {
   ],
   powerful: [
     { provider: 'anthropic' as ProviderName, model: 'claude-opus-4-20250514' },
+    { provider: 'openai' as ProviderName, model: 'gpt-4o' },
+    { provider: 'google' as ProviderName, model: 'gemini-1.5-pro' },
+  ],
+  // Reasoning tier - specialized for deep reasoning tasks (math, logic, analysis)
+  reasoning: [
     { provider: 'openai' as ProviderName, model: 'o1' },
+    { provider: 'openai' as ProviderName, model: 'o1-mini' },
     { provider: 'deepseek' as ProviderName, model: 'deepseek-reasoner' },
+    { provider: 'anthropic' as ProviderName, model: 'claude-opus-4-20250514' },
+    { provider: 'google' as ProviderName, model: 'gemini-2.0-flash-thinking-exp' },
   ],
 };
 

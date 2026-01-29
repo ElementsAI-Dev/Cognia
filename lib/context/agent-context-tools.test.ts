@@ -55,10 +55,13 @@ describe('agent-context-tools', () => {
         path: 'context/tool-output/test.txt',
         content: 'file content here',
         metadata: {
+          id: 'test-file-1',
+          category: 'tool-output',
           sizeBytes: 100,
           estimatedTokens: 25,
           source: 'test-tool',
           createdAt: new Date('2024-01-15'),
+          accessedAt: new Date('2024-01-15'),
         },
       });
 
@@ -79,10 +82,13 @@ describe('agent-context-tools', () => {
         path: 'test.txt',
         content: 'lines 10-20',
         metadata: {
+          id: 'test-file-2',
+          category: 'tool-output',
           sizeBytes: 50,
           estimatedTokens: 12,
           source: 'test',
           createdAt: new Date(),
+          accessedAt: new Date(),
         },
       });
 
@@ -119,9 +125,12 @@ describe('agent-context-tools', () => {
         path: 'test.txt',
         content: 'line 48\nline 49\nline 50',
         metadata: {
+          id: 'test-file-3',
+          category: 'tool-output',
           sizeBytes: 200,
           source: 'test',
           createdAt: new Date(),
+          accessedAt: new Date(),
         },
       });
 
@@ -137,7 +146,7 @@ describe('agent-context-tools', () => {
       mockTailContextFile.mockResolvedValue({
         path: 'test.txt',
         content: 'content',
-        metadata: { sizeBytes: 10, source: 'test', createdAt: new Date() },
+        metadata: { id: 'test-file-4', category: 'tool-output', sizeBytes: 10, source: 'test', createdAt: new Date(), accessedAt: new Date() },
       });
 
       await tool.execute({ path: 'test.txt' });
@@ -236,6 +245,7 @@ describe('agent-context-tools', () => {
           sizeBytes: 500,
           estimatedTokens: 125,
           createdAt: new Date('2024-01-15'),
+          accessedAt: new Date('2024-01-15'),
           tags: ['search'],
         },
         {
@@ -245,6 +255,7 @@ describe('agent-context-tools', () => {
           sizeBytes: 200,
           estimatedTokens: 50,
           createdAt: new Date('2024-01-14'),
+          accessedAt: new Date('2024-01-14'),
           tags: ['terminal'],
         },
       ]);
@@ -299,6 +310,9 @@ describe('agent-context-tools', () => {
           'tool-output': 10,
           'terminal': 5,
           'history': 3,
+          'mcp': 0,
+          'skills': 0,
+          'temp': 0,
         },
         totalSizeBytes: 50000,
         estimatedTotalTokens: 12500,
@@ -320,7 +334,14 @@ describe('agent-context-tools', () => {
     it('should handle missing optional fields', async () => {
       const tool = createContextStatsTool();
       mockGetContextStats.mockResolvedValue({
-        filesByCategory: {},
+        filesByCategory: {
+          'tool-output': 0,
+          'terminal': 0,
+          'history': 0,
+          'mcp': 0,
+          'skills': 0,
+          'temp': 0,
+        },
         totalSizeBytes: 0,
         estimatedTotalTokens: 0,
         oldestFile: undefined,

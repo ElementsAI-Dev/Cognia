@@ -97,7 +97,7 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
     if (!node || !currentWorkflow) {
       return { isValid: true, errors: [], warnings: [] };
     }
-    return validateNode(node, currentWorkflow.nodes, currentWorkflow.edges);
+    return validateNode(node.data.nodeType, node.data);
   }, [node, currentWorkflow]);
 
   const handleUpdateData = useCallback(
@@ -123,7 +123,7 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
     );
   }
 
-  const nodeColor = NODE_TYPE_COLORS[nodeType as keyof typeof NODE_TYPE_COLORS] || NODE_TYPE_COLORS.default;
+  const nodeColor = NODE_TYPE_COLORS[nodeType as keyof typeof NODE_TYPE_COLORS] || '#6b7280';
 
   return (
     <div className={cn('flex flex-col h-full', className)}>

@@ -836,42 +836,6 @@ pub fn show_about_dialog_public(app: &AppHandle) {
     let _ = app.emit("show-about-dialog", about_info);
 }
 
-/// Tray icon state
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TrayIconState {
-    /// Normal idle state
-    Normal,
-    /// Recording in progress
-    Recording,
-    /// Processing/busy state
-    Busy,
-    /// Notification/attention needed
-    Notification,
-}
-
-/// Update tray icon based on state
-/// Note: This requires different icon files to be present in the icons directory
-#[allow(dead_code)]
-pub fn update_tray_icon(app: &AppHandle, state: TrayIconState) {
-    // In Tauri 2.x, icon changes require loading the icon as bytes
-    // For now, we just log the state change - icon switching can be implemented
-    // when separate icon files are available
-    log::debug!("Tray icon state changed to {:?}", state);
-
-    // Update tooltip to reflect state
-    let tooltip = match state {
-        TrayIconState::Normal => "Cognia AI Assistant - 就绪",
-        TrayIconState::Recording => "Cognia - 🔴 录制中",
-        TrayIconState::Busy => "Cognia - ⏳ 处理中",
-        TrayIconState::Notification => "Cognia - 📢 有新通知",
-    };
-
-    if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_tooltip(Some(tooltip));
-    }
-}
-
 /// Refresh the tray menu (useful after state changes)
 pub fn refresh_tray_menu(app: &AppHandle) {
     use crate::commands::system::tray::{TrayConfigState, TrayDisplayMode};
@@ -1026,45 +990,6 @@ mod tests {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // TrayIconState Tests
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    #[test]
-    fn test_tray_icon_state_variants() {
-        let normal = TrayIconState::Normal;
-        let recording = TrayIconState::Recording;
-        let busy = TrayIconState::Busy;
-        let notification = TrayIconState::Notification;
-
-        assert_eq!(normal, TrayIconState::Normal);
-        assert_eq!(recording, TrayIconState::Recording);
-        assert_eq!(busy, TrayIconState::Busy);
-        assert_eq!(notification, TrayIconState::Notification);
-        assert_ne!(normal, recording);
-    }
-
-    #[test]
-    fn test_tray_icon_state_clone() {
-        let state = TrayIconState::Recording;
-        let cloned = state; // Copy trait - no need for clone()
-        assert_eq!(state, cloned);
-    }
-
-    #[test]
-    fn test_tray_icon_state_copy() {
-        let state = TrayIconState::Busy;
-        let copied = state;
-        assert_eq!(state, copied);
-    }
-
-    #[test]
-    fn test_tray_icon_state_debug() {
-        let state = TrayIconState::Normal;
-        let debug_str = format!("{:?}", state);
-        assert!(debug_str.contains("Normal"));
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
     // Menu Item ID Tests
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1165,43 +1090,6 @@ mod tests {
         let tooltip = build_tooltip_test(true, true, "状态");
         assert!(tooltip.contains("🔴"));
         assert!(!tooltip.contains("⏳"));
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Icon State Tooltip Tests
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    fn get_tooltip_for_state(state: TrayIconState) -> &'static str {
-        match state {
-            TrayIconState::Normal => "Cognia AI Assistant - 就绪",
-            TrayIconState::Recording => "Cognia - 🔴 录制中",
-            TrayIconState::Busy => "Cognia - ⏳ 处理中",
-            TrayIconState::Notification => "Cognia - 📢 有新通知",
-        }
-    }
-
-    #[test]
-    fn test_icon_state_tooltip_normal() {
-        let tooltip = get_tooltip_for_state(TrayIconState::Normal);
-        assert_eq!(tooltip, "Cognia AI Assistant - 就绪");
-    }
-
-    #[test]
-    fn test_icon_state_tooltip_recording() {
-        let tooltip = get_tooltip_for_state(TrayIconState::Recording);
-        assert!(tooltip.contains("🔴"));
-    }
-
-    #[test]
-    fn test_icon_state_tooltip_busy() {
-        let tooltip = get_tooltip_for_state(TrayIconState::Busy);
-        assert!(tooltip.contains("⏳"));
-    }
-
-    #[test]
-    fn test_icon_state_tooltip_notification() {
-        let tooltip = get_tooltip_for_state(TrayIconState::Notification);
-        assert!(tooltip.contains("📢"));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

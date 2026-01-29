@@ -5,7 +5,7 @@
  * Provides in-memory and persistent caching with TTL support
  */
 
-import { createContext, useContext, useCallback, useEffect, useMemo, ReactNode, useRef } from 'react';
+import { createContext, useContext, useCallback, useEffect, useState, ReactNode, useRef } from 'react';
 import type {
   CacheEntry,
   CacheStats,
@@ -65,7 +65,7 @@ export function CacheProvider({
   config: userConfig = {},
   initialCache = {},
 }: CacheProviderProps) {
-  const config = useMemo(() => ({ ...DEFAULT_CONFIG, ...userConfig }), [userConfig]);
+  const [config, setConfig] = useState<CacheConfig>(() => ({ ...DEFAULT_CONFIG, ...userConfig }));
   const cacheRef = useRef<Map<string, CacheEntry>>(new Map());
   const statsRef = useRef({ hits: 0, misses: 0, totalRequests: 0 });
 
@@ -82,9 +82,10 @@ export function CacheProvider({
     });
 
     // Load from localStorage if enabled
+    const storageKey = config.storageKey ?? 'app-cache';
     if (config.persistToStorage) {
       try {
-        const stored = localStorage.getItem(config.storageKey);
+        const stored = localStorage.getItem(storageKey);
         if (stored) {
           const parsed = JSON.parse(stored);
           Object.entries(parsed).forEach(([key, entry]) => {
@@ -107,7 +108,8 @@ export function CacheProvider({
 
     try {
       const cacheObj = Object.fromEntries(cacheRef.current.entries());
-      localStorage.setItem(config.storageKey, JSON.stringify(cacheObj));
+      const storageKey = config.storageKey ?? 'app-cache';
+      localStorage.setItem(storageKey, JSON.stringify(cacheObj));
     } catch (error) {
       console.error('Failed to persist cache:', error);
     }
@@ -140,13 +142,14 @@ export function CacheProvider({
 
   // Enforce max size
   const enforceMaxSize = useCallback(() => {
-    if (cacheRef.current.size <= config.maxSize) return;
+    const maxSize = config.maxSize ?? 1000;
+    if (cacheRef.current.size <= maxSize) return;
 
     // Sort by last access (hits) and delete least used
     const entries = Array.from(cacheRef.current.entries())
       .sort((a, b) => a[1].hits - b[1].hits);
 
-    const toDelete = entries.slice(0, cacheRef.current.size - config.maxSize);
+    const toDelete = entries.slice(0, cacheRef.current.size - maxSize);
     toDelete.forEach(([key]) => cacheRef.current.delete(key));
 
     persistCache();
@@ -269,8 +272,8 @@ export function CacheProvider({
   const getKeys = useCallback(() => Array.from(cacheRef.current.keys()), []);
 
   const updateConfig = useCallback((updates: Partial<CacheConfig>) => {
-    Object.assign(config, updates);
-  }, [config]);
+    setConfig((prev) => ({ ...prev, ...updates }));
+  }, []);
 
   const value: CacheContextValue = {
     get,

@@ -1,0 +1,146 @@
+/**
+ * Canvas Utilities - Shared utility functions for Canvas components
+ */
+
+/**
+ * Format a date relative to now (e.g., "just now", "5 minutes ago", "3 days ago")
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function formatRelativeDate(date: Date, t: (key: string, params?: any) => string): string {
+  const now = new Date();
+  const d = new Date(date);
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return t('justNow');
+  if (diffMins < 60) return t('minutesAgo', { count: diffMins });
+  if (diffHours < 24) return t('hoursAgo', { count: diffHours });
+  if (diffDays < 7) return t('daysAgo', { count: diffDays });
+  return d.toLocaleDateString();
+}
+
+/**
+ * Format a date with full locale options
+ */
+export function formatDateFull(date: Date): string {
+  return new Date(date).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * Get date key for grouping (uses local date)
+ */
+export function getDateKey(date: Date): string {
+  return new Date(date).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * Format file size in human-readable format
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+/**
+ * Get file extension mapping for export
+ */
+export const FILE_EXTENSION_MAP: Record<string, string> = {
+  javascript: 'js',
+  typescript: 'ts',
+  python: 'py',
+  html: 'html',
+  css: 'css',
+  json: 'json',
+  markdown: 'md',
+  jsx: 'jsx',
+  tsx: 'tsx',
+  sql: 'sql',
+  bash: 'sh',
+  yaml: 'yaml',
+  xml: 'xml',
+};
+
+/**
+ * Get Monaco language mapping
+ */
+export const MONACO_LANGUAGE_MAP: Record<string, string> = {
+  javascript: 'javascript',
+  typescript: 'typescript',
+  python: 'python',
+  html: 'html',
+  css: 'css',
+  json: 'json',
+  markdown: 'markdown',
+  jsx: 'javascript',
+  tsx: 'typescript',
+  sql: 'sql',
+  bash: 'shell',
+  yaml: 'yaml',
+  xml: 'xml',
+};
+
+/**
+ * Get Monaco language for a given language string
+ */
+export function getMonacoLanguage(language: string): string {
+  return MONACO_LANGUAGE_MAP[language] || 'plaintext';
+}
+
+/**
+ * Get file extension for a given language
+ */
+export function getFileExtension(language: string): string {
+  return FILE_EXTENSION_MAP[language] || 'txt';
+}
+
+/**
+ * Generate a safe filename from title
+ */
+export function generateSafeFilename(title: string, language: string): string {
+  const safeName = title.replace(/[^a-zA-Z0-9]/g, '_');
+  const ext = getFileExtension(language);
+  return `${safeName}.${ext}`;
+}
+
+/**
+ * Calculate document statistics
+ */
+export function calculateDocumentStats(content: string): {
+  lines: number;
+  words: number;
+  chars: number;
+} {
+  if (!content) return { lines: 0, words: 0, chars: 0 };
+  const lines = content.split('\n').length;
+  const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const chars = content.length;
+  return { lines, words, chars };
+}
+
+/**
+ * Check if a document is considered large (for optimization purposes)
+ */
+export function isLargeDocument(content: string, threshold = 50000): boolean {
+  return content.length > threshold;
+}
+
+/**
+ * Truncate text with ellipsis
+ */
+export function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength - 3) + '...';
+}

@@ -1,5 +1,15 @@
-import { screen, fireEvent } from '@testing-library/react';
-import { renderWithProviders } from '@/test-utils/render-with-providers';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import enMessages from '@/lib/i18n/messages/en';
+
+// Wrapper for i18n
+const renderWithI18n = (ui: React.ReactElement) => {
+  return render(
+    <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
+      {ui}
+    </NextIntlClientProvider>
+  );
+};
 import { RegionSelector } from './region-selector';
 
 describe('RegionSelector', () => {
@@ -11,7 +21,7 @@ describe('RegionSelector', () => {
   });
 
   it('renders overlay with instructions', () => {
-    renderWithProviders(
+    renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -20,7 +30,7 @@ describe('RegionSelector', () => {
   });
 
   it('shows cancel button', () => {
-    renderWithProviders(
+    renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -28,7 +38,7 @@ describe('RegionSelector', () => {
   });
 
   it('calls onCancel when cancel button is clicked', () => {
-    renderWithProviders(
+    renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -37,7 +47,7 @@ describe('RegionSelector', () => {
   });
 
   it('calls onCancel when Escape key is pressed', () => {
-    renderWithProviders(
+    renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -46,7 +56,7 @@ describe('RegionSelector', () => {
   });
 
   it('does not show start recording button before selection', () => {
-    renderWithProviders(
+    renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -54,7 +64,7 @@ describe('RegionSelector', () => {
   });
 
   it('creates selection on mouse drag', () => {
-    const { container } = renderWithProviders(
+    const { container } = renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -70,7 +80,7 @@ describe('RegionSelector', () => {
   });
 
   it('respects minimum width and height props', () => {
-    renderWithProviders(
+    renderWithI18n(
       <RegionSelector 
         onSelect={mockOnSelect} 
         onCancel={mockOnCancel}
@@ -84,7 +94,7 @@ describe('RegionSelector', () => {
   });
 
   it('only responds to left mouse button', () => {
-    const { container } = renderWithProviders(
+    const { container } = renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -100,7 +110,7 @@ describe('RegionSelector', () => {
   });
 
   it('updates instructions after selection is made', () => {
-    const { container } = renderWithProviders(
+    const { container } = renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -125,7 +135,7 @@ describe('RegionSelector keyboard interactions', () => {
   });
 
   it('calls onCancel on Escape key', () => {
-    renderWithProviders(
+    renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -134,7 +144,7 @@ describe('RegionSelector keyboard interactions', () => {
   });
 
   it('does not call onSelect on Enter without valid selection', () => {
-    renderWithProviders(
+    renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -152,7 +162,7 @@ describe('RegionSelector selection behavior', () => {
   });
 
   it('clears selection state on mouse leave', () => {
-    const { container } = renderWithProviders(
+    const { container } = renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -175,7 +185,7 @@ describe('RegionSelector - onSelect callback', () => {
   });
 
   it('calls onSelect with valid selection when start recording button is clicked', async () => {
-    const { container } = renderWithProviders(
+    const { container } = renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -208,7 +218,7 @@ describe('RegionSelector - onSelect callback', () => {
   });
 
   it('calls onSelect on Enter key with valid selection', async () => {
-    const { container } = renderWithProviders(
+    const { container } = renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -249,7 +259,7 @@ describe('RegionSelector - Size Indicator', () => {
   });
 
   it('displays size indicator during selection', () => {
-    const { container } = renderWithProviders(
+    const { container } = renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -288,7 +298,7 @@ describe('RegionSelector - Resize Handles', () => {
   });
 
   it('displays resize handles after selection is made', () => {
-    const { container } = renderWithProviders(
+    const { container } = renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 
@@ -318,7 +328,7 @@ describe('RegionSelector - Resize Handles', () => {
   });
 
   it('displays move indicator in center of selection', () => {
-    const { container } = renderWithProviders(
+    const { container } = renderWithI18n(
       <RegionSelector onSelect={mockOnSelect} onCancel={mockOnCancel} />
     );
 

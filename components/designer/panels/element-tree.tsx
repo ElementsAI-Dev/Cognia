@@ -127,7 +127,7 @@ export function ElementTree({ className }: ElementTreeProps) {
   }
 
   return (
-    <ScrollArea className={cn('h-full', className)}>
+    <ScrollArea className={cn('h-full min-h-0', className)}>
       <div className="p-2">
         <SortableContext items={allElementIds} strategy={verticalListSortingStrategy}>
           <ElementTreeNode

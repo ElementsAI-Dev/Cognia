@@ -636,6 +636,37 @@ pub async fn jupyter_get_cached_variables(
     state.manager.get_cached_variables(&session_id).await
 }
 
+/// Get kernel status for a session
+#[tauri::command]
+pub async fn jupyter_get_kernel_status(
+    state: State<'_, JupyterState>,
+    session_id: String,
+) -> Result<Option<String>, String> {
+    Ok(state
+        .manager
+        .get_session_kernel_status(&session_id)
+        .await
+        .map(|s| s.to_string()))
+}
+
+/// Check if session's kernel is alive
+#[tauri::command]
+pub async fn jupyter_is_kernel_alive(
+    state: State<'_, JupyterState>,
+    session_id: String,
+) -> Result<bool, String> {
+    Ok(state.manager.is_session_kernel_alive(&session_id).await)
+}
+
+/// Get a specific session by ID
+#[tauri::command]
+pub async fn jupyter_get_session_by_id(
+    state: State<'_, JupyterState>,
+    session_id: String,
+) -> Result<Option<JupyterSession>, String> {
+    Ok(state.manager.get_session(&session_id).await)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

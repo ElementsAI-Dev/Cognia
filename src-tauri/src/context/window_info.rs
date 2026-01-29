@@ -2,7 +2,7 @@
 //!
 //! Provides functionality to get information about windows on the system.
 
-use log::{debug, error, trace, warn};
+use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 
 /// Information about a window

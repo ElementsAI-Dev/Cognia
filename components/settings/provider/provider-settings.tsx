@@ -107,7 +107,7 @@ function getProviderIcon(providerId: string) {
 
 export function ProviderSettings() {
   const t = useTranslations('providers');
-  const tc = useTranslations('common');
+  const _tc = useTranslations('common');
   const tPlaceholders = useTranslations('placeholders');
 
   const providerSettings = useSettingsStore((state) => state.providerSettings);

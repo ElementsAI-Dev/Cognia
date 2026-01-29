@@ -1,179 +1,110 @@
-# Windsurf Endless - Continuous Conversation Rules
+# Cognia Project Development Rules
 
-## Available Tools
+## Project Overview
 
-You have access to the following tools. Use them according to the instructions below:
-
-### Tool 1: tcini_confirm_iitv (Primary Tool)
-
-**Purpose**: Confirm with user before ending or pausing tasks.
-
-**Parameters**:
-- `summary` (required): Brief description of what you just completed
-- `reason` (optional): Reason for ending or pausing
-- `workspace` (optional): Workspace path
-
-**ALWAYS call this tool at the end of EVERY response. No exceptions.**
-
-### Tool 2: tcini_optimize_iitv
-
-**Purpose**: Optimize user prompts to make them clearer and more specific.
-
-**Parameters**:
-- `prompt` (required): The original prompt to optimize
-- `optimized_prompt` (optional): Your optimized version of the prompt
-
-**Usage**: Call this when user asks to optimize a prompt. After optimization, use tcini_fill_iitv to fill the result into the input box.
-
-### Tool 3: tcini_fill_iitv
-
-**Purpose**: Fill specified content into the custom input box.
-
-**Parameters**:
-- `content` (required): The content to fill into the input box
-
-**Usage**: Use this after tcini_optimize_iitv to fill the optimized prompt, or when user asks to fill content into input.
+Cognia is an AI-native chat and creation application with multi-provider support, built as a hybrid web/desktop application using Next.js 16+ and Tauri 2.9.
 
 ---
 
-## Primary Rule
+## MCP Tools - Active Usage Required
 
-**ALWAYS call tcini_confirm_iitv at the end of EVERY response. No exceptions.**
+### Primary MCP Tools
 
-## Core Behavior
+When working on this project, **actively use these MCP tools**:
 
-1. **Complete the task** fully and thoroughly
-2. **Call tcini_confirm_iitv** to ask if user wants to continue
-3. **Wait patiently** for user response (system will wait up to 24 hours)
-4. **Never call tcini_confirm_iitv again** while waiting
+1. **ace-tool** (`mcp0_search_context`, `mcp0_enhance_prompt`)
+   - **FIRST CHOICE** for codebase search
+   - Use for semantic code understanding
+   - Always query before making edits to understand context
 
-## Critical: Wait After Calling
+2. **exa** (`mcp2_web_search_exa`, `mcp2_get_code_context_exa`, `mcp2_company_research_exa`)
+   - Use for web search and documentation lookup
+   - Get code examples from GitHub, Stack Overflow, official docs
+   - Research libraries, APIs, and best practices
 
-After you call tcini_confirm_iitv:
+3. **deepwiki** (`mcp1_ask_question`, `mcp1_read_wiki_contents`, `mcp1_read_wiki_structure`)
+   - Query GitHub repository documentation
+   - Understand external library usage patterns
+   - Get detailed project documentation
 
-1. **Your job is done** - You have asked the user
-2. **System is waiting** - The dialog box is open
-3. **Do NOT call again** - Even if you don't see a response immediately
-4. **User may be busy** - They might take minutes, hours, or even a day to respond
+4. **perplexity-ask** (`mcp10_perplexity_ask`)
+   - Complex research questions
+   - Up-to-date technical information
+   - Multi-source synthesis
 
-### Why You Must Wait
+5. **fetch** (`mcp3_fetch`)
+   - Fetch URL content for documentation
+   - Get latest API specs
+   - Read online resources
 
-- The system timeout is **24 hours**
-- User might be:
-  - Thinking about what to do next
-  - Busy with other work
-  - Taking a break
-  - Reviewing your code
-- **This is completely normal**
+### Search Strategy
 
-### What NOT to Do
+1. **For codebase search**: Use `mcp0_search_context` first
+2. **For external docs/APIs**: Use `mcp2_get_code_context_exa` or `mcp2_web_search_exa`
+3. **For GitHub repos**: Use `mcp1_ask_question` with repo name
+4. **For complex research**: Use `mcp10_perplexity_ask`
 
-- Do NOT call tcini_confirm_iitv again because:
-  - "No response received"
-  - "User hasn't replied yet"
-  - "Waiting too long"
-  - "Want to check if user is there"
+---
 
-- Do NOT think:
-  - "Maybe user didn't see it"
-  - "Should I ask again?"
-  - "It's been a while, let me check"
+## Documentation References
 
-**Instead: Trust the system. It's waiting. You wait too.**
+### Internal Documentation
 
-## When to Call tcini_confirm_iitv
+Read these files for project context:
 
-Call tcini_confirm_iitv in these situations:
+- **`CLAUDE.md`** — Project overview, module structure, development commands
+- **`AGENTS.md`** — Repository guidelines, coding standards, naming conventions
+- **`llmdoc/index.md`** — Detailed feature documentation
+- **`*/CLAUDE.md`** — Module-specific documentation in each major directory
 
-### 1. Task Completed
+### External Documentation
 
-```
-Task completed successfully.
-[Call tcini_confirm_iitv with summary: "Task completed"]
-```
+Use MCP tools to fetch:
 
-### 2. User Cancelled Command (CRITICAL)
+- Next.js docs via `mcp8_nextjs_docs`
+- Library documentation via `mcp3_fetch` or `mcp2_get_code_context_exa`
+- GitHub repo docs via `mcp1_read_wiki_contents`
 
-**When user cancels your command, IMMEDIATELY call tcini_confirm_iitv.**
+---
 
-This means:
+## Development Workflow
 
-- User stopped your operation
-- Something is wrong with your approach
-- You need to ask what went wrong
+### Before Making Changes
 
-### 3. Feeling Confused or Uncertain (IMPORTANT)
+1. **Search the codebase** using `mcp0_search_context`
+2. **Read relevant files** to understand existing patterns
+3. **Check external docs** if using unfamiliar APIs
+4. **Follow existing patterns** in the codebase
 
-**When you don't know what to do, ASK instead of guessing.**
+### Code Quality
 
-Call tcini_confirm_iitv when:
+- Use `@/` path aliases for all imports
+- Follow TypeScript strict mode
+- Use `cn()` utility for Tailwind class merging
+- Maintain test coverage for new features
 
-- You're not sure which approach to take
-- The requirement is ambiguous
-- You're about to make a risky decision
-- Multiple options exist and you can't decide
+### Testing
 
-### 4. Need User Decision
-
-```
-Found two approaches, need user to choose.
-[Call tcini_confirm_iitv with summary: "Need user decision on approach"]
-```
-
-### 5. Encountered Error
-
-```
-Error: Cannot connect to database.
-[Call tcini_confirm_iitv with summary: "Error encountered - need guidance"]
+```bash
+pnpm test           # Run unit tests
+pnpm test:e2e       # Run E2E tests
+pnpm lint           # Check code style
 ```
 
-## Tool Call Format
+---
 
-Always include the summary parameter:
+## Key Architectural Constraints
 
-```json
-{
-  "summary": "Brief description of what you just completed"
-}
-```
+1. **Static Export**: Production builds use `output: "export"` — no server-side API routes
+2. **Tauri Integration**: Desktop features require `isTauri()` guard
+3. **Zustand Persistence**: All stores use localStorage via `persist` middleware
+4. **MCP Servers**: Full system access — only trusted servers
 
-## Response Pattern
+---
 
-Every response should end with:
+## When Uncertain
 
-```
-[Summary of work done]
-[Call tcini_confirm_iitv]
-```
-
-## After User Responds
-
-When user responds to tcini_confirm_iitv:
-
-### If should_continue = true
-
-- User wants to continue
-- Check if they provided new instruction
-- Continue working based on their input
-
-### If should_continue = false
-
-- User wants to end conversation
-- Stop immediately
-- Do not do anything more
-
-## System Configuration
-
-- **Timeout**: 24 hours (86400000 ms)
-- **Your role**: Call once, then wait
-- **System's role**: Handle the waiting and timeout
-- **User's role**: Respond when ready
-
-## Summary
-
-1. Complete task
-2. Call tcini_confirm_iitv (once)
-3. Wait (system handles this)
-4. Respond to user's choice
-
-**The key is: Call once, wait forever (up to 24 hours). Never call twice.**
+- **Search first**: Use MCP tools to gather context
+- **Read docs**: Check CLAUDE.md files in relevant directories
+- **Web search**: Use exa or perplexity for external information
+- **Ask user**: If still uncertain after research, ask for clarification

@@ -135,6 +135,15 @@ const mockProps = {
   id: 'annotation-1',
   data: mockData,
   selected: false,
+  type: 'annotation',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
 };
 
 describe('AnnotationNode', () => {

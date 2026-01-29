@@ -234,22 +234,23 @@ export default function WorkflowsPage() {
 
   return (
     <div className="h-full w-full flex flex-col bg-background">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      {/* Header - Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b">
         <div className="flex items-center gap-3">
           <Workflow className="h-6 w-6 text-green-500" />
           <h1 className="text-xl font-semibold">{t('workflows') || 'Workflows'}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleImport}>
-            <Upload className="h-4 w-4 mr-1" />
-            {t('importWorkflow')}
+          {/* Import button - icon only on mobile */}
+          <Button variant="outline" size="sm" onClick={handleImport} className="h-9">
+            <Upload className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">{t('importWorkflow')}</span>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                {tCommon('add')}
+              <Button size="sm" className="h-9">
+                <Plus className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">{tCommon('add')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -273,9 +274,9 @@ export default function WorkflowsPage() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search - Full width on mobile */}
       <div className="p-4 border-b">
-        <div className="max-w-md">
+        <div className="w-full sm:max-w-md">
           <InputGroup>
             <InputGroupAddon align="inline-start">
               <Search className="h-4 w-4" />
@@ -284,6 +285,7 @@ export default function WorkflowsPage() {
               placeholder={t('searchNodes')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-10"
             />
           </InputGroup>
         </div>
@@ -314,18 +316,18 @@ export default function WorkflowsPage() {
               {filteredWorkflows.map((workflow) => (
                 <Card
                   key={workflow.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors"
+                  className="cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] touch-manipulation"
                   onClick={() => handleEdit(workflow.id)}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{workflow.icon}</span>
-                        <CardTitle className="text-base">{workflow.name}</CardTitle>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-2xl shrink-0">{workflow.icon}</span>
+                        <CardTitle className="text-base truncate">{workflow.name}</CardTitle>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>

@@ -87,6 +87,9 @@ zip = "2.1"
 # Local provider detection
 which = "6.0"
 
+# Checksum verification
+sha2 = "0.10"
+
 # Desktop-specific dependencies (Windows, macOS, Linux)
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 tauri-plugin-autostart = "2"

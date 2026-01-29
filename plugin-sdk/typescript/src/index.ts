@@ -102,7 +102,15 @@ export type {
 
 export type {
   PluginModeDef,
+  ExtendedModeDef,
+  ModeToolConfig,
+  ModePromptTemplate,
+  ModeContext,
+  OutputFormat,
 } from './modes';
+
+export { ModeBuilder, createModeBuilder } from './modes';
+export { ModeTemplates } from './modes';
 
 // =============================================================================
 // HOOK TYPES
@@ -167,6 +175,88 @@ export type {
   TableColumn,
   TableIndex,
 } from './api/database';
+
+// IPC API
+export type {
+  PluginIPCAPI,
+  IPCMessage,
+  IPCRequest,
+  IPCResponse,
+  RPCHandler,
+  RPCMethod,
+  IPCConnectionState,
+  IPCConnection,
+} from './api/ipc';
+
+// Message Bus API
+export type {
+  PluginMessageBusAPI,
+  MessagePriority,
+  SubscriptionOptions,
+  MessageMetadata,
+  MessageEnvelope,
+  TopicStats,
+  RequestHandler,
+} from './api/message-bus';
+
+// Debug API
+export type {
+  PluginDebugAPI,
+  DebugLogLevel,
+  DebugLogEntry,
+  TraceEntry,
+  PerformanceMetrics,
+  Breakpoint,
+  DebugSession,
+  SlowOperation,
+} from './api/debug';
+
+// Profiler API
+export type {
+  PluginProfilerAPI,
+  PerformanceSample,
+  MemoryUsage,
+  PerformanceBucket,
+  PerformanceReport,
+  SlowOperationEntry,
+  ProfilerConfig,
+} from './api/profiler';
+
+// Enhanced I18n API
+export type {
+  PluginI18nAPI,
+  SupportedLocale,
+  TranslationParams,
+  PluralForms,
+  TranslationValue,
+  TranslationDictionary,
+  LocaleConfig,
+  TranslationOptions,
+  I18nLoadOptions,
+  TypedTranslationsConfig,
+} from './api/i18n';
+export { createTypedTranslations } from './api/i18n';
+
+// Version Management API
+export type {
+  PluginVersionAPI,
+  SemanticVersion,
+  UpdateInfo,
+  VersionHistoryEntry,
+  RollbackOptions,
+  UpdateOptions,
+  VersionConstraint,
+} from './api/version';
+
+// Dependency Management API
+export type {
+  PluginDependencyAPI,
+  DependencySpec,
+  ResolvedDependency,
+  DependencyNode,
+  DependencyConflict,
+  DependencyCheckResult,
+} from './api/dependencies';
 
 // UI API
 export type {
@@ -238,10 +328,8 @@ export type {
   CustomExporter,
   ExportResult,
   PluginExportAPI,
-  // I18n API
+  // I18n API (base types - enhanced types exported separately above)
   Locale,
-  TranslationParams,
-  PluginI18nAPI,
   // Canvas API
   ArtifactLanguage,
   PluginCanvasDocument,
@@ -283,4 +371,50 @@ export type {
 
 export { Schema, parameters } from './helpers/schema';
 export { definePlugin, defineTool, defineCommand } from './helpers/plugin';
+export { tool } from './helpers/tool';
 export type { PluginDefinition } from './helpers/plugin';
+export type { ToolConfig, ToolDefinition, InferSchemaType, InferParams } from './helpers/tool';
+
+// =============================================================================
+// REACT HOOKS
+// =============================================================================
+
+export {
+  initPluginContext,
+  getPluginContext,
+  usePluginContext,
+  usePluginStorage,
+  usePluginEvents,
+  usePluginSettings,
+  useSession,
+  useTheme,
+  useIPC,
+  useMessageBus,
+  useDebug,
+  useAsyncData,
+} from './react';
+
+// =============================================================================
+// TESTING UTILITIES
+// =============================================================================
+
+export {
+  createMockLogger,
+  createMockStorage,
+  createMockEventEmitter,
+  createMockSettings,
+  createMockContext,
+  createMockToolContext,
+  testTool,
+  testPluginTool,
+  testHook,
+  createSpy,
+} from './testing';
+
+export type {
+  MockLogger,
+  MockStorage,
+  MockEventEmitter,
+  MockContextOptions,
+  MockPluginContext,
+} from './testing';

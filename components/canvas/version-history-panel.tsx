@@ -48,6 +48,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { formatRelativeDate, getDateKey } from '@/lib/canvas/utils';
 import {
   Dialog,
   DialogContent,
@@ -144,32 +145,8 @@ export function VersionHistoryPanel({
     return { v1, v2 };
   };
 
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return t('justNow');
-    if (diffMins < 60) return t('minutesAgo', { count: diffMins });
-    if (diffHours < 24) return t('hoursAgo', { count: diffHours });
-    if (diffDays < 7) return t('daysAgo', { count: diffDays });
-    return date.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  // Format date key for grouping (uses local date for consistency)
-  const getDateKey = (date: Date) => {
-    return date.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+  // Use shared date formatting utilities
+  const formatDate = (date: Date) => formatRelativeDate(date, t);
 
   // Group versions by date
   const groupedVersions = versions.reduce((groups, version) => {

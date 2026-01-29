@@ -27,6 +27,11 @@ import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer';
 import { ResizeHandles } from './resize-handles';
 import { InlineTextEditor, useInlineTextEditor } from '../toolbar/inline-text-editor';
+import {
+  getVisualBounds,
+  getIframeElementBounds,
+  type VisualBounds,
+} from '@/lib/designer/element-locator';
 import type { DesignerElement } from '@/types/designer';
 
 interface SelectionOverlayProps {
@@ -177,50 +182,27 @@ function SelectionOverlayComponent({
   // Inline text editing state
   const { isEditing, editingElement, startEditing, stopEditing } = useInlineTextEditor();
 
-  // Get element bounds relative to preview container
+  // Get element bounds relative to preview container using element-locator utilities
   // Supports both direct elements and elements inside preview iframe
-  const getElementBounds = useCallback((elementId: string) => {
+  const getElementBounds = useCallback((elementId: string): VisualBounds | null => {
     const container = previewContainerRef.current;
     if (!container) return null;
 
-    // Try to find element directly in container first
-    let element = container.querySelector(`[data-element-id="${elementId}"]`);
     const containerRect = container.getBoundingClientRect();
+
+    // Try to find element directly in container first
+    const directElement = container.querySelector(`[data-element-id="${elementId}"]`) as HTMLElement | null;
+    if (directElement) {
+      return getVisualBounds(directElement, containerRect);
+    }
     
     // If not found, try to find in preview iframe
-    if (!element) {
-      const iframe = container.querySelector('iframe');
-      if (iframe?.contentDocument) {
-        element = iframe.contentDocument.querySelector(`[data-element-id="${elementId}"]`);
-        if (element) {
-          // Get iframe position for offset calculation
-          const iframeRect = iframe.getBoundingClientRect();
-          const elementRect = element.getBoundingClientRect();
-          
-          return {
-            top: iframeRect.top - containerRect.top + elementRect.top,
-            left: iframeRect.left - containerRect.left + elementRect.left,
-            width: elementRect.width,
-            height: elementRect.height,
-            right: containerRect.right - (iframeRect.left + elementRect.right),
-            bottom: containerRect.bottom - (iframeRect.top + elementRect.bottom),
-          };
-        }
-      }
+    const iframe = container.querySelector('iframe') as HTMLIFrameElement | null;
+    if (iframe) {
+      return getIframeElementBounds(iframe, elementId, containerRect);
     }
 
-    if (!element) return null;
-
-    const elementRect = element.getBoundingClientRect();
-
-    return {
-      top: elementRect.top - containerRect.top,
-      left: elementRect.left - containerRect.left,
-      width: elementRect.width,
-      height: elementRect.height,
-      right: containerRect.right - elementRect.right,
-      bottom: containerRect.bottom - elementRect.bottom,
-    };
+    return null;
   }, [previewContainerRef]);
 
   // Get selected element data

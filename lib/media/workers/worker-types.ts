@@ -95,9 +95,9 @@ export interface VideoExportOptions {
   audioBitrate: number;
   audioChannels: 1 | 2 | 6;
   audioSampleRate: number;
-  twoPass: boolean;
-  hardwareAcceleration: boolean;
-  preserveMetadata: boolean;
+  twoPass?: boolean;
+  hardwareAcceleration?: boolean;
+  preserveMetadata?: boolean;
   startTime?: number;
   endTime?: number;
 }

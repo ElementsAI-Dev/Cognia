@@ -21,13 +21,21 @@ import {
 import { generateOpenAITTS, generateOpenAITTSViaApi } from './providers/openai-tts';
 import { generateGeminiTTS, generateGeminiTTSViaApi } from './providers/gemini-tts';
 import { generateEdgeTTS } from './providers/edge-tts';
+import { generateElevenLabsTTS, generateElevenLabsTTSViaApi } from './providers/elevenlabs-tts';
+import { generateLMNTTTS, generateLMNTTTSViaApi } from './providers/lmnt-tts';
+import { generateHumeTTS, generateHumeTTSViaApi } from './providers/hume-tts';
+
+export interface TTSApiKeys {
+  openai?: string;
+  google?: string;
+  elevenlabs?: string;
+  lmnt?: string;
+  hume?: string;
+}
 
 export interface TTSServiceOptions {
   settings: TTSSettings;
-  apiKeys?: {
-    openai?: string;
-    google?: string;
-  };
+  apiKeys?: TTSApiKeys;
   onStateChange?: (state: TTSPlaybackState) => void;
   onError?: (error: TTSError) => void;
   onProgress?: (progress: number) => void;
@@ -46,7 +54,7 @@ export interface TTSServiceController {
  */
 export class TTSService {
   private settings: TTSSettings;
-  private apiKeys: { openai?: string; google?: string };
+  private apiKeys: TTSApiKeys;
   private state: TTSPlaybackState = 'idle';
   private onStateChange?: (state: TTSPlaybackState) => void;
   private onError?: (error: TTSError) => void;
@@ -75,7 +83,7 @@ export class TTSService {
   /**
    * Update API keys
    */
-  updateApiKeys(keys: { openai?: string; google?: string }): void {
+  updateApiKeys(keys: TTSApiKeys): void {
     this.apiKeys = { ...this.apiKeys, ...keys };
   }
 
@@ -115,6 +123,12 @@ export class TTSService {
           return this.speakWithGemini(text);
         case 'edge':
           return this.speakWithEdge(text);
+        case 'elevenlabs':
+          return this.speakWithElevenLabs(text);
+        case 'lmnt':
+          return this.speakWithLMNT(text);
+        case 'hume':
+          return this.speakWithHume(text);
         default:
           throw getTTSError('not-supported', `Unknown provider: ${provider}`);
       }
@@ -226,6 +240,95 @@ export class TTSService {
       rate: this.settings.edgeRate,
       pitch: this.settings.edgePitch,
     });
+
+    if (!response.success || !response.audioData) {
+      this.setState('error');
+      const error = getTTSError('api-error', response.error);
+      this.onError?.(error);
+      throw error;
+    }
+
+    return this.playAudioData(response.audioData, response.mimeType || 'audio/mpeg');
+  }
+
+  /**
+   * Speak using ElevenLabs TTS
+   */
+  private async speakWithElevenLabs(text: string): Promise<TTSServiceController> {
+    let response: TTSResponse;
+
+    if (this.apiKeys.elevenlabs) {
+      response = await generateElevenLabsTTS(text, {
+        apiKey: this.apiKeys.elevenlabs,
+        voice: this.settings.elevenlabsVoice,
+        model: this.settings.elevenlabsModel,
+        stability: this.settings.elevenlabsStability,
+        similarityBoost: this.settings.elevenlabsSimilarityBoost,
+      });
+    } else {
+      response = await generateElevenLabsTTSViaApi(text, {
+        voice: this.settings.elevenlabsVoice,
+        model: this.settings.elevenlabsModel,
+        stability: this.settings.elevenlabsStability,
+        similarityBoost: this.settings.elevenlabsSimilarityBoost,
+      });
+    }
+
+    if (!response.success || !response.audioData) {
+      this.setState('error');
+      const error = getTTSError('api-error', response.error);
+      this.onError?.(error);
+      throw error;
+    }
+
+    return this.playAudioData(response.audioData, response.mimeType || 'audio/mpeg');
+  }
+
+  /**
+   * Speak using LMNT TTS
+   */
+  private async speakWithLMNT(text: string): Promise<TTSServiceController> {
+    let response: TTSResponse;
+
+    if (this.apiKeys.lmnt) {
+      response = await generateLMNTTTS(text, {
+        apiKey: this.apiKeys.lmnt,
+        voice: this.settings.lmntVoice,
+        speed: this.settings.lmntSpeed,
+      });
+    } else {
+      response = await generateLMNTTTSViaApi(text, {
+        voice: this.settings.lmntVoice,
+        speed: this.settings.lmntSpeed,
+      });
+    }
+
+    if (!response.success || !response.audioData) {
+      this.setState('error');
+      const error = getTTSError('api-error', response.error);
+      this.onError?.(error);
+      throw error;
+    }
+
+    return this.playAudioData(response.audioData, response.mimeType || 'audio/mpeg');
+  }
+
+  /**
+   * Speak using Hume TTS
+   */
+  private async speakWithHume(text: string): Promise<TTSServiceController> {
+    let response: TTSResponse;
+
+    if (this.apiKeys.hume) {
+      response = await generateHumeTTS(text, {
+        apiKey: this.apiKeys.hume,
+        voice: this.settings.humeVoice,
+      });
+    } else {
+      response = await generateHumeTTSViaApi(text, {
+        voice: this.settings.humeVoice,
+      });
+    }
 
     if (!response.success || !response.audioData) {
       this.setState('error');
@@ -369,7 +472,7 @@ export async function generateTTSAudio(
   text: string,
   provider: TTSProvider,
   settings: TTSSettings,
-  apiKeys?: { openai?: string; google?: string }
+  apiKeys?: TTSApiKeys
 ): Promise<TTSResponse> {
   switch (provider) {
     case 'system':
@@ -411,6 +514,47 @@ export async function generateTTSAudio(
         pitch: settings.edgePitch,
       });
     
+    case 'elevenlabs':
+      if (apiKeys?.elevenlabs) {
+        return generateElevenLabsTTS(text, {
+          apiKey: apiKeys.elevenlabs,
+          voice: settings.elevenlabsVoice,
+          model: settings.elevenlabsModel,
+          stability: settings.elevenlabsStability,
+          similarityBoost: settings.elevenlabsSimilarityBoost,
+        });
+      }
+      return generateElevenLabsTTSViaApi(text, {
+        voice: settings.elevenlabsVoice,
+        model: settings.elevenlabsModel,
+        stability: settings.elevenlabsStability,
+        similarityBoost: settings.elevenlabsSimilarityBoost,
+      });
+    
+    case 'lmnt':
+      if (apiKeys?.lmnt) {
+        return generateLMNTTTS(text, {
+          apiKey: apiKeys.lmnt,
+          voice: settings.lmntVoice,
+          speed: settings.lmntSpeed,
+        });
+      }
+      return generateLMNTTTSViaApi(text, {
+        voice: settings.lmntVoice,
+        speed: settings.lmntSpeed,
+      });
+    
+    case 'hume':
+      if (apiKeys?.hume) {
+        return generateHumeTTS(text, {
+          apiKey: apiKeys.hume,
+          voice: settings.humeVoice,
+        });
+      }
+      return generateHumeTTSViaApi(text, {
+        voice: settings.humeVoice,
+      });
+    
     default:
       return {
         success: false,
@@ -424,7 +568,7 @@ export async function generateTTSAudio(
  */
 export function isTTSProviderAvailable(
   provider: TTSProvider,
-  apiKeys?: { openai?: string; google?: string }
+  apiKeys?: TTSApiKeys
 ): boolean {
   const providerInfo = TTS_PROVIDERS[provider];
   
@@ -435,22 +579,28 @@ export function isTTSProviderAvailable(
     return true; // Edge TTS is always available via API route
   }
   
-  // Check for API key
-  if (provider === 'openai') {
-    return !!apiKeys?.openai;
+  // Check for API key based on provider
+  switch (provider) {
+    case 'openai':
+      return !!apiKeys?.openai;
+    case 'gemini':
+      return !!apiKeys?.google;
+    case 'elevenlabs':
+      return !!apiKeys?.elevenlabs;
+    case 'lmnt':
+      return !!apiKeys?.lmnt;
+    case 'hume':
+      return !!apiKeys?.hume;
+    default:
+      return false;
   }
-  if (provider === 'gemini') {
-    return !!apiKeys?.google;
-  }
-  
-  return false;
 }
 
 /**
  * Get available TTS providers based on API keys
  */
 export function getAvailableTTSProviders(
-  apiKeys?: { openai?: string; google?: string }
+  apiKeys?: TTSApiKeys
 ): TTSProvider[] {
   const providers: TTSProvider[] = [];
   
@@ -468,6 +618,19 @@ export function getAvailableTTSProviders(
   
   // Edge TTS is always available (free, no API key)
   providers.push('edge');
+  
+  // Premium providers
+  if (apiKeys?.elevenlabs) {
+    providers.push('elevenlabs');
+  }
+  
+  if (apiKeys?.lmnt) {
+    providers.push('lmnt');
+  }
+  
+  if (apiKeys?.hume) {
+    providers.push('hume');
+  }
   
   return providers;
 }

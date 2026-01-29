@@ -90,7 +90,7 @@ export function PresetCard({
             <span
               className={cn(
                 'flex h-10 w-10 items-center justify-center rounded-lg text-xl',
-                COLOR_TINT_CLASS[preset.color] ?? 'bg-muted'
+                (preset.color && COLOR_TINT_CLASS[preset.color]) ?? 'bg-muted'
               )}
             >
               {preset.icon || '💬'}

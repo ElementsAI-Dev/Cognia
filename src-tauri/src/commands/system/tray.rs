@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 
 use crate::tray::{
-    refresh_tray_menu, set_tray_busy, update_tray_tooltip, TrayState, TRAY_STATE,
+    refresh_tray_menu, set_tray_busy, update_tray_tooltip, TRAY_STATE,
 };
 
 /// Tray display mode

@@ -53,7 +53,6 @@ pub struct JupyterKernel {
     pub python_version: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub last_activity_at: Option<chrono::DateTime<chrono::Utc>>,
-    #[allow(dead_code)]
     config: KernelConfig,
     process: Option<Child>,
     variables: HashMap<String, String>,
@@ -709,9 +708,18 @@ print(json.dumps(get_var_info()))
     }
 
     /// Check if kernel is alive
-    #[allow(dead_code)]
     pub fn is_alive(&self) -> bool {
         self.status != KernelStatus::Dead
+    }
+
+    /// Get execution timeout in seconds
+    pub fn get_timeout_secs(&self) -> u64 {
+        self.config.timeout_secs
+    }
+
+    /// Get max output size in bytes
+    pub fn get_max_output_size(&self) -> usize {
+        self.config.max_output_size
     }
 
     /// Get kernel info

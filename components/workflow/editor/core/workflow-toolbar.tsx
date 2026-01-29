@@ -47,6 +47,9 @@ import {
   PanelLeft,
   PanelRight,
   Map,
+  Plus,
+  Settings,
+  MoreHorizontal,
 } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useWorkflowEditorStore } from '@/stores/workflow';
@@ -59,6 +62,8 @@ import { WorkflowInputTestPanel } from '../panels/workflow-input-test-panel';
 import { DebugToolbar } from '../debug/debug-toolbar';
 import { NodeSearchPanel } from '../search/node-search-panel';
 
+type MobilePanelType = 'palette' | 'config' | 'execution' | null;
+
 interface WorkflowToolbarProps {
   onFitView?: () => void;
   onZoomIn?: () => void;
@@ -66,6 +71,8 @@ interface WorkflowToolbarProps {
   onExport?: () => void;
   onImport?: () => void;
   className?: string;
+  isMobile?: boolean;
+  onOpenMobilePanel?: (panel: MobilePanelType) => void;
 }
 
 export function WorkflowToolbar({
@@ -73,6 +80,8 @@ export function WorkflowToolbar({
   onZoomIn,
   onZoomOut,
   className,
+  isMobile = false,
+  onOpenMobilePanel,
 }: WorkflowToolbarProps) {
   const t = useTranslations('workflowEditor');
   const [importExportOpen, setImportExportOpen] = useState(false);
@@ -163,6 +172,172 @@ export function WorkflowToolbar({
     }
   };
 
+  // Mobile toolbar - simplified version
+  if (isMobile) {
+    return (
+      <TooltipProvider delayDuration={300}>
+        <div
+          className={cn(
+            'flex items-center gap-2 p-2 border-b bg-background',
+            className
+          )}
+        >
+          {/* Save button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            onClick={saveWorkflow}
+            disabled={!isDirty}
+          >
+            <Save className="h-4 w-4" />
+          </Button>
+
+          {/* Undo/Redo */}
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={undo}
+              disabled={!canUndo}
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={redo}
+              disabled={!canRedo}
+            >
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Validation status - compact */}
+          {currentWorkflow && (
+            <div className="flex items-center">
+              {hasErrors ? (
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+              ) : hasWarnings ? (
+                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+              ) : (
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              )}
+            </div>
+          )}
+
+          {/* Run button */}
+          {!isExecuting && !isPaused ? (
+            <Button
+              variant="default"
+              size="sm"
+              className="h-9 gap-1"
+              onClick={handleRun}
+              disabled={!currentWorkflow || hasErrors}
+            >
+              <Play className="h-4 w-4" />
+              <span className="hidden xs:inline">{t('run')}</span>
+            </Button>
+          ) : isPaused ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="default"
+                size="icon"
+                className="h-9 w-9"
+                onClick={resumeExecution}
+              >
+                <Play className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="destructive"
+                size="icon"
+                className="h-9 w-9"
+                onClick={cancelExecution}
+              >
+                <Square className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+                onClick={pauseExecution}
+              >
+                <Pause className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="destructive"
+                size="icon"
+                className="h-9 w-9"
+                onClick={cancelExecution}
+              >
+                <Square className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* More menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => onOpenMobilePanel?.('palette')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Node
+              </DropdownMenuItem>
+              {hasSelection && (
+                <>
+                  <DropdownMenuItem onClick={() => onOpenMobilePanel?.('config')}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configure Node
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDeleteSelection}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {t('delete')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDuplicateSelection}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    {t('duplicate')}
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={autoLayout}>
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                {t('autoLayout')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setImportExportOpen(true)}>
+                <FileJson className="h-4 w-4 mr-2" />
+                Import/Export
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onFitView}>
+                <Maximize2 className="h-4 w-4 mr-2" />
+                {t('fitView')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <ImportExportDialog
+          open={importExportOpen}
+          onOpenChange={setImportExportOpen}
+        />
+      </TooltipProvider>
+    );
+  }
+
+  // Desktop toolbar - full version
   return (
     <TooltipProvider delayDuration={300}>
       <div

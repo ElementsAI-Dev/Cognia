@@ -283,7 +283,7 @@ export function DesignerPanel({
           )}
 
           {/* Main content */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-hidden">
             {mode === 'code' ? (
               // Code-only view
               <MonacoEditor
@@ -305,12 +305,12 @@ export function DesignerPanel({
               />
             ) : (
               // Design/Preview view with panels
-              <ResizablePanelGroup direction="horizontal">
+              <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
                 {/* Left Panel - Element Tree or Component Library */}
                 {showElementTree && (
                   <>
                     <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-                      <div className="flex flex-col h-full border-r">
+                      <div className="flex flex-col h-full min-h-0 border-r">
                         {/* Tab switcher */}
                         <div className="border-b px-2 py-1.5 flex items-center gap-1">
                           <Button
@@ -334,9 +334,9 @@ export function DesignerPanel({
                         </div>
                         {/* Panel content */}
                         {leftPanelTab === 'elements' ? (
-                          <ElementTree className="flex-1" />
+                          <ElementTree className="flex-1 min-h-0 overflow-auto" />
                         ) : (
-                          <ComponentLibrary className="flex-1" />
+                          <ComponentLibrary className="flex-1 min-h-0 overflow-auto" />
                         )}
                       </div>
                     </ResizablePanel>
@@ -346,7 +346,7 @@ export function DesignerPanel({
 
                 {/* Preview Panel */}
                 <ResizablePanel defaultSize={showStylePanel ? 55 : 80}>
-                  <div ref={previewContainerRef} className="relative h-full">
+                  <div ref={previewContainerRef} className="relative h-full min-h-0">
                     {/* Breadcrumb navigation */}
                     {mode === 'design' && selectedElementId && (
                       <BreadcrumbNav className="absolute top-2 left-2 z-20" />
@@ -378,11 +378,11 @@ export function DesignerPanel({
                               {t('tokens')}
                             </TabsTrigger>
                           </TabsList>
-                          <TabsContent value="styles" className="flex-1 mt-0">
-                            <StylePanel className="h-full" />
+                          <TabsContent value="styles" className="flex-1 min-h-0 mt-0 overflow-auto">
+                            <StylePanel className="h-full min-h-0" />
                           </TabsContent>
-                          <TabsContent value="tokens" className="flex-1 mt-0">
-                            <DesignTokensPanel className="h-full" />
+                          <TabsContent value="tokens" className="flex-1 min-h-0 mt-0 overflow-auto">
+                            <DesignTokensPanel className="h-full min-h-0" />
                           </TabsContent>
                         </Tabs>
                       </div>
@@ -395,7 +395,7 @@ export function DesignerPanel({
                   <>
                     <ResizableHandle withHandle />
                     <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-                      <VersionHistoryPanel className="h-full border-l" />
+                      <VersionHistoryPanel className="h-full min-h-0 border-l" />
                     </ResizablePanel>
                   </>
                 )}

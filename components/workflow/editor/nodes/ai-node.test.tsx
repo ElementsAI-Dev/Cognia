@@ -37,7 +37,7 @@ jest.mock('@/components/ui/badge', () => ({
     variant?: string;
     [key: string]: unknown;
   }) => (
-    <span data-testid="badge" className={className} variant={variant} {...props}>
+    <span data-testid="badge" className={className} data-variant={variant} {...props}>
       {children}
     </span>
   ),
@@ -49,6 +49,9 @@ const mockData: AINodeData = {
   label: 'AI Assistant',
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
+  inputs: {},
+  outputs: {},
   model: 'gpt-4',
   temperature: 0.7,
   maxTokens: 1000,
@@ -56,19 +59,32 @@ const mockData: AINodeData = {
   responseFormat: 'json',
 };
 
+const baseProps = {
+  id: 'ai-1',
+  type: 'ai',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
+};
+
 describe('AINode', () => {
   it('renders without crashing', () => {
-    render(<AINode data={mockData} selected={false} />);
+    render(<AINode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('AI Assistant')).toBeInTheDocument();
   });
 
   it('renders node label', () => {
-    render(<AINode data={mockData} selected={false} />);
+    render(<AINode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('AI Assistant')).toBeInTheDocument();
   });
 
   it('renders AI prompt preview', () => {
-    render(<AINode data={mockData} selected={false} />);
+    render(<AINode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Generate a summary of the data')).toBeInTheDocument();
   });
 
@@ -78,22 +94,22 @@ describe('AINode', () => {
       aiPrompt: 'A'.repeat(150),
     };
 
-    render(<AINode data={longPromptData} selected={false} />);
+    render(<AINode {...baseProps} data={longPromptData} selected={false} />);
     expect(screen.getByText(/\.\.\./)).toBeInTheDocument();
   });
 
   it('renders model badge', () => {
-    render(<AINode data={mockData} selected={false} />);
+    render(<AINode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('gpt-4')).toBeInTheDocument();
   });
 
   it('renders temperature badge', () => {
-    render(<AINode data={mockData} selected={false} />);
+    render(<AINode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('T: 0.7')).toBeInTheDocument();
   });
 
   it('renders response format badge', () => {
-    render(<AINode data={mockData} selected={false} />);
+    render(<AINode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('json')).toBeInTheDocument();
   });
 
@@ -103,7 +119,7 @@ describe('AINode', () => {
       responseFormat: 'text',
     };
 
-    render(<AINode data={textFormatData} selected={false} />);
+    render(<AINode {...baseProps} data={textFormatData} selected={false} />);
     expect(screen.queryByText('text')).not.toBeInTheDocument();
   });
 
@@ -113,7 +129,7 @@ describe('AINode', () => {
       model: undefined,
     };
 
-    render(<AINode data={noModelData} selected={false} />);
+    render(<AINode {...baseProps} data={noModelData} selected={false} />);
     // Model badge not rendered, but temperature badge still exists
     expect(screen.queryByText('gpt-4')).not.toBeInTheDocument();
   });
@@ -124,14 +140,14 @@ describe('AINode', () => {
       temperature: undefined,
     };
 
-    render(<AINode data={noTempData} selected={false} />);
+    render(<AINode {...baseProps} data={noTempData} selected={false} />);
     expect(screen.queryByText(/T:/)).not.toBeInTheDocument();
   });
 });
 
 describe('AINode integration tests', () => {
   it('handles complete AI node configuration', () => {
-    render(<AINode data={mockData} selected={false} />);
+    render(<AINode {...baseProps} data={mockData} selected={false} />);
 
     expect(screen.getByText('AI Assistant')).toBeInTheDocument();
     expect(screen.getByText('Generate a summary of the data')).toBeInTheDocument();
@@ -143,13 +159,13 @@ describe('AINode integration tests', () => {
   it('handles AI node with minimal configuration', () => {
     const minimalData: AINodeData = {
       ...mockData,
-      model: undefined,
-      temperature: undefined,
-      responseFormat: undefined,
-      aiPrompt: undefined,
+      model: '',
+      temperature: 0,
+      responseFormat: 'text',
+      aiPrompt: '',
     };
 
-    render(<AINode data={minimalData} selected={false} />);
+    render(<AINode {...baseProps} data={minimalData} selected={false} />);
 
     expect(screen.getByText('AI Assistant')).toBeInTheDocument();
     // No model, temp, or response format badges
@@ -163,17 +179,17 @@ describe('AINode integration tests', () => {
       model: 'claude-3-opus',
     };
 
-    render(<AINode data={claudeData} selected={false} />);
+    render(<AINode {...baseProps} data={claudeData} selected={false} />);
     expect(screen.getByText('claude-3-opus')).toBeInTheDocument();
   });
 
   it('handles AI node with different response formats', () => {
-    const jsonFormatData: AINodeData = {
+    const markdownFormatData: AINodeData = {
       ...mockData,
-      responseFormat: 'json_object',
+      responseFormat: 'markdown',
     };
 
-    render(<AINode data={jsonFormatData} selected={false} />);
-    expect(screen.getByText('json_object')).toBeInTheDocument();
+    render(<AINode {...baseProps} data={markdownFormatData} selected={false} />);
+    expect(screen.getByText('markdown')).toBeInTheDocument();
   });
 });

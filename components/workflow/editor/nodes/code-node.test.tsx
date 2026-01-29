@@ -37,7 +37,7 @@ jest.mock('@/components/ui/badge', () => ({
     variant?: string;
     [key: string]: unknown;
   }) => (
-    <span data-testid="badge" className={className} variant={variant} {...props}>
+    <span data-testid="badge" className={className} data-variant={variant} {...props}>
       {children}
     </span>
   ),
@@ -49,29 +49,45 @@ const mockData: CodeNodeData = {
   label: 'Process Data',
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
+  inputs: {},
+  outputs: {},
   language: 'python',
   code: `def process(data):
     return data.upper()`,
 };
 
+const baseProps = {
+  id: 'code-1',
+  type: 'code',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
+};
+
 describe('CodeNode', () => {
   it('renders without crashing', () => {
-    render(<CodeNode data={mockData} selected={false} />);
+    render(<CodeNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Process Data')).toBeInTheDocument();
   });
 
   it('renders node label', () => {
-    render(<CodeNode data={mockData} selected={false} />);
+    render(<CodeNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Process Data')).toBeInTheDocument();
   });
 
   it('renders language badge', () => {
-    render(<CodeNode data={mockData} selected={false} />);
+    render(<CodeNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('python')).toBeInTheDocument();
   });
 
   it('renders code preview', () => {
-    render(<CodeNode data={mockData} selected={false} />);
+    render(<CodeNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText(/def process/)).toBeInTheDocument();
   });
 
@@ -81,18 +97,18 @@ describe('CodeNode', () => {
       code: 'const veryLongCode = ' + 'A'.repeat(200),
     };
 
-    render(<CodeNode data={longCodeData} selected={false} />);
+    render(<CodeNode {...baseProps} data={longCodeData} selected={false} />);
     expect(screen.getByText(/\.\.\./)).toBeInTheDocument();
   });
 
   it('displays code in monospace font', () => {
-    const { container } = render(<CodeNode data={mockData} selected={false} />);
+    const { container } = render(<CodeNode {...baseProps} data={mockData} selected={false} />);
     const codeElement = container.querySelector('.font-mono');
     expect(codeElement).toBeInTheDocument();
   });
 
   it('has code preview background styling', () => {
-    const { container } = render(<CodeNode data={mockData} selected={false} />);
+    const { container } = render(<CodeNode {...baseProps} data={mockData} selected={false} />);
     const codePreview = container.querySelector('.bg-muted\\/50');
     expect(codePreview).toBeInTheDocument();
   });
@@ -100,10 +116,10 @@ describe('CodeNode', () => {
   it('does not render code when not set', () => {
     const noCodeData: CodeNodeData = {
       ...mockData,
-      code: undefined,
+      code: '',
     };
 
-    render(<CodeNode data={noCodeData} selected={false} />);
+    render(<CodeNode {...baseProps} data={noCodeData} selected={false} />);
     const codeElements = screen.queryAllByText(/def process/);
     expect(codeElements.length).toBe(0);
   });
@@ -111,7 +127,7 @@ describe('CodeNode', () => {
 
 describe('CodeNode integration tests', () => {
   it('handles complete code node', () => {
-    render(<CodeNode data={mockData} selected={false} />);
+    render(<CodeNode {...baseProps} data={mockData} selected={false} />);
 
     expect(screen.getByText('Process Data')).toBeInTheDocument();
     expect(screen.getByText('python')).toBeInTheDocument();
@@ -121,10 +137,10 @@ describe('CodeNode integration tests', () => {
   it('handles code node with minimal config', () => {
     const minimalData: CodeNodeData = {
       ...mockData,
-      code: undefined,
+      code: '',
     };
 
-    render(<CodeNode data={minimalData} selected={false} />);
+    render(<CodeNode {...baseProps} data={minimalData} selected={false} />);
 
     expect(screen.getByText('Process Data')).toBeInTheDocument();
     expect(screen.getByText('python')).toBeInTheDocument();
@@ -136,7 +152,7 @@ describe('CodeNode integration tests', () => {
       language: 'javascript',
     };
 
-    render(<CodeNode data={jsData} selected={false} />);
+    render(<CodeNode {...baseProps} data={jsData} selected={false} />);
     expect(screen.getByText('javascript')).toBeInTheDocument();
   });
 
@@ -148,7 +164,7 @@ describe('CodeNode integration tests', () => {
 }`,
     };
 
-    render(<CodeNode data={multiLineData} selected={false} />);
+    render(<CodeNode {...baseProps} data={multiLineData} selected={false} />);
     expect(screen.getByText(/function add/)).toBeInTheDocument();
     expect(screen.getByText(/return a \+ b/)).toBeInTheDocument();
   });
@@ -159,7 +175,7 @@ describe('CodeNode integration tests', () => {
       code: 'return x;',
     };
 
-    render(<CodeNode data={shortCodeData} selected={false} />);
+    render(<CodeNode {...baseProps} data={shortCodeData} selected={false} />);
     expect(screen.getByText('return x;')).toBeInTheDocument();
     expect(screen.queryByText(/\.\.\./)).not.toBeInTheDocument();
   });

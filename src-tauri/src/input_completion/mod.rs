@@ -13,7 +13,7 @@ mod ime_state;
 mod keyboard_monitor;
 pub mod types;
 
-pub use config::{CompletionConfig, CompletionModelConfig, CompletionTriggerConfig, CompletionUiConfig};
+pub use config::CompletionConfig;
 pub use completion_service::CompletionService;
 pub use ime_state::{ImeState, ImeMonitor, InputMode};
 pub use keyboard_monitor::{KeyboardMonitor, KeyEvent, KeyEventType};

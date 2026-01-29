@@ -9,17 +9,12 @@ import { useState, useMemo } from 'react';
 import {
   ChevronDown,
   ChevronRight,
-  CheckCircle,
-  XCircle,
-  Loader2,
-  Clock,
-  Pause,
-  AlertTriangle,
   Play,
   StopCircle,
   Trash2,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDurationShort } from '@/lib/utils';
+import { SUB_AGENT_STATUS_CONFIG } from '@/lib/agent';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +28,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { SubAgent, SubAgentStatus } from '@/types/agent/sub-agent';
+import type { SubAgent } from '@/types/agent/sub-agent';
 
 export interface SubAgentNodeProps {
   subAgent: SubAgent;
@@ -47,27 +42,7 @@ export interface SubAgentNodeProps {
   className?: string;
 }
 
-const statusConfig: Record<SubAgentStatus, {
-  icon: React.ElementType;
-  color: string;
-  bgColor: string;
-  animate?: boolean;
-}> = {
-  pending: { icon: Clock, color: 'text-muted-foreground', bgColor: 'bg-muted' },
-  queued: { icon: Clock, color: 'text-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-950' },
-  running: { icon: Loader2, color: 'text-primary', bgColor: 'bg-primary/10', animate: true },
-  waiting: { icon: Pause, color: 'text-yellow-500', bgColor: 'bg-yellow-50 dark:bg-yellow-950' },
-  completed: { icon: CheckCircle, color: 'text-green-500', bgColor: 'bg-green-50 dark:bg-green-950' },
-  failed: { icon: XCircle, color: 'text-destructive', bgColor: 'bg-destructive/10' },
-  cancelled: { icon: XCircle, color: 'text-orange-500', bgColor: 'bg-orange-50 dark:bg-orange-950' },
-  timeout: { icon: AlertTriangle, color: 'text-red-500', bgColor: 'bg-red-50 dark:bg-red-950' },
-};
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
-}
+// Use shared status config from lib/agent/constants.ts
 
 export function SubAgentNode({
   subAgent,
@@ -81,7 +56,7 @@ export function SubAgentNode({
   className,
 }: SubAgentNodeProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const config = statusConfig[subAgent.status];
+  const config = SUB_AGENT_STATUS_CONFIG[subAgent.status];
   const Icon = config.icon;
 
   const duration = useMemo(() => {
@@ -218,7 +193,7 @@ export function SubAgentNode({
             {/* Duration */}
             {duration && (
               <span className="text-xs text-muted-foreground mt-1 block">
-                {formatDuration(duration)}
+                {formatDurationShort(duration)}
               </span>
             )}
           </div>

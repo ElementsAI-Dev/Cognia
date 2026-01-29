@@ -71,12 +71,24 @@ const mockData: WebhookNodeData = {
   },
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
+  inputs: {},
+  outputs: {},
 };
 
 const mockProps = {
   id: 'webhook-1',
   data: mockData,
   selected: false,
+  type: 'webhook',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
 };
 
 describe('WebhookNode', () => {

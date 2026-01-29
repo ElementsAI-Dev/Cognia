@@ -10,12 +10,8 @@ import { useTranslations } from 'next-intl';
 import {
   ChevronDown,
   ChevronRight,
-  CheckCircle,
-  XCircle,
   Loader2,
   Clock,
-  Pause,
-  AlertTriangle,
   Bot,
   GitBranch,
   Zap,
@@ -24,7 +20,8 @@ import {
   StopCircle,
   Plus,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDurationShort } from '@/lib/utils';
+import { getSubAgentStatusConfig } from '@/lib/agent';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,7 +39,7 @@ import {
 import { useSubAgent } from '@/hooks';
 import { SubAgentNode } from './sub-agent-node';
 import { SubAgentTemplateSelector } from './sub-agent-template-selector';
-import type { SubAgent, SubAgentStatus, SubAgentExecutionMode } from '@/types/agent/sub-agent';
+import type { SubAgent, SubAgentExecutionMode } from '@/types/agent/sub-agent';
 import type { BackgroundAgent, BackgroundAgentStep } from '@/types/agent/background-agent';
 
 interface AgentFlowVisualizerProps {
@@ -52,27 +49,7 @@ interface AgentFlowVisualizerProps {
   className?: string;
 }
 
-const statusConfig: Record<SubAgentStatus | string, {
-  icon: React.ElementType;
-  color: string;
-  bgColor: string;
-  animate?: boolean;
-}> = {
-  pending: { icon: Clock, color: 'text-muted-foreground', bgColor: 'bg-muted' },
-  queued: { icon: Clock, color: 'text-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-950' },
-  running: { icon: Loader2, color: 'text-primary', bgColor: 'bg-primary/10', animate: true },
-  waiting: { icon: Pause, color: 'text-yellow-500', bgColor: 'bg-yellow-50 dark:bg-yellow-950' },
-  completed: { icon: CheckCircle, color: 'text-green-500', bgColor: 'bg-green-50 dark:bg-green-950' },
-  failed: { icon: XCircle, color: 'text-destructive', bgColor: 'bg-destructive/10' },
-  cancelled: { icon: XCircle, color: 'text-orange-500', bgColor: 'bg-orange-50 dark:bg-orange-950' },
-  timeout: { icon: AlertTriangle, color: 'text-red-500', bgColor: 'bg-red-50 dark:bg-red-950' },
-};
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
-}
+// Use shared status config from lib/agent/constants.ts
 
 export function AgentFlowVisualizer({
   agent,
@@ -89,7 +66,6 @@ export function AgentFlowVisualizer({
   // Use sub-agent hook for managing sub-agents
   const {
     subAgents: managedSubAgents,
-    activeSubAgents: _activeSubAgents,
     isExecuting,
     progress: subAgentProgress,
     templates,
@@ -143,7 +119,7 @@ export function AgentFlowVisualizer({
     clearCompleted();
   }, [clearCompleted]);
 
-  const parentConfig = statusConfig[agent.status] || statusConfig.pending;
+  const parentConfig = getSubAgentStatusConfig(agent.status);
   const ParentIcon = parentConfig.icon;
 
   const completedSubAgents = displaySubAgents.filter(sa => sa.status === 'completed').length;
@@ -211,7 +187,7 @@ export function AgentFlowVisualizer({
                   <Clock className="h-3 w-3" />
                   <span>
                     {agent.completedAt
-                      ? formatDuration(agent.completedAt.getTime() - agent.startedAt.getTime())
+                      ? formatDurationShort(agent.completedAt.getTime() - agent.startedAt.getTime())
                       : t('running')}
                   </span>
                 </div>
@@ -237,7 +213,7 @@ export function AgentFlowVisualizer({
             <ScrollArea className="max-h-[200px]">
               <div className="space-y-2 p-2">
                 {agent.steps.map((step) => {
-                  const stepConfig = statusConfig[step.status] || statusConfig.pending;
+                  const stepConfig = getSubAgentStatusConfig(step.status);
                   const StepIcon = stepConfig.icon;
 
                   return (
@@ -257,7 +233,7 @@ export function AgentFlowVisualizer({
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium truncate">{step.title}</span>
                           <span className="text-xs text-muted-foreground">
-                            {step.duration ? formatDuration(step.duration) : ''}
+                            {step.duration ? formatDurationShort(step.duration) : ''}
                           </span>
                         </div>
                         {step.description && (

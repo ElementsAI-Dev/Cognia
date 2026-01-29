@@ -88,8 +88,8 @@ interface AudioContextValue {
   isAudioSupported: boolean;
 }
 
-// Create context
-const AudioContext = createContext<AudioContextValue | undefined>(undefined);
+// Create context (named AudioProviderContext to avoid conflict with Web Audio API AudioContext)
+const AudioProviderContext = createContext<AudioContextValue | undefined>(undefined);
 
 interface AudioProviderProps {
   children: ReactNode;
@@ -125,6 +125,8 @@ export function AudioProvider({
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const objectUrlsRef = useRef<Set<string>>(new Set());
+  const transcriptionRef = useRef<string>('');
+  const isPausedRef = useRef<boolean>(false);
 
   const speechSettings = useSettingsStore((s) => s.speechSettings);
 
@@ -163,7 +165,11 @@ export function AudioProvider({
       }
 
       if (finalTranscript) {
-        setTranscription((prev) => prev + finalTranscript);
+        setTranscription((prev) => {
+          const newValue = prev + finalTranscript;
+          transcriptionRef.current = newValue;
+          return newValue;
+        });
 
         // Emit final transcription
         onTranscriptionFinal?.(finalTranscript.trim());
@@ -273,6 +279,7 @@ export function AudioProvider({
         recognitionRef.current.start();
         setRecordingState('recording');
         setTranscription(''); // Clear previous transcription
+        transcriptionRef.current = ''; // Also reset ref
       }
     } catch (error) {
       console.error('Failed to start recording:', error);
@@ -284,7 +291,8 @@ export function AudioProvider({
     if (!recognitionRef.current) return '';
 
     return new Promise((resolve) => {
-      const finalTranscript = transcription;
+      // Use ref to get the latest transcription value (avoids stale closure)
+      const finalTranscript = transcriptionRef.current;
 
       try {
         recognitionRef.current?.stop();
@@ -298,14 +306,17 @@ export function AudioProvider({
         mediaStreamRef.current = null;
       }
 
+      isPausedRef.current = false;
       setRecordingState('stopped');
       resolve(finalTranscript.trim());
     });
-  }, [transcription]);
+  }, []);
 
   const pauseRecording = useCallback(() => {
     try {
-      recognitionRef.current?.abort();
+      // Use stop() instead of abort() to preserve transcription and allow resume
+      recognitionRef.current?.stop();
+      isPausedRef.current = true;
       setRecordingState('paused');
     } catch {
       // Ignore errors
@@ -314,8 +325,9 @@ export function AudioProvider({
 
   const resumeRecording = useCallback(() => {
     try {
-      if (recognitionRef.current) {
+      if (recognitionRef.current && isPausedRef.current) {
         recognitionRef.current.start();
+        isPausedRef.current = false;
         setRecordingState('recording');
       }
     } catch {
@@ -503,14 +515,14 @@ export function AudioProvider({
     isAudioSupported: isSpeechRecognitionSupported() || isSpeechSynthesisSupported(),
   };
 
-  return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
+  return <AudioProviderContext.Provider value={value}>{children}</AudioProviderContext.Provider>;
 }
 
 /**
  * Hook to access audio functionality
  */
 export function useAudio(): AudioContextValue {
-  const context = useContext(AudioContext);
+  const context = useContext(AudioProviderContext);
   if (!context) {
     throw new Error('useAudio must be used within AudioProvider');
   }

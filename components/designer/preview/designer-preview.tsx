@@ -5,13 +5,14 @@
  * Similar to V0's visual editing mode
  */
 
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo, useDeferredValue } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
+import { getInsertionPoint, findElementByPattern } from '@/lib/designer/element-locator';
 import type { ViewportSize } from '@/types/designer';
 
 interface DesignerPreviewProps {
@@ -291,7 +292,9 @@ export function DesignerPreview({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const code = useDesignerStore((state) => state.code);
+  const storeCode = useDesignerStore((state) => state.code);
+  // Use deferred value to reduce preview refresh frequency during rapid typing
+  const code = useDeferredValue(storeCode);
   const mode = useDesignerStore((state) => state.mode);
   const viewport = useDesignerStore((state) => state.viewport);
   const zoom = useDesignerStore((state) => state.zoom);
@@ -362,30 +365,51 @@ export function DesignerPreview({
         hoverElement(data.elementId);
         onElementHover?.(data.elementId);
       } else if (data.type === 'component-dropped') {
-        // Handle component drop - insert code into the design
+        // Handle component drop - insert code into the design using element-locator
         const { code: droppedCode, targetElementId } = data;
         if (droppedCode) {
-          // For now, append to the end of the code or insert into target element
-          // Parse the dropped code to create element
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = droppedCode;
-          
-          if (targetElementId) {
-            // Insert into target element - update the code
-            const newCode = code.replace(
-              new RegExp(`(<[^>]*data-element-id="${targetElementId}"[^>]*>)([\\s\\S]*?)(</[^>]+>)`),
-              `$1$2\n${droppedCode}\n$3`
-            );
-            setCode(newCode, true);
-          } else {
-            // Append to root - simple code concatenation for JSX
-            const insertPoint = code.lastIndexOf('</');
-            if (insertPoint !== -1) {
-              const newCode = code.slice(0, insertPoint) + '\n' + droppedCode + '\n' + code.slice(insertPoint);
-              setCode(newCode, true);
+          // Use element-locator for accurate code insertion
+          const insertCodeAtPosition = async () => {
+            try {
+              const insertPoint = await getInsertionPoint(code, targetElementId, 'inside');
+              
+              if (insertPoint && insertPoint.offset !== undefined) {
+                // Insert at calculated position with proper indentation
+                const before = code.slice(0, insertPoint.offset);
+                const after = code.slice(insertPoint.offset);
+                const indentedCode = droppedCode
+                  .split('\n')
+                  .map((line: string, i: number) => (i === 0 ? line : insertPoint.indentation + line))
+                  .join('\n');
+                const newCode = before + '\n' + insertPoint.indentation + indentedCode + '\n' + after;
+                setCode(newCode, true);
+              } else {
+                // Fallback: use pattern matching to find insertion point
+                if (targetElementId) {
+                  const match = findElementByPattern(code, targetElementId);
+                  if (match) {
+                    // Find the closing > of the opening tag
+                    const tagEnd = code.indexOf('>', match.startIndex);
+                    if (tagEnd !== -1) {
+                      const newCode = code.slice(0, tagEnd + 1) + '\n  ' + droppedCode + code.slice(tagEnd + 1);
+                      setCode(newCode, true);
+                    }
+                  }
+                } else {
+                  // Append to root
+                  const insertIdx = code.lastIndexOf('</');
+                  if (insertIdx !== -1) {
+                    const newCode = code.slice(0, insertIdx) + '\n' + droppedCode + '\n' + code.slice(insertIdx);
+                    setCode(newCode, true);
+                  }
+                }
+              }
+              parseCodeToElements(code);
+            } catch (err) {
+              console.error('Failed to insert code:', err);
             }
-          }
-          parseCodeToElements(code);
+          };
+          insertCodeAtPosition();
         }
       }
     };
@@ -449,13 +473,13 @@ export function DesignerPreview({
   }, [code, isDarkMode]);
 
   return (
-    <div className={cn('relative flex flex-col h-full bg-muted/30', className)}>
+    <div className={cn('relative flex flex-col h-full min-h-0 bg-muted/30', className)}>
       {/* Preview container */}
-      <div className="flex-1 overflow-auto flex items-start justify-center p-4">
+      <div className="flex-1 min-h-0 overflow-auto flex items-start justify-center p-4">
         <div
           className={cn(
             'relative bg-background border rounded-lg shadow-sm overflow-hidden transition-all',
-            viewport === 'full' && 'w-full h-full'
+            viewport === 'full' ? 'w-full h-full' : 'flex-shrink-0'
           )}
           style={viewport !== 'full' ? viewportStyle : undefined}
         >

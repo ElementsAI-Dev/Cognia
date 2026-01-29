@@ -42,7 +42,6 @@ export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicator
   } = useBackgroundAgent();
 
   const hasRunning = runningAgents.length > 0;
-  const _hasCompleted = completedAgents.length > 0;
   const totalAgents = runningAgents.length + completedAgents.length;
 
   // Calculate overall progress

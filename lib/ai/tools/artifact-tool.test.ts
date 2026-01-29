@@ -2,7 +2,8 @@
  * Tests for Artifact Tools
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// Jest globals are auto-imported
+const vi = { fn: jest.fn, spyOn: jest.spyOn, mock: jest.mock, clearAllMocks: jest.clearAllMocks };
 import {
   artifactTools,
   artifactCreateTool,

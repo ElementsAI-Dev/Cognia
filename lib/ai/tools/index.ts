@@ -457,3 +457,11 @@ export {
   getProcessToolsPromptSnippet,
   type ProcessToolsConfig,
 } from './process-tools';
+
+// LaTeX Assistant Tool - AI-powered LaTeX generation and assistance
+export {
+  latexAssistantTool,
+  executeLatexAssistant,
+  latexAssistantInputSchema,
+  type LaTeXAssistantInput,
+} from './latex-assistant-tool';

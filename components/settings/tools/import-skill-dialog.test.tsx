@@ -81,8 +81,8 @@ jest.mock('@/components/ui/alert', () => ({
   AlertDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
 }));
 
-// Mock translation function
-const mockT = (key: string) => {
+// Mock translation function - cast to any to avoid complex Translator type
+const mockT = ((key: string) => {
   const translations: Record<string, string> = {
     importSkill: 'Import Skill',
     importSkillDesc: 'Paste SKILL.md content to import a skill',
@@ -90,7 +90,8 @@ const mockT = (key: string) => {
     import: 'Import',
   };
   return translations[key] || key;
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+}) as any;
 
 describe('ImportSkillDialog', () => {
   const mockOnOpenChange = jest.fn();

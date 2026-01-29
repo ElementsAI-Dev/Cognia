@@ -10,11 +10,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AnnotationToolbar } from './annotation-toolbar';
 import { AnnotationCanvas } from './annotation-canvas';
+import { AnnotationToolbar } from './annotation-toolbar';
+import { Magnifier } from './magnifier';
 import { QuickColorBar } from './color-picker';
 import { useEditorStore, selectCanUndo, selectCanRedo } from '@/stores/screenshot';
 import type { Annotation, SelectionRegion } from '@/types/screenshot';
+import { PRESET_COLORS } from '@/types/screenshot';
 
 interface ScreenshotEditorProps {
   imageData: string;
@@ -26,7 +28,7 @@ interface ScreenshotEditorProps {
 
 export function ScreenshotEditor({
   imageData,
-  region: _region,
+  region,
   onConfirm,
   onCancel,
   className,
@@ -36,6 +38,10 @@ export function ScreenshotEditor({
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(
     null
   );
+  const [exportCanvasFn, setExportCanvasFn] = useState<(() => string | null) | null>(null);
+  const [showMagnifier, setShowMagnifier] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [canvasImageData, setCanvasImageData] = useState<ImageData | null>(null);
 
   // Store state
   const {
@@ -46,6 +52,7 @@ export function ScreenshotEditor({
     setCurrentTool,
     setStyle,
     addAnnotation,
+    updateAnnotation,
     deleteAnnotation,
     selectAnnotation,
     clearAnnotations,
@@ -71,14 +78,25 @@ export function ScreenshotEditor({
     };
   }, [imageData, reset]);
 
+  // Get the final image data (with annotations if available)
+  const getFinalImageData = useCallback(() => {
+    if (exportCanvasFn && annotations.length > 0) {
+      const exported = exportCanvasFn();
+      if (exported) return exported;
+    }
+    return imageData;
+  }, [exportCanvasFn, annotations, imageData]);
+
   // Handler functions (defined before useEffect that uses them)
   const handleConfirm = useCallback(() => {
-    onConfirm(imageData, annotations);
-  }, [onConfirm, imageData, annotations]);
+    const finalData = getFinalImageData();
+    onConfirm(finalData, annotations);
+  }, [onConfirm, getFinalImageData, annotations]);
 
   const handleCopy = useCallback(async () => {
     try {
-      const response = await fetch(`data:image/png;base64,${imageData}`);
+      const finalData = getFinalImageData();
+      const response = await fetch(`data:image/png;base64,${finalData}`);
       const blob = await response.blob();
       await navigator.clipboard.write([
         new ClipboardItem({ 'image/png': blob }),
@@ -86,14 +104,26 @@ export function ScreenshotEditor({
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
     }
-  }, [imageData]);
+  }, [getFinalImageData]);
 
   const handleSave = useCallback(() => {
+    const finalData = getFinalImageData();
     const link = document.createElement('a');
-    link.href = `data:image/png;base64,${imageData}`;
+    link.href = `data:image/png;base64,${finalData}`;
     link.download = `screenshot-${Date.now()}.png`;
     link.click();
-  }, [imageData]);
+  }, [getFinalImageData]);
+
+  // Callback to receive the export function from AnnotationCanvas
+  const handleCanvasReady = useCallback((exportFn: () => string | null) => {
+    setExportCanvasFn(() => exportFn);
+  }, []);
+
+  // Handle cursor move for magnifier
+  const handleCursorMove = useCallback((x: number, y: number, imgData: ImageData | null) => {
+    setCursorPosition({ x, y });
+    setCanvasImageData(imgData);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -129,6 +159,10 @@ export function ScreenshotEditor({
           case 's':
             setCurrentTool('select');
             break;
+          case 'g':
+            // Toggle magnifier
+            setShowMagnifier((prev) => !prev);
+            break;
           case 'escape':
             onCancel();
             break;
@@ -137,6 +171,25 @@ export function ScreenshotEditor({
             if (selectedAnnotationId) {
               deleteAnnotation(selectedAnnotationId);
             }
+            break;
+          case '1':
+          case '2':
+          case '3':
+          case '4':
+          case '5':
+          case '6':
+          case '7':
+          case '8':
+          case '9':
+            // Number keys 1-9 select preset colors
+            const colorIndex = parseInt(e.key) - 1;
+            if (colorIndex >= 0 && colorIndex < PRESET_COLORS.length) {
+              setStyle({ color: PRESET_COLORS[colorIndex] });
+            }
+            break;
+          case '0':
+            // 0 selects black (last preset color)
+            setStyle({ color: PRESET_COLORS[9] });
             break;
         }
       }
@@ -176,6 +229,7 @@ export function ScreenshotEditor({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     setCurrentTool,
+    setStyle,
     undo,
     redo,
     selectedAnnotationId,
@@ -247,8 +301,11 @@ export function ScreenshotEditor({
           style={style}
           selectedAnnotationId={selectedAnnotationId}
           onAnnotationAdd={addAnnotation}
+          onAnnotationUpdate={updateAnnotation}
           onAnnotationSelect={selectAnnotation}
           onGetNextMarkerNumber={getNextMarkerNumber}
+          onCanvasReady={handleCanvasReady}
+          onCursorMove={showMagnifier ? handleCursorMove : undefined}
           className="w-full h-full"
         />
       </div>
@@ -257,6 +314,11 @@ export function ScreenshotEditor({
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-background/90 backdrop-blur rounded-lg px-4 py-2 shadow-lg">
         <p className="text-sm text-muted-foreground">
           {t('dimensions', { width: imageDimensions.width, height: imageDimensions.height })}
+          {region && (
+            <span className="ml-4">
+              {t('region') || 'Region'}: {Math.round(region.x)}, {Math.round(region.y)}
+            </span>
+          )}
           {annotations.length > 0 && (
             <span className="ml-4">{t('annotationCount', { count: annotations.length })}</span>
           )}
@@ -272,6 +334,35 @@ export function ScreenshotEditor({
           />
         </div>
       </div>
+
+      {/* Magnifier */}
+      {showMagnifier && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            left: cursorPosition.x + 20,
+            top: cursorPosition.y + 20,
+          }}
+        >
+          <Magnifier
+            imageData={canvasImageData}
+            cursorX={cursorPosition.x}
+            cursorY={cursorPosition.y}
+            zoom={4}
+            size={120}
+            visible={showMagnifier}
+          />
+        </div>
+      )}
+
+      {/* Magnifier hint */}
+      {showMagnifier && (
+        <div className="absolute top-4 right-4 bg-background/90 backdrop-blur rounded-lg px-3 py-1 shadow-lg">
+          <p className="text-xs text-muted-foreground">
+            {t('magnifierActive') || 'Magnifier active (G to toggle)'}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

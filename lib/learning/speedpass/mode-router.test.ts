@@ -25,6 +25,24 @@ describe('detectSpeedLearningMode', () => {
       }
     });
 
+    it('should detect half hour correctly', () => {
+      const result = detectSpeedLearningMode('只有半小时');
+      expect(result.detectedTime).toBe(30);
+      expect(result.recommendedMode).toBe('extreme');
+    });
+
+    it('should detect urgency for tomorrow exam', () => {
+      const result = detectSpeedLearningMode('明天考试');
+      expect(result.detectedUrgencyDays).toBe(1);
+      expect(result.recommendedMode).toBe('extreme');
+    });
+
+    it('should detect urgency for today exam', () => {
+      const result = detectSpeedLearningMode('今天下午考试');
+      expect(result.detectedUrgencyDays).toBe(0);
+      expect(result.recommendedMode).toBe('extreme');
+    });
+
     it('should detect extreme mode for urgency keywords', () => {
       const inputs = [
         '明天考试怎么办',
@@ -90,6 +108,18 @@ describe('detectSpeedLearningMode', () => {
       }
     });
 
+    it('should detect Chinese compound hours correctly', () => {
+      const result = detectSpeedLearningMode('有十二小时复习');
+      expect(result.detectedTime).toBe(720); // 12 hours = 720 minutes
+      expect(result.recommendedMode).toBe('comprehensive');
+    });
+
+    it('should boost comprehensive for next week exam', () => {
+      const result = detectSpeedLearningMode('下周考试，有充足时间');
+      expect(result.detectedUrgencyDays).toBe(7);
+      expect(result.recommendedMode).toBe('comprehensive');
+    });
+
     it('should detect comprehensive mode for high score goals', () => {
       const result1 = detectSpeedLearningMode('全面复习所有内容');
       expect(result1.detected).toBe(true);
@@ -142,6 +172,33 @@ describe('isSpeedLearningIntent', () => {
     expect(isSpeedLearningIntent('hello world')).toBe(false);
     expect(isSpeedLearningIntent('写代码')).toBe(false);
     expect(isSpeedLearningIntent('画一张图')).toBe(false);
+  });
+});
+
+describe('time extraction edge cases', () => {
+  it('should parse 半天 as 240 minutes', () => {
+    const result = detectSpeedLearningMode('有半天时间');
+    expect(result.detectedTime).toBe(240);
+    expect(result.recommendedMode).toBe('speed');
+  });
+
+  it('should parse compound Chinese numbers', () => {
+    // 十一 = 11, 十五 = 15, 二十 = 20
+    const result1 = detectSpeedLearningMode('有十一小时');
+    expect(result1.detectedTime).toBe(660); // 11 hours
+
+    const result2 = detectSpeedLearningMode('有十五小时');
+    expect(result2.detectedTime).toBe(900); // 15 hours
+  });
+
+  it('should parse Chinese minutes', () => {
+    const result = detectSpeedLearningMode('三十分钟');
+    expect(result.detectedTime).toBe(30);
+  });
+
+  it('should handle mixed language input', () => {
+    const result = detectSpeedLearningMode('I have 2小时 to study');
+    expect(result.detectedTime).toBe(120);
   });
 });
 

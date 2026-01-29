@@ -37,7 +37,7 @@ jest.mock('@/components/ui/badge', () => ({
     variant?: string;
     [key: string]: unknown;
   }) => (
-    <span data-testid="badge" className={className} variant={variant} {...props}>
+    <span data-testid="badge" className={className} data-variant={variant} {...props}>
       {children}
     </span>
   ),
@@ -49,6 +49,9 @@ const mockData: LoopNodeData = {
   label: 'Process Items',
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
+  inputs: {},
+  outputs: {},
   loopType: 'forEach',
   maxIterations: 100,
   iteratorVariable: 'item',
@@ -56,46 +59,59 @@ const mockData: LoopNodeData = {
   condition: 'item.isActive',
 };
 
+const baseProps = {
+  id: 'loop-1',
+  type: 'loop',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
+};
+
 describe('LoopNode', () => {
   it('renders without crashing', () => {
-    render(<LoopNode data={mockData} selected={false} />);
+    render(<LoopNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Process Items')).toBeInTheDocument();
   });
 
   it('renders loop type badge', () => {
-    render(<LoopNode data={mockData} selected={false} />);
+    render(<LoopNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('forEach')).toBeInTheDocument();
   });
 
   it('renders max iterations badge', () => {
-    render(<LoopNode data={mockData} selected={false} />);
+    render(<LoopNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('max: 100')).toBeInTheDocument();
   });
 
   it('renders iterator variable', () => {
-    render(<LoopNode data={mockData} selected={false} />);
+    render(<LoopNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('item')).toBeInTheDocument();
   });
 
   it('renders collection', () => {
-    render(<LoopNode data={mockData} selected={false} />);
+    render(<LoopNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Collection: items')).toBeInTheDocument();
   });
 
   it('renders condition', () => {
-    render(<LoopNode data={mockData} selected={false} />);
+    render(<LoopNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('item.isActive')).toBeInTheDocument();
   });
 
   it('does not render iterator variable when not set', () => {
     const noIteratorData: LoopNodeData = {
       ...mockData,
-      iteratorVariable: undefined,
+      iteratorVariable: '',
       collection: 'data', // Use different collection name to avoid 'item' match
       condition: 'x > 0', // Use different condition to avoid 'item' match
     };
 
-    render(<LoopNode data={noIteratorData} selected={false} />);
+    render(<LoopNode {...baseProps} data={noIteratorData} selected={false} />);
     // Check iterator variable is not shown as a standalone element
     expect(screen.queryByText('Iterator:')).not.toBeInTheDocument();
   });
@@ -103,20 +119,20 @@ describe('LoopNode', () => {
   it('does not render collection when not set', () => {
     const noCollectionData: LoopNodeData = {
       ...mockData,
-      collection: undefined,
+      collection: '',
     };
 
-    render(<LoopNode data={noCollectionData} selected={false} />);
+    render(<LoopNode {...baseProps} data={noCollectionData} selected={false} />);
     expect(screen.queryByText(/Collection:/)).not.toBeInTheDocument();
   });
 
   it('does not render condition when not set', () => {
     const noConditionData: LoopNodeData = {
       ...mockData,
-      condition: undefined,
+      condition: '',
     };
 
-    render(<LoopNode data={noConditionData} selected={false} />);
+    render(<LoopNode {...baseProps} data={noConditionData} selected={false} />);
     const codeElements = screen.queryAllByText(/item\.isActive/);
     expect(codeElements.length).toBe(0);
   });
@@ -124,7 +140,7 @@ describe('LoopNode', () => {
 
 describe('LoopNode integration tests', () => {
   it('handles complete loop node', () => {
-    render(<LoopNode data={mockData} selected={false} />);
+    render(<LoopNode {...baseProps} data={mockData} selected={false} />);
 
     expect(screen.getByText('Process Items')).toBeInTheDocument();
     expect(screen.getByText('forEach')).toBeInTheDocument();
@@ -140,48 +156,48 @@ describe('LoopNode integration tests', () => {
       condition: 'counter < 10',
     };
 
-    render(<LoopNode data={whileData} selected={false} />);
+    render(<LoopNode {...baseProps} data={whileData} selected={false} />);
 
     expect(screen.getByText('while')).toBeInTheDocument();
     expect(screen.getByText('counter < 10')).toBeInTheDocument();
   });
 
-  it('handles do-while loop type', () => {
-    const doWhileData: LoopNodeData = {
+  it('handles times loop type', () => {
+    const timesData: LoopNodeData = {
       ...mockData,
-      loopType: 'doWhile',
+      loopType: 'times',
       condition: 'isValid',
     };
 
-    render(<LoopNode data={doWhileData} selected={false} />);
+    render(<LoopNode {...baseProps} data={timesData} selected={false} />);
 
-    expect(screen.getByText('doWhile')).toBeInTheDocument();
+    expect(screen.getByText('times')).toBeInTheDocument();
     expect(screen.getByText('isValid')).toBeInTheDocument();
   });
 
-  it('handles for loop type', () => {
-    const forData: LoopNodeData = {
+  it('handles forEach loop type', () => {
+    const forEachData: LoopNodeData = {
       ...mockData,
-      loopType: 'for',
+      loopType: 'forEach',
       iteratorVariable: 'i',
       condition: 'i < 10',
     };
 
-    render(<LoopNode data={forData} selected={false} />);
+    render(<LoopNode {...baseProps} data={forEachData} selected={false} />);
 
-    expect(screen.getByText('for')).toBeInTheDocument();
+    expect(screen.getByText('forEach')).toBeInTheDocument();
     expect(screen.getByText('i')).toBeInTheDocument();
   });
 
   it('handles minimal loop config', () => {
     const minimalData: LoopNodeData = {
       ...mockData,
-      iteratorVariable: undefined,
-      collection: undefined,
-      condition: undefined,
+      iteratorVariable: '',
+      collection: '',
+      condition: '',
     };
 
-    render(<LoopNode data={minimalData} selected={false} />);
+    render(<LoopNode {...baseProps} data={minimalData} selected={false} />);
 
     expect(screen.getByText('Process Items')).toBeInTheDocument();
     expect(screen.getByText('forEach')).toBeInTheDocument();

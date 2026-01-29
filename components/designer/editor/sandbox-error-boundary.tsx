@@ -89,7 +89,7 @@ function ErrorDisplay({ error, errorInfo, onReset, className }: ErrorDisplayProp
   };
 
   return (
-    <div className={cn('flex flex-col h-full bg-destructive/5 p-4', className)}>
+    <div className={cn('flex flex-col h-full min-h-0 bg-destructive/5 p-4', className)}>
       <Alert variant="destructive" className="mb-4">
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>{t('runtimeError')}</AlertTitle>
@@ -98,7 +98,7 @@ function ErrorDisplay({ error, errorInfo, onReset, className }: ErrorDisplayProp
         </AlertDescription>
       </Alert>
 
-      <ScrollArea className="flex-1 mb-4">
+      <ScrollArea className="flex-1 min-h-0 mb-4">
         <div className="space-y-3">
           {/* Error message */}
           <div className="p-3 rounded-md bg-background border border-destructive/30">

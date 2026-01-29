@@ -2,7 +2,8 @@
  * Tests for useRAGProgress hook
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Jest globals are auto-imported
+const vi = { fn: jest.fn, spyOn: jest.spyOn, useFakeTimers: jest.useFakeTimers, useRealTimers: jest.useRealTimers, advanceTimersByTime: (ms: number) => jest.advanceTimersByTime(ms), clearAllTimers: jest.clearAllTimers };
 import { renderHook, act } from '@testing-library/react';
 import {
   useRAGProgress,

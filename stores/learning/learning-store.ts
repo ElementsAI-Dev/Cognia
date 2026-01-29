@@ -1312,14 +1312,32 @@ export const useLearningStore = create<LearningState>()(
     {
       name: 'cognia-learning-storage',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        sessions: state.sessions,
-        config: state.config,
-        learningPaths: state.learningPaths,
-        quickSessions: state.quickSessions,
-        achievements: state.achievements,
-        globalStats: state.globalStats,
-      }),
+      partialize: (state) => {
+        // Limit quick sessions to last 50 to prevent storage bloat
+        const quickSessionsArray = Object.entries(state.quickSessions);
+        const limitedQuickSessions: Record<string, typeof state.quickSessions[string]> = {};
+        if (quickSessionsArray.length > 50) {
+          // Sort by creation time and keep last 50
+          const sorted = quickSessionsArray.sort((a, b) => {
+            const aTime = new Date(a[1].createdAt).getTime();
+            const bTime = new Date(b[1].createdAt).getTime();
+            return bTime - aTime;
+          }).slice(0, 50);
+          for (const [key, value] of sorted) {
+            limitedQuickSessions[key] = value;
+          }
+        } else {
+          Object.assign(limitedQuickSessions, state.quickSessions);
+        }
+        return {
+          sessions: state.sessions,
+          config: state.config,
+          learningPaths: state.learningPaths,
+          quickSessions: limitedQuickSessions,
+          achievements: state.achievements,
+          globalStats: state.globalStats,
+        };
+      },
       onRehydrateStorage: () => (state) => {
         // Convert date strings back to Date objects
         if (state?.sessions) {

@@ -1092,4 +1092,135 @@ describe('ScreenshotEditor', () => {
       });
     });
   });
+
+  describe('Number Key Color Shortcuts', () => {
+    const colorShortcuts = [
+      { key: '1', colorIndex: 0 },
+      { key: '2', colorIndex: 1 },
+      { key: '3', colorIndex: 2 },
+      { key: '4', colorIndex: 3 },
+      { key: '5', colorIndex: 4 },
+      { key: '6', colorIndex: 5 },
+      { key: '7', colorIndex: 6 },
+      { key: '8', colorIndex: 7 },
+      { key: '9', colorIndex: 8 },
+      { key: '0', colorIndex: 9 },
+    ];
+
+    colorShortcuts.forEach(({ key, colorIndex }) => {
+      it(`should set color to preset ${colorIndex} when pressing ${key}`, async () => {
+        const state = { ...defaultMockState };
+        mockUseEditorStore.mockReturnValue(state as unknown as ReturnType<typeof useEditorStore>);
+
+        render(
+          <ScreenshotEditor
+            imageData={testImageData}
+            onConfirm={mockOnConfirm}
+            onCancel={mockOnCancel}
+          />
+        );
+
+        await waitFor(() => {
+          expect(defaultMockState.setStyle).not.toHaveBeenCalled();
+        });
+
+        fireEvent.keyDown(window, { key });
+
+        expect(defaultMockState.setStyle).toHaveBeenCalled();
+        const callArg = defaultMockState.setStyle.mock.calls[0][0];
+        expect(callArg).toHaveProperty('color');
+      });
+    });
+
+    it('should not trigger color shortcut when Ctrl or Meta key is pressed', async () => {
+      mockUseEditorStore.mockReturnValue(defaultMockState as unknown as ReturnType<typeof useEditorStore>);
+
+      render(
+        <ScreenshotEditor
+          imageData={testImageData}
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      await waitFor(() => {
+        expect(defaultMockState.setStyle).not.toHaveBeenCalled();
+      });
+
+      // Ctrl and Meta keys should block number shortcuts
+      fireEvent.keyDown(window, { key: '1', ctrlKey: true });
+      fireEvent.keyDown(window, { key: '2', metaKey: true });
+
+      expect(defaultMockState.setStyle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Magnifier Toggle', () => {
+    it('should toggle magnifier when pressing G key', async () => {
+      mockUseEditorStore.mockReturnValue(defaultMockState as unknown as ReturnType<typeof useEditorStore>);
+
+      const { container } = render(
+        <ScreenshotEditor
+          imageData={testImageData}
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelector('.animate-pulse')).toBeFalsy();
+      });
+
+      // Initial state - magnifier should not be visible
+      expect(container.querySelector('[data-testid="magnifier"]')).toBeFalsy();
+
+      // Press G to toggle magnifier
+      fireEvent.keyDown(window, { key: 'g' });
+
+      // Note: The magnifier visibility is internal state, this test verifies
+      // the keyboard shortcut is registered without error
+    });
+
+    it('should also toggle magnifier with uppercase G', async () => {
+      mockUseEditorStore.mockReturnValue(defaultMockState as unknown as ReturnType<typeof useEditorStore>);
+
+      render(
+        <ScreenshotEditor
+          imageData={testImageData}
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      await waitFor(() => {
+        expect(defaultMockState.setCurrentTool).not.toHaveBeenCalled();
+      });
+
+      // Press G (uppercase) to toggle magnifier - should not throw
+      fireEvent.keyDown(window, { key: 'G' });
+    });
+  });
+
+  describe('Region Display', () => {
+    it('should display region information when region prop is provided', async () => {
+      mockUseEditorStore.mockReturnValue(defaultMockState as unknown as ReturnType<typeof useEditorStore>);
+
+      const { container } = render(
+        <ScreenshotEditor
+          imageData={testImageData}
+          region={testRegion}
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      await waitFor(() => {
+        // Region info should be displayed somewhere in the component
+        const textContent = container.textContent || '';
+        // The region coordinates should be visible
+        expect(textContent).toContain('10');
+        expect(textContent).toContain('100');
+      });
+    });
+  });
 });

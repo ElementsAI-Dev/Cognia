@@ -30,16 +30,30 @@ export function ThemeProvider({
   storageKey = 'theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = React.useState<Theme>(defaultTheme);
-  const [resolvedTheme, setResolvedTheme] = React.useState<'dark' | 'light'>('light');
-
-  // Load stored theme on mount
-  React.useEffect(() => {
+  // Use lazy initialization to read from localStorage on first render (avoids hydration flash)
+  const [theme, setTheme] = React.useState<Theme>(() => {
+    if (typeof window === 'undefined') return defaultTheme;
     const stored = localStorage.getItem(storageKey) as Theme | null;
-    if (stored) {
-      setTheme(stored);
+    return stored || defaultTheme;
+  });
+  
+  // Initialize resolved theme with proper system detection
+  const [resolvedTheme, setResolvedTheme] = React.useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'light';
+    const stored = localStorage.getItem(storageKey) as Theme | null;
+    const currentTheme = stored || defaultTheme;
+    if (currentTheme === 'system' && enableSystem) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-  }, [storageKey]);
+    return currentTheme === 'system' ? 'light' : currentTheme;
+  });
+  
+  // Track mount state for potential SSR hydration handling
+  const [_mounted, setMounted] = React.useState(false);
+  
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Handle transition disable on theme change
   React.useEffect(() => {

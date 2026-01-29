@@ -2,18 +2,49 @@
 
 /**
  * SimplifiedWelcome - Clean, minimal welcome screen like ChatGPT/Claude
- * Features centered layout, simple greeting, and suggestion pills
+ * Features centered layout, simple greeting, suggestion pills, and mode switching
+ * 
+ * Key features:
+ * - ChatGPT-like centered design with large greeting
+ * - Mode switcher pills for easy mode switching
+ * - Model indicator showing current AI model
+ * - Quick toggle to switch back to full mode
+ * - Smooth animations and transitions
  */
 
-import { useMemo } from 'react';
-import { Sparkles, ArrowUp } from 'lucide-react';
+import { useMemo, useCallback } from 'react';
+import { 
+  Sparkles, 
+  ArrowUp, 
+  Bot, 
+  Search, 
+  GraduationCap,
+  Maximize2,
+  ChevronDown,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { ChatMode } from '@/types';
 
 interface SimplifiedWelcomeProps {
   mode: ChatMode;
   onSuggestionClick?: (suggestion: string) => void;
+  onModeChange?: (mode: ChatMode) => void;
+  modelName?: string;
+  providerName?: string;
 }
 
 // Minimal suggestion prompts for each mode
@@ -94,12 +125,34 @@ function SuggestionPill({
   );
 }
 
+// Mode icons for the switcher
+const MODE_ICONS: Record<ChatMode, React.ReactNode> = {
+  chat: <Sparkles className="h-4 w-4" />,
+  agent: <Bot className="h-4 w-4" />,
+  research: <Search className="h-4 w-4" />,
+  learning: <GraduationCap className="h-4 w-4" />,
+};
+
+// Mode labels
+const MODE_LABELS: Record<ChatMode, string> = {
+  chat: 'Chat',
+  agent: 'Agent',
+  research: 'Research',
+  learning: 'Learning',
+};
+
 export function SimplifiedWelcome({
   mode,
   onSuggestionClick,
+  onModeChange,
+  modelName,
+  providerName,
 }: SimplifiedWelcomeProps) {
   const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
+  const setSimplifiedModePreset = useSettingsStore((state) => state.setSimplifiedModePreset);
   const hideSuggestionDescriptions = simplifiedModeSettings.hideSuggestionDescriptions;
+  const hideModeSelector = simplifiedModeSettings.hideModeSelector;
+  const currentPreset = simplifiedModeSettings.preset;
 
   const greeting = MODE_GREETINGS[mode];
   const suggestions = SIMPLIFIED_SUGGESTIONS[mode];
@@ -109,8 +162,67 @@ export function SimplifiedWelcome({
     return suggestions.slice(0, 4);
   }, [suggestions]);
 
+  // Handle switching to full mode
+  const handleSwitchToFullMode = useCallback(() => {
+    setSimplifiedModePreset('off');
+  }, [setSimplifiedModePreset]);
+
+  // Handle mode change
+  const handleModeChange = useCallback((newMode: ChatMode) => {
+    onModeChange?.(newMode);
+  }, [onModeChange]);
+
   return (
-    <div className="flex h-full flex-col items-center justify-center px-4 py-8">
+    <div className="flex h-full flex-col items-center justify-center px-4 py-8 relative">
+      {/* Top bar with model indicator and full mode toggle */}
+      <div 
+        className={cn(
+          'absolute top-4 left-0 right-0 flex items-center justify-between px-4',
+          'animate-in fade-in-0 duration-500'
+        )}
+      >
+        {/* Model indicator */}
+        <div className="flex items-center gap-2">
+          {modelName && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge 
+                  variant="secondary" 
+                  className="text-xs font-normal px-2 py-0.5 bg-muted/50 hover:bg-muted cursor-default"
+                >
+                  {providerName && (
+                    <span className="text-muted-foreground mr-1">{providerName} /</span>
+                  )}
+                  {modelName}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Current AI model</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+
+        {/* Full mode toggle */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSwitchToFullMode}
+              className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+            >
+              <Maximize2 className="h-4 w-4" />
+              <span className="text-xs hidden sm:inline">Full Mode</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Switch to full interface</p>
+            <p className="text-xs text-muted-foreground">Ctrl+Shift+S</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+
       <div className="w-full max-w-2xl flex flex-col items-center space-y-8">
         {/* Logo/Icon */}
         <div 
@@ -140,6 +252,45 @@ export function SimplifiedWelcome({
             </p>
           )}
         </div>
+
+        {/* Mode Switcher - ChatGPT style dropdown */}
+        {!hideModeSelector && onModeChange && (
+          <div 
+            className={cn(
+              'animate-in fade-in-0 slide-in-from-bottom-2 duration-500'
+            )}
+            style={{ animationDelay: '150ms' }}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 h-9 px-4 rounded-full border-border/60 bg-background/50 hover:bg-accent/80"
+                >
+                  {MODE_ICONS[mode]}
+                  <span className="font-medium">{MODE_LABELS[mode]}</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-40">
+                {(Object.keys(MODE_LABELS) as ChatMode[]).map((m) => (
+                  <DropdownMenuItem
+                    key={m}
+                    onClick={() => handleModeChange(m)}
+                    className={cn(
+                      'gap-2 cursor-pointer',
+                      mode === m && 'bg-accent'
+                    )}
+                  >
+                    {MODE_ICONS[m]}
+                    <span>{MODE_LABELS[m]}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
 
         {/* Suggestion Pills - 2x2 grid */}
         <div 
@@ -173,6 +324,19 @@ export function SimplifiedWelcome({
           </kbd>
           <span>to send</span>
         </p>
+
+        {/* Simplified mode indicator */}
+        {currentPreset !== 'off' && (
+          <p 
+            className={cn(
+              'text-[10px] text-muted-foreground/40',
+              'animate-in fade-in-0 duration-500'
+            )}
+            style={{ animationDelay: '500ms' }}
+          >
+            {currentPreset === 'zen' ? 'Zen Mode' : 'Focused Mode'} • Press Ctrl+Shift+S for full interface
+          </p>
+        )}
       </div>
     </div>
   );

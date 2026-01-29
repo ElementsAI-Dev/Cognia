@@ -958,3 +958,476 @@ class WindowOptions:
     decorations: bool = True
     transparent: bool = False
     url: Optional[str] = None
+
+
+# =============================================================================
+# Upload/Download API Types
+# =============================================================================
+
+@dataclass
+class UploadOptions:
+    """Upload options"""
+    field_name: str = "file"
+    headers: Dict[str, str] = field(default_factory=dict)
+    timeout: Optional[int] = None
+    on_progress: Optional[Callable[["DownloadProgress"], None]] = None
+
+
+# =============================================================================
+# Shell Spawn API Types
+# =============================================================================
+
+@dataclass
+class SpawnOptions:
+    """Spawn options for long-running processes"""
+    cwd: Optional[str] = None
+    env: Dict[str, str] = field(default_factory=dict)
+    stdin: Optional[str] = None
+
+
+@dataclass
+class ChildProcess:
+    """Child process handle"""
+    pid: int
+    stdin: Optional[Any] = None
+    stdout: Optional[Any] = None
+    stderr: Optional[Any] = None
+    
+    def kill(self) -> None:
+        """Kill the process"""
+        pass
+    
+    def on_exit(self, handler: Callable[[int], None]) -> Callable[[], None]:
+        """Subscribe to exit event"""
+        return lambda: None
+
+
+# =============================================================================
+# Database Transaction API Types
+# =============================================================================
+
+@dataclass
+class DatabaseTransaction:
+    """Database transaction"""
+    
+    async def query(self, sql: str, params: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
+        """Execute a query within transaction"""
+        pass
+    
+    async def execute(self, sql: str, params: Optional[List[Any]] = None) -> "DatabaseResult":
+        """Execute a statement within transaction"""
+        pass
+
+
+# =============================================================================
+# Export API Extended Types
+# =============================================================================
+
+@dataclass
+class CustomExporter:
+    """Custom exporter definition"""
+    id: str
+    name: str
+    description: str
+    format: str
+    extension: str
+    mime_type: str
+    export_fn: Callable[[Any], Any]  # (ExportData) -> Blob | str
+
+
+# =============================================================================
+# Artifact Renderer Types
+# =============================================================================
+
+@dataclass
+class ArtifactRenderer:
+    """Artifact renderer for custom artifact types"""
+    type: str
+    name: str
+    can_render: Callable[[Any], bool]  # (Artifact) -> bool
+    render: Callable[[Any, Any], Callable[[], None]]  # (Artifact, container) -> cleanup
+
+
+# =============================================================================
+# Plugin Status Types
+# =============================================================================
+
+class PluginStatus(Enum):
+    """Plugin status enumeration"""
+    INACTIVE = "inactive"
+    ACTIVE = "active"
+    ACTIVATING = "activating"
+    DEACTIVATING = "deactivating"
+    ERROR = "error"
+
+
+class PluginSource(Enum):
+    """Plugin source enumeration"""
+    LOCAL = "local"
+    REGISTRY = "registry"
+    GIT = "git"
+    URL = "url"
+
+
+# =============================================================================
+# Plugin Activation Types
+# =============================================================================
+
+class PluginActivationEvent(Enum):
+    """Plugin activation events"""
+    ON_STARTUP = "onStartup"
+    ON_COMMAND = "onCommand"
+    ON_LANGUAGE = "onLanguage"
+    ON_VIEW = "onView"
+    ON_FILE_SYSTEM = "onFileSystem"
+    WORKSPACES_CONTAINS = "workspaceContains"
+
+
+# =============================================================================
+# Hook Types
+# =============================================================================
+
+class HookPriority(Enum):
+    """Hook priority levels"""
+    LOWEST = -100
+    LOW = -50
+    NORMAL = 0
+    HIGH = 50
+    HIGHEST = 100
+
+
+@dataclass
+class HookRegistrationOptions:
+    """Hook registration options"""
+    priority: HookPriority = HookPriority.NORMAL
+    once: bool = False
+    timeout: Optional[int] = None
+
+
+@dataclass
+class HookSandboxExecutionResult:
+    """Hook sandbox execution result"""
+    success: bool
+    result: Optional[Any] = None
+    error: Optional[str] = None
+    duration_ms: float = 0.0
+
+
+# =============================================================================
+# Clipboard API Types
+# =============================================================================
+
+@dataclass
+class ClipboardContent:
+    """Clipboard content"""
+    text: Optional[str] = None
+    image: Optional[bytes] = None
+    html: Optional[str] = None
+
+
+# =============================================================================
+# Debug API Types
+# =============================================================================
+
+class DebugLogLevel(Enum):
+    """Debug log levels"""
+    TRACE = "trace"
+    DEBUG = "debug"
+    INFO = "info"
+    WARN = "warn"
+    ERROR = "error"
+
+
+@dataclass
+class DebugLogEntry:
+    """Debug log entry"""
+    level: DebugLogLevel
+    message: str
+    timestamp: float
+    data: Optional[Any] = None
+    source: Optional[str] = None
+    stack: Optional[str] = None
+
+
+@dataclass
+class TraceEntry:
+    """Performance trace entry"""
+    name: str
+    start_time: float
+    end_time: Optional[float] = None
+    duration: Optional[float] = None
+    children: List["TraceEntry"] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class PerformanceMetrics:
+    """Performance metrics"""
+    plugin_id: str
+    total_time: float
+    tool_call_count: int
+    avg_tool_call_duration: float
+    hook_invocation_count: int
+    avg_hook_duration: float
+    memory_usage: Optional[int] = None
+    traces: List[TraceEntry] = field(default_factory=list)
+
+
+@dataclass
+class Breakpoint:
+    """Debug breakpoint"""
+    id: str
+    type: str  # 'hook', 'tool', 'event', 'custom'
+    target: str
+    condition: Optional[str] = None
+    enabled: bool = True
+    hit_count: int = 0
+
+
+@dataclass
+class DebugSession:
+    """Debug session state"""
+    id: str
+    plugin_id: str
+    started_at: datetime
+    active: bool
+    breakpoints: List[Breakpoint] = field(default_factory=list)
+    logs: List[DebugLogEntry] = field(default_factory=list)
+    metrics: Optional[PerformanceMetrics] = None
+
+
+@dataclass
+class SlowOperation:
+    """Slow operation alert"""
+    type: str  # 'tool', 'hook', 'ipc', 'custom'
+    name: str
+    duration: float
+    threshold: float
+    timestamp: float
+    context: Dict[str, Any] = field(default_factory=dict)
+
+
+# =============================================================================
+# Profiler API Types
+# =============================================================================
+
+@dataclass
+class MemoryUsage:
+    """Memory usage information"""
+    used_heap_size: int
+    total_heap_size: int
+    heap_size_limit: int
+    external: Optional[int] = None
+
+
+@dataclass
+class PerformanceSample:
+    """Performance sample with timing data"""
+    name: str
+    start_time: float
+    end_time: float
+    duration: float
+    memory: Optional[MemoryUsage] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class PerformanceBucket:
+    """Performance bucket for aggregated metrics"""
+    name: str
+    count: int
+    total_duration: float
+    avg_duration: float
+    min_duration: float
+    max_duration: float
+    p50: float
+    p95: float
+    p99: float
+
+
+@dataclass
+class SlowOperationEntry:
+    """Slow operation entry"""
+    name: str
+    duration: float
+    threshold: float
+    timestamp: float
+    stack: Optional[str] = None
+
+
+@dataclass
+class PerformanceReport:
+    """Performance report"""
+    plugin_id: str
+    generated_at: datetime
+    duration: float
+    total_samples: int
+    buckets: List[PerformanceBucket] = field(default_factory=list)
+    memory_snapshots: List[Dict[str, Any]] = field(default_factory=list)
+    slow_operations: List[SlowOperationEntry] = field(default_factory=list)
+
+
+@dataclass
+class ProfilerConfig:
+    """Profiler configuration"""
+    enabled: bool = True
+    sample_rate: float = 1.0
+    max_samples: int = 1000
+    slow_threshold: float = 1000.0
+    track_memory: bool = False
+    memory_snapshot_interval: int = 60000
+
+
+# =============================================================================
+# Version API Types
+# =============================================================================
+
+@dataclass
+class SemanticVersion:
+    """Semantic version object"""
+    major: int
+    minor: int
+    patch: int
+    prerelease: Optional[str] = None
+    build: Optional[str] = None
+
+
+@dataclass
+class UpdateInfo:
+    """Update information"""
+    current_version: str
+    latest_version: str
+    update_available: bool
+    critical: bool = False
+    release_notes: Optional[str] = None
+    release_date: Optional[datetime] = None
+    download_url: Optional[str] = None
+    changelog_url: Optional[str] = None
+    min_sdk_version: Optional[str] = None
+    breaking_changes: List[str] = field(default_factory=list)
+
+
+@dataclass
+class VersionHistoryEntry:
+    """Version history entry"""
+    version: str
+    installed_at: datetime
+    removed_at: Optional[datetime] = None
+    auto_updated: bool = False
+    reason: Optional[str] = None
+
+
+@dataclass
+class RollbackOptions:
+    """Rollback options"""
+    target_version: str
+    keep_config: bool = True
+    keep_data: bool = True
+
+
+@dataclass
+class UpdateOptions:
+    """Update options"""
+    silent: bool = False
+    restart: bool = True
+    backup: bool = True
+
+
+# =============================================================================
+# Dependencies API Types
+# =============================================================================
+
+@dataclass
+class DependencySpec:
+    """Dependency specification"""
+    plugin_id: str
+    version: str
+    optional: bool = False
+
+
+@dataclass
+class ResolvedDependency:
+    """Resolved dependency"""
+    plugin_id: str
+    required_version: str
+    resolved_version: str
+    satisfied: bool
+    loaded: bool
+    enabled: bool
+    error: Optional[str] = None
+
+
+@dataclass
+class DependencyNode:
+    """Dependency graph node"""
+    plugin_id: str
+    version: str
+    dependencies: List[str] = field(default_factory=list)
+    dependents: List[str] = field(default_factory=list)
+    load_order: int = 0
+
+
+@dataclass
+class DependencyConflict:
+    """Dependency conflict"""
+    plugin_id: str
+    required_by: List[Dict[str, str]] = field(default_factory=list)
+    description: str = ""
+
+
+@dataclass
+class DependencyCheckResult:
+    """Dependency check result"""
+    satisfied: bool
+    resolved: List[ResolvedDependency] = field(default_factory=list)
+    missing: List[DependencySpec] = field(default_factory=list)
+    conflicts: List[DependencyConflict] = field(default_factory=list)
+    circular: List[List[str]] = field(default_factory=list)
+
+
+# =============================================================================
+# Message Bus API Types
+# =============================================================================
+
+class MessagePriority(Enum):
+    """Message priority levels"""
+    HIGH = "high"
+    NORMAL = "normal"
+    LOW = "low"
+
+
+@dataclass
+class SubscriptionOptions:
+    """Message bus subscription options"""
+    priority: MessagePriority = MessagePriority.NORMAL
+    filter_fn: Optional[Callable[[Any], bool]] = None
+    max_messages: Optional[int] = None
+    timeout: Optional[int] = None
+
+
+@dataclass
+class MessageMetadata:
+    """Published message metadata"""
+    id: str
+    topic: str
+    publisher_id: str
+    timestamp: float
+    priority: MessagePriority
+    correlation_id: Optional[str] = None
+
+
+@dataclass
+class MessageEnvelope:
+    """Message envelope containing data and metadata"""
+    data: Any
+    metadata: MessageMetadata
+
+
+@dataclass
+class TopicStats:
+    """Topic statistics"""
+    topic: str
+    subscriber_count: int
+    message_count: int
+    last_message_at: Optional[datetime] = None
+

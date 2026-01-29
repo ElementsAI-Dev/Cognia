@@ -43,6 +43,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { RenameDialog } from './rename-dialog';
 import {
   Select,
   SelectContent,
@@ -51,6 +52,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { formatRelativeDate } from '@/lib/canvas/utils';
 import type { CanvasDocument, ArtifactLanguage } from '@/types';
 
 interface CanvasDocumentListProps {
@@ -157,15 +159,6 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
     setRenameDialogOpen(true);
   };
 
-  const handleConfirmRename = () => {
-    if (renameDocId && renameValue.trim()) {
-      onRenameDocument(renameDocId, renameValue.trim());
-    }
-    setRenameDialogOpen(false);
-    setRenameDocId(null);
-    setRenameValue('');
-  };
-
   const handleCreateDocument = () => {
     if (newDocTitle.trim()) {
       onCreateDocument({
@@ -181,20 +174,8 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
     }
   };
 
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const d = new Date(date);
-    const diffMs = now.getTime() - d.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return t('justNow');
-    if (diffMins < 60) return t('minutesAgo', { count: diffMins });
-    if (diffHours < 24) return t('hoursAgo', { count: diffHours });
-    if (diffDays < 7) return t('daysAgo', { count: diffDays });
-    return d.toLocaleDateString();
-  };
+  // Use shared date formatting utility
+  const formatDate = (date: Date) => formatRelativeDate(date, t);
 
   const toggleSortOrder = () => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -416,34 +397,19 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
       </Dialog>
 
       {/* Rename Dialog */}
-      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
-        <DialogContent className="sm:max-w-100">
-          <DialogHeader>
-            <DialogTitle>{t('renameDocument')}</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Input
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              placeholder={t('documentTitle')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleConfirmRename();
-                }
-              }}
-              autoFocus
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
-              {t('cancel')}
-            </Button>
-            <Button onClick={handleConfirmRename} disabled={!renameValue.trim()}>
-              {t('save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RenameDialog
+        open={renameDialogOpen}
+        onOpenChange={setRenameDialogOpen}
+        currentTitle={renameValue}
+        onRename={(newTitle) => {
+          if (renameDocId) {
+            onRenameDocument(renameDocId, newTitle);
+          }
+          setRenameDialogOpen(false);
+          setRenameDocId(null);
+          setRenameValue('');
+        }}
+      />
     </>
   );
 });

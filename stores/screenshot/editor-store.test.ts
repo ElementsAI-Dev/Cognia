@@ -395,4 +395,73 @@ describe('useEditorStore', () => {
       expect(result.current.annotations).toHaveLength(0);
     });
   });
+
+  describe('style persistence', () => {
+    const localStorageMock = (() => {
+      let store: Record<string, string> = {};
+      return {
+        getItem: jest.fn((key: string) => store[key] || null),
+        setItem: jest.fn((key: string, value: string) => {
+          store[key] = value;
+        }),
+        removeItem: jest.fn((key: string) => {
+          delete store[key];
+        }),
+        clear: jest.fn(() => {
+          store = {};
+        }),
+      };
+    })();
+
+    beforeEach(() => {
+      Object.defineProperty(window, 'localStorage', {
+        value: localStorageMock,
+        writable: true,
+      });
+      localStorageMock.clear();
+    });
+
+    it('should save style preferences when setStyle is called', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      act(() => {
+        result.current.setStyle({ color: '#00FF00' });
+      });
+
+      expect(localStorageMock.setItem).toHaveBeenCalled();
+      const savedData = JSON.parse(
+        localStorageMock.setItem.mock.calls[localStorageMock.setItem.mock.calls.length - 1][1]
+      );
+      expect(savedData.style.color).toBe('#00FF00');
+    });
+
+    it('should save tool preference when setCurrentTool is called', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      act(() => {
+        result.current.setCurrentTool('arrow');
+      });
+
+      expect(localStorageMock.setItem).toHaveBeenCalled();
+      const savedData = JSON.parse(
+        localStorageMock.setItem.mock.calls[localStorageMock.setItem.mock.calls.length - 1][1]
+      );
+      expect(savedData.currentTool).toBe('arrow');
+    });
+
+    it('should persist multiple style properties', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      act(() => {
+        result.current.setStyle({ color: '#0000FF', strokeWidth: 5, fontSize: 24 });
+      });
+
+      const savedData = JSON.parse(
+        localStorageMock.setItem.mock.calls[localStorageMock.setItem.mock.calls.length - 1][1]
+      );
+      expect(savedData.style.color).toBe('#0000FF');
+      expect(savedData.style.strokeWidth).toBe(5);
+      expect(savedData.style.fontSize).toBe(24);
+    });
+  });
 });

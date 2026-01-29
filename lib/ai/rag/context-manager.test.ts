@@ -2,7 +2,7 @@
  * Tests for Dynamic Context Manager
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+// Jest globals are auto-imported
 import {
   DynamicContextManager,
   createContextManager,

@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * CustomProviderDialog - Add/Edit custom OpenAI-compatible providers
+ * CustomProviderDialog - Add/Edit custom providers with multi-protocol support
+ * Supports OpenAI, Anthropic, and Gemini API protocols
  */
 
 import { useState, useEffect } from 'react';
@@ -11,6 +12,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import type { ApiProtocol } from '@/types/provider';
 import {
   Dialog,
   DialogContent,
@@ -47,6 +56,7 @@ export function CustomProviderDialog({
   const [models, setModels] = useState<string[]>([]);
   const [newModel, setNewModel] = useState('');
   const [defaultModel, setDefaultModel] = useState('');
+  const [apiProtocol, setApiProtocol] = useState<ApiProtocol>('openai');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -59,6 +69,7 @@ export function CustomProviderDialog({
         setName(provider.customName);
         setBaseURL(provider.baseURL || '');
         setApiKey(provider.apiKey || '');
+        setApiProtocol(provider.apiProtocol || 'openai');
         setModels(provider.customModels || []);
         setDefaultModel(provider.defaultModel || '');
       } else {
@@ -66,6 +77,7 @@ export function CustomProviderDialog({
         setName('');
         setBaseURL('');
         setApiKey('');
+        setApiProtocol('openai');
         setModels([]);
         setNewModel('');
         setDefaultModel('');
@@ -103,17 +115,56 @@ export function CustomProviderDialog({
     setTestResult(null);
 
     try {
-      // Try to fetch models from the provider
-      const response = await fetch(`${baseURL}/models`, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
-
-      if (response.ok) {
-        setTestResult('success');
-      } else {
-        setTestResult('error');
+      let response: Response;
+      
+      switch (apiProtocol) {
+        case 'anthropic':
+          // Anthropic uses x-api-key header and different endpoint
+          response = await fetch(`${baseURL}/messages`, {
+            method: 'POST',
+            headers: {
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'claude-3-haiku-20240307',
+              max_tokens: 1,
+              messages: [{ role: 'user', content: 'test' }],
+            }),
+          });
+          // A 400 error for invalid model is still a successful connection
+          if (response.ok || response.status === 400) {
+            setTestResult('success');
+          } else {
+            setTestResult('error');
+          }
+          break;
+          
+        case 'gemini':
+          // Gemini uses API key as query parameter
+          response = await fetch(`${baseURL}/models?key=${apiKey}`);
+          if (response.ok) {
+            setTestResult('success');
+          } else {
+            setTestResult('error');
+          }
+          break;
+          
+        case 'openai':
+        default:
+          // OpenAI-compatible uses Bearer token
+          response = await fetch(`${baseURL}/models`, {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+          });
+          if (response.ok) {
+            setTestResult('success');
+          } else {
+            setTestResult('error');
+          }
+          break;
       }
     } catch {
       setTestResult('error');
@@ -130,6 +181,7 @@ export function CustomProviderDialog({
       customName: name.trim(),
       baseURL: baseURL.trim(),
       apiKey: apiKey.trim(),
+      apiProtocol,
       customModels: models,
       defaultModel: defaultModel || models[0],
       enabled: true,
@@ -178,6 +230,39 @@ export function CustomProviderDialog({
             />
           </div>
 
+          {/* API Protocol */}
+          <div className="space-y-2">
+            <Label htmlFor="api-protocol">{t('apiProtocol')}</Label>
+            <Select value={apiProtocol} onValueChange={(v) => setApiProtocol(v as ApiProtocol)}>
+              <SelectTrigger id="api-protocol">
+                <SelectValue placeholder={t('selectProtocol')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openai">
+                  <div className="flex flex-col">
+                    <span>OpenAI</span>
+                    <span className="text-xs text-muted-foreground">{t('protocolOpenAIDesc')}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="anthropic">
+                  <div className="flex flex-col">
+                    <span>Anthropic</span>
+                    <span className="text-xs text-muted-foreground">{t('protocolAnthropicDesc')}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="gemini">
+                  <div className="flex flex-col">
+                    <span>Gemini</span>
+                    <span className="text-xs text-muted-foreground">{t('protocolGeminiDesc')}</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {t('apiProtocolHint')}
+            </p>
+          </div>
+
           {/* Base URL */}
           <div className="space-y-2">
             <Label htmlFor="base-url">{t('baseURL')}</Label>
@@ -185,7 +270,13 @@ export function CustomProviderDialog({
               id="base-url"
               value={baseURL}
               onChange={(e) => setBaseURL(e.target.value)}
-              placeholder="https://api.example.com/v1"
+              placeholder={
+                apiProtocol === 'anthropic' 
+                  ? 'https://api.anthropic.com/v1' 
+                  : apiProtocol === 'gemini'
+                  ? 'https://generativelanguage.googleapis.com/v1beta'
+                  : 'https://api.example.com/v1'
+              }
             />
             <p className="text-xs text-muted-foreground">
               {t('baseURLHint')}

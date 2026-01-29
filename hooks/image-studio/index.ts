@@ -23,9 +23,9 @@ export type {
 export { useBatchProcessor } from './use-batch-processor';
 export type { UseBatchProcessorOptions, UseBatchProcessorReturn } from './use-batch-processor';
 
-export { useEnhancedImageEditor } from './use-enhanced-image-editor';
+export { useAdvancedImageEditor } from './use-advanced-image-editor';
 export type {
-  EnhancedEditorOptions,
+  AdvancedEditorOptions,
   PerformanceMetric,
-  UseEnhancedImageEditorReturn,
-} from './use-enhanced-image-editor';
+  UseAdvancedImageEditorReturn,
+} from './use-advanced-image-editor';

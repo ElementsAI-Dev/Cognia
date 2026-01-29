@@ -1,5 +1,15 @@
-import { screen, fireEvent } from '@testing-library/react';
-import { renderWithProviders } from '@/test-utils/render-with-providers';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import enMessages from '@/lib/i18n/messages/en';
+
+// Wrapper for i18n
+const renderWithI18n = (ui: React.ReactElement) => {
+  return render(
+    <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
+      {ui}
+    </NextIntlClientProvider>
+  );
+};
 import { RecordingControls } from './recording-controls';
 import { useScreenRecordingStore, useIsRecording } from '@/stores/media';
 
@@ -45,12 +55,12 @@ describe('RecordingControls', () => {
   });
 
   it('renders record button when idle', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
   it('renders dropdown trigger with correct attributes', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     
     const recordButton = screen.getByRole('button');
     expect(recordButton).toHaveAttribute('aria-haspopup', 'menu');
@@ -58,7 +68,7 @@ describe('RecordingControls', () => {
   });
 
   it('shows Record text in non-compact mode', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     expect(screen.getByText('Record')).toBeInTheDocument();
   });
 
@@ -68,7 +78,7 @@ describe('RecordingControls', () => {
       ffmpegAvailable: false,
     });
 
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     // FFmpegStatus component in compact mode shows translated text
     expect(screen.getByText('FFmpeg Not Available')).toBeInTheDocument();
   });
@@ -79,7 +89,7 @@ describe('RecordingControls', () => {
       isInitialized: false,
     });
 
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     // Should show loading state
   });
 });
@@ -113,22 +123,22 @@ describe('RecordingControls - Recording State', () => {
   });
 
   it('shows recording indicator when recording', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     // Should show recording badge with duration
   });
 
   it('shows pause button when recording', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     // Pause button should be visible
   });
 
   it('shows stop button when recording', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     // Stop button should be visible
   });
 
   it('calls pause when pause button is clicked', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     
     const buttons = screen.getAllByRole('button');
     // Find and click pause button
@@ -140,7 +150,7 @@ describe('RecordingControls - Recording State', () => {
   });
 
   it('calls stop when stop button is clicked', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     
     const buttons = screen.getAllByRole('button');
     // Find and click stop button
@@ -181,17 +191,17 @@ describe('RecordingControls - Paused State', () => {
   });
 
   it('shows paused indicator', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     expect(screen.getByText('Paused')).toBeInTheDocument();
   });
 
   it('shows resume button when paused', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     // Resume button (play icon) should be visible
   });
 
   it('calls resume when resume button is clicked', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     
     const buttons = screen.getAllByRole('button');
     buttons.forEach(btn => {
@@ -231,17 +241,17 @@ describe('RecordingControls - Countdown State', () => {
   });
 
   it('shows countdown indicator', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     expect(screen.getByText('Starting...')).toBeInTheDocument();
   });
 
   it('shows cancel button during countdown', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     // Cancel button should be visible
   });
 
   it('disables stop button during countdown', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     
     const buttons = screen.getAllByRole('button');
     const stopButton = buttons.find(btn => btn.querySelector('svg.lucide-square'));
@@ -280,13 +290,13 @@ describe('RecordingControls - Error Handling', () => {
   });
 
   it('shows error dialog when error is present', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     expect(screen.getByText('Recording Error')).toBeInTheDocument();
     expect(screen.getByText('Test error message')).toBeInTheDocument();
   });
 
   it('clears error when OK is clicked', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     
     const okButton = screen.getByText('OK');
     fireEvent.click(okButton);
@@ -327,14 +337,14 @@ describe('RecordingControls - Monitor Selection', () => {
   });
 
   it('renders with multiple monitors in store', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     
     // Component should render successfully with multiple monitors
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
   it('provides setSelectedMonitor function from store', () => {
-    renderWithProviders(<RecordingControls />);
+    renderWithI18n(<RecordingControls />);
     
     // Verify store is properly configured
     expect(mockStore.setSelectedMonitor).toBeDefined();
@@ -370,12 +380,12 @@ describe('RecordingControls - Compact Mode', () => {
   });
 
   it('renders in compact mode', () => {
-    renderWithProviders(<RecordingControls compact />);
+    renderWithI18n(<RecordingControls compact />);
     // Should render icon-only button
   });
 
   it('hides text label in compact mode', () => {
-    renderWithProviders(<RecordingControls compact />);
+    renderWithI18n(<RecordingControls compact />);
     expect(screen.queryByText('Record')).not.toBeInTheDocument();
   });
 });
@@ -409,7 +419,7 @@ describe('RecordingControls - Props', () => {
   });
 
   it('applies custom className', () => {
-    const { container } = renderWithProviders(
+    const { container } = renderWithI18n(
       <RecordingControls className="custom-test-class" />
     );
     expect(container.firstChild).toHaveClass('custom-test-class');
@@ -417,13 +427,13 @@ describe('RecordingControls - Props', () => {
 
   it('renders with showSettings false', () => {
     // Component should render without errors with showSettings=false
-    const { container } = renderWithProviders(<RecordingControls showSettings={false} />);
+    const { container } = renderWithI18n(<RecordingControls showSettings={false} />);
     expect(container.firstChild).toBeInTheDocument();
   });
 
   it('renders with showSettings true (default)', () => {
     // Component should render without errors with showSettings=true
-    const { container } = renderWithProviders(<RecordingControls showSettings={true} />);
+    const { container } = renderWithI18n(<RecordingControls showSettings={true} />);
     expect(container.firstChild).toBeInTheDocument();
   });
 });
@@ -436,7 +446,7 @@ describe('RecordingControls - Web Environment', () => {
   });
 
   it('returns null when not in Tauri environment', () => {
-    const { container } = renderWithProviders(<RecordingControls />);
+    const { container } = renderWithI18n(<RecordingControls />);
     expect(container.firstChild).toBeNull();
   });
 });

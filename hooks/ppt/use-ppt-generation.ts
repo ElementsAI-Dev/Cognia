@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { generateText } from 'ai';
-import { useSettingsStore } from '@/stores';
+import { useSettingsStore, useWorkflowStore } from '@/stores';
 import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
 import { getProxyProviderModel } from '@/lib/ai/core/proxy-client';
 import { getNextApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
@@ -96,6 +96,9 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
   // PPT Editor store
   const loadPresentation = usePPTEditorStore((state) => state.loadPresentation);
+  
+  // Workflow store for persistence
+  const addPresentation = useWorkflowStore((state) => state.addPresentation);
 
   // Get API configuration
   const getAPIConfig = useCallback(() => {
@@ -306,6 +309,9 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
         // Load into editor
         loadPresentation(newPresentation);
+        
+        // Save to workflow store for persistence
+        addPresentation(newPresentation);
 
         setProgress({
           stage: 'complete',
@@ -332,7 +338,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         setAbortController(null);
       }
     },
-    [callAI, parseJSONResponse, loadPresentation]
+    [callAI, parseJSONResponse, loadPresentation, addPresentation]
   );
 
   // Cancel generation
@@ -518,6 +524,9 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
         setPresentation(newPresentation);
         loadPresentation(newPresentation);
+        
+        // Save to workflow store for persistence
+        addPresentation(newPresentation);
 
         setProgress({
           stage: 'complete',
@@ -544,7 +553,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         setAbortController(null);
       }
     },
-    [callAI, parseJSONResponse, loadPresentation]
+    [callAI, parseJSONResponse, loadPresentation, addPresentation]
   );
 
   // Reset state

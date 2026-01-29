@@ -158,3 +158,37 @@ export const PRESET_COLORS = [
 export const STROKE_WIDTHS = [1, 2, 3, 4, 6, 8, 10];
 
 export const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48];
+
+// ============== Type Guards ==============
+
+export function isRectangleAnnotation(a: Annotation): a is RectangleAnnotation {
+  return a.type === 'rectangle';
+}
+
+export function isEllipseAnnotation(a: Annotation): a is EllipseAnnotation {
+  return a.type === 'ellipse';
+}
+
+export function isArrowAnnotation(a: Annotation): a is ArrowAnnotation {
+  return a.type === 'arrow';
+}
+
+export function isFreehandAnnotation(a: Annotation): a is FreehandAnnotation {
+  return a.type === 'freehand';
+}
+
+export function isTextAnnotation(a: Annotation): a is TextAnnotation {
+  return a.type === 'text';
+}
+
+export function isBlurAnnotation(a: Annotation): a is BlurAnnotation {
+  return a.type === 'blur';
+}
+
+export function isHighlightAnnotation(a: Annotation): a is HighlightAnnotation {
+  return a.type === 'highlight';
+}
+
+export function isMarkerAnnotation(a: Annotation): a is MarkerAnnotation {
+  return a.type === 'marker';
+}

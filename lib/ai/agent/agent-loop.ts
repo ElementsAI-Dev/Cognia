@@ -6,10 +6,18 @@
  * - Multi-step execution
  * - Cancellation support
  * - Progress tracking
+ * - Dynamic model selection via auto-router integration
  */
 
 import { executeAgent, type AgentTool } from './agent-executor';
 import type { ProviderName } from '../core/client';
+import { 
+  classifyTaskRuleBased, 
+  classifyTaskHybrid,
+  routerHealthManager,
+  type RouterModelConfig,
+} from '../generation/auto-router';
+import type { ModelTier, TaskClassification } from '@/types/provider/auto-router';
 
 export interface AgentTask {
   id: string;
@@ -42,6 +50,32 @@ export function createAgentLoopCancellationToken(): AgentLoopCancellationToken {
   return token;
 }
 
+// Model tier configuration for dynamic routing
+export interface TierModelConfig {
+  provider: ProviderName;
+  model: string;
+  apiKey: string;
+  baseURL?: string;
+}
+
+// Dynamic routing configuration
+export interface DynamicRoutingConfig {
+  enabled: boolean;
+  /** Model configurations for each tier */
+  tierModels?: {
+    fast?: TierModelConfig;
+    balanced?: TierModelConfig;
+    powerful?: TierModelConfig;
+    reasoning?: TierModelConfig;
+  };
+  /** Router model for LLM-based classification */
+  routerModel?: RouterModelConfig;
+  /** Use simple tasks with fast models, complex tasks with powerful models */
+  adaptiveModelSelection?: boolean;
+  /** Confidence threshold for rule-based routing (0-1) */
+  confidenceThreshold?: number;
+}
+
 export interface AgentLoopConfig {
   provider: ProviderName;
   model: string;
@@ -58,6 +92,10 @@ export interface AgentLoopConfig {
   onProgress?: (progress: { completed: number; total: number; currentTask?: string }) => void;
   /** Called when the loop is cancelled */
   onCancel?: (tasks: AgentTask[]) => void;
+  /** Dynamic routing configuration for adaptive model selection */
+  dynamicRouting?: DynamicRoutingConfig;
+  /** Called when model is dynamically selected */
+  onModelSelected?: (selection: { tier: ModelTier; provider: ProviderName; model: string; reason: string }) => void;
 }
 
 export interface AgentLoopResult {
@@ -113,6 +151,94 @@ function parsePlanningResponse(response: string): string[] {
   }
 
   return tasks;
+}
+
+/**
+ * Select optimal model for a task based on classification
+ * Uses dynamic routing to choose between fast/balanced/powerful/reasoning models
+ */
+async function selectModelForTask(
+  taskDescription: string,
+  config: AgentLoopConfig
+): Promise<{ provider: ProviderName; model: string; apiKey: string; baseURL?: string; tier: ModelTier; classification: TaskClassification }> {
+  const { provider, model, apiKey, baseURL, dynamicRouting } = config;
+  
+  // Default: use the provided model
+  const defaultResult = {
+    provider,
+    model,
+    apiKey,
+    baseURL,
+    tier: 'balanced' as ModelTier,
+    classification: classifyTaskRuleBased(taskDescription),
+  };
+  
+  // If dynamic routing is not enabled, return default
+  if (!dynamicRouting?.enabled || !dynamicRouting.adaptiveModelSelection) {
+    return defaultResult;
+  }
+  
+  // Classify the task
+  let classification: TaskClassification;
+  let recommendedTier: ModelTier;
+  
+  if (dynamicRouting.routerModel && apiKey) {
+    // Use hybrid classification (rule + LLM)
+    const result = await classifyTaskHybrid(
+      taskDescription,
+      dynamicRouting.routerModel,
+      apiKey,
+      baseURL,
+      dynamicRouting.confidenceThreshold || 0.75
+    );
+    classification = result.classification;
+    recommendedTier = result.recommendedTier;
+  } else {
+    // Use rule-based classification only
+    classification = classifyTaskRuleBased(taskDescription);
+    recommendedTier = classification.complexity === 'simple' ? 'fast' :
+                      classification.complexity === 'complex' ? 
+                        (classification.requiresReasoning ? 'reasoning' : 'powerful') : 
+                      'balanced';
+  }
+  
+  // Get the model config for the recommended tier
+  const tierModels = dynamicRouting.tierModels;
+  if (!tierModels) {
+    return { ...defaultResult, tier: recommendedTier, classification };
+  }
+  
+  const tierConfig = tierModels[recommendedTier];
+  if (!tierConfig) {
+    // Fallback to default model
+    return { ...defaultResult, tier: recommendedTier, classification };
+  }
+  
+  // Check router health for the selected tier
+  if (!routerHealthManager.isHealthy(tierConfig.provider, tierConfig.model)) {
+    // Fall back to balanced tier if available, otherwise use default
+    const balancedConfig = tierModels.balanced;
+    if (balancedConfig && routerHealthManager.isHealthy(balancedConfig.provider, balancedConfig.model)) {
+      return {
+        provider: balancedConfig.provider,
+        model: balancedConfig.model,
+        apiKey: balancedConfig.apiKey,
+        baseURL: balancedConfig.baseURL,
+        tier: 'balanced',
+        classification,
+      };
+    }
+    return { ...defaultResult, tier: recommendedTier, classification };
+  }
+  
+  return {
+    provider: tierConfig.provider,
+    model: tierConfig.model,
+    apiKey: tierConfig.apiKey,
+    baseURL: tierConfig.baseURL,
+    tier: recommendedTier,
+    classification,
+  };
 }
 
 /**
@@ -234,11 +360,22 @@ export async function executeAgentLoop(
         currentTask: currentTask.description,
       });
 
+      // Dynamic model selection based on task complexity
+      const modelSelection = await selectModelForTask(currentTask.description, config);
+      
+      // Notify about model selection
+      config.onModelSelected?.({
+        tier: modelSelection.tier,
+        provider: modelSelection.provider,
+        model: modelSelection.model,
+        reason: `Task complexity: ${modelSelection.classification.complexity}, Category: ${modelSelection.classification.category}`,
+      });
+
       const taskResult = await executeAgent(currentTask.description, {
-        provider,
-        model,
-        apiKey,
-        baseURL,
+        provider: modelSelection.provider,
+        model: modelSelection.model,
+        apiKey: modelSelection.apiKey,
+        baseURL: modelSelection.baseURL,
         tools,
         maxSteps: maxStepsPerTask,
       });

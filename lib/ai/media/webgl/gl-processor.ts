@@ -587,6 +587,122 @@ export class GLProcessor {
   }
 
   /**
+   * Process curves adjustment using LUT texture
+   */
+  processCurves(imageData: ImageData, curveLUT: Uint8Array): ImageData {
+    if (!this.initialize()) throw new Error('Failed to initialize WebGL');
+
+    const gl = this.gl!;
+    const program = this.getProgram('curves');
+    if (!program) throw new Error('Failed to create shader program');
+
+    this.canvas.width = imageData.width;
+    this.canvas.height = imageData.height;
+    gl.viewport(0, 0, imageData.width, imageData.height);
+
+    const texture = this.createTexture(imageData, 'source');
+    if (!texture) throw new Error('Failed to create texture');
+
+    // Create LUT texture (256x1 RGBA)
+    const lutTexture = gl.createTexture();
+    if (!lutTexture) throw new Error('Failed to create LUT texture');
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, lutTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, curveLUT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    gl.useProgram(program);
+    this.setupVertexAttributes(program);
+
+    // Bind source texture
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    const imageLoc = gl.getUniformLocation(program, 'u_image');
+    gl.uniform1i(imageLoc, 0);
+
+    // Bind LUT texture
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, lutTexture);
+    const lutLoc = gl.getUniformLocation(program, 'u_curveLUT');
+    gl.uniform1i(lutLoc, 1);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    const result = this.readPixels(imageData.width, imageData.height);
+
+    // Cleanup LUT texture
+    gl.deleteTexture(lutTexture);
+
+    return result;
+  }
+
+  /**
+   * Process color balance adjustment
+   */
+  processColorBalance(imageData: ImageData, params: GLColorBalanceParams): ImageData {
+    if (!this.initialize()) throw new Error('Failed to initialize WebGL');
+
+    const gl = this.gl!;
+    const program = this.getProgram('color-balance');
+    if (!program) throw new Error('Failed to create shader program');
+
+    this.canvas.width = imageData.width;
+    this.canvas.height = imageData.height;
+    gl.viewport(0, 0, imageData.width, imageData.height);
+
+    const texture = this.createTexture(imageData, 'source');
+    if (!texture) throw new Error('Failed to create texture');
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    this.render(program, texture, {
+      u_shadows: params.shadows ?? [0, 0, 0],
+      u_midtones: params.midtones ?? [0, 0, 0],
+      u_highlights: params.highlights ?? [0, 0, 0],
+    });
+
+    return this.readPixels(imageData.width, imageData.height);
+  }
+
+  /**
+   * Process noise reduction
+   */
+  processNoiseReduction(
+    imageData: ImageData,
+    strength: number,
+    preserveDetail: number = 0.1
+  ): ImageData {
+    if (!this.initialize()) throw new Error('Failed to initialize WebGL');
+
+    const gl = this.gl!;
+    const program = this.getProgram('noise-reduction');
+    if (!program) throw new Error('Failed to create shader program');
+
+    this.canvas.width = imageData.width;
+    this.canvas.height = imageData.height;
+    gl.viewport(0, 0, imageData.width, imageData.height);
+
+    const texture = this.createTexture(imageData, 'source');
+    if (!texture) throw new Error('Failed to create texture');
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    this.render(program, texture, {
+      u_resolution: [imageData.width, imageData.height],
+      u_strength: Math.max(0.5, strength / 100 * 2),
+      u_preserveDetail: preserveDetail,
+    });
+
+    return this.readPixels(imageData.width, imageData.height);
+  }
+
+  /**
    * Process all adjustments in a single pass (combined)
    */
   processAdjustments(imageData: ImageData, params: GLAdjustmentParams): ImageData {

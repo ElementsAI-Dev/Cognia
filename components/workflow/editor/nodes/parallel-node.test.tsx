@@ -37,7 +37,7 @@ jest.mock('@/components/ui/badge', () => ({
     variant?: string;
     [key: string]: unknown;
   }) => (
-    <span data-testid="badge" className={className} variant={variant} {...props}>
+    <span data-testid="badge" className={className} data-variant={variant} {...props}>
       {children}
     </span>
   ),
@@ -49,33 +49,45 @@ const mockData: ParallelNodeData = {
   label: 'Parallel Processing',
   executionStatus: 'idle',
   isConfigured: true,
-  branches: [
-    { name: 'Branch 1', condition: 'type === "A"' },
-    { name: 'Branch 2', condition: 'type === "B"' },
-    { name: 'Branch 3', condition: 'type === "C"' },
-  ],
+  hasError: false,
+  inputs: {},
+  outputs: {},
+  branches: ['Branch 1', 'Branch 2', 'Branch 3'],
   waitForAll: true,
   maxConcurrency: 5,
 };
 
+const baseProps = {
+  id: 'parallel-1',
+  type: 'parallel',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
+};
+
 describe('ParallelNode', () => {
   it('renders without crashing', () => {
-    render(<ParallelNode data={mockData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Parallel Processing')).toBeInTheDocument();
   });
 
   it('renders branch count badge', () => {
-    render(<ParallelNode data={mockData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('3 branch(es)')).toBeInTheDocument();
   });
 
   it('renders wait all badge when waitForAll is true', () => {
-    render(<ParallelNode data={mockData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Wait all')).toBeInTheDocument();
   });
 
   it('renders max concurrency', () => {
-    render(<ParallelNode data={mockData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Max concurrency: 5')).toBeInTheDocument();
   });
 
@@ -85,7 +97,7 @@ describe('ParallelNode', () => {
       waitForAll: false,
     };
 
-    render(<ParallelNode data={notWaitAllData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={notWaitAllData} selected={false} />);
     expect(screen.queryByText('Wait all')).not.toBeInTheDocument();
   });
 
@@ -95,7 +107,7 @@ describe('ParallelNode', () => {
       maxConcurrency: undefined,
     };
 
-    render(<ParallelNode data={noConcurrencyData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={noConcurrencyData} selected={false} />);
     expect(screen.queryByText(/Max concurrency/)).not.toBeInTheDocument();
   });
 
@@ -105,24 +117,24 @@ describe('ParallelNode', () => {
       branches: [],
     };
 
-    render(<ParallelNode data={noBranchesData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={noBranchesData} selected={false} />);
     expect(screen.getByText('0 branch(es)')).toBeInTheDocument();
   });
 
   it('does not render wait all badge for single branch', () => {
     const singleBranchData: ParallelNodeData = {
       ...mockData,
-      branches: [{ name: 'Only Branch', condition: 'true' }],
+      branches: ['Only Branch'],
     };
 
-    render(<ParallelNode data={singleBranchData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={singleBranchData} selected={false} />);
     expect(screen.getByText('1 branch(es)')).toBeInTheDocument();
   });
 });
 
 describe('ParallelNode integration tests', () => {
   it('handles complete parallel node', () => {
-    render(<ParallelNode data={mockData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={mockData} selected={false} />);
 
     expect(screen.getByText('Parallel Processing')).toBeInTheDocument();
     expect(screen.getByText('3 branch(es)')).toBeInTheDocument();
@@ -136,7 +148,7 @@ describe('ParallelNode integration tests', () => {
       maxConcurrency: undefined,
     };
 
-    render(<ParallelNode data={noLimitData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={noLimitData} selected={false} />);
 
     expect(screen.getByText('3 branch(es)')).toBeInTheDocument();
     expect(screen.getByText('Wait all')).toBeInTheDocument();
@@ -149,7 +161,7 @@ describe('ParallelNode integration tests', () => {
       waitForAll: false,
     };
 
-    render(<ParallelNode data={waitForAnyData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={waitForAnyData} selected={false} />);
 
     expect(screen.getByText('3 branch(es)')).toBeInTheDocument();
     expect(screen.queryByText('Wait all')).not.toBeInTheDocument();
@@ -158,13 +170,10 @@ describe('ParallelNode integration tests', () => {
   it('handles parallel node with many branches', () => {
     const manyBranchesData: ParallelNodeData = {
       ...mockData,
-      branches: Array.from({ length: 10 }, (_, i) => ({
-        name: `Branch ${i + 1}`,
-        condition: `value === ${i}`,
-      })),
+      branches: Array.from({ length: 10 }, (_, i) => `Branch ${i + 1}`),
     };
 
-    render(<ParallelNode data={manyBranchesData} selected={false} />);
+    render(<ParallelNode {...baseProps} data={manyBranchesData} selected={false} />);
 
     expect(screen.getByText('10 branch(es)')).toBeInTheDocument();
   });

@@ -76,12 +76,22 @@ const mockData: TransformNodeData = {
   },
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
 };
 
 const mockProps = {
   id: 'transform-1',
   data: mockData,
   selected: false,
+  type: 'transform',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
 };
 
 describe('TransformNode', () => {

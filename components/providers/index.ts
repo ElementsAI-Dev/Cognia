@@ -64,6 +64,7 @@ export {
   useProvider,
   useAvailableProviders,
   useProviderModels,
+  ProviderIcon,
   type ProviderContextValue,
   type EnhancedProvider,
   type ProviderMetadata,

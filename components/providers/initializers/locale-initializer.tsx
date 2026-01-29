@@ -29,12 +29,12 @@ export function LocaleInitializer() {
       const timezone = getSystemTimezone();
       setDetectedTimezone(timezone);
 
-      // Only auto-detect locale if enabled and user hasn't completed onboarding
-      // (meaning they haven't manually set a language yet)
+      // Only auto-detect locale if enabled
       if (!autoDetectEnabled) return;
 
-      // Skip if language was manually set (not during first run)
-      if (hasCompletedOnboarding && language !== 'en') return;
+      // Skip if user has completed onboarding (they've already chosen their language preference)
+      // Only auto-detect for first-time users
+      if (hasCompletedOnboarding) return;
 
       try {
         const result = await autoDetectLocale();
@@ -42,10 +42,7 @@ export function LocaleInitializer() {
 
         // Only auto-apply if confidence is high enough and it's different from current
         if (result.confidence !== 'low' && result.locale !== language) {
-          // Only apply on first run or if user has auto-detect enabled
-          if (!hasCompletedOnboarding || autoDetectEnabled) {
-            setLanguage(result.locale as Language);
-          }
+          setLanguage(result.locale as Language);
         }
       } catch (error) {
         console.warn('Failed to auto-detect locale:', error);

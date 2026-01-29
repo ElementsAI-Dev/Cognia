@@ -257,7 +257,7 @@ export function SandboxFileExplorer({
   };
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
+    <div className={cn('flex flex-col h-full min-h-0', className)}>
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b">
         <span className="text-xs font-medium text-muted-foreground uppercase">
@@ -294,7 +294,7 @@ export function SandboxFileExplorer({
       )}
 
       {/* File tree */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="py-1">
           {fileTree.map((node) => (
             <FileTreeNode

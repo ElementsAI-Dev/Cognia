@@ -15,3 +15,4 @@ export {
 export * from './collaboration';
 export * from './themes';
 export * from './plugins';
+export * from './utils';

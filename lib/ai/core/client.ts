@@ -13,7 +13,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createMistral } from '@ai-sdk/mistral';
-import type { ProviderName, CustomProviderSettings } from '@/types/provider';
+import type { ProviderName, CustomProviderSettings, ApiProtocol } from '@/types/provider';
 import type { LanguageModel } from 'ai';
 
 export interface ProviderConfig {
@@ -172,13 +172,34 @@ export function createCLIProxyAPIClient(apiKey: string, baseURL?: string) {
 }
 
 /**
- * Create custom provider instance (OpenAI-compatible)
+ * Create custom provider instance with protocol support
+ * @param baseURL - The base URL of the custom provider
+ * @param apiKey - API key for authentication
+ * @param protocol - API protocol to use (openai, anthropic, gemini)
  */
-export function createCustomProviderClient(baseURL: string, apiKey: string) {
-  return createOpenAI({
-    apiKey,
-    baseURL,
-  });
+export function createCustomProviderClient(
+  baseURL: string,
+  apiKey: string,
+  protocol: ApiProtocol = 'openai'
+) {
+  switch (protocol) {
+    case 'anthropic':
+      return createAnthropic({
+        apiKey,
+        baseURL,
+      });
+    case 'gemini':
+      return createGoogleGenerativeAI({
+        apiKey,
+        baseURL,
+      });
+    case 'openai':
+    default:
+      return createOpenAI({
+        apiKey,
+        baseURL,
+      });
+  }
 }
 
 /**
@@ -277,14 +298,15 @@ export function getProviderModel(
 }
 
 /**
- * Get model from custom provider
+ * Get model from custom provider with protocol support
  */
 export function getCustomProviderModel(
   provider: CustomProviderSettings,
   model?: string
 ): LanguageModel {
   const selectedModel = model || provider.defaultModel;
-  return createCustomProviderClient(provider.baseURL, provider.apiKey)(selectedModel);
+  const protocol = provider.apiProtocol || 'openai';
+  return createCustomProviderClient(provider.baseURL, provider.apiKey, protocol)(selectedModel);
 }
 
 /**

@@ -103,7 +103,8 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
     };
 
     updateElapsed();
-    const interval = setInterval(updateElapsed, 100);
+    // Update every 1 second for better performance (was 100ms)
+    const interval = setInterval(updateElapsed, 1000);
     return () => clearInterval(interval);
   }, [startTime, executionState?.status]);
 

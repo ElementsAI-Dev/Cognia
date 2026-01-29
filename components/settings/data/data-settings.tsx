@@ -4,7 +4,7 @@
  * DataSettings - Manage local data, export/import
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Download,
@@ -19,6 +19,8 @@ import {
   FileCode,
   RefreshCw,
   Sparkles,
+  Activity,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -48,15 +50,12 @@ import { db } from '@/lib/db';
 import { BatchExportDialog } from '@/components/export';
 import { toast } from '@/components/ui/sonner';
 import { resetOnboardingTour } from '@/components/onboarding';
+import { useStorageStats, useStorageCleanup } from '@/hooks/storage';
+import type { StorageCategory } from '@/lib/storage';
+import { StorageBreakdown } from './storage-breakdown';
+import { StorageHealthDisplay } from './storage-health';
+import { StorageCleanupDialog } from './storage-cleanup-dialog';
 
-// Helper to format bytes
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
 
 export function DataSettings() {
   const t = useTranslations('dataSettings');
@@ -65,22 +64,49 @@ export function DataSettings() {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [storageInfo, setStorageInfo] = useState<{ used: number; quota: number } | null>(null);
 
   const sessions = useSessionStore((state) => state.sessions);
   const clearAllSessions = useSessionStore((state) => state.clearAllSessions);
 
-  // Get storage estimate on mount
-  useEffect(() => {
-    if (navigator.storage?.estimate) {
-      navigator.storage.estimate().then((estimate) => {
-        setStorageInfo({
-          used: estimate.usage || 0,
-          quota: estimate.quota || 0,
-        });
-      });
+  // Storage management hooks
+  const {
+    stats,
+    health,
+    isLoading: isStatsLoading,
+    refresh: refreshStats,
+    formatBytes,
+  } = useStorageStats({ refreshInterval: 30000 });
+
+  const { clearCategory, isRunning: isClearing } = useStorageCleanup();
+
+  // Handle category clear
+  const handleClearCategory = useCallback(
+    async (category: StorageCategory) => {
+      try {
+        const deleted = await clearCategory(category);
+        toast.success(t('categoryCleared', { count: deleted }) || `Cleared ${deleted} items`);
+        refreshStats();
+      } catch (_error) {
+        toast.error(t('clearFailed') || 'Failed to clear category');
+      }
+    },
+    [clearCategory, refreshStats, t]
+  );
+
+  // Get localStorage estimate for quick display
+  const getLocalStorageEstimate = () => {
+    try {
+      let total = 0;
+      for (const key in localStorage) {
+        if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
+          total += localStorage[key].length * 2;
+        }
+      }
+      return formatBytes(total);
+    } catch {
+      return 'Unknown';
     }
-  }, []);
+  };
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -182,20 +208,6 @@ export function DataSettings() {
     }
   };
 
-  // Calculate storage usage (approximate)
-  const getStorageEstimate = () => {
-    try {
-      let total = 0;
-      for (const key in localStorage) {
-        if (localStorage.hasOwnProperty(key)) {
-          total += localStorage[key].length * 2; // UTF-16 = 2 bytes per char
-        }
-      }
-      return (total / 1024).toFixed(2) + ' KB';
-    } catch {
-      return 'Unknown';
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -204,9 +216,23 @@ export function DataSettings() {
         {/* Storage Info */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Database className="h-4 w-4 text-muted-foreground" />
-              {t('storage')}
+            <CardTitle className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-muted-foreground" />
+                {t('storage')}
+              </div>
+              <div className="flex items-center gap-1">
+                {isStatsLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => refreshStats()}
+                  disabled={isStatsLoading}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                </Button>
+              </div>
             </CardTitle>
             <CardDescription className="text-[10px]">
               {t('storageDesc')}
@@ -228,29 +254,68 @@ export function DataSettings() {
               </div>
               <div className="rounded-lg border p-2 text-center bg-muted/30">
                 <HardDrive className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-0.5" />
-                <div className="text-base font-bold">{getStorageEstimate()}</div>
+                <div className="text-base font-bold">{getLocalStorageEstimate()}</div>
                 <span className="text-[9px] text-muted-foreground">{t('localStorage')}</span>
               </div>
               <div className="rounded-lg border p-2 text-center bg-muted/30">
                 <Database className="h-3.5 w-3.5 text-muted-foreground mx-auto mb-0.5" />
                 <div className="text-base font-bold">
-                  {storageInfo ? formatBytes(storageInfo.used) : 'N/A'}
+                  {stats ? formatBytes(stats.total.used) : 'N/A'}
                 </div>
                 <span className="text-[9px] text-muted-foreground">{t('indexedDB')}</span>
               </div>
             </div>
-            {storageInfo && (
+            {stats && (
               <div>
                 <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                   <span>{t('usage')}</span>
-                  <span>{formatBytes(storageInfo.used)} / {formatBytes(storageInfo.quota)}</span>
+                  <span>{formatBytes(stats.total.used)} / {formatBytes(stats.total.quota)}</span>
                 </div>
                 <Progress 
-                  value={Math.min((storageInfo.used / storageInfo.quota) * 100, 100)} 
+                  value={Math.min(stats.total.usagePercent, 100)} 
                   className="h-1.5"
                 />
               </div>
             )}
+
+            {/* Storage Breakdown */}
+            {stats && stats.byCategory.length > 0 && (
+              <StorageBreakdown
+                categories={stats.byCategory}
+                totalSize={stats.localStorage.used}
+                onClearCategory={handleClearCategory}
+                isClearing={isClearing}
+                formatBytes={formatBytes}
+              />
+            )}
+
+            {/* Storage Health */}
+            {health && (
+              <div className="pt-2 border-t">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium">{t('healthStatus') || 'Health Status'}</span>
+                </div>
+                <StorageHealthDisplay
+                  health={health}
+                  formatBytes={formatBytes}
+                />
+              </div>
+            )}
+
+            {/* Cleanup Button */}
+            <div className="pt-2">
+              <StorageCleanupDialog
+                formatBytes={formatBytes}
+                onCleanupComplete={refreshStats}
+                trigger={
+                  <Button size="sm" variant="outline" className="w-full">
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    {t('cleanupStorage') || 'Cleanup Storage'}
+                  </Button>
+                }
+              />
+            </div>
           </CardContent>
         </Card>
 

@@ -33,8 +33,11 @@
     },
     "editor": {
       "annotationCount": "{count} annotation(s)",
-      "enterText": "Enter text:",
+      "enterText": "Enter text",
+      "textInputHint": "Enter to confirm, Shift+Enter for new line, Esc to cancel",
       "dimensions": "{width} × {height} px",
+      "region": "Region",
+      "magnifierActive": "Magnifier active (G to toggle)",
       "loading": "Loading..."
     }
   }

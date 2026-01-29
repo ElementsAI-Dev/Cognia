@@ -153,7 +153,7 @@ export function A2UITemplatePreview({
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              No A2UI template configured for this mode.
+              {t('noA2UITemplate') || 'No A2UI template configured for this mode.'}
             </AlertDescription>
           </Alert>
         </CardContent>

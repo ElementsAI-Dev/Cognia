@@ -11,6 +11,19 @@ import { generateText, generateObject } from 'ai';
 import { z } from 'zod';
 import { getProviderModel, type ProviderName } from '@/lib/ai/core/client';
 import type { AIConversationMessage } from './ai-conversation';
+import {
+  getElementLocation,
+  optimizeForModelOutput,
+  generateCompactTree,
+  clearAstCache,
+  getAstCacheStats,
+  findElementByTagAndClass,
+  parseCodeToAst,
+  findElementInAst,
+  buildElementCodeMapping,
+  type ElementCodeMapping,
+} from './element-locator';
+import type { DesignerElement } from '@/types/designer';
 
 export interface DesignerAIConfig {
   provider: ProviderName;
@@ -799,4 +812,87 @@ Return JSON: { "optimized": "class string", "changes": ["change 1", "change 2"] 
       error: error instanceof Error ? error.message : 'Failed to optimize classes',
     };
   }
+}
+
+// ============================================
+// Element Context Generation (using element-locator)
+// ============================================
+
+/**
+ * Generate optimized context about an element for AI prompts
+ * Reduces token usage while providing essential information
+ */
+export async function generateElementContext(
+  code: string,
+  elementId: string
+): Promise<string> {
+  const location = await getElementLocation(code, elementId, null, 'precise');
+  const optimized = optimizeForModelOutput(location);
+  
+  return `Element: ${optimized.ref}
+Tag: ${optimized.tag}${optimized.cls ? ` class="${optimized.cls}"` : ''}
+Lines: ${optimized.src ? `${optimized.src[0]}-${optimized.src[1]}` : 'unknown'}
+Confidence: ${optimized.conf}%`;
+}
+
+/**
+ * Generate compact tree representation for AI context
+ * Provides structure overview without full code
+ */
+export function generateTreeContext(elements: DesignerElement[], maxDepth = 3): string {
+  return generateCompactTree(elements, maxDepth);
+}
+
+/**
+ * Clear AST cache - useful when code changes significantly
+ */
+export function resetElementCache(): void {
+  clearAstCache();
+}
+
+/**
+ * Get cache statistics for debugging
+ */
+export function getElementCacheStats(): { size: number; maxSize: number } {
+  return getAstCacheStats();
+}
+
+/**
+ * Find element by tag name and class in code
+ * Useful for locating specific component types
+ */
+export function findElementInCode(
+  code: string,
+  tagName: string,
+  className?: string,
+  occurrence = 1
+): { startIndex: number; content: string } | null {
+  return findElementByTagAndClass(code, tagName, className, occurrence);
+}
+
+/**
+ * Parse code and build complete element-to-code mapping
+ * Provides bidirectional navigation between elements and source
+ */
+export async function buildCodeMapping(code: string): Promise<Map<string, ElementCodeMapping>> {
+  const ast = await parseCodeToAst(code);
+  if (!ast) return new Map();
+  return buildElementCodeMapping(ast, code);
+}
+
+/**
+ * Get precise source location for an element using AST
+ */
+export async function getElementSourceLocation(
+  code: string,
+  elementId: string
+): Promise<{
+  startLine: number;
+  endLine: number;
+  startColumn: number;
+  endColumn: number;
+} | null> {
+  const ast = await parseCodeToAst(code);
+  if (!ast) return null;
+  return findElementInAst(ast, elementId, code);
 }

@@ -43,8 +43,8 @@ export type { HistoryPanelProps, HistoryEntry, HistoryOperationType } from './hi
 export { FiltersGallery } from './filters-gallery';
 export type { FiltersGalleryProps, FilterPreset as GalleryFilterPreset } from './filters-gallery';
 
-export { EnhancedPreview } from './enhanced-preview';
-export type { EnhancedPreviewProps, ComparisonMode as EnhancedComparisonMode } from './enhanced-preview';
+export { ImagePreview } from './image-preview';
+export type { ImagePreviewProps, ComparisonMode as ImagePreviewComparisonMode } from './image-preview';
 
 // Re-export types from centralized types
 export type {

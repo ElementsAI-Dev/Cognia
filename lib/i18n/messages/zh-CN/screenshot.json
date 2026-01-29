@@ -33,8 +33,11 @@
     },
     "editor": {
       "annotationCount": "{count} 个标注",
-      "enterText": "输入文字:",
+      "enterText": "输入文字",
+      "textInputHint": "回车确认，Shift+回车换行，Esc取消",
       "dimensions": "{width} × {height} px",
+      "region": "区域",
+      "magnifierActive": "放大镜已启用 (按G切换)",
       "loading": "加载中..."
     }
   }

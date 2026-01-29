@@ -151,7 +151,7 @@ export function StylePanel({ className }: StylePanelProps) {
 
   return (
     <TooltipProvider>
-      <ScrollArea className={cn('h-full', className)}>
+      <ScrollArea className={cn('h-full min-h-0', className)}>
         <div className="p-3 space-y-4">
           {/* Element info */}
           <div className="flex items-center gap-2 pb-3 border-b">

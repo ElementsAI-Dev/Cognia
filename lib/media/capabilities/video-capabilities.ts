@@ -135,7 +135,8 @@ async function checkWebGPUSupport(): Promise<boolean> {
   if (!('gpu' in navigator)) return false;
 
   try {
-    const adapter = await (navigator as Navigator & { gpu: GPU }).gpu.requestAdapter();
+    const gpu = (navigator as Navigator & { gpu: { requestAdapter: () => Promise<unknown | null> } }).gpu;
+    const adapter = await gpu.requestAdapter();
     return adapter !== null;
   } catch {
     return false;

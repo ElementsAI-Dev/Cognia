@@ -9,6 +9,7 @@ import {
   getAvailableTTSProviders,
   type TTSServiceOptions,
   type TTSServiceController,
+  type TTSApiKeys,
 } from './tts-service';
 import { DEFAULT_TTS_SETTINGS } from '@/types/media/tts';
 
@@ -24,6 +25,21 @@ jest.mock('./providers/gemini-tts', () => ({
 
 jest.mock('./providers/edge-tts', () => ({
   generateEdgeTTS: jest.fn(),
+}));
+
+jest.mock('./providers/elevenlabs-tts', () => ({
+  generateElevenLabsTTS: jest.fn(),
+  generateElevenLabsTTSViaApi: jest.fn(),
+}));
+
+jest.mock('./providers/lmnt-tts', () => ({
+  generateLMNTTTS: jest.fn(),
+  generateLMNTTTSViaApi: jest.fn(),
+}));
+
+jest.mock('./providers/hume-tts', () => ({
+  generateHumeTTS: jest.fn(),
+  generateHumeTTSViaApi: jest.fn(),
 }));
 
 jest.mock('./providers/system-tts', () => ({
@@ -53,6 +69,22 @@ describe('TTSService', () => {
           openai: 'sk-test',
           google: 'AIza-test',
         },
+      };
+      const customService = new TTSService(options);
+      expect(customService).toBeDefined();
+    });
+
+    it('should accept all provider API keys', () => {
+      const apiKeys: TTSApiKeys = {
+        openai: 'sk-test',
+        google: 'AIza-test',
+        elevenlabs: 'xi-test',
+        lmnt: 'lmnt-test',
+        hume: 'hume-test',
+      };
+      const options: TTSServiceOptions = {
+        settings: DEFAULT_TTS_SETTINGS,
+        apiKeys,
       };
       const customService = new TTSService(options);
       expect(customService).toBeDefined();
@@ -120,6 +152,36 @@ describe('isTTSProviderAvailable', () => {
     const available = isTTSProviderAvailable('openai');
     expect(available).toBe(false);
   });
+
+  it('should check ElevenLabs availability with API key', () => {
+    const available = isTTSProviderAvailable('elevenlabs', { elevenlabs: 'xi-test' });
+    expect(available).toBe(true);
+  });
+
+  it('should return false for ElevenLabs without API key', () => {
+    const available = isTTSProviderAvailable('elevenlabs');
+    expect(available).toBe(false);
+  });
+
+  it('should check LMNT availability with API key', () => {
+    const available = isTTSProviderAvailable('lmnt', { lmnt: 'lmnt-test' });
+    expect(available).toBe(true);
+  });
+
+  it('should return false for LMNT without API key', () => {
+    const available = isTTSProviderAvailable('lmnt');
+    expect(available).toBe(false);
+  });
+
+  it('should check Hume availability with API key', () => {
+    const available = isTTSProviderAvailable('hume', { hume: 'hume-test' });
+    expect(available).toBe(true);
+  });
+
+  it('should return false for Hume without API key', () => {
+    const available = isTTSProviderAvailable('hume');
+    expect(available).toBe(false);
+  });
 });
 
 describe('getAvailableTTSProviders', () => {
@@ -142,6 +204,38 @@ describe('getAvailableTTSProviders', () => {
   it('should include gemini when API key provided', () => {
     const providers = getAvailableTTSProviders({ google: 'AIza-test' });
     expect(providers).toContain('gemini');
+  });
+
+  it('should include elevenlabs when API key provided', () => {
+    const providers = getAvailableTTSProviders({ elevenlabs: 'xi-test' });
+    expect(providers).toContain('elevenlabs');
+  });
+
+  it('should include lmnt when API key provided', () => {
+    const providers = getAvailableTTSProviders({ lmnt: 'lmnt-test' });
+    expect(providers).toContain('lmnt');
+  });
+
+  it('should include hume when API key provided', () => {
+    const providers = getAvailableTTSProviders({ hume: 'hume-test' });
+    expect(providers).toContain('hume');
+  });
+
+  it('should include all providers when all API keys provided', () => {
+    const providers = getAvailableTTSProviders({
+      openai: 'sk-test',
+      google: 'AIza-test',
+      elevenlabs: 'xi-test',
+      lmnt: 'lmnt-test',
+      hume: 'hume-test',
+    });
+    expect(providers).toContain('system');
+    expect(providers).toContain('openai');
+    expect(providers).toContain('gemini');
+    expect(providers).toContain('edge');
+    expect(providers).toContain('elevenlabs');
+    expect(providers).toContain('lmnt');
+    expect(providers).toContain('hume');
   });
 });
 

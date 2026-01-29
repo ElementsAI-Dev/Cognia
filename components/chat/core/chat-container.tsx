@@ -1991,6 +1991,8 @@ Be thorough in your thinking but concise in your final answer.`;
                 onModeChange={handleModeChange}
                 agentModeId={agentModeId}
                 onAgentModeChange={handleAgentModeChange}
+                modelName={currentModel}
+                providerName={currentProvider}
                 onSelectTemplate={(template) => {
                   // Apply template settings to session
                   if (session) {

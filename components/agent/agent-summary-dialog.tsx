@@ -28,7 +28,7 @@ import {
   List,
   BarChart3,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDurationShort } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-states';
 import { Button } from '@/components/ui/button';
 import {
@@ -88,13 +88,7 @@ const DIAGRAM_TYPES: Array<{ value: DiagramType; label: string; icon: React.Reac
   { value: 'stateDiagram', label: 'State', icon: <BarChart3 className="h-4 w-4" />, description: 'State transitions' },
 ];
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.floor((ms % 60000) / 1000);
-  return `${minutes}m ${seconds}s`;
-}
+// Use formatDurationShort from lib/utils
 
 function getStatusIcon(status: string) {
   switch (status) {
@@ -269,7 +263,7 @@ export function AgentSummaryDialog({
           )}
           <Badge variant="outline">
             <Clock className="h-3 w-3 mr-1" />
-            {formatDuration(stats.totalDuration)}
+            {formatDurationShort(stats.totalDuration)}
           </Badge>
         </div>
 
@@ -475,7 +469,7 @@ export function AgentSummaryDialog({
                             {step.type}
                           </Badge>
                           {step.duration && (
-                            <span>{formatDuration(step.duration)}</span>
+                            <span>{formatDurationShort(step.duration)}</span>
                           )}
                         </div>
                       </div>
@@ -582,15 +576,37 @@ export function AgentSummaryDialog({
   );
 }
 
+/**
+ * Escape HTML entities to prevent XSS attacks
+ */
+function escapeHtml(text: string): string {
+  const htmlEntities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return text.replace(/[&<>"']/g, (char) => htmlEntities[char] || char);
+}
+
+/**
+ * Format markdown-like summary text as safe HTML
+ * Escapes HTML first to prevent XSS, then applies safe formatting
+ */
 function formatSummaryAsHtml(text: string): string {
-  return text
+  // First escape any HTML entities to prevent XSS
+  const escaped = escapeHtml(text);
+  
+  // Then apply safe markdown-like formatting
+  return escaped
     .replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-4 mb-2">$1</h2>')
     .replace(/^### (.+)$/gm, '<h3 class="text-base font-medium mt-3 mb-1">$1</h3>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\n\n/g, '</p><p class="my-2">')
     .replace(/\n- /g, '</p><li class="ml-4">')
     .replace(/^- /gm, '<li class="ml-4">')
-    .replace(/<\/li><li/g, '</li><li');
+    .replace(/&lt;\/li&gt;&lt;li/g, '</li><li');
 }
 
 export default AgentSummaryDialog;

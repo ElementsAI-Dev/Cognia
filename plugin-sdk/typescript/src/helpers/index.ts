@@ -6,3 +6,4 @@
 
 export * from './schema';
 export * from './plugin';
+export * from './tool';

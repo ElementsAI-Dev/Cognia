@@ -2,14 +2,14 @@
  * Skill Seekers Native API Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// Jest globals are auto-imported
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
+jest.mock('@tauri-apps/api/core', () => ({
+  invoke: jest.fn(),
 }));
 
-vi.mock('@tauri-apps/api/event', () => ({
-  listen: vi.fn(() => Promise.resolve(() => {})),
+jest.mock('@tauri-apps/api/event', () => ({
+  listen: jest.fn(() => Promise.resolve(() => {})),
 }));
 
 import { invoke } from '@tauri-apps/api/core';
@@ -28,11 +28,11 @@ import skillSeekersApi, {
   quickGenerateGitHub,
 } from './skill-seekers';
 
-const mockInvoke = vi.mocked(invoke);
+const mockInvoke = jest.mocked(invoke);
 
 describe('Skill Seekers Native API', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     Object.defineProperty(window, '__TAURI__', { value: true, writable: true });
   });
 

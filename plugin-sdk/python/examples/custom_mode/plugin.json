@@ -1,0 +1,16 @@
+{
+  "id": "custom-modes",
+  "name": "Custom Modes",
+  "version": "1.0.0",
+  "description": "Provides custom chat modes for specialized AI interactions",
+  "type": "python",
+  "capabilities": ["tools", "modes"],
+  "author": {
+    "name": "Cognia Team"
+  },
+  "pythonMain": "main.py",
+  "pythonDependencies": [],
+  "permissions": [],
+  "configSchema": {},
+  "defaultConfig": {}
+}

@@ -111,8 +111,8 @@ export function ReactSandbox({
   }), [code]);
 
   return (
-    <div className={cn('h-full', className)}>
-      <SandboxErrorBoundary key={resetKey} onReset={reset} className="h-full">
+    <div className={cn('h-full flex flex-col min-h-0', className)}>
+      <SandboxErrorBoundary key={resetKey} onReset={reset} className="h-full flex-1 min-h-0">
         <SandpackProvider
           template="react-ts"
           theme={theme === 'dark' ? 'dark' : 'light'}
@@ -131,7 +131,7 @@ export function ReactSandbox({
           }}
         >
           <SandboxSync />
-          <SandpackLayout className="h-full">
+          <SandpackLayout className="h-full flex-1 min-h-0">
             {showEditor && (
               <SandpackCodeEditor
                 showTabs={false}

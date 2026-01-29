@@ -4,7 +4,7 @@
  * Canvas Error Boundary - Graceful error handling for Canvas panel
  */
 
-import { Component, type ReactNode } from 'react';
+import React, { Component, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, RefreshCw, Bug, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -193,8 +193,6 @@ function CanvasErrorFallbackContent({
     </div>
   );
 }
-
-import React from 'react';
 
 function CanvasErrorFallback(props: ErrorFallbackProps) {
   return <CanvasErrorFallbackContent {...props} />;

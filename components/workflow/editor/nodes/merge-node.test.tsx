@@ -84,17 +84,28 @@ const mockData: MergeNodeData = {
   description: 'Merge multiple branches',
   mergeStrategy: 'merge',
   inputs: {
-    'input-1': { value: 'data1' },
-    'input-2': { value: 'data2' },
+    'input-1': { type: 'string', description: 'Input 1' },
+    'input-2': { type: 'string', description: 'Input 2' },
   },
+  outputs: {},
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
 };
 
 const mockProps = {
   id: 'merge-1',
   data: mockData,
   selected: false,
+  type: 'merge',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
 };
 
 describe('MergeNode', () => {
@@ -216,7 +227,7 @@ describe('MergeNode input handling', () => {
   });
 
   it('renders correct count for single input', () => {
-    const singleInputData = { ...mockData, inputs: { 'input-1': { value: 'data' } } };
+    const singleInputData = { ...mockData, inputs: { 'input-1': { type: 'string' as const, description: 'Data' } } };
     render(<MergeNode {...mockProps} data={singleInputData} />);
     expect(screen.getByText('1 inputs to merge')).toBeInTheDocument();
   });
@@ -230,11 +241,11 @@ describe('MergeNode input handling', () => {
     const manyInputsData = {
       ...mockData,
       inputs: {
-        'input-1': { value: 'data1' },
-        'input-2': { value: 'data2' },
-        'input-3': { value: 'data3' },
-        'input-4': { value: 'data4' },
-        'input-5': { value: 'data5' },
+        'input-1': { type: 'string', description: 'Data 1' },
+        'input-2': { type: 'string', description: 'Data 2' },
+        'input-3': { type: 'string', description: 'Data 3' },
+        'input-4': { type: 'string', description: 'Data 4' },
+        'input-5': { type: 'string', description: 'Data 5' },
       },
     };
     render(<MergeNode {...mockProps} data={manyInputsData} />);
@@ -356,9 +367,9 @@ describe('MergeNode integration tests', () => {
       ...mockData,
       mergeStrategy: 'merge',
       inputs: {
-        'input-1': { value: 'data1' },
-        'input-2': { value: 'data2' },
-        'input-3': { value: 'data3' },
+        'input-1': { type: 'string', description: 'Data 1' },
+        'input-2': { type: 'string', description: 'Data 2' },
+        'input-3': { type: 'string', description: 'Data 3' },
       },
     };
 
@@ -378,8 +389,8 @@ describe('MergeNode integration tests', () => {
       ...mockData,
       mergeStrategy: 'concat',
       inputs: {
-        'array-1': { value: [1, 2, 3] },
-        'array-2': { value: [4, 5, 6] },
+        'array-1': { type: 'array', description: 'Array 1' },
+        'array-2': { type: 'array', description: 'Array 2' },
       },
     };
 

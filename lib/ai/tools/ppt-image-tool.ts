@@ -393,13 +393,13 @@ export async function generateSlideImage(
     case 'openai':
       result = await generateWithOpenAI(prompt, request.config, apiKey, baseURL);
       break;
-    case 'google':
+    case 'google-imagen':
       result = await generateWithGoogleImagen(prompt, request.config, apiKey);
       break;
     case 'stability':
       result = await generateWithStabilityAI(prompt, request.config, apiKey);
       break;
-    case 'local':
+    case 'midjourney':
       result = await generateWithLocalSD(prompt, request.config, baseURL || 'http://127.0.0.1:7860');
       break;
     default:

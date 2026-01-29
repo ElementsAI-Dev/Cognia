@@ -51,7 +51,9 @@ export function PromptPreviewDialog({
   const [isTesting, setIsTesting] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const settings = useSettingsStore((state) => state.settings);
+  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const defaultModel = providerSettings[defaultProvider]?.defaultModel || 'gpt-4o-mini';
 
   // Generate prompt content with filled variables
   const generatedPrompt = useMemo(() => {
@@ -107,8 +109,8 @@ export function PromptPreviewDialog({
               content: generatedPrompt,
             },
           ],
-          provider: settings.ai?.provider || 'openai',
-          model: settings.ai?.model || 'gpt-4o-mini',
+          provider: defaultProvider || 'openai',
+          model: defaultModel || 'gpt-4o-mini',
           maxTokens: 1000,
         }),
       });
@@ -126,7 +128,7 @@ export function PromptPreviewDialog({
     } finally {
       setIsTesting(false);
     }
-  }, [generatedPrompt, settings.ai, t]);
+  }, [generatedPrompt, defaultProvider, providerSettings, t]);
 
   const handleSendToChat = useCallback(() => {
     if (onSendToChat) {

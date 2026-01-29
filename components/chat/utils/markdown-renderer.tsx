@@ -37,7 +37,7 @@ import { TaskListItem as _TaskListItem } from '../renderers/task-list';
 import { KbdInline } from '../renderers/kbd-inline';
 
 // Re-export commonly used renderers for direct use
-export { EnhancedTable } from '../renderers/enhanced-table';
+export { DataTable } from '../renderers/data-table';
 export { SandpackBlock, SimplePlayground } from '../renderers/sandpack-block';
 export { LinkCard, LinkGroup } from '../renderers/link-card';
 export { FootnoteRef, FootnoteSection } from '../renderers/footnote-block';

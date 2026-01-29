@@ -5,7 +5,7 @@
  * Renders provider icons from SVG files or falls back to emoji
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
@@ -16,27 +16,8 @@ interface ProviderIconProps {
   alt?: string;
 }
 
-export function ProviderIcon({ icon, className, size = 20, alt = 'Provider icon' }: ProviderIconProps) {
-  // If icon is a path to an SVG file, render it as an image
-  if (icon && icon.startsWith('/')) {
-    return (
-      <Image
-        src={icon}
-        alt={alt}
-        width={size}
-        height={size}
-        className={cn('inline-flex', className)}
-        unoptimized
-      />
-    );
-  }
-
-  // If icon is an emoji, render it directly
-  if (icon && !icon.startsWith('/')) {
-    return <span className={cn('inline-flex', className)} style={{ fontSize: size }}>{icon}</span>;
-  }
-
-  // Default fallback icon
+// Fallback icon component - defined outside to avoid recreation on each render
+function FallbackIcon({ className, size }: { className?: string; size: number }) {
   return (
     <div 
       className={cn('inline-flex items-center justify-center bg-muted rounded', className)}
@@ -58,4 +39,31 @@ export function ProviderIcon({ icon, className, size = 20, alt = 'Provider icon'
       </svg>
     </div>
   );
+}
+
+export function ProviderIcon({ icon, className, size = 20, alt = 'Provider icon' }: ProviderIconProps) {
+  const [hasError, setHasError] = useState(false);
+
+  // If icon is a path to an SVG file, render it as an image with error handling
+  if (icon && icon.startsWith('/') && !hasError) {
+    return (
+      <Image
+        src={icon}
+        alt={alt}
+        width={size}
+        height={size}
+        className={cn('inline-flex', className)}
+        unoptimized
+        onError={() => setHasError(true)}
+      />
+    );
+  }
+
+  // If icon is an emoji, render it directly
+  if (icon && !icon.startsWith('/')) {
+    return <span className={cn('inline-flex', className)} style={{ fontSize: size }}>{icon}</span>;
+  }
+
+  // Default fallback icon (including when image fails to load)
+  return <FallbackIcon className={className} size={size} />;
 }

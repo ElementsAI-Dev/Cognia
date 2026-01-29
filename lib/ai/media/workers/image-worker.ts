@@ -860,15 +860,14 @@ function processNoiseReduction(id: string, payload: WorkerPayload): void {
         strength * 2.55
       );
       break;
-    case 'nlm':
+    case 'gaussian':
     default:
-      // Simplified NLM using bilateral as fallback
-      data = applyBilateralFilter(
+      // Gaussian blur for noise reduction
+      data = applyGaussianBlur(
         imageData.data,
         imageData.width,
         imageData.height,
-        radius,
-        strength * 2
+        radius
       );
   }
 
@@ -880,7 +879,7 @@ function processNoiseReduction(id: string, payload: WorkerPayload): void {
     }
   }
 
-  const result = new ImageData(data, imageData.width, imageData.height);
+  const result = new ImageData(data as Uint8ClampedArray<ArrayBuffer>, imageData.width, imageData.height);
 
   ctx.postMessage(
     {
@@ -914,7 +913,7 @@ function processSharpen(id: string, payload: WorkerPayload): void {
     threshold
   );
 
-  const result = new ImageData(data, imageData.width, imageData.height);
+  const result = new ImageData(data as Uint8ClampedArray<ArrayBuffer>, imageData.width, imageData.height);
 
   ctx.postMessage(
     {
@@ -945,7 +944,7 @@ function processBlur(id: string, payload: WorkerPayload): void {
     blur.radius
   );
 
-  const result = new ImageData(data, imageData.width, imageData.height);
+  const result = new ImageData(data as Uint8ClampedArray<ArrayBuffer>, imageData.width, imageData.height);
 
   ctx.postMessage(
     {

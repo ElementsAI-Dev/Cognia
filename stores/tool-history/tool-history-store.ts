@@ -620,7 +620,8 @@ export const useToolHistoryStore = create<ToolHistoryState>()(
       name: 'cognia-tool-history-storage',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        history: state.history,
+        // Limit history to last 500 records to prevent storage bloat
+        history: state.history.slice(-500),
         usageStats: state.usageStats,
         settings: state.settings,
       }),

@@ -165,7 +165,7 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
 
   if (history.length === 0) {
     return (
-      <div className={cn('flex flex-col h-full', className)}>
+      <div className={cn('flex flex-col h-full min-h-0', className)}>
         <div className="flex items-center justify-between border-b px-3 py-2">
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
@@ -188,7 +188,7 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
 
   return (
     <TooltipProvider>
-      <div className={cn('flex flex-col h-full', className)}>
+      <div className={cn('flex flex-col h-full min-h-0', className)}>
         <div className="flex items-center justify-between border-b px-3 py-2">
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
@@ -231,7 +231,7 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
           </div>
         </div>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="p-2 space-y-1">
             {reversedHistory.map(({ entry, originalIndex }) => {
               const isCurrent = originalIndex === historyIndex;

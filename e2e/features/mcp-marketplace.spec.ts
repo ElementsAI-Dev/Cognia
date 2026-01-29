@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForElement } from '../utils/test-helpers';
 
 /**
  * MCP Marketplace E2E Tests
@@ -60,13 +61,13 @@ test.describe('MCP Marketplace', () => {
       await page.getByRole('tab', { name: /Marketplace/i }).click();
       
       // Wait for marketplace to load
-      await page.waitForTimeout(2000);
+      await waitForElement(page, 'input[placeholder*="Search"]', { timeout: 5000 });
       
       const searchInput = page.getByPlaceholder(/Search MCP servers/i);
       await searchInput.fill('github');
       
-      // Results should update
-      await page.waitForTimeout(500);
+      // Results should update after debounce
+      await page.waitForLoadState('networkidle');
     });
 
     test('should open filters popover', async ({ page }) => {
@@ -99,7 +100,8 @@ test.describe('MCP Marketplace', () => {
       await page.getByRole('tab', { name: /Marketplace/i }).click();
       
       // Wait for servers to load
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState('networkidle');
+      await page.locator('text=/Showing \\d+ of \\d+ servers/i').first().waitFor({ timeout: 10000 });
       
       // Should show results count
       await expect(page.getByText(/Showing \d+ of \d+ servers/i)).toBeVisible();
@@ -110,7 +112,7 @@ test.describe('MCP Marketplace', () => {
       await page.getByRole('tab', { name: /Marketplace/i }).click();
       
       // Wait for servers to load
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState('networkidle');
       
       // Click on a server card (first one)
       const serverCard = page.locator('[class*="cursor-pointer"]').first();
@@ -129,15 +131,15 @@ test.describe('MCP Marketplace', () => {
       await page.getByRole('tab', { name: /Marketplace/i }).click();
       
       // Wait for servers to load
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState('networkidle');
       
       // Click on a server card
       const serverCard = page.locator('[class*="cursor-pointer"]').first();
-      if (await serverCard.isVisible()) {
+      if (await serverCard.isVisible({ timeout: 5000 }).catch(() => false)) {
         await serverCard.click();
         
         // Dialog should have tabs
-        await expect(page.getByRole('tab', { name: /Overview/i })).toBeVisible();
+        await expect(page.getByRole('tab', { name: /Overview/i })).toBeVisible({ timeout: 5000 });
         await expect(page.getByRole('tab', { name: /README/i })).toBeVisible();
         
         // Should have close button
@@ -150,11 +152,11 @@ test.describe('MCP Marketplace', () => {
       await page.getByRole('tab', { name: /Marketplace/i }).click();
       
       // Wait for servers to load
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState('networkidle');
       
       // Click on a server card
       const serverCard = page.locator('[class*="cursor-pointer"]').first();
-      if (await serverCard.isVisible()) {
+      if (await serverCard.isVisible({ timeout: 5000 }).catch(() => false)) {
         await serverCard.click();
         
         // Close the dialog
@@ -276,7 +278,7 @@ test.describe('MCP Marketplace', () => {
       await page.getByRole('tab', { name: /Marketplace/i }).click();
       
       // Wait for error to appear
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState('networkidle');
       
       // Error alert might be visible
       // Note: The actual error display depends on the implementation
@@ -289,7 +291,7 @@ test.describe('MCP Marketplace', () => {
       await page.getByRole('tab', { name: /Marketplace/i }).click();
       
       // Wait for servers to load
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState('networkidle');
       
       // Source badges should be visible (cline, smithery, or glama)
       const sourceBadge = page.locator('text=cline').first();

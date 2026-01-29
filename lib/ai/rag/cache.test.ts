@@ -2,7 +2,8 @@
  * Tests for RAG Query Cache
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+// Jest globals are auto-imported
+const vi = { fn: jest.fn, spyOn: jest.spyOn, useFakeTimers: jest.useFakeTimers, useRealTimers: jest.useRealTimers, advanceTimersByTime: (ms: number) => jest.advanceTimersByTime(ms) };
 import {
   LRUCache,
   RAGQueryCache,

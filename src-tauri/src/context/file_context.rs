@@ -3,7 +3,7 @@
 //! Extracts file-related context from window information.
 
 use super::WindowInfo;
-use log::{debug, trace, warn};
+use log::{debug, trace};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 

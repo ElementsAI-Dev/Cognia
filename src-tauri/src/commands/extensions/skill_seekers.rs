@@ -4,15 +4,13 @@
 //! AI skills from documentation, GitHub repositories, and PDFs.
 
 use crate::skill_seekers::{
-    EnhanceConfig, EnhanceSkillInput, GeneratedSkill, GitHubScrapeConfig, JobProgress,
-    PackageConfig, PackageSkillInput, PageEstimation, PdfScrapeConfig, PresetConfig,
+    EnhanceConfig, EnhanceSkillInput, GeneratedSkill, GitHubScrapeConfig,
+    PackageSkillInput, PageEstimation, PresetConfig,
     ScrapeGitHubInput, ScrapePdfInput, ScrapeWebsiteInput, SkillGenerationJob,
     SkillSeekersService, SkillSeekersServiceConfig, SkillSeekersState, WebsiteScrapeConfig,
 };
 use std::path::PathBuf;
-use std::sync::Arc;
 use tauri::{AppHandle, State};
-use tokio::sync::RwLock;
 
 /// Create skill seekers service for app state
 pub fn create_skill_seekers_service(app_data_dir: PathBuf, app_handle: AppHandle) -> SkillSeekersState {

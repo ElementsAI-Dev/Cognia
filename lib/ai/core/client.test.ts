@@ -269,7 +269,7 @@ describe('createSambaNovaClient', () => {
 });
 
 describe('createCustomProviderClient', () => {
-  it('creates custom provider client with base URL and API key', () => {
+  it('creates custom provider client with base URL and API key (default OpenAI protocol)', () => {
     const client = createCustomProviderClient('https://custom.api.com/v1', 'test-api-key');
     expect(client).toBeDefined();
     expect(typeof client).toBe('function');
@@ -281,6 +281,30 @@ describe('createCustomProviderClient', () => {
     expect(model).toBeDefined();
     expect(model.model).toBe('custom-model');
     expect(model.baseURL).toBe('https://custom.api.com/v1');
+  });
+
+  it('creates OpenAI protocol client when explicitly specified', () => {
+    const client = createCustomProviderClient('https://custom.api.com/v1', 'test-api-key', 'openai');
+    const model = client('custom-model') as unknown as MockModelResult;
+    expect(model).toBeDefined();
+    expect(model.model).toBe('custom-model');
+    expect(model.baseURL).toBe('https://custom.api.com/v1');
+  });
+
+  it('creates Anthropic protocol client', () => {
+    const client = createCustomProviderClient('https://custom.anthropic.com/v1', 'test-api-key', 'anthropic');
+    const model = client('claude-custom') as unknown as MockModelResult;
+    expect(model).toBeDefined();
+    expect(model.model).toBe('claude-custom');
+    expect(model.provider).toBe('anthropic');
+  });
+
+  it('creates Gemini protocol client', () => {
+    const client = createCustomProviderClient('https://custom.google.com/v1', 'test-api-key', 'gemini');
+    const model = client('gemini-custom') as unknown as MockModelResult;
+    expect(model).toBeDefined();
+    expect(model.model).toBe('gemini-custom');
+    expect(model.provider).toBe('google');
   });
 });
 
@@ -385,12 +409,13 @@ describe('getProviderModel', () => {
 });
 
 describe('getCustomProviderModel', () => {
-  it('returns model with provider settings', () => {
+  it('returns model with provider settings (default OpenAI protocol)', () => {
     const provider = {
       id: 'custom',
       name: 'Custom Provider',
       baseURL: 'https://custom.api.com/v1',
       apiKey: 'test-key',
+      apiProtocol: 'openai' as const,
       defaultModel: 'custom-default',
       models: ['custom-default', 'custom-large'],
       enabled: true,
@@ -407,6 +432,7 @@ describe('getCustomProviderModel', () => {
       name: 'Custom Provider',
       baseURL: 'https://custom.api.com/v1',
       apiKey: 'test-key',
+      apiProtocol: 'openai' as const,
       defaultModel: 'custom-default',
       models: ['custom-default', 'custom-large'],
       enabled: true,
@@ -415,6 +441,58 @@ describe('getCustomProviderModel', () => {
     const model = getCustomProviderModel(provider, 'custom-large') as unknown as MockModelResult;
     expect(model).toBeDefined();
     expect(model.model).toBe('custom-large');
+  });
+
+  it('uses Anthropic protocol when specified', () => {
+    const provider = {
+      id: 'custom-anthropic',
+      name: 'Custom Anthropic Provider',
+      baseURL: 'https://custom.anthropic.com/v1',
+      apiKey: 'test-key',
+      apiProtocol: 'anthropic' as const,
+      defaultModel: 'claude-custom',
+      models: ['claude-custom'],
+      enabled: true,
+    };
+
+    const model = getCustomProviderModel(provider) as unknown as MockModelResult;
+    expect(model).toBeDefined();
+    expect(model.model).toBe('claude-custom');
+    expect(model.provider).toBe('anthropic');
+  });
+
+  it('uses Gemini protocol when specified', () => {
+    const provider = {
+      id: 'custom-gemini',
+      name: 'Custom Gemini Provider',
+      baseURL: 'https://custom.google.com/v1',
+      apiKey: 'test-key',
+      apiProtocol: 'gemini' as const,
+      defaultModel: 'gemini-custom',
+      models: ['gemini-custom'],
+      enabled: true,
+    };
+
+    const model = getCustomProviderModel(provider) as unknown as MockModelResult;
+    expect(model).toBeDefined();
+    expect(model.model).toBe('gemini-custom');
+    expect(model.provider).toBe('google');
+  });
+
+  it('defaults to OpenAI protocol when apiProtocol is undefined', () => {
+    const provider = {
+      id: 'custom',
+      name: 'Custom Provider',
+      baseURL: 'https://custom.api.com/v1',
+      apiKey: 'test-key',
+      defaultModel: 'custom-default',
+      models: ['custom-default'],
+      enabled: true,
+    } as Parameters<typeof getCustomProviderModel>[0];
+
+    const model = getCustomProviderModel(provider) as unknown as MockModelResult;
+    expect(model).toBeDefined();
+    expect(model.model).toBe('custom-default');
   });
 });
 

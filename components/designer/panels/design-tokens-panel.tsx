@@ -189,7 +189,7 @@ export function DesignTokensPanel({ className, onTokenSelect }: DesignTokensPane
 
   return (
     <TooltipProvider>
-      <div className={cn('flex flex-col h-full', className)}>
+      <div className={cn('flex flex-col h-full min-h-0', className)}>
         {/* Header */}
         <div className="border-b px-3 py-2">
           <div className="flex items-center gap-2">
@@ -222,7 +222,7 @@ export function DesignTokensPanel({ className, onTokenSelect }: DesignTokensPane
         </div>
 
         {/* Token List */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           {filteredCategories.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center">
               <Search className="h-8 w-8 text-muted-foreground/50 mb-3" />

@@ -35,10 +35,13 @@ import {
   createSession,
   listSessions,
   getSession,
+  getSessionById,
   deleteSession,
   listKernels,
   restartKernel,
   interruptKernel,
+  getKernelStatus,
+  isKernelAlive,
   execute,
   quickExecute,
   executeCell,
@@ -334,6 +337,108 @@ describe('Jupyter Kernel Service', () => {
         await expect(interruptKernel('session-1')).rejects.toThrow(
           'Jupyter kernel requires Tauri environment'
         );
+      });
+    });
+
+    describe('getKernelStatus', () => {
+      it('should get kernel status when in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockResolvedValue('idle');
+
+        const result = await getKernelStatus('session-1');
+
+        expect(mockInvoke).toHaveBeenCalledWith('jupyter_get_kernel_status', {
+          sessionId: 'session-1',
+        });
+        expect(result).toBe('idle');
+      });
+
+      it('should return null when not in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(false);
+
+        const result = await getKernelStatus('session-1');
+
+        expect(result).toBeNull();
+      });
+
+      it('should return null on error', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockRejectedValue(new Error('Failed'));
+
+        const result = await getKernelStatus('session-1');
+
+        expect(result).toBeNull();
+      });
+    });
+
+    describe('isKernelAlive', () => {
+      it('should return true when kernel is alive', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockResolvedValue(true);
+
+        const result = await isKernelAlive('session-1');
+
+        expect(mockInvoke).toHaveBeenCalledWith('jupyter_is_kernel_alive', {
+          sessionId: 'session-1',
+        });
+        expect(result).toBe(true);
+      });
+
+      it('should return false when kernel is not alive', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockResolvedValue(false);
+
+        const result = await isKernelAlive('session-1');
+
+        expect(result).toBe(false);
+      });
+
+      it('should return false when not in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(false);
+
+        const result = await isKernelAlive('session-1');
+
+        expect(result).toBe(false);
+      });
+
+      it('should return false on error', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockRejectedValue(new Error('Failed'));
+
+        const result = await isKernelAlive('session-1');
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('getSessionById', () => {
+      it('should get session by ID when in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockResolvedValue(mockSession);
+
+        const result = await getSessionById('session-1');
+
+        expect(mockInvoke).toHaveBeenCalledWith('jupyter_get_session_by_id', {
+          sessionId: 'session-1',
+        });
+        expect(result).toEqual(mockSession);
+      });
+
+      it('should return null when not in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(false);
+
+        const result = await getSessionById('session-1');
+
+        expect(result).toBeNull();
+      });
+
+      it('should return null on error', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockRejectedValue(new Error('Not found'));
+
+        const result = await getSessionById('session-1');
+
+        expect(result).toBeNull();
       });
     });
   });
@@ -735,10 +840,13 @@ describe('Jupyter Kernel Service', () => {
       expect(kernelService.createSession).toBe(createSession);
       expect(kernelService.listSessions).toBe(listSessions);
       expect(kernelService.getSession).toBe(getSession);
+      expect(kernelService.getSessionById).toBe(getSessionById);
       expect(kernelService.deleteSession).toBe(deleteSession);
       expect(kernelService.listKernels).toBe(listKernels);
       expect(kernelService.restartKernel).toBe(restartKernel);
       expect(kernelService.interruptKernel).toBe(interruptKernel);
+      expect(kernelService.getKernelStatus).toBe(getKernelStatus);
+      expect(kernelService.isKernelAlive).toBe(isKernelAlive);
       expect(kernelService.execute).toBe(execute);
       expect(kernelService.quickExecute).toBe(quickExecute);
       expect(kernelService.executeCell).toBe(executeCell);

@@ -302,6 +302,8 @@ export function ProviderProvider({
 }: ProviderProviderProps) {
   const [providers, setProviders] = useState<Record<string, EnhancedProvider>>({});
   const providersRef = useRef<Record<string, EnhancedProvider>>({});
+  const healthCheckTimestampsRef = useRef<Record<string, number>>({});
+  const MIN_HEALTH_CHECK_INTERVAL = 30000; // Minimum 30 seconds between health checks per provider
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -359,13 +361,22 @@ export function ProviderProvider({
     });
   }, [providerSettings, customProviders]);
 
-  // Health check function - client-side implementation
+  // Health check function - client-side implementation with rate limiting
   const checkProviderHealth = useCallback(
     async (providerId: string): Promise<ProviderHealthStatus> => {
       const provider = providersRef.current[providerId];
       if (!provider) return 'unknown';
 
-      const startTime = Date.now();
+      // Rate limiting: skip if checked too recently
+      const lastCheck = healthCheckTimestampsRef.current[providerId] || 0;
+      const now = Date.now();
+      if (now - lastCheck < MIN_HEALTH_CHECK_INTERVAL) {
+        // Return cached health status instead of checking again
+        return provider.health.status;
+      }
+      healthCheckTimestampsRef.current[providerId] = now;
+
+      const startTime = now;
 
       try {
         // Check 1: Verify provider is enabled

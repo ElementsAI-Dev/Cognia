@@ -7,8 +7,8 @@
  */
 
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { TextInput } from './text-input';
 import type {
   Annotation,
   AnnotationTool,
@@ -185,19 +185,53 @@ function drawAnnotation(
       break;
 
     case 'blur':
-      ctx.fillStyle = 'rgba(128, 128, 128, 0.6)';
-      ctx.fillRect(annotation.x, annotation.y, annotation.width, annotation.height);
-      // Draw static mosaic pattern
-      const blockSize = Math.max(8, annotation.intensity * 15);
-      let colorIndex = 0;
-      const mosaicColors = ['rgba(100,100,100,0.3)', 'rgba(150,150,150,0.3)', 'rgba(120,120,120,0.3)'];
-      for (let by = annotation.y; by < annotation.y + annotation.height; by += blockSize) {
-        for (let bx = annotation.x; bx < annotation.x + annotation.width; bx += blockSize) {
-          ctx.fillStyle = mosaicColors[colorIndex % mosaicColors.length];
-          ctx.fillRect(bx, by, blockSize, blockSize);
-          colorIndex++;
+      // Real pixelation effect using actual image data
+      const blurBlockSize = Math.max(4, Math.round(annotation.intensity * 12));
+      const blurX = Math.floor(annotation.x);
+      const blurY = Math.floor(annotation.y);
+      const blurW = Math.ceil(annotation.width);
+      const blurH = Math.ceil(annotation.height);
+      
+      // Get the image data for the blur region
+      const blurImageData = ctx.getImageData(blurX, blurY, blurW, blurH);
+      const blurData = blurImageData.data;
+      
+      // Apply pixelation by averaging colors in blocks
+      for (let by = 0; by < blurH; by += blurBlockSize) {
+        for (let bx = 0; bx < blurW; bx += blurBlockSize) {
+          let totalR = 0, totalG = 0, totalB = 0, count = 0;
+          
+          // Calculate average color in block
+          for (let py = by; py < Math.min(by + blurBlockSize, blurH); py++) {
+            for (let px = bx; px < Math.min(bx + blurBlockSize, blurW); px++) {
+              const idx = (py * blurW + px) * 4;
+              totalR += blurData[idx];
+              totalG += blurData[idx + 1];
+              totalB += blurData[idx + 2];
+              count++;
+            }
+          }
+          
+          if (count > 0) {
+            const avgR = Math.round(totalR / count);
+            const avgG = Math.round(totalG / count);
+            const avgB = Math.round(totalB / count);
+            
+            // Apply average color to all pixels in block
+            for (let py = by; py < Math.min(by + blurBlockSize, blurH); py++) {
+              for (let px = bx; px < Math.min(bx + blurBlockSize, blurW); px++) {
+                const idx = (py * blurW + px) * 4;
+                blurData[idx] = avgR;
+                blurData[idx + 1] = avgG;
+                blurData[idx + 2] = avgB;
+              }
+            }
+          }
         }
       }
+      
+      // Put the pixelated data back
+      ctx.putImageData(blurImageData, blurX, blurY);
       break;
 
     case 'highlight':
@@ -242,8 +276,11 @@ interface AnnotationCanvasProps {
   style: AnnotationStyle;
   selectedAnnotationId: string | null;
   onAnnotationAdd: (annotation: Annotation) => void;
+  onAnnotationUpdate: (id: string, updates: Partial<Annotation>) => void;
   onAnnotationSelect: (id: string | null) => void;
   onGetNextMarkerNumber: () => number;
+  onCanvasReady?: (exportFn: () => string | null) => void;
+  onCursorMove?: (x: number, y: number, imageData: ImageData | null) => void;
   className?: string;
 }
 
@@ -256,14 +293,57 @@ export function AnnotationCanvas({
   style,
   selectedAnnotationId,
   onAnnotationAdd,
+  onAnnotationUpdate,
   onAnnotationSelect,
   onGetNextMarkerNumber,
+  onCanvasReady,
+  onCursorMove,
   className,
 }: AnnotationCanvasProps) {
-  const t = useTranslations('screenshot.editor');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+
+  // Dragging state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<Point | null>(null);
+  const [dragAnnotationStart, setDragAnnotationStart] = useState<{ x: number; y: number } | null>(null);
+
+  // Text input state
+  const [textInputPosition, setTextInputPosition] = useState<Point | null>(null);
+
+  // Export canvas as base64 data URL (without selection highlight)
+  const exportCanvas = useCallback((): string | null => {
+    const canvas = canvasRef.current;
+    const img = imageRef.current;
+    if (!canvas || !img) return null;
+
+    // Create a temporary canvas for export (without selection highlight)
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = width;
+    exportCanvas.height = height;
+    const ctx = exportCanvas.getContext('2d');
+    if (!ctx) return null;
+
+    // Draw the image
+    ctx.drawImage(img, 0, 0, width, height);
+
+    // Draw all annotations WITHOUT selection highlight
+    annotations.forEach((annotation) => {
+      drawAnnotation(ctx, annotation, false);
+    });
+
+    // Return as base64 (remove data:image/png;base64, prefix)
+    const dataUrl = exportCanvas.toDataURL('image/png');
+    return dataUrl.replace(/^data:image\/png;base64,/, '');
+  }, [width, height, annotations]);
+
+  // Notify parent when canvas is ready
+  useEffect(() => {
+    if (onCanvasReady && imageRef.current) {
+      onCanvasReady(exportCanvas);
+    }
+  }, [onCanvasReady, exportCanvas]);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
@@ -413,10 +493,83 @@ export function AnnotationCanvas({
     };
   };
 
+  // Get the position of an annotation (for dragging)
+  const getAnnotationPosition = (annotation: Annotation): { x: number; y: number } => {
+    switch (annotation.type) {
+      case 'rectangle':
+      case 'blur':
+      case 'highlight':
+      case 'text':
+        return { x: annotation.x, y: annotation.y };
+      case 'ellipse':
+        return { x: annotation.cx - annotation.rx, y: annotation.cy - annotation.ry };
+      case 'arrow':
+        return { x: annotation.startX, y: annotation.startY };
+      case 'marker':
+        return { x: annotation.x, y: annotation.y };
+      case 'freehand':
+        if (annotation.points.length > 0) {
+          return { x: annotation.points[0][0], y: annotation.points[0][1] };
+        }
+        return { x: 0, y: 0 };
+      default:
+        return { x: 0, y: 0 };
+    }
+  };
+
+  // Move an annotation by delta
+  const moveAnnotation = (annotation: Annotation, dx: number, dy: number): Partial<Annotation> => {
+    switch (annotation.type) {
+      case 'rectangle':
+      case 'blur':
+      case 'highlight':
+      case 'text':
+        return { x: annotation.x + dx, y: annotation.y + dy };
+      case 'ellipse':
+        return { cx: annotation.cx + dx, cy: annotation.cy + dy };
+      case 'arrow':
+        return {
+          startX: annotation.startX + dx,
+          startY: annotation.startY + dy,
+          endX: annotation.endX + dx,
+          endY: annotation.endY + dy,
+        };
+      case 'marker':
+        return { x: annotation.x + dx, y: annotation.y + dy };
+      case 'freehand':
+        return {
+          points: annotation.points.map(([px, py]) => [px + dx, py + dy] as [number, number]),
+        };
+      default:
+        return {};
+    }
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (currentTool === 'select') {
-      // Check if clicking on an annotation
       const point = getMousePosition(e);
+      
+      // Check if clicking on an already selected annotation (start drag)
+      if (selectedAnnotationId) {
+        const selectedAnnotation = annotations.find((a) => a.id === selectedAnnotationId);
+        if (selectedAnnotation) {
+          const bounds = getAnnotationBounds(selectedAnnotation);
+          if (
+            point.x >= bounds.x &&
+            point.x <= bounds.x + bounds.width &&
+            point.y >= bounds.y &&
+            point.y <= bounds.y + bounds.height
+          ) {
+            // Start dragging
+            setIsDragging(true);
+            setDragStart(point);
+            setDragAnnotationStart(getAnnotationPosition(selectedAnnotation));
+            return;
+          }
+        }
+      }
+      
+      // Check if clicking on any annotation (select it)
       for (let i = annotations.length - 1; i >= 0; i--) {
         const bounds = getAnnotationBounds(annotations[i]);
         if (
@@ -451,19 +604,7 @@ export function AnnotationCanvas({
 
     if (currentTool === 'text') {
       const point = getMousePosition(e);
-      const text = prompt(t('enterText'));
-      if (text) {
-        const annotation: Annotation = {
-          id: `text-${Date.now()}`,
-          type: 'text',
-          style,
-          timestamp: Date.now(),
-          x: point.x,
-          y: point.y,
-          text,
-        };
-        onAnnotationAdd(annotation);
-      }
+      setTextInputPosition(point);
       return;
     }
 
@@ -478,17 +619,59 @@ export function AnnotationCanvas({
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const point = getMousePosition(e);
+
+    // Notify parent about cursor position for magnifier
+    if (onCursorMove && canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) {
+        const imgData = ctx.getImageData(0, 0, width, height);
+        onCursorMove(Math.round(point.x), Math.round(point.y), imgData);
+      }
+    }
+
+    // Handle dragging
+    if (isDragging && dragStart && dragAnnotationStart && selectedAnnotationId) {
+      const selectedAnnotation = annotations.find((a) => a.id === selectedAnnotationId);
+      if (selectedAnnotation) {
+        const dx = point.x - dragStart.x;
+        const dy = point.y - dragStart.y;
+        const updates = moveAnnotation(selectedAnnotation, dx, dy);
+        onAnnotationUpdate(selectedAnnotationId, updates);
+        setDragStart(point);
+      }
+      return;
+    }
+
     if (!isDrawing) return;
 
-    const point = getMousePosition(e);
     setCurrentPoint(point);
 
     if (currentTool === 'freehand') {
-      setFreehandPoints((prev) => [...prev, [point.x, point.y]]);
+      // Throttle freehand updates - only add point if distance > 2px from last point
+      setFreehandPoints((prev) => {
+        if (prev.length === 0) return [[point.x, point.y]];
+        const lastPoint = prev[prev.length - 1];
+        const dx = point.x - lastPoint[0];
+        const dy = point.y - lastPoint[1];
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > 2) {
+          return [...prev, [point.x, point.y]];
+        }
+        return prev;
+      });
     }
   };
 
   const handleMouseUp = () => {
+    // Stop dragging
+    if (isDragging) {
+      setIsDragging(false);
+      setDragStart(null);
+      setDragAnnotationStart(null);
+      return;
+    }
+
     if (!isDrawing || !startPoint || !currentPoint) {
       setIsDrawing(false);
       return;
@@ -509,6 +692,30 @@ export function AnnotationCanvas({
     setFreehandPoints([]);
   };
 
+  // Handle text input confirmation
+  const handleTextConfirm = useCallback(
+    (text: string) => {
+      if (textInputPosition) {
+        const annotation: Annotation = {
+          id: `text-${Date.now()}`,
+          type: 'text',
+          style,
+          timestamp: Date.now(),
+          x: textInputPosition.x,
+          y: textInputPosition.y,
+          text,
+        };
+        onAnnotationAdd(annotation);
+        setTextInputPosition(null);
+      }
+    },
+    [textInputPosition, style, onAnnotationAdd]
+  );
+
+  const handleTextCancel = useCallback(() => {
+    setTextInputPosition(null);
+  }, []);
+
   return (
     <div className={cn('relative', className)} style={{ width, height }}>
       <canvas
@@ -522,12 +729,21 @@ export function AnnotationCanvas({
         width={width}
         height={height}
         className="absolute inset-0"
-        style={{ cursor: currentTool === 'select' ? 'default' : 'crosshair' }}
+        style={{ cursor: isDragging ? 'grabbing' : currentTool === 'select' ? 'default' : 'crosshair' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       />
+      {/* Inline text input */}
+      {textInputPosition && (
+        <TextInput
+          position={textInputPosition}
+          style={{ color: style.color, fontSize: style.fontSize }}
+          onConfirm={handleTextConfirm}
+          onCancel={handleTextCancel}
+        />
+      )}
     </div>
   );
 }

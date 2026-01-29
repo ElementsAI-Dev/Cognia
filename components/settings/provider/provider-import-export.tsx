@@ -145,6 +145,7 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
             apiKey: providerData.apiKey as string || '',
             customModels: providerData.customModels as string[] || [],
             defaultModel: providerData.defaultModel as string,
+            apiProtocol: (providerData.apiProtocol as 'openai' | 'anthropic' | 'gemini') || 'openai',
             enabled: providerData.enabled as boolean,
           });
         });

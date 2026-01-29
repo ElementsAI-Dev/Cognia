@@ -274,3 +274,84 @@ export interface DesignerHistoryEntry {
   previousCode: string;
   newCode: string;
 }
+
+// ============================================================================
+// Positioning Types (re-exported from lib/designer/element-locator)
+// ============================================================================
+
+/** Positioning mode for different use cases */
+export type PositioningMode = 'rough' | 'precise';
+
+/** Source location in code */
+export interface SourceLocation {
+  startLine: number;
+  endLine: number;
+  startColumn: number;
+  endColumn: number;
+  startOffset?: number;
+  endOffset?: number;
+}
+
+/** Visual bounds relative to container */
+export interface VisualBounds {
+  top: number;
+  left: number;
+  right: number;
+  bottom: number;
+  width: number;
+  height: number;
+}
+
+/** Drop position indicator */
+export type DropPosition = 'before' | 'after' | 'inside' | 'first-child' | 'last-child';
+
+/** Complete element location combining all methods */
+export interface ElementLocation {
+  elementId: string;
+  tagName: string;
+  className?: string;
+  /** Visual bounds from getBoundingClientRect */
+  visual: VisualBounds | null;
+  /** Source code location from AST or pattern matching */
+  source: SourceLocation | null;
+  /** Confidence score 0-1 indicating accuracy */
+  confidence: number;
+  /** Method used for positioning */
+  method: 'ast' | 'visual' | 'pattern' | 'combined';
+  /** Parent element ID */
+  parentId: string | null;
+  /** Child element IDs */
+  childIds: string[];
+}
+
+/** Code insertion point with context */
+export interface InsertionPoint {
+  /** Line number for insertion */
+  line: number;
+  /** Column for insertion */
+  column: number;
+  /** Character offset from start of file */
+  offset: number;
+  /** Indentation to use */
+  indentation: string;
+  /** Position relative to target element */
+  position: DropPosition;
+  /** The target element ID */
+  targetElementId: string | null;
+}
+
+/** Optimized location data for model output */
+export interface OptimizedElementLocation {
+  /** Short form: "el-1@L5-10" */
+  ref: string;
+  /** Tag name */
+  tag: string;
+  /** First class name only */
+  cls?: string;
+  /** Bounding box [top, left, width, height] */
+  box?: [number, number, number, number];
+  /** Source lines [start, end] */
+  src?: [number, number];
+  /** Confidence 0-100 */
+  conf: number;
+}

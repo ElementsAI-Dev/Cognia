@@ -2,7 +2,7 @@
  * Tests for Citation Formatter
  */
 
-import { describe, it, expect } from 'vitest';
+// Jest globals are auto-imported
 import {
   formatCitations,
   formatContextWithCitations,

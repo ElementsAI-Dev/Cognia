@@ -2,9 +2,10 @@
 
 /**
  * WorkflowEditorPanel - Main React Flow-based workflow editor
+ * Enhanced with responsive design for mobile and desktop
  */
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -20,11 +21,14 @@ import {
 import { useShallow } from 'zustand/react/shallow';
 import { Controls } from '@/components/ai-elements/controls';
 import { Panel } from '@/components/ai-elements/panel';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Plus, Settings, Play, LayoutGrid } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 
 import { cn } from '@/lib/utils';
 import { useWorkflowEditorStore } from '@/stores/workflow';
-import { useWorkflowKeyboardShortcuts } from '@/hooks';
+import { useWorkflowKeyboardShortcuts, useMediaQuery } from '@/hooks';
 import { nodeTypes } from '../nodes';
 import { NodePalette } from './node-palette';
 import { WorkflowToolbar } from './workflow-toolbar';
@@ -49,6 +53,10 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport: setReactFlowViewport } = useReactFlow();
   const isDragHistoryPendingRef = useRef(false);
+  
+  // Mobile responsive state
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const [mobilePanel, setMobilePanel] = useState<'palette' | 'config' | 'execution' | null>(null);
 
   const {
     currentWorkflow,
@@ -202,6 +210,16 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     [executionState]
   );
 
+  // Derive mobile panel visibility - close when switching to desktop
+  const effectiveMobilePanel = isMobile ? mobilePanel : null;
+  
+  // Handle mobile panel open for config when node selected
+  const handleMobilePanelChange = useCallback((panel: 'palette' | 'config' | 'execution' | null) => {
+    if (isMobile) {
+      setMobilePanel(panel);
+    }
+  }, [isMobile]);
+
   if (!currentWorkflow) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -217,13 +235,15 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
         onFitView={() => fitView({ padding: 0.2 })}
         onZoomIn={() => zoomIn()}
         onZoomOut={() => zoomOut()}
+        isMobile={isMobile}
+        onOpenMobilePanel={handleMobilePanelChange}
       />
 
       {/* Main content */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* Node palette */}
-        {showNodePalette && (
-          <NodePalette className="w-64 shrink-0 h-full" />
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        {/* Node palette - Desktop only */}
+        {!isMobile && showNodePalette && (
+          <NodePalette className="w-64 shrink-0 h-full hidden md:flex" />
         )}
 
         {/* React Flow canvas */}
@@ -263,20 +283,22 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
             multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
             selectionOnDrag
             panOnScroll
+            zoomOnPinch
+            panOnDrag={isMobile ? [1, 2] : true}
             selectNodesOnDrag={false}
-            className="bg-background"
+            className="bg-background touch-none"
             proOptions={{ hideAttribution: true }}
           >
-            <Controls />
+            <Controls className="hidden md:flex" />
             {/* Workflow info panel */}
             <Panel position="top-left">
-              <div className="text-xs text-muted-foreground px-2 py-1">
+              <div className="text-xs text-muted-foreground px-2 py-1 bg-background/80 backdrop-blur-sm rounded">
                 {currentWorkflow.name} · {currentWorkflow.nodes.length} nodes
               </div>
             </Panel>
-            {showMinimap && (
+            {showMinimap && !isMobile && (
               <MiniMap
-                className="bg-background border rounded-lg shadow-sm"
+                className="bg-background border rounded-lg shadow-sm hidden md:block"
                 nodeStrokeWidth={3}
                 zoomable
                 pannable
@@ -291,21 +313,128 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
               />
             )}
           </ReactFlow>
+
+          {/* Mobile FAB (Floating Action Buttons) */}
+          {isMobile && (
+            <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+              <Button
+                size="icon"
+                variant="default"
+                className="h-12 w-12 rounded-full shadow-lg"
+                onClick={() => handleMobilePanelChange('palette')}
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
+              {selectedNodes.length > 0 && (
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="h-10 w-10 rounded-full shadow-lg"
+                  onClick={() => handleMobilePanelChange('config')}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              )}
+              {isExecuting && (
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="h-10 w-10 rounded-full shadow-lg"
+                  onClick={() => handleMobilePanelChange('execution')}
+                >
+                  <Play className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Mobile zoom controls */}
+          {isMobile && (
+            <div className="absolute bottom-4 left-4 flex flex-col gap-1 z-10">
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                onClick={() => zoomIn()}
+              >
+                <span className="text-lg font-bold">+</span>
+              </Button>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                onClick={() => zoomOut()}
+              >
+                <span className="text-lg font-bold">−</span>
+              </Button>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                onClick={() => fitView({ padding: 0.2 })}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Config panel */}
-        {showConfigPanel && selectedNodes.length > 0 && (
+        {/* Config panel - Desktop only */}
+        {!isMobile && showConfigPanel && selectedNodes.length > 0 && (
           <NodeConfigPanel
             nodeId={selectedNodes[0]}
-            className="w-80 shrink-0"
+            className="w-80 shrink-0 hidden md:flex"
           />
         )}
 
-        {/* Execution panel - show when executing or when panel is toggled */}
-        {(showExecutionPanel || isExecuting) && (
-          <ExecutionPanel className="w-80 shrink-0" />
+        {/* Execution panel - Desktop only */}
+        {!isMobile && (showExecutionPanel || isExecuting) && (
+          <ExecutionPanel className="w-80 shrink-0 hidden md:flex" />
         )}
       </div>
+
+      {/* Mobile Sheets/Drawers */}
+      {isMobile && (
+        <>
+          {/* Node Palette Sheet */}
+          <Sheet open={effectiveMobilePanel === 'palette'} onOpenChange={(open) => !open && handleMobilePanelChange(null)}>
+            <SheetContent side="bottom" className="h-[70vh] p-0">
+              <SheetHeader className="px-4 py-3 border-b">
+                <SheetTitle>Add Node</SheetTitle>
+              </SheetHeader>
+              <NodePalette 
+                className="h-full border-0" 
+                onDragStart={() => handleMobilePanelChange(null)}
+              />
+            </SheetContent>
+          </Sheet>
+
+          {/* Config Panel Sheet */}
+          <Sheet open={effectiveMobilePanel === 'config'} onOpenChange={(open) => !open && handleMobilePanelChange(null)}>
+            <SheetContent side="right" className="w-full sm:w-[400px] p-0">
+              <SheetHeader className="px-4 py-3 border-b">
+                <SheetTitle>Node Configuration</SheetTitle>
+              </SheetHeader>
+              {selectedNodes.length > 0 && (
+                <NodeConfigPanel
+                  nodeId={selectedNodes[0]}
+                  className="h-full border-0"
+                />
+              )}
+            </SheetContent>
+          </Sheet>
+
+          {/* Execution Panel Sheet */}
+          <Sheet open={effectiveMobilePanel === 'execution'} onOpenChange={(open) => !open && handleMobilePanelChange(null)}>
+            <SheetContent side="right" className="w-full sm:w-[400px] p-0">
+              <SheetHeader className="px-4 py-3 border-b">
+                <SheetTitle>Execution</SheetTitle>
+              </SheetHeader>
+              <ExecutionPanel className="h-full border-0" />
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
     </div>
   );
 }

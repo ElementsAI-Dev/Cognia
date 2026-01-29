@@ -8,6 +8,11 @@
 import { useCallback, useState, useRef } from 'react';
 import { useDesignerStore } from '@/stores/designer';
 import { parseComponentToElement } from '@/lib/designer/element-parser';
+import {
+  calculateDropPosition as calcDropPos,
+  calculateDropPositionHorizontal as calcDropPosHorizontal,
+  getVisualBounds,
+} from '@/lib/designer/element-locator';
 import type { DesignerElement } from '@/types/designer';
 
 // Drag data types
@@ -198,17 +203,24 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
     [resetDragState]
   );
 
-  // Determine drop position based on mouse position
+  // Determine drop position based on mouse position using element-locator
+  // Automatically detects horizontal vs vertical layout based on element dimensions
   const getDropPosition = useCallback(
     (e: React.DragEvent, targetElement: HTMLElement): 'before' | 'after' | 'inside' => {
-      const rect = targetElement.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const height = rect.height;
-
-      // Top 25% = before, bottom 25% = after, middle 50% = inside
-      if (y < height * 0.25) return 'before';
-      if (y > height * 0.75) return 'after';
-      return 'inside';
+      const bounds = getVisualBounds(targetElement);
+      
+      // Detect layout direction: if wider than tall, likely horizontal layout
+      const isHorizontalLayout = bounds.width > bounds.height * 2;
+      
+      const position = isHorizontalLayout
+        ? calcDropPosHorizontal(e.clientX, bounds, 0.25)
+        : calcDropPos(e.clientY, bounds, { edgeZone: 0.25 });
+      
+      // Map extended positions to basic ones
+      if (position === 'first-child' || position === 'last-child') {
+        return 'inside';
+      }
+      return position;
     },
     []
   );

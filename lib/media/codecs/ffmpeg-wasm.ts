@@ -63,9 +63,14 @@ export class FFmpegWasm {
 
     this.loadPromise = (async () => {
       try {
-        // Dynamic import of @ffmpeg/ffmpeg
-        const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-        const { toBlobURL } = await import('@ffmpeg/util');
+        // Dynamic import of @ffmpeg/ffmpeg (optional dependency)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ffmpegModule = await import('@ffmpeg/ffmpeg' as any) as { FFmpeg: new () => unknown };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const utilModule = await import('@ffmpeg/util' as any) as { toBlobURL: (url: string, mimeType: string) => Promise<string> };
+        
+        const { FFmpeg } = ffmpegModule;
+        const { toBlobURL } = utilModule;
 
         this.ffmpeg = new FFmpeg() as unknown as FFmpegInstance;
 
@@ -79,10 +84,10 @@ export class FFmpegWasm {
 
         // Load FFmpeg core from CDN
         const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-        await this.ffmpeg.load({
+        await (this.ffmpeg.load as (config: unknown) => Promise<void>)({
           coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
           wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        } as unknown as void);
+        });
 
         this.loadState = 'loaded';
       } catch (error) {

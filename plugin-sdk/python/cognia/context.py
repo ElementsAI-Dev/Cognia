@@ -371,6 +371,20 @@ class ThemeAPI(ABC):
     def on_theme_change(self, handler: Callable[[ThemeState], None]) -> Callable[[], None]:
         """Subscribe to theme changes"""
         pass
+    
+    @abstractmethod
+    def apply_scoped_colors(self, element: Any, colors: Dict[str, str]) -> Callable[[], None]:
+        """
+        Apply scoped colors to an element.
+        
+        Args:
+            element: Target element
+            colors: Color overrides
+            
+        Returns:
+            Cleanup function
+        """
+        pass
 
 
 # =============================================================================
@@ -408,6 +422,24 @@ class ExportAPI(ABC):
     @abstractmethod
     def generate_filename(self, title: str, extension: str) -> str:
         """Generate filename for export"""
+        pass
+    
+    @abstractmethod
+    def register_exporter(self, exporter: Any) -> Callable[[], None]:
+        """
+        Register a custom exporter.
+        
+        Args:
+            exporter: CustomExporter definition
+            
+        Returns:
+            Unregister function
+        """
+        pass
+    
+    @abstractmethod
+    def get_custom_exporters(self) -> List[Any]:
+        """Get all registered custom exporters"""
         pass
 
 
@@ -559,6 +591,19 @@ class ArtifactAPI(ABC):
     @abstractmethod
     def on_artifact_change(self, handler: Callable[[Optional[Artifact]], None]) -> Callable[[], None]:
         """Subscribe to artifact changes"""
+        pass
+    
+    @abstractmethod
+    def register_renderer(self, renderer: Any) -> Callable[[], None]:
+        """
+        Register a custom artifact renderer.
+        
+        Args:
+            renderer: ArtifactRenderer definition
+            
+        Returns:
+            Unregister function
+        """
         pass
 
 
@@ -871,6 +916,21 @@ class ShellAPI(ABC):
     @abstractmethod
     async def show_in_folder(self, path: str) -> None:
         """Open a path in file explorer"""
+        pass
+    
+    @abstractmethod
+    def spawn(self, command: str, args: Optional[List[str]] = None, options: Optional[Any] = None) -> Any:
+        """
+        Spawn a long-running process.
+        
+        Args:
+            command: Command to execute
+            args: Command arguments
+            options: SpawnOptions
+            
+        Returns:
+            ChildProcess handle
+        """
         pass
 
 

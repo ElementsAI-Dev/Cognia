@@ -193,11 +193,20 @@ export type BYOKProvider =
   | 'cohere'
   | 'groq';
 
+/**
+ * API Protocol types for custom providers
+ * - openai: OpenAI-compatible API (most common, used by many providers)
+ * - anthropic: Anthropic Claude API format
+ * - gemini: Google Gemini API format
+ */
+export type ApiProtocol = 'openai' | 'anthropic' | 'gemini';
+
 export interface CustomProviderSettings {
   id: string;
   name: string;
   baseURL: string;
   apiKey: string;
+  apiProtocol: ApiProtocol;
   models: string[];
   defaultModel: string;
   enabled: boolean;

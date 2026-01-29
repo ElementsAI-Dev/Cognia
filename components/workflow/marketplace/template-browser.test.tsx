@@ -229,11 +229,11 @@ const mockTemplates: WorkflowTemplate[] = [
     author: 'System',
     version: '1.0.0',
     workflow: {
-      type: 'sequential',
+      type: 'data-analysis',
       version: '1.0.0',
-      nodes: [{ id: 'node-1', type: 'trigger', position: { x: 0, y: 0 } }],
+      nodes: [{ id: 'node-1', type: 'start', position: { x: 0, y: 0 } }],
       edges: [],
-      settings: {},
+      settings: { autoSave: true, autoLayout: false, showMinimap: true, showGrid: true, gridSize: 20, snapToGrid: true, zoomLevel: 1, panX: 0, panY: 0 },
     },
     metadata: {
       rating: 4.5,
@@ -254,11 +254,11 @@ const mockTemplates: WorkflowTemplate[] = [
     author: 'User',
     version: '1.0.0',
     workflow: {
-      type: 'sequential',
+      type: 'data-analysis',
       version: '1.0.0',
-      nodes: [{ id: 'node-1', type: 'trigger', position: { x: 0, y: 0 } }],
+      nodes: [{ id: 'node-1', type: 'start', position: { x: 0, y: 0 } }],
       edges: [],
-      settings: {},
+      settings: { autoSave: true, autoLayout: false, showMinimap: true, showGrid: true, gridSize: 20, snapToGrid: true, zoomLevel: 1, panX: 0, panY: 0 },
     },
     metadata: {
       rating: 4.0,
@@ -279,11 +279,11 @@ const mockTemplates: WorkflowTemplate[] = [
     author: 'System',
     version: '1.0.0',
     workflow: {
-      type: 'sequential',
+      type: 'data-analysis',
       version: '1.0.0',
-      nodes: [{ id: 'node-1', type: 'trigger', position: { x: 0, y: 0 } }],
+      nodes: [{ id: 'node-1', type: 'start', position: { x: 0, y: 0 } }],
       edges: [],
-      settings: {},
+      settings: { autoSave: true, autoLayout: false, showMinimap: true, showGrid: true, gridSize: 20, snapToGrid: true, zoomLevel: 1, panX: 0, panY: 0 },
     },
     metadata: {
       rating: 5.0,

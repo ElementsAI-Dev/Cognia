@@ -115,10 +115,49 @@ const initialState: EditorState = {
   markerCounter: 1,
 };
 
+// ============== Persisted Style Store ==============
+
+// Separate store for persisting style preferences
+interface StylePreferences {
+  style: AnnotationStyle;
+  currentTool: AnnotationTool;
+}
+
+const styleStorageKey = 'cognia-screenshot-style';
+
+// Load persisted style on init
+const loadPersistedStyle = (): Partial<StylePreferences> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = localStorage.getItem(styleStorageKey);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        style: parsed.style || defaultStyle,
+        currentTool: parsed.currentTool || 'select',
+      };
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return {};
+};
+
+// Save style preferences
+const saveStylePreferences = (style: AnnotationStyle, currentTool: AnnotationTool) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(styleStorageKey, JSON.stringify({ style, currentTool }));
+  } catch {
+    // Ignore storage errors
+  }
+};
+
 // ============== Store ==============
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
   ...initialState,
+  ...loadPersistedStyle(),
 
   setMode: (mode) => set({ mode }),
 
@@ -243,12 +282,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       screenshotDimensions: null,
     }),
 
-  setCurrentTool: (tool) => set({ currentTool: tool }),
+  setCurrentTool: (tool) => {
+    set({ currentTool: tool });
+    const { style } = get();
+    saveStylePreferences(style, tool);
+  },
 
-  setStyle: (styleUpdate) =>
+  setStyle: (styleUpdate) => {
     set((state) => ({
       style: { ...state.style, ...styleUpdate },
-    })),
+    }));
+    const { style, currentTool } = get();
+    saveStylePreferences(style, currentTool);
+  },
 
   addAnnotation: (annotation) => {
     const state = get();

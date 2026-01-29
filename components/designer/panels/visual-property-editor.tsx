@@ -167,7 +167,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
 
   return (
     <TooltipProvider>
-      <div className={cn('flex flex-col h-full', className)}>
+      <div className={cn('flex flex-col h-full min-h-0', className)}>
         <div className="border-b px-3 py-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium uppercase text-muted-foreground">
@@ -198,7 +198,7 @@ export function VisualPropertyEditor({ className }: VisualPropertyEditorProps) {
             ))}
           </TabsList>
 
-          <div className="flex-1 overflow-auto p-3 space-y-4">
+          <div className="flex-1 min-h-0 overflow-auto p-3 space-y-4">
             <TabsContent value="layout" className="m-0 space-y-4">
               <PropertyRow label={t('display')}>
                 <Select

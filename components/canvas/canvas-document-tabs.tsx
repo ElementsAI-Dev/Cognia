@@ -31,16 +31,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { CanvasDocument } from '@/types';
+import { RenameDialog } from './rename-dialog';
 
 interface CanvasDocumentTabsProps {
   documents: CanvasDocument[];
@@ -76,9 +69,9 @@ export const CanvasDocumentTabs = memo(function CanvasDocumentTabs({
     setRenameDialogOpen(true);
   };
 
-  const handleConfirmRename = () => {
-    if (renameDocId && renameValue.trim()) {
-      onRenameDocument(renameDocId, renameValue.trim());
+  const handleConfirmRename = (newTitle: string) => {
+    if (renameDocId) {
+      onRenameDocument(renameDocId, newTitle);
     }
     setRenameDialogOpen(false);
     setRenameDocId(null);
@@ -185,34 +178,12 @@ export const CanvasDocumentTabs = memo(function CanvasDocumentTabs({
       </div>
 
       {/* Rename Dialog */}
-      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>{t('renameDocument')}</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Input
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              placeholder={t('documentTitle')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleConfirmRename();
-                }
-              }}
-              autoFocus
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
-              {t('cancel')}
-            </Button>
-            <Button onClick={handleConfirmRename} disabled={!renameValue.trim()}>
-              {t('save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RenameDialog
+        open={renameDialogOpen}
+        onOpenChange={setRenameDialogOpen}
+        currentTitle={renameValue}
+        onRename={handleConfirmRename}
+      />
     </>
   );
 });

@@ -57,6 +57,10 @@ interface WelcomeStateProps {
   agentModeId?: string;
   /** Callback when agent sub-mode changes */
   onAgentModeChange?: (agentMode: AgentModeConfig) => void;
+  /** Current model name for simplified mode display */
+  modelName?: string;
+  /** Current provider name for simplified mode display */
+  providerName?: string;
 }
 
 interface SuggestionCard {
@@ -201,6 +205,8 @@ export function WelcomeState({
   onSelectTemplate,
   agentModeId = 'general',
   onAgentModeChange,
+  modelName,
+  providerName,
 }: WelcomeStateProps) {
   const t = useTranslations('welcome');
   const tChat = useTranslations('chat');
@@ -283,6 +289,9 @@ export function WelcomeState({
       <SimplifiedWelcome
         mode={mode}
         onSuggestionClick={onSuggestionClick}
+        onModeChange={onModeChange}
+        modelName={modelName}
+        providerName={providerName}
       />
     );
   }

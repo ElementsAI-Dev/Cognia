@@ -133,6 +133,53 @@ export async function interruptKernel(sessionId: string): Promise<void> {
   return invoke('jupyter_interrupt_kernel', { sessionId });
 }
 
+/** Get kernel status for a session */
+export async function getKernelStatus(
+  sessionId: string
+): Promise<string | null> {
+  if (!isTauri()) {
+    return null;
+  }
+
+  try {
+    return await invoke<string | null>('jupyter_get_kernel_status', {
+      sessionId,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Check if session's kernel is alive */
+export async function isKernelAlive(sessionId: string): Promise<boolean> {
+  if (!isTauri()) {
+    return false;
+  }
+
+  try {
+    return await invoke<boolean>('jupyter_is_kernel_alive', { sessionId });
+  } catch {
+    return false;
+  }
+}
+
+/** Get a session by ID (with full details) */
+export async function getSessionById(
+  sessionId: string
+): Promise<JupyterSession | null> {
+  if (!isTauri()) {
+    return null;
+  }
+
+  try {
+    return await invoke<JupyterSession | null>('jupyter_get_session_by_id', {
+      sessionId,
+    });
+  } catch {
+    return null;
+  }
+}
+
 // ==================== Code Execution ====================
 
 /** Execute code in a session's kernel */
@@ -326,11 +373,14 @@ export const kernelService = {
   createSession,
   listSessions,
   getSession,
+  getSessionById,
   deleteSession,
   // Kernel management
   listKernels,
   restartKernel,
   interruptKernel,
+  getKernelStatus,
+  isKernelAlive,
   // Code execution
   execute,
   quickExecute,

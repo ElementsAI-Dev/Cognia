@@ -141,7 +141,7 @@ export function ElementTreeVirtual({ className }: ElementTreeVirtualProps) {
 
   return (
     <TooltipProvider>
-      <div className={cn('flex flex-col h-full', className)}>
+      <div className={cn('flex flex-col h-full min-h-0', className)}>
         {/* Toolbar */}
         <div className="flex items-center justify-between border-b px-2 py-1">
           <span className="text-xs text-muted-foreground">
@@ -178,7 +178,7 @@ export function ElementTreeVirtual({ className }: ElementTreeVirtualProps) {
         </div>
 
         {/* Virtualized list */}
-        <div ref={parentRef} className="flex-1 overflow-auto">
+        <div ref={parentRef} className="flex-1 min-h-0 overflow-auto">
           <div
             style={{
               height: `${virtualizer.getTotalSize()}px`,

@@ -39,7 +39,7 @@ jest.mock('@/components/ui/badge', () => ({
     variant?: string;
     [key: string]: unknown;
   }) => (
-    <span data-testid="badge" className={className} variant={variant} {...props}>
+    <span data-testid="badge" className={className} data-variant={variant} {...props}>
       {children}
     </span>
   ),
@@ -51,36 +51,50 @@ const mockData: StartNodeData = {
   label: 'Start',
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
   workflowInputs: {
-    userId: { type: 'string', required: true },
-    apiKey: { type: 'string', required: true },
+    userId: { type: 'string', description: 'User ID' },
+    apiKey: { type: 'string', description: 'API Key' },
   },
+};
+
+const baseProps = {
+  id: 'start-1',
+  type: 'start',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
 };
 
 describe('StartNode', () => {
   it('renders without crashing', () => {
-    render(<StartNode data={mockData} selected={false} />);
+    render(<StartNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Start')).toBeInTheDocument();
   });
 
   it('renders node label', () => {
-    render(<StartNode data={mockData} selected={false} />);
+    render(<StartNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Start')).toBeInTheDocument();
   });
 
   it('passes showTargetHandle={false} to BaseNode', () => {
-    render(<StartNode data={mockData} selected={false} />);
+    render(<StartNode {...baseProps} data={mockData} selected={false} />);
     const baseNode = screen.getByTestId('base-node');
     expect(baseNode).toHaveAttribute('data-show-target-handle', 'false');
   });
 
   it('renders input count when inputs are defined', () => {
-    render(<StartNode data={mockData} selected={false} />);
+    render(<StartNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('2 input(s) defined')).toBeInTheDocument();
   });
 
   it('renders input badges', () => {
-    render(<StartNode data={mockData} selected={false} />);
+    render(<StartNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('userId')).toBeInTheDocument();
     expect(screen.getByText('apiKey')).toBeInTheDocument();
   });
@@ -89,15 +103,15 @@ describe('StartNode', () => {
     const dataWithManyInputs: StartNodeData = {
       ...mockData,
       workflowInputs: {
-        input1: { type: 'string', required: true },
-        input2: { type: 'string', required: true },
-        input3: { type: 'string', required: true },
-        input4: { type: 'string', required: true },
-        input5: { type: 'string', required: true },
+        input1: { type: 'string', description: 'Input 1' },
+        input2: { type: 'string', description: 'Input 2' },
+        input3: { type: 'string', description: 'Input 3' },
+        input4: { type: 'string', description: 'Input 4' },
+        input5: { type: 'string', description: 'Input 5' },
       },
     };
 
-    render(<StartNode data={dataWithManyInputs} selected={false} />);
+    render(<StartNode {...baseProps} data={dataWithManyInputs} selected={false} />);
 
     expect(screen.getByText('input1')).toBeInTheDocument();
     expect(screen.getByText('input2')).toBeInTheDocument();
@@ -110,14 +124,14 @@ describe('StartNode', () => {
     const dataWithManyInputs: StartNodeData = {
       ...mockData,
       workflowInputs: {
-        input1: { type: 'string', required: true },
-        input2: { type: 'string', required: true },
-        input3: { type: 'string', required: true },
-        input4: { type: 'string', required: true },
+        input1: { type: 'string', description: 'Input 1' },
+        input2: { type: 'string', description: 'Input 2' },
+        input3: { type: 'string', description: 'Input 3' },
+        input4: { type: 'string', description: 'Input 4' },
       },
     };
 
-    render(<StartNode data={dataWithManyInputs} selected={false} />);
+    render(<StartNode {...baseProps} data={dataWithManyInputs} selected={false} />);
     expect(screen.getByText('+1 more')).toBeInTheDocument();
   });
 
@@ -127,7 +141,7 @@ describe('StartNode', () => {
       workflowInputs: {},
     };
 
-    render(<StartNode data={dataWithNoInputs} selected={false} />);
+    render(<StartNode {...baseProps} data={dataWithNoInputs} selected={false} />);
     expect(screen.queryByText(/input\(s\) defined/)).not.toBeInTheDocument();
   });
 });
@@ -137,13 +151,13 @@ describe('StartNode integration tests', () => {
     const dataWithInputs: StartNodeData = {
       ...mockData,
       workflowInputs: {
-        url: { type: 'string', required: true },
-        timeout: { type: 'number', required: false, default: 30 },
-        retry: { type: 'boolean', required: false },
+        url: { type: 'string', description: 'URL' },
+        timeout: { type: 'number', description: 'Timeout' },
+        retry: { type: 'boolean', description: 'Retry' },
       },
     };
 
-    render(<StartNode data={dataWithInputs} selected={false} />);
+    render(<StartNode {...baseProps} data={dataWithInputs} selected={false} />);
 
     expect(screen.getByText('3 input(s) defined')).toBeInTheDocument();
     expect(screen.getByText('url')).toBeInTheDocument();
@@ -157,7 +171,7 @@ describe('StartNode integration tests', () => {
       workflowInputs: {},
     };
 
-    render(<StartNode data={dataWithNoInputs} selected={false} />);
+    render(<StartNode {...baseProps} data={dataWithNoInputs} selected={false} />);
 
     expect(screen.getByText('Start')).toBeInTheDocument();
     expect(screen.queryByText(/input\(s\)/)).not.toBeInTheDocument();
@@ -167,11 +181,11 @@ describe('StartNode integration tests', () => {
     const dataWith10Inputs: StartNodeData = {
       ...mockData,
       workflowInputs: Object.fromEntries(
-        Array.from({ length: 10 }, (_, i) => [`input${i}`, { type: 'string', required: true }])
-      ) as Record<string, { type: string; required: boolean }>,
+        Array.from({ length: 10 }, (_, i) => [`input${i}`, { type: 'string' as const, description: `Input ${i}` }])
+      ),
     };
 
-    render(<StartNode data={dataWith10Inputs} selected={false} />);
+    render(<StartNode {...baseProps} data={dataWith10Inputs} selected={false} />);
 
     expect(screen.getByText('10 input(s) defined')).toBeInTheDocument();
     expect(screen.getByText('+7 more')).toBeInTheDocument();

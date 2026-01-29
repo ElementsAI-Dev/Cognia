@@ -140,7 +140,7 @@ export function BackgroundRemover({
       setError(t('failed'));
     };
     img.src = imageUrl;
-  }, [imageUrl]);
+  }, [imageUrl, t]);
 
   // Update preview when mask or background changes
   const updatePreview = useCallback(() => {

@@ -84,15 +84,8 @@ export function useBatchProcessor(
             contrast: 0,
             saturation: 0,
             hue: 0,
-            exposure: 0,
-            highlights: 0,
-            shadows: 0,
-            whites: 0,
-            blacks: 0,
-            temperature: 0,
-            tint: 0,
-            vibrance: 0,
-            clarity: 0,
+            blur: 0,
+            sharpen: 0,
             ...adjustments,
           };
 
@@ -113,8 +106,8 @@ export function useBatchProcessor(
           if (rotate || flipH || flipV) {
             imageData = await workerProcessor.processTransform(imageData, {
               rotate: rotate || 0,
-              flipH: flipH || false,
-              flipV: flipV || false,
+              flipHorizontal: flipH || false,
+              flipVertical: flipV || false,
               scale: 1,
             });
           }

@@ -29,7 +29,7 @@ export { MERMAID_TEMPLATES, TEMPLATE_CATEGORIES, getTemplatesByCategory, type Me
 export { VegaLiteBlock } from './vegalite-block';
 
 // Table rendering
-export { EnhancedTable } from './enhanced-table';
+export { DataTable } from './data-table';
 
 // Media rendering
 export { ImageBlock } from './image-block';

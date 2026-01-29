@@ -65,7 +65,6 @@ export function ToolApprovalDialog({
   onDeny,
 }: ToolApprovalDialogProps) {
   const t = useTranslations('tools');
-  const _tc = useTranslations('common');
   const [alwaysAllow, setAlwaysAllow] = useState(false);
 
   if (!request) return null;

@@ -370,18 +370,27 @@ export class PluginBackupManager {
     return deleted;
   }
 
-  private async cleanupOldBackups(pluginId: string): Promise<void> {
+  async cleanupOldBackups(pluginId: string, keepCount?: number): Promise<number> {
     const backups = this.backups.get(pluginId);
-    if (!backups) return;
+    if (!backups) return 0;
 
-    while (backups.length > this.config.maxBackupsPerPlugin) {
+    const maxToKeep = keepCount ?? this.config.maxBackupsPerPlugin;
+    let deleted = 0;
+
+    while (backups.length > maxToKeep) {
       const oldest = backups.pop();
       if (oldest) {
-        await invoke('plugin_backup_delete', { path: oldest.path }).catch(() => {});
+        try {
+          await invoke('plugin_backup_delete', { path: oldest.path });
+          deleted++;
+        } catch {
+          // Ignore deletion errors
+        }
       }
     }
 
     await this.saveBackupIndex();
+    return deleted;
   }
 
   // ===========================================================================
@@ -452,14 +461,34 @@ export class PluginBackupManager {
     return this.getAllBackups().filter((b) => b.reason === reason);
   }
 
-  getTotalBackupSize(): number {
+  getTotalBackupSize(pluginId?: string): number {
     let total = 0;
-    for (const backups of this.backups.values()) {
+    if (pluginId) {
+      const backups = this.backups.get(pluginId) || [];
       for (const backup of backups) {
         total += backup.size;
       }
+    } else {
+      for (const backups of this.backups.values()) {
+        for (const backup of backups) {
+          total += backup.size;
+        }
+      }
     }
     return total;
+  }
+
+  isAutoBackupEnabled(): boolean {
+    return this.config.autoBackupEnabled;
+  }
+
+  setAutoBackupEnabled(enabled: boolean): void {
+    this.config.autoBackupEnabled = enabled;
+    if (enabled) {
+      this.startAutoBackup();
+    } else {
+      this.stopAutoBackup();
+    }
   }
 
   // ===========================================================================

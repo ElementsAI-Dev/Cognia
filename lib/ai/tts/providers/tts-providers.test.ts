@@ -4,6 +4,9 @@
 
 import { generateOpenAITTS } from './openai-tts';
 import { generateGeminiTTS } from './gemini-tts';
+import { generateElevenLabsTTS } from './elevenlabs-tts';
+import { generateLMNTTTS } from './lmnt-tts';
+import { generateHumeTTS } from './hume-tts';
 
 // Mock proxy-fetch
 jest.mock('@/lib/network/proxy-fetch', () => ({
@@ -143,6 +146,185 @@ describe('TTS Providers', () => {
   describe('System TTS', () => {
     it.skip('should generate speech - requires Tauri runtime', () => {
       // This test requires Tauri runtime
+    });
+  });
+
+  describe('ElevenLabs TTS', () => {
+    it('should return error when API key is missing', async () => {
+      const result = await generateElevenLabsTTS('Hello world', {
+        apiKey: '',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('API');
+    });
+
+    it('should return error when text is too long', async () => {
+      const longText = 'a'.repeat(6000);
+      
+      const result = await generateElevenLabsTTS(longText, {
+        apiKey: 'test-key',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should make API request with correct parameters', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      });
+
+      await generateElevenLabsTTS('Hello world', {
+        apiKey: 'test-key',
+        voice: 'rachel',
+        model: 'eleven_multilingual_v2',
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('elevenlabs.io'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'xi-api-key': 'test-key',
+          }),
+        })
+      );
+    });
+
+    it('should handle API errors', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ detail: { message: 'Unauthorized' } }),
+      });
+
+      const result = await generateElevenLabsTTS('Hello world', {
+        apiKey: 'invalid-key',
+      });
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('LMNT TTS', () => {
+    it('should return error when API key is missing', async () => {
+      const result = await generateLMNTTTS('Hello world', {
+        apiKey: '',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('API');
+    });
+
+    it('should return error when text is too long', async () => {
+      const longText = 'a'.repeat(4000);
+      
+      const result = await generateLMNTTTS(longText, {
+        apiKey: 'test-key',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should make API request with correct parameters', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      });
+
+      await generateLMNTTTS('Hello world', {
+        apiKey: 'test-key',
+        voice: 'lily',
+        speed: 1.2,
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('lmnt.com'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'X-API-Key': 'test-key',
+          }),
+        })
+      );
+    });
+
+    it('should clamp speed to valid range', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      });
+
+      await generateLMNTTTS('Test', {
+        apiKey: 'test-key',
+        speed: 10, // Should be clamped to 2.0
+      });
+
+      const callBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+      expect(callBody.speed).toBeLessThanOrEqual(2.0);
+    });
+  });
+
+  describe('Hume TTS', () => {
+    it('should return error when API key is missing', async () => {
+      const result = await generateHumeTTS('Hello world', {
+        apiKey: '',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('API');
+    });
+
+    it('should return error when text is too long', async () => {
+      const longText = 'a'.repeat(6000);
+      
+      const result = await generateHumeTTS(longText, {
+        apiKey: 'test-key',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should make API request with correct parameters', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      });
+
+      await generateHumeTTS('Hello world', {
+        apiKey: 'test-key',
+        voice: 'kora',
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('hume.ai'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'X-Hume-Api-Key': 'test-key',
+          }),
+        })
+      );
+    });
+
+    it('should include acting instructions when provided', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      });
+
+      await generateHumeTTS('Hello world', {
+        apiKey: 'test-key',
+        voice: 'kora',
+        actingInstructions: 'Speak with enthusiasm',
+      });
+
+      const callBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+      expect(callBody.acting_instructions).toBe('Speak with enthusiasm');
     });
   });
 });

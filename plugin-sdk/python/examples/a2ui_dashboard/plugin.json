@@ -1,0 +1,16 @@
+{
+  "id": "a2ui-dashboard",
+  "name": "A2UI Dashboard",
+  "version": "1.0.0",
+  "description": "Create interactive A2UI dashboards with charts and tables",
+  "type": "python",
+  "capabilities": ["tools", "a2ui"],
+  "author": {
+    "name": "Cognia Team"
+  },
+  "pythonMain": "main.py",
+  "pythonDependencies": [],
+  "permissions": [],
+  "configSchema": {},
+  "defaultConfig": {}
+}

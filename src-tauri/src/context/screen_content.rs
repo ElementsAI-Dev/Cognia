@@ -2,7 +2,7 @@
 //!
 //! Provides functionality for analyzing screen content using OCR and image analysis.
 
-use log::{debug, error, trace, warn};
+use log::{debug, error, trace};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

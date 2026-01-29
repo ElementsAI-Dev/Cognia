@@ -927,6 +927,9 @@ pub fn run() {
             commands::devtools::jupyter::jupyter_shutdown_all,
             commands::devtools::jupyter::jupyter_cleanup,
             commands::devtools::jupyter::jupyter_get_cached_variables,
+            commands::devtools::jupyter::jupyter_get_kernel_status,
+            commands::devtools::jupyter::jupyter_is_kernel_alive,
+            commands::devtools::jupyter::jupyter_get_session_by_id,
             // Proxy commands
             commands::system::proxy::proxy_detect_all,
             commands::system::proxy::proxy_test,

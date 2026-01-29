@@ -40,7 +40,7 @@ jest.mock('@/components/ui/badge', () => ({
     variant?: string;
     [key: string]: unknown;
   }) => (
-    <span data-testid="badge" className={className} variant={variant} {...props}>
+    <span data-testid="badge" className={className} data-variant={variant} {...props}>
       {children}
     </span>
   ),
@@ -52,37 +52,53 @@ const mockData: ConditionalNodeData = {
   label: 'Check Condition',
   executionStatus: 'idle',
   isConfigured: true,
+  hasError: false,
+  inputs: {},
+  outputs: {},
   conditionType: 'comparison',
   condition: 'data.value > 100',
   comparisonOperator: '>',
   comparisonValue: '100',
 };
 
+const baseProps = {
+  id: 'conditional-1',
+  type: 'conditional',
+  draggable: true,
+  selectable: true,
+  deletable: true,
+  dragging: false,
+  zIndex: 0,
+  isConnectable: true,
+  positionAbsoluteX: 0,
+  positionAbsoluteY: 0,
+};
+
 describe('ConditionalNode', () => {
   it('renders without crashing', () => {
-    render(<ConditionalNode data={mockData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('Check Condition')).toBeInTheDocument();
   });
 
   it('renders condition type badge', () => {
-    render(<ConditionalNode data={mockData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('comparison')).toBeInTheDocument();
   });
 
   it('renders condition expression', () => {
-    render(<ConditionalNode data={mockData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('data.value > 100')).toBeInTheDocument();
   });
 
   it('renders comparison operator and value', () => {
-    render(<ConditionalNode data={mockData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={mockData} selected={false} />);
     // Multiple elements contain '> 100', use getAllByText
     const elements = screen.getAllByText(/>\s*100/);
     expect(elements.length).toBeGreaterThan(0);
   });
 
   it('renders true/false indicators', () => {
-    render(<ConditionalNode data={mockData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={mockData} selected={false} />);
     expect(screen.getByText('✓ True')).toBeInTheDocument();
     expect(screen.getByText('✗ False')).toBeInTheDocument();
   });
@@ -90,10 +106,10 @@ describe('ConditionalNode', () => {
   it('does not render condition when not set', () => {
     const noConditionData: ConditionalNodeData = {
       ...mockData,
-      condition: undefined,
+      condition: '',
     };
 
-    render(<ConditionalNode data={noConditionData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={noConditionData} selected={false} />);
     const codeElements = screen.queryAllByText(/data\.value/);
     expect(codeElements.length).toBe(0);
   });
@@ -107,7 +123,7 @@ describe('ConditionalNode', () => {
       comparisonValue: undefined,
     };
 
-    render(<ConditionalNode data={expressionData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={expressionData} selected={false} />);
     // Check that the specific comparison value is not rendered
     expect(screen.queryByText('> 100')).not.toBeInTheDocument();
   });
@@ -115,7 +131,7 @@ describe('ConditionalNode', () => {
 
 describe('ConditionalNode integration tests', () => {
   it('handles complete conditional node', () => {
-    render(<ConditionalNode data={mockData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={mockData} selected={false} />);
 
     expect(screen.getByText('Check Condition')).toBeInTheDocument();
     expect(screen.getByText('comparison')).toBeInTheDocument();
@@ -132,7 +148,7 @@ describe('ConditionalNode integration tests', () => {
       condition: 'isValid && hasPermission',
     };
 
-    render(<ConditionalNode data={expressionData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={expressionData} selected={false} />);
 
     expect(screen.getByText('expression')).toBeInTheDocument();
     expect(screen.getByText('isValid && hasPermission')).toBeInTheDocument();
@@ -141,11 +157,11 @@ describe('ConditionalNode integration tests', () => {
   it('handles switch type condition', () => {
     const switchData: ConditionalNodeData = {
       ...mockData,
-      conditionType: 'switch',
+      conditionType: 'expression',
       condition: 'user.role',
     };
 
-    render(<ConditionalNode data={switchData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={switchData} selected={false} />);
 
     expect(screen.getByText('switch')).toBeInTheDocument();
     expect(screen.getByText('user.role')).toBeInTheDocument();

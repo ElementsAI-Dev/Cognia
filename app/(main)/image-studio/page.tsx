@@ -48,6 +48,11 @@ import {
   Eraser,
   Wand2,
   Palette,
+  Type,
+  Pencil,
+  Split,
+  BarChart3,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -105,8 +110,13 @@ import {
   BatchExportDialog,
   HistoryPanel,
   FiltersGallery,
+  TextOverlay,
+  DrawingTools,
+  ImageComparison,
+  LayersPanel,
 } from '@/components/image-studio';
-import type { HistoryOperationType } from '@/components/image-studio';
+import type { HistoryOperationType, Layer, LayerType, BlendMode } from '@/components/image-studio';
+import { useImageEditorShortcuts } from '@/hooks/image-studio';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import {
   generateImage,
@@ -310,9 +320,20 @@ export default function ImageStudioPage() {
 
   // Advanced editing state
   const [editingImage, setEditingImage] = useState<GeneratedImageWithMeta | null>(null);
-  const [editMode, setEditMode] = useState<'mask' | 'crop' | 'adjust' | 'upscale' | 'remove-bg' | 'filter' | null>(null);
+  const [editMode, setEditMode] = useState<'mask' | 'crop' | 'adjust' | 'upscale' | 'remove-bg' | 'filter' | 'text' | 'draw' | 'compare' | null>(null);
   const [maskDataUrl, setMaskDataUrl] = useState<string | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showLayersPanel, setShowLayersPanel] = useState(false);
+  const [compareBeforeImage, setCompareBeforeImage] = useState<string | null>(null);
+  
+  // Layers state for advanced editing
+  const [layers, setLayers] = useState<Layer[]>([]);
+  const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
+  
+  // Image preview state
+  const [showHistogram, setShowHistogram] = useState(false);
+  const [previewZoom, setPreviewZoom] = useState(1);
+  const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 });
 
   // Settings
   const [model, setModel] = useState<'dall-e-3' | 'dall-e-2'>('dall-e-3');
@@ -538,6 +559,30 @@ export default function ImageStudioPage() {
       storeRedo();
     }
   }, [canRedo, storeRedo]);
+
+  // Keyboard shortcuts - placed after handleUndo/handleRedo definitions
+  useImageEditorShortcuts({
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onDelete: () => {
+      if (selectedImageId) {
+        handleDeleteImage(selectedImageId);
+      }
+    },
+    onZoomIn: () => setPreviewZoom(z => Math.min(10, z * 1.2)),
+    onZoomOut: () => setPreviewZoom(z => Math.max(0.1, z / 1.2)),
+    onZoomReset: () => {
+      setPreviewZoom(1);
+      setPreviewPan({ x: 0, y: 0 });
+    },
+    onCancel: () => {
+      if (editingImage) {
+        setEditingImage(null);
+        setEditMode(null);
+      }
+    },
+    enabled: true,
+  });
 
   // Use selected image for editing
   const handleUseForEdit = useCallback(async (image: GeneratedImageWithMeta) => {
@@ -1245,6 +1290,22 @@ export default function ImageStudioPage() {
                               <Palette className="h-4 w-4 mr-2" />
                               Apply Filter
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingImage(image); setEditMode('text'); }}>
+                              <Type className="h-4 w-4 mr-2" />
+                              Add Text/Watermark
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingImage(image); setEditMode('draw'); }}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Draw & Annotate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { 
+                              setCompareBeforeImage(image.url || null);
+                              setEditingImage(image);
+                              setEditMode('compare');
+                            }}>
+                              <Split className="h-4 w-4 mr-2" />
+                              Compare Images
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               className="text-destructive"
@@ -1268,14 +1329,57 @@ export default function ImageStudioPage() {
             </ScrollArea>
           ) : selectedImage ? (
             <div className="flex-1 flex">
-              <div className="flex-1 p-4 flex items-center justify-center bg-muted/30">
-                {selectedImage.url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={selectedImage.url}
-                    alt={selectedImage.prompt}
-                    className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-                  />
+              <div className="flex-1 p-4 flex flex-col bg-muted/30">
+                {selectedImage.url ? (
+                  <div className="flex-1 relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={selectedImage.url}
+                      alt={selectedImage.prompt}
+                      className="absolute inset-0 m-auto max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                      style={{
+                        transform: `scale(${previewZoom}) translate(${previewPan.x}px, ${previewPan.y}px)`,
+                        transition: 'transform 0.1s ease-out',
+                      }}
+                    />
+                    {/* Zoom controls */}
+                    <div className="absolute bottom-4 left-4 flex items-center gap-1 bg-black/50 rounded-lg px-2 py-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-white hover:bg-white/20"
+                        onClick={() => setPreviewZoom(z => Math.max(0.1, z / 1.2))}
+                      >
+                        <span className="text-sm">−</span>
+                      </Button>
+                      <span className="text-white text-xs w-12 text-center">
+                        {Math.round(previewZoom * 100)}%
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-white hover:bg-white/20"
+                        onClick={() => setPreviewZoom(z => Math.min(10, z * 1.2))}
+                      >
+                        <span className="text-sm">+</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-white hover:bg-white/20"
+                        onClick={() => {
+                          setPreviewZoom(1);
+                          setPreviewPan({ x: 0, y: 0 });
+                        }}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center">
+                    <p className="text-muted-foreground">No image to display</p>
+                  </div>
                 )}
               </div>
               <div className="w-64 border-l p-4 space-y-4">
@@ -1345,6 +1449,84 @@ export default function ImageStudioPage() {
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Regenerate
+                  </Button>
+                </div>
+
+                {/* Layers Panel Toggle */}
+                <div className="pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setShowLayersPanel(!showLayersPanel)}
+                  >
+                    <Layers className="h-4 w-4 mr-2" />
+                    {showLayersPanel ? 'Hide Layers' : 'Show Layers'}
+                  </Button>
+                </div>
+
+                {/* Layers Panel */}
+                {showLayersPanel && (
+                  <LayersPanel
+                    layers={layers}
+                    activeLayerId={activeLayerId}
+                    onLayerSelect={setActiveLayerId}
+                    onLayerUpdate={(id, updates) => {
+                      setLayers(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
+                    }}
+                    onLayerDelete={(id) => {
+                      setLayers(prev => prev.filter(l => l.id !== id));
+                      if (activeLayerId === id) setActiveLayerId(null);
+                    }}
+                    onLayerDuplicate={(id) => {
+                      const layer = layers.find(l => l.id === id);
+                      if (layer) {
+                        const newLayer: Layer = {
+                          ...layer,
+                          id: `layer-${Date.now()}`,
+                          name: `${layer.name} copy`,
+                          order: layers.length,
+                        };
+                        setLayers(prev => [...prev, newLayer]);
+                        setActiveLayerId(newLayer.id);
+                      }
+                    }}
+                    onLayerAdd={(type: LayerType) => {
+                      const newLayer: Layer = {
+                        id: `layer-${Date.now()}`,
+                        name: `New ${type} layer`,
+                        type,
+                        visible: true,
+                        locked: false,
+                        opacity: 100,
+                        blendMode: 'normal' as BlendMode,
+                        order: layers.length,
+                      };
+                      setLayers(prev => [...prev, newLayer]);
+                      setActiveLayerId(newLayer.id);
+                    }}
+                    onLayerReorder={(fromIdx, toIdx) => {
+                      setLayers(prev => {
+                        const newLayers = [...prev];
+                        const [removed] = newLayers.splice(fromIdx, 1);
+                        newLayers.splice(toIdx, 0, removed);
+                        return newLayers.map((l, i) => ({ ...l, order: i }));
+                      });
+                    }}
+                    className="mt-2"
+                  />
+                )}
+
+                {/* Histogram Toggle */}
+                <div className="pt-2">
+                  <Button
+                    variant={showHistogram ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setShowHistogram(!showHistogram)}
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    {showHistogram ? 'Hide Histogram' : 'Show Histogram'}
                   </Button>
                 </div>
               </div>
@@ -1421,6 +1603,9 @@ export default function ImageStudioPage() {
               {editMode === 'upscale' && <><ZoomIn className="h-5 w-5" /> Upscale Image</>}
               {editMode === 'remove-bg' && <><Eraser className="h-5 w-5" /> Remove Background</>}
               {editMode === 'filter' && <><Palette className="h-5 w-5" /> Apply Filter</>}
+              {editMode === 'text' && <><Type className="h-5 w-5" /> Add Text & Watermark</>}
+              {editMode === 'draw' && <><Pencil className="h-5 w-5" /> Draw & Annotate</>}
+              {editMode === 'compare' && <><Split className="h-5 w-5" /> Compare Images</>}
             </DialogTitle>
           </DialogHeader>
           <div className="p-4 overflow-auto max-h-[calc(90vh-80px)]">
@@ -1555,6 +1740,72 @@ export default function ImageStudioPage() {
                 }}
                 onCancel={() => { setEditingImage(null); setEditMode(null); }}
               />
+            )}
+            {editingImage?.url && editMode === 'text' && (
+              <TextOverlay
+                imageUrl={editingImage.url}
+                onApply={(result) => {
+                  const newImageId = addImage({
+                    url: result.dataUrl,
+                    prompt: editingImage.prompt,
+                    model: editingImage.model,
+                    size: editingImage.settings.size,
+                    quality: editingImage.settings.quality,
+                    style: editingImage.settings.style,
+                    parentId: editingImage.id,
+                  });
+                  selectImage(newImageId);
+                  setEditingImage(null);
+                  setEditMode(null);
+                  addToHistory({
+                    type: 'text',
+                    imageId: newImageId,
+                    description: 'Added text overlay',
+                  });
+                }}
+                onCancel={() => { setEditingImage(null); setEditMode(null); }}
+              />
+            )}
+            {editingImage?.url && editMode === 'draw' && (
+              <DrawingTools
+                imageUrl={editingImage.url}
+                onApply={(result) => {
+                  const newImageId = addImage({
+                    url: result.dataUrl,
+                    prompt: editingImage.prompt,
+                    model: editingImage.model,
+                    size: editingImage.settings.size,
+                    quality: editingImage.settings.quality,
+                    style: editingImage.settings.style,
+                    parentId: editingImage.id,
+                  });
+                  selectImage(newImageId);
+                  setEditingImage(null);
+                  setEditMode(null);
+                  addToHistory({
+                    type: 'draw',
+                    imageId: newImageId,
+                    description: `Added ${result.shapes.length} annotation(s)`,
+                  });
+                }}
+                onCancel={() => { setEditingImage(null); setEditMode(null); }}
+              />
+            )}
+            {editingImage?.url && editMode === 'compare' && compareBeforeImage && (
+              <div className="flex flex-col gap-4">
+                <ImageComparison
+                  beforeImage={compareBeforeImage}
+                  afterImage={editingImage.url}
+                  beforeLabel="Before"
+                  afterLabel="After"
+                  initialMode="slider-h"
+                />
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={() => { setEditingImage(null); setEditMode(null); setCompareBeforeImage(null); }}>
+                    Close
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
           {/* Mask mode has special Apply button for inpainting */}
