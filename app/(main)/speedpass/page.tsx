@@ -11,8 +11,11 @@
  * - Study analytics and reports
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+// useRouter will be used when tutorial detail page is implemented
+import { toast } from 'sonner';
+import type { SpeedLearningMode } from '@/types/learning/speedpass';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +37,14 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { useSpeedPassStore, type SpeedPassState } from '@/stores/learning/speedpass-store';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -43,7 +54,66 @@ import { cn } from '@/lib/utils';
 export default function SpeedPassPage() {
   const t = useTranslations('learningMode.speedpass.page');
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedMode, setSelectedMode] = useState<SpeedLearningMode | null>(null);
+  const [showModeDialog, setShowModeDialog] = useState(false);
   const store = useSpeedPassStore();
+
+  // Start tutorial with selected mode and textbook
+  const startTutorial = useCallback(async (mode: SpeedLearningMode, textbookId: string) => {
+    try {
+      const tutorial = await store.createTutorial({
+        courseId: '', // courseId can be set when implementing course management
+        textbookId,
+        mode,
+      });
+      
+      toast.success(
+        mode === 'extreme' ? '极速复习已开始' :
+        mode === 'speed' ? '速成复习已开始' : '全面复习已开始',
+        { description: `预计学习时间: ${tutorial.totalEstimatedMinutes} 分钟` }
+      );
+      
+      setActiveTab('tutorials');
+    } catch (error) {
+      toast.error('创建教程失败', {
+        description: error instanceof Error ? error.message : '请重试',
+      });
+    }
+  }, [store]);
+
+  // Handle mode selection from QuickActionCard
+  const handleModeSelect = useCallback((mode: SpeedLearningMode) => {
+    const textbookCount = Object.keys(store.textbooks).length;
+    
+    if (textbookCount === 0) {
+      toast.info('请先添加教材', {
+        description: '需要先上传或选择一本教材才能开始学习',
+        action: {
+          label: '添加教材',
+          onClick: () => setActiveTab('textbooks'),
+        },
+      });
+      return;
+    }
+    
+    if (textbookCount === 1) {
+      const textbook = Object.values(store.textbooks)[0];
+      startTutorial(mode, textbook.id);
+      return;
+    }
+    
+    setSelectedMode(mode);
+    setShowModeDialog(true);
+  }, [store.textbooks, startTutorial]);
+
+  // Handle textbook selection from dialog
+  const handleTextbookSelect = useCallback((textbookId: string) => {
+    if (selectedMode) {
+      startTutorial(selectedMode, textbookId);
+      setShowModeDialog(false);
+      setSelectedMode(null);
+    }
+  }, [selectedMode, startTutorial]);
 
   return (
     <div className="flex h-full flex-col">
@@ -132,7 +202,7 @@ export default function SpeedPassPage() {
           <ScrollArea className="h-[calc(100%-3rem)]">
             <div className="p-6">
               <TabsContent value="overview" className="mt-0">
-                <OverviewTab store={store} />
+                <OverviewTab store={store} onModeSelect={handleModeSelect} />
               </TabsContent>
 
               <TabsContent value="textbooks" className="mt-0">
@@ -158,6 +228,44 @@ export default function SpeedPassPage() {
           </ScrollArea>
         </Tabs>
       </div>
+
+      {/* Textbook Selection Dialog */}
+      <Dialog open={showModeDialog} onOpenChange={setShowModeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>选择教材</DialogTitle>
+            <DialogDescription>
+              选择要使用的教材开始
+              {selectedMode === 'extreme' ? '极速' : selectedMode === 'speed' ? '速成' : '全面'}
+              复习
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            {Object.values(store.textbooks).map((textbook) => (
+              <div
+                key={textbook.id}
+                className="flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted"
+                onClick={() => handleTextbookSelect(textbook.id)}
+              >
+                <div className="flex items-center gap-3">
+                  <BookOpen className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">{textbook.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {textbook.author} · {textbook.publisher}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowModeDialog(false)}>
+              取消
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -168,9 +276,10 @@ export default function SpeedPassPage() {
 
 interface OverviewTabProps {
   store: SpeedPassState;
+  onModeSelect: (mode: SpeedLearningMode) => void;
 }
 
-function OverviewTab({ store }: OverviewTabProps) {
+function OverviewTab({ store, onModeSelect }: OverviewTabProps) {
   const globalStats = store.globalStats;
   const textbookCount = Object.keys(store.textbooks).length;
   const tutorialCount = Object.keys(store.tutorials).length;
@@ -241,6 +350,8 @@ function OverviewTab({ store }: OverviewTabProps) {
           duration="1-2h"
           color="text-red-500"
           bgColor="bg-red-500/10"
+          mode="extreme"
+          onClick={onModeSelect}
         />
         <QuickActionCard
           icon={BookOpen}
@@ -249,6 +360,8 @@ function OverviewTab({ store }: OverviewTabProps) {
           duration="2-4h"
           color="text-orange-500"
           bgColor="bg-orange-500/10"
+          mode="speed"
+          onClick={onModeSelect}
         />
         <QuickActionCard
           icon={Brain}
@@ -257,6 +370,8 @@ function OverviewTab({ store }: OverviewTabProps) {
           duration="6-12h"
           color="text-blue-500"
           bgColor="bg-blue-500/10"
+          mode="comprehensive"
+          onClick={onModeSelect}
         />
       </div>
 
@@ -345,6 +460,8 @@ interface QuickActionCardProps {
   duration: string;
   color: string;
   bgColor: string;
+  mode: SpeedLearningMode;
+  onClick: (mode: SpeedLearningMode) => void;
 }
 
 function QuickActionCard({
@@ -354,9 +471,14 @@ function QuickActionCard({
   duration,
   color,
   bgColor,
+  mode,
+  onClick,
 }: QuickActionCardProps) {
   return (
-    <Card className="cursor-pointer transition-shadow hover:shadow-md">
+    <Card 
+      className="cursor-pointer transition-shadow hover:shadow-md active:scale-[0.98]"
+      onClick={() => onClick(mode)}
+    >
       <CardContent className="pt-6">
         <div className="flex items-start gap-4">
           <div className={cn('flex h-12 w-12 items-center justify-center rounded-lg', bgColor)}>
