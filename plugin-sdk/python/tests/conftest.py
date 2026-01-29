@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, MagicMock
 import sys
 import os
 
-# Add the cognia package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add the src directory to the path for src layout
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from cognia import Plugin, PluginContext, ExtendedPluginContext
 from cognia.context import (

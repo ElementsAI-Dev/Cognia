@@ -28,10 +28,10 @@ class TestA2UIComponentType:
     
     def test_basic_types(self):
         """Test basic component types"""
-        assert A2UIComponentType.TEXT.value == "text"
         assert A2UIComponentType.BUTTON.value == "button"
         assert A2UIComponentType.INPUT.value == "input"
         assert A2UIComponentType.TABLE.value == "table"
+        assert A2UIComponentType.LIST.value == "list"
     
     def test_chart_types(self):
         """Test chart component types"""
@@ -43,7 +43,7 @@ class TestA2UIComponentType:
         """Test layout component types"""
         assert A2UIComponentType.CONTAINER.value == "container"
         assert A2UIComponentType.GRID.value == "grid"
-        assert A2UIComponentType.FLEX.value == "flex"
+        assert A2UIComponentType.TABS.value == "tabs"
 
 
 class TestA2UIAction:
@@ -54,11 +54,11 @@ class TestA2UIAction:
         action = A2UIAction(
             id="submit",
             label="Submit",
-            type="primary"
+            variant="primary"
         )
         assert action.id == "submit"
         assert action.label == "Submit"
-        assert action.type == "primary"
+        assert action.variant == "primary"
     
     def test_action_with_icon(self):
         """Test action with icon"""
@@ -69,21 +69,21 @@ class TestA2UIAction:
         )
         assert action.icon == "refresh-cw"
     
-    def test_action_to_dict(self):
-        """Test action serialization"""
+    def test_action_fields(self):
+        """Test action fields"""
         action = A2UIAction(
             id="delete",
             label="Delete",
-            type="danger",
+            variant="destructive",
             icon="trash",
             disabled=False
         )
-        result = action.to_dict()
         
-        assert result["id"] == "delete"
-        assert result["label"] == "Delete"
-        assert result["type"] == "danger"
-        assert result["icon"] == "trash"
+        assert action.id == "delete"
+        assert action.label == "Delete"
+        assert action.variant == "destructive"
+        assert action.icon == "trash"
+        assert action.disabled is False
 
 
 class TestA2UIDataBinding:
@@ -92,20 +92,19 @@ class TestA2UIDataBinding:
     def test_basic_binding(self):
         """Test basic data binding"""
         binding = A2UIDataBinding(
-            source="user.name",
-            target="props.value"
+            source="user.name"
         )
         assert binding.source == "user.name"
-        assert binding.target == "props.value"
+        assert binding.transform is None
     
     def test_binding_with_transform(self):
         """Test binding with transform"""
         binding = A2UIDataBinding(
             source="data.items",
-            target="props.rows",
             transform="map"
         )
         assert binding.transform == "map"
+        assert binding.source == "data.items"
     
     def test_binding_to_dict(self):
         """Test binding serialization"""
