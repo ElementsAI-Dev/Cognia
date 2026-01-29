@@ -14,21 +14,22 @@ import {
   Trash2,
   Bell,
   ChevronRight,
-  Loader2,
-  CheckCircle,
-  XCircle,
   Clock,
   Bot,
   Terminal,
   BarChart3,
   Eye,
-  AlertTriangle,
-  Info,
   Zap,
   TrendingUp,
   Activity,
+  Search,
+  Download,
+  Filter,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDurationShort, formatTimeFromDate } from '@/lib/utils';
+import { BACKGROUND_AGENT_STATUS_CONFIG, LOG_LEVEL_CONFIG } from '@/lib/agent';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -52,43 +53,18 @@ import {
 } from '@/components/ui/tooltip';
 import { useBackgroundAgent } from '@/hooks/agent';
 import { AgentFlowVisualizer } from './agent-flow-visualizer';
-import type { BackgroundAgent, BackgroundAgentStatus, BackgroundAgentLog } from '@/types/agent/background-agent';
+import type { BackgroundAgent, BackgroundAgentLog, BackgroundAgentStatus } from '@/types/agent/background-agent';
+import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from '@/components/ui/dropdown-menu';
 
-const statusConfig: Record<BackgroundAgentStatus, {
-  icon: React.ElementType;
-  color: string;
-  label: string;
-}> = {
-  idle: { icon: Clock, color: 'text-muted-foreground', label: 'Idle' },
-  queued: { icon: Clock, color: 'text-blue-500', label: 'Queued' },
-  initializing: { icon: Loader2, color: 'text-blue-500', label: 'Initializing' },
-  running: { icon: Loader2, color: 'text-primary', label: 'Running' },
-  paused: { icon: Pause, color: 'text-yellow-500', label: 'Paused' },
-  waiting: { icon: Clock, color: 'text-orange-500', label: 'Waiting' },
-  completed: { icon: CheckCircle, color: 'text-green-500', label: 'Completed' },
-  failed: { icon: XCircle, color: 'text-destructive', label: 'Failed' },
-  cancelled: { icon: XCircle, color: 'text-orange-500', label: 'Cancelled' },
-  timeout: { icon: XCircle, color: 'text-red-500', label: 'Timeout' },
-};
-
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
-}
-
-// Log level configuration
-const logLevelConfig: Record<string, { icon: React.ElementType; color: string }> = {
-  info: { icon: Info, color: 'text-blue-500' },
-  warn: { icon: AlertTriangle, color: 'text-yellow-500' },
-  error: { icon: XCircle, color: 'text-destructive' },
-  debug: { icon: Terminal, color: 'text-muted-foreground' },
-  success: { icon: CheckCircle, color: 'text-green-500' },
-};
+// Use shared configs from lib/agent/constants.ts
 
 // Performance stats interface
 interface PerformanceStats {
@@ -123,7 +99,7 @@ function AgentCard({
   onCancel,
   onDelete,
 }: AgentCardProps) {
-  const config = statusConfig[agent.status];
+  const config = BACKGROUND_AGENT_STATUS_CONFIG[agent.status];
   const Icon = config.icon;
   const isRunning = agent.status === 'running';
   const isPaused = agent.status === 'paused';
@@ -188,11 +164,11 @@ function AgentCard({
           {/* Time info */}
           <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
             {agent.startedAt && (
-              <span>Started: {formatTime(agent.startedAt)}</span>
+              <span>Started: {formatTimeFromDate(agent.startedAt)}</span>
             )}
             {agent.completedAt && agent.startedAt && (
               <span>
-                Duration: {formatDuration(agent.completedAt.getTime() - agent.startedAt.getTime())}
+                Duration: {formatDurationShort(agent.completedAt.getTime() - agent.startedAt.getTime())}
               </span>
             )}
           </div>
@@ -325,7 +301,7 @@ function AgentLogsViewer({ logs, maxHeight = 300 }: { logs: BackgroundAgentLog[]
         <div className="p-2 space-y-1 font-mono text-xs">
           <>
             {filteredLogs.map((log, idx) => {
-              const config = logLevelConfig[log.level] || logLevelConfig.info;
+              const config = LOG_LEVEL_CONFIG[log.level] || LOG_LEVEL_CONFIG.info;
               const LogIcon = config.icon;
               return (
                 <div
@@ -334,7 +310,7 @@ function AgentLogsViewer({ logs, maxHeight = 300 }: { logs: BackgroundAgentLog[]
                 >
                   <LogIcon className={cn('h-3.5 w-3.5 mt-0.5 shrink-0', config.color)} />
                   <span className="text-muted-foreground shrink-0">
-                    {formatTime(log.timestamp)}
+                    {formatTimeFromDate(log.timestamp)}
                   </span>
                   {log.mcpServerId && (
                     <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0">
@@ -399,7 +375,7 @@ function PerformanceStatsCard({ stats }: { stats: PerformanceStats }) {
             <span>Avg Duration</span>
           </div>
           <div className="text-lg font-semibold">
-            {formatDuration(stats.averageDuration)}
+            {formatDurationShort(stats.averageDuration)}
           </div>
         </div>
         
@@ -467,11 +443,55 @@ function ResultPreview({ agent }: { agent: BackgroundAgent }) {
   );
 }
 
+// Utility function to download file
+function downloadFile(filename: string, content: string, mimeType: string = 'text/plain') {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Format agent as markdown for export
+function formatAgentAsMarkdown(agent: BackgroundAgent): string {
+  const lines: string[] = [
+    `# ${agent.name}`,
+    '',
+    `**Status:** ${agent.status}`,
+    `**Task:** ${agent.task}`,
+    `**Progress:** ${agent.progress}%`,
+    '',
+    agent.startedAt ? `**Started:** ${agent.startedAt.toISOString()}` : '',
+    agent.completedAt ? `**Completed:** ${agent.completedAt.toISOString()}` : '',
+    '',
+    '## Sub-Agents',
+    '',
+    ...agent.subAgents.map(sa => `- **${sa.name}** (${sa.status}): ${sa.task || 'No task'}`),
+    '',
+    '## Logs',
+    '',
+    ...agent.logs.map(log => `- [${log.level.toUpperCase()}] ${log.timestamp.toISOString()}: ${log.message}`),
+  ];
+  return lines.filter(Boolean).join('\n');
+}
+
 export function BackgroundAgentPanel() {
   const _t = useTranslations('agent');
   const [activeTab, setActiveTab] = useState<'all' | 'running' | 'completed'>('all');
   const [detailTab, setDetailTab] = useState<'flow' | 'logs' | 'stats'>('flow');
   const [notificationsEnabled, _setNotificationsEnabled] = useState(true);
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<BackgroundAgentStatus | 'all'>('all');
+  
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
   const {
     agents,
@@ -550,11 +570,97 @@ export function BackgroundAgentPanel() {
     });
   }, [completedAgents, sendNotification]);
 
-  const displayAgents = activeTab === 'running'
-    ? runningAgents
-    : activeTab === 'completed'
-      ? completedAgents
-      : agents;
+  // Filter agents based on search and status
+  const filteredAgents = useMemo(() => {
+    let result = activeTab === 'running'
+      ? runningAgents
+      : activeTab === 'completed'
+        ? completedAgents
+        : agents;
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(agent =>
+        agent.name.toLowerCase().includes(query) ||
+        agent.task.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply status filter (only for 'all' tab)
+    if (activeTab === 'all' && statusFilter !== 'all') {
+      result = result.filter(agent => agent.status === statusFilter);
+    }
+    
+    return result;
+  }, [agents, runningAgents, completedAgents, activeTab, searchQuery, statusFilter]);
+
+  const displayAgents = filteredAgents;
+  
+  // Toggle selection
+  const toggleSelection = useCallback((agentId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(agentId)) {
+        next.delete(agentId);
+      } else {
+        next.add(agentId);
+      }
+      return next;
+    });
+  }, []);
+  
+  // Select all visible agents
+  const selectAllVisible = useCallback(() => {
+    setSelectedIds(new Set(displayAgents.map(a => a.id)));
+  }, [displayAgents]);
+  
+  // Clear selection
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+  
+  // Batch operations
+  const batchPause = useCallback(() => {
+    selectedIds.forEach(id => pauseAgent(id));
+    clearSelection();
+  }, [selectedIds, pauseAgent, clearSelection]);
+  
+  const batchResume = useCallback(() => {
+    selectedIds.forEach(id => resumeAgent(id));
+    clearSelection();
+  }, [selectedIds, resumeAgent, clearSelection]);
+  
+  const batchCancel = useCallback(() => {
+    selectedIds.forEach(id => cancelAgent(id));
+    clearSelection();
+  }, [selectedIds, cancelAgent, clearSelection]);
+  
+  const batchDelete = useCallback(() => {
+    selectedIds.forEach(id => deleteAgent(id));
+    clearSelection();
+  }, [selectedIds, deleteAgent, clearSelection]);
+  
+  // Export functions - prefix with underscore as it's available for future use
+  const _exportAgent = useCallback((agent: BackgroundAgent, format: 'json' | 'md') => {
+    const filename = `${agent.name.replace(/[^a-z0-9]/gi, '-')}-${agent.id.slice(0, 8)}.${format}`;
+    if (format === 'json') {
+      downloadFile(filename, JSON.stringify(agent, null, 2), 'application/json');
+    } else {
+      downloadFile(filename, formatAgentAsMarkdown(agent), 'text/markdown');
+    }
+  }, []);
+  
+  const exportAllVisible = useCallback((format: 'json' | 'md') => {
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const filename = `background-agents-${timestamp}.${format}`;
+    if (format === 'json') {
+      downloadFile(filename, JSON.stringify(displayAgents, null, 2), 'application/json');
+    } else {
+      const content = displayAgents.map(formatAgentAsMarkdown).join('\n\n---\n\n');
+      downloadFile(filename, content, 'text/markdown');
+    }
+  }, [displayAgents]);
 
   return (
     <Sheet open={isPanelOpen} onOpenChange={(open) => !open && closePanel()}>
@@ -632,6 +738,105 @@ export function BackgroundAgentPanel() {
                 </TabsTrigger>
               </TabsList>
 
+              {/* Search and Filter Bar */}
+              <div className="p-2 border-b flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search agents..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-7 pl-7 text-xs"
+                  />
+                </div>
+                
+                {activeTab === 'all' && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                        <Filter className="h-3 w-3" />
+                        {statusFilter === 'all' ? 'All' : statusFilter}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuCheckboxItem
+                        checked={statusFilter === 'all'}
+                        onCheckedChange={() => setStatusFilter('all')}
+                      >
+                        All Statuses
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuSeparator />
+                      {(['idle', 'queued', 'running', 'paused', 'completed', 'failed', 'cancelled'] as BackgroundAgentStatus[]).map(status => (
+                        <DropdownMenuCheckboxItem
+                          key={status}
+                          checked={statusFilter === status}
+                          onCheckedChange={() => setStatusFilter(status)}
+                        >
+                          {status}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                
+                <Button
+                  variant={isMultiSelectMode ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => {
+                    setIsMultiSelectMode(!isMultiSelectMode);
+                    if (isMultiSelectMode) clearSelection();
+                  }}
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                </Button>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => exportAllVisible('json')}>
+                      Export as JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportAllVisible('md')}>
+                      Export as Markdown
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              
+              {/* Multi-select toolbar */}
+              {isMultiSelectMode && selectedIds.size > 0 && (
+                <div className="p-2 border-b bg-muted/50 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-medium">{selectedIds.size} selected</span>
+                    <Button variant="link" size="sm" className="h-5 text-xs p-0" onClick={selectAllVisible}>
+                      Select all
+                    </Button>
+                    <Button variant="link" size="sm" className="h-5 text-xs p-0" onClick={clearSelection}>
+                      Clear
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={batchPause}>
+                      <Pause className="h-3 w-3 mr-1" />Pause
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={batchResume}>
+                      <Play className="h-3 w-3 mr-1" />Resume
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs text-destructive" onClick={batchCancel}>
+                      <StopCircle className="h-3 w-3 mr-1" />Cancel
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs text-destructive" onClick={batchDelete}>
+                      <Trash2 className="h-3 w-3 mr-1" />Delete
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <TabsContent value={activeTab} className="m-0">
                 <ScrollArea className="h-[calc(100vh-200px)]">
                   <div className="p-2 space-y-2">
@@ -642,17 +847,32 @@ export function BackgroundAgentPanel() {
                       </div>
                     ) : (
                       displayAgents.map((agent) => (
-                        <AgentCard
-                          key={agent.id}
-                          agent={agent}
-                          isSelected={selectedAgent?.id === agent.id}
-                          onSelect={() => selectAgent(agent.id)}
-                          onStart={() => startAgent(agent.id)}
-                          onPause={() => pauseAgent(agent.id)}
-                          onResume={() => resumeAgent(agent.id)}
-                          onCancel={() => cancelAgent(agent.id)}
-                          onDelete={() => deleteAgent(agent.id)}
-                        />
+                        <div key={agent.id} className="flex items-start gap-2">
+                          {isMultiSelectMode && (
+                            <button
+                              className="mt-3 p-1 hover:bg-muted rounded"
+                              onClick={() => toggleSelection(agent.id)}
+                            >
+                              {selectedIds.has(agent.id) ? (
+                                <CheckSquare className="h-4 w-4 text-primary" />
+                              ) : (
+                                <Square className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </button>
+                          )}
+                          <div className="flex-1">
+                            <AgentCard
+                              agent={agent}
+                              isSelected={selectedAgent?.id === agent.id}
+                              onSelect={() => selectAgent(agent.id)}
+                              onStart={() => startAgent(agent.id)}
+                              onPause={() => pauseAgent(agent.id)}
+                              onResume={() => resumeAgent(agent.id)}
+                              onCancel={() => cancelAgent(agent.id)}
+                              onDelete={() => deleteAgent(agent.id)}
+                            />
+                          </div>
+                        </div>
                       ))
                     )}
                   </div>
