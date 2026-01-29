@@ -35,3 +35,7 @@ export {
   type UseAgentModeResult,
   type UnifiedAgentMode,
 } from './use-agent-mode';
+export {
+  useProcessManager,
+  type UseProcessManagerReturn,
+} from './use-process-manager';

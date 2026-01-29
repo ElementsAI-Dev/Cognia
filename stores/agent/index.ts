@@ -48,3 +48,13 @@ export {
   type ModeGenerationRequest,
   type GeneratedModeResult,
 } from './custom-mode-store';
+
+export {
+  useProcessStore,
+  selectProcesses,
+  selectIsLoading,
+  selectTrackedPids,
+  selectTrackedByAgent,
+  type ProcessStoreState,
+  type TrackedProcess,
+} from './process-store';
