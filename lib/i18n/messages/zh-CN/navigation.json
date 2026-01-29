@@ -80,7 +80,8 @@
     "selectIcon": "选择图标",
     "searchIcons": "搜索图标...",
     "noIconsFound": "未找到图标",
-    "uploadImage": "上传图片"
+    "uploadImage": "上传图片",
+    "latex": "LaTeX"
   },
   "mobileNav": {
     "home": "首页",

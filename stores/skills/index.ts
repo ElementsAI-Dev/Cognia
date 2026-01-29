@@ -12,3 +12,11 @@ export {
   selectIsLoading as selectSkillsLoading,
   selectError as selectSkillsError,
 } from './skill-store';
+
+export {
+  useSkillMarketplaceStore,
+  selectSkillMarketplaceItems,
+  selectSkillMarketplaceLoading,
+  selectSkillMarketplaceError,
+  selectSkillMarketplaceApiKey,
+} from './skill-marketplace-store';

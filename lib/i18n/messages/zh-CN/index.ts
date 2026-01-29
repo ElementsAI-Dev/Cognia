@@ -35,6 +35,7 @@ import plugin from './plugin.json';
 import document from './document.json';
 import tray from './tray.json';
 import chatWidget from './chatWidget.json';
+import observability from './observability.json';
 
 const messages = {
   ...common,
@@ -70,7 +71,8 @@ const messages = {
   ...plugin,
   ...document,
   ...tray,
-  ...chatWidget
+  ...chatWidget,
+  ...observability
 };
 
 export default messages;

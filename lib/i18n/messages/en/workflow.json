@@ -237,7 +237,7 @@
     "variableScope": "Scope",
     "defaultValue": "Default Value",
     "secretValue": "Secret value",
-    "howToUseVariables": "Use {{variableName}} syntax in prompts to reference variables",
+    "howToUseVariables": "Use '{{variableName}}' syntax in prompts to reference variables",
     "variableCopied": "Variable reference copied",
 
     "noResultsFound": "No results found",
@@ -316,7 +316,24 @@
     "note": "Note",
     "color": "Color",
     "dragNodesToGroup": "Drag nodes here to group them",
-    "doubleClickToEdit": "Double-click to edit..."
+    "doubleClickToEdit": "Double-click to edit...",
+
+    "testInputs": "Test Inputs",
+    "testWorkflowInputs": "Test Workflow Inputs",
+    "testInputsDescription": "Configure test inputs and run the workflow",
+    "noInputsDefined": "No inputs defined",
+    "configureStartNode": "Configure inputs in the Start node",
+    "loadSample": "Load Sample",
+    "copyJson": "Copy JSON",
+    "runWithInputs": "Run Workflow",
+    "searchNodesPlaceholder": "Search nodes...",
+    "noNodesFound": "No nodes found",
+    "enableDebugMode": "Enable Debug Mode",
+    "removeFromFavorites": "Remove from favorites",
+    "addToFavorites": "Add to favorites",
+    "dragToCanvas": "Drag to canvas or",
+    "doubleClick": "double-click",
+    "toAdd": "to add"
   },
   "marketplace": {
     "title": "Template Marketplace",
@@ -335,6 +352,9 @@
     "previewBtn": "Preview",
     "useTemplate": "Use Template",
     "cloneTemplate": "Clone template",
+    "templateLoaded": "Template loaded successfully",
+    "templateLoadError": "Failed to load template",
+    "templateCloned": "Template cloned successfully",
     "git": {
       "title": "Git Integration",
       "cloneRepo": "Clone Repository",

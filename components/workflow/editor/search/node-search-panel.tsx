@@ -25,43 +25,18 @@ import {
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import {
   Search,
-  Play,
-  Square,
-  Bot,
-  Wrench,
-  GitBranch,
-  Code,
-  RefreshCw,
-  Users,
-  Clock,
-  Workflow,
-  Globe,
-  Shuffle,
-  GitMerge,
-  StickyNote,
-  Group,
   Circle,
 } from 'lucide-react';
+import { NODE_ICONS } from '@/lib/workflow-editor/constants';
 import type { WorkflowNodeType } from '@/types/workflow/workflow-editor';
+import { NODE_TYPE_COLORS } from '@/types/workflow/workflow-editor';
 
-const NODE_TYPE_ICONS: Record<WorkflowNodeType, React.ReactNode> = {
-  start: <Play className="h-3.5 w-3.5 text-green-500" />,
-  end: <Square className="h-3.5 w-3.5 text-red-500" />,
-  ai: <Bot className="h-3.5 w-3.5 text-purple-500" />,
-  tool: <Wrench className="h-3.5 w-3.5 text-blue-500" />,
-  conditional: <GitBranch className="h-3.5 w-3.5 text-amber-500" />,
-  code: <Code className="h-3.5 w-3.5 text-cyan-500" />,
-  loop: <RefreshCw className="h-3.5 w-3.5 text-orange-500" />,
-  human: <Users className="h-3.5 w-3.5 text-pink-500" />,
-  delay: <Clock className="h-3.5 w-3.5 text-gray-500" />,
-  subworkflow: <Workflow className="h-3.5 w-3.5 text-indigo-500" />,
-  webhook: <Globe className="h-3.5 w-3.5 text-teal-500" />,
-  parallel: <Shuffle className="h-3.5 w-3.5 text-violet-500" />,
-  transform: <Shuffle className="h-3.5 w-3.5 text-lime-500" />,
-  merge: <GitMerge className="h-3.5 w-3.5 text-emerald-500" />,
-  annotation: <StickyNote className="h-3.5 w-3.5 text-yellow-500" />,
-  group: <Group className="h-3.5 w-3.5 text-slate-500" />,
-};
+// Helper to render node icon with color
+function NodeTypeIcon({ type }: { type: WorkflowNodeType }) {
+  const Icon = NODE_ICONS[type];
+  const color = NODE_TYPE_COLORS[type] || '#6b7280';
+  return Icon ? <Icon className="h-3.5 w-3.5" style={{ color }} /> : <Circle className="h-3.5 w-3.5" />;
+}
 
 interface NodeSearchPanelProps {
   onNavigateToNode?: (nodeId: string) => void;
@@ -197,7 +172,7 @@ export function NodeSearchPanel({ onNavigateToNode }: NodeSearchPanelProps) {
                 <CommandGroup
                   heading={
                     <div className="flex items-center gap-1.5">
-                      {NODE_TYPE_ICONS[type as WorkflowNodeType] || <Circle className="h-3.5 w-3.5" />}
+                      <NodeTypeIcon type={type as WorkflowNodeType} />
                       <span className="capitalize">{type}</span>
                       <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
                         {nodes.length}
@@ -216,7 +191,7 @@ export function NodeSearchPanel({ onNavigateToNode }: NodeSearchPanelProps) {
                         className="flex items-center gap-2 cursor-pointer"
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          {NODE_TYPE_ICONS[node.type as WorkflowNodeType] || <Circle className="h-3.5 w-3.5" />}
+                          <NodeTypeIcon type={node.type as WorkflowNodeType} />
                           <span className="truncate">{node.data.label || 'Unnamed'}</span>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">

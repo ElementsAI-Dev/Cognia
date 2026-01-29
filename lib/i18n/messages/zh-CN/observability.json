@@ -29,18 +29,54 @@
       "disabledTitle": "可观测性已禁用",
       "disabledDescription": "在设置中启用可观测性以追踪 AI 操作、查看链路追踪和分析成本。",
       "totalRequests": "总请求数",
+      "totalTokens": "总 Token 数",
       "avgLatency": "平均延迟",
       "totalCost": "总成本",
       "errorRate": "错误率",
+      "avgPerRequest": "平均/请求",
       "recentTraces": "最近追踪",
       "noTraces": "暂无追踪记录。开始使用 AI 功能后将在此显示追踪信息。",
       "selectTrace": "选择一个追踪以查看详情",
       "traceRunning": "运行中...",
       "tabs": {
+        "overview": "概览",
         "traces": "追踪",
         "metrics": "指标",
         "costs": "成本分析"
       }
+    },
+
+    "emptyState": {
+      "disabledTitle": "可观测性已禁用",
+      "disabledDescription": "在设置中启用可观测性以追踪 AI 操作、查看链路追踪和分析成本。",
+      "goToSettings": "前往设置",
+      "noDataTitle": "暂无使用数据",
+      "noDataDescription": "开始使用 AI 功能后，您将在此看到使用分析、成本明细和性能指标。",
+      "tip1Title": "与 AI 对话",
+      "tip1Desc": "发送消息生成数据",
+      "tip2Title": "使用 AI 功能",
+      "tip2Desc": "探索各种 AI 能力",
+      "tip3Title": "追踪进度",
+      "tip3Desc": "查看分析趋势"
+    },
+
+    "charts": {
+      "usageTrend": "使用趋势",
+      "noData": "暂无数据",
+      "tokensK": "Token (K)",
+      "costUSD": "成本 ($)",
+      "providerDistribution": "提供商分布",
+      "tokensByProvider": "按提供商 Token 数",
+      "costByProvider": "按提供商成本",
+      "requestsByProvider": "按提供商请求数",
+      "modelUsage": "模型使用",
+      "tokensByModel": "按模型 Token 数",
+      "costByModel": "按模型成本",
+      "requestsByModel": "按模型请求数"
+    },
+
+    "recommendations": {
+      "title": "优化建议"
     },
 
     "costAnalysis": {

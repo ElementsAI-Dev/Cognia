@@ -1,0 +1,20 @@
+{
+  "title": "LaTeX Editor",
+  "description": "Write and preview LaTeX documents with AI assistance",
+  "templates": "Templates",
+  "selectTemplate": "Select Template",
+  "templateDescription": "Choose a template to start your document",
+  "export": "Export",
+  "exportDocument": "Export Document",
+  "exportDescription": "Choose export format",
+  "save": "Save",
+  "tabs": {
+    "editor": "Editor",
+    "templates": "Templates",
+    "history": "History"
+  },
+  "templateLibrary": "Template Library",
+  "documentHistory": "Document History",
+  "noHistory": "No document history yet",
+  "startEditing": "Start editing to create history"
+}

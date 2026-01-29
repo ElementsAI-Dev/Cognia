@@ -36,6 +36,8 @@ import document from './document.json';
 import tray from './tray.json';
 import chatWidget from './chatWidget.json';
 import imageStudio from './imageStudio.json';
+import latex from './latex.json';
+import observability from './observability.json';
 
 const messages = {
   ...common,
@@ -73,7 +75,9 @@ const messages = {
   ...document,
   ...tray,
   ...chatWidget,
-  ...imageStudio
+  ...imageStudio,
+  latex,
+  ...observability
 };
 
 export default messages;

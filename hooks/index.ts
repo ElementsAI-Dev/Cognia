@@ -67,3 +67,6 @@ export * from './latex';
 
 // Storage management hooks
 export * from './storage';
+
+// Observability hooks
+export * from './observability';

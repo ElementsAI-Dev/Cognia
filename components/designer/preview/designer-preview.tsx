@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
-import { getInsertionPoint, findElementByPattern } from '@/lib/designer/element-locator';
+import { getInsertionPoint, findElementByPattern } from '@/lib/designer/elements';
 import type { ViewportSize } from '@/types/designer';
 
 interface DesignerPreviewProps {

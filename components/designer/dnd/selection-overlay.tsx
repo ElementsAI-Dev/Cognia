@@ -31,7 +31,7 @@ import {
   getVisualBounds,
   getIframeElementBounds,
   type VisualBounds,
-} from '@/lib/designer/element-locator';
+} from '@/lib/designer/elements';
 import type { DesignerElement } from '@/types/designer';
 
 interface SelectionOverlayProps {

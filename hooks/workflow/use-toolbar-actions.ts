@@ -1,0 +1,159 @@
+/**
+ * useToolbarActions - Shared toolbar actions hook for workflow editor
+ * Extracts common action handlers used by both mobile and desktop toolbars
+ */
+
+import { useCallback, useMemo } from 'react';
+import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
+
+export interface ToolbarState {
+  canUndo: boolean;
+  canRedo: boolean;
+  canSave: boolean;
+  canRun: boolean;
+  canPause: boolean;
+  canResume: boolean;
+  canStop: boolean;
+  isValid: boolean;
+  hasSelection: boolean;
+}
+
+export function useToolbarActions() {
+  const {
+    currentWorkflow,
+    isDirty,
+    isExecuting,
+    executionState,
+    selectedNodes,
+    history,
+    historyIndex,
+    validationErrors,
+    showNodePalette,
+    showConfigPanel,
+    showMinimap,
+    saveWorkflow,
+    undo,
+    redo,
+    deleteNodes,
+    duplicateNode,
+    startExecution,
+    pauseExecution,
+    resumeExecution,
+    cancelExecution,
+    autoLayout,
+    alignNodes,
+    toggleNodePalette,
+    toggleConfigPanel,
+    toggleMinimap,
+    validate,
+  } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      currentWorkflow: state.currentWorkflow,
+      isDirty: state.isDirty,
+      isExecuting: state.isExecuting,
+      executionState: state.executionState,
+      selectedNodes: state.selectedNodes,
+      history: state.history,
+      historyIndex: state.historyIndex,
+      validationErrors: state.validationErrors,
+      showNodePalette: state.showNodePalette,
+      showConfigPanel: state.showConfigPanel,
+      showMinimap: state.showMinimap,
+      saveWorkflow: state.saveWorkflow,
+      undo: state.undo,
+      redo: state.redo,
+      deleteNodes: state.deleteNodes,
+      duplicateNode: state.duplicateNode,
+      startExecution: state.startExecution,
+      pauseExecution: state.pauseExecution,
+      resumeExecution: state.resumeExecution,
+      cancelExecution: state.cancelExecution,
+      autoLayout: state.autoLayout,
+      alignNodes: state.alignNodes,
+      toggleNodePalette: state.toggleNodePalette,
+      toggleConfigPanel: state.toggleConfigPanel,
+      toggleMinimap: state.toggleMinimap,
+      validate: state.validate,
+    }))
+  );
+
+  // Computed state
+  const state: ToolbarState = useMemo(() => ({
+    canUndo: historyIndex > 0,
+    canRedo: historyIndex < history.length - 1,
+    canSave: isDirty && currentWorkflow !== null,
+    canRun: !isExecuting && currentWorkflow !== null,
+    canPause: isExecuting && executionState?.status === 'running',
+    canResume: isExecuting && executionState?.status === 'paused',
+    canStop: isExecuting,
+    isValid: validationErrors.length === 0,
+    hasSelection: selectedNodes.length > 0,
+  }), [historyIndex, history.length, isDirty, currentWorkflow, isExecuting, executionState, validationErrors, selectedNodes]);
+
+  // Action handlers
+  const handleSave = useCallback(() => {
+    if (state.canSave) {
+      saveWorkflow();
+    }
+  }, [state.canSave, saveWorkflow]);
+
+  const handleRun = useCallback(() => {
+    if (state.canRun) {
+      const errors = validate();
+      if (errors.length === 0) {
+        startExecution({});
+      }
+    }
+  }, [state.canRun, validate, startExecution]);
+
+  const handleDeleteSelection = useCallback(() => {
+    if (state.hasSelection) {
+      deleteNodes(selectedNodes);
+    }
+  }, [state.hasSelection, deleteNodes, selectedNodes]);
+
+  const handleDuplicateSelection = useCallback(() => {
+    if (state.hasSelection) {
+      selectedNodes.forEach((nodeId) => duplicateNode(nodeId));
+    }
+  }, [state.hasSelection, duplicateNode, selectedNodes]);
+
+  const handleAlign = useCallback((direction: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
+    if (state.hasSelection && selectedNodes.length >= 2) {
+      alignNodes(direction);
+    }
+  }, [state.hasSelection, selectedNodes.length, alignNodes]);
+
+  return {
+    // State
+    state,
+    currentWorkflow,
+    showNodePalette,
+    showConfigPanel,
+    showMinimap,
+    selectedNodes,
+    validationErrors,
+    isExecuting,
+    executionState,
+    
+    // Actions
+    handleSave,
+    handleRun,
+    handleDeleteSelection,
+    handleDuplicateSelection,
+    handleAlign,
+    undo,
+    redo,
+    autoLayout,
+    pauseExecution,
+    resumeExecution,
+    cancelExecution,
+    toggleNodePalette,
+    toggleConfigPanel,
+    toggleMinimap,
+    validate,
+  };
+}
+
+export default useToolbarActions;

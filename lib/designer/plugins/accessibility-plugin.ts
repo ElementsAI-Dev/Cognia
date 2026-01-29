@@ -4,7 +4,7 @@
  */
 
 import type { DesignerPlugin, PluginContext, PluginResult } from './plugin-system';
-import { detectAccessibilityIssues } from '../ai-analyzer';
+import { detectAccessibilityIssues } from '../ai';
 
 export interface AccessibilityIssue {
   type: string;

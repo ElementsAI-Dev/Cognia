@@ -26,6 +26,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 
 export interface AnnotationNodeData {
   [key: string]: unknown;
@@ -59,7 +60,13 @@ function AnnotationNodeComponent({ id, data, selected }: NodeProps) {
   const nodeData = data as AnnotationNodeData;
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(nodeData.content || '');
-  const { updateNode, deleteNode, duplicateNode } = useWorkflowEditorStore();
+  const { updateNode, deleteNode, duplicateNode } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      updateNode: state.updateNode,
+      deleteNode: state.deleteNode,
+      duplicateNode: state.duplicateNode,
+    }))
+  );
 
   const currentColor = ANNOTATION_COLORS.find(c => c.value === nodeData.color) || ANNOTATION_COLORS[0];
 

@@ -58,6 +58,27 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
       });
     },
 
+    loadFromTemplate: (workflow) => {
+      // Create a copy with new ID and timestamps for template-based workflow
+      const templateWorkflow = {
+        ...workflow,
+        id: `workflow-${Date.now()}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      set({
+        currentWorkflow: templateWorkflow,
+        selectedNodes: [],
+        selectedEdges: [],
+        history: [templateWorkflow],
+        historyIndex: 0,
+        isDirty: true,
+        validationErrors: [],
+        executionState: null,
+        isExecuting: false,
+      });
+    },
+
     saveWorkflow: async () => {
       const { currentWorkflow, savedWorkflows } = get();
       if (!currentWorkflow) return;

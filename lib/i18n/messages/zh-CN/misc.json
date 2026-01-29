@@ -160,6 +160,7 @@
     "clear": "清空",
     "advancedSettings": "高级设置",
     "done": "完成",
+    "debug": "调试",
     "compressionSettings": "压缩设置",
     "enableCompression": "启用压缩",
     "compressionStrategy": "策略",

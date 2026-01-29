@@ -48,6 +48,7 @@ import {
   FileJson,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 interface SaveVersionDialogProps {
   open: boolean;
@@ -145,7 +146,9 @@ export function ImportExportDialog({ open, onOpenChange }: ImportExportDialogPro
       await importFromFile(file);
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to import workflow:', error);
+      toast.error('Failed to import workflow', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
     } finally {
       setImporting(false);
       if (fileInputRef.current) {

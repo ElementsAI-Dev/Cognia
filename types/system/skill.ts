@@ -42,7 +42,7 @@ export interface SkillResource {
 /**
  * Skill source - where the skill came from
  */
-export type SkillSource = 'builtin' | 'custom' | 'imported' | 'generated';
+export type SkillSource = 'builtin' | 'custom' | 'imported' | 'generated' | 'marketplace';
 
 /**
  * Skill status

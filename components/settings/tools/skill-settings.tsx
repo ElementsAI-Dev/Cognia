@@ -39,6 +39,7 @@ import { parseSkillMd } from '@/lib/skills/parser';
 import { SKILL_CATEGORY_KEYS } from '@/lib/settings/tools';
 import { SkillDetail } from '@/components/skills/skill-detail';
 import { SkillDiscovery } from '@/components/skills/skill-discovery';
+import { SkillMarketplace } from '@/components/skills/skill-marketplace';
 import { SkillCard } from './skill-card';
 import { CreateSkillDialog } from './create-skill-dialog';
 import { ImportSkillDialog } from './import-skill-dialog';
@@ -180,9 +181,10 @@ export function SkillSettings() {
           )}
 
           <Tabs defaultValue="my-skills" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="my-skills">{t('mySkills')}</TabsTrigger>
               <TabsTrigger value="discover">{t('discover')}</TabsTrigger>
+              <TabsTrigger value="marketplace">{t('marketplace')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="my-skills" className="space-y-4">
@@ -267,6 +269,10 @@ export function SkillSettings() {
 
             <TabsContent value="discover">
               <SkillDiscovery />
+            </TabsContent>
+
+            <TabsContent value="marketplace">
+              <SkillMarketplace />
             </TabsContent>
           </Tabs>
         </CardContent>

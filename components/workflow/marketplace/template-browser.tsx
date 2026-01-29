@@ -37,6 +37,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { TemplatePreview } from './template-preview';
+import { useWorkflowEditorStore } from '@/stores/workflow';
+import { toast } from 'sonner';
 
 export function TemplateBrowser() {
   const t = useTranslations('marketplace');
@@ -50,6 +52,8 @@ export function TemplateBrowser() {
     incrementUsage,
     setSelectedTemplate,
   } = useTemplateMarketStore();
+
+  const { loadFromTemplate } = useWorkflowEditorStore();
 
   const [searchInput, setSearchInput] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -87,14 +91,24 @@ export function TemplateBrowser() {
 
   const handleUseTemplate = (template: WorkflowTemplate) => {
     incrementUsage(template.id);
-    // TODO: Load template into workflow editor
-    console.log('Using template:', template.id);
+    try {
+      loadFromTemplate(template.workflow);
+      toast.success(t('templateLoaded'), {
+        description: template.name,
+      });
+    } catch (error) {
+      toast.error(t('templateLoadError'), {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   };
 
   const handleCloneTemplate = (template: WorkflowTemplate) => {
     const cloned = cloneTemplate(template.id, `${template.name} (Copy)`);
     if (cloned) {
-      console.log('Cloned template:', cloned.id);
+      toast.success(t('templateCloned'), {
+        description: cloned.name,
+      });
     }
   };
 

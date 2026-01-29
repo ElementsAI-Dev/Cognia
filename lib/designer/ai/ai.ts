@@ -22,7 +22,7 @@ import {
   findElementInAst,
   buildElementCodeMapping,
   type ElementCodeMapping,
-} from './element-locator';
+} from '../elements/element-locator';
 import type { DesignerElement } from '@/types/designer';
 
 export interface DesignerAIConfig {

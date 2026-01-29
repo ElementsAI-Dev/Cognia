@@ -17,3 +17,6 @@ export { SkillWizard } from './skill-wizard';
 export { SkillSuggestions, ActiveSkillsIndicator } from './skill-suggestions';
 export { SkillDiscovery } from './skill-discovery';
 export { SkillSecurityScanner } from './skill-security-scanner';
+export { SkillMarketplace } from './skill-marketplace';
+export { SkillMarketplaceCard } from './skill-marketplace-card';
+export { SkillMarketplaceDetail } from './skill-marketplace-detail';

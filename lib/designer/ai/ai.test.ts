@@ -170,6 +170,7 @@ describe('DesignerAIConfig type', () => {
 describe('AIConversationMessage type', () => {
   it('should accept valid message objects', () => {
     const message: AIConversationMessage = {
+      id: 'test-msg-1',
       role: 'user',
       content: 'Make the button blue',
       timestamp: new Date(),
@@ -180,6 +181,7 @@ describe('AIConversationMessage type', () => {
 
   it('should accept assistant message with code snapshot', () => {
     const message: AIConversationMessage = {
+      id: 'test-msg-2',
       role: 'assistant',
       content: 'Done! I updated the button color.',
       timestamp: new Date(),
@@ -359,8 +361,8 @@ describe('continueDesignConversation', () => {
       apiKey: 'test-key',
     };
     const history: AIConversationMessage[] = [
-      { role: 'user', content: 'Make it blue', timestamp: new Date() },
-      { role: 'assistant', content: 'Done!', timestamp: new Date() },
+      { id: 'hist-1', role: 'user', content: 'Make it blue', timestamp: new Date() },
+      { id: 'hist-2', role: 'assistant', content: 'Done!', timestamp: new Date() },
     ];
     
     await continueDesignConversation('code', history, 'now make it red', config);

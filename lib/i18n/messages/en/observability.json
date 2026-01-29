@@ -29,18 +29,54 @@
       "disabledTitle": "Observability Disabled",
       "disabledDescription": "Enable observability in settings to track AI operations, view traces, and analyze costs.",
       "totalRequests": "Total Requests",
+      "totalTokens": "Total Tokens",
       "avgLatency": "Avg Latency",
       "totalCost": "Total Cost",
       "errorRate": "Error Rate",
+      "avgPerRequest": "Avg/Request",
       "recentTraces": "Recent Traces",
       "noTraces": "No traces yet. Start using AI features to see traces here.",
       "selectTrace": "Select a trace to view details",
       "traceRunning": "Running...",
       "tabs": {
+        "overview": "Overview",
         "traces": "Traces",
         "metrics": "Metrics",
         "costs": "Cost Analysis"
       }
+    },
+
+    "emptyState": {
+      "disabledTitle": "Observability Disabled",
+      "disabledDescription": "Enable observability in settings to track AI operations, view traces, and analyze costs.",
+      "goToSettings": "Go to Settings",
+      "noDataTitle": "No Usage Data Yet",
+      "noDataDescription": "Start using AI features to see your usage analytics, cost breakdowns, and performance metrics here.",
+      "tip1Title": "Chat with AI",
+      "tip1Desc": "Send messages to generate data",
+      "tip2Title": "Use AI Features",
+      "tip2Desc": "Explore various AI capabilities",
+      "tip3Title": "Track Progress",
+      "tip3Desc": "View analytics over time"
+    },
+
+    "charts": {
+      "usageTrend": "Usage Trend",
+      "noData": "No data available",
+      "tokensK": "Tokens (K)",
+      "costUSD": "Cost ($)",
+      "providerDistribution": "Provider Distribution",
+      "tokensByProvider": "Tokens by Provider",
+      "costByProvider": "Cost by Provider",
+      "requestsByProvider": "Requests by Provider",
+      "modelUsage": "Model Usage",
+      "tokensByModel": "Tokens by Model",
+      "costByModel": "Cost by Model",
+      "requestsByModel": "Requests by Model"
+    },
+
+    "recommendations": {
+      "title": "Recommendations"
     },
 
     "costAnalysis": {

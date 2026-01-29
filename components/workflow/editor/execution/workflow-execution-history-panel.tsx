@@ -57,6 +57,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { workflowRepository } from '@/lib/db/repositories';
+import { toast } from 'sonner';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 
 // Execution record type (matches repository)
@@ -103,7 +104,9 @@ export function WorkflowExecutionHistoryPanel({
       const data = await workflowRepository.getExecutions(effectiveWorkflowId, 100);
       setExecutions(data);
     } catch (error) {
-      console.error('Failed to load executions:', error);
+      toast.error('Failed to load executions', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -151,7 +154,9 @@ export function WorkflowExecutionHistoryPanel({
       // For now, we just remove from local state
       setExecutions((prev) => prev.filter((e) => e.id !== executionToDelete));
     } catch (error) {
-      console.error('Failed to delete execution:', error);
+      toast.error('Failed to delete execution', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
     } finally {
       setExecutionToDelete(null);
       setDeleteDialogOpen(false);

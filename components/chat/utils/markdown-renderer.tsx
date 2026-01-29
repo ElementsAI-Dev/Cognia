@@ -61,10 +61,16 @@ import 'katex/dist/katex.min.css';
  */
 const sanitizeSchema = {
   ...defaultSchema,
-  // Allow additional safe HTML elements
+  // Allow additional safe HTML elements including KaTeX MathML
   tagNames: [
     ...(defaultSchema.tagNames ?? []),
-    'div', 'span', 'summary', 'details', 'figure', 'figcaption', 'sup', 'sub'
+    'div', 'span', 'summary', 'details', 'figure', 'figcaption', 'sup', 'sub',
+    // KaTeX MathML elements
+    'math', 'annotation', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'ms', 'mtext',
+    'mspace', 'msqrt', 'mroot', 'mfrac', 'msub', 'msup', 'msubsup', 'munder',
+    'mover', 'munderover', 'mtable', 'mtr', 'mtd', 'menclose', 'maction',
+    'mpadded', 'mphantom', 'mglyph', 'mlabeledtr', 'mmultiscripts', 'mprescripts',
+    'none', 'maligngroup', 'malignmark',
   ],
   // Allow additional safe attributes
   attributes: {
@@ -72,27 +78,33 @@ const sanitizeSchema = {
     // Allow common styling attributes
     '*': [
       ...(defaultSchema.attributes?.['*'] ?? []),
-      'className', 'class', 'style'
+      'className', 'class', 'style', 'aria-hidden',
     ],
     // Allow specific attributes for links
     a: [
       ...(defaultSchema.attributes?.a ?? []),
-      'className', 'class'
+      'className', 'class',
     ],
     // Allow specific attributes for images
     img: [
       ...(defaultSchema.attributes?.img ?? []),
-      'className', 'class', 'loading'
+      'className', 'class', 'loading',
     ],
     // Allow table-specific attributes
     th: [
       ...(defaultSchema.attributes?.th ?? []),
-      'className', 'class', 'rowSpan', 'colSpan'
+      'className', 'class', 'rowSpan', 'colSpan',
     ],
     td: [
       ...(defaultSchema.attributes?.td ?? []),
-      'className', 'class', 'rowSpan', 'colSpan'
-    ]
+      'className', 'class', 'rowSpan', 'colSpan',
+    ],
+    // KaTeX-specific attributes
+    math: ['xmlns', 'display'],
+    annotation: ['encoding'],
+    mrow: ['displaystyle'],
+    mtable: ['columnalign', 'columnspacing', 'rowspacing'],
+    mtd: ['columnalign'],
   },
   // Explicitly forbid dangerous protocols (javascript:, data:, etc.)
   protocols: {
@@ -100,9 +112,21 @@ const sanitizeSchema = {
     // Only allow safe protocols for href
     href: ['http', 'https', 'mailto'],
     // Only allow safe protocols for src
-    src: ['http', 'https', 'data:image']
-  }
+    src: ['http', 'https', 'data:image'],
+  },
 };
+
+/**
+ * Preprocess LaTeX delimiters to ensure compatibility with remark-math
+ * Converts \[...\] to $$...$$ and \(...\) to $...$
+ */
+function preprocessLatex(content: string): string {
+  // Convert \[...\] to $$...$$ (display math)
+  let processed = content.replace(/\\\[([\s\S]*?)\\\]/g, (_match, eq) => `$$${eq}$$`);
+  // Convert \(...\) to $...$ (inline math)
+  processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, (_match, eq) => `$${eq}$`);
+  return processed;
+}
 
 interface MarkdownRendererProps {
   content: string;
@@ -146,13 +170,29 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   const rehypePlugins = useMemo(() => {
     const plugins: Parameters<typeof ReactMarkdown>[0]['rehypePlugins'] = [
       rehypeRaw,
-      [rehypeSanitize, sanitizeSchema] // Sanitize HTML to prevent XSS
     ];
+    // IMPORTANT: rehypeKatex must run BEFORE rehypeSanitize
+    // Otherwise, KaTeX-generated HTML elements will be stripped
     if (enableMath) {
-      plugins.push(rehypeKatex);
+      plugins.push([rehypeKatex, {
+        throwOnError: false,
+        strict: false,
+        trust: true,
+        output: 'htmlAndMathml',
+      }]);
     }
+    // Sanitize HTML last to prevent XSS while preserving KaTeX output
+    plugins.push([rehypeSanitize, sanitizeSchema]);
     return plugins;
   }, [enableMath]);
+
+  // Preprocess content to handle different LaTeX delimiter formats
+  const processedContent = useMemo(() => {
+    if (enableMath) {
+      return preprocessLatex(content);
+    }
+    return content;
+  }, [content, enableMath]);
 
   return (
     <div className={cn('markdown-renderer prose prose-sm dark:prose-invert max-w-none', className)}>
@@ -343,11 +383,13 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
           },
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );
 });
+
+MarkdownRenderer.displayName = 'MarkdownRenderer';
 
 /**
  * Extract text content from React children for alert detection

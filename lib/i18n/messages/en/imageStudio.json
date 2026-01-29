@@ -1,5 +1,5 @@
 {
-  "common": {
+  "imageStudioCommon": {
     "loadingImage": "Loading image...",
     "loadingImages": "Loading images...",
     "cancel": "Cancel",

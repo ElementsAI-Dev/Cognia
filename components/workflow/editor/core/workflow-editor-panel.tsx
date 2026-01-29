@@ -23,10 +23,16 @@ import { Controls } from '@/components/ai-elements/controls';
 import { Panel } from '@/components/ai-elements/panel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from '@/components/ui/resizable';
 import { Plus, Settings, Play, LayoutGrid } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useWorkflowKeyboardShortcuts, useMediaQuery } from '@/hooks';
 import { nodeTypes } from '../nodes';
@@ -241,81 +247,69 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
 
       {/* Main content */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
-        {/* Node palette - Desktop only */}
-        {!isMobile && showNodePalette && (
-          <NodePalette className="w-64 shrink-0 h-full hidden md:flex" />
-        )}
-
-        {/* React Flow canvas */}
-        <div
-          ref={reactFlowWrapper}
-          className="flex-1 h-full relative"
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-        >
-          <ReactFlow
-            nodes={currentWorkflow.nodes as Node[]}
-            edges={currentWorkflow.edges}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={handleEdgesChange}
-            onConnect={handleConnect}
-            onSelectionChange={handleSelectionChange}
-            onNodeDragStart={() => {
-              isDragHistoryPendingRef.current = true;
-            }}
-            onNodeDragStop={() => {
-              if (!isDragHistoryPendingRef.current) return;
-              isDragHistoryPendingRef.current = false;
-              pushHistory();
-            }}
-            onMoveEnd={(_event, viewport) => {
-              setViewport(viewport);
-            }}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            connectionLineComponent={CustomConnectionLine}
-            fitView
-            fitViewOptions={{ padding: 0.2 }}
-            defaultViewport={currentWorkflow.viewport}
-            snapToGrid={currentWorkflow.settings.snapToGrid}
-            snapGrid={[currentWorkflow.settings.gridSize, currentWorkflow.settings.gridSize]}
-            deleteKeyCode={['Backspace', 'Delete']}
-            multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
-            selectionOnDrag
-            panOnScroll
-            zoomOnPinch
-            panOnDrag={isMobile ? [1, 2] : true}
-            selectNodesOnDrag={false}
-            className="bg-background touch-none"
-            proOptions={{ hideAttribution: true }}
+        {isMobile ? (
+          /* Mobile layout - no resizable panels */
+          <div
+            ref={reactFlowWrapper}
+            className="flex-1 h-full relative"
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
           >
-            <Controls className="hidden md:flex" />
-            {/* Workflow info panel */}
-            <Panel position="top-left">
-              <div className="text-xs text-muted-foreground px-2 py-1 bg-background/80 backdrop-blur-sm rounded">
-                {currentWorkflow.name} · {currentWorkflow.nodes.length} nodes
-              </div>
-            </Panel>
-            {showMinimap && !isMobile && (
-              <MiniMap
-                className="bg-background border rounded-lg shadow-sm hidden md:block"
-                nodeStrokeWidth={3}
-                zoomable
-                pannable
-              />
-            )}
-            {currentWorkflow.settings.showGrid && (
-              <Background
-                variant={BackgroundVariant.Dots}
-                gap={currentWorkflow.settings.gridSize}
-                size={1}
-                className="bg-muted/30"
-              />
-            )}
-          </ReactFlow>
+            <ReactFlow
+              nodes={currentWorkflow.nodes as Node[]}
+              edges={currentWorkflow.edges}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={handleEdgesChange}
+              onConnect={handleConnect}
+              onSelectionChange={handleSelectionChange}
+              onNodeDragStart={() => {
+                isDragHistoryPendingRef.current = true;
+              }}
+              onNodeDragStop={() => {
+                if (!isDragHistoryPendingRef.current) return;
+                isDragHistoryPendingRef.current = false;
+                pushHistory();
+              }}
+              onMoveEnd={(_event, viewport) => {
+                setViewport(viewport);
+              }}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              connectionLineComponent={CustomConnectionLine}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              defaultViewport={currentWorkflow.viewport}
+              snapToGrid={currentWorkflow.settings.snapToGrid}
+              snapGrid={[currentWorkflow.settings.gridSize, currentWorkflow.settings.gridSize]}
+              deleteKeyCode={['Backspace', 'Delete']}
+              multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
+              selectionOnDrag
+              panOnScroll
+              zoomOnPinch
+              panOnDrag={[1, 2]}
+              selectNodesOnDrag={false}
+              className="bg-background touch-none"
+              proOptions={{ hideAttribution: true }}
+            >
+              {showMinimap && (
+                <MiniMap
+                  className="bg-background border rounded-lg shadow-sm"
+                  nodeStrokeWidth={3}
+                  zoomable
+                  pannable
+                />
+              )}
+              {currentWorkflow.settings.showGrid && (
+                <Background
+                  variant={BackgroundVariant.Dots}
+                  gap={currentWorkflow.settings.gridSize}
+                  size={1}
+                  className="bg-muted/30"
+                />
+              )}
+            </ReactFlow>
 
-          {/* Mobile FAB (Floating Action Buttons) */}
-          {isMobile && (
+            {/* Mobile FAB (Floating Action Buttons) */}
             <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
               <Button
                 size="icon"
@@ -346,10 +340,8 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
                 </Button>
               )}
             </div>
-          )}
 
-          {/* Mobile zoom controls */}
-          {isMobile && (
+            {/* Mobile zoom controls */}
             <div className="absolute bottom-4 left-4 flex flex-col gap-1 z-10">
               <Button
                 size="icon"
@@ -376,20 +368,172 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
                 <LayoutGrid className="h-4 w-4" />
               </Button>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          /* Desktop layout - resizable panels */
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            {/* Node Palette Panel */}
+            <AnimatePresence mode="popLayout">
+              {showNodePalette && (
+                <>
+                  <ResizablePanel
+                    id="node-palette"
+                    order={1}
+                    defaultSize={18}
+                    minSize={15}
+                    maxSize={30}
+                    className="hidden md:block"
+                  >
+                    <motion.div
+                      key="node-palette"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="h-full"
+                    >
+                      <NodePalette className="h-full" />
+                    </motion.div>
+                  </ResizablePanel>
+                  <ResizableHandle withHandle className="hidden md:flex" />
+                </>
+              )}
+            </AnimatePresence>
 
-        {/* Config panel - Desktop only */}
-        {!isMobile && showConfigPanel && selectedNodes.length > 0 && (
-          <NodeConfigPanel
-            nodeId={selectedNodes[0]}
-            className="w-80 shrink-0 hidden md:flex"
-          />
-        )}
+            {/* Main Canvas Panel */}
+            <ResizablePanel id="canvas" order={2} defaultSize={64} minSize={30}>
+              <div
+                ref={reactFlowWrapper}
+                className="h-full relative"
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+              >
+                <ReactFlow
+                  nodes={currentWorkflow.nodes as Node[]}
+                  edges={currentWorkflow.edges}
+                  onNodesChange={handleNodesChange}
+                  onEdgesChange={handleEdgesChange}
+                  onConnect={handleConnect}
+                  onSelectionChange={handleSelectionChange}
+                  onNodeDragStart={() => {
+                    isDragHistoryPendingRef.current = true;
+                  }}
+                  onNodeDragStop={() => {
+                    if (!isDragHistoryPendingRef.current) return;
+                    isDragHistoryPendingRef.current = false;
+                    pushHistory();
+                  }}
+                  onMoveEnd={(_event, viewport) => {
+                    setViewport(viewport);
+                  }}
+                  nodeTypes={nodeTypes}
+                  edgeTypes={edgeTypes}
+                  connectionLineComponent={CustomConnectionLine}
+                  fitView
+                  fitViewOptions={{ padding: 0.2 }}
+                  defaultViewport={currentWorkflow.viewport}
+                  snapToGrid={currentWorkflow.settings.snapToGrid}
+                  snapGrid={[currentWorkflow.settings.gridSize, currentWorkflow.settings.gridSize]}
+                  deleteKeyCode={['Backspace', 'Delete']}
+                  multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
+                  selectionOnDrag
+                  panOnScroll
+                  zoomOnPinch
+                  panOnDrag
+                  selectNodesOnDrag={false}
+                  className="bg-background touch-none"
+                  proOptions={{ hideAttribution: true }}
+                >
+                  <Controls className="hidden md:flex" />
+                  <Panel position="top-left">
+                    <div className="text-xs text-muted-foreground px-2 py-1 bg-background/80 backdrop-blur-sm rounded">
+                      {currentWorkflow.name} · {currentWorkflow.nodes.length} nodes
+                    </div>
+                  </Panel>
+                  {showMinimap && (
+                    <MiniMap
+                      className="bg-background border rounded-lg shadow-sm"
+                      nodeStrokeWidth={3}
+                      zoomable
+                      pannable
+                    />
+                  )}
+                  {currentWorkflow.settings.showGrid && (
+                    <Background
+                      variant={BackgroundVariant.Dots}
+                      gap={currentWorkflow.settings.gridSize}
+                      size={1}
+                      className="bg-muted/30"
+                    />
+                  )}
+                </ReactFlow>
+              </div>
+            </ResizablePanel>
 
-        {/* Execution panel - Desktop only */}
-        {!isMobile && (showExecutionPanel || isExecuting) && (
-          <ExecutionPanel className="w-80 shrink-0 hidden md:flex" />
+          {/* Config/Execution Panels */}
+          <AnimatePresence mode="popLayout">
+            {(showConfigPanel || showExecutionPanel || isExecuting) && (
+              <>
+                <ResizableHandle withHandle className="hidden md:flex" />
+                <ResizablePanel
+                  id="right-panel"
+                  order={3}
+                  defaultSize={18}
+                  minSize={15}
+                  maxSize={35}
+                  className="hidden md:block"
+                >
+                  <motion.div
+                    key="right-panel"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="h-full flex flex-col"
+                  >
+                    {/* Show Config Panel if enabled */}
+                    {showConfigPanel && (
+                      <div className={cn(
+                        "flex flex-col border-b",
+                        (showExecutionPanel || isExecuting) ? "h-1/2" : "h-full"
+                      )}>
+                        {selectedNodes.length > 0 ? (
+                          <NodeConfigPanel
+                            nodeId={selectedNodes[0]}
+                            className="h-full"
+                          />
+                        ) : (
+                          <div className="h-full flex flex-col bg-background">
+                            <div className="p-3 border-b shrink-0">
+                              <span className="text-sm font-medium">Node Configuration</span>
+                            </div>
+                            <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                              <div className="text-center p-4">
+                                <Settings className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                <p className="text-sm">Select a node to configure</p>
+                                <p className="text-xs mt-1">Click on any node in the canvas</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Show Execution Panel if executing or panel toggled */}
+                    {(showExecutionPanel || isExecuting) && (
+                      <div className={cn(
+                        "flex flex-col",
+                        showConfigPanel ? "h-1/2" : "h-full"
+                      )}>
+                        <ExecutionPanel className="h-full" />
+                      </div>
+                    )}
+                  </motion.div>
+                </ResizablePanel>
+              </>
+            )}
+          </AnimatePresence>
+        </ResizablePanelGroup>
         )}
       </div>
 

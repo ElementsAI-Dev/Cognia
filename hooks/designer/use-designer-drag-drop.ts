@@ -7,12 +7,12 @@
 
 import { useCallback, useState, useRef } from 'react';
 import { useDesignerStore } from '@/stores/designer';
-import { parseComponentToElement } from '@/lib/designer/element-parser';
+import { parseComponentToElement } from '@/lib/designer/elements';
 import {
   calculateDropPosition as calcDropPos,
   calculateDropPositionHorizontal as calcDropPosHorizontal,
   getVisualBounds,
-} from '@/lib/designer/element-locator';
+} from '@/lib/designer/elements';
 import type { DesignerElement } from '@/types/designer';
 
 // Drag data types

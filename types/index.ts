@@ -61,3 +61,6 @@ export * from './ui';
 
 // Input completion types
 export * from './input-completion';
+
+// Skill marketplace types
+export * from './skill';

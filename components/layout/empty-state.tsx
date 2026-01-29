@@ -40,8 +40,17 @@ export function EmptyState({
   const renderIcon = () => {
     if (!Icon) return null;
 
-    // If Icon is a function (LucideIcon component), render it with className
-    if (typeof Icon === 'function') {
+    // Check if Icon is a component that can be rendered
+    // - Plain function components: typeof === 'function'
+    // - forwardRef components (like Lucide): object with 'render' property
+    const isComponent =
+      typeof Icon === 'function' ||
+      (typeof Icon === 'object' &&
+        Icon !== null &&
+        'render' in Icon &&
+        typeof (Icon as { render?: unknown }).render === 'function');
+
+    if (isComponent) {
       const IconComponent = Icon as LucideIcon;
       return (
         <IconComponent

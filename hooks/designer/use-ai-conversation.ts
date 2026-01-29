@@ -6,13 +6,13 @@
 import { useCallback, useState, useRef } from 'react';
 import {
   createConversation,
-  continueConversation,
+  continueAIConversation,
   streamConversation,
   clearConversationHistory,
   getConversationSummary,
   type AIConversation,
   type AIConversationMessage,
-} from '@/lib/designer/ai-conversation';
+} from '@/lib/designer/ai';
 import { getDesignerAIConfig, type DesignerAIConfig } from '@/lib/designer/ai';
 import { useSettingsStore } from '@/stores';
 
@@ -80,7 +80,7 @@ export function useAIConversation(
           currentConversation = initConversation(initialCode);
         }
 
-        const result = await continueConversation(
+        const result = await continueAIConversation(
           currentConversation,
           message,
           config

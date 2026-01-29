@@ -31,92 +31,26 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 import {
   Search,
   ChevronDown,
-  Play,
-  Square,
-  Sparkles,
-  Wrench,
-  GitBranch,
-  GitFork,
-  User,
   Workflow,
-  Repeat,
-  Clock,
-  Globe,
-  Code,
-  Shuffle,
-  GitMerge,
-  Settings,
-  Plug,
-  Bookmark,
-  Database,
-  Filter,
-  Sigma,
   History,
   Star,
   X,
   SlidersHorizontal,
-  Zap,
   Heart,
+  Bookmark,
 } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { NODE_CATEGORIES, NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow/workflow-editor';
+import { NODE_ICONS, NODE_TAGS, NODE_TYPE_TAGS } from '@/lib/workflow-editor/constants';
 import { NodeTemplatePanel } from './node-template-manager';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 
-const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  Play,
-  Square,
-  Sparkles,
-  Wrench,
-  GitBranch,
-  GitFork,
-  User,
-  Workflow,
-  Repeat,
-  Clock,
-  Globe,
-  Code,
-  Shuffle,
-  GitMerge,
-  Settings,
-  Plug,
-  Database,
-  Filter,
-  Sigma,
-  Zap,
-};
-
-// Node tags for filtering
-const NODE_TAGS = [
-  { id: 'ai', label: 'AI', color: 'bg-purple-500/20 text-purple-600' },
-  { id: 'data', label: 'Data', color: 'bg-blue-500/20 text-blue-600' },
-  { id: 'flow', label: 'Flow', color: 'bg-green-500/20 text-green-600' },
-  { id: 'integration', label: 'Integration', color: 'bg-orange-500/20 text-orange-600' },
-  { id: 'utility', label: 'Utility', color: 'bg-gray-500/20 text-gray-600' },
-];
-
-// Map node types to tags
-const NODE_TYPE_TAGS: Record<WorkflowNodeType, string[]> = {
-  start: ['flow'],
-  end: ['flow'],
-  ai: ['ai', 'data'],
-  tool: ['integration', 'utility'],
-  conditional: ['flow'],
-  parallel: ['flow'],
-  human: ['utility'],
-  subworkflow: ['flow', 'integration'],
-  loop: ['flow', 'data'],
-  delay: ['utility', 'flow'],
-  webhook: ['integration'],
-  code: ['data', 'utility'],
-  transform: ['data'],
-  merge: ['flow', 'data'],
-  group: ['flow', 'utility'],
-  annotation: ['utility'],
-};
+// ICONS alias for backward compatibility with category icon lookups
+const ICONS: Record<string, React.ComponentType<{ className?: string }>> = NODE_ICONS as Record<string, React.ComponentType<{ className?: string }>>;
 
 interface NodePaletteProps {
   onDragStart?: (type: WorkflowNodeType) => void;
@@ -239,12 +173,15 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
     const isFavorite = favoriteNodes.includes(node.type);
 
     return (
-      <div
-        key={node.type}
+      <motion.div
+        key={node.name}
         draggable
-        onDragStart={(e) => handleDragStart(e, node.type)}
+        onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent, node.type)}
         onDoubleClick={() => handleDoubleClick(node.type)}
-        className="group flex items-center gap-2 p-2 rounded-lg border border-transparent hover:border-border hover:bg-accent/80 cursor-grab active:cursor-grabbing active:scale-95 transition-all duration-150 hover:shadow-sm"
+        whileHover={{ scale: 1.02, y: -1 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
+        className="group flex items-center gap-2 p-2 rounded-lg border border-transparent hover:border-border hover:bg-accent/80 cursor-grab active:cursor-grabbing transition-colors hover:shadow-sm"
       >
         <div
           className="p-1.5 rounded-md transition-transform group-hover:scale-110"
@@ -276,21 +213,26 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
                     toggleFavorite(node.type);
                   }}
                 >
-                  <Heart 
-                    className={cn(
-                      "h-3.5 w-3.5",
-                      isFavorite ? "fill-red-500 text-red-500" : "text-muted-foreground"
-                    )} 
-                  />
+                  <motion.div
+                    whileTap={{ scale: 1.2 }}
+                    transition={{ duration: 0.1 }}
+                  >
+                    <Heart 
+                      className={cn(
+                        "h-3.5 w-3.5 transition-colors",
+                        isFavorite ? "fill-red-500 text-red-500" : "text-muted-foreground"
+                      )} 
+                    />
+                  </motion.div>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left">
-                {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                {isFavorite ? t('removeFromFavorites') : t('addToFavorites')}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
-      </div>
+      </motion.div>
     );
   };
 
@@ -308,35 +250,33 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
   }, []);
 
   return (
-    <div className={cn('flex flex-col h-full min-h-0 bg-background border-r', className)}>
+    <Tabs value={activeTab} onValueChange={setActiveTab} className={cn('flex flex-col h-full min-h-0 bg-background border-r overflow-hidden', className)}>
       {/* Header with tabs */}
       <div className="p-3 border-b shrink-0">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-3 mb-2">
-            <TabsTrigger value="nodes" className="text-xs">
-              <Workflow className="h-3 w-3 mr-1" />
-              Nodes
-            </TabsTrigger>
-            <TabsTrigger value="favorites" className="text-xs">
-              <Star className="h-3 w-3 mr-1" />
-              Favorites
-              {favoriteNodes.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
-                  {favoriteNodes.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="templates" className="text-xs">
-              <Bookmark className="h-3 w-3 mr-1" />
-              Templates
-              {nodeTemplates.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
-                  {nodeTemplates.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <TabsList className="w-full grid grid-cols-3 mb-2">
+          <TabsTrigger value="nodes" className="text-xs">
+            <Workflow className="h-3 w-3 mr-1" />
+            Nodes
+          </TabsTrigger>
+          <TabsTrigger value="favorites" className="text-xs">
+            <Star className="h-3 w-3 mr-1" />
+            Favorites
+            {favoriteNodes.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                {favoriteNodes.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="text-xs">
+            <Bookmark className="h-3 w-3 mr-1" />
+            Templates
+            {nodeTemplates.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                {nodeTemplates.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
         {/* Search and Filter */}
         {(activeTab === 'nodes' || activeTab === 'favorites') && (
@@ -435,7 +375,7 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
       </div>
 
       {/* Content based on active tab */}
-      <TabsContent value="nodes" className="flex-1 min-h-0 flex flex-col overflow-hidden m-0">
+      <TabsContent value="nodes" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden">
         {/* Recent nodes */}
         {recentNodes.length > 0 && !searchQuery && selectedTags.length === 0 && (
           <div className="p-2 border-b shrink-0">
@@ -533,14 +473,14 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
         {/* Help text */}
         <div className="p-3 border-t text-xs text-muted-foreground shrink-0">
           <div className="flex items-center gap-1">
-            <span>Drag to canvas or</span>
-            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">double-click</kbd>
-            <span>to add</span>
+            <span>{t('dragToCanvas')}</span>
+            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">{t('doubleClick')}</kbd>
+            <span>{t('toAdd')}</span>
           </div>
         </div>
       </TabsContent>
 
-      <TabsContent value="favorites" className="flex-1 min-h-0 flex flex-col overflow-hidden m-0">
+      <TabsContent value="favorites" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden">
         <ScrollArea className="flex-1 min-h-0">
           <div className="p-2 space-y-1">
             {favoriteNodes.length === 0 ? (
@@ -559,10 +499,10 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
         </ScrollArea>
       </TabsContent>
 
-      <TabsContent value="templates" className="flex-1 min-h-0 overflow-hidden m-0">
+      <TabsContent value="templates" className="flex-1 min-h-0 m-0 overflow-auto data-[state=inactive]:hidden">
         <NodeTemplatePanel onAddTemplate={handleAddFromTemplate} />
       </TabsContent>
-    </div>
+    </Tabs>
   );
 }
 

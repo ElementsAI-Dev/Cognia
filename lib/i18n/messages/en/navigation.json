@@ -79,7 +79,9 @@
     "selectIcon": "Select Icon",
     "searchIcons": "Search icons...",
     "noIconsFound": "No icons found",
-    "uploadImage": "Upload Image"
+    "uploadImage": "Upload Image",
+    "latex": "LaTeX",
+    "observability": "Observability"
   },
   "mobileNav": {
     "home": "Home",

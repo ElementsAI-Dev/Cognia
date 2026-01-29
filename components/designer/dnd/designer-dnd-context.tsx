@@ -22,7 +22,7 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useDesignerStore } from '@/stores/designer';
-import { parseComponentToElement, isContainerElement } from '@/lib/designer/element-parser';
+import { parseComponentToElement, isContainerElement } from '@/lib/designer/elements';
 import type { DragItem } from '@/types';
 
 // Re-export types for backward compatibility

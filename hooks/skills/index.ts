@@ -33,3 +33,4 @@ export {
   type SecurityFinding,
   type SecuritySeverity,
 } from './use-skill-security';
+export { useSkillMarketplace, type UseSkillMarketplaceReturn } from './use-skill-marketplace';

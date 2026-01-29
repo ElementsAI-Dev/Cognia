@@ -12,53 +12,21 @@ import { cn } from '@/lib/utils';
 import { NodePreviewTooltip } from '../node-preview-tooltip';
 import { NodeQuickConfig } from '../node-quick-config';
 import {
-  Play,
-  Square,
-  Sparkles,
-  Wrench,
-  GitBranch,
-  GitFork,
-  User,
   Workflow,
-  Repeat,
-  Clock,
-  Globe,
-  Code,
-  Shuffle,
-  GitMerge,
   AlertCircle,
   CheckCircle,
   Loader2,
   XCircle,
   Pause,
-  Group,
-  StickyNote,
+  Clock,
 } from 'lucide-react';
+import { NODE_ICONS } from '@/lib/workflow-editor/constants';
 import type {
   WorkflowNodeData,
-  WorkflowNodeType,
   NodeExecutionStatus,
 } from '@/types/workflow/workflow-editor';
 import { NODE_TYPE_COLORS } from '@/types/workflow/workflow-editor';
 
-const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: string }>> = {
-  start: Play,
-  end: Square,
-  ai: Sparkles,
-  tool: Wrench,
-  conditional: GitBranch,
-  parallel: GitFork,
-  human: User,
-  subworkflow: Workflow,
-  loop: Repeat,
-  delay: Clock,
-  webhook: Globe,
-  code: Code,
-  transform: Shuffle,
-  merge: GitMerge,
-  group: Group,
-  annotation: StickyNote,
-};
 
 const STATUS_ICONS: Record<NodeExecutionStatus, React.ComponentType<{ className?: string }> | null> = {
   idle: null,

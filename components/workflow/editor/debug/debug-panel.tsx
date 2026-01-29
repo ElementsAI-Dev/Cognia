@@ -25,6 +25,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 import { cn } from '@/lib/utils';
 import {
   Bug,
@@ -67,7 +68,7 @@ interface DebugPanelProps {
 }
 
 export function DebugPanel({ className }: DebugPanelProps) {
-  const _t = useTranslations('workflowEditor');
+  const t = useTranslations('workflowEditor');
   
   const {
     currentWorkflow,
@@ -77,14 +78,23 @@ export function DebugPanel({ className }: DebugPanelProps) {
     pauseExecution,
     resumeExecution,
     cancelExecution,
-    updateNode: _updateNode,
-  } = useWorkflowEditorStore();
+  } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      currentWorkflow: state.currentWorkflow,
+      isExecuting: state.isExecuting,
+      executionState: state.executionState,
+      startExecution: state.startExecution,
+      pauseExecution: state.pauseExecution,
+      resumeExecution: state.resumeExecution,
+      cancelExecution: state.cancelExecution,
+    }))
+  );
 
   const [breakpoints, setBreakpoints] = useState<Breakpoint[]>([]);
   const [watchVariables, setWatchVariables] = useState<WatchVariable[]>([]);
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [expandedSections, setExpandedSections] = useState<string[]>(['breakpoints', 'watch', 'callstack']);
-  const [_stepMode, setStepMode] = useState<'into' | 'over' | 'out'>('into');
+  const [stepMode, setStepMode] = useState<'into' | 'over' | 'out'>('into');
 
   // Get current execution info
   const currentNodeId = executionState?.currentNodeId;
@@ -178,10 +188,15 @@ export function DebugPanel({ className }: DebugPanelProps) {
     resumeExecution();
   }, [resumeExecution]);
 
-  const _handleStepOut = useCallback(() => {
+  const handleStepOut = useCallback(() => {
     setStepMode('out');
     resumeExecution();
   }, [resumeExecution]);
+
+  // Log step mode for debugging (will be used when step debugging is fully implemented)
+  if (process.env.NODE_ENV === 'development' && stepMode) {
+    // Step mode tracking for future implementation
+  }
 
   const handleStartDebug = useCallback(() => {
     setIsDebugMode(true);
@@ -195,10 +210,10 @@ export function DebugPanel({ className }: DebugPanelProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bug className="h-4 w-4" />
-            <h3 className="text-sm font-semibold">Debug</h3>
+            <h3 className="text-sm font-semibold">{t('debug') || 'Debug'}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <Label htmlFor="debug-mode" className="text-xs">Debug Mode</Label>
+            <Label htmlFor="debug-mode" className="text-xs">{t('enableDebugMode') || 'Debug Mode'}</Label>
             <Switch
               id="debug-mode"
               checked={isDebugMode}
@@ -304,6 +319,21 @@ export function DebugPanel({ className }: DebugPanelProps) {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Step Into (F11)</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handleStepOut}
+                  disabled={!isPaused}
+                >
+                  <StepForward className="h-4 w-4 rotate-180" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Step Out (Shift+F11)</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>

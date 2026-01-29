@@ -29,7 +29,15 @@ export type WorkflowNodeType =
   | 'transform'
   | 'merge'
   | 'group'
-  | 'annotation';
+  | 'annotation'
+  // Chart nodes
+  | 'chart'
+  | 'lineChart'
+  | 'barChart'
+  | 'pieChart'
+  | 'areaChart'
+  | 'scatterChart'
+  | 'radarChart';
 
 /**
  * Node execution status for visualization
@@ -261,6 +269,41 @@ export interface AnnotationNodeData extends BaseNodeData {
 }
 
 /**
+ * Chart type options
+ */
+export type ChartType = 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'radar' | 'composed';
+
+/**
+ * Chart data series configuration
+ */
+export interface ChartSeriesConfig {
+  dataKey: string;
+  name: string;
+  color?: string;
+  type?: 'line' | 'bar' | 'area';
+  stackId?: string;
+}
+
+/**
+ * Chart node data - Visualization node
+ */
+export interface ChartNodeData extends BaseNodeData {
+  nodeType: 'chart' | 'lineChart' | 'barChart' | 'pieChart' | 'areaChart' | 'scatterChart' | 'radarChart';
+  chartType: ChartType;
+  title?: string;
+  xAxisKey?: string;
+  yAxisKey?: string;
+  series: ChartSeriesConfig[];
+  showLegend: boolean;
+  showGrid: boolean;
+  showTooltip: boolean;
+  stacked: boolean;
+  aspectRatio?: number;
+  inputs: Record<string, WorkflowIOSchema>;
+  outputs: Record<string, WorkflowIOSchema>;
+}
+
+/**
  * Union type for all node data types
  */
 export type WorkflowNodeData =
@@ -279,7 +322,8 @@ export type WorkflowNodeData =
   | TransformNodeData
   | MergeNodeData
   | GroupNodeData
-  | AnnotationNodeData;
+  | AnnotationNodeData
+  | ChartNodeData;
 
 /**
  * Workflow node (React Flow node with workflow data)
@@ -573,6 +617,14 @@ export const NODE_TYPE_COLORS: Record<WorkflowNodeType, string> = {
   merge: '#0ea5e9',
   group: '#6b7280',
   annotation: '#fbbf24',
+  // Chart colors
+  chart: '#10b981',
+  lineChart: '#3b82f6',
+  barChart: '#8b5cf6',
+  pieChart: '#f59e0b',
+  areaChart: '#06b6d4',
+  scatterChart: '#ec4899',
+  radarChart: '#14b8a6',
 };
 
 /**
@@ -595,6 +647,14 @@ export const NODE_TYPE_ICONS: Record<WorkflowNodeType, string> = {
   merge: 'GitMerge',
   group: 'FolderOpen',
   annotation: 'StickyNote',
+  // Chart icons
+  chart: 'BarChart3',
+  lineChart: 'LineChart',
+  barChart: 'BarChart',
+  pieChart: 'PieChart',
+  areaChart: 'AreaChart',
+  scatterChart: 'ScatterChart',
+  radarChart: 'Radar',
 };
 
 /**
@@ -742,6 +802,39 @@ export function createDefaultNodeData(type: WorkflowNodeType, label?: string): W
         fontSize: 'medium',
         showBorder: false,
       } as AnnotationNodeData;
+    case 'chart':
+    case 'lineChart':
+    case 'barChart':
+    case 'pieChart':
+    case 'areaChart':
+    case 'scatterChart':
+    case 'radarChart': {
+      const chartTypeMap: Record<string, ChartType> = {
+        chart: 'bar',
+        lineChart: 'line',
+        barChart: 'bar',
+        pieChart: 'pie',
+        areaChart: 'area',
+        scatterChart: 'scatter',
+        radarChart: 'radar',
+      };
+      return {
+        ...base,
+        nodeType: type,
+        chartType: chartTypeMap[type] || 'bar',
+        series: [],
+        showLegend: true,
+        showGrid: true,
+        showTooltip: true,
+        stacked: false,
+        inputs: {
+          data: { type: 'array', description: 'Chart data array' },
+        },
+        outputs: {
+          chart: { type: 'object', description: 'Rendered chart output' },
+        },
+      } as ChartNodeData;
+    }
     default:
       return base as WorkflowNodeData;
   }
@@ -768,6 +861,14 @@ export function getDefaultNodeLabel(type: WorkflowNodeType): string {
     merge: 'Merge',
     group: 'Group',
     annotation: 'Note',
+    // Chart labels
+    chart: 'Chart',
+    lineChart: 'Line Chart',
+    barChart: 'Bar Chart',
+    pieChart: 'Pie Chart',
+    areaChart: 'Area Chart',
+    scatterChart: 'Scatter Chart',
+    radarChart: 'Radar Chart',
   };
   return labels[type] || 'Node';
 }
@@ -1013,6 +1114,70 @@ export const NODE_CATEGORIES: NodeCategory[] = [
         icon: 'StickyNote',
         color: NODE_TYPE_COLORS.annotation,
         defaultData: createDefaultNodeData('annotation'),
+      },
+    ],
+  },
+  {
+    id: 'visualization',
+    name: 'Visualization',
+    icon: 'BarChart3',
+    description: 'Data visualization and charts',
+    nodes: [
+      {
+        type: 'chart',
+        name: 'Chart',
+        description: 'Generic chart visualization',
+        icon: 'BarChart3',
+        color: NODE_TYPE_COLORS.chart,
+        defaultData: createDefaultNodeData('chart'),
+      },
+      {
+        type: 'lineChart',
+        name: 'Line Chart',
+        description: 'Display trends over time',
+        icon: 'LineChart',
+        color: NODE_TYPE_COLORS.lineChart,
+        defaultData: createDefaultNodeData('lineChart'),
+      },
+      {
+        type: 'barChart',
+        name: 'Bar Chart',
+        description: 'Compare categorical data',
+        icon: 'BarChart',
+        color: NODE_TYPE_COLORS.barChart,
+        defaultData: createDefaultNodeData('barChart'),
+      },
+      {
+        type: 'pieChart',
+        name: 'Pie Chart',
+        description: 'Show proportional data',
+        icon: 'PieChart',
+        color: NODE_TYPE_COLORS.pieChart,
+        defaultData: createDefaultNodeData('pieChart'),
+      },
+      {
+        type: 'areaChart',
+        name: 'Area Chart',
+        description: 'Visualize cumulative trends',
+        icon: 'AreaChart',
+        color: NODE_TYPE_COLORS.areaChart,
+        defaultData: createDefaultNodeData('areaChart'),
+      },
+      {
+        type: 'scatterChart',
+        name: 'Scatter Chart',
+        description: 'Plot data point relationships',
+        icon: 'ScatterChart',
+        color: NODE_TYPE_COLORS.scatterChart,
+        defaultData: createDefaultNodeData('scatterChart'),
+      },
+      {
+        type: 'radarChart',
+        name: 'Radar Chart',
+        description: 'Multi-dimensional comparison',
+        icon: 'Radar',
+        color: NODE_TYPE_COLORS.radarChart,
+        defaultData: createDefaultNodeData('radarChart'),
       },
     ],
   },

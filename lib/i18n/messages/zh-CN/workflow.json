@@ -237,7 +237,7 @@
     "variableScope": "作用域",
     "defaultValue": "默认值",
     "secretValue": "敏感值",
-    "howToUseVariables": "在提示词中使用 {{变量名}} 语法引用变量",
+    "howToUseVariables": "在提示词中使用 '{{变量名}}' 语法引用变量",
     "variableCopied": "变量引用已复制",
 
     "noResultsFound": "未找到结果",
@@ -316,7 +316,24 @@
     "note": "备注",
     "color": "颜色",
     "dragNodesToGroup": "拖拽节点到此处进行分组",
-    "doubleClickToEdit": "双击编辑..."
+    "doubleClickToEdit": "双击编辑...",
+
+    "testInputs": "测试输入",
+    "testWorkflowInputs": "测试工作流输入",
+    "testInputsDescription": "配置测试输入并运行工作流",
+    "noInputsDefined": "未定义输入",
+    "configureStartNode": "在开始节点中配置输入",
+    "loadSample": "加载示例",
+    "copyJson": "复制 JSON",
+    "runWithInputs": "运行工作流",
+    "searchNodesPlaceholder": "搜索节点...",
+    "noNodesFound": "未找到节点",
+    "enableDebugMode": "启用调试模式",
+    "removeFromFavorites": "从收藏中移除",
+    "addToFavorites": "添加到收藏",
+    "dragToCanvas": "拖拽到画布或",
+    "doubleClick": "双击",
+    "toAdd": "添加"
   },
   "marketplace": {
     "title": "模板市场",
@@ -335,6 +352,9 @@
     "previewBtn": "预览",
     "useTemplate": "使用模板",
     "cloneTemplate": "克隆模板",
+    "templateLoaded": "模板加载成功",
+    "templateLoadError": "模板加载失败",
+    "templateCloned": "模板克隆成功",
     "git": {
       "title": "Git 集成",
       "cloneRepo": "克隆仓库",

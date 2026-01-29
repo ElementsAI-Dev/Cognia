@@ -160,6 +160,7 @@
     "clear": "Clear",
     "advancedSettings": "Advanced Settings",
     "done": "Done",
+    "debug": "Debug",
     "compressionSettings": "Compression Settings",
     "enableCompression": "Enable Compression",
     "compressionStrategy": "Strategy",

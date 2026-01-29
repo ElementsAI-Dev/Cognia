@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 import {
   Bug,
   Play,
@@ -41,7 +42,22 @@ export function DebugToolbar() {
     clearBreakpoints,
     pauseExecution,
     cancelExecution,
-  } = useWorkflowEditorStore();
+  } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      isDebugMode: state.isDebugMode,
+      isExecuting: state.isExecuting,
+      isPausedAtBreakpoint: state.isPausedAtBreakpoint,
+      breakpoints: state.breakpoints,
+      executionState: state.executionState,
+      toggleDebugMode: state.toggleDebugMode,
+      stepOver: state.stepOver,
+      stepInto: state.stepInto,
+      continueExecution: state.continueExecution,
+      clearBreakpoints: state.clearBreakpoints,
+      pauseExecution: state.pauseExecution,
+      cancelExecution: state.cancelExecution,
+    }))
+  );
 
   if (!isDebugMode) {
     return (

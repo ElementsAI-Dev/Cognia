@@ -4,16 +4,28 @@ import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DollarSign, TrendingUp, PieChart, AlertCircle } from 'lucide-react';
+import { ProviderChart, UsageTrendChart } from './charts';
 import type { MetricsData, TimeRange } from './observability-dashboard';
+import type { TimeSeriesDataPoint } from '@/lib/ai/usage-analytics';
 
 interface CostAnalysisProps {
   metrics: MetricsData | null;
   timeRange: TimeRange;
+  timeSeries?: TimeSeriesDataPoint[];
 }
 
-export function CostAnalysis({ metrics, timeRange }: CostAnalysisProps) {
+export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalysisProps) {
   const t = useTranslations('observability.costAnalysis');
   const tTime = useTranslations('observability.timeRange');
+
+  // Convert metrics data to chart-compatible format
+  const providerCostData = Object.entries(metrics?.costByProvider || {}).map(([provider, cost]) => ({
+    provider,
+    requests: metrics?.requestsByProvider?.[provider] || 0,
+    tokens: metrics?.tokensByProvider?.[provider] || 0,
+    cost,
+    percentage: metrics?.totalCost ? (cost / metrics.totalCost) * 100 : 0,
+  }));
 
   if (!metrics) {
     return (
@@ -102,6 +114,16 @@ export function CostAnalysis({ metrics, timeRange }: CostAnalysisProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Charts Section */}
+      {timeSeries.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <UsageTrendChart data={timeSeries} showTokens={false} height={220} />
+          {providerCostData.length > 0 && (
+            <ProviderChart data={providerCostData} dataKey="cost" height={220} />
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>

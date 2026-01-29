@@ -4,17 +4,37 @@ import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BarChart3, TrendingUp, Zap, Hash } from 'lucide-react';
+import { ProviderChart, ModelChart, UsageTrendChart } from './charts';
 import type { MetricsData, TimeRange } from './observability-dashboard';
+import type { TimeSeriesDataPoint } from '@/lib/ai/usage-analytics';
 
 interface MetricsPanelProps {
   metrics: MetricsData | null;
   timeRange: TimeRange;
+  timeSeries?: TimeSeriesDataPoint[];
 }
 
-export function MetricsPanel({ metrics, timeRange }: MetricsPanelProps) {
+export function MetricsPanel({ metrics, timeRange, timeSeries = [] }: MetricsPanelProps) {
   const t = useTranslations('observability.metrics');
   const tTime = useTranslations('observability.timeRange');
   const tCommon = useTranslations('observability');
+
+  // Convert metrics data to chart-compatible format
+  const providerData = Object.entries(metrics?.requestsByProvider || {}).map(([provider, requests]) => ({
+    provider,
+    requests,
+    tokens: metrics?.tokensByProvider?.[provider] || 0,
+    cost: metrics?.costByProvider?.[provider] || 0,
+    percentage: metrics?.totalRequests ? (requests / metrics.totalRequests) * 100 : 0,
+  }));
+
+  const modelData = Object.entries(metrics?.requestsByModel || {}).map(([model, requests]) => ({
+    model,
+    requests,
+    tokens: 0, // Would need model-level token tracking
+    cost: 0,
+    percentage: metrics?.totalRequests ? (requests / metrics.totalRequests) * 100 : 0,
+  }));
 
   if (!metrics) {
     return (
@@ -91,6 +111,19 @@ export function MetricsPanel({ metrics, timeRange }: MetricsPanelProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Charts Section */}
+      {timeSeries.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <UsageTrendChart data={timeSeries} showCost={false} height={220} />
+          <ProviderChart data={providerData} dataKey="tokens" height={220} />
+        </div>
+      )}
+
+      {/* Model Usage Chart */}
+      {modelData.length > 0 && (
+        <ModelChart data={modelData} dataKey="requests" height={200} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>

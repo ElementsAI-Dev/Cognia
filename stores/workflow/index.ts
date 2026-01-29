@@ -10,4 +10,4 @@ export {
   selectActivePresentation,
 } from './workflow-store';
 
-export { useWorkflowEditorStore } from './workflow-editor-store';
+export { useWorkflowEditorStore } from './workflow-editor-store/index';

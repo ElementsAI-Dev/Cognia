@@ -21,7 +21,8 @@
     "preview": "Preview",
     "clear": "Clear",
     "dismiss": "Dismiss",
-    "configured": "Configured"
+    "configured": "Configured",
+    "create": "Create"
   },
   "platformWarning": {
     "notSupported": "{feature} is only available on {platforms}",

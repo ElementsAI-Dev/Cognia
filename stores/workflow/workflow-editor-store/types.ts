@@ -132,6 +132,7 @@ export interface WorkflowEditorState
 export interface WorkflowSliceActions {
   createWorkflow: (name?: string) => void;
   loadWorkflow: (workflow: VisualWorkflow) => void;
+  loadFromTemplate: (workflow: VisualWorkflow) => void;
   saveWorkflow: () => Promise<void>;
   deleteWorkflow: (workflowId: string) => void;
   duplicateWorkflow: (workflowId: string) => void;
