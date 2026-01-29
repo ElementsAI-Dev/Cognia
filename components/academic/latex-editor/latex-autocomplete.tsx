@@ -28,7 +28,7 @@ export function LaTeXAutocomplete({
 
   // Reset selection when suggestions change
   // Note: Using useMemo to derive selectedIndex based on suggestions length
-  const effectiveSelectedIndex = suggestions.length > 0 ? Math.min(selectedIndex, suggestions.length - 1) : 0;
+  const _effectiveSelectedIndex = suggestions.length > 0 ? Math.min(selectedIndex, suggestions.length - 1) : 0;
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback(

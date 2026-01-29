@@ -554,7 +554,7 @@ test.describe('DrawingTools Component', () => {
         return strokes.pop();
       };
 
-      const clearAllStrokes = (): number => {
+      const _clearAllStrokes = (): number => {
         const count = strokes.length;
         strokes.length = 0;
         return count;
@@ -788,7 +788,7 @@ test.describe('LayersPanel Component', () => {
       };
 
       const group1 = createGroup('Header Elements', ['layer-1', 'layer-2']);
-      const group2 = createGroup('Footer Elements', ['layer-3']);
+      const _group2 = createGroup('Footer Elements', ['layer-3']);
 
       addToGroup(group1.id, 'layer-4');
       const group1Count = groups.find(g => g.id === group1.id)?.layerIds.length;
@@ -1360,9 +1360,9 @@ test.describe('ImagePreview Component', () => {
         level: clampZoom(state.level - state.step, state),
       });
 
-      const zoomToFit = (): ZoomState => ({ ...DEFAULT_ZOOM });
+      const _zoomToFit = (): ZoomState => ({ ...DEFAULT_ZOOM });
 
-      const zoomTo100 = (state: ZoomState): ZoomState => ({
+      const _zoomTo100 = (state: ZoomState): ZoomState => ({
         ...state,
         level: 1,
       });

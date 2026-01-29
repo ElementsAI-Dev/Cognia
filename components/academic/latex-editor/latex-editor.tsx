@@ -5,7 +5,7 @@
  * A real-time LaTeX editor with preview, syntax highlighting, and autocomplete
  */
 
-import React, { useState, useCallback, useRef, useEffect, startTransition } from 'react';
+import React, { useState, useCallback, useRef, useEffect, startTransition, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   ResizableHandle,
@@ -67,8 +67,8 @@ export function LaTeXEditor({
   const previewRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Config with defaults
-  const config: LaTeXEditorConfig = {
+  // Config with defaults - memoized to prevent useCallback dependency changes
+  const config: LaTeXEditorConfig = useMemo(() => ({
     theme: 'system',
     fontFamily: 'JetBrains Mono, Fira Code, monospace',
     fontSize: 14,
@@ -90,7 +90,7 @@ export function LaTeXEditor({
     vimMode: false,
     keybindings: [],
     ...userConfig,
-  };
+  }), [userConfig]);
 
   // Validate content on change - use ref to avoid cascading renders
   const errorsRef = useRef<LaTeXError[]>([]);

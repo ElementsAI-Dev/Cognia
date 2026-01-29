@@ -251,7 +251,7 @@ test.describe('Image Studio Store - History Management', () => {
       const canUndo = (): boolean => historyIndex > 0;
       const canRedo = (): boolean => historyIndex < editHistory.length - 1;
 
-      const clearHistory = (): void => {
+      const _clearHistory = (): void => {
         editHistory.length = 0;
         historyIndex = -1;
       };
@@ -918,7 +918,7 @@ test.describe('Image Studio Store - Adjustments', () => {
         setRotation(transform.rotation + 90);
       };
 
-      const rotateCounterClockwise = (): void => {
+      const _rotateCounterClockwise = (): void => {
         setRotation(transform.rotation - 90);
       };
 
@@ -1004,14 +1004,14 @@ test.describe('Image Studio Store - Crop Operations', () => {
       }
 
       let cropRegion: CropRegion | null = null;
-      let aspectRatioLock: string | null = null;
+      let _aspectRatioLock: string | null = null;
 
       const setCropRegion = (region: CropRegion | null): void => {
         cropRegion = region;
       };
 
-      const setAspectRatioLock = (ratio: string | null): void => {
-        aspectRatioLock = ratio;
+      const _setAspectRatioLock = (ratio: string | null): void => {
+        _aspectRatioLock = ratio;
       };
 
       const constrainToAspectRatio = (
@@ -1065,7 +1065,7 @@ test.describe('Image Studio Store - Crop Operations', () => {
       setCropRegion({ x: 0, y: 0, width: 800, height: 600 });
       const initialRegion = cropRegion ? { ...cropRegion } : null;
 
-      setAspectRatioLock('1:1');
+      _setAspectRatioLock('1:1');
       const constrained1to1 = constrainToAspectRatio(
         { x: 0, y: 0, width: 800, height: 600 },
         '1:1',

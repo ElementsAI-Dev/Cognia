@@ -11,7 +11,6 @@
  * - Precise: AST-based positioning for accurate code manipulation
  */
 
-import { nanoid } from 'nanoid';
 import type { DesignerElement } from '@/types/designer';
 
 // ============================================================================
@@ -452,7 +451,7 @@ export async function parseCodeToAst(code: string): Promise<AstNode | null> {
 export function findElementInAst(
   ast: AstNode,
   elementId: string,
-  code: string
+  _code: string
 ): SourceLocation | null {
   const result = traverseAstForElement(ast, elementId);
   if (!result) return null;

@@ -66,7 +66,7 @@ import {
   ChevronDown,
   ChevronRight,
   Film,
-  Image,
+  Image as ImageIcon,
   Type,
   Music,
   Square,
@@ -127,7 +127,7 @@ export interface LayerPanelProps {
 
 const LAYER_TYPE_ICONS: Record<LayerType, typeof Film> = {
   video: Film,
-  image: Image,
+  image: ImageIcon,
   text: Type,
   audio: Music,
   shape: Square,
@@ -240,7 +240,7 @@ export function LayerPanel({
                 {t('types.video')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onAddLayer('image')}>
-                <Image className="h-4 w-4 mr-2" />
+                <ImageIcon className="h-4 w-4 mr-2" />
                 {t('types.image')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onAddLayer('text')}>

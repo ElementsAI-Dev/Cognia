@@ -128,7 +128,7 @@ export function PromptPreviewDialog({
     } finally {
       setIsTesting(false);
     }
-  }, [generatedPrompt, defaultProvider, providerSettings, t]);
+  }, [generatedPrompt, defaultProvider, defaultModel, t]);
 
   const handleSendToChat = useCallback(() => {
     if (onSendToChat) {

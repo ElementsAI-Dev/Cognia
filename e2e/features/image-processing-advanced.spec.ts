@@ -456,7 +456,7 @@ test.describe('Advanced Adjustments - HSL', () => {
     const result = await page.evaluate(() => {
       type HueRange = 'reds' | 'oranges' | 'yellows' | 'greens' | 'cyans' | 'blues' | 'purples' | 'magentas';
 
-      interface HSLTargetedOptions {
+      interface _HSLTargetedOptions {
         range: HueRange;
         hue: number;
         saturation: number;
@@ -1146,7 +1146,7 @@ test.describe('Progressive Image Loading', () => {
         progress: 100,
       });
 
-      const setError = (state: LoadingState, error: string): LoadingState => ({
+      const _setError = (state: LoadingState, error: string): LoadingState => ({
         ...state,
         stage: 'error',
         error,

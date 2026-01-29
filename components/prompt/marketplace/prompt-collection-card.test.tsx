@@ -26,7 +26,7 @@ jest.mock('@/components/ui/badge', () => ({
 
 jest.mock('@/components/ui/avatar', () => ({
   Avatar: ({ children }: { children: React.ReactNode }) => <div data-testid="avatar">{children}</div>,
-  AvatarImage: ({ src }: { src?: string }) => <img src={src} alt="" />,
+  AvatarImage: ({ src }: { src?: string }) => <span data-testid="avatar-image" data-src={src} />,
   AvatarFallback: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
 
