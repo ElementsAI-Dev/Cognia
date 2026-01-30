@@ -13,6 +13,7 @@ import type {
   AIChatOptions,
   AIChatChunk,
 } from '@/types/plugin/plugin-extended';
+import { createPluginSystemLogger } from '../logger';
 
 // Registry for custom AI providers
 const customProviders = new Map<string, AIProviderDefinition>();
@@ -21,15 +22,16 @@ const customProviders = new Map<string, AIProviderDefinition>();
  * Create the AI Provider API for a plugin
  */
 export function createAIProviderAPI(pluginId: string): PluginAIProviderAPI {
+  const logger = createPluginSystemLogger(pluginId);
   return {
     registerProvider: (provider: AIProviderDefinition) => {
       const providerId = `${pluginId}:${provider.id}`;
       customProviders.set(providerId, { ...provider, id: providerId });
-      console.log(`[Plugin:${pluginId}] Registered AI provider: ${provider.name}`);
+      logger.info(`Registered AI provider: ${provider.name}`);
 
       return () => {
         customProviders.delete(providerId);
-        console.log(`[Plugin:${pluginId}] Unregistered AI provider: ${provider.name}`);
+        logger.info(`Unregistered AI provider: ${provider.name}`);
       };
     },
 
@@ -83,7 +85,7 @@ export function createAIProviderAPI(pluginId: string): PluginAIProviderAPI {
       }
 
       // No custom provider with embedding support
-      console.warn(`[Plugin:${pluginId}] No embedding provider available`);
+      logger.warn('No embedding provider available');
       return texts.map(() => []);
     },
 

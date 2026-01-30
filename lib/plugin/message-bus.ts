@@ -5,6 +5,8 @@
  * Provides typed event handling with namespacing and filtering.
  */
 
+import { loggers } from './logger';
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -301,7 +303,7 @@ export class MessageBus {
           toRemove.push(subscription.id);
         }
       } catch (error) {
-        console.error(`[MessageBus] Handler error for ${event.type}:`, error);
+        loggers.manager.error(`[MessageBus] Handler error for ${event.type}:`, error);
       }
     }
 
@@ -366,7 +368,7 @@ export class MessageBus {
         handler(event);
         count++;
       } catch (error) {
-        console.error(`[MessageBus] Replay handler error:`, error);
+        loggers.manager.error('[MessageBus] Replay handler error:', error);
       }
     }
 
@@ -430,7 +432,7 @@ export class MessageBus {
 
   private log(action: string, data: unknown): void {
     if (this.config.enableLogging) {
-      console.debug(`[MessageBus] ${action}:`, data);
+      loggers.manager.debug(`[MessageBus] ${action}:`, data);
     }
   }
 

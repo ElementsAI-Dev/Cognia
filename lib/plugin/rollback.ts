@@ -6,6 +6,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { getPluginBackupManager, type PluginBackup } from './backup';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -473,7 +474,7 @@ export class PluginRollbackManager {
       await invoke('plugin_set_data', { pluginId, data: migratedData });
       return true;
     } catch (error) {
-      console.error('[Rollback] Migration failed:', error);
+      loggers.manager.error('[Rollback] Migration failed:', error);
       return false;
     }
   }

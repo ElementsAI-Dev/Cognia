@@ -114,7 +114,6 @@ impl NativeRuntime {
     }
 
     /// Check which languages are available natively
-    #[allow(dead_code)]
     pub async fn detect_available_languages(&mut self) {
         log::debug!("Detecting available native languages...");
         self._available_languages.clear();
@@ -148,7 +147,6 @@ impl NativeRuntime {
         );
     }
 
-    #[allow(dead_code)]
     pub fn get_available_languages(&self) -> &[String] {
         &self._available_languages
     }

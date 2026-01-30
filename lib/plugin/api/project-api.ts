@@ -11,11 +11,13 @@ import type {
   ProjectFileInput,
 } from '@/types/plugin/plugin-extended';
 import type { Project, KnowledgeFile } from '@/types';
+import { createPluginSystemLogger } from '../logger';
 
 /**
  * Create the Project API for a plugin
  */
 export function createProjectAPI(pluginId: string): PluginProjectAPI {
+  const logger = createPluginSystemLogger(pluginId);
   return {
     getCurrentProject: () => {
       const store = useProjectStore.getState();
@@ -35,26 +37,26 @@ export function createProjectAPI(pluginId: string): PluginProjectAPI {
     createProject: async (options) => {
       const store = useProjectStore.getState();
       const project = store.createProject(options);
-      console.log(`[Plugin:${pluginId}] Created project: ${project.id}`);
+      logger.info(`Created project: ${project.id}`);
       return project;
     },
 
     updateProject: async (id: string, updates) => {
       const store = useProjectStore.getState();
       store.updateProject(id, updates);
-      console.log(`[Plugin:${pluginId}] Updated project: ${id}`);
+      logger.info(`Updated project: ${id}`);
     },
 
     deleteProject: async (id: string) => {
       const store = useProjectStore.getState();
       store.deleteProject(id);
-      console.log(`[Plugin:${pluginId}] Deleted project: ${id}`);
+      logger.info(`Deleted project: ${id}`);
     },
 
     setActiveProject: async (id: string | null) => {
       const store = useProjectStore.getState();
       store.setActiveProject(id);
-      console.log(`[Plugin:${pluginId}] Set active project: ${id}`);
+      logger.info(`Set active project: ${id}`);
     },
 
     listProjects: async (filter?: ProjectFilter) => {
@@ -111,13 +113,13 @@ export function createProjectAPI(pluginId: string): PluginProjectAPI {
     archiveProject: async (id: string) => {
       const store = useProjectStore.getState();
       store.archiveProject(id);
-      console.log(`[Plugin:${pluginId}] Archived project: ${id}`);
+      logger.info(`Archived project: ${id}`);
     },
 
     unarchiveProject: async (id: string) => {
       const store = useProjectStore.getState();
       store.unarchiveProject(id);
-      console.log(`[Plugin:${pluginId}] Unarchived project: ${id}`);
+      logger.info(`Unarchived project: ${id}`);
     },
 
     addKnowledgeFile: async (projectId: string, file: ProjectFileInput) => {
@@ -159,7 +161,7 @@ export function createProjectAPI(pluginId: string): PluginProjectAPI {
       const project = store.projects.find(p => p.id === projectId);
       const addedFile = project?.knowledgeBase[project.knowledgeBase.length - 1];
       
-      console.log(`[Plugin:${pluginId}] Added knowledge file to project ${projectId}: ${file.name}`);
+      logger.info(`Added knowledge file to project ${projectId}: ${file.name}`);
       
       return addedFile!;
     },
@@ -167,13 +169,13 @@ export function createProjectAPI(pluginId: string): PluginProjectAPI {
     removeKnowledgeFile: async (projectId: string, fileId: string) => {
       const store = useProjectStore.getState();
       store.removeKnowledgeFile(projectId, fileId);
-      console.log(`[Plugin:${pluginId}] Removed knowledge file ${fileId} from project ${projectId}`);
+      logger.info(`Removed knowledge file ${fileId} from project ${projectId}`);
     },
 
     updateKnowledgeFile: async (projectId: string, fileId: string, content: string) => {
       const store = useProjectStore.getState();
       store.updateKnowledgeFile(projectId, fileId, content);
-      console.log(`[Plugin:${pluginId}] Updated knowledge file ${fileId} in project ${projectId}`);
+      logger.info(`Updated knowledge file ${fileId} in project ${projectId}`);
     },
 
     getKnowledgeFiles: async (projectId: string) => {
@@ -185,13 +187,13 @@ export function createProjectAPI(pluginId: string): PluginProjectAPI {
     linkSession: async (projectId: string, sessionId: string) => {
       const store = useProjectStore.getState();
       store.addSessionToProject(projectId, sessionId);
-      console.log(`[Plugin:${pluginId}] Linked session ${sessionId} to project ${projectId}`);
+      logger.info(`Linked session ${sessionId} to project ${projectId}`);
     },
 
     unlinkSession: async (projectId: string, sessionId: string) => {
       const store = useProjectStore.getState();
       store.removeSessionFromProject(projectId, sessionId);
-      console.log(`[Plugin:${pluginId}] Unlinked session ${sessionId} from project ${projectId}`);
+      logger.info(`Unlinked session ${sessionId} from project ${projectId}`);
     },
 
     getProjectSessions: async (projectId: string) => {
@@ -219,13 +221,13 @@ export function createProjectAPI(pluginId: string): PluginProjectAPI {
     addTag: async (projectId: string, tag: string) => {
       const store = useProjectStore.getState();
       store.addTag(projectId, tag);
-      console.log(`[Plugin:${pluginId}] Added tag "${tag}" to project ${projectId}`);
+      logger.info(`Added tag "${tag}" to project ${projectId}`);
     },
 
     removeTag: async (projectId: string, tag: string) => {
       const store = useProjectStore.getState();
       store.removeTag(projectId, tag);
-      console.log(`[Plugin:${pluginId}] Removed tag "${tag}" from project ${projectId}`);
+      logger.info(`Removed tag "${tag}" from project ${projectId}`);
     },
   };
 }

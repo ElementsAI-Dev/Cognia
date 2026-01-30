@@ -29,6 +29,7 @@ pub struct RecordingState {
     pub region: Option<RecordingRegion>,
     pub width: u32,
     pub height: u32,
+    pub has_audio: bool,
 }
 
 impl Default for RecordingState {
@@ -46,6 +47,7 @@ impl Default for RecordingState {
             region: None,
             width: 0,
             height: 0,
+            has_audio: false,
         }
     }
 }
@@ -1038,8 +1040,8 @@ impl ScreenRecorder {
             region: state.region.clone(),
             file_path: file_path.clone(),
             file_size,
-            has_audio: false, // TODO: Detect from config
-            thumbnail: None,  // TODO: Generate thumbnail
+            has_audio: state.has_audio,
+            thumbnail: None, // Thumbnail generated separately via video_generate_thumbnail
         };
 
         info!("[ScreenRecorder] Metadata created: id={}, mode={}, {}x{}, duration={}ms, size={} bytes, path={:?}",

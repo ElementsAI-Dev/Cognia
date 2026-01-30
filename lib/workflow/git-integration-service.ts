@@ -4,8 +4,29 @@
  * Provides Git operations for managing workflow templates in Git repositories
  */
 
-import { invoke } from '@tauri-apps/api/core';
 import type { GitRepository, GitIntegrationConfig } from '@/types/workflow/template';
+import {
+  cloneRepo,
+  pull,
+  push,
+  getRepoStatus,
+  stageFiles,
+  commit,
+  checkout,
+  getBranches,
+  getLog,
+  fetch,
+  reset,
+  getDiff,
+  getDiffFile,
+  isGitAvailable,
+} from '@/lib/native/git';
+import type {
+  GitRepoInfo,
+  GitCommitInfo,
+  GitBranchInfo,
+  GitDiffInfo,
+} from '@/types/system/git';
 
 /**
  * Git integration service
@@ -25,26 +46,36 @@ export class GitIntegrationService {
     url: string,
     destination: string,
     branch?: string
-  ): Promise<void> {
+  ): Promise<GitRepoInfo | null> {
     if (!this.config.enabled) {
       throw new Error('Git integration is disabled');
     }
 
-    await invoke<void>('git_clone', {
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await cloneRepo({
       url,
-      path: destination,
+      targetPath: destination,
       branch: branch || this.config.defaultBranch,
     });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to clone repository');
+    }
 
     // Track repository
     this.repositories.set(destination, {
       url,
       branch: branch || this.config.defaultBranch,
-      commit: '',
+      commit: result.data?.lastCommit?.hash || '',
       lastSyncAt: new Date(),
       hasUpdates: false,
       conflictCount: 0,
     });
+
+    return result.data || null;
   }
 
   /**
@@ -55,9 +86,15 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    await invoke<void>('git_pull', {
-      path,
-    });
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await pull({ repoPath: path });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to pull changes');
+    }
 
     // Update repository info
     const repo = this.repositories.get(path);
@@ -78,9 +115,15 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    await invoke<void>('git_push', {
-      path,
-    });
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await push({ repoPath: path });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to push changes');
+    }
 
     // Update repository info
     const repo = this.repositories.get(path);
@@ -95,52 +138,65 @@ export class GitIntegrationService {
   /**
    * Get repository status
    */
-  async getRepositoryStatus(path: string): Promise<{
-    branch: string;
-    hasChanges: boolean;
-    staged: string[];
-    unstaged: string[];
-    untracked: string[];
-  }> {
+  async getRepositoryStatus(path: string): Promise<GitRepoInfo> {
     if (!this.config.enabled) {
       throw new Error('Git integration is disabled');
     }
 
-    return await invoke<{
-      branch: string;
-      hasChanges: boolean;
-      staged: string[];
-      unstaged: string[];
-      untracked: string[];
-    }>('git_status', { path });
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await getRepoStatus(path);
+
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to get repository status');
+    }
+
+    return result.data;
   }
 
   /**
    * Stage files
    */
-  async stageFiles(path: string, files: string[]): Promise<void> {
+  async stageFilesInRepo(path: string, files: string[]): Promise<void> {
     if (!this.config.enabled) {
       throw new Error('Git integration is disabled');
     }
 
-    await invoke('git_stage', {
-      path,
-      files,
-    });
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await stageFiles(path, files);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to stage files');
+    }
   }
 
   /**
    * Commit changes
    */
-  async commitChanges(path: string, message: string): Promise<string> {
+  async commitChanges(path: string, message: string): Promise<GitCommitInfo | null> {
     if (!this.config.enabled) {
       throw new Error('Git integration is disabled');
     }
 
-    return await invoke('git_commit', {
-      path,
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await commit({
+      repoPath: path,
       message,
     });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to commit changes');
+    }
+
+    return result.data || null;
   }
 
   /**
@@ -151,11 +207,19 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    await invoke('git_checkout', {
-      path,
-      branch: branchName,
-      create: true,
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await checkout({
+      repoPath: path,
+      target: branchName,
+      createBranch: true,
     });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create branch');
+    }
 
     // Update repository info
     const repo = this.repositories.get(path);
@@ -175,11 +239,19 @@ export class GitIntegrationService {
       throw new Error('Git integration is disabled');
     }
 
-    await invoke('git_checkout', {
-      path,
-      branch: branchName,
-      create: false,
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await checkout({
+      repoPath: path,
+      target: branchName,
+      createBranch: false,
     });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to switch branch');
+    }
 
     // Update repository info
     const repo = this.repositories.get(path);
@@ -194,12 +266,22 @@ export class GitIntegrationService {
   /**
    * Get list of branches
    */
-  async getBranches(path: string): Promise<string[]> {
+  async getRepoBranches(path: string): Promise<GitBranchInfo[]> {
     if (!this.config.enabled) {
       throw new Error('Git integration is disabled');
     }
 
-    return await invoke<string[]>('git_branches', { path });
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await getBranches(path, true);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to get branches');
+    }
+
+    return result.data || [];
   }
 
   /**
@@ -208,27 +290,25 @@ export class GitIntegrationService {
   async getCommitHistory(
     path: string,
     limit: number = 10
-  ): Promise<
-    Array<{
-      hash: string;
-      message: string;
-      author: string;
-      date: string;
-    }>
-  > {
+  ): Promise<GitCommitInfo[]> {
     if (!this.config.enabled) {
       throw new Error('Git integration is disabled');
     }
 
-    return await invoke<Array<{
-      hash: string;
-      message: string;
-      author: string;
-      date: string;
-    }>>('git_log', {
-      path,
-      limit,
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await getLog({
+      repoPath: path,
+      maxCount: limit,
     });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to get commit history');
+    }
+
+    return result.data || [];
   }
 
   /**
@@ -249,22 +329,30 @@ export class GitIntegrationService {
    * Check for updates
    */
   async checkForUpdates(path: string): Promise<boolean> {
-    if (!this.config.enabled) {
+    if (!this.config.enabled || !isGitAvailable()) {
       return false;
     }
 
     try {
-      const result = await invoke<{ hasUpdates: boolean }>('git_fetch', { path });
+      const result = await fetch(path);
       const repo = this.repositories.get(path);
-      
+
+      if (!result.success) {
+        return false;
+      }
+
+      // Get status to check if behind
+      const statusResult = await getRepoStatus(path);
+      const hasUpdates = (statusResult.data?.behind ?? 0) > 0;
+
       if (repo) {
         this.repositories.set(path, {
           ...repo,
-          hasUpdates: result.hasUpdates,
+          hasUpdates,
         });
       }
 
-      return result.hasUpdates;
+      return hasUpdates;
     } catch (error) {
       console.error('Failed to check for updates:', error);
       return false;
@@ -272,31 +360,52 @@ export class GitIntegrationService {
   }
 
   /**
-   * Resolve conflicts
+   * Resolve conflicts by resetting
    */
-  async resolveConflicts(path: string, resolution: 'ours' | 'theirs'): Promise<void> {
+  async resolveConflicts(path: string, mode: 'soft' | 'mixed' | 'hard'): Promise<void> {
     if (!this.config.enabled) {
       throw new Error('Git integration is disabled');
     }
 
-    await invoke('git_reset', {
-      path,
-      mode: resolution,
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    const result = await reset({
+      repoPath: path,
+      mode,
     });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to reset repository');
+    }
   }
 
   /**
    * Get diff
    */
-  async getDiff(path: string, file?: string): Promise<string> {
+  async getRepoDiff(path: string, file?: string): Promise<GitDiffInfo[] | GitDiffInfo | null> {
     if (!this.config.enabled) {
       throw new Error('Git integration is disabled');
     }
 
-    return await invoke<string>('git_diff', {
-      path,
-      file,
-    });
+    if (!isGitAvailable()) {
+      throw new Error('Git is not available in this environment');
+    }
+
+    if (file) {
+      const result = await getDiffFile(path, file);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to get diff');
+      }
+      return result.data || null;
+    }
+
+    const result = await getDiff(path);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to get diff');
+    }
+    return result.data || [];
   }
 
   /**

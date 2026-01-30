@@ -9,7 +9,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 /// Git installation status
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -302,6 +302,76 @@ pub struct GitMergeOptions {
     pub no_ff: Option<bool>,
     pub squash: Option<bool>,
     pub message: Option<String>,
+}
+
+/// Git operation progress event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitProgress {
+    pub operation: String,
+    pub stage: String,
+    pub progress: u32,
+    pub message: String,
+    pub error: Option<String>,
+}
+
+impl GitProgress {
+    pub fn new(operation: &str, stage: &str, progress: u32, message: &str) -> Self {
+        Self {
+            operation: operation.to_string(),
+            stage: stage.to_string(),
+            progress,
+            message: message.to_string(),
+            error: None,
+        }
+    }
+
+    pub fn preparing(operation: &str) -> Self {
+        Self::new(operation, "preparing", 0, &format!("Preparing {}...", operation))
+    }
+
+    pub fn running(operation: &str, progress: u32, message: &str) -> Self {
+        Self::new(operation, "running", progress, message)
+    }
+
+    pub fn finishing(operation: &str) -> Self {
+        Self::new(operation, "finishing", 90, &format!("Finishing {}...", operation))
+    }
+
+    pub fn done(operation: &str) -> Self {
+        Self::new(operation, "done", 100, &format!("{} completed", operation))
+    }
+
+    pub fn error(operation: &str, error: &str) -> Self {
+        Self {
+            operation: operation.to_string(),
+            stage: "error".to_string(),
+            progress: 0,
+            message: error.to_string(),
+            error: Some(error.to_string()),
+        }
+    }
+}
+
+/// Emit a Git progress event
+fn emit_git_progress(app: &AppHandle, progress: GitProgress) {
+    if let Err(e) = app.emit("git-operation-progress", &progress) {
+        log::warn!("Failed to emit git progress event: {}", e);
+    }
+}
+
+/// Git full status - combined response for all status data
+/// This reduces multiple IPC calls to a single call for better performance
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitFullStatus {
+    #[serde(rename = "repoInfo")]
+    pub repo_info: Option<GitRepoInfo>,
+    pub branches: Vec<GitBranchInfo>,
+    pub commits: Vec<GitCommitInfo>,
+    #[serde(rename = "fileStatus")]
+    pub file_status: Vec<GitFileStatus>,
+    #[serde(rename = "stashList")]
+    pub stash_list: Vec<GitStashEntry>,
+    pub remotes: Vec<GitRemoteInfo>,
 }
 
 // ==================== Helper Functions ====================
@@ -610,16 +680,19 @@ pub async fn git_init(options: GitInitOptions) -> GitOperationResult<GitRepoInfo
     }
 }
 
-/// Clone a Git repository
+/// Clone a Git repository with progress events
 #[tauri::command]
-pub async fn git_clone(options: GitCloneOptions) -> GitOperationResult<GitRepoInfo> {
+pub async fn git_clone(app: AppHandle, options: GitCloneOptions) -> GitOperationResult<GitRepoInfo> {
     log::info!(
         "Cloning Git repository from: {} to: {}",
         options.url,
         options.target_path
     );
 
-    let mut args = vec!["clone".to_string()];
+    // Emit preparing progress
+    emit_git_progress(&app, GitProgress::preparing("clone"));
+
+    let mut args = vec!["clone".to_string(), "--progress".to_string()];
 
     if let Some(branch) = &options.branch {
         args.push("-b".to_string());
@@ -640,17 +713,31 @@ pub async fn git_clone(options: GitCloneOptions) -> GitOperationResult<GitRepoIn
 
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
+    // Emit running progress
+    emit_git_progress(&app, GitProgress::running("clone", 20, "Connecting to remote..."));
+
     match run_git_command(&args_refs, None) {
         Ok(output) => {
             log::info!("Repository cloned successfully");
 
+            // Emit finishing progress
+            emit_git_progress(&app, GitProgress::finishing("clone"));
+
             match git_status_internal(&options.target_path) {
-                Ok(info) => GitOperationResult::success_with_output(info, output),
-                Err(e) => GitOperationResult::error(e),
+                Ok(info) => {
+                    // Emit done progress
+                    emit_git_progress(&app, GitProgress::done("clone"));
+                    GitOperationResult::success_with_output(info, output)
+                }
+                Err(e) => {
+                    emit_git_progress(&app, GitProgress::error("clone", &e));
+                    GitOperationResult::error(e)
+                }
             }
         }
         Err(e) => {
             log::error!("Failed to clone repository: {}", e);
+            emit_git_progress(&app, GitProgress::error("clone", &e));
             GitOperationResult::error(e)
         }
     }
@@ -788,6 +875,152 @@ pub async fn git_status(repo_path: String) -> GitOperationResult<GitRepoInfo> {
         Ok(info) => GitOperationResult::success(info),
         Err(e) => GitOperationResult::error(e),
     }
+}
+
+/// Get full repository status in a single call
+/// This combines repo info, branches, commits, file status, stash list, and remotes
+/// Reduces 5+ IPC calls to 1 for better performance
+#[tauri::command]
+pub async fn git_full_status(
+    repo_path: String,
+    max_commits: Option<u32>,
+) -> GitOperationResult<GitFullStatus> {
+    // Get repo info
+    let repo_info = git_status_internal(&repo_path).ok();
+
+    // Only proceed if it's a git repo
+    if repo_info.as_ref().map(|r| !r.is_git_repo).unwrap_or(true) {
+        return GitOperationResult::success(GitFullStatus {
+            repo_info,
+            branches: vec![],
+            commits: vec![],
+            file_status: vec![],
+            stash_list: vec![],
+            remotes: vec![],
+        });
+    }
+
+    // Get branches
+    let branches = run_git_command(
+        &[
+            "branch",
+            "-a",
+            "--format=%(refname:short)%00%(upstream:short)%00%(HEAD)",
+        ],
+        Some(&repo_path),
+    )
+    .map(|output| {
+        output
+            .lines()
+            .filter_map(|line| {
+                let parts: Vec<&str> = line.split('\x00').collect();
+                if parts.is_empty() || parts[0].is_empty() {
+                    return None;
+                }
+                let raw_name = parts[0].to_string();
+                let is_remote = raw_name.starts_with("remotes/");
+                let name = raw_name.trim_start_matches("remotes/").to_string();
+                Some(GitBranchInfo {
+                    name,
+                    is_remote,
+                    is_current: parts.get(2).map(|s| s.trim() == "*").unwrap_or(false),
+                    upstream: parts.get(1).filter(|s| !s.is_empty()).map(|s| s.to_string()),
+                })
+            })
+            .collect()
+    })
+    .unwrap_or_default();
+
+    // Get commits
+    let max_count = max_commits.unwrap_or(20);
+    let commits = run_git_command(
+        &[
+            "log",
+            &format!("-{}", max_count),
+            "--format=%H%x00%an%x00%ae%x00%aI%x00%s%x00%x00",
+        ],
+        Some(&repo_path),
+    )
+    .map(|output| parse_commit_log(&output))
+    .unwrap_or_default();
+
+    // Get file status
+    let file_status = run_git_command(&["status", "--porcelain"], Some(&repo_path))
+        .map(|output| output.lines().filter_map(parse_git_status_short).collect())
+        .unwrap_or_default();
+
+    // Get stash list
+    let stash_list = run_git_command(
+        &["stash", "list", "--format=%gd%x00%gs%x00%ci"],
+        Some(&repo_path),
+    )
+    .map(|output| {
+        output
+            .lines()
+            .filter_map(|line| {
+                let parts: Vec<&str> = line.split('\x00').collect();
+                if parts.len() >= 2 {
+                    let index = parts[0]
+                        .strip_prefix("stash@{")
+                        .and_then(|s| s.strip_suffix("}"))
+                        .and_then(|s| s.parse::<u32>().ok())
+                        .unwrap_or(0);
+                    let message = parts[1].to_string();
+                    let branch = if message.starts_with("WIP on ") || message.starts_with("On ") {
+                        message.split(':').next().and_then(|s| {
+                            s.strip_prefix("WIP on ")
+                                .or_else(|| s.strip_prefix("On "))
+                                .map(|b| b.to_string())
+                        })
+                    } else {
+                        None
+                    };
+                    let date = parts.get(2).map(|s| s.to_string());
+                    Some(GitStashEntry {
+                        index,
+                        message,
+                        branch,
+                        date,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    })
+    .unwrap_or_default();
+
+    // Get remotes
+    let remotes = run_git_command(&["remote", "-v"], Some(&repo_path))
+        .map(|output| {
+            let mut remotes: Vec<GitRemoteInfo> = Vec::new();
+            let mut seen = std::collections::HashSet::new();
+            for line in output.lines() {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let name = parts[0].to_string();
+                    if seen.insert(name.clone()) {
+                        let url = parts[1].to_string();
+                        remotes.push(GitRemoteInfo {
+                            name,
+                            fetch_url: url.clone(),
+                            push_url: url,
+                        });
+                    }
+                }
+            }
+            remotes
+        })
+        .unwrap_or_default();
+
+    GitOperationResult::success(GitFullStatus {
+        repo_info,
+        branches,
+        commits,
+        file_status,
+        stash_list,
+        remotes,
+    })
 }
 
 /// Stage files
@@ -1529,7 +1762,34 @@ pub async fn git_create_gitignore(repo_path: String, template: String) -> GitOpe
     }
 }
 
-/// Export chat to Git (placeholder for integration)
+/// Git export options for chat/designer data
+#[derive(Debug, Clone, Deserialize)]
+pub struct GitExportOptions {
+    #[serde(rename = "repoPath")]
+    pub repo_path: String,
+    #[serde(rename = "sessionId")]
+    pub session_id: String,
+    pub data: String,
+    #[serde(rename = "commitMessage")]
+    pub commit_message: Option<String>,
+    /// Custom directory name (default: "chats" or "designer")
+    #[serde(rename = "customDir")]
+    pub custom_dir: Option<String>,
+    /// File extension (default: "json")
+    #[serde(rename = "fileExtension")]
+    pub file_extension: Option<String>,
+    /// Create a branch for this export
+    #[serde(rename = "createBranch")]
+    pub create_branch: Option<bool>,
+    /// Branch name for export (default: "exports/{session_id}")
+    #[serde(rename = "branchName")]
+    pub branch_name: Option<String>,
+    /// Include timestamp in filename
+    #[serde(rename = "includeTimestamp")]
+    pub include_timestamp: Option<bool>,
+}
+
+/// Export chat to Git with configurable options
 #[tauri::command]
 pub async fn git_export_chat(
     repo_path: String,
@@ -1537,30 +1797,73 @@ pub async fn git_export_chat(
     chat_data: String,
     commit_message: Option<String>,
 ) -> GitOperationResult<GitCommitInfo> {
-    // Create chat directory if it doesn't exist
-    let chat_dir = Path::new(&repo_path).join("chats");
-    if !chat_dir.exists() {
-        if let Err(e) = std::fs::create_dir_all(&chat_dir) {
-            return GitOperationResult::error(format!("Failed to create chats directory: {}", e));
+    git_export_data(GitExportOptions {
+        repo_path,
+        session_id,
+        data: chat_data,
+        commit_message,
+        custom_dir: Some("chats".to_string()),
+        file_extension: Some("json".to_string()),
+        create_branch: None,
+        branch_name: None,
+        include_timestamp: None,
+    })
+    .await
+}
+
+/// Export data to Git with full options
+#[tauri::command]
+pub async fn git_export_data(options: GitExportOptions) -> GitOperationResult<GitCommitInfo> {
+    let dir_name = options.custom_dir.unwrap_or_else(|| "exports".to_string());
+    let extension = options.file_extension.unwrap_or_else(|| "json".to_string());
+
+    // Create export directory if it doesn't exist
+    let export_dir = Path::new(&options.repo_path).join(&dir_name);
+    if !export_dir.exists() {
+        if let Err(e) = std::fs::create_dir_all(&export_dir) {
+            return GitOperationResult::error(format!("Failed to create {} directory: {}", dir_name, e));
         }
     }
 
-    // Write chat data
-    let chat_file = chat_dir.join(format!("{}.json", session_id));
-    if let Err(e) = std::fs::write(&chat_file, &chat_data) {
-        return GitOperationResult::error(format!("Failed to write chat file: {}", e));
+    // Optionally create a branch for this export
+    if options.create_branch.unwrap_or(false) {
+        let branch_name = options
+            .branch_name
+            .unwrap_or_else(|| format!("exports/{}", options.session_id));
+        if let Err(e) = run_git_command(&["checkout", "-b", &branch_name], Some(&options.repo_path)) {
+            // Branch might already exist, try to switch to it
+            if let Err(e2) = run_git_command(&["checkout", &branch_name], Some(&options.repo_path)) {
+                log::warn!("Could not create/switch branch: {} / {}", e, e2);
+            }
+        }
+    }
+
+    // Build filename
+    let filename = if options.include_timestamp.unwrap_or(false) {
+        let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+        format!("{}_{}.{}", options.session_id, timestamp, extension)
+    } else {
+        format!("{}.{}", options.session_id, extension)
+    };
+
+    // Write data
+    let file_path = export_dir.join(&filename);
+    if let Err(e) = std::fs::write(&file_path, &options.data) {
+        return GitOperationResult::error(format!("Failed to write file: {}", e));
     }
 
     // Stage the file
-    let relative_path = format!("chats/{}.json", session_id);
-    if let Err(e) = run_git_command(&["add", &relative_path], Some(&repo_path)) {
+    let relative_path = format!("{}/{}", dir_name, filename);
+    if let Err(e) = run_git_command(&["add", &relative_path], Some(&options.repo_path)) {
         return GitOperationResult::error(e);
     }
 
     // Commit
-    let message = commit_message.unwrap_or_else(|| format!("Update chat: {}", session_id));
+    let message = options
+        .commit_message
+        .unwrap_or_else(|| format!("Export {}: {}", dir_name, options.session_id));
     git_commit(GitCommitOptions {
-        repo_path,
+        repo_path: options.repo_path,
         message,
         description: None,
         author: None,
@@ -1572,7 +1875,7 @@ pub async fn git_export_chat(
     .await
 }
 
-/// Export designer to Git (placeholder for integration)
+/// Export designer to Git with configurable options
 #[tauri::command]
 pub async fn git_export_designer(
     repo_path: String,
@@ -1580,43 +1883,84 @@ pub async fn git_export_designer(
     designer_data: String,
     commit_message: Option<String>,
 ) -> GitOperationResult<GitCommitInfo> {
-    // Create designer directory if it doesn't exist
-    let designer_dir = Path::new(&repo_path).join("designer");
-    if !designer_dir.exists() {
-        if let Err(e) = std::fs::create_dir_all(&designer_dir) {
-            return GitOperationResult::error(format!(
-                "Failed to create designer directory: {}",
-                e
-            ));
-        }
-    }
-
-    // Write designer data
-    let designer_file = designer_dir.join(format!("{}.json", project_id));
-    if let Err(e) = std::fs::write(&designer_file, &designer_data) {
-        return GitOperationResult::error(format!("Failed to write designer file: {}", e));
-    }
-
-    // Stage the file
-    let relative_path = format!("designer/{}.json", project_id);
-    if let Err(e) = run_git_command(&["add", &relative_path], Some(&repo_path)) {
-        return GitOperationResult::error(e);
-    }
-
-    // Commit
-    let message =
-        commit_message.unwrap_or_else(|| format!("Update designer project: {}", project_id));
-    git_commit(GitCommitOptions {
+    git_export_data(GitExportOptions {
         repo_path,
-        message,
-        description: None,
-        author: None,
-        email: None,
-        amend: None,
-        allow_empty: None,
-        files: None,
+        session_id: project_id,
+        data: designer_data,
+        commit_message,
+        custom_dir: Some("designer".to_string()),
+        file_extension: Some("json".to_string()),
+        create_branch: None,
+        branch_name: None,
+        include_timestamp: None,
     })
     .await
+}
+
+/// List all exported items in a directory
+#[tauri::command]
+pub async fn git_list_exports(
+    repo_path: String,
+    export_type: String,
+) -> GitOperationResult<Vec<String>> {
+    let dir_name = match export_type.as_str() {
+        "chat" | "chats" => "chats",
+        "designer" => "designer",
+        _ => &export_type,
+    };
+
+    let export_dir = Path::new(&repo_path).join(dir_name);
+    if !export_dir.exists() {
+        return GitOperationResult::success(vec![]);
+    }
+
+    match std::fs::read_dir(&export_dir) {
+        Ok(entries) => {
+            let files: Vec<String> = entries
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().is_file())
+                .filter_map(|e| {
+                    e.path()
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_string())
+                })
+                .collect();
+            GitOperationResult::success(files)
+        }
+        Err(e) => GitOperationResult::error(format!("Failed to list exports: {}", e)),
+    }
+}
+
+/// Get export history from Git log
+#[tauri::command]
+pub async fn git_export_history(
+    repo_path: String,
+    export_type: String,
+    max_count: Option<u32>,
+) -> GitOperationResult<Vec<GitCommitInfo>> {
+    let dir_name = match export_type.as_str() {
+        "chat" | "chats" => "chats",
+        "designer" => "designer",
+        _ => &export_type,
+    };
+
+    let count = max_count.unwrap_or(20);
+    let path_arg = format!("{}/", dir_name);
+
+    match run_git_command(
+        &[
+            "log",
+            &format!("-{}", count),
+            "--format=%H%x00%an%x00%ae%x00%aI%x00%s%x00%x00",
+            "--",
+            &path_arg,
+        ],
+        Some(&repo_path),
+    ) {
+        Ok(output) => GitOperationResult::success(parse_commit_log(&output)),
+        Err(e) => GitOperationResult::error(e),
+    }
 }
 
 /// Restore chat from Git

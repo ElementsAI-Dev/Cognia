@@ -343,7 +343,6 @@ pub static LANGUAGE_CONFIGS: &[LanguageConfig] = &[
 ];
 
 /// Get language config by ID or alias
-#[allow(dead_code)]
 pub fn get_language_config(lang: &str) -> Option<&'static LanguageConfig> {
     let lang_lower = lang.to_lowercase();
     LANGUAGE_CONFIGS
@@ -352,7 +351,6 @@ pub fn get_language_config(lang: &str) -> Option<&'static LanguageConfig> {
 }
 
 /// Get all languages as Language structs
-#[allow(dead_code)]
 pub fn get_all_languages() -> Vec<Language> {
     LANGUAGE_CONFIGS
         .iter()

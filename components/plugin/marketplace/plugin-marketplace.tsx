@@ -36,6 +36,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { usePluginStore } from '@/stores/plugin';
+import { useMarketplace } from '@/hooks/plugin';
 import { cn } from '@/lib/utils';
 
 // Import extracted components
@@ -48,7 +49,6 @@ import {
   CATEGORY_INFO,
   QUICK_FILTERS,
   PLUGIN_COLLECTIONS,
-  MOCK_PLUGINS,
   MarketplaceStatsBar,
   CollectionCard,
   FeaturedPluginCard,
@@ -80,19 +80,15 @@ export function PluginMarketplace({
 }: PluginMarketplaceProps) {
   const t = useTranslations('pluginMarketplace');
   const { plugins: pluginsById } = usePluginStore();
+  const { plugins: marketplacePlugins, featuredPlugins, trendingPlugins, isLoading, isUsingMockData: _isUsingMockData } = useMarketplace();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
-  const [isLoading] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  const installedPluginIds = useMemo(() => new Set(Object.keys(pluginsById)), [pluginsById]);
-  const marketplacePlugins = useMemo(
-    () => MOCK_PLUGINS.map((p) => ({ ...p, installed: installedPluginIds.has(p.id) })),
-    [installedPluginIds]
-  );
+  const _installedPluginIds = useMemo(() => new Set(Object.keys(pluginsById)), [pluginsById]);
 
   // Keyboard shortcut for search focus (Cmd/Ctrl + K)
   useEffect(() => {
@@ -107,15 +103,8 @@ export function PluginMarketplace({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const featuredPlugins = useMemo(
-    () => marketplacePlugins.filter((p) => p.featured),
-    [marketplacePlugins]
-  );
-
-  const trendingPlugins = useMemo(
-    () => marketplacePlugins.filter((p) => p.trending),
-    [marketplacePlugins]
-  );
+  // featuredPlugins and trendingPlugins are now provided by useMarketplace hook
+  void _isUsingMockData; // Available for debugging
 
   const clearFilters = useCallback(() => {
     setSearchQuery('');

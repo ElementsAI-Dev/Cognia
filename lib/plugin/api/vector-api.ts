@@ -12,6 +12,7 @@ import {
   type VectorDocument as LibVectorDocument,
 } from '@/lib/vector';
 import { generateEmbedding, generateEmbeddings } from '@/lib/vector/embedding';
+import { createPluginSystemLogger } from '../logger';
 import type {
   PluginVectorAPI,
   VectorDocument,
@@ -26,6 +27,7 @@ import { nanoid } from 'nanoid';
  * Create the Vector API for a plugin
  */
 export function createVectorAPI(pluginId: string): PluginVectorAPI {
+  const logger = createPluginSystemLogger(pluginId);
   let store: IVectorStore | null = null;
 
   const getStore = async (): Promise<IVectorStore> => {
@@ -69,7 +71,7 @@ export function createVectorAPI(pluginId: string): PluginVectorAPI {
       const vs = await getStore();
       const prefixedName = prefixCollection(name);
       await vs.createCollection(prefixedName);
-      console.log(`[Plugin:${pluginId}] Created collection: ${name}`);
+      logger.info(`Created collection: ${name}`);
       return prefixedName;
     },
 
@@ -77,7 +79,7 @@ export function createVectorAPI(pluginId: string): PluginVectorAPI {
       const vs = await getStore();
       const prefixedName = prefixCollection(name);
       await vs.deleteCollection(prefixedName);
-      console.log(`[Plugin:${pluginId}] Deleted collection: ${name}`);
+      logger.info(`Deleted collection: ${name}`);
     },
 
     listCollections: async () => {
@@ -116,7 +118,7 @@ export function createVectorAPI(pluginId: string): PluginVectorAPI {
       }));
 
       await vs.addDocuments(prefixedCollection, libDocs);
-      console.log(`[Plugin:${pluginId}] Added ${docs.length} documents to ${collection}`);
+      logger.info(`Added ${docs.length} documents to ${collection}`);
       
       return libDocs.map(d => d.id);
     },
@@ -141,14 +143,14 @@ export function createVectorAPI(pluginId: string): PluginVectorAPI {
         await vs.addDocuments(prefixedCollection, libDocs);
       }
 
-      console.log(`[Plugin:${pluginId}] Updated ${docs.length} documents in ${collection}`);
+      logger.info(`Updated ${docs.length} documents in ${collection}`);
     },
 
     deleteDocuments: async (collection: string, ids: string[]) => {
       const vs = await getStore();
       const prefixedCollection = prefixCollection(collection);
       await vs.deleteDocuments(prefixedCollection, ids);
-      console.log(`[Plugin:${pluginId}] Deleted ${ids.length} documents from ${collection}`);
+      logger.info(`Deleted ${ids.length} documents from ${collection}`);
     },
 
     search: async (collection: string, query: string, options?: VectorSearchOptions): Promise<VectorSearchResult[]> => {
@@ -170,7 +172,7 @@ export function createVectorAPI(pluginId: string): PluginVectorAPI {
 
     searchByEmbedding: async (_collection: string, _embedding: number[], _options?: VectorSearchOptions): Promise<VectorSearchResult[]> => {
       // searchByEmbedding requires additional implementation in the vector store
-      console.warn(`[Plugin:${pluginId}] searchByEmbedding not yet supported`);
+      logger.warn('searchByEmbedding not yet supported');
       return [];
     },
 
@@ -201,7 +203,7 @@ export function createVectorAPI(pluginId: string): PluginVectorAPI {
         await vs.deleteAllDocuments(prefixedCollection);
       }
 
-      console.log(`[Plugin:${pluginId}] Cleared collection: ${collection}`);
+      logger.info(`Cleared collection: ${collection}`);
     },
   };
 }

@@ -9,6 +9,7 @@
  */
 
 import type { PluginContext } from '@/types/plugin';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -362,7 +363,7 @@ export class PluginDebugger {
       try {
         handler(entry);
       } catch (err) {
-        console.error('[Debugger] Log handler error:', err);
+        loggers.devTools.error('[Debugger] Log handler error:', err);
       }
     }
   }
@@ -430,7 +431,7 @@ export class PluginDebugger {
         try {
           handler(session, frame);
         } catch (err) {
-          console.error('[Debugger] Break handler error:', err);
+          loggers.devTools.error('[Debugger] Break handler error:', err);
         }
       }
 

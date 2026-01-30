@@ -5,6 +5,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -104,7 +105,7 @@ export class PluginSignatureVerifier {
         });
       }
     } catch (error) {
-      console.warn('[Signature] Failed to load trusted publishers:', error);
+      loggers.manager.warn('[Signature] Failed to load trusted publishers:', error);
     }
   }
 

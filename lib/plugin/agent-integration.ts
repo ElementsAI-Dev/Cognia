@@ -7,6 +7,7 @@ import { usePluginStore } from '@/stores/plugin';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import type { PluginTool, Plugin } from '@/types/plugin';
 import { trackPluginEvent } from './analytics';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -169,7 +170,7 @@ export class PluginAgentBridge {
     const mode = this.getMode(modeId);
     
     if (!mode) {
-      console.warn(`Plugin mode not found: ${modeId}`);
+      loggers.manager.warn(`Plugin mode not found: ${modeId}`);
       return false;
     }
 

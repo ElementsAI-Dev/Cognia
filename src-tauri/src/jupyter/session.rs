@@ -110,16 +110,6 @@ impl SessionManager {
         self.sessions.get(session_id)
     }
 
-    /// Get a kernel by ID
-    pub fn get_kernel(&self, kernel_id: &str) -> Option<&JupyterKernel> {
-        self.kernels.get(kernel_id)
-    }
-
-    /// Get a mutable kernel by ID
-    pub fn get_kernel_mut(&mut self, kernel_id: &str) -> Option<&mut JupyterKernel> {
-        self.kernels.get_mut(kernel_id)
-    }
-
     /// Execute code in a session
     pub async fn execute(
         &mut self,

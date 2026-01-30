@@ -360,18 +360,51 @@ pub async fn model_list_installed(app: AppHandle) -> Result<Vec<String>, String>
     Ok(installed)
 }
 
+/// Get the config file path
+fn get_config_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("Failed to get app config dir: {}", e))?;
+    Ok(config_dir.join("model_download_config.json"))
+}
+
 /// Get download configuration
 #[tauri::command]
-pub async fn model_get_download_config() -> Result<DownloadConfig, String> {
-    // TODO: Load from settings
-    Ok(DownloadConfig::default())
+pub async fn model_get_download_config(app: AppHandle) -> Result<DownloadConfig, String> {
+    let config_path = get_config_path(&app)?;
+    
+    if config_path.exists() {
+        let content = fs::read_to_string(&config_path)
+            .await
+            .map_err(|e| format!("Failed to read config: {}", e))?;
+        let config: DownloadConfig = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse config: {}", e))?;
+        Ok(config)
+    } else {
+        Ok(DownloadConfig::default())
+    }
 }
 
 /// Set download configuration
 #[tauri::command]
-pub async fn model_set_download_config(config: DownloadConfig) -> Result<(), String> {
-    // TODO: Save to settings
-    log::info!("Download config updated: {:?}", config);
+pub async fn model_set_download_config(app: AppHandle, config: DownloadConfig) -> Result<(), String> {
+    let config_path = get_config_path(&app)?;
+    
+    // Ensure config directory exists
+    if let Some(parent) = config_path.parent() {
+        fs::create_dir_all(parent)
+            .await
+            .map_err(|e| format!("Failed to create config dir: {}", e))?;
+    }
+    
+    let content = serde_json::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
+    fs::write(&config_path, content)
+        .await
+        .map_err(|e| format!("Failed to write config: {}", e))?;
+    
+    log::info!("Download config saved to {:?}", config_path);
     Ok(())
 }
 

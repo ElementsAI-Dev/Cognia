@@ -13,6 +13,7 @@ import { useA2UIStore } from '@/stores/a2ui';
 import { registerComponent, unregisterComponent } from '@/lib/a2ui/catalog';
 import type { PluginRegistry } from './registry';
 import type { PluginLifecycleHooks } from './hooks-system';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -89,7 +90,7 @@ export class PluginA2UIBridge {
     // Check for conflicts
     if (this.registeredComponents.has(type)) {
       const existingPluginId = this.registeredComponents.get(type);
-      console.warn(
+      loggers.manager.warn(
         `Component type "${type}" already registered by plugin "${existingPluginId}". ` +
         `Overwriting with plugin "${pluginId}".`
       );
@@ -185,7 +186,7 @@ export class PluginA2UIBridge {
     const templateId = `${pluginId}:${template.id}`;
 
     if (this.registeredTemplates.has(templateId)) {
-      console.warn(`Template "${templateId}" already registered. Overwriting.`);
+      loggers.manager.warn(`Template "${templateId}" already registered. Overwriting.`);
     }
 
     this.registeredTemplates.set(templateId, pluginId);

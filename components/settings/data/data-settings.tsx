@@ -45,8 +45,9 @@ import {
   AlertTitle,
 } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { useSessionStore, useSettingsStore, useArtifactStore } from '@/stores';
+import { useSessionStore, useArtifactStore } from '@/stores';
 import { db } from '@/lib/db';
+import { downloadExport, parseImportFile, importFullBackup } from '@/lib/storage';
 import { BatchExportDialog } from '@/components/export';
 import { toast } from '@/components/ui/sonner';
 import { resetOnboardingTour } from '@/components/onboarding';
@@ -111,30 +112,18 @@ export function DataSettings() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      // Gather all data
-      const exportData = {
-        version: '1.0',
-        exportedAt: new Date().toISOString(),
-        sessions: sessions,
-        settings: useSettingsStore.getState(),
-        artifacts: useArtifactStore.getState().artifacts,
-        canvasDocuments: useArtifactStore.getState().canvasDocuments,
-      };
-
-      // Create and download file
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: 'application/json',
+      // Use the new comprehensive export utility
+      await downloadExport({
+        includeSessions: true,
+        includeSettings: true,
+        includeArtifacts: true,
+        includeIndexedDB: true,
+        includeChecksum: true,
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `cognia-export-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      toast.success(t('exportSuccess') || 'Export successful!');
     } catch (error) {
       console.error('Export failed:', error);
+      toast.error(t('exportFailed') || 'Export failed.');
     } finally {
       setIsExporting(false);
     }
@@ -146,37 +135,37 @@ export function DataSettings() {
 
     setIsImporting(true);
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-
-      // Validate version
-      if (!data.version) {
-        throw new Error('Invalid export file');
+      // Parse and validate import file
+      const { data, errors: parseErrors } = await parseImportFile(file);
+      
+      if (!data || parseErrors.length > 0) {
+        throw new Error(parseErrors.join(', ') || 'Invalid export file');
       }
 
-      // Import sessions
-      if (data.sessions && Array.isArray(data.sessions)) {
-        // Note: This would need proper store methods to bulk import
-        console.log('Importing sessions:', data.sessions.length);
-      }
+      // Import using comprehensive import utility
+      const result = await importFullBackup(data, {
+        mergeStrategy: 'merge',
+        generateNewIds: false,
+        validateData: true,
+      });
 
-      // Import settings
-      if (data.settings) {
-        const { setTheme, updateProviderSettings } = useSettingsStore.getState();
-        if (data.settings.theme) setTheme(data.settings.theme);
-        if (data.settings.providerSettings) {
-          Object.entries(data.settings.providerSettings).forEach(
-            ([providerId, settings]) => {
-              updateProviderSettings(providerId, settings as Record<string, unknown>);
-            }
-          );
-        }
+      if (result.success) {
+        const summary = [
+          result.imported.sessions > 0 && `${result.imported.sessions} sessions`,
+          result.imported.artifacts > 0 && `${result.imported.artifacts} artifacts`,
+          result.imported.messages > 0 && `${result.imported.messages} messages`,
+          result.imported.settings && 'settings',
+        ].filter(Boolean).join(', ');
+        
+        toast.success(t('importSuccess') || `Import successful! Imported: ${summary}`);
+        refreshStats();
+      } else {
+        const errorMsg = result.errors.map(e => e.message).join(', ');
+        throw new Error(errorMsg || 'Import failed');
       }
-
-      toast.success('Import successful! Your data has been imported.');
     } catch (error) {
       console.error('Import failed:', error);
-      toast.error('Import failed. Please check the file format.');
+      toast.error(t('importFailed') || `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsImporting(false);
       // Reset file input

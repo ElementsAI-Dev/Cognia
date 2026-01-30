@@ -658,14 +658,35 @@ impl SkillSeekersService {
 
         let output = self.run_simple_command_output(args, None).await?;
 
-        // Parse output (skill-seekers outputs JSON for estimate)
-        // For now, return a default estimation
-        // TODO: Parse actual CLI output
-        Ok(PageEstimation {
-            estimated_pages: 100,
-            estimated_minutes: 15,
-            has_llms_txt: output.contains("llms.txt"),
-        })
+        // Parse output - skill-seekers outputs JSON for estimate
+        // Try to parse JSON output, fall back to defaults if parsing fails
+        let estimation = if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&output) {
+            PageEstimation {
+                estimated_pages: parsed.get("estimated_pages")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(100) as u32,
+                estimated_minutes: parsed.get("estimated_minutes")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(15) as u32,
+                has_llms_txt: parsed.get("has_llms_txt")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or_else(|| output.contains("llms.txt")),
+            }
+        } else {
+            // Fallback: try to extract numbers from text output
+            let pages = output.lines()
+                .find(|l| l.contains("pages") || l.contains("Pages"))
+                .and_then(|l| l.split_whitespace().find_map(|w| w.parse::<u32>().ok()))
+                .unwrap_or(100);
+            let minutes = (pages as f64 * 0.15).ceil() as u32; // ~0.15 min per page
+            PageEstimation {
+                estimated_pages: pages,
+                estimated_minutes: minutes.max(1),
+                has_llms_txt: output.contains("llms.txt"),
+            }
+        };
+        
+        Ok(estimation)
     }
 
     /// Validate a configuration file
@@ -768,7 +789,7 @@ impl SkillSeekersService {
         &self,
         job_id: &str,
         args: Vec<String>,
-        enhance: Option<EnhanceConfig>,
+        _enhance: Option<EnhanceConfig>,
         package: Option<PackageConfig>,
         auto_install: bool,
     ) -> Result<()> {
@@ -805,7 +826,7 @@ impl SkillSeekersService {
         }
 
         // Spawn the process
-        let mut child = cmd.spawn().context("Failed to spawn skill-seekers process")?;
+        let child = cmd.spawn().context("Failed to spawn skill-seekers process")?;
 
         // Store the child process
         {

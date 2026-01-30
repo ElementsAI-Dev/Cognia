@@ -18,8 +18,10 @@ mod video_processor;
 #[allow(unused_imports)]
 pub use error::{RecordingError, RecordingErrorCode};
 pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
-#[allow(unused_imports)]
-pub use progress::VideoProcessingProgress;
+pub use progress::{
+    VideoProcessingProgress, emit_processing_started, emit_processing_completed,
+    emit_processing_error, monitor_ffmpeg_progress, parse_ffmpeg_progress,
+};
 pub use storage::{CleanupResult, StorageConfig, StorageManager, StorageStats};
 #[allow(unused_imports)]
 pub use storage::{StorageFile, StorageFileType};

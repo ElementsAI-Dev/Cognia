@@ -223,18 +223,25 @@ describe('input-completion API', () => {
   });
 
   describe('isInputCompletionRunning', () => {
+    beforeEach(() => {
+      jest.resetModules();
+    });
+
     it('should return true when running', async () => {
       mockInvoke.mockResolvedValue(true);
 
-      const result = await api.isInputCompletionRunning();
-      expect(mockInvoke).toHaveBeenCalledWith('input_completion_is_running');
+      const { isInputCompletionRunning } = await import('./input-completion');
+      const result = await isInputCompletionRunning();
+      expect(mockInvoke).toHaveBeenCalledWith('input_completion_is_running', undefined);
       expect(result).toBe(true);
     });
 
     it('should return false when not running', async () => {
       mockInvoke.mockResolvedValue(false);
 
-      const result = await api.isInputCompletionRunning();
+      const { isInputCompletionRunning } = await import('./input-completion');
+      const result = await isInputCompletionRunning();
+      expect(mockInvoke).toHaveBeenCalledWith('input_completion_is_running', undefined);
       expect(result).toBe(false);
     });
   });

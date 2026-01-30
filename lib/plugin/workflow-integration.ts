@@ -8,6 +8,7 @@ import { usePluginStore } from '@/stores/plugin';
 import { getPluginEventHooks } from './hooks-system';
 import type { PluginMessage } from '@/types/plugin';
 import type { ExtendedPluginHooks } from '@/types/plugin/plugin-hooks';
+import { loggers } from './logger';
 
 /**
  * Workflow integration for plugins
@@ -36,7 +37,7 @@ export class PluginWorkflowIntegration {
             messages = transformed;
           }
         } catch (error) {
-          console.error(`[WorkflowIntegration] Error in onChatRequest for ${pluginId}:`, error);
+          loggers.manager.error(`[WorkflowIntegration] Error in onChatRequest for ${pluginId}:`, error);
         }
       }
     }

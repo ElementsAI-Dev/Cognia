@@ -8,6 +8,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import type { Plugin, PluginDefinition } from '@/types/plugin';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -118,7 +119,7 @@ export class PluginHotReload {
 
   async startWatching(plugins: Plugin[]): Promise<void> {
     if (!this.config.enabled) {
-      console.warn('[HotReload] Hot reload is disabled');
+      loggers.hotReload.warn('Hot reload is disabled');
       return;
     }
 
@@ -141,7 +142,7 @@ export class PluginHotReload {
       pathsToWatch.push(...this.config.watchPaths);
 
       if (pathsToWatch.length === 0) {
-        console.info('[HotReload] No plugins to watch');
+        loggers.hotReload.info('No plugins to watch');
         return;
       }
 
@@ -154,9 +155,9 @@ export class PluginHotReload {
       });
 
       this.state.isWatching = true;
-      console.info(`[HotReload] Watching ${pathsToWatch.length} paths for changes`);
+      loggers.hotReload.info(`Watching ${pathsToWatch.length} paths for changes`);
     } catch (error) {
-      console.error('[HotReload] Failed to start watching:', error);
+      loggers.hotReload.error('Failed to start watching:', error);
       throw error;
     }
   }
@@ -182,9 +183,9 @@ export class PluginHotReload {
 
       this.state.isWatching = false;
       this.state.watchedPlugins.clear();
-      console.info('[HotReload] Stopped watching');
+      loggers.hotReload.info('Stopped watching');
     } catch (error) {
-      console.error('[HotReload] Failed to stop watching:', error);
+      loggers.hotReload.error('Failed to stop watching:', error);
     }
   }
 
@@ -198,7 +199,7 @@ export class PluginHotReload {
 
     if (!this.state.watchedPlugins.has(pluginId)) return;
 
-    console.debug(`[HotReload] File changed: ${event.path} (${event.type})`);
+    loggers.hotReload.debug(`File changed: ${event.path} (${event.type})`);
 
     // Debounce reloads
     const existingTimeout = this.state.pendingReloads.get(pluginId);
@@ -242,7 +243,7 @@ export class PluginHotReload {
     const startTime = Date.now();
 
     try {
-      console.info(`[HotReload] Reloading plugin: ${pluginId}`);
+      loggers.hotReload.info(`Reloading plugin: ${pluginId}`);
 
       // Preserve state if configured
       if (this.config.preserveState) {
@@ -349,7 +350,7 @@ export class PluginHotReload {
         this.pluginStates.set(pluginId, { ...existingState, _runtime: runtimeState });
       }
     } catch (error) {
-      console.warn(`[HotReload] Failed to preserve state for ${pluginId}:`, error);
+      loggers.hotReload.warn(`Failed to preserve state for ${pluginId}:`, error);
     }
   }
 
@@ -374,7 +375,7 @@ export class PluginHotReload {
       // Clean up
       this.pluginStates.delete(pluginId);
     } catch (error) {
-      console.warn(`[HotReload] Failed to restore state for ${pluginId}:`, error);
+      loggers.hotReload.warn(`Failed to restore state for ${pluginId}:`, error);
     }
   }
 
@@ -397,7 +398,7 @@ export class PluginHotReload {
         (window as unknown as Record<string, unknown>)[cacheKey] = Date.now();
       }
     } catch (error) {
-      console.debug(`[HotReload] Cache invalidation warning for ${pluginId}:`, error);
+      loggers.hotReload.debug(`Cache invalidation warning for ${pluginId}:`, error);
     }
   }
 
@@ -420,7 +421,7 @@ export class PluginHotReload {
       try {
         callback(result);
       } catch (error) {
-        console.error('[HotReload] Reload callback error:', error);
+        loggers.hotReload.error('Reload callback error:', error);
       }
     }
   }
@@ -430,7 +431,7 @@ export class PluginHotReload {
       try {
         callback(error, pluginId);
       } catch (err) {
-        console.error('[HotReload] Error callback error:', err);
+        loggers.hotReload.error('Error callback error:', err);
       }
     }
   }

@@ -12,6 +12,7 @@ import type {
   ArtifactRenderer,
 } from '@/types/plugin/plugin-extended';
 import type { Artifact } from '@/types/artifact';
+import { createPluginSystemLogger } from '../logger';
 
 // Registry for custom artifact renderers
 const artifactRenderers = new Map<string, ArtifactRenderer>();
@@ -20,6 +21,7 @@ const artifactRenderers = new Map<string, ArtifactRenderer>();
  * Create the Artifact API for a plugin
  */
 export function createArtifactAPI(pluginId: string): PluginArtifactAPI {
+  const logger = createPluginSystemLogger(pluginId);
   return {
     getActiveArtifact: (): Artifact | null => {
       const store = useArtifactStore.getState();
@@ -43,20 +45,20 @@ export function createArtifactAPI(pluginId: string): PluginArtifactAPI {
         language: options.language,
       });
       const id = typeof artifact === 'string' ? artifact : artifact?.id || '';
-      console.log(`[Plugin:${pluginId}] Created artifact: ${id}`);
+      logger.info(`Created artifact: ${id}`);
       return id;
     },
 
     updateArtifact: (id: string, updates: Partial<Artifact>) => {
       const store = useArtifactStore.getState();
       store.updateArtifact(id, updates);
-      console.log(`[Plugin:${pluginId}] Updated artifact: ${id}`);
+      logger.info(`Updated artifact: ${id}`);
     },
 
     deleteArtifact: (id: string) => {
       const store = useArtifactStore.getState();
       store.deleteArtifact(id);
-      console.log(`[Plugin:${pluginId}] Deleted artifact: ${id}`);
+      logger.info(`Deleted artifact: ${id}`);
     },
 
     listArtifacts: (filter?: ArtifactFilter): Artifact[] => {
@@ -85,13 +87,13 @@ export function createArtifactAPI(pluginId: string): PluginArtifactAPI {
       const store = useArtifactStore.getState();
       store.setActiveArtifact(id);
       store.setPanelView('artifact');
-      console.log(`[Plugin:${pluginId}] Opened artifact: ${id}`);
+      logger.info(`Opened artifact: ${id}`);
     },
 
     closeArtifact: () => {
       const store = useArtifactStore.getState();
       store.closePanel();
-      console.log(`[Plugin:${pluginId}] Closed artifact panel`);
+      logger.info('Closed artifact panel');
     },
 
     onArtifactChange: (handler: (artifact: Artifact | null) => void) => {
@@ -112,11 +114,11 @@ export function createArtifactAPI(pluginId: string): PluginArtifactAPI {
     registerRenderer: (type: string, renderer: ArtifactRenderer) => {
       const rendererId = `${pluginId}:${type}`;
       artifactRenderers.set(rendererId, { ...renderer, type: rendererId });
-      console.log(`[Plugin:${pluginId}] Registered artifact renderer: ${type}`);
+      logger.info(`Registered artifact renderer: ${type}`);
 
       return () => {
         artifactRenderers.delete(rendererId);
-        console.log(`[Plugin:${pluginId}] Unregistered artifact renderer: ${type}`);
+        logger.info(`Unregistered artifact renderer: ${type}`);
       };
     },
   };

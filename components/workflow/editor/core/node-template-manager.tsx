@@ -157,7 +157,7 @@ export function NodeTemplatePanel({ onAddTemplate, className }: NodeTemplatePane
       </div>
 
       {/* Templates List */}
-      <ScrollArea className="flex-1 min-h-0">
+      <ScrollArea className="flex-1 min-h-0 overflow-hidden">
         <div className="p-2 space-y-1">
           {filteredTemplates.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">

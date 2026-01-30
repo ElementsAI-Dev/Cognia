@@ -11,6 +11,7 @@ import type {
   TranslationParams,
 } from '@/types/plugin/plugin-extended';
 import type { Locale as PluginLocale } from '@/types/plugin/plugin-extended';
+import { createPluginSystemLogger } from '../logger';
 
 // Plugin translation registrations
 const pluginTranslations = new Map<string, Map<Locale, Record<string, string>>>();
@@ -19,6 +20,7 @@ const pluginTranslations = new Map<string, Map<Locale, Record<string, string>>>(
  * Create the I18n API for a plugin
  */
 export function createI18nAPI(pluginId: string): PluginI18nAPI {
+  const logger = createPluginSystemLogger(pluginId);
   // Initialize plugin translation storage
   if (!pluginTranslations.has(pluginId)) {
     pluginTranslations.set(pluginId, new Map());
@@ -69,7 +71,7 @@ export function createI18nAPI(pluginId: string): PluginI18nAPI {
       const pluginTrans = getPluginTranslations();
       const existing = pluginTrans.get(locale as Locale) || {};
       pluginTrans.set(locale as Locale, { ...existing, ...translations });
-      console.log(`[Plugin:${pluginId}] Registered ${Object.keys(translations).length} translations for ${locale}`);
+      logger.info(`Registered ${Object.keys(translations).length} translations for ${locale}`);
     },
 
     hasTranslation: (key: string): boolean => {

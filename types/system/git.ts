@@ -204,6 +204,25 @@ export interface GitResetOptions {
   target?: string; // Commit hash or HEAD~n
 }
 
+/** Git stash entry */
+export interface GitStashEntry {
+  index: number;
+  message: string;
+  branch?: string;
+  date?: string;
+}
+
+/** Git full status - combined response for all status data
+ * This reduces multiple IPC calls to a single call for better performance */
+export interface GitFullStatus {
+  repoInfo: GitRepoInfo | null;
+  branches: GitBranchInfo[];
+  commits: GitCommitInfo[];
+  fileStatus: GitFileStatus[];
+  stashList: GitStashEntry[];
+  remotes: GitRemoteInfo[];
+}
+
 /** Git log options */
 export interface GitLogOptions {
   repoPath: string;

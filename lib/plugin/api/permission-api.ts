@@ -8,6 +8,7 @@ import type {
   PluginPermissionAPI,
   ExtendedPluginPermission,
 } from '@/types/plugin/plugin-extended';
+import { createPluginSystemLogger } from '../logger';
 
 // Permission grants by plugin
 const grantedPermissions = new Map<string, Set<ExtendedPluginPermission>>();
@@ -75,6 +76,7 @@ export function createPermissionAPI(
   pluginId: string, 
   manifestPermissions: string[]
 ): PluginPermissionAPI {
+  const logger = createPluginSystemLogger(pluginId);
   // Initialize permissions if not already done
   if (!grantedPermissions.has(pluginId)) {
     initializePluginPermissions(pluginId, manifestPermissions);
@@ -95,7 +97,7 @@ export function createPermissionAPI(
       // In production, this would show a dialog to the user
       const permissions = getPermissions();
       permissions.add(permission);
-      console.log(`[Plugin:${pluginId}] Granted permission: ${permission}`);
+      logger.info(`Granted permission: ${permission}`);
       return true;
     },
 

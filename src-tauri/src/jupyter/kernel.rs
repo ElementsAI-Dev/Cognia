@@ -53,6 +53,7 @@ pub struct JupyterKernel {
     pub python_version: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub last_activity_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[allow(dead_code)]
     config: KernelConfig,
     process: Option<Child>,
     variables: HashMap<String, String>,
@@ -260,12 +261,18 @@ impl JupyterKernel {
             self.id,
             python_path
         );
-        // Create a wrapper script that captures output properly
+
+        // Use base64 encoding to safely pass code without escaping issues
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        let code_base64 = STANDARD.encode(code.as_bytes());
+
+        // Create a wrapper script that decodes base64 and captures output properly
         let wrapper_code = format!(
             r#"
 import sys
 import io
 import json
+import base64
 import traceback
 
 # Capture stdout/stderr
@@ -275,7 +282,8 @@ sys.stdout = io.StringIO()
 sys.stderr = io.StringIO()
 
 try:
-    exec(compile('''{}''', '<cell>', 'exec'))
+    _code = base64.b64decode("{}").decode("utf-8")
+    exec(compile(_code, '<cell>', 'exec'))
 except Exception:
     traceback.print_exc()
 
@@ -288,7 +296,7 @@ sys.stderr = old_stderr
 # Output as JSON for parsing
 print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
 "#,
-            code.replace("'''", r#"\'\'\'"#).replace("\\", "\\\\")
+            code_base64
         );
 
         let output = if cfg!(target_os = "windows") {
@@ -705,21 +713,6 @@ print(json.dumps(get_var_info()))
             self.id
         );
         Ok(())
-    }
-
-    /// Check if kernel is alive
-    pub fn is_alive(&self) -> bool {
-        self.status != KernelStatus::Dead
-    }
-
-    /// Get execution timeout in seconds
-    pub fn get_timeout_secs(&self) -> u64 {
-        self.config.timeout_secs
-    }
-
-    /// Get max output size in bytes
-    pub fn get_max_output_size(&self) -> usize {
-        self.config.max_output_size
     }
 
     /// Get kernel info

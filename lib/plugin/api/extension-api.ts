@@ -13,6 +13,7 @@ import type {
 } from '@/types/plugin/plugin-extended';
 import { nanoid } from 'nanoid';
 import React from 'react';
+import { createPluginSystemLogger } from '../logger';
 
 // Global extension registry
 const extensions = new Map<ExtensionPoint, ExtensionRegistration[]>();
@@ -21,6 +22,7 @@ const extensions = new Map<ExtensionPoint, ExtensionRegistration[]>();
  * Create the Extension Points API for a plugin
  */
 export function createExtensionAPI(pluginId: string): PluginExtensionAPI {
+  const logger = createPluginSystemLogger(pluginId);
   return {
     registerExtension: (
       point: ExtensionPoint,
@@ -51,7 +53,7 @@ export function createExtensionAPI(pluginId: string): PluginExtensionAPI {
         (b.options.priority || 0) - (a.options.priority || 0)
       );
 
-      console.log(`[Plugin:${pluginId}] Registered extension at ${point}`);
+      logger.info(`Registered extension at ${point}`);
 
       // Return unregister function
       return () => {
@@ -62,7 +64,7 @@ export function createExtensionAPI(pluginId: string): PluginExtensionAPI {
             pointExtensions.splice(index, 1);
           }
         }
-        console.log(`[Plugin:${pluginId}] Unregistered extension at ${point}`);
+        logger.info(`Unregistered extension at ${point}`);
       };
     },
 

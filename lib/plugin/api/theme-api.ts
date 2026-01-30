@@ -6,6 +6,7 @@
 
 import { useSettingsStore } from '@/stores';
 import { THEME_PRESETS } from '@/lib/themes';
+import { createPluginSystemLogger } from '../logger';
 import type {
   PluginThemeAPI,
   ThemeMode,
@@ -59,6 +60,7 @@ function getCurrentColors(preset: ColorThemePreset, isDark: boolean): ThemeColor
  * Create the Theme API for a plugin
  */
 export function createThemeAPI(pluginId: string): PluginThemeAPI {
+  const logger = createPluginSystemLogger(pluginId);
   return {
     getTheme: (): ThemeState => {
       const store = useSettingsStore.getState();
@@ -87,7 +89,7 @@ export function createThemeAPI(pluginId: string): PluginThemeAPI {
 
     setMode: (mode: ThemeMode) => {
       useSettingsStore.getState().setTheme(mode);
-      console.log(`[Plugin:${pluginId}] Set theme mode: ${mode}`);
+      logger.info(`Set theme mode: ${mode}`);
     },
 
     getColorPreset: () => {
@@ -96,7 +98,7 @@ export function createThemeAPI(pluginId: string): PluginThemeAPI {
 
     setColorPreset: (preset: ColorThemePreset) => {
       useSettingsStore.getState().setColorTheme(preset);
-      console.log(`[Plugin:${pluginId}] Set color preset: ${preset}`);
+      logger.info(`Set color preset: ${preset}`);
     },
 
     getAvailablePresets: (): ColorThemePreset[] => {
@@ -125,7 +127,7 @@ export function createThemeAPI(pluginId: string): PluginThemeAPI {
         },
       };
       const id = store.createCustomTheme(themeWithDefaults);
-      console.log(`[Plugin:${pluginId}] Registered custom theme: ${theme.name} (${id})`);
+      logger.info(`Registered custom theme: ${theme.name} (${id})`);
       return id;
     },
 
@@ -146,13 +148,13 @@ export function createThemeAPI(pluginId: string): PluginThemeAPI {
         };
       }
       store.updateCustomTheme(id, storeUpdates);
-      console.log(`[Plugin:${pluginId}] Updated custom theme: ${id}`);
+      logger.info(`Updated custom theme: ${id}`);
     },
 
     deleteCustomTheme: (id: string) => {
       const store = useSettingsStore.getState();
       store.deleteCustomTheme(id);
-      console.log(`[Plugin:${pluginId}] Deleted custom theme: ${id}`);
+      logger.info(`Deleted custom theme: ${id}`);
     },
 
     getCustomThemes: (): CustomTheme[] => {
@@ -162,7 +164,7 @@ export function createThemeAPI(pluginId: string): PluginThemeAPI {
     activateCustomTheme: (id: string) => {
       const store = useSettingsStore.getState();
       store.setActiveCustomTheme(id);
-      console.log(`[Plugin:${pluginId}] Activated custom theme: ${id}`);
+      logger.info(`Activated custom theme: ${id}`);
     },
 
     onThemeChange: (handler: (theme: ThemeState) => void) => {

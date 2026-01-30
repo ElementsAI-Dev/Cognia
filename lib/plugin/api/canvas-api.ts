@@ -12,11 +12,13 @@ import type {
   CanvasSelection,
 } from '@/types/plugin/plugin-extended';
 import type { CanvasDocumentVersion } from '@/types/artifact';
+import { createPluginSystemLogger } from '../logger';
 
 /**
  * Create the Canvas API for a plugin
  */
 export function createCanvasAPI(pluginId: string): PluginCanvasAPI {
+  const logger = createPluginSystemLogger(pluginId);
   return {
     getCurrentDocument: (): PluginCanvasDocument | null => {
       const store = useArtifactStore.getState();
@@ -67,7 +69,7 @@ export function createCanvasAPI(pluginId: string): PluginCanvasAPI {
         language: options.language,
         type: options.type,
       });
-      console.log(`[Plugin:${pluginId}] Created canvas document: ${id}`);
+      logger.info(`Created canvas document: ${id}`);
       return id;
     },
 
@@ -78,26 +80,26 @@ export function createCanvasAPI(pluginId: string): PluginCanvasAPI {
         content: updates.content,
         language: updates.language,
       });
-      console.log(`[Plugin:${pluginId}] Updated canvas document: ${id}`);
+      logger.info(`Updated canvas document: ${id}`);
     },
 
     deleteDocument: (id: string) => {
       const store = useArtifactStore.getState();
       store.deleteCanvasDocument(id);
-      console.log(`[Plugin:${pluginId}] Deleted canvas document: ${id}`);
+      logger.info(`Deleted canvas document: ${id}`);
     },
 
     openDocument: (id: string) => {
       const store = useArtifactStore.getState();
       store.setActiveCanvas(id);
       store.setPanelView('canvas');
-      console.log(`[Plugin:${pluginId}] Opened canvas document: ${id}`);
+      logger.info(`Opened canvas document: ${id}`);
     },
 
     closeCanvas: () => {
       const store = useArtifactStore.getState();
       store.closeCanvas();
-      console.log(`[Plugin:${pluginId}] Closed canvas`);
+      logger.info('Closed canvas');
     },
 
     getSelection: (): CanvasSelection | null => {
@@ -118,7 +120,7 @@ export function createCanvasAPI(pluginId: string): PluginCanvasAPI {
 
     setSelection: (start: number, end: number) => {
       // Would need DOM access to set selection in canvas editor
-      console.log(`[Plugin:${pluginId}] setSelection requested: ${start}-${end}`);
+      logger.debug(`setSelection requested: ${start}-${end}`);
     },
 
     insertText: (text: string) => {
@@ -132,7 +134,7 @@ export function createCanvasAPI(pluginId: string): PluginCanvasAPI {
       // Insert at end for simplicity
       const newContent = doc.content + text;
       store.updateCanvasDocument(activeId, { content: newContent });
-      console.log(`[Plugin:${pluginId}] Inserted text into canvas`);
+      logger.info('Inserted text into canvas');
     },
 
     replaceSelection: (text: string) => {
@@ -146,7 +148,7 @@ export function createCanvasAPI(pluginId: string): PluginCanvasAPI {
       if (doc) {
         store.updateCanvasDocument(activeId, { content: doc.content + text });
       }
-      console.log(`[Plugin:${pluginId}] Replaced selection in canvas`);
+      logger.info('Replaced selection in canvas');
     },
 
     getContent: (id?: string): string => {
@@ -164,21 +166,21 @@ export function createCanvasAPI(pluginId: string): PluginCanvasAPI {
       if (!docId) return;
 
       store.updateCanvasDocument(docId, { content });
-      console.log(`[Plugin:${pluginId}] Set canvas content`);
+      logger.info('Set canvas content');
     },
 
     saveVersion: async (id: string, description?: string): Promise<string> => {
       const store = useArtifactStore.getState();
       const result = store.saveCanvasVersion(id, description, false);
       const versionId = typeof result === 'string' ? result : (result?.id || '');
-      console.log(`[Plugin:${pluginId}] Saved canvas version: ${versionId}`);
+      logger.info(`Saved canvas version: ${versionId}`);
       return versionId;
     },
 
     restoreVersion: (documentId: string, versionId: string) => {
       const store = useArtifactStore.getState();
       store.restoreCanvasVersion(documentId, versionId);
-      console.log(`[Plugin:${pluginId}] Restored canvas version: ${versionId}`);
+      logger.info(`Restored canvas version: ${versionId}`);
     },
 
     getVersions: (id: string): CanvasDocumentVersion[] => {

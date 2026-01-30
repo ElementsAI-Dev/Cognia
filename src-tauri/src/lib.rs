@@ -971,6 +971,7 @@ pub fn run() {
             commands::media::screen_recording::video_generate_thumbnail,
             commands::media::screen_recording::video_generate_thumbnail_with_progress,
             commands::media::screen_recording::video_check_encoding_support,
+            commands::media::screen_recording::video_cancel_processing,
             // FFmpeg commands
             commands::media::screen_recording::ffmpeg_get_info,
             commands::media::screen_recording::ffmpeg_get_install_guide,
@@ -1044,6 +1045,7 @@ pub fn run() {
             commands::devtools::git::git_clone,
             commands::devtools::git::git_is_repo,
             commands::devtools::git::git_status,
+            commands::devtools::git::git_full_status,
             commands::devtools::git::git_stage,
             commands::devtools::git::git_stage_all,
             commands::devtools::git::git_unstage,
@@ -1071,6 +1073,9 @@ pub fn run() {
             commands::devtools::git::git_create_gitignore,
             commands::devtools::git::git_export_chat,
             commands::devtools::git::git_export_designer,
+            commands::devtools::git::git_export_data,
+            commands::devtools::git::git_list_exports,
+            commands::devtools::git::git_export_history,
             commands::devtools::git::git_restore_chat,
             commands::devtools::git::git_restore_designer,
             // Process management commands

@@ -15,6 +15,7 @@ import {
   exportToAnimatedHTML,
   generateFilename as generateExportFilename,
 } from '@/lib/export';
+import { createPluginSystemLogger, loggers } from '../logger';
 import type {
   PluginExportAPI,
   ExportFormat,
@@ -31,6 +32,7 @@ const customExporters = new Map<string, CustomExporter>();
  * Create the Export API for a plugin
  */
 export function createExportAPI(pluginId: string): PluginExportAPI {
+  const logger = createPluginSystemLogger(pluginId);
   return {
     exportSession: async (sessionId: string, options: ExportOptions): Promise<ExportResult> => {
       try {
@@ -52,7 +54,7 @@ export function createExportAPI(pluginId: string): PluginExportAPI {
 
         return await performExport(exportData, options, pluginId);
       } catch (error) {
-        console.error(`[Plugin:${pluginId}] Export session failed:`, error);
+        logger.error('Export session failed:', error);
         return { 
           success: false, 
           error: error instanceof Error ? error.message : 'Export failed' 
@@ -77,7 +79,7 @@ export function createExportAPI(pluginId: string): PluginExportAPI {
 
         return await performExport(exportData, options, pluginId);
       } catch (error) {
-        console.error(`[Plugin:${pluginId}] Export project failed:`, error);
+        logger.error('Export project failed:', error);
         return { 
           success: false, 
           error: error instanceof Error ? error.message : 'Export failed' 
@@ -95,7 +97,7 @@ export function createExportAPI(pluginId: string): PluginExportAPI {
 
         return await performExport(exportData, options, pluginId);
       } catch (error) {
-        console.error(`[Plugin:${pluginId}] Export messages failed:`, error);
+        logger.error('Export messages failed:', error);
         return { 
           success: false, 
           error: error instanceof Error ? error.message : 'Export failed' 
@@ -114,18 +116,18 @@ export function createExportAPI(pluginId: string): PluginExportAPI {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        console.log(`[Plugin:${pluginId}] Downloaded: ${finalFilename}`);
+        logger.info(`Downloaded: ${finalFilename}`);
       }
     },
 
     registerExporter: (exporter: CustomExporter) => {
       const exporterId = `${pluginId}:${exporter.id}`;
       customExporters.set(exporterId, { ...exporter, id: exporterId });
-      console.log(`[Plugin:${pluginId}] Registered exporter: ${exporter.name}`);
+      logger.info(`Registered exporter: ${exporter.name}`);
 
       return () => {
         customExporters.delete(exporterId);
-        console.log(`[Plugin:${pluginId}] Unregistered exporter: ${exporter.name}`);
+        logger.info(`Unregistered exporter: ${exporter.name}`);
       };
     },
 
@@ -149,7 +151,7 @@ export function createExportAPI(pluginId: string): PluginExportAPI {
 async function performExport(
   data: ExportData, 
   options: ExportOptions, 
-  pluginId: string
+  _pluginId: string
 ): Promise<ExportResult> {
   const { format, ...restOptions } = options;
   
@@ -269,7 +271,7 @@ async function performExport(
     extension
   );
 
-  console.log(`[Plugin:${pluginId}] Exported as ${format}: ${filename}`);
+  loggers.manager.info(`Exported as ${format}: ${filename}`);
 
   return {
     success: true,

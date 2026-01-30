@@ -39,6 +39,7 @@ interface PluginState extends PluginStoreState {
   setPluginError: (pluginId: string, error: string | null) => void;
   setPluginConfig: (pluginId: string, config: Record<string, unknown>) => void;
   updatePluginConfig: (pluginId: string, updates: Record<string, unknown>) => void;
+  updateLastUsedAt: (pluginId: string) => void;
 
   // Actions - Plugin Registration
   registerPluginHooks: (pluginId: string, hooks: PluginHooks) => void;
@@ -217,6 +218,7 @@ export const usePluginStore = create<PluginState>()(
                 ...state.plugins[pluginId],
                 status: 'enabled',
                 enabledAt: new Date(),
+                lastUsedAt: Date.now(),
               },
             },
           }));
@@ -433,6 +435,18 @@ export const usePluginStore = create<PluginState>()(
 
         const newConfig = { ...plugin.config, ...updates };
         get().setPluginConfig(pluginId, newConfig);
+      },
+
+      updateLastUsedAt: (pluginId) => {
+        const plugin = get().plugins[pluginId];
+        if (!plugin) return;
+
+        set((state) => ({
+          plugins: {
+            ...state.plugins,
+            [pluginId]: { ...state.plugins[pluginId], lastUsedAt: Date.now() },
+          },
+        }));
       },
 
       // =====================================================================

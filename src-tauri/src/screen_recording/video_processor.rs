@@ -63,7 +63,6 @@ pub struct VideoProcessor;
 
 impl VideoProcessor {
     /// Check if FFmpeg is available
-    #[allow(dead_code)]
     pub fn check_ffmpeg() -> bool {
         Command::new("ffmpeg")
             .arg("-version")
@@ -91,8 +90,7 @@ impl VideoProcessor {
     }
 
     /// Emit progress update event
-    #[allow(dead_code)]
-    fn emit_progress(app_handle: Option<&AppHandle>, operation: &str, progress: f32, current_time: f64, total_duration: Option<f64>) {
+    pub fn emit_progress(app_handle: Option<&AppHandle>, operation: &str, progress: f32, current_time: f64, total_duration: Option<f64>) {
         if let Some(app) = app_handle {
             let progress_event = VideoProcessingProgress {
                 operation: operation.to_string(),

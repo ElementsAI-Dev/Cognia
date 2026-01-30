@@ -35,7 +35,8 @@ export async function getCachedVariables(
     return await invoke<VariableInfo[]>('jupyter_get_cached_variables', {
       sessionId,
     });
-  } catch {
+  } catch (error) {
+    console.warn('[Jupyter] Failed to get cached variables:', error);
     return [];
   }
 }
@@ -69,7 +70,8 @@ export async function listSessions(): Promise<JupyterSession[]> {
 
   try {
     return await invoke<JupyterSession[]>('jupyter_list_sessions');
-  } catch {
+  } catch (error) {
+    console.warn('[Jupyter] Failed to list sessions:', error);
     return [];
   }
 }
@@ -86,7 +88,8 @@ export async function getSession(
     return await invoke<JupyterSession | null>('jupyter_get_session', {
       sessionId,
     });
-  } catch {
+  } catch (error) {
+    console.warn('[Jupyter] Failed to get session:', error);
     return null;
   }
 }
@@ -110,7 +113,8 @@ export async function listKernels(): Promise<KernelInfo[]> {
 
   try {
     return await invoke<KernelInfo[]>('jupyter_list_kernels');
-  } catch {
+  } catch (error) {
+    console.warn('[Jupyter] Failed to list kernels:', error);
     return [];
   }
 }
@@ -145,7 +149,8 @@ export async function getKernelStatus(
     return await invoke<string | null>('jupyter_get_kernel_status', {
       sessionId,
     });
-  } catch {
+  } catch (error) {
+    console.warn('[Jupyter] Failed to get kernel status:', error);
     return null;
   }
 }
@@ -158,7 +163,8 @@ export async function isKernelAlive(sessionId: string): Promise<boolean> {
 
   try {
     return await invoke<boolean>('jupyter_is_kernel_alive', { sessionId });
-  } catch {
+  } catch (error) {
+    console.warn('[Jupyter] Failed to check kernel alive:', error);
     return false;
   }
 }
@@ -175,7 +181,8 @@ export async function getSessionById(
     return await invoke<JupyterSession | null>('jupyter_get_session_by_id', {
       sessionId,
     });
-  } catch {
+  } catch (error) {
+    console.warn('[Jupyter] Failed to get session by ID:', error);
     return null;
   }
 }
@@ -259,7 +266,8 @@ export async function getVariables(
     return await invoke<VariableInfo[]>('jupyter_get_variables', {
       sessionId,
     });
-  } catch {
+  } catch (error) {
+    console.warn('[Jupyter] Failed to get variables:', error);
     return [];
   }
 }
@@ -291,7 +299,8 @@ export async function checkKernelAvailable(envPath: string): Promise<boolean> {
     return await invoke<boolean>('jupyter_check_kernel_available', {
       envPath,
     });
-  } catch {
+  } catch (error) {
+    console.warn('[Jupyter] Failed to check kernel available:', error);
     return false;
   }
 }

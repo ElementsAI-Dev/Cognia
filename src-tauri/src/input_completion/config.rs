@@ -135,38 +135,9 @@ impl Default for CompletionUiConfig {
     }
 }
 
-impl CompletionConfig {
-    /// Load configuration from file
-    pub fn load(path: &std::path::Path) -> Result<Self, String> {
-        if path.exists() {
-            let content = std::fs::read_to_string(path)
-                .map_err(|e| format!("Failed to read config file: {}", e))?;
-            serde_json::from_str(&content)
-                .map_err(|e| format!("Failed to parse config: {}", e))
-        } else {
-            Ok(Self::default())
-        }
-    }
-
-    /// Save configuration to file
-    pub fn save(&self, path: &std::path::Path) -> Result<(), String> {
-        let content = serde_json::to_string_pretty(self)
-            .map_err(|e| format!("Failed to serialize config: {}", e))?;
-        
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create config directory: {}", e))?;
-        }
-        
-        std::fs::write(path, content)
-            .map_err(|e| format!("Failed to write config file: {}", e))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
 
     #[test]
     fn test_default_config() {
@@ -300,56 +271,6 @@ mod tests {
         assert_eq!(CompletionProvider::OpenAI, CompletionProvider::OpenAI);
         assert_ne!(CompletionProvider::Ollama, CompletionProvider::OpenAI);
         assert_ne!(CompletionProvider::Groq, CompletionProvider::Auto);
-    }
-
-    #[test]
-    fn test_config_save_and_load() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("test_config.json");
-        
-        let config = CompletionConfig {
-            enabled: false,
-            model: CompletionModelConfig {
-                provider: CompletionProvider::Groq,
-                model_id: "test-model".to_string(),
-                endpoint: Some("http://test.com".to_string()),
-                api_key: Some("test-key".to_string()),
-                max_tokens: 64,
-                temperature: 0.3,
-                timeout_secs: 3,
-            },
-            trigger: CompletionTriggerConfig::default(),
-            ui: CompletionUiConfig::default(),
-        };
-        
-        config.save(&path).unwrap();
-        assert!(path.exists());
-        
-        let loaded = CompletionConfig::load(&path).unwrap();
-        assert_eq!(loaded.enabled, config.enabled);
-        assert_eq!(loaded.model.provider, config.model.provider);
-        assert_eq!(loaded.model.model_id, config.model.model_id);
-        assert_eq!(loaded.model.endpoint, config.model.endpoint);
-    }
-
-    #[test]
-    fn test_config_load_nonexistent_returns_default() {
-        let path = std::path::Path::new("/nonexistent/path/config.json");
-        let config = CompletionConfig::load(path).unwrap();
-        
-        assert!(config.enabled);
-        assert_eq!(config.model.provider, CompletionProvider::Ollama);
-    }
-
-    #[test]
-    fn test_config_save_creates_directory() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("subdir").join("config.json");
-        
-        let config = CompletionConfig::default();
-        config.save(&path).unwrap();
-        
-        assert!(path.exists());
     }
 
     #[test]

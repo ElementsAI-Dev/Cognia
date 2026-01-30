@@ -16,6 +16,7 @@ import type {
 } from '@/types/plugin';
 import type { A2UISurfaceType } from '@/types/artifact/a2ui';
 import { usePluginStore } from '@/stores/plugin';
+import { loggers } from './logger';
 import type {
   ExtendedPluginHooks,
   HookSandboxExecutionResult,
@@ -327,7 +328,7 @@ export class HookDispatcher {
         }
       }
 
-      console.error(`[HookDispatcher] Error in ${registration.pluginId}:`, err);
+      loggers.hooks.error(`Error in ${registration.pluginId}:`, err);
 
       return {
         success: false,
@@ -370,7 +371,7 @@ export class HookDispatcher {
           transformations.push(reg.pluginId);
         }
       } catch (error) {
-        console.error(`[HookDispatcher] Pipeline error in ${reg.pluginId}:`, error);
+        loggers.hooks.error(`Pipeline error in ${reg.pluginId}:`, error);
         if (!this.config.continueOnError) {
           throw error;
         }
@@ -605,7 +606,7 @@ export class PluginLifecycleHooks {
         try {
           registered.hooks.onA2UISurfaceCreate(surfaceId, type);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onA2UISurfaceCreate:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onA2UISurfaceCreate:`, error);
         }
       }
     }
@@ -618,7 +619,7 @@ export class PluginLifecycleHooks {
         try {
           registered.hooks.onA2UISurfaceDestroy(surfaceId);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onA2UISurfaceDestroy:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onA2UISurfaceDestroy:`, error);
         }
       }
     }
@@ -631,7 +632,7 @@ export class PluginLifecycleHooks {
         try {
           await registered.hooks.onA2UIAction(action);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onA2UIAction:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onA2UIAction:`, error);
         }
       }
     }
@@ -644,7 +645,7 @@ export class PluginLifecycleHooks {
         try {
           registered.hooks.onA2UIDataChange(change);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onA2UIDataChange:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onA2UIDataChange:`, error);
         }
       }
     }
@@ -661,7 +662,7 @@ export class PluginLifecycleHooks {
         try {
           registered.hooks.onAgentStart(agentId, config);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onAgentStart:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onAgentStart:`, error);
         }
       }
     }
@@ -674,7 +675,7 @@ export class PluginLifecycleHooks {
         try {
           registered.hooks.onAgentStep(agentId, step);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onAgentStep:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onAgentStep:`, error);
         }
       }
     }
@@ -694,7 +695,7 @@ export class PluginLifecycleHooks {
             return result;
           }
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onAgentToolCall:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onAgentToolCall:`, error);
         }
       }
     }
@@ -708,7 +709,7 @@ export class PluginLifecycleHooks {
         try {
           registered.hooks.onAgentComplete(agentId, result);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onAgentComplete:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onAgentComplete:`, error);
         }
       }
     }
@@ -721,7 +722,7 @@ export class PluginLifecycleHooks {
         try {
           registered.hooks.onAgentError(agentId, error);
         } catch (err) {
-          console.error(`Error in plugin ${pluginId} onAgentError:`, err);
+          loggers.hooks.error(`Error in plugin ${pluginId} onAgentError:`, err);
         }
       }
     }
@@ -740,7 +741,7 @@ export class PluginLifecycleHooks {
         try {
           currentMessage = await registered.hooks.onMessageSend(currentMessage);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onMessageSend:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onMessageSend:`, error);
         }
       }
     }
@@ -757,7 +758,7 @@ export class PluginLifecycleHooks {
         try {
           currentMessage = await registered.hooks.onMessageReceive(currentMessage);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onMessageReceive:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onMessageReceive:`, error);
         }
       }
     }
@@ -775,7 +776,7 @@ export class PluginLifecycleHooks {
             return result;
           }
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onMessageRender:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onMessageRender:`, error);
         }
       }
     }
@@ -793,7 +794,7 @@ export class PluginLifecycleHooks {
         try {
           registered.hooks.onSessionCreate(sessionId);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onSessionCreate:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onSessionCreate:`, error);
         }
       }
     }
@@ -806,7 +807,7 @@ export class PluginLifecycleHooks {
         try {
           registered.hooks.onSessionSwitch(sessionId);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onSessionSwitch:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onSessionSwitch:`, error);
         }
       }
     }
@@ -819,7 +820,7 @@ export class PluginLifecycleHooks {
         try {
           registered.hooks.onSessionDelete(sessionId);
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onSessionDelete:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onSessionDelete:`, error);
         }
       }
     }
@@ -839,7 +840,7 @@ export class PluginLifecycleHooks {
             return true;
           }
         } catch (error) {
-          console.error(`Error in plugin ${pluginId} onCommand:`, error);
+          loggers.hooks.error(`Error in plugin ${pluginId} onCommand:`, error);
         }
       }
     }
@@ -949,7 +950,7 @@ export class PluginEventHooks {
           skipped: false,
         });
       } catch (error) {
-        console.error(`[PluginEventHooks] Error in ${hookName} for plugin ${pluginId}:`, error);
+        loggers.hooks.error(`Error in ${hookName} for plugin ${pluginId}:`, error);
         results.push({
           success: false,
           error: error instanceof Error ? error : new Error(String(error)),

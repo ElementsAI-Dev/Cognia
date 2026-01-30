@@ -54,15 +54,7 @@ impl WindowManager {
     /// Get information about the currently active (foreground) window
     #[cfg(target_os = "windows")]
     pub fn get_active_window(&self) -> Result<WindowInfo, String> {
-        use windows::Win32::Foundation::{HWND, MAX_PATH, RECT};
-        use windows::Win32::System::Threading::{
-            GetProcessId, OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
-            PROCESS_QUERY_LIMITED_INFORMATION,
-        };
-        use windows::Win32::UI::WindowsAndMessaging::{
-            GetClassNameW, GetForegroundWindow, GetWindowRect, GetWindowTextW, IsIconic,
-            IsWindowVisible, IsZoomed,
-        };
+        use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 
         trace!("Getting active (foreground) window");
         unsafe {
@@ -82,11 +74,7 @@ impl WindowManager {
         &self,
         hwnd: windows::Win32::Foundation::HWND,
     ) -> Result<WindowInfo, String> {
-        use windows::Win32::Foundation::{CloseHandle, MAX_PATH, RECT};
-        use windows::Win32::System::Threading::{
-            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
-            PROCESS_QUERY_LIMITED_INFORMATION,
-        };
+        use windows::Win32::Foundation::RECT;
         use windows::Win32::UI::WindowsAndMessaging::{
             GetClassNameW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
             IsWindowVisible, IsZoomed,

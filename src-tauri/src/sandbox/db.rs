@@ -166,7 +166,7 @@ impl SandboxDb {
     }
 
     /// Create an in-memory database (for testing)
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn in_memory() -> Result<Self, DbError> {
         log::debug!("Creating in-memory sandbox database");
         let conn = Connection::open_in_memory()?;
@@ -1108,7 +1108,6 @@ impl SandboxDb {
     }
 
     /// Update session
-    #[allow(dead_code)]
     pub fn update_session(
         &self,
         id: &str,
@@ -1166,7 +1165,6 @@ impl SandboxDb {
     }
 
     /// Get executions for a session
-    #[allow(dead_code)]
     pub fn get_session_executions(
         &self,
         session_id: &str,

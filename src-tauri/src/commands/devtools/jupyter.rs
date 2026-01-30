@@ -16,20 +16,38 @@ use tokio::time::{timeout, Duration};
 #[derive(Clone)]
 pub struct JupyterState {
     manager: SharedSessionManager,
+    config: KernelConfig,
 }
 
 impl JupyterState {
     pub fn new() -> Self {
+        let config = KernelConfig::default();
         Self {
-            manager: SharedSessionManager::new(KernelConfig::default()),
+            manager: SharedSessionManager::new(config.clone()),
+            config,
+        }
+    }
+
+    /// Create with custom configuration
+    pub fn with_config(config: KernelConfig) -> Self {
+        Self {
+            manager: SharedSessionManager::new(config.clone()),
+            config,
         }
     }
 
     /// Perform periodic cleanup of dead and idle kernels
     pub async fn perform_cleanup(&self) {
         self.manager.cleanup_dead_kernels().await;
-        // Clean up kernels idle for more than 1 hour
-        self.manager.cleanup_idle_kernels(3600).await;
+        // Clean up kernels idle for more than the configured timeout
+        self.manager
+            .cleanup_idle_kernels(self.config.idle_timeout_secs)
+            .await;
+    }
+
+    /// Get the current configuration
+    pub fn get_config(&self) -> &KernelConfig {
+        &self.config
     }
 }
 

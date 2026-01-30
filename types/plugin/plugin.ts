@@ -1175,6 +1175,9 @@ export interface Plugin {
 
   /** Last update timestamp */
   updatedAt?: Date;
+
+  /** Last used/accessed timestamp (for sorting by recent) */
+  lastUsedAt?: number;
 }
 
 // =============================================================================

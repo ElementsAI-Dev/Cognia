@@ -90,6 +90,9 @@ which = "6.0"
 # Checksum verification
 sha2 = "0.10"
 
+# Git operations (libgit2 binding)
+git2 = { version = "0.19", features = ["ssh", "https"] }
+
 # Desktop-specific dependencies (Windows, macOS, Linux)
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 tauri-plugin-autostart = "2"

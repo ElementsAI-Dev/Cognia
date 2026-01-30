@@ -286,6 +286,17 @@ pub async fn video_check_encoding_support() -> Result<EncodingSupport, String> {
     Ok(VideoProcessor::check_encoding_support())
 }
 
+/// Cancel ongoing video processing
+/// Note: This currently returns false as FFmpeg processes run synchronously.
+/// For true cancellation, processing would need to be refactored to run in background tasks.
+#[tauri::command]
+pub async fn video_cancel_processing() -> Result<bool, String> {
+    log::info!("Video processing cancellation requested");
+    // Currently video processing runs synchronously via Command::output()
+    // True cancellation would require spawning processes and tracking them
+    Ok(false)
+}
+
 // ==================== FFmpeg Commands ====================
 
 /// Get detailed FFmpeg information

@@ -12,13 +12,14 @@ export const createViewportSlice: SliceCreator<ViewportSliceActions> = (set, get
       const { currentWorkflow } = get();
       if (!currentWorkflow) return;
 
+      // Note: Viewport changes are UI state, not content changes.
+      // We update the workflow viewport for restoration purposes,
+      // but don't set isDirty to avoid triggering auto-save on every pan/zoom.
       set({
         currentWorkflow: {
           ...currentWorkflow,
           viewport,
-          updatedAt: new Date(),
         },
-        isDirty: true,
       });
     },
 

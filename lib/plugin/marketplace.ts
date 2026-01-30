@@ -5,6 +5,7 @@
  */
 
 import type { PluginManifest } from '@/types/plugin';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -158,7 +159,7 @@ export class PluginMarketplace {
       this.setCache(cacheKey, result);
       return result;
     } catch (error) {
-      console.error('[Marketplace] Search failed:', error);
+      loggers.marketplace.error('Search failed:', error);
       // Return empty result on error
       return { plugins: [], total: 0, hasMore: false };
     }
@@ -183,7 +184,7 @@ export class PluginMarketplace {
       this.setCache(cacheKey, plugin);
       return plugin;
     } catch (error) {
-      console.error('[Marketplace] Get plugin failed:', error);
+      loggers.marketplace.error('Get plugin failed:', error);
       return null;
     }
   }
@@ -204,7 +205,7 @@ export class PluginMarketplace {
       this.setCache(cacheKey, versions);
       return versions;
     } catch (error) {
-      console.error('[Marketplace] Get versions failed:', error);
+      loggers.marketplace.error('Get versions failed:', error);
       return [];
     }
   }
@@ -249,7 +250,7 @@ export class PluginMarketplace {
       this.setCache(cacheKey, categories);
       return categories;
     } catch (error) {
-      console.error('[Marketplace] Get categories failed:', error);
+      loggers.marketplace.error('Get categories failed:', error);
       return [];
     }
   }
@@ -305,7 +306,7 @@ export class PluginMarketplace {
         missing,
       };
     } catch (error) {
-      console.error('[Marketplace] Resolve dependencies failed:', error);
+      loggers.marketplace.error('Resolve dependencies failed:', error);
       return {
         resolved: false,
         dependencies: [],

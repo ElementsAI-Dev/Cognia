@@ -8,6 +8,7 @@ import { usePluginStore } from '@/stores/plugin';
 import type { Plugin, PluginManifest } from '@/types/plugin';
 import type { ExtendedPluginHooks } from '@/types/plugin/plugin-hooks';
 import type { FullPluginContext } from './context';
+import { loggers } from './logger';
 
 // =============================================================================
 // Debug Logger
@@ -32,7 +33,7 @@ let debugEnabled = false;
 export function setDebugMode(enabled: boolean) {
   debugEnabled = enabled;
   if (enabled) {
-    console.log('[PluginDevTools] Debug mode enabled');
+    loggers.devTools.info('Debug mode enabled');
   }
 }
 
@@ -75,16 +76,16 @@ export function debugLog(
   const prefix = `[Plugin:${pluginId}][${category}]`;
   switch (level) {
     case 'debug':
-      console.debug(prefix, message, data);
+      loggers.devTools.debug(prefix, message, data);
       break;
     case 'info':
-      console.info(prefix, message, data);
+      loggers.devTools.info(prefix, message, data);
       break;
     case 'warn':
-      console.warn(prefix, message, data);
+      loggers.devTools.warn(prefix, message, data);
       break;
     case 'error':
-      console.error(prefix, message, data);
+      loggers.devTools.error(prefix, message, data);
       break;
   }
 }
@@ -523,7 +524,7 @@ const hotReloadCallbacks: Map<string, () => void> = new Map();
  */
 export function enableHotReload() {
   hotReloadEnabled = true;
-  console.log('[PluginDevTools] Hot reload enabled');
+  loggers.devTools.info('Hot reload enabled');
 }
 
 /**
@@ -554,7 +555,7 @@ export function triggerHotReload(pluginId: string) {
   
   const callback = hotReloadCallbacks.get(pluginId);
   if (callback) {
-    console.log(`[PluginDevTools] Hot reloading plugin: ${pluginId}`);
+    loggers.devTools.info(`Hot reloading plugin: ${pluginId}`);
     callback();
   }
 }

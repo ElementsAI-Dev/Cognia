@@ -9,6 +9,7 @@ import type {
   A2UITemplateDef,
 } from '@/types/plugin';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
+import { loggers } from './logger';
 
 // =============================================================================
 // Registry Types
@@ -47,7 +48,7 @@ export class PluginRegistry {
   registerTool(pluginId: string, tool: PluginTool): void {
     const key = tool.name;
     if (this.tools.has(key)) {
-      console.warn(`Tool ${key} already registered, overwriting`);
+      loggers.registry.warn(`Tool ${key} already registered, overwriting`);
     }
     this.tools.set(key, {
       pluginId,
@@ -89,7 +90,7 @@ export class PluginRegistry {
   registerComponent(pluginId: string, component: PluginA2UIComponent): void {
     const key = component.type;
     if (this.components.has(key)) {
-      console.warn(`Component ${key} already registered, overwriting`);
+      loggers.registry.warn(`Component ${key} already registered, overwriting`);
     }
     this.components.set(key, {
       pluginId,
@@ -131,7 +132,7 @@ export class PluginRegistry {
   registerTemplate(pluginId: string, template: A2UITemplateDef): void {
     const key = `${pluginId}:${template.id}`;
     if (this.templates.has(key)) {
-      console.warn(`Template ${key} already registered, overwriting`);
+      loggers.registry.warn(`Template ${key} already registered, overwriting`);
     }
     this.templates.set(key, {
       pluginId,
@@ -179,7 +180,7 @@ export class PluginRegistry {
   registerMode(pluginId: string, mode: AgentModeConfig): void {
     const key = mode.id;
     if (this.modes.has(key)) {
-      console.warn(`Mode ${key} already registered, overwriting`);
+      loggers.registry.warn(`Mode ${key} already registered, overwriting`);
     }
     this.modes.set(key, {
       pluginId,
@@ -221,7 +222,7 @@ export class PluginRegistry {
   registerCommand(pluginId: string, command: PluginCommand): void {
     const key = command.id;
     if (this.commands.has(key)) {
-      console.warn(`Command ${key} already registered, overwriting`);
+      loggers.registry.warn(`Command ${key} already registered, overwriting`);
     }
     this.commands.set(key, {
       pluginId,

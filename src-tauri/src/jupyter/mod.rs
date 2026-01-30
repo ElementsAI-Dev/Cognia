@@ -11,12 +11,9 @@ pub mod kernel;
 pub mod protocol;
 pub mod session;
 
-// Re-exports for public API (used by commands/devtools/jupyter.rs)
+// Re-exports for public API
+// Note: JupyterKernel and JupyterSession are imported directly from submodules in commands
 pub use kernel::KernelConfig;
-#[allow(unused_imports)]
-pub use kernel::JupyterKernel;
-#[allow(unused_imports)]
-pub use session::{JupyterSession, SessionManager};
 
 use serde::{Deserialize, Serialize};
 

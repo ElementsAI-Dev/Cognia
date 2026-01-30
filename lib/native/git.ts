@@ -163,6 +163,23 @@ export async function isGitRepo(path: string): Promise<boolean> {
   }
 }
 
+/** Get full repository status in a single call
+ * This combines repo info, branches, commits, file status, stash list, and remotes
+ * Reduces 5+ IPC calls to 1 for better performance */
+export async function getFullStatus(
+  repoPath: string,
+  maxCommits?: number
+): Promise<GitOperationResult<import('@/types/system/git').GitFullStatus>> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationResult<import('@/types/system/git').GitFullStatus>>(
+    'git_full_status',
+    { repoPath, maxCommits }
+  );
+}
+
 // ==================== Commit Operations ====================
 
 /** Stage files for commit */

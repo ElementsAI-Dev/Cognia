@@ -315,6 +315,7 @@ impl ScreenshotCapture {
         use windows::Win32::Graphics::Gdi::{
             EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFOEXW,
         };
+        use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
 
         let mut monitors = Vec::new();
 
@@ -336,7 +337,7 @@ impl ScreenshotCapture {
 
             if GetMonitorInfoW(monitor, &mut info.monitorInfo).as_bool() {
                 let rect = info.monitorInfo.rcMonitor;
-                let work_rect = info.monitorInfo.rcWork;
+                let _work_rect = info.monitorInfo.rcWork;
                 let is_primary = (info.monitorInfo.dwFlags & 1) != 0; // MONITORINFOF_PRIMARY
 
                 let name = String::from_utf16_lossy(
@@ -347,6 +348,17 @@ impl ScreenshotCapture {
                         .unwrap_or(info.szDevice.len())],
                 );
 
+                // Get DPI scale factor for this monitor
+                let scale_factor = {
+                    let mut dpi_x: u32 = 96;
+                    let mut dpi_y: u32 = 96;
+                    if GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).is_ok() {
+                        dpi_x as f64 / 96.0
+                    } else {
+                        1.0
+                    }
+                };
+
                 monitors.push(MonitorInfo {
                     index: monitors.len(),
                     name,
@@ -355,7 +367,7 @@ impl ScreenshotCapture {
                     width: (rect.right - rect.left) as u32,
                     height: (rect.bottom - rect.top) as u32,
                     is_primary,
-                    scale_factor: 1.0, // TODO: Get actual DPI scale
+                    scale_factor,
                 });
             }
 

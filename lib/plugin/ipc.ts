@@ -9,6 +9,7 @@
  */
 
 import type { PluginPermission } from '@/types/plugin';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -150,7 +151,7 @@ export class PluginIPC {
             try {
               sub.handler(data, senderId);
             } catch (error) {
-              console.error(`[IPC] Handler error in ${targetId}:`, error);
+              loggers.manager.error(`[IPC] Handler error in ${targetId}:`, error);
             }
           }
         }
@@ -259,7 +260,7 @@ export class PluginIPC {
             try {
               sub.handler(data, senderId);
             } catch (error) {
-              console.error(`[IPC] Broadcast handler error in ${sub.pluginId}:`, error);
+              loggers.manager.error(`[IPC] Broadcast handler error in ${sub.pluginId}:`, error);
             }
           }
         }
@@ -412,7 +413,7 @@ export class PluginIPC {
               try {
                 sub.handler(message.payload, message.senderId);
               } catch (error) {
-                console.error(`[IPC] Delivery error to ${message.targetId}:`, error);
+                loggers.manager.error(`[IPC] Delivery error to ${message.targetId}:`, error);
               }
             }
           }
@@ -447,7 +448,7 @@ export class PluginIPC {
 
   private log(action: string, data: unknown): void {
     if (this.config.enableLogging) {
-      console.debug(`[IPC] ${action}:`, data);
+      loggers.manager.debug(`[IPC] ${action}:`, data);
     }
   }
 

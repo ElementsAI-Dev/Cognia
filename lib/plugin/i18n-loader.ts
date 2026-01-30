@@ -5,6 +5,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -82,7 +83,7 @@ export class PluginI18nLoader {
           this.setPluginLocale(pluginId, locale, translations);
         }
       } catch (error) {
-        console.debug(`[I18n] No ${locale} translations for ${pluginId}:`, error);
+        loggers.manager.debug(`[I18n] No ${locale} translations for ${pluginId}:`, error);
       }
     }
   }
@@ -257,7 +258,7 @@ export class PluginI18nLoader {
       try {
         listener(locale);
       } catch (error) {
-        console.error('[I18n] Listener error:', error);
+        loggers.manager.error('[I18n] Listener error:', error);
       }
     }
   }

@@ -10,6 +10,7 @@ import type {
   Notification,
 } from '@/types/plugin/plugin-extended';
 import { nanoid } from 'nanoid';
+import { createPluginSystemLogger } from '../logger';
 
 // Global notification registry
 const notifications = new Map<string, Notification>();
@@ -19,6 +20,7 @@ const actionHandlers = new Map<string, (id: string, action: string) => void>();
  * Create the Notification Center API for a plugin
  */
 export function createNotificationCenterAPI(pluginId: string): PluginNotificationCenterAPI {
+  const logger = createPluginSystemLogger(pluginId);
   return {
     create: (options: NotificationOptions): string => {
       const id = `${pluginId}:${nanoid()}`;
@@ -45,7 +47,7 @@ export function createNotificationCenterAPI(pluginId: string): PluginNotificatio
       }
 
       // Log for now - would integrate with toast system
-      console.log(`[Plugin:${pluginId}] Notification: ${options.title} - ${options.message}`);
+      logger.info(`Notification: ${options.title} - ${options.message}`);
       
       return id;
     },
@@ -65,7 +67,7 @@ export function createNotificationCenterAPI(pluginId: string): PluginNotificatio
 
     dismiss: (id: string) => {
       notifications.delete(id);
-      console.log(`[Plugin:${pluginId}] Dismissed notification: ${id}`);
+      logger.info(`Dismissed notification: ${id}`);
     },
 
     dismissAll: () => {
@@ -76,7 +78,7 @@ export function createNotificationCenterAPI(pluginId: string): PluginNotificatio
           notifications.delete(key);
         }
       }
-      console.log(`[Plugin:${pluginId}] Dismissed all notifications`);
+      logger.info('Dismissed all notifications');
     },
 
     getAll: (): Notification[] => {
@@ -108,7 +110,7 @@ export function createNotificationCenterAPI(pluginId: string): PluginNotificatio
       };
 
       notifications.set(id, notification);
-      console.log(`[Plugin:${pluginId}] Progress notification: ${title}`);
+      logger.info(`Progress notification: ${title}`);
 
       return {
         id,

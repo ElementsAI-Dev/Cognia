@@ -156,7 +156,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         case 'name':
           return a.manifest.name.localeCompare(b.manifest.name);
         case 'recent':
-          return 0; // TODO: Add timestamp tracking
+          return (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0);
         case 'status':
           return a.status.localeCompare(b.status);
         default:

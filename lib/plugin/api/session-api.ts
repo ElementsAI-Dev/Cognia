@@ -13,6 +13,7 @@ import type {
   SendMessageOptions,
 } from '@/types/plugin/plugin-extended';
 import type { Session, UIMessage } from '@/types';
+import { createPluginSystemLogger } from '../logger';
 import { nanoid } from 'nanoid';
 
 /**
@@ -21,6 +22,7 @@ import { nanoid } from 'nanoid';
 export function createSessionAPI(pluginId: string): PluginSessionAPI {
   // Store unsubscribe functions for cleanup
   const subscriptions = new Map<string, () => void>();
+  const logger = createPluginSystemLogger(pluginId);
 
   return {
     getCurrentSession: () => {
@@ -41,20 +43,20 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
     createSession: async (options = {}) => {
       const store = useSessionStore.getState();
       const session = store.createSession(options);
-      console.log(`[Plugin:${pluginId}] Created session: ${session.id}`);
+      logger.info(`Created session: ${session.id}`);
       return session;
     },
 
     updateSession: async (id: string, updates) => {
       const store = useSessionStore.getState();
       store.updateSession(id, updates);
-      console.log(`[Plugin:${pluginId}] Updated session: ${id}`);
+      logger.info(`Updated session: ${id}`);
     },
 
     switchSession: async (id: string) => {
       const store = useSessionStore.getState();
       store.setActiveSession(id);
-      console.log(`[Plugin:${pluginId}] Switched to session: ${id}`);
+      logger.info(`Switched to session: ${id}`);
     },
 
     deleteSession: async (id: string) => {
@@ -64,9 +66,9 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
       try {
         await messageRepository.deleteBySessionId(id);
       } catch (error) {
-        console.error(`[Plugin:${pluginId}] Failed to delete messages for session ${id}:`, error);
+        logger.error(`Failed to delete messages for session ${id}:`, error);
       }
-      console.log(`[Plugin:${pluginId}] Deleted session: ${id}`);
+      logger.info(`Deleted session: ${id}`);
     },
 
     listSessions: async (filter?: SessionFilter) => {
@@ -139,7 +141,7 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
 
         return messages;
       } catch (error) {
-        console.error(`[Plugin:${pluginId}] Failed to get messages:`, error);
+        logger.error('Failed to get messages:', error);
         return [];
       }
     },
@@ -162,10 +164,10 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
 
       try {
         await messageRepository.create(sessionId, newMessage);
-        console.log(`[Plugin:${pluginId}] Added message to session: ${sessionId}`);
+        logger.info(`Added message to session: ${sessionId}`);
         return newMessage;
       } catch (error) {
-        console.error(`[Plugin:${pluginId}] Failed to add message:`, error);
+        logger.error('Failed to add message:', error);
         throw error;
       }
     },
@@ -173,9 +175,9 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
     updateMessage: async (sessionId: string, messageId: string, updates: Partial<UIMessage>) => {
       try {
         await messageRepository.update(messageId, updates);
-        console.log(`[Plugin:${pluginId}] Updated message: ${messageId}`);
+        logger.info(`Updated message: ${messageId}`);
       } catch (error) {
-        console.error(`[Plugin:${pluginId}] Failed to update message:`, error);
+        logger.error('Failed to update message:', error);
         throw error;
       }
     },
@@ -184,9 +186,9 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
       try {
         await messageRepository.delete(messageId);
         
-        console.log(`[Plugin:${pluginId}] Deleted message: ${messageId}`);
+        logger.info(`Deleted message: ${messageId}`);
       } catch (error) {
-        console.error(`[Plugin:${pluginId}] Failed to delete message:`, error);
+        logger.error('Failed to delete message:', error);
         throw error;
       }
     },
@@ -224,7 +226,7 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
             handler(messages);
           }
         } catch (error) {
-          console.error(`[Plugin:${pluginId}] Error checking messages:`, error);
+          logger.error('Error checking messages:', error);
         }
 
         if (active) {
@@ -273,7 +275,7 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
           attachmentCount,
         };
       } catch (error) {
-        console.error(`[Plugin:${pluginId}] Failed to get session stats:`, error);
+        logger.error('Failed to get session stats:', error);
         return {
           messageCount: 0,
           userMessageCount: 0,

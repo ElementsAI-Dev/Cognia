@@ -10,6 +10,7 @@ import type {
   PluginPermission,
   PluginType,
 } from '@/types/plugin';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -440,17 +441,17 @@ export function parseManifest(content: string): PluginManifest | null {
     const validation = validatePluginManifest(parsed);
     
     if (!validation.valid) {
-      console.error('Invalid plugin manifest:', validation.errors);
+      loggers.manager.error('Invalid plugin manifest:', validation.errors);
       return null;
     }
     
     if (validation.warnings.length > 0) {
-      console.warn('Plugin manifest warnings:', validation.warnings);
+      loggers.manager.warn('Plugin manifest warnings:', validation.warnings);
     }
     
     return parsed as PluginManifest;
   } catch (error) {
-    console.error('Failed to parse plugin manifest:', error);
+    loggers.manager.error('Failed to parse plugin manifest:', error);
     return null;
   }
 }

@@ -375,7 +375,7 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
       </div>
 
       {/* Content based on active tab */}
-      <TabsContent value="nodes" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden">
+      <TabsContent value="nodes" className="flex-1 min-h-0 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
         {/* Recent nodes */}
         {recentNodes.length > 0 && !searchQuery && selectedTags.length === 0 && (
           <div className="p-2 border-b shrink-0">
@@ -416,7 +416,7 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
         )}
 
         {/* Node categories */}
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1 min-h-0 overflow-hidden">
           <div className="p-2 space-y-1">
             {filteredCategories.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -480,8 +480,8 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
         </div>
       </TabsContent>
 
-      <TabsContent value="favorites" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden">
-        <ScrollArea className="flex-1 min-h-0">
+      <TabsContent value="favorites" className="flex-1 min-h-0 flex flex-col m-0 overflow-hidden data-[state=inactive]:hidden">
+        <ScrollArea className="flex-1 min-h-0 overflow-hidden">
           <div className="p-2 space-y-1">
             {favoriteNodes.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -499,7 +499,7 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
         </ScrollArea>
       </TabsContent>
 
-      <TabsContent value="templates" className="flex-1 min-h-0 m-0 overflow-auto data-[state=inactive]:hidden">
+      <TabsContent value="templates" className="flex-1 min-h-0 m-0 overflow-hidden data-[state=inactive]:hidden">
         <NodeTemplatePanel onAddTemplate={handleAddFromTemplate} />
       </TabsContent>
     </Tabs>

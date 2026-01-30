@@ -344,8 +344,7 @@ describe('New Sandbox API Functions', () => {
     });
 
     it('should throw error if not in Tauri environment', async () => {
-      // @ts-expect-error - Testing error case
-      delete (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__;
+      delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 
       const { getAllLanguages } = await import('@/lib/native/sandbox');
       await expect(getAllLanguages()).rejects.toThrow('Sandbox requires Tauri environment');
@@ -397,15 +396,13 @@ describe('New Sandbox API Functions', () => {
     it('should call sandbox_get_session_executions command', async () => {
       const mockExecutions: ExecutionRequest[] = [
         {
-          id: 'exec-1',
           language: 'python',
           code: 'print("hello")',
-          stdin: null,
+          stdin: undefined,
           args: [],
           env: {},
           timeout_secs: 30,
           memory_limit_mb: 256,
-          cpu_limit_percent: null,
           runtime: 'docker',
           files: {},
           network_enabled: false,

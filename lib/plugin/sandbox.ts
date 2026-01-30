@@ -3,6 +3,7 @@
  */
 
 import type { PluginPermission } from '@/types/plugin';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -133,13 +134,14 @@ export class PluginSandbox {
   private createSandboxedConsole(): Console {
     const prefix = `[Plugin:${this.config.pluginId}]`;
     
+    const pluginLogger = loggers.sandbox;
     return {
       ...console,
-      log: (...args: unknown[]) => console.log(prefix, ...args),
-      info: (...args: unknown[]) => console.info(prefix, ...args),
-      warn: (...args: unknown[]) => console.warn(prefix, ...args),
-      error: (...args: unknown[]) => console.error(prefix, ...args),
-      debug: (...args: unknown[]) => console.debug(prefix, ...args),
+      log: (...args: unknown[]) => pluginLogger.info(prefix, ...args),
+      info: (...args: unknown[]) => pluginLogger.info(prefix, ...args),
+      warn: (...args: unknown[]) => pluginLogger.warn(prefix, ...args),
+      error: (...args: unknown[]) => pluginLogger.error(prefix, ...args),
+      debug: (...args: unknown[]) => pluginLogger.debug(prefix, ...args),
     };
   }
 
@@ -166,7 +168,7 @@ export class PluginSandbox {
     
     return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       // Log fetch requests from plugins
-      console.debug(`[Plugin:${pluginId}] fetch:`, input);
+      loggers.sandbox.debug(`[Plugin:${pluginId}] fetch:`, input);
       
       // Add plugin identifier to headers
       const headers = new Headers(init?.headers);

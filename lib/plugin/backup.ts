@@ -5,6 +5,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -112,7 +113,7 @@ export class PluginBackupManager {
         );
       }
     } catch (error) {
-      console.warn('[Backup] Failed to load backup index:', error);
+      loggers.manager.warn('[Backup] Failed to load backup index:', error);
     }
   }
 
@@ -215,7 +216,7 @@ export class PluginBackupManager {
         index,
       });
     } catch (error) {
-      console.error('[Backup] Failed to save index:', error);
+      loggers.manager.error('[Backup] Failed to save index:', error);
     }
   }
 
@@ -347,7 +348,7 @@ export class PluginBackupManager {
           await this.saveBackupIndex();
           return true;
         } catch (error) {
-          console.error('[Backup] Failed to delete backup:', error);
+          loggers.manager.error('[Backup] Failed to delete backup:', error);
           return false;
         }
       }
@@ -429,7 +430,7 @@ export class PluginBackupManager {
         }
       }
     } catch (error) {
-      console.error('[Backup] Auto backup failed:', error);
+      loggers.manager.error('[Backup] Auto backup failed:', error);
     }
   }
 

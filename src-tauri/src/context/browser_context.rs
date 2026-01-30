@@ -464,53 +464,6 @@ impl BrowserContext {
         PageType::General
     }
 
-    /// Get suggested actions based on page type
-    pub fn get_suggested_actions(&self) -> Vec<String> {
-        match self.page_type {
-            PageType::SearchResults => vec![
-                "Summarize results".to_string(),
-                "Find specific info".to_string(),
-                "Compare options".to_string(),
-            ],
-            PageType::Documentation => vec![
-                "Explain concept".to_string(),
-                "Show example".to_string(),
-                "Summarize".to_string(),
-            ],
-            PageType::CodeRepository => vec![
-                "Explain code".to_string(),
-                "Review changes".to_string(),
-                "Summarize README".to_string(),
-            ],
-            PageType::SocialMedia => vec![
-                "Summarize thread".to_string(),
-                "Draft response".to_string(),
-                "Translate".to_string(),
-            ],
-            PageType::VideoStreaming => {
-                vec!["Summarize video".to_string(), "Get transcript".to_string()]
-            }
-            PageType::NewsArticle => vec![
-                "Summarize article".to_string(),
-                "Key points".to_string(),
-                "Fact check".to_string(),
-            ],
-            PageType::WebEmail => vec![
-                "Draft reply".to_string(),
-                "Summarize thread".to_string(),
-                "Improve tone".to_string(),
-            ],
-            PageType::AiInterface => vec![
-                "Continue conversation".to_string(),
-                "Improve prompt".to_string(),
-            ],
-            _ => vec![
-                "Summarize page".to_string(),
-                "Extract info".to_string(),
-                "Translate".to_string(),
-            ],
-        }
-    }
 }
 
 #[cfg(test)]

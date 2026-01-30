@@ -3,6 +3,9 @@
 /**
  * LoggerProvider - Centralized logging system with multiple log levels and outputs
  * Provides structured logging capabilities to the entire application
+ * 
+ * This provider integrates with the unified logger system at @/lib/logger
+ * for consistent logging across the application.
  */
 
 import { createContext, useContext, useCallback, ReactNode, useState, useMemo } from 'react';

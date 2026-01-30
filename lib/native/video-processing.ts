@@ -205,9 +205,9 @@ export function estimateFileSize(
 
 /**
  * Cancel ongoing video processing
+ * Note: Currently returns false as FFmpeg processes run synchronously.
+ * For true cancellation, backend processing would need to run in background tasks.
  */
 export async function cancelVideoProcessing(): Promise<boolean> {
-  // TODO: Implement backend command for canceling video processing
-  // return invoke<boolean>("video_cancel_processing");
-  return false;
+  return invoke<boolean>("video_cancel_processing");
 }

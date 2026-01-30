@@ -7,9 +7,6 @@ use once_cell::sync::Lazy;
 use reqwest::Client;
 use std::time::Duration;
 
-/// Application version for User-Agent
-const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 /// Default User-Agent header
 pub const DEFAULT_USER_AGENT: &str = concat!("Cognia/", env!("CARGO_PKG_VERSION"), " (Tauri)");
 
@@ -96,107 +93,6 @@ pub fn create_client_with_proxy(
         .build()
 }
 
-/// Create a custom HTTP client with specific timeout settings
-///
-/// # Arguments
-/// * `timeout_secs` - Request timeout in seconds
-/// * `connect_timeout_secs` - Connection timeout in seconds
-///
-/// # Returns
-/// A configured HTTP client
-pub fn create_client_with_timeout(
-    timeout_secs: u64,
-    connect_timeout_secs: u64,
-) -> Result<Client, reqwest::Error> {
-    Client::builder()
-        .user_agent(DEFAULT_USER_AGENT)
-        .timeout(Duration::from_secs(timeout_secs))
-        .connect_timeout(Duration::from_secs(connect_timeout_secs))
-        .pool_idle_timeout(Duration::from_secs(DEFAULT_POOL_IDLE_TIMEOUT_SECS))
-        .pool_max_idle_per_host(DEFAULT_POOL_MAX_IDLE_PER_HOST)
-        .build()
-}
-
-/// Make an HTTP GET request through a proxy
-///
-/// # Arguments
-/// * `url` - The target URL to request
-/// * `proxy_url` - Optional proxy URL (e.g., "http://127.0.0.1:7890")
-/// * `timeout_secs` - Request timeout in seconds
-/// * `headers` - Optional additional headers
-///
-/// # Returns
-/// Response body as string or error
-pub async fn proxied_get(
-    url: &str,
-    proxy_url: Option<&str>,
-    timeout_secs: Option<u64>,
-    headers: Option<std::collections::HashMap<String, String>>,
-) -> Result<String, String> {
-    let client = if let Some(proxy) = proxy_url {
-        create_client_with_proxy(proxy, timeout_secs).map_err(|e| e.to_string())?
-    } else {
-        HTTP_CLIENT.clone()
-    };
-
-    let mut request = client.get(url);
-
-    if let Some(hdrs) = headers {
-        for (key, value) in hdrs {
-            request = request.header(&key, &value);
-        }
-    }
-
-    let response = request.send().await.map_err(|e| e.to_string())?;
-    
-    if !response.status().is_success() {
-        return Err(format!("HTTP error: {}", response.status()));
-    }
-
-    response.text().await.map_err(|e| e.to_string())
-}
-
-/// Make an HTTP POST request through a proxy
-///
-/// # Arguments
-/// * `url` - The target URL to request
-/// * `body` - Request body
-/// * `proxy_url` - Optional proxy URL
-/// * `timeout_secs` - Request timeout in seconds
-/// * `headers` - Optional additional headers
-///
-/// # Returns
-/// Response body as string or error
-pub async fn proxied_post(
-    url: &str,
-    body: String,
-    proxy_url: Option<&str>,
-    timeout_secs: Option<u64>,
-    headers: Option<std::collections::HashMap<String, String>>,
-) -> Result<String, String> {
-    let client = if let Some(proxy) = proxy_url {
-        create_client_with_proxy(proxy, timeout_secs).map_err(|e| e.to_string())?
-    } else {
-        HTTP_CLIENT.clone()
-    };
-
-    let mut request = client.post(url).body(body);
-
-    if let Some(hdrs) = headers {
-        for (key, value) in hdrs {
-            request = request.header(&key, &value);
-        }
-    }
-
-    let response = request.send().await.map_err(|e| e.to_string())?;
-    
-    if !response.status().is_success() {
-        return Err(format!("HTTP error: {}", response.status()));
-    }
-
-    response.text().await.map_err(|e| e.to_string())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -215,12 +111,6 @@ mod tests {
     #[test]
     fn test_quick_client_creation() {
         let _ = &*HTTP_CLIENT_QUICK;
-    }
-
-    #[test]
-    fn test_custom_timeout_client() {
-        let client = create_client_with_timeout(60, 15);
-        assert!(client.is_ok());
     }
 
     #[test]

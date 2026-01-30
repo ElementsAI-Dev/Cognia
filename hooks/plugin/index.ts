@@ -31,3 +31,6 @@ export {
   type UsePluginPermissionsResult,
   type UsePermissionRequestResult,
 } from './use-plugin-permissions';
+
+// Marketplace
+export { useMarketplace } from './use-marketplace';

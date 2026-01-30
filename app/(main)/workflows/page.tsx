@@ -237,6 +237,14 @@ export default function WorkflowsPage() {
       {/* Header - Responsive */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b">
         <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push('/')}
+            className="h-9 w-9"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <Workflow className="h-6 w-6 text-green-500" />
           <h1 className="text-xl font-semibold">{t('workflows') || 'Workflows'}</h1>
         </div>

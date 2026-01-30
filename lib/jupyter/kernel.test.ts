@@ -98,8 +98,16 @@ const mockVariableInfo: VariableInfo = {
 };
 
 describe('Jupyter Kernel Service', () => {
+  // Suppress console.warn during tests (expected from error handling)
+  const _consoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
   beforeEach(() => {
     jest.clearAllMocks();
+    _consoleWarn.mockClear();
+  });
+
+  afterAll(() => {
+    _consoleWarn.mockRestore();
   });
 
   describe('isKernelAvailable', () => {

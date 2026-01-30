@@ -19,6 +19,7 @@ import { PluginRegistry } from './registry';
 import { createFullPluginContext } from './context';
 import { PluginLifecycleHooks } from './hooks-system';
 import { validatePluginManifest } from './validation';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -112,7 +113,7 @@ export class PluginManager {
         pythonPath: this.config.pythonPath,
       });
     } catch (error) {
-      console.error('Failed to initialize Python runtime:', error);
+      loggers.manager.error('Failed to initialize Python runtime:', error);
       // Continue without Python support
     }
   }
@@ -127,7 +128,7 @@ export class PluginManager {
           await this.loadPlugin(plugin.manifest.id);
           await this.enablePlugin(plugin.manifest.id);
         } catch (error) {
-          console.error(`Failed to restore plugin ${plugin.manifest.id}:`, error);
+          loggers.manager.error(`Failed to restore plugin ${plugin.manifest.id}:`, error);
         }
       }
     }
@@ -154,7 +155,7 @@ export class PluginManager {
         // Validate manifest
         const validation = validatePluginManifest(manifest);
         if (!validation.valid) {
-          console.warn(`Invalid plugin manifest at ${path}:`, validation.errors);
+          loggers.manager.warn(`Invalid plugin manifest at ${path}:`, validation.errors);
           continue;
         }
 
@@ -167,7 +168,7 @@ export class PluginManager {
         discovered.push({ manifest, path, source: 'local' });
       }
     } catch (error) {
-      console.error('Failed to scan plugins:', error);
+      loggers.manager.error('Failed to scan plugins:', error);
     }
 
     return discovered;

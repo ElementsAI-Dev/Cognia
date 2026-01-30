@@ -9,6 +9,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -112,7 +113,7 @@ export class PluginDevServer {
 
   async start(): Promise<void> {
     if (this.status.running) {
-      console.warn('[DevServer] Server is already running');
+      loggers.devServer.warn('Server is already running');
       return;
     }
 
@@ -139,13 +140,13 @@ export class PluginDevServer {
         this.handleMessage(event.payload);
       });
 
-      console.info(`[DevServer] Started at ${this.status.url}`);
+      loggers.devServer.info(`Started at ${this.status.url}`);
 
       if (this.config.openBrowser) {
         await invoke('shell_open', { url: this.status.url });
       }
     } catch (error) {
-      console.error('[DevServer] Failed to start:', error);
+      loggers.devServer.error('Failed to start:', error);
       throw error;
     }
   }
@@ -172,9 +173,9 @@ export class PluginDevServer {
         connectedClients: 0,
       };
 
-      console.info('[DevServer] Stopped');
+      loggers.devServer.info('Stopped');
     } catch (error) {
-      console.error('[DevServer] Failed to stop:', error);
+      loggers.devServer.error('Failed to stop:', error);
       throw error;
     }
   }
@@ -196,7 +197,7 @@ export class PluginDevServer {
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
-          console.info('[DevServer] WebSocket connected');
+          loggers.devServer.info('WebSocket connected');
           this.reconnectAttempts = 0;
           this.status.connectedClients = 1;
           resolve();
@@ -207,18 +208,18 @@ export class PluginDevServer {
             const message = JSON.parse(event.data) as DevServerMessage;
             this.handleMessage(message);
           } catch (error) {
-            console.error('[DevServer] Failed to parse message:', error);
+            loggers.devServer.error('Failed to parse message:', error);
           }
         };
 
         this.ws.onclose = () => {
-          console.info('[DevServer] WebSocket disconnected');
+          loggers.devServer.info('WebSocket disconnected');
           this.status.connectedClients = 0;
           this.attemptReconnect();
         };
 
         this.ws.onerror = (error) => {
-          console.error('[DevServer] WebSocket error:', error);
+          loggers.devServer.error('WebSocket error:', error);
           reject(error);
         };
       } catch (error) {
@@ -237,14 +238,14 @@ export class PluginDevServer {
   private attemptReconnect(): void {
     if (!this.status.running) return;
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[DevServer] Max reconnect attempts reached');
+      loggers.devServer.error('Max reconnect attempts reached');
       return;
     }
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
 
-    console.info(`[DevServer] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    loggers.devServer.info(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
       this.connectWebSocket().catch(() => {
@@ -264,15 +265,15 @@ export class PluginDevServer {
         break;
 
       case 'error':
-        console.error('[DevServer] Plugin error:', message.payload);
+        loggers.devServer.error('Plugin error:', message.payload);
         break;
 
       case 'reload':
-        console.info('[DevServer] Reload triggered for:', message.pluginId);
+        loggers.devServer.info('Reload triggered for:', message.pluginId);
         break;
 
       case 'update':
-        console.info('[DevServer] Hot update for:', message.pluginId);
+        loggers.devServer.info('Hot update for:', message.pluginId);
         break;
     }
 
@@ -281,7 +282,7 @@ export class PluginDevServer {
       try {
         handler(message);
       } catch (error) {
-        console.error('[DevServer] Message handler error:', error);
+        loggers.devServer.error('Message handler error:', error);
       }
     }
   }
@@ -297,7 +298,7 @@ export class PluginDevServer {
       try {
         handler(log);
       } catch (error) {
-        console.error('[DevServer] Console handler error:', error);
+        loggers.devServer.error('Console handler error:', error);
       }
     }
   }
@@ -356,7 +357,7 @@ export class PluginDevServer {
 
       return results;
     } catch (error) {
-      console.error('[DevServer] Failed to build all plugins:', error);
+      loggers.devServer.error('Failed to build all plugins:', error);
       return [];
     }
   }
@@ -367,7 +368,7 @@ export class PluginDevServer {
 
   sendCommand(command: string, pluginId?: string, data?: unknown): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('[DevServer] WebSocket not connected');
+      loggers.devServer.warn('WebSocket not connected');
       return;
     }
 
@@ -465,11 +466,11 @@ export class PluginDevServer {
   }
 
   async watchPlugin(_pluginId: string, _path: string): Promise<void> {
-    console.warn('[DevServer] watchPlugin not implemented');
+    loggers.devServer.warn('watchPlugin not implemented');
   }
 
   async unwatchPlugin(_pluginId: string): Promise<void> {
-    console.warn('[DevServer] unwatchPlugin not implemented');
+    loggers.devServer.warn('unwatchPlugin not implemented');
   }
 
   isWatching(_pluginId: string): boolean {

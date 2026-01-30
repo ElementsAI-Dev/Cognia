@@ -460,10 +460,6 @@ impl EditorContext {
         Some(lang.to_string())
     }
 
-    /// Check if this is a code editor context
-    pub fn is_code_editor(&self) -> bool {
-        self.language.is_some() || self.file_extension.is_some()
-    }
 }
 
 #[cfg(test)]

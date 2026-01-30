@@ -13,7 +13,6 @@ use super::{DockerRuntime, NativeRuntime, PodmanRuntime, SandboxConfig};
 
 /// Sandbox execution errors
 #[derive(Error, Debug)]
-#[allow(dead_code)]
 pub enum SandboxError {
     #[error("Runtime not available: {0}")]
     RuntimeNotAvailable(String),
@@ -76,7 +75,6 @@ pub enum ExecutionStatus {
 
 /// Execution request
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct ExecutionRequest {
     /// Unique execution ID
     pub id: String,
@@ -664,7 +662,6 @@ impl SandboxManager {
     }
 
     /// Execute code with timeout and memory limit
-    #[allow(dead_code)]
     pub async fn execute_with_limits(
         &self,
         language: String,

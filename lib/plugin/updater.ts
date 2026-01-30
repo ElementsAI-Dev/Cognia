@@ -7,6 +7,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { PluginManifest } from '@/types/plugin';
 import { getPluginMarketplace } from './marketplace';
+import { loggers } from './logger';
 
 // =============================================================================
 // Types
@@ -90,7 +91,7 @@ export class PluginUpdater {
 
   async checkForUpdates(pluginIds?: string[]): Promise<UpdateInfo[]> {
     if (this.isChecking) {
-      console.warn('[Updater] Already checking for updates');
+      loggers.manager.warn('[Updater] Already checking for updates');
       return [];
     }
 
@@ -129,7 +130,7 @@ export class PluginUpdater {
             this.pendingUpdates.set(id, updateInfo);
           }
         } catch (error) {
-          console.warn(`[Updater] Failed to check ${id}:`, error);
+          loggers.manager.warn(`[Updater] Failed to check ${id}:`, error);
         }
       }
 
@@ -291,7 +292,7 @@ export class PluginUpdater {
 
     for (const update of pending) {
       if (options.skipBreaking && update.breaking) {
-        console.info(`[Updater] Skipping breaking update for ${update.pluginId}`);
+        loggers.manager.info(`[Updater] Skipping breaking update for ${update.pluginId}`);
         continue;
       }
 
@@ -391,7 +392,7 @@ export class PluginUpdater {
       try {
         handler(progress);
       } catch (error) {
-        console.error('[Updater] Progress handler error:', error);
+        loggers.manager.error('[Updater] Progress handler error:', error);
       }
     }
   }

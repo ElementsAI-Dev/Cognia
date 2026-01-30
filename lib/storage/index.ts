@@ -72,3 +72,50 @@ export {
   CATEGORY_INFO,
   INDEXED_DB_NAMES,
 } from './types';
+
+// Data import/export utilities
+export {
+  importFullBackup,
+  validateExportData,
+  generateChecksum,
+  verifyChecksum,
+  parseImportFile,
+} from './data-import';
+export type {
+  ExportData,
+  ImportOptions,
+  ImportResult,
+  ImportError,
+} from './data-import';
+
+export {
+  createFullBackup,
+  exportToJSON,
+  exportToBlob,
+  downloadExport,
+  getExportSizeEstimate,
+} from './data-export';
+export type { ExportOptions } from './data-export';
+
+// Store migration utilities
+export {
+  createMigrator,
+  createPersistOptions,
+  createMigrationBuilder,
+  MigrationBuilder,
+  commonMigrations,
+  withMigration,
+  getStoredVersion,
+  needsMigration,
+  forceRehydrate,
+} from './store-migration';
+export type { MigrationFn, MigrationConfig } from './store-migration';
+
+// IndexedDB storage adapter
+export {
+  indexedStorage,
+  createIndexedStorage,
+  clearIndexedStorage,
+  getIndexedStorageKeys,
+  getIndexedStorageSize,
+} from './indexed-storage';

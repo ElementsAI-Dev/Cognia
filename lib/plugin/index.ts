@@ -5,6 +5,7 @@
 export { PluginManager, getPluginManager, initializePluginManager } from './manager';
 export { PluginLoader } from './loader';
 export { PluginRegistry } from './registry';
+export { createPluginSystemLogger, pluginLogger, loggers, type PluginSystemLogger } from './logger';
 export { createPluginContext, createFullPluginContext, isFullPluginContext, type FullPluginContext } from './context';
 export { PluginSandbox } from './sandbox';
 export { PluginA2UIBridge } from './a2ui-bridge';

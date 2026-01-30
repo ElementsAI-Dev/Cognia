@@ -82,16 +82,16 @@ pub enum UiElementType {
 pub struct ScreenContentAnalyzer {
     /// Last analysis result
     last_analysis: Arc<RwLock<Option<ScreenContent>>>,
-    /// Analysis cache duration in milliseconds
-    cache_duration_ms: u64,
 }
+
+/// Default cache duration in milliseconds
+const DEFAULT_CACHE_DURATION_MS: i64 = 1000;
 
 impl ScreenContentAnalyzer {
     pub fn new() -> Self {
-        debug!("Creating new ScreenContentAnalyzer with 1000ms cache duration");
+        debug!("Creating new ScreenContentAnalyzer with {}ms cache duration", DEFAULT_CACHE_DURATION_MS);
         Self {
             last_analysis: Arc::new(RwLock::new(None)),
-            cache_duration_ms: 1000, // 1 second cache
         }
     }
 
@@ -115,14 +115,14 @@ impl ScreenContentAnalyzer {
             if let Some(ref content) = *cached {
                 let now = chrono::Utc::now().timestamp_millis();
                 let age_ms = now - content.timestamp;
-                if age_ms < self.cache_duration_ms as i64 {
+                if age_ms < DEFAULT_CACHE_DURATION_MS {
                     trace!("Returning cached analysis (age: {}ms)", age_ms);
                     return Ok(content.clone());
                 }
                 trace!(
                     "Cache expired (age: {}ms, max: {}ms)",
                     age_ms,
-                    self.cache_duration_ms
+                    DEFAULT_CACHE_DURATION_MS
                 );
             }
         }
@@ -146,6 +146,7 @@ impl ScreenContentAnalyzer {
         Ok(content)
     }
 
+    #[allow(dead_code)]
     fn perform_analysis(
         &self,
         _image_data: &[u8],
@@ -177,9 +178,7 @@ impl ScreenContentAnalyzer {
         use windows::Win32::System::Com::{
             CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
         };
-        use windows::Win32::UI::Accessibility::{
-            CUIAutomation, IUIAutomation, TreeScope_Children, TreeScope_Subtree,
-        };
+        use windows::Win32::UI::Accessibility::{CUIAutomation, IUIAutomation};
 
         debug!("Starting UI Automation analysis");
         let mut elements = Vec::new();
@@ -315,18 +314,10 @@ impl ScreenContentAnalyzer {
     }
 
     /// Clear analysis cache
+    #[allow(dead_code)]
     pub fn clear_cache(&self) {
         debug!("Clearing screen content analysis cache");
         *self.last_analysis.write() = None;
-    }
-
-    /// Set cache duration
-    pub fn set_cache_duration(&mut self, ms: u64) {
-        debug!(
-            "Cache duration changed: {}ms -> {}ms",
-            self.cache_duration_ms, ms
-        );
-        self.cache_duration_ms = ms;
     }
 }
 
@@ -343,20 +334,13 @@ mod tests {
     #[test]
     fn test_analyzer_new() {
         let analyzer = ScreenContentAnalyzer::new();
-        assert_eq!(analyzer.cache_duration_ms, 1000);
+        assert!(analyzer.last_analysis.read().is_none());
     }
 
     #[test]
     fn test_analyzer_default() {
         let analyzer = ScreenContentAnalyzer::default();
-        assert_eq!(analyzer.cache_duration_ms, 1000);
-    }
-
-    #[test]
-    fn test_set_cache_duration() {
-        let mut analyzer = ScreenContentAnalyzer::new();
-        analyzer.set_cache_duration(2000);
-        assert_eq!(analyzer.cache_duration_ms, 2000);
+        assert!(analyzer.last_analysis.read().is_none());
     }
 
     #[test]

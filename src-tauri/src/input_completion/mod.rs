@@ -15,11 +15,13 @@ pub mod types;
 
 pub use config::CompletionConfig;
 pub use completion_service::CompletionService;
-pub use ime_state::{ImeState, ImeMonitor, InputMode};
+pub use ime_state::{ImeState, ImeMonitor};
+// Note: InputMode is used in tests but not re-exported to avoid unused import warning
+#[cfg(test)]
+use ime_state::InputMode;
 pub use keyboard_monitor::{KeyboardMonitor, KeyEvent, KeyEventType};
 pub use types::{
     CompletionContext, CompletionResult, CompletionSuggestion, CompletionStatus,
-    InputCompletionEvent,
 };
 
 use parking_lot::RwLock;

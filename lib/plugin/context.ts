@@ -3,6 +3,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { createPluginSystemLogger, loggers } from './logger';
 import type {
   Plugin,
   PluginContext,
@@ -205,22 +206,8 @@ export function isFullPluginContext(context: PluginContext): context is FullPlug
 // =============================================================================
 
 function createLogger(pluginId: string): PluginLogger {
-  const prefix = `[Plugin:${pluginId}]`;
-
-  return {
-    debug: (message: string, ...args: unknown[]) => {
-      console.debug(prefix, message, ...args);
-    },
-    info: (message: string, ...args: unknown[]) => {
-      console.info(prefix, message, ...args);
-    },
-    warn: (message: string, ...args: unknown[]) => {
-      console.warn(prefix, message, ...args);
-    },
-    error: (message: string, ...args: unknown[]) => {
-      console.error(prefix, message, ...args);
-    },
-  };
+  const logger = createPluginSystemLogger(pluginId);
+  return logger;
 }
 
 // =============================================================================
@@ -313,7 +300,7 @@ function createEventEmitter(pluginId: string): PluginEventEmitter {
           try {
             handler(...args);
           } catch (error) {
-            console.error(`Error in plugin event handler for ${event}:`, error);
+            loggers.hooks.error(`Error in plugin event handler for ${event}:`, error);
           }
         });
       }
@@ -358,26 +345,20 @@ function createUIAPI(_pluginId: string): PluginUIAPI {
           icon: options.icon,
         });
       } catch (error) {
-        console.error('Failed to show notification:', error);
+        loggers.manager.error('Failed to show notification:', error);
       }
     },
 
     showToast: (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
       // This would integrate with a toast system
       // For now, use console
-      const methods = {
-        info: console.info,
-        success: console.log,
-        warning: console.warn,
-        error: console.error,
-      };
-      methods[type](`[Toast] ${message}`);
+      loggers.manager.info(`[Toast:${type}] ${message}`);
     },
 
     showDialog: async (options: PluginDialog): Promise<unknown> => {
       // This would show a custom dialog
       // For now, return a promise that resolves with the first action
-      console.log('Dialog:', options.title, options.content);
+      loggers.manager.debug('Dialog:', options.title, options.content);
       return options.actions?.[0]?.value;
     },
 
@@ -391,7 +372,7 @@ function createUIAPI(_pluginId: string): PluginUIAPI {
       if (result !== null && options.validate) {
         const error = options.validate(result);
         if (error) {
-          console.error('Validation error:', error);
+          loggers.manager.error('Validation error:', error);
           return null;
         }
       }
@@ -508,7 +489,7 @@ function createAgentAPI(pluginId: string, manager: PluginManager): PluginAgentAP
 
     cancelAgent: (agentId: string) => {
       // Would integrate with agent execution system
-      invoke('agent_cancel', { agentId }).catch(console.error);
+      invoke('agent_cancel', { agentId }).catch((e) => loggers.agent.error('Failed to cancel agent:', e));
     },
   };
 }
@@ -530,7 +511,7 @@ function createSettingsAPI(pluginId: string): PluginSettingsAPI {
 
     set: <T>(key: string, value: T) => {
       // This would integrate with settings store
-      console.log(`Plugin ${pluginId} setting ${key}:`, value);
+      loggers.manager.debug(`Plugin ${pluginId} setting ${key}:`, value);
       
       // Notify listeners
       const keyListeners = listeners.get(key);
@@ -708,7 +689,7 @@ function createFileSystemAPI(pluginId: string): PluginFileSystemAPI {
 
     watch: (path: string, callback: (event: FileWatchEvent) => void) => {
       const watchId = `${pluginId}:${path}:${Date.now()}`;
-      invoke('plugin_fs_watch', { pluginId, path, watchId }).catch(console.error);
+      invoke('plugin_fs_watch', { pluginId, path, watchId }).catch((e) => loggers.manager.error('Failed to watch path:', e));
       
       const handler = (event: CustomEvent<FileWatchEvent>) => {
         if (event.detail.path.startsWith(path)) {
@@ -720,7 +701,7 @@ function createFileSystemAPI(pluginId: string): PluginFileSystemAPI {
       
       return () => {
         window.removeEventListener(`plugin-fs-watch:${watchId}`, handler as EventListener);
-        invoke('plugin_fs_unwatch', { watchId }).catch(console.error);
+        invoke('plugin_fs_unwatch', { watchId }).catch((e) => loggers.manager.error('Failed to unwatch:', e));
       };
     },
 
@@ -760,7 +741,7 @@ function createShellAPI(pluginId: string): PluginShellAPI {
       const processId = `${pluginId}:${Date.now()}`;
       
       invoke('plugin_shell_spawn', { pluginId, processId, command, args, options })
-        .catch(console.error);
+        .catch((e) => loggers.sandbox.error('Failed to spawn process:', e));
 
       return {
         pid: 0,
@@ -768,7 +749,7 @@ function createShellAPI(pluginId: string): PluginShellAPI {
         stdout: new ReadableStream(),
         stderr: new ReadableStream(),
         kill: (signal?: string) => {
-          invoke('plugin_process_kill', { processId, signal }).catch(console.error);
+          invoke('plugin_process_kill', { processId, signal }).catch((e) => loggers.sandbox.error('Failed to kill process:', e));
         },
         onExit: (callback: (code: number) => void) => {
           window.addEventListener(`plugin-process-exit:${processId}`, ((e: CustomEvent) => {
@@ -840,7 +821,7 @@ function createShortcutsAPI(pluginId: string): PluginShortcutsAPI {
       registeredShortcuts.add(shortcut);
       
       invoke('plugin_shortcut_register', { pluginId, shortcut, options })
-        .catch(console.error);
+        .catch((e) => loggers.manager.error('Failed to register shortcut:', e));
 
       const handler = () => callback();
       window.addEventListener(`plugin-shortcut:${id}`, handler);
@@ -848,7 +829,7 @@ function createShortcutsAPI(pluginId: string): PluginShortcutsAPI {
       return () => {
         registeredShortcuts.delete(shortcut);
         window.removeEventListener(`plugin-shortcut:${id}`, handler);
-        invoke('plugin_shortcut_unregister', { pluginId, shortcut }).catch(console.error);
+        invoke('plugin_shortcut_unregister', { pluginId, shortcut }).catch((e) => loggers.manager.error('Failed to unregister shortcut:', e));
       };
     },
 
@@ -880,7 +861,7 @@ function createContextMenuAPI(pluginId: string): PluginContextMenuAPI {
       invoke('plugin_context_menu_register', {
         pluginId,
         item: { ...item, id },
-      }).catch(console.error);
+      }).catch((e) => loggers.manager.error('Failed to register context menu:', e));
 
       const handler = ((e: CustomEvent<ContextMenuClickContext>) => {
         item.onClick(e.detail);
@@ -892,7 +873,7 @@ function createContextMenuAPI(pluginId: string): PluginContextMenuAPI {
         handlers.delete(id);
         window.removeEventListener(`plugin-context-menu:${id}`, handler);
         invoke('plugin_context_menu_unregister', { pluginId, itemId: id })
-          .catch(console.error);
+          .catch((e) => loggers.manager.error('Failed to unregister context menu:', e));
       };
     },
 
@@ -918,7 +899,7 @@ function createWindowAPI(pluginId: string): PluginWindowAPI {
     title,
     setTitle: (newTitle: string) => {
       invoke('plugin_window_set_title', { windowId: id, title: newTitle })
-        .catch(console.error);
+        .catch((e) => loggers.manager.error('Failed to set window title:', e));
     },
     close: () => invoke<void>('plugin_window_close', { windowId: id }),
     minimize: () => invoke<void>('plugin_window_minimize', { windowId: id }),
@@ -957,7 +938,7 @@ function createWindowAPI(pluginId: string): PluginWindowAPI {
     getMain: () => createPluginWindow('main', 'Cognia'),
     getAll: () => Array.from(windows.values()),
     focus: (windowId: string) => {
-      invoke('plugin_window_focus', { windowId }).catch(console.error);
+      invoke('plugin_window_focus', { windowId }).catch((e) => loggers.manager.error('Failed to focus window:', e));
     },
   };
 }

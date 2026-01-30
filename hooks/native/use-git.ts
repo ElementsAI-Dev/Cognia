@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useCallback, useState, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useGitStore } from '@/stores/git';
 import { gitService } from '@/lib/native/git';
 import type {
@@ -114,52 +115,105 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
   const initialCheckDone = useRef(false);
   const [isAvailable] = useState(() => gitService.isAvailable());
 
-  // Store state
-  const gitStatus = useGitStore((state) => state.gitStatus);
-  const isCheckingGit = useGitStore((state) => state.isCheckingGit);
-  const isInstallingGit = useGitStore((state) => state.isInstallingGit);
-  const installProgress = useGitStore((state) => state.installProgress);
-  const currentRepoInfo = useGitStore((state) => state.currentRepoInfo);
-  const branches = useGitStore((state) => state.branches);
-  const commits = useGitStore((state) => state.commits);
-  const fileStatus = useGitStore((state) => state.fileStatus);
-  const stashList = useGitStore((state) => state.stashList);
-  const operationStatus = useGitStore((state) => state.operationStatus);
-  const lastError = useGitStore((state) => state.lastError);
+  // Store state - using useShallow for optimized subscriptions
+  const {
+    gitStatus,
+    isCheckingGit,
+    isInstallingGit,
+    installProgress,
+    currentRepoInfo,
+    branches,
+    commits,
+    fileStatus,
+    stashList,
+    operationStatus,
+    lastError,
+  } = useGitStore(
+    useShallow((state) => ({
+      gitStatus: state.gitStatus,
+      isCheckingGit: state.isCheckingGit,
+      isInstallingGit: state.isInstallingGit,
+      installProgress: state.installProgress,
+      currentRepoInfo: state.currentRepoInfo,
+      branches: state.branches,
+      commits: state.commits,
+      fileStatus: state.fileStatus,
+      stashList: state.stashList,
+      operationStatus: state.operationStatus,
+      lastError: state.lastError,
+    }))
+  );
 
-  // Store actions
-  const checkGitInstalled = useGitStore((state) => state.checkGitInstalled);
-  const installGitAction = useGitStore((state) => state.installGit);
-  const setCurrentRepo = useGitStore((state) => state.setCurrentRepo);
-  const loadRepoStatus = useGitStore((state) => state.loadRepoStatus);
-  const loadBranches = useGitStore((state) => state.loadBranches);
-  const loadCommitHistory = useGitStore((state) => state.loadCommitHistory);
-  const loadFileStatus = useGitStore((state) => state.loadFileStatus);
-  const loadStashList = useGitStore((state) => state.loadStashList);
-  const initRepoAction = useGitStore((state) => state.initRepo);
-  const cloneRepoAction = useGitStore((state) => state.cloneRepo);
-  const stageFilesAction = useGitStore((state) => state.stageFiles);
-  const stageAllAction = useGitStore((state) => state.stageAll);
-  const unstageFilesAction = useGitStore((state) => state.unstageFiles);
-  const commitAction = useGitStore((state) => state.commit);
-  const createBranchAction = useGitStore((state) => state.createBranch);
-  const deleteBranchAction = useGitStore((state) => state.deleteBranch);
-  const checkoutAction = useGitStore((state) => state.checkout);
-  const pushAction = useGitStore((state) => state.push);
-  const pullAction = useGitStore((state) => state.pull);
-  const fetchAction = useGitStore((state) => state.fetch);
-  const discardChangesAction = useGitStore((state) => state.discardChanges);
-  const getDiffContentAction = useGitStore((state) => state.getDiffContent);
-  const stashSaveAction = useGitStore((state) => state.stashSave);
-  const stashPopAction = useGitStore((state) => state.stashPop);
-  const stashApplyAction = useGitStore((state) => state.stashApply);
-  const stashDropAction = useGitStore((state) => state.stashDrop);
-  const stashClearAction = useGitStore((state) => state.stashClear);
-  const getProjectConfig = useGitStore((state) => state.getProjectConfig);
-  const setProjectConfig = useGitStore((state) => state.setProjectConfig);
-  const enableGitForProjectAction = useGitStore((state) => state.enableGitForProject);
-  const disableGitForProjectAction = useGitStore((state) => state.disableGitForProject);
-  const clearError = useGitStore((state) => state.clearError);
+  // Store actions - using useShallow for stable references
+  const {
+    checkGitInstalled,
+    installGit: installGitAction,
+    setCurrentRepo,
+    loadRepoStatus,
+    loadBranches,
+    loadCommitHistory,
+    loadFileStatus,
+    loadStashList,
+    initRepo: initRepoAction,
+    cloneRepo: cloneRepoAction,
+    stageFiles: stageFilesAction,
+    stageAll: stageAllAction,
+    unstageFiles: unstageFilesAction,
+    commit: commitAction,
+    createBranch: createBranchAction,
+    deleteBranch: deleteBranchAction,
+    checkout: checkoutAction,
+    push: pushAction,
+    pull: pullAction,
+    fetch: fetchAction,
+    discardChanges: discardChangesAction,
+    getDiffContent: getDiffContentAction,
+    stashSave: stashSaveAction,
+    stashPop: stashPopAction,
+    stashApply: stashApplyAction,
+    stashDrop: stashDropAction,
+    stashClear: stashClearAction,
+    getProjectConfig,
+    setProjectConfig,
+    enableGitForProject: enableGitForProjectAction,
+    disableGitForProject: disableGitForProjectAction,
+    clearError,
+  } = useGitStore(
+    useShallow((state) => ({
+      checkGitInstalled: state.checkGitInstalled,
+      installGit: state.installGit,
+      setCurrentRepo: state.setCurrentRepo,
+      loadRepoStatus: state.loadRepoStatus,
+      loadBranches: state.loadBranches,
+      loadCommitHistory: state.loadCommitHistory,
+      loadFileStatus: state.loadFileStatus,
+      loadStashList: state.loadStashList,
+      initRepo: state.initRepo,
+      cloneRepo: state.cloneRepo,
+      stageFiles: state.stageFiles,
+      stageAll: state.stageAll,
+      unstageFiles: state.unstageFiles,
+      commit: state.commit,
+      createBranch: state.createBranch,
+      deleteBranch: state.deleteBranch,
+      checkout: state.checkout,
+      push: state.push,
+      pull: state.pull,
+      fetch: state.fetch,
+      discardChanges: state.discardChanges,
+      getDiffContent: state.getDiffContent,
+      stashSave: state.stashSave,
+      stashPop: state.stashPop,
+      stashApply: state.stashApply,
+      stashDrop: state.stashDrop,
+      stashClear: state.stashClear,
+      getProjectConfig: state.getProjectConfig,
+      setProjectConfig: state.setProjectConfig,
+      enableGitForProject: state.enableGitForProject,
+      disableGitForProject: state.disableGitForProject,
+      clearError: state.clearError,
+    }))
+  );
 
   // Get project config if projectId provided
   const projectConfig = projectId ? getProjectConfig(projectId) : null;
