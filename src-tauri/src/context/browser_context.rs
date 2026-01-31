@@ -23,6 +23,8 @@ pub struct BrowserContext {
     pub tab_info: Option<TabInfo>,
     /// Detected page type
     pub page_type: PageType,
+    /// Suggested actions based on page type
+    pub suggested_actions: Vec<String>,
 }
 
 /// Tab information
@@ -119,6 +121,8 @@ impl BrowserContext {
             browser, page_title, page_type
         );
 
+        let suggested_actions = Self::compute_suggested_actions(&page_type);
+
         Ok(Self {
             browser,
             url,
@@ -127,6 +131,7 @@ impl BrowserContext {
             is_secure,
             tab_info: Some(tab_info),
             page_type,
+            suggested_actions,
         })
     }
 
@@ -464,6 +469,30 @@ impl BrowserContext {
         PageType::General
     }
 
+    /// Compute suggested actions based on page type (used during construction)
+    fn compute_suggested_actions(page_type: &PageType) -> Vec<String> {
+        match page_type {
+            PageType::SearchResults => vec!["Summarize results".to_string()],
+            PageType::Documentation => vec!["Explain concept".to_string()],
+            PageType::CodeRepository => vec!["Explain code".to_string()],
+            PageType::VideoStreaming => vec!["Summarize video".to_string()],
+            PageType::NewsArticle => vec!["Summarize article".to_string()],
+            PageType::SocialMedia => vec!["Summarize thread".to_string()],
+            PageType::WebEmail => vec!["Draft reply".to_string()],
+            PageType::Ecommerce => vec!["Compare products".to_string()],
+            PageType::Chat => vec!["Summarize conversation".to_string()],
+            PageType::CloudStorage => vec!["Organize files".to_string()],
+            PageType::AiInterface => vec!["Continue conversation".to_string()],
+            PageType::DevTools => vec!["Explain code".to_string()],
+            PageType::General => vec!["Summarize page".to_string()],
+            PageType::BrowserInternal => vec![],
+        }
+    }
+
+    /// Get suggested actions based on the page type
+    pub fn get_suggested_actions(&self) -> &[String] {
+        &self.suggested_actions
+    }
 }
 
 #[cfg(test)]

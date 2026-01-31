@@ -122,17 +122,21 @@ describe('UsageSettings', () => {
         records: [
           {
             id: '1',
+            sessionId: 'session-1',
+            messageId: 'msg-1',
             provider: 'openai',
             model: 'gpt-4o',
-            tokens: { total: 8000 },
+            tokens: { prompt: 6000, completion: 2000, total: 8000 },
             cost: 0.12,
             createdAt: new Date('2024-01-01T10:00:00Z'),
           },
           {
             id: '2',
+            sessionId: 'session-1',
+            messageId: 'msg-2',
             provider: 'anthropic',
             model: 'claude-3-sonnet',
-            tokens: { total: 2000 },
+            tokens: { prompt: 1500, completion: 500, total: 2000 },
             cost: 0.03,
             createdAt: new Date('2024-01-01T11:00:00Z'),
           },

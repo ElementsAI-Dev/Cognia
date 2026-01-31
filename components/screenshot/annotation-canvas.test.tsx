@@ -70,6 +70,7 @@ describe('AnnotationCanvas', () => {
     style: mockStyle,
     selectedAnnotationId: null,
     onAnnotationAdd: jest.fn(),
+    onAnnotationUpdate: jest.fn(),
     onAnnotationSelect: jest.fn(),
     onGetNextMarkerNumber: jest.fn(() => 1),
   };

@@ -5,7 +5,7 @@
  * Supports HTML, Markdown, and terminal output.
  */
 
-import type { RankingsData, ModelRanking, MarketShareEntry, AppRanking, SectionData, BarChartData } from './types.js'
+import type { RankingsData, ModelRanking, MarketShareEntry, AppRanking, SectionData } from './types.js'
 
 export type RenderFormat = 'html' | 'markdown' | 'terminal' | 'json'
 

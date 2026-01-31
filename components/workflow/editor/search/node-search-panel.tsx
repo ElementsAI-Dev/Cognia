@@ -34,8 +34,8 @@ import { NODE_TYPE_COLORS } from '@/types/workflow/workflow-editor';
 // Helper to render node icon with color
 function NodeTypeIcon({ type }: { type: WorkflowNodeType }) {
   const Icon = NODE_ICONS[type];
-  const color = NODE_TYPE_COLORS[type] || '#6b7280';
-  return Icon ? <Icon className="h-3.5 w-3.5" style={{ color }} /> : <Circle className="h-3.5 w-3.5" />;
+  const _color = NODE_TYPE_COLORS[type] || '#6b7280';
+  return Icon ? <Icon className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />;
 }
 
 interface NodeSearchPanelProps {

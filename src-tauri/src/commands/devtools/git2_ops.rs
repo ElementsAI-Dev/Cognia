@@ -4,8 +4,8 @@
 //! This module provides an alternative to CLI-based Git operations.
 
 use git2::{
-    BranchType, Cred, CredentialType, FetchOptions, PushOptions, RemoteCallbacks, Repository,
-    Signature, StatusOptions,
+    BranchType, Cred, CredentialType, FetchOptions, RemoteCallbacks, Repository, Signature,
+    StatusOptions,
 };
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -381,6 +381,82 @@ pub fn fetch_remote(repo_path: &str, remote_name: &str) -> Git2Result<()> {
 /// Check if git2 is available (always true when compiled with git2)
 pub fn is_git2_available() -> bool {
     true
+}
+
+// ==================== Tauri Commands ====================
+
+/// Check if git2 native library is available
+#[tauri::command]
+pub fn git2_is_available() -> bool {
+    is_git2_available()
+}
+
+/// Check if a path is a Git repository using git2
+#[tauri::command]
+pub fn git2_is_repo(path: String) -> bool {
+    is_git_repo(&path)
+}
+
+/// Get repository status using git2 native library
+#[tauri::command]
+pub fn git2_get_status(repo_path: String) -> Result<GitRepoInfo, String> {
+    get_status(&repo_path).map_err(|e| e.message)
+}
+
+/// Get file status using git2 native library
+#[tauri::command]
+pub fn git2_get_file_status(repo_path: String) -> Result<Vec<GitFileStatus>, String> {
+    get_file_status(&repo_path).map_err(|e| e.message)
+}
+
+/// Get branches using git2 native library
+#[tauri::command]
+pub fn git2_get_branches(
+    repo_path: String,
+    include_remote: bool,
+) -> Result<Vec<GitBranchInfo>, String> {
+    get_branches(&repo_path, include_remote).map_err(|e| e.message)
+}
+
+/// Stage files using git2 native library
+#[tauri::command]
+pub fn git2_stage_files(repo_path: String, files: Vec<String>) -> Result<(), String> {
+    stage_files(&repo_path, &files).map_err(|e| e.message)
+}
+
+/// Stage all files using git2 native library
+#[tauri::command]
+pub fn git2_stage_all(repo_path: String) -> Result<(), String> {
+    stage_all(&repo_path).map_err(|e| e.message)
+}
+
+/// Create a commit using git2 native library
+#[tauri::command]
+pub fn git2_create_commit(
+    repo_path: String,
+    message: String,
+    author_name: Option<String>,
+    author_email: Option<String>,
+) -> Result<GitCommitInfo, String> {
+    create_commit(
+        &repo_path,
+        &message,
+        author_name.as_deref(),
+        author_email.as_deref(),
+    )
+    .map_err(|e| e.message)
+}
+
+/// Initialize a new repository using git2 native library
+#[tauri::command]
+pub fn git2_init_repo(path: String, initial_branch: Option<String>) -> Result<(), String> {
+    init_repo(&path, initial_branch.as_deref()).map_err(|e| e.message)
+}
+
+/// Fetch from remote using git2 native library
+#[tauri::command]
+pub fn git2_fetch_remote(repo_path: String, remote_name: String) -> Result<(), String> {
+    fetch_remote(&repo_path, &remote_name).map_err(|e| e.message)
 }
 
 #[cfg(test)]

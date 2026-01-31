@@ -418,10 +418,36 @@ impl SandboxState {
         timeout_secs: u64,
         memory_mb: u64,
     ) -> Result<ExecutionResult, SandboxError> {
-        let request = ExecutionRequest::new(language, code)
-            .with_timeout(timeout_secs)
-            .with_memory_limit(memory_mb);
-        self.execute_with_history(request, &[], true).await
+        log::info!(
+            "Executing code with limits: language={}, timeout={}s, memory={}MB",
+            language,
+            timeout_secs,
+            memory_mb
+        );
+
+        let manager = self.manager.read().await;
+        let result = manager
+            .execute_with_limits(language.clone(), code.clone(), timeout_secs, memory_mb)
+            .await?;
+
+        log::info!(
+            "Execution with limits completed: language={}, status={:?}, exit_code={:?}, time={}ms",
+            language,
+            result.status,
+            result.exit_code,
+            result.execution_time_ms
+        );
+
+        // Save to history
+        let session_id = self.current_session.read().await.clone();
+        if let Err(e) = self
+            .db
+            .save_execution(&result, &code, None, session_id.as_deref(), &[])
+        {
+            log::warn!("Failed to save execution to history: {}", e);
+        }
+
+        Ok(result)
     }
 
     // ==================== Session Management ====================

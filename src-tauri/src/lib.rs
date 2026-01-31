@@ -521,6 +521,18 @@ pub fn run() {
             app.manage(jupyter_state);
             log::info!("Jupyter state initialized");
 
+            // Initialize Git Credentials Manager
+            let git_credentials_state: commands::devtools::git_credentials::CredentialManagerState =
+                parking_lot::Mutex::new(commands::devtools::git_credentials::GitCredentialManager::default());
+            app.manage(git_credentials_state);
+            log::info!("Git credentials manager initialized");
+
+            // Initialize Git History Manager
+            let git_history_state: commands::devtools::git_history::HistoryManagerState =
+                parking_lot::Mutex::new(commands::devtools::git_history::GitHistoryManager::default());
+            app.manage(git_history_state);
+            log::info!("Git history manager initialized");
+
             // Initialize Sandbox State
             let sandbox_config_path = sandbox_data_dir.join("sandbox_config.json");
             let handle_for_sandbox = app.handle().clone();
@@ -804,6 +816,8 @@ pub fn run() {
             commands::context::context::context_analyze_ui_automation,
             commands::context::context::context_get_text_at,
             commands::context::context::context_get_element_at,
+            commands::context::context::context_analyze_screen,
+            commands::context::context::context_clear_screen_cache,
             // Awareness commands
             commands::context::awareness::awareness_get_state,
             commands::context::awareness::awareness_get_system_state,
@@ -946,6 +960,7 @@ pub fn run() {
             commands::devtools::jupyter::jupyter_is_kernel_alive,
             commands::devtools::jupyter::jupyter_get_session_by_id,
             commands::devtools::jupyter::jupyter_get_config,
+            commands::devtools::jupyter::jupyter_validate_config,
             // Proxy commands
             commands::system::proxy::proxy_detect_all,
             commands::system::proxy::proxy_test,
@@ -1111,8 +1126,35 @@ pub fn run() {
             commands::devtools::git::git_restore_designer,
             commands::devtools::git::git_blame,
             commands::devtools::git::git_blame_line,
+            // Git credentials commands
+            commands::devtools::git_credentials::git_list_credentials,
+            commands::devtools::git_credentials::git_set_credential,
+            commands::devtools::git_credentials::git_remove_credential,
+            commands::devtools::git_credentials::git_detect_ssh_keys,
+            commands::devtools::git_credentials::git_test_credential,
+            // Git history commands (undo/redo)
+            commands::devtools::git_history::git_record_operation,
+            commands::devtools::git_history::git_get_operation,
+            commands::devtools::git_history::git_get_repositories,
+            commands::devtools::git_history::git_get_history,
+            commands::devtools::git_history::git_undo_last,
+            commands::devtools::git_history::git_clear_history,
+            commands::devtools::git_history::git_reflog,
+            commands::devtools::git_history::git_recover_to_reflog,
+            // Git2 native library commands
+            commands::devtools::git2_ops::git2_is_available,
+            commands::devtools::git2_ops::git2_is_repo,
+            commands::devtools::git2_ops::git2_get_status,
+            commands::devtools::git2_ops::git2_get_file_status,
+            commands::devtools::git2_ops::git2_get_branches,
+            commands::devtools::git2_ops::git2_stage_files,
+            commands::devtools::git2_ops::git2_stage_all,
+            commands::devtools::git2_ops::git2_create_commit,
+            commands::devtools::git2_ops::git2_init_repo,
+            commands::devtools::git2_ops::git2_fetch_remote,
             // Multi-VCS commands (git, jj, hg, svn)
             commands::devtools::vcs::vcs_detect,
+            commands::devtools::vcs::vcs_is_type_available,
             commands::devtools::vcs::vcs_check_installed,
             commands::devtools::vcs::vcs_get_info,
             commands::devtools::vcs::vcs_blame,
@@ -1250,6 +1292,7 @@ pub fn run() {
             commands::extensions::skill_seekers::skill_seekers_cleanup_jobs,
             commands::extensions::skill_seekers::skill_seekers_list_generated,
             commands::extensions::skill_seekers::skill_seekers_get_generated,
+            commands::extensions::skill_seekers::skill_seekers_get_app_data_dir,
             commands::extensions::skill_seekers::skill_seekers_get_output_dir,
             commands::extensions::skill_seekers::skill_seekers_get_venv_path,
             commands::extensions::skill_seekers::skill_seekers_quick_generate_website,

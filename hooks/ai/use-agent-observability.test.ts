@@ -9,21 +9,23 @@ import { createAgentObservabilityManager } from '@/lib/ai/observability/agent-ob
 import type { ToolCall } from '@/lib/ai/agent/agent-executor';
 
 // Mock the observability manager
+const mockManager = {
+  startAgentExecution: jest.fn(),
+  trackAgentExecution: jest.fn(async (fn: () => unknown) => fn()),
+  trackToolCall: jest.fn(async (_name: string, _args: unknown, fn: () => unknown) => fn()),
+  trackToolCalls: jest.fn(async (_toolCalls: unknown[], executeTool: (tc: unknown) => Promise<unknown>) => {
+    // Mock execution of tool calls
+    for (const toolCall of _toolCalls) {
+      await executeTool(toolCall);
+    }
+  }),
+  trackPlanning: jest.fn(async (fn: () => unknown) => fn()),
+  endAgentExecution: jest.fn(),
+  getTraceUrl: jest.fn(() => 'https://langfuse.com/trace/123'),
+};
+
 jest.mock('@/lib/ai/observability/agent-observability', () => ({
-  createAgentObservabilityManager: jest.fn(() => ({
-    startAgentExecution: jest.fn(),
-    trackAgentExecution: jest.fn(async (fn) => fn()),
-    trackToolCall: jest.fn(async (_name, _args, fn) => fn()),
-    trackToolCalls: jest.fn(async (_toolCalls, executeTool) => {
-      // Mock execution of tool calls
-      for (const toolCall of _toolCalls) {
-        await executeTool(toolCall);
-      }
-    }),
-    trackPlanning: jest.fn(async (fn) => fn()),
-    endAgentExecution: jest.fn(),
-    getTraceUrl: jest.fn(() => 'https://langfuse.com/trace/123'),
-  })),
+  createAgentObservabilityManager: jest.fn(() => mockManager),
 }));
 
 // Mock React hooks

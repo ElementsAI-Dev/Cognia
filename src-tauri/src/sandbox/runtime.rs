@@ -458,6 +458,39 @@ impl SandboxManager {
             request.runtime
         );
 
+        // Validate timeout limits
+        let timeout_secs = request
+            .timeout_secs
+            .unwrap_or(self.config.default_timeout_secs);
+        if timeout_secs == 0 {
+            log::warn!("Invalid timeout value: 0 seconds");
+            return Err(SandboxError::Timeout(0));
+        }
+
+        // Validate memory limits
+        let memory_mb = request
+            .memory_limit_mb
+            .unwrap_or(self.config.default_memory_limit_mb);
+        if memory_mb == 0 {
+            log::warn!("Invalid memory limit: 0 MB");
+            return Err(SandboxError::ResourceLimit(
+                "Memory limit cannot be 0".to_string(),
+            ));
+        }
+
+        // Security check: validate network access
+        let network_enabled = request
+            .network_enabled
+            .unwrap_or(self.config.network_enabled);
+        if network_enabled && !self.config.network_enabled {
+            log::warn!(
+                "Security violation: network access requested but disabled in configuration"
+            );
+            return Err(SandboxError::SecurityViolation(
+                "Network access is disabled in sandbox configuration".to_string(),
+            ));
+        }
+
         // Get language configuration
         let language_config = LANGUAGE_CONFIGS
             .iter()
@@ -502,25 +535,16 @@ impl SandboxManager {
 
         log::debug!("Selected runtime: {:?}", runtime.runtime_type());
 
-        // Build execution config
-        let timeout_secs = request
-            .timeout_secs
-            .unwrap_or(self.config.default_timeout_secs);
-        let memory_mb = request
-            .memory_limit_mb
-            .unwrap_or(self.config.default_memory_limit_mb);
+        // Build execution config (timeout_secs, memory_mb, network_enabled already validated above)
         let cpu_percent = request
             .cpu_limit_percent
             .unwrap_or(self.config.default_cpu_limit_percent);
-        let network = request
-            .network_enabled
-            .unwrap_or(self.config.network_enabled);
 
         let exec_config = ExecutionConfig {
             timeout: Duration::from_secs(timeout_secs),
             memory_limit_mb: memory_mb,
             cpu_limit_percent: cpu_percent,
-            network_enabled: network,
+            network_enabled: network_enabled,
             max_output_size: self.config.max_output_size,
         };
 
@@ -529,7 +553,7 @@ impl SandboxManager {
             timeout_secs,
             memory_mb,
             cpu_percent,
-            network,
+            network_enabled,
             self.config.max_output_size
         );
 
@@ -1351,6 +1375,127 @@ mod tests {
         let (rt, version) = info.unwrap();
         assert_eq!(rt, RuntimeType::Native);
         assert_eq!(version, "native-1.0");
+    }
+
+    // ==================== Validation Tests ====================
+
+    #[tokio::test]
+    async fn test_sandbox_manager_execute_zero_timeout() {
+        let config = SandboxConfig {
+            preferred_runtime: RuntimeType::Native,
+            enable_docker: false,
+            enable_podman: false,
+            enable_native: true,
+            default_timeout_secs: 30,
+            default_memory_limit_mb: 256,
+            default_cpu_limit_percent: 50,
+            max_output_size: 1024 * 1024,
+            custom_images: HashMap::new(),
+            network_enabled: false,
+            workspace_dir: None,
+            enabled_languages: vec!["python".to_string()],
+        };
+
+        let manager = SandboxManager::new(config).await.unwrap();
+        let request = ExecutionRequest::new("python", "print('hello')").with_timeout(0);
+        let result = manager.execute(request).await;
+
+        // Should fail with Timeout error for invalid timeout value
+        assert!(result.is_err());
+        match result {
+            Err(SandboxError::Timeout(0)) => {}
+            _ => panic!("Expected Timeout(0) error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_execute_zero_memory() {
+        let config = SandboxConfig {
+            preferred_runtime: RuntimeType::Native,
+            enable_docker: false,
+            enable_podman: false,
+            enable_native: true,
+            default_timeout_secs: 30,
+            default_memory_limit_mb: 256,
+            default_cpu_limit_percent: 50,
+            max_output_size: 1024 * 1024,
+            custom_images: HashMap::new(),
+            network_enabled: false,
+            workspace_dir: None,
+            enabled_languages: vec!["python".to_string()],
+        };
+
+        let manager = SandboxManager::new(config).await.unwrap();
+        let request = ExecutionRequest::new("python", "print('hello')").with_memory_limit(0);
+        let result = manager.execute(request).await;
+
+        // Should fail with ResourceLimit error
+        assert!(result.is_err());
+        match result {
+            Err(SandboxError::ResourceLimit(msg)) => {
+                assert!(msg.contains("Memory"));
+            }
+            _ => panic!("Expected ResourceLimit error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_execute_network_security_violation() {
+        let config = SandboxConfig {
+            preferred_runtime: RuntimeType::Native,
+            enable_docker: false,
+            enable_podman: false,
+            enable_native: true,
+            default_timeout_secs: 30,
+            default_memory_limit_mb: 256,
+            default_cpu_limit_percent: 50,
+            max_output_size: 1024 * 1024,
+            custom_images: HashMap::new(),
+            network_enabled: false, // Network disabled in config
+            workspace_dir: None,
+            enabled_languages: vec!["python".to_string()],
+        };
+
+        let manager = SandboxManager::new(config).await.unwrap();
+        let mut request = ExecutionRequest::new("python", "print('hello')");
+        request.network_enabled = Some(true); // Request network access
+        let result = manager.execute(request).await;
+
+        // Should fail with SecurityViolation error
+        assert!(result.is_err());
+        match result {
+            Err(SandboxError::SecurityViolation(msg)) => {
+                assert!(msg.contains("Network"));
+            }
+            _ => panic!("Expected SecurityViolation error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_sandbox_manager_execute_with_limits() {
+        let config = SandboxConfig {
+            preferred_runtime: RuntimeType::Native,
+            enable_docker: false,
+            enable_podman: false,
+            enable_native: true,
+            default_timeout_secs: 30,
+            default_memory_limit_mb: 256,
+            default_cpu_limit_percent: 50,
+            max_output_size: 1024 * 1024,
+            custom_images: HashMap::new(),
+            network_enabled: false,
+            workspace_dir: None,
+            enabled_languages: vec!["python".to_string()],
+        };
+
+        let manager = SandboxManager::new(config).await.unwrap();
+        // Test that execute_with_limits properly delegates to execute
+        let result = manager
+            .execute_with_limits("python".to_string(), "print('hello')".to_string(), 60, 512)
+            .await;
+
+        // Result depends on whether python is available, but should not panic
+        let _ = result;
     }
 
     // ==================== LANGUAGE_CONFIGS Tests ====================

@@ -154,40 +154,92 @@ pub async fn vcs_detect(path: String) -> VcsOperationResult<VcsType> {
     VcsOperationResult::error("No VCS detected in directory".to_string())
 }
 
+/// Check if a specific VCS type is available on the system
+#[tauri::command]
+pub async fn vcs_is_type_available(vcs_type: VcsType) -> VcsStatus {
+    let cmd = vcs_type.as_str();
+    if !is_command_available(cmd) {
+        return VcsStatus {
+            vcs_type,
+            installed: false,
+            version: None,
+        };
+    }
+
+    let version = match vcs_type {
+        VcsType::Git => run_command("git", &["--version"], None)
+            .ok()
+            .map(|v| v.replace("git version ", "")),
+        VcsType::Jj => run_command("jj", &["--version"], None)
+            .ok()
+            .map(|v| v.replace("jj ", "")),
+        VcsType::Hg => run_command("hg", &["--version"], None)
+            .ok()
+            .and_then(|v| v.lines().next().map(|l| l.to_string())),
+        VcsType::Svn => run_command("svn", &["--version", "--quiet"], None).ok(),
+    };
+
+    VcsStatus {
+        vcs_type,
+        installed: true,
+        version,
+    }
+}
+
 /// Check which VCS tools are installed
 #[tauri::command]
 pub async fn vcs_check_installed() -> Vec<VcsStatus> {
     let mut results = Vec::new();
 
-    // Git
-    let git_version = run_command("git", &["--version"], None).ok();
+    // Git - use is_command_available for quick check
+    let git_installed = is_command_available(VcsType::Git.as_str());
+    let git_version = if git_installed {
+        run_command("git", &["--version"], None).ok()
+    } else {
+        None
+    };
     results.push(VcsStatus {
         vcs_type: VcsType::Git,
-        installed: git_version.is_some(),
+        installed: git_installed,
         version: git_version.map(|v| v.replace("git version ", "")),
     });
 
-    // Jujutsu
-    let jj_version = run_command("jj", &["--version"], None).ok();
+    // Jujutsu - use is_command_available for quick check
+    let jj_installed = is_command_available(VcsType::Jj.as_str());
+    let jj_version = if jj_installed {
+        run_command("jj", &["--version"], None).ok()
+    } else {
+        None
+    };
     results.push(VcsStatus {
         vcs_type: VcsType::Jj,
-        installed: jj_version.is_some(),
+        installed: jj_installed,
         version: jj_version.map(|v| v.replace("jj ", "")),
     });
 
-    // Mercurial
-    let hg_version = run_command("hg", &["--version"], None).ok();
+    // Mercurial - use is_command_available for quick check
+    let hg_installed = is_command_available(VcsType::Hg.as_str());
+    let hg_version = if hg_installed {
+        run_command("hg", &["--version"], None).ok()
+    } else {
+        None
+    };
     results.push(VcsStatus {
         vcs_type: VcsType::Hg,
-        installed: hg_version.is_some(),
+        installed: hg_installed,
         version: hg_version.and_then(|v| v.lines().next().map(|l| l.to_string())),
     });
 
-    // Subversion
-    let svn_version = run_command("svn", &["--version", "--quiet"], None).ok();
+    // Subversion - use is_command_available for quick check
+    let svn_installed = is_command_available(VcsType::Svn.as_str());
+    let svn_version = if svn_installed {
+        run_command("svn", &["--version", "--quiet"], None).ok()
+    } else {
+        None
+    };
     results.push(VcsStatus {
         vcs_type: VcsType::Svn,
-        installed: svn_version.is_some(),
+        installed: svn_installed,
         version: svn_version,
     });
 

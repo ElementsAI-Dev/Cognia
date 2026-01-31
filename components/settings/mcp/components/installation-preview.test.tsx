@@ -46,6 +46,8 @@ describe('InstallationPreview', () => {
 
   const mockEnvCheck: EnvironmentCheckResult = {
     supported: true,
+    hasNode: true,
+    hasNpx: true,
     nodeVersion: '20.0.0',
     missingDeps: [],
   };
@@ -99,6 +101,8 @@ describe('InstallationPreview', () => {
   it('shows error message when environment not supported', () => {
     const unsupportedCheck: EnvironmentCheckResult = {
       supported: false,
+      hasNode: false,
+      hasNpx: false,
       message: 'Node.js not installed',
       missingDeps: ['node'],
     };
@@ -111,6 +115,8 @@ describe('InstallationPreview', () => {
   it('shows missing deps when present', () => {
     const checkWithMissingDeps: EnvironmentCheckResult = {
       supported: false,
+      hasNode: false,
+      hasNpx: false,
       missingDeps: ['npm', 'node'],
     };
     renderWithProviders(

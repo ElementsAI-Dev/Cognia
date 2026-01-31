@@ -4,7 +4,7 @@
 
 use crate::context::{
     AppContext, BrowserContext, ContextManager, EditorContext, FileContext, FullContext,
-    UiElement, WindowInfo,
+    ScreenContent, UiElement, WindowInfo,
 };
 use tauri::State;
 
@@ -123,6 +123,26 @@ pub async fn context_get_element_at(
     y: i32,
 ) -> Result<Option<UiElement>, String> {
     Ok(manager.get_screen_analyzer().get_element_at(x, y))
+}
+
+/// Analyze screen content from image data
+#[tauri::command]
+pub async fn context_analyze_screen(
+    manager: State<'_, ContextManager>,
+    image_data: Vec<u8>,
+    width: u32,
+    height: u32,
+) -> Result<ScreenContent, String> {
+    manager
+        .get_screen_analyzer()
+        .analyze(&image_data, width, height)
+}
+
+/// Clear screen content analysis cache
+#[tauri::command]
+pub async fn context_clear_screen_cache(manager: State<'_, ContextManager>) -> Result<(), String> {
+    manager.get_screen_analyzer().clear_cache();
+    Ok(())
 }
 
 #[cfg(test)]

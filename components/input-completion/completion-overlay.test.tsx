@@ -10,8 +10,8 @@ import type { CompletionSuggestion } from '@/types/input-completion';
 jest.mock('framer-motion', () => ({
   motion: {
     div: ({ children, className, style, ...props }: Record<string, unknown>) => (
-      <div className={className} style={style} {...props}>
-        {children}
+      <div className={className as string} style={style as React.CSSProperties} {...props}>
+        {children as React.ReactNode}
       </div>
     ),
   },
@@ -40,7 +40,12 @@ const mockCurrentSuggestion: CompletionSuggestion = {
   completion_type: 'Line',
 };
 
-let mockHookState = {
+let mockHookState: {
+  currentSuggestion: CompletionSuggestion | null;
+  config: typeof mockConfig;
+  accept: typeof mockAccept;
+  dismiss: typeof mockDismiss;
+} = {
   currentSuggestion: mockCurrentSuggestion,
   config: mockConfig,
   accept: mockAccept,

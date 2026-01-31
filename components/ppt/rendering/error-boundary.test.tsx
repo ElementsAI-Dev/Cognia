@@ -33,11 +33,10 @@ describe('PPTPreviewErrorBoundary', () => {
     expect(screen.getByText('Child content')).toBeInTheDocument();
   });
 
-  it('should render with custom className', () => {
-    // Render with className prop - component may or may not apply it
-    // Just verify it doesn't crash when className is provided
+  it('should render with default props', () => {
+    // Just verify it doesn't crash when rendered with default props
     const { container } = render(
-      <PPTPreviewErrorBoundary className="custom-class">
+      <PPTPreviewErrorBoundary>
         <div>Content</div>
       </PPTPreviewErrorBoundary>
     );

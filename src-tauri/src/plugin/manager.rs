@@ -739,6 +739,8 @@ mod tests {
         
         // Plugin directory should be created
         assert!(temp_dir.path().exists());
+        // Verify manager correctly stores the plugin directory
+        assert_eq!(manager.plugin_dir(), temp_dir.path().to_path_buf());
     }
 
     #[test]

@@ -183,7 +183,7 @@ describe('ContextDebugDialog - Loading State', () => {
   });
 
   it('should show loading state during refresh', () => {
-    const hookModule = jest.requireMock<typeof import('@/hooks/context')>('@/hooks/context');
+    const hookModule = jest.requireMock('@/hooks/context') as { useContextStats: jest.Mock };
     hookModule.useContextStats.mockReturnValue({
       stats: null,
       isLoading: true,
@@ -209,7 +209,7 @@ describe('ContextDebugDialog - Error State', () => {
   });
 
   it('should display error message', () => {
-    const hookModule = jest.requireMock<typeof import('@/hooks/context')>('@/hooks/context');
+    const hookModule = jest.requireMock('@/hooks/context') as { useContextStats: jest.Mock };
     hookModule.useContextStats.mockReturnValue({
       stats: null,
       isLoading: false,
@@ -233,7 +233,7 @@ describe('ContextDebugDialog - Empty State', () => {
   });
 
   it('should show empty state when no files', () => {
-    const hookModule = jest.requireMock<typeof import('@/hooks/context')>('@/hooks/context');
+    const hookModule = jest.requireMock('@/hooks/context') as { useContextStats: jest.Mock };
     hookModule.useContextStats.mockReturnValue({
       stats: {
         filesByCategory: {},

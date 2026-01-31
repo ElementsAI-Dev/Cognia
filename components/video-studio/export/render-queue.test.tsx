@@ -26,7 +26,9 @@ describe('RenderQueue', () => {
     onRemoveJob: jest.fn(),
     onReorderJob: jest.fn(),
     onClearCompleted: jest.fn(),
-    onOpenOutputFolder: jest.fn(),
+    onOpenOutput: jest.fn(),
+    onStartAll: jest.fn(),
+    onPauseAll: jest.fn(),
   };
 
   it('renders render queue panel', () => {

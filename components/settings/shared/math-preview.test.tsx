@@ -38,12 +38,12 @@ describe('MathPreview', () => {
     expect(mathContainer).toHaveStyle({ textAlign: 'left' });
   });
 
-  it('applies right alignment', () => {
+  it('applies center alignment', () => {
     const { container } = render(
-      <MathPreview scale={1} alignment="right" previewLabel="Preview" />
+      <MathPreview scale={1} alignment="center" previewLabel="Preview" />
     );
     const mathContainer = container.querySelector('.overflow-x-auto');
-    expect(mathContainer).toHaveStyle({ textAlign: 'right' });
+    expect(mathContainer).toHaveStyle({ textAlign: 'center' });
   });
 
   it('renders katex output', () => {

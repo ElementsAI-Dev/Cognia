@@ -407,6 +407,12 @@ export async function getGenerated(skillId: string): Promise<GeneratedSkill | nu
   return invoke<GeneratedSkill | null>('skill_seekers_get_generated', { skillId });
 }
 
+/** Get app data directory path */
+export async function getAppDataDir(): Promise<string> {
+  if (!isTauri()) return '';
+  return invoke<string>('skill_seekers_get_app_data_dir');
+}
+
 /** Get output directory path */
 export async function getOutputDir(): Promise<string> {
   if (!isTauri()) return '';
@@ -528,6 +534,7 @@ const skillSeekersApi = {
   // Generated Skills
   listGenerated,
   getGenerated,
+  getAppDataDir,
   getOutputDir,
   getVenvPath,
   // Quick Generate

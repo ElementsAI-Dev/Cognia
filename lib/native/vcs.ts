@@ -90,6 +90,29 @@ export async function checkVcsInstalled(): Promise<VcsStatus[]> {
   }
 }
 
+/**
+ * Check if a specific VCS type is available on the system
+ */
+export async function isVcsTypeAvailable(vcsType: VcsType): Promise<VcsStatus> {
+  if (!isTauri()) {
+    return {
+      vcsType,
+      installed: false,
+      version: null,
+    };
+  }
+
+  try {
+    return await invoke<VcsStatus>('vcs_is_type_available', { vcsType });
+  } catch {
+    return {
+      vcsType,
+      installed: false,
+      version: null,
+    };
+  }
+}
+
 // ==================== VCS Info ====================
 
 /**
@@ -171,6 +194,7 @@ export const vcsService = {
   isAvailable: isVcsAvailable,
   detect: detectVcs,
   checkInstalled: checkVcsInstalled,
+  isTypeAvailable: isVcsTypeAvailable,
   getInfo: getVcsInfo,
   blame: getVcsBlame,
   blameLine: getVcsBlameLine,

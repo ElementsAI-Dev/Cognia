@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { VideoStudioHeader } from './video-studio-header';
-import type { StudioMode } from './types';
+import type { StudioMode } from '@/types/video-studio/types';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

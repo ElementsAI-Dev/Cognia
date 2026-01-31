@@ -291,6 +291,7 @@ mod tests {
         );
         
         assert_eq!(edge, Some(SnapEdge::Top));
+        assert_eq!(x, 800); // X should remain unchanged when snapping to top
         assert_eq!(y, PADDING); // Should snap to top with padding
     }
 

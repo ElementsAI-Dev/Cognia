@@ -87,6 +87,11 @@ impl SkillSeekersService {
         Ok(())
     }
 
+    /// Get the app data directory
+    pub fn get_app_data_dir(&self) -> &Path {
+        &self.app_data_dir
+    }
+
     /// Get the output directory
     pub fn get_output_dir(&self) -> &Path {
         &self.output_dir

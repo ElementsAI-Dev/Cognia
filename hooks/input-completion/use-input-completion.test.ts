@@ -2,7 +2,7 @@
  * Tests for useInputCompletion hook
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
 import { useInputCompletion } from './use-input-completion';
 import * as api from '@/lib/native/input-completion';

@@ -2,7 +2,7 @@
  * Multi-VCS Service Tests
  */
 
-import { vcsService, isVcsAvailable, detectVcs, getVcsInfo, getVcsBlame } from './vcs';
+import { vcsService, isVcsAvailable, detectVcs, getVcsInfo, getVcsBlame, isVcsTypeAvailable } from './vcs';
 
 // Mock Tauri invoke
 jest.mock('@tauri-apps/api/core', () => ({
@@ -135,11 +135,42 @@ describe('VCS Service', () => {
     });
   });
 
+  describe('isVcsTypeAvailable', () => {
+    it('returns not installed when not in Tauri environment', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await isVcsTypeAvailable('git');
+      expect(result.installed).toBe(false);
+      expect(result.vcsType).toBe('git');
+    });
+
+    it('calls vcs_is_type_available command when in Tauri', async () => {
+      mockIsTauri.mockReturnValue(true);
+      mockInvoke.mockResolvedValue({ vcsType: 'git', installed: true, version: '2.43.0' });
+
+      const result = await isVcsTypeAvailable('git');
+
+      expect(mockInvoke).toHaveBeenCalledWith('vcs_is_type_available', { vcsType: 'git' });
+      expect(result.installed).toBe(true);
+      expect(result.version).toBe('2.43.0');
+    });
+
+    it('handles invoke errors gracefully', async () => {
+      mockIsTauri.mockReturnValue(true);
+      mockInvoke.mockRejectedValue(new Error('Command failed'));
+
+      const result = await isVcsTypeAvailable('jj');
+
+      expect(result.installed).toBe(false);
+      expect(result.vcsType).toBe('jj');
+    });
+  });
+
   describe('vcsService object', () => {
     it('exposes all service methods', () => {
       expect(vcsService.isAvailable).toBeDefined();
       expect(vcsService.detect).toBeDefined();
       expect(vcsService.checkInstalled).toBeDefined();
+      expect(vcsService.isTypeAvailable).toBeDefined();
       expect(vcsService.getInfo).toBeDefined();
       expect(vcsService.blame).toBeDefined();
       expect(vcsService.blameLine).toBeDefined();

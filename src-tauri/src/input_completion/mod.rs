@@ -22,6 +22,7 @@ use ime_state::InputMode;
 pub use keyboard_monitor::{KeyboardMonitor, KeyEvent, KeyEventType};
 pub use types::{
     CompletionContext, CompletionResult, CompletionSuggestion, CompletionStatus,
+    InputCompletionEvent,
 };
 
 use parking_lot::RwLock;
@@ -116,6 +117,7 @@ impl InputCompletionManager {
             while is_running.load(Ordering::SeqCst) {
                 tokio::select! {
                     Some(key_event) = key_rx.recv() => {
+                        log::trace!("Key event at {}: {}", key_event.timestamp, key_event.key);
                         Self::handle_key_event(
                             &key_event,
                             &config,
@@ -143,7 +145,11 @@ impl InputCompletionManager {
     pub fn stop(&self) {
         log::info!("Stopping InputCompletionManager");
         self.is_running.store(false, Ordering::SeqCst);
-        self.keyboard_monitor.stop();
+        
+        // Only stop keyboard monitor if it's running
+        if self.keyboard_monitor.is_running() {
+            self.keyboard_monitor.stop();
+        }
         self.ime_monitor.stop();
         
         // Cancel any pending debounce
@@ -208,7 +214,7 @@ impl InputCompletionManager {
                 // Handle character input
                 if let Some(ch) = key_event.char {
                     // Skip if modifier keys are held and skip_with_modifiers is enabled
-                    if cfg.trigger.skip_with_modifiers && (key_event.ctrl || key_event.alt) {
+                    if cfg.trigger.skip_with_modifiers && (key_event.ctrl || key_event.alt || key_event.shift) {
                         log::trace!("Skipping completion: modifier key held");
                         return;
                     }

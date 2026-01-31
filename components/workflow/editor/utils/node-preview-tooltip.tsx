@@ -35,6 +35,12 @@ import {
   Info,
   Group,
   StickyNote,
+  BarChart2,
+  LineChart,
+  PieChart,
+  AreaChart,
+  ScatterChart,
+  Radar,
 } from 'lucide-react';
 import type {
   WorkflowNodeData,
@@ -67,6 +73,13 @@ const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: str
   merge: GitMerge,
   group: Group,
   annotation: StickyNote,
+  chart: BarChart2,
+  lineChart: LineChart,
+  barChart: BarChart2,
+  pieChart: PieChart,
+  areaChart: AreaChart,
+  scatterChart: ScatterChart,
+  radarChart: Radar,
 };
 
 interface NodePreviewTooltipProps {

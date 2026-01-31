@@ -241,6 +241,15 @@ pub async fn skill_seekers_get_generated(
     Ok(service.get_generated_skill(&skill_id).await)
 }
 
+/// Get app data directory path
+#[tauri::command]
+pub async fn skill_seekers_get_app_data_dir(
+    state: State<'_, SkillSeekersState>,
+) -> Result<String, String> {
+    let service = state.0.read().await;
+    Ok(service.get_app_data_dir().to_string_lossy().to_string())
+}
+
 /// Get output directory path
 #[tauri::command]
 pub async fn skill_seekers_get_output_dir(

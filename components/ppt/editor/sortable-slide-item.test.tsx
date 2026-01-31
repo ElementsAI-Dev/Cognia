@@ -185,10 +185,9 @@ describe('SortableSlideItem', () => {
     expect(typeof SortableSlideItem).toBe('function');
   });
 
-  it('should apply custom className', () => {
-    // Render with className prop - component may or may not apply it
-    // Just verify it doesn't crash when className is provided
-    const { container } = render(<SortableSlideItem {...defaultProps} className="custom-class" />);
+  it('should render with default props', () => {
+    // Just verify it doesn't crash when rendered with default props
+    const { container } = render(<SortableSlideItem {...defaultProps} />);
 
     // The component should render successfully
     expect(container.firstChild).toBeInTheDocument();

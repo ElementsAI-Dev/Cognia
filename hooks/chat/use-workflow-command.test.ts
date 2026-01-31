@@ -25,7 +25,7 @@ jest.mock('@/stores/workflow', () => ({
 }));
 
 // Mock workflow type
-const mockWorkflowType = 'automation' as const;
+const mockWorkflowType = 'data-analysis' as const;
 
 // Sample workflows for testing
 const mockWorkflows: VisualWorkflow[] = [

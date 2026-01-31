@@ -62,13 +62,13 @@ describe('NodeConfigPanel', () => {
   });
 
   it('renders when showConfigPanel is true', () => {
-    render(<NodeConfigPanel />);
+    render(<NodeConfigPanel nodeId="node-1" />);
     
     expect(screen.getByText('nodeConfig')).toBeInTheDocument();
   });
 
   it('displays selected node label', async () => {
-    render(<NodeConfigPanel />);
+    render(<NodeConfigPanel nodeId="node-1" />);
     
     await waitFor(() => {
       expect(screen.getByText('AI Node')).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe('NodeConfigPanel', () => {
   });
 
   it('shows node type badge', async () => {
-    render(<NodeConfigPanel />);
+    render(<NodeConfigPanel nodeId="node-1" />);
     
     await waitFor(() => {
       expect(screen.getByText('ai')).toBeInTheDocument();
@@ -84,7 +84,7 @@ describe('NodeConfigPanel', () => {
   });
 
   it('loads appropriate config component for node type', async () => {
-    render(<NodeConfigPanel />);
+    render(<NodeConfigPanel nodeId="node-1" />);
     
     await waitFor(() => {
       expect(screen.getByTestId('ai-config')).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe('NodeConfigPanel with no selection', () => {
       toggleConfigPanel: jest.fn(),
     });
 
-    render(<NodeConfigPanel />);
+    render(<NodeConfigPanel nodeId="node-1" />);
     
     expect(screen.getByText('selectNodeToConfig')).toBeInTheDocument();
   });
@@ -124,7 +124,7 @@ describe('NodeConfigPanel hidden', () => {
       toggleConfigPanel: jest.fn(),
     });
 
-    const { container } = render(<NodeConfigPanel />);
+    const { container } = render(<NodeConfigPanel nodeId="node-1" />);
     
     expect(container.firstChild).toBeNull();
   });

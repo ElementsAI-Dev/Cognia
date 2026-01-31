@@ -112,6 +112,7 @@ export interface BrowserContext {
   is_secure?: boolean;
   tab_info?: TabInfo;
   page_type: PageType;
+  suggested_actions: string[];
 }
 
 export interface EditorContext {

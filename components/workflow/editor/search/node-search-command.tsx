@@ -45,6 +45,12 @@ import {
   Target,
   MousePointer,
   StickyNote,
+  BarChart2,
+  LineChart,
+  PieChart,
+  AreaChart,
+  ScatterChart,
+  Radar,
 } from 'lucide-react';
 import { NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow/workflow-editor';
 
@@ -65,6 +71,13 @@ const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: str
   merge: GitMerge,
   group: FolderOpen,
   annotation: StickyNote,
+  chart: BarChart2,
+  lineChart: LineChart,
+  barChart: BarChart2,
+  pieChart: PieChart,
+  areaChart: AreaChart,
+  scatterChart: ScatterChart,
+  radarChart: Radar,
 };
 
 interface Command {

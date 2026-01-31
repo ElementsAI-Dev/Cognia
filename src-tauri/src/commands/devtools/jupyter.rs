@@ -691,6 +691,27 @@ pub fn jupyter_get_config(state: State<'_, JupyterState>) -> Result<KernelConfig
     Ok(state.get_config().clone())
 }
 
+/// Validate a Jupyter kernel configuration
+/// Returns the validated config or an error if invalid
+#[tauri::command]
+pub fn jupyter_validate_config(config: KernelConfig) -> Result<KernelConfig, String> {
+    // Validate config values
+    if config.timeout_secs == 0 {
+        return Err("timeout_secs must be greater than 0".to_string());
+    }
+    if config.startup_timeout_secs == 0 {
+        return Err("startup_timeout_secs must be greater than 0".to_string());
+    }
+    if config.max_output_size == 0 {
+        return Err("max_output_size must be greater than 0".to_string());
+    }
+
+    // Create a state with the config to validate it works
+    let _state = JupyterState::with_config(config.clone());
+
+    Ok(config)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -700,6 +721,21 @@ mod tests {
         let state = JupyterState::new();
         // State should be created without error - the state existing proves success
         let _ = &state;
+    }
+
+    #[test]
+    fn test_jupyter_state_with_config() {
+        let config = KernelConfig {
+            timeout_secs: 120,
+            max_output_size: 2_000_000,
+            startup_timeout_secs: 60,
+            idle_timeout_secs: 1800,
+        };
+        let state = JupyterState::with_config(config.clone());
+        assert_eq!(state.get_config().timeout_secs, 120);
+        assert_eq!(state.get_config().max_output_size, 2_000_000);
+        assert_eq!(state.get_config().startup_timeout_secs, 60);
+        assert_eq!(state.get_config().idle_timeout_secs, 1800);
     }
 
     #[test]

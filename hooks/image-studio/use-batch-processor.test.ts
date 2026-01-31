@@ -92,6 +92,9 @@ describe('useBatchProcessor', () => {
     filename: 'image.jpg',
     status: 'pending',
     progress: 0,
+    width: 800,
+    height: 600,
+    size: 1024,
   };
 
   const mockJob: BatchJob = {
@@ -99,12 +102,20 @@ describe('useBatchProcessor', () => {
     name: 'Test Job',
     images: [mockImage],
     preset: {
+      id: 'preset-1',
+      name: 'Test Preset',
       adjustments: { brightness: 10 },
       export: { format: 'jpeg', quality: 90, suffix: '_edited' },
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     },
     outputDirectory: '/output',
-    status: 'pending',
-    createdAt: Date.now(),
+    overwrite: false,
+    preserveMetadata: true,
+    status: 'idle',
+    progress: 0,
+    processedCount: 0,
+    errorCount: 0,
   };
 
   beforeEach(() => {
@@ -324,9 +335,13 @@ describe('useBatchProcessor', () => {
       const jobWithTransform: BatchJob = {
         ...mockJob,
         preset: {
+          id: 'preset-2',
+          name: 'Transform Preset',
           adjustments: { brightness: 10 },
           transform: { rotate: 90, flipH: true, flipV: false },
           export: { format: 'jpeg', quality: 90, suffix: '_edited' },
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       };
       mockGetJob.mockReturnValue(jobWithTransform);
@@ -344,7 +359,11 @@ describe('useBatchProcessor', () => {
       const jobWithoutExport: BatchJob = {
         ...mockJob,
         preset: {
+          id: 'preset-3',
+          name: 'Simple Preset',
           adjustments: { brightness: 10 },
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         },
       };
       mockGetJob.mockReturnValue(jobWithoutExport);

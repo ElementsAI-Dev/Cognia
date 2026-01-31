@@ -187,12 +187,12 @@ describe('SessionGroup', () => {
   });
 
   it('shows overflow count in collapsed mode when more than 3 sessions', () => {
-    const manySessions = [
+    const manySessions: Session[] = [
       ...mockSessions,
       {
         id: 'session-3',
         title: 'Test Session 3',
-        mode: 'chat' as const,
+        mode: 'chat',
         provider: 'openai',
         model: 'gpt-4',
         messageCount: 1,
@@ -203,7 +203,7 @@ describe('SessionGroup', () => {
       {
         id: 'session-4',
         title: 'Test Session 4',
-        mode: 'chat' as const,
+        mode: 'chat',
         provider: 'openai',
         model: 'gpt-4',
         messageCount: 1,

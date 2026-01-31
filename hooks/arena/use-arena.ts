@@ -104,10 +104,12 @@ export function useArena(options: UseArenaOptions = {}) {
           onContestantStream?.(contestant.id, chunk);
         }
 
-        // Get usage info
+        // Get usage info - using type assertion for AI SDK compatibility
         const usage = await result.usage;
-        inputTokens = usage?.promptTokens || 0;
-        outputTokens = usage?.completionTokens || 0;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const usageAny = usage as any;
+        inputTokens = usageAny?.promptTokens ?? usageAny?.inputTokens ?? 0;
+        outputTokens = usageAny?.completionTokens ?? usageAny?.outputTokens ?? 0;
 
         // Update contestant with final data
         updateContestant(battleId, contestant.id, {

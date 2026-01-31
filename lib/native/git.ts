@@ -34,6 +34,11 @@ import type {
   GitMergeOptions,
   GitOperationResult,
   Platform,
+  GitOperationRecord,
+  GitReflogEntry,
+  GitCredential,
+  GitCredentialInput,
+  SshKeyInfo,
 } from '@/types/system/git';
 
 // ==================== Git Installation Management ====================
@@ -653,6 +658,141 @@ export async function getBlameLine(
   });
 }
 
+// ==================== Git History & Undo ====================
+
+/**
+ * Record a new Git operation for history tracking.
+ * Operations are automatically tracked with timestamps and can be undone later.
+ */
+export async function recordOperation(
+  operationType: GitOperationRecord['operationType'],
+  repoPath: string,
+  description: string,
+  options?: {
+    beforeRef?: string;
+    afterRef?: string;
+    affectedFiles?: string[];
+  }
+): Promise<GitOperationRecord> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationRecord>('git_record_operation', {
+    operationType,
+    repoPath,
+    description,
+    beforeRef: options?.beforeRef ?? null,
+    afterRef: options?.afterRef ?? null,
+    affectedFiles: options?.affectedFiles ?? [],
+  });
+}
+
+/**
+ * Get a specific operation by ID.
+ */
+export async function getOperationById(id: string): Promise<GitOperationRecord | null> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationRecord | null>('git_get_operation', { id });
+}
+
+/**
+ * Get all repositories that have operation history.
+ */
+export async function getRepositoriesWithHistory(): Promise<string[]> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<string[]>('git_get_repositories');
+}
+
+/**
+ * Get operation history for a repository.
+ * Returns recorded Git operations that can potentially be undone.
+ */
+export async function getOperationHistory(
+  repoPath: string,
+  limit?: number
+): Promise<GitOperationRecord[]> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationRecord[]>('git_get_history', {
+    repoPath,
+    limit,
+  });
+}
+
+/**
+ * Undo the last undoable Git operation in a repository.
+ * Supports undoing: commit, checkout, reset, stage, unstage.
+ */
+export async function undoLastOperation(
+  repoPath: string
+): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationResult<void>>('git_undo_last', {
+    repoPath,
+  });
+}
+
+/**
+ * Clear operation history for a repository.
+ */
+export async function clearOperationHistory(repoPath: string): Promise<void> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<void>('git_clear_history', {
+    repoPath,
+  });
+}
+
+/**
+ * Get Git reflog entries for a repository.
+ * Useful for recovering lost commits or branches.
+ */
+export async function getReflog(
+  repoPath: string,
+  maxCount?: number
+): Promise<GitOperationResult<GitReflogEntry[]>> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationResult<GitReflogEntry[]>>('git_reflog', {
+    repoPath,
+    maxCount,
+  });
+}
+
+/**
+ * Recover to a specific reflog entry.
+ * WARNING: This performs a hard reset to the specified ref.
+ */
+export async function recoverToReflog(
+  repoPath: string,
+  selector: string
+): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationResult<void>>('git_recover_to_reflog', {
+    repoPath,
+    selector,
+  });
+}
+
 // ==================== Service Object ====================
 
 /** Git service object for convenient access */
@@ -727,6 +867,82 @@ export const gitService = {
   // Blame (for agent trace integration)
   blame: getBlame,
   blameLine: getBlameLine,
+  
+  // History & Undo
+  recordOperation,
+  getOperationById,
+  getRepositoriesWithHistory,
+  getHistory: getOperationHistory,
+  undoLast: undoLastOperation,
+  clearHistory: clearOperationHistory,
+  getReflog,
+  recoverToReflog,
+  
+  // Credentials
+  listCredentials,
+  setCredential,
+  removeCredential,
+  detectSshKeys,
+  testCredential,
 };
 
 export default gitService;
+
+// ==================== Git Credentials Management ====================
+
+/** List all stored Git credentials (sensitive data excluded) */
+export async function listCredentials(): Promise<GitCredential[]> {
+  if (!isTauri()) {
+    return [];
+  }
+
+  try {
+    return await invoke<GitCredential[]>('git_list_credentials');
+  } catch (error) {
+    console.error('Failed to list Git credentials:', error);
+    return [];
+  }
+}
+
+/** Add or update a Git credential */
+export async function setCredential(
+  input: GitCredentialInput
+): Promise<GitCredential> {
+  if (!isTauri()) {
+    throw new Error('Git credentials require Tauri desktop environment');
+  }
+
+  return invoke<GitCredential>('git_set_credential', { input });
+}
+
+/** Remove a Git credential by host */
+export async function removeCredential(host: string): Promise<boolean> {
+  if (!isTauri()) {
+    throw new Error('Git credentials require Tauri desktop environment');
+  }
+
+  return invoke<boolean>('git_remove_credential', { host });
+}
+
+/** Detect available SSH keys on the system */
+export async function detectSshKeys(): Promise<SshKeyInfo[]> {
+  if (!isTauri()) {
+    return [];
+  }
+
+  try {
+    return await invoke<SshKeyInfo[]>('git_detect_ssh_keys');
+  } catch (error) {
+    console.error('Failed to detect SSH keys:', error);
+    return [];
+  }
+}
+
+/** Test if a credential is valid */
+export async function testCredential(host: string): Promise<boolean> {
+  if (!isTauri()) {
+    throw new Error('Git credentials require Tauri desktop environment');
+  }
+
+  return invoke<boolean>('git_test_credential', { host });
+}

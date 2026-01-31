@@ -460,6 +460,11 @@ impl EditorContext {
         Some(lang.to_string())
     }
 
+    /// Check if this context represents a code editing session
+    /// Returns true if a programming language is detected or if a file with extension is open
+    pub fn is_code_editor(&self) -> bool {
+        self.language.is_some() || self.file_extension.is_some()
+    }
 }
 
 #[cfg(test)]

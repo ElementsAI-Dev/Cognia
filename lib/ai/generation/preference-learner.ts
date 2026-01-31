@@ -101,7 +101,8 @@ export function applyPreferenceAdjustments(
 
   return candidates.map((candidate) => {
     const modelId = getModelId(candidate.provider, candidate.model);
-    const baseScore = candidate.confidence || 0.5;
+    // ModelSelection doesn't have confidence, use a base score of 0.5
+    const baseScore = 0.5;
     const preferenceBonus = calculatePreferenceBonus(candidate.provider, candidate.model, category);
     const winRate = getModelWinRate(candidate.provider, candidate.model);
 

@@ -4,7 +4,10 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CustomProvidersList, CustomProvidersListItem } from './custom-providers-list';
-import type { CustomProvider } from '@/types/provider';
+import type { CustomProviderSettings } from '@/types/provider';
+
+// Test-specific type that matches the test data structure
+type CustomProvider = CustomProviderSettings;
 
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) => (
@@ -31,12 +34,12 @@ jest.mock('@/components/ui/card', () => ({
 }));
 
 const mockProvider: CustomProvider = {
-  providerId: 'custom-1',
-  customName: 'My Custom Provider',
+  id: 'custom-1',
+  name: 'My Custom Provider',
   baseURL: 'https://api.example.com',
   apiKey: 'test-key',
   apiProtocol: 'openai',
-  customModels: ['model-1', 'model-2'],
+  models: ['model-1', 'model-2'],
   defaultModel: 'model-1',
   enabled: true,
 };

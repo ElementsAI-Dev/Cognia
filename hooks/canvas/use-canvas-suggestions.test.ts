@@ -13,7 +13,7 @@ jest.mock('ai', () => ({
 
 // Mock stores
 jest.mock('@/stores', () => ({
-  useSettingsStore: jest.fn((_selector) => {
+  useSettingsStore: jest.fn((_selector: (state: unknown) => unknown) => {
     const state = {
       providerSettings: {
         openai: {
@@ -25,7 +25,7 @@ jest.mock('@/stores', () => ({
     };
     return _selector(state);
   }),
-  useSessionStore: jest.fn((_selector) => {
+  useSessionStore: jest.fn((_selector: (state: unknown) => unknown) => {
     const state = {
       getActiveSession: jest.fn(() => ({
         provider: 'openai',
@@ -34,7 +34,7 @@ jest.mock('@/stores', () => ({
     };
     return _selector(state);
   }),
-  useArtifactStore: jest.fn((_selector) => {
+  useArtifactStore: jest.fn((_selector: (state: unknown) => unknown) => {
     const state = {
       addSuggestion: jest.fn(),
       activeCanvasId: 'canvas-123',
@@ -66,9 +66,9 @@ describe('useCanvasSuggestions', () => {
     mockAddSuggestion = jest.fn();
     
     // Mock the useArtifactStore to return the mock function
-    jest.requireMock('@/stores').useArtifactStore.mockImplementation((_selector) => {
+    jest.requireMock('@/stores').useArtifactStore.mockImplementation((_selector: unknown) => {
       if (typeof _selector === 'function') {
-        return _selector({
+        return (_selector as (state: unknown) => unknown)({
           addSuggestion: mockAddSuggestion,
           activeCanvasId: 'canvas-123',
         });
@@ -89,9 +89,9 @@ describe('useCanvasSuggestions', () => {
 
   afterEach(() => {
     // Reset mock implementations to default
-    jest.requireMock('@/stores').useArtifactStore.mockImplementation((_selector) => {
+    jest.requireMock('@/stores').useArtifactStore.mockImplementation((_selector: unknown) => {
       if (typeof _selector === 'function') {
-        return _selector({
+        return (_selector as (state: unknown) => unknown)({
           addSuggestion: mockAddSuggestion,
           activeCanvasId: 'canvas-123',
         });
@@ -176,7 +176,7 @@ describe('useCanvasSuggestions', () => {
     });
 
     it('should use default provider when session has no provider', async () => {
-      jest.requireMock('@/stores').useSessionStore.mockImplementation((selector) => {
+      jest.requireMock('@/stores').useSessionStore.mockImplementation((selector: (state: unknown) => unknown) => {
         const state = {
           getActiveSession: jest.fn(() => ({
             provider: null,
@@ -196,7 +196,7 @@ describe('useCanvasSuggestions', () => {
     });
 
     it('should handle missing API key for non-ollama providers', async () => {
-      jest.requireMock('@/stores').useSettingsStore.mockImplementation((selector) => {
+      jest.requireMock('@/stores').useSettingsStore.mockImplementation((selector: (state: unknown) => unknown) => {
         const state = {
           providerSettings: {
             openai: {
@@ -220,7 +220,7 @@ describe('useCanvasSuggestions', () => {
     });
 
     it('should allow ollama provider without API key', async () => {
-      jest.requireMock('@/stores').useSettingsStore.mockImplementation((selector) => {
+      jest.requireMock('@/stores').useSettingsStore.mockImplementation((selector: (state: unknown) => unknown) => {
         const state = {
           providerSettings: {
             ollama: {

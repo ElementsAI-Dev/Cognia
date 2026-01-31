@@ -12,7 +12,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
@@ -151,14 +151,15 @@ pub enum EnvironmentTool {
      let cat = category.unwrap_or_else(|| detect_env_var_category(&key));
      let secret = is_secret.unwrap_or_else(|| cat == EnvVarCategory::ApiKeys);
 
-     if let Some(existing) = env_vars.iter_mut().find(|v| v.key == key) {
-         existing.value = value;
-         existing.category = cat;
-         existing.is_secret = secret;
-         existing.updated_at = now;
-         save_env_vars(&app, &env_vars).await?;
-         return Ok(existing.clone());
-     }
+     if let Some(idx) = env_vars.iter().position(|v| v.key == key) {
+        env_vars[idx].value = value;
+        env_vars[idx].category = cat;
+        env_vars[idx].is_secret = secret;
+        env_vars[idx].updated_at = now;
+        let result = env_vars[idx].clone();
+        save_env_vars(&app, &env_vars).await?;
+        return Ok(result);
+    }
 
      let item = EnvVariable {
          key,
@@ -2469,6 +2470,7 @@ mod tests {
     fn test_ffmpeg_tool_status() {
         let status = ToolStatus {
             tool: EnvironmentTool::Ffmpeg,
+            enabled: true,
             installed: true,
             version: Some("6.1.1".to_string()),
             path: Some("/usr/bin/ffmpeg".to_string()),
@@ -2503,6 +2505,7 @@ mod tests {
     fn test_tool_status_struct() {
         let status = ToolStatus {
             tool: EnvironmentTool::Docker,
+            enabled: true,
             installed: true,
             version: Some("24.0.5".to_string()),
             path: Some("/usr/bin/docker".to_string()),
@@ -2521,6 +2524,7 @@ mod tests {
     fn test_tool_status_serialization() {
         let status = ToolStatus {
             tool: EnvironmentTool::Uv,
+            enabled: true,
             installed: false,
             version: None,
             path: None,

@@ -96,6 +96,9 @@ const mockData: SubworkflowNodeData = {
   },
   executionStatus: 'idle',
   isConfigured: true,
+  inputs: {},
+  outputs: {},
+  hasError: false,
 };
 
 const mockProps = {

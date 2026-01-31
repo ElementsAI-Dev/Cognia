@@ -156,6 +156,7 @@ describe('Context - Context Functions', () => {
         page_title: 'Example Page',
         is_secure: true,
         page_type: 'General',
+        suggested_actions: ['Summarize page'],
       };
       mockInvoke.mockResolvedValue(mockBrowser);
 

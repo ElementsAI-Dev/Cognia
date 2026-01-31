@@ -10,11 +10,11 @@ import { TransformerDiagram } from './transformer-diagram';
 // Mock framer-motion - filter out motion-specific props
 jest.mock('motion/react', () => ({
   motion: {
-    button: ({ children, onClick, className, whileHover: _wh, whileTap: _wt, initial: _i, animate: _a, exit: _e, variants: _v, transition: _tr, ...props }: React.PropsWithChildren<{ onClick?: () => void; className?: string }>) => (
-      <button onClick={onClick} className={className} {...props}>{children}</button>
+    button: ({ children, onClick, className, ..._rest }: React.PropsWithChildren<Record<string, unknown>>) => (
+      <button onClick={onClick as () => void} className={className as string}>{children}</button>
     ),
-    div: ({ children, whileHover: _wh, whileTap: _wt, initial: _i, animate: _a, exit: _e, variants: _v, transition: _tr, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
-      <div {...props}>{children}</div>
+    div: ({ children, ..._rest }: React.PropsWithChildren<Record<string, unknown>>) => (
+      <div>{children}</div>
     ),
   },
   AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,

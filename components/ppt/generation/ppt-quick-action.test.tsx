@@ -31,12 +31,12 @@ const mockReset = jest.fn();
 const mockUsePPTGeneration = jest.fn(() => ({
   isGenerating: false,
   progress: {
-    stage: 'idle' as const,
+    stage: 'idle' as 'idle' | 'outline' | 'content' | 'finalizing' | 'complete' | 'error',
     currentSlide: 0,
     totalSlides: 0,
     message: '',
   },
-  error: null,
+  error: null as string | null,
   presentation: null,
   outline: null,
   generate: mockGenerate,

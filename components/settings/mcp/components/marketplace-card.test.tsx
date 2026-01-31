@@ -40,18 +40,18 @@ const renderWithProviders = (ui: React.ReactElement) => {
 
 describe('MarketplaceCard', () => {
   const mockItem: McpMarketplaceItem = {
-    id: 'test-mcp',
+    mcpId: 'test-mcp',
     name: 'Test MCP Server',
     description: 'A test MCP server for testing',
     author: 'Test Author',
-    source: 'npm',
+    source: 'cline',
+    githubUrl: 'https://github.com/test/test-mcp',
     tags: ['test', 'mcp', 'server'],
     githubStars: 100,
     downloadCount: 1000,
     verified: false,
     remote: false,
     requiresApiKey: false,
-    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 

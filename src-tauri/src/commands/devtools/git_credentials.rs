@@ -239,9 +239,13 @@ pub async fn git_test_credential(
     state: State<'_, CredentialManagerState>,
     host: String,
 ) -> Result<bool, String> {
-    let manager = state.lock();
-    if let Some(credential) = manager.get_credential(&host) {
-        test_credential(credential).await
+    let credential = {
+        let manager = state.lock();
+        manager.get_credential(&host).cloned()
+    };
+    
+    if let Some(cred) = credential {
+        test_credential(&cred).await
     } else {
         Err(format!("No credential found for host: {}", host))
     }

@@ -66,11 +66,14 @@ jest.mock('@/lib/ai/providers/provider-helpers', () => ({
 const mockProvider: ProviderConfig = {
   id: 'openai',
   name: 'OpenAI',
+  type: 'cloud',
+  apiKeyRequired: true,
+  baseURLRequired: false,
   description: 'OpenAI API',
-  category: 'premium',
+  category: 'flagship',
   models: [
-    { id: 'gpt-4', name: 'GPT-4', contextLength: 8192, supportsVision: true, supportsTools: true },
-    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', contextLength: 4096 },
+    { id: 'gpt-4', name: 'GPT-4', contextLength: 8192, supportsVision: true, supportsTools: true, supportsAudio: false, supportsVideo: false, supportsStreaming: true },
+    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', contextLength: 4096, supportsTools: true, supportsVision: false, supportsAudio: false, supportsVideo: false, supportsStreaming: true },
   ],
   defaultModel: 'gpt-4',
 };

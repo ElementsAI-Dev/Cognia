@@ -141,7 +141,7 @@ jest.mock('@/components/ui/switch', () => ({
   }) => (
     <button
       role="switch"
-      aria-checked={String(checked)}
+      aria-checked={checked ? 'true' : 'false'}
       onClick={() => onCheckedChange?.(!checked)}
       data-testid={id ? `switch-${id}` : 'switch'}
     >

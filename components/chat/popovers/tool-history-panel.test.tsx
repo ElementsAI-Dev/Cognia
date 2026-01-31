@@ -9,7 +9,21 @@ import { ToolHistoryPanel } from './tool-history-panel';
 
 // Mock store - defined inside factory to avoid hoisting issues
 jest.mock('@/stores', () => {
-  const mockState = {
+  const mockState: {
+    history: Array<Record<string, unknown>>;
+    usageStats: Record<string, { totalCalls: number; lastUsedAt: Date | null; isFavorite: boolean; isPinned: boolean }>;
+    settings: Record<string, unknown>;
+    isLoading: boolean;
+    error: null;
+    toggleFavorite: jest.Mock;
+    togglePinned: jest.Mock;
+    recordToolCall: jest.Mock;
+    updateToolCallResultStatus: jest.Mock;
+    deleteRecord: jest.Mock;
+    clearHistory: jest.Mock;
+    getRecentTools: jest.Mock;
+    getFrequentTools: jest.Mock;
+  } = {
     history: [] as Array<Record<string, unknown>>,
     usageStats: {} as Record<string, { totalCalls: number; lastUsedAt: Date | null; isFavorite: boolean; isPinned: boolean }>,
     settings: {

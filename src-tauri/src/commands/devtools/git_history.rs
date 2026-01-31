@@ -180,6 +180,50 @@ pub type HistoryManagerState = Mutex<GitHistoryManager>;
 use super::git::{run_git_command, GitOperationResult};
 use tauri::State;
 
+/// Record a new Git operation
+#[tauri::command]
+pub async fn git_record_operation(
+    state: State<'_, HistoryManagerState>,
+    operation_type: GitOperationType,
+    repo_path: String,
+    description: String,
+    before_ref: Option<String>,
+    after_ref: Option<String>,
+    affected_files: Vec<String>,
+) -> Result<GitOperationRecord, String> {
+    let record = GitOperationRecord::new(
+        operation_type,
+        &repo_path,
+        &description,
+        before_ref,
+        after_ref,
+        affected_files,
+    );
+    let cloned = record.clone();
+    let mut manager = state.lock();
+    manager.record(record);
+    Ok(cloned)
+}
+
+/// Get a specific operation by ID
+#[tauri::command]
+pub async fn git_get_operation(
+    state: State<'_, HistoryManagerState>,
+    id: String,
+) -> Result<Option<GitOperationRecord>, String> {
+    let manager = state.lock();
+    Ok(manager.get_operation(&id).cloned())
+}
+
+/// Get all repositories with operation history
+#[tauri::command]
+pub async fn git_get_repositories(
+    state: State<'_, HistoryManagerState>,
+) -> Result<Vec<String>, String> {
+    let manager = state.lock();
+    Ok(manager.get_repositories())
+}
+
 /// Get operation history for a repository
 #[tauri::command]
 pub async fn git_get_history(

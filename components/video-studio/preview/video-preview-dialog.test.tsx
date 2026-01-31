@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { VideoPreviewDialog } from './video-preview-dialog';
-import type { VideoJob } from './types';
+import type { VideoJob } from '@/types/video-studio/types';
 
 const mockVideoJob: VideoJob = {
   id: 'job-1',

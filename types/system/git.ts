@@ -583,3 +583,86 @@ export interface GitBlameResult {
   filePath: string;
   lines: GitBlameLineInfo[];
 }
+
+// ==================== Git Credentials Types ====================
+
+/** Git credential type */
+export type GitCredentialType = 'https' | 'ssh' | 'token';
+
+/** Git credential entry */
+export interface GitCredential {
+  id: string;
+  credentialType: GitCredentialType;
+  host: string;
+  username?: string;
+  password?: string;
+  token?: string;
+  sshKeyPath?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Git credential input (for creating/updating) */
+export interface GitCredentialInput {
+  credentialType: GitCredentialType;
+  host: string;
+  username?: string;
+  password?: string;
+  token?: string;
+  sshKeyPath?: string;
+}
+
+/** SSH key info */
+export interface SshKeyInfo {
+  path: string;
+  name: string;
+  hasPassphrase: boolean;
+  keyType: string;
+  fingerprint?: string;
+}
+
+// ==================== Git History Types ====================
+
+/** Git operation type for history tracking */
+export type GitHistoryOperationType =
+  | 'commit'
+  | 'checkout'
+  | 'branch'
+  | 'merge'
+  | 'reset'
+  | 'stash'
+  | 'stage'
+  | 'unstage'
+  | 'discard'
+  | 'pull'
+  | 'push'
+  | 'fetch';
+
+/** A recorded Git operation */
+export interface GitOperationRecord {
+  id: string;
+  operationType: GitHistoryOperationType;
+  repoPath: string;
+  description: string;
+  /** Commit hash before the operation (for undo) */
+  beforeRef: string | null;
+  /** Commit hash after the operation */
+  afterRef: string | null;
+  /** Whether this operation can be undone */
+  canUndo: boolean;
+  /** Files affected by the operation */
+  affectedFiles: string[];
+  /** Timestamp of the operation */
+  timestamp: string;
+  /** Whether this operation has been undone */
+  undone: boolean;
+}
+
+/** Git reflog entry */
+export interface GitReflogEntry {
+  hash: string;
+  shortHash: string;
+  selector: string;
+  action: string;
+  date: string;
+}
