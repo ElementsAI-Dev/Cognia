@@ -40,6 +40,15 @@ pub async fn context_get_browser(
     manager.get_browser_context()
 }
 
+/// Get suggested actions for the current browser page
+#[tauri::command]
+pub async fn context_get_browser_suggested_actions(
+    manager: State<'_, ContextManager>,
+) -> Result<Vec<String>, String> {
+    let browser_context = manager.get_browser_context()?;
+    Ok(browser_context.get_suggested_actions().to_vec())
+}
+
 /// Get all visible windows
 #[tauri::command]
 pub async fn context_get_all_windows(
@@ -61,6 +70,17 @@ pub async fn context_get_editor(
     manager: State<'_, ContextManager>,
 ) -> Result<EditorContext, String> {
     manager.get_editor_context()
+}
+
+/// Check if the current context is a code editor
+#[tauri::command]
+pub async fn context_is_code_editor(
+    manager: State<'_, ContextManager>,
+) -> Result<bool, String> {
+    match manager.get_editor_context() {
+        Ok(ctx) => Ok(ctx.is_code_editor()),
+        Err(_) => Ok(false),
+    }
 }
 
 /// Find windows by title pattern

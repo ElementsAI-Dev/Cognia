@@ -38,6 +38,7 @@ import chatWidget from './chatWidget.json';
 import latex from './latex.json';
 import observability from './observability.json';
 import arena from './arena.json';
+import syncSettings from './syncSettings.json';
 
 const messages = {
   ...common,
@@ -76,7 +77,8 @@ const messages = {
   ...chatWidget,
   latex,
   ...observability,
-  arena
+  arena,
+  syncSettings
 };
 
 export default messages;

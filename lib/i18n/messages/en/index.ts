@@ -39,6 +39,7 @@ import imageStudio from './imageStudio.json';
 import latex from './latex.json';
 import observability from './observability.json';
 import arena from './arena.json';
+import syncSettings from './syncSettings.json';
 
 const messages = {
   ...common,
@@ -79,7 +80,8 @@ const messages = {
   ...imageStudio,
   latex,
   ...observability,
-  arena
+  arena,
+  syncSettings
 };
 
 export default messages;

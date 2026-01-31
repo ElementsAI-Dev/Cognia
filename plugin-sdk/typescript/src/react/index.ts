@@ -7,13 +7,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PluginContext } from '../context/base';
-import type { ExtendedPluginContext } from '../context/extended';
+import type { PluginContextAPI } from '../context/extended';
 import type { ThemeState, ThemeMode } from '../context/extended';
 
 /**
  * Plugin context for React hooks
  */
-let pluginContext: (PluginContext & Partial<ExtendedPluginContext>) | null = null;
+let pluginContext: (PluginContext & Partial<PluginContextAPI>) | null = null;
 
 /**
  * Initialize the plugin context for React hooks
@@ -30,7 +30,7 @@ let pluginContext: (PluginContext & Partial<ExtendedPluginContext>) | null = nul
  * });
  * ```
  */
-export function initPluginContext(context: PluginContext & Partial<ExtendedPluginContext>): void {
+export function initPluginContext(context: PluginContext & Partial<PluginContextAPI>): void {
   pluginContext = context;
 }
 
@@ -39,7 +39,7 @@ export function initPluginContext(context: PluginContext & Partial<ExtendedPlugi
  *
  * @throws Error if context is not initialized
  */
-export function getPluginContext(): PluginContext & Partial<ExtendedPluginContext> {
+export function getPluginContext(): PluginContext & Partial<PluginContextAPI> {
   if (!pluginContext) {
     throw new Error('Plugin context not initialized. Call initPluginContext first.');
   }
@@ -59,7 +59,7 @@ export function getPluginContext(): PluginContext & Partial<ExtendedPluginContex
  * }
  * ```
  */
-export function usePluginContext(): PluginContext & Partial<ExtendedPluginContext> {
+export function usePluginContext(): PluginContext & Partial<PluginContextAPI> {
   return getPluginContext();
 }
 

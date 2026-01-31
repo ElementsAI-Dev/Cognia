@@ -407,6 +407,149 @@ impl StorageManager {
 
         ((total_bytes as f64 / max_bytes) * 100.0) as f32
     }
+
+    /// List all storage files (recordings and screenshots)
+    /// 
+    /// Returns a list of StorageFile objects with metadata for each file.
+    /// Optionally filter by file type.
+    pub fn list_files(&self, file_type: Option<StorageFileType>, pinned_ids: &[String]) -> Vec<StorageFile> {
+        let mut files = Vec::new();
+
+        // List recordings if no filter or filter is Recording
+        if file_type.is_none() || file_type == Some(StorageFileType::Recording) {
+            self.collect_files_from_dir(&self.config.recordings_dir, StorageFileType::Recording, pinned_ids, &mut files);
+        }
+
+        // List screenshots if no filter or filter is Screenshot
+        if file_type.is_none() || file_type == Some(StorageFileType::Screenshot) {
+            self.collect_files_from_dir(&self.config.screenshots_dir, StorageFileType::Screenshot, pinned_ids, &mut files);
+        }
+
+        // Sort by modified time (newest first)
+        files.sort_by(|a, b| b.modified.cmp(&a.modified));
+
+        files
+    }
+
+    /// Collect files from a directory recursively
+    fn collect_files_from_dir(
+        &self,
+        dir: &Path,
+        default_type: StorageFileType,
+        pinned_ids: &[String],
+        files: &mut Vec<StorageFile>,
+    ) {
+        if !dir.exists() {
+            return;
+        }
+
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                
+                if path.is_dir() {
+                    // Recursively collect from subdirectories
+                    self.collect_files_from_dir(&path, default_type.clone(), pinned_ids, files);
+                } else if let Ok(metadata) = entry.metadata() {
+                    // Determine file type based on extension
+                    let file_type = self.determine_file_type(&path, &default_type);
+                    
+                    // Check if pinned
+                    let filename = path.file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("");
+                    let is_pinned = pinned_ids.iter().any(|id| filename.contains(id));
+
+                    // Get timestamps
+                    let created = metadata.created()
+                        .map(|t| {
+                            let datetime: DateTime<Local> = t.into();
+                            datetime.timestamp()
+                        })
+                        .unwrap_or(0);
+                    
+                    let modified = metadata.modified()
+                        .map(|t| {
+                            let datetime: DateTime<Local> = t.into();
+                            datetime.timestamp()
+                        })
+                        .unwrap_or(0);
+
+                    files.push(StorageFile {
+                        path: path.clone(),
+                        size: metadata.len(),
+                        created,
+                        modified,
+                        is_pinned,
+                        file_type,
+                    });
+                }
+            }
+        }
+    }
+
+    /// Determine file type based on extension
+    fn determine_file_type(&self, path: &Path, default_type: &StorageFileType) -> StorageFileType {
+        let ext = path.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase())
+            .unwrap_or_default();
+
+        match ext.as_str() {
+            "mp4" | "mkv" | "webm" | "avi" | "mov" => StorageFileType::Recording,
+            "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp" => StorageFileType::Screenshot,
+            "thumb" | "thumbnail" => StorageFileType::Thumbnail,
+            _ => default_type.clone(),
+        }
+    }
+
+    /// Get a single file by path
+    pub fn get_file(&self, file_path: &Path, pinned_ids: &[String]) -> Option<StorageFile> {
+        if !file_path.exists() {
+            return None;
+        }
+
+        let metadata = fs::metadata(file_path).ok()?;
+        
+        // Determine file type
+        let is_recording = file_path.starts_with(&self.config.recordings_dir);
+        let default_type = if is_recording {
+            StorageFileType::Recording
+        } else {
+            StorageFileType::Screenshot
+        };
+        let file_type = self.determine_file_type(file_path, &default_type);
+
+        // Check if pinned
+        let filename = file_path.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        let is_pinned = pinned_ids.iter().any(|id| filename.contains(id));
+
+        // Get timestamps
+        let created = metadata.created()
+            .map(|t| {
+                let datetime: DateTime<Local> = t.into();
+                datetime.timestamp()
+            })
+            .unwrap_or(0);
+        
+        let modified = metadata.modified()
+            .map(|t| {
+                let datetime: DateTime<Local> = t.into();
+                datetime.timestamp()
+            })
+            .unwrap_or(0);
+
+        Some(StorageFile {
+            path: file_path.to_path_buf(),
+            size: metadata.len(),
+            created,
+            modified,
+            is_pinned,
+            file_type,
+        })
+    }
 }
 
 /// Result of cleanup operation

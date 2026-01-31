@@ -21,10 +21,14 @@ import {
   Minimize2,
   Loader2,
   Ban,
+  MessageSquare,
+  Send,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -54,6 +58,8 @@ interface ArenaBattleViewProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onClose?: () => void;
+  onContinueTurn?: (battleId: string, message: string) => Promise<void>;
+  canContinue?: boolean;
 }
 
 const WIN_REASONS: ArenaWinReason[] = [
@@ -74,6 +80,7 @@ function ContestantCard({
   blindMode,
   onSelectWinner,
   onCopy,
+  onCancel,
   isCopying,
 }: {
   contestant: ArenaContestant;
@@ -82,6 +89,7 @@ function ContestantCard({
   blindMode: boolean;
   onSelectWinner: () => void;
   onCopy: () => void;
+  onCancel?: () => void;
   isCopying: boolean;
 }) {
   const t = useTranslations('arena');
@@ -155,6 +163,21 @@ function ContestantCard({
         </div>
         <div className="flex items-center gap-1">
           {getStatusBadge()}
+          {isStreaming && onCancel && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-destructive hover:text-destructive"
+                  onClick={onCancel}
+                >
+                  <Ban className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('cancel')}</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -234,6 +257,8 @@ function ArenaBattleViewComponent({
   open,
   onOpenChange,
   onClose,
+  onContinueTurn,
+  canContinue = false,
 }: ArenaBattleViewProps) {
   const t = useTranslations('arena');
   const tToasts = useTranslations('toasts');
@@ -241,6 +266,8 @@ function ArenaBattleViewComponent({
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedReason, setSelectedReason] = useState<ArenaWinReason>('quality');
+  const [continueMessage, setContinueMessage] = useState('');
+  const [isContinuing, setIsContinuing] = useState(false);
 
   const battle = useArenaStore((state) => state.battles.find((b) => b.id === battleId));
   const selectWinner = useArenaStore((state) => state.selectWinner);
@@ -274,9 +301,23 @@ function ArenaBattleViewComponent({
     onClose?.();
   }, [onOpenChange, onClose]);
 
+  const handleContinueTurn = useCallback(async () => {
+    if (!onContinueTurn || !continueMessage.trim()) return;
+    setIsContinuing(true);
+    try {
+      await onContinueTurn(battleId, continueMessage);
+      setContinueMessage('');
+    } finally {
+      setIsContinuing(false);
+    }
+  }, [battleId, continueMessage, onContinueTurn]);
+
   if (!battle) {
     return null;
   }
+
+  const isMultiTurn = battle.conversationMode === 'multi';
+  const canContinueBattle = canContinue && isMultiTurn && allDone && !battle.winnerId && !battle.isTie;
 
   const isBlindMode = battle.mode === 'blind' && !battle.winnerId;
 
@@ -302,6 +343,12 @@ function ArenaBattleViewComponent({
             <Badge variant="secondary" className="text-xs">
               {battle.contestants.length} {t('models')}
             </Badge>
+            {isMultiTurn && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <MessageSquare className="h-3 w-3" />
+                {t('turn')} {battle.currentTurn || 1}/{battle.maxTurns || 5}
+              </Badge>
+            )}
             {battle.winnerId && (
               <Badge className="text-xs bg-primary">
                 <Trophy className="h-3 w-3 mr-1" />
@@ -368,6 +415,10 @@ function ArenaBattleViewComponent({
                 blindMode={isBlindMode}
                 onSelectWinner={() => handleSelectWinner(contestant.id)}
                 onCopy={() => handleCopy(contestant.response)}
+                onCancel={contestant.status === 'streaming' ? () => {
+                  // Note: Cancel functionality requires hook integration
+                  // For now, this provides the UI placeholder
+                } : undefined}
                 isCopying={isCopying}
               />
             ))}
@@ -375,7 +426,36 @@ function ArenaBattleViewComponent({
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t bg-muted/30">
+        <div className="px-4 py-3 border-t bg-muted/30 space-y-3">
+          {/* Multi-turn continuation UI */}
+          {canContinueBattle && (
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Input
+                placeholder={t('continueConversation')}
+                value={continueMessage}
+                onChange={(e) => setContinueMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleContinueTurn()}
+                disabled={isContinuing}
+                className="flex-1 h-8"
+              />
+              <Button
+                size="sm"
+                onClick={handleContinueTurn}
+                disabled={isContinuing || !continueMessage.trim()}
+              >
+                {isContinuing ? (
+                  <RotateCcw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+              <Badge variant="outline" className="text-[10px] shrink-0">
+                {t('turn')} {battle.currentTurn || 1}/{battle.maxTurns || 5}
+              </Badge>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
@@ -396,6 +476,12 @@ function ArenaBattleViewComponent({
                   </SelectContent>
                 </Select>
               </div>
+              {isMultiTurn && (
+                <Badge variant="secondary" className="text-[10px]">
+                  <MessageSquare className="h-3 w-3 mr-1" />
+                  {t('multiTurn')}
+                </Badge>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

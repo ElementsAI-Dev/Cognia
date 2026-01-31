@@ -2,6 +2,11 @@
 /**
  * API Pricing CLI Tool
  *
+ * @deprecated This CLI tool is deprecated. Please use the AI Tools plugin instead:
+ *   - Plugin: plugins/ai-tools
+ *   - Tool: ai_pricing_scraper
+ *   - The plugin provides agent-callable tools with the same functionality.
+ *
  * Unified command-line interface for scraping API pricing from multiple providers.
  *
  * Usage:
@@ -19,6 +24,10 @@
  *   --verbose          Verbose logging
  *   --headless         Run browser in headless mode (default: true)
  */
+
+console.warn('\x1b[33m⚠️  DEPRECATION WARNING: This CLI tool is deprecated.\x1b[0m')
+console.warn('\x1b[33m   Please use the AI Tools plugin (plugins/ai-tools) instead.\x1b[0m')
+console.warn('\x1b[33m   Tool: ai_pricing_scraper\x1b[0m\n')
 
 import * as path from 'path'
 import {

@@ -12,6 +12,21 @@ import type { TaskCategory, TaskClassification } from '../provider/auto-router';
 export type ArenaContestantStatus = 'pending' | 'streaming' | 'completed' | 'error' | 'cancelled';
 
 /**
+ * Conversation mode for arena battles
+ */
+export type ArenaConversationMode = 'single' | 'multi';
+
+/**
+ * Message in a multi-turn conversation
+ */
+export interface ArenaMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+/**
  * Reason for selecting a winner
  */
 export type ArenaWinReason = 
@@ -32,6 +47,35 @@ export type ArenaBattleMode =
   | 'blind';       // Model names hidden until selection
 
 /**
+ * Quality indicators for battle data validation
+ */
+export interface ArenaQualityIndicators {
+  /** Length of the prompt in characters */
+  promptLength: number;
+  /** Average response length across contestants */
+  avgResponseLength: number;
+  /** Time spent viewing responses before voting (ms) */
+  viewingTimeMs: number;
+  /** Whether all responses completed successfully */
+  allResponsesComplete: boolean;
+  /** Quality score (0-1) based on various factors */
+  qualityScore: number;
+}
+
+/**
+ * Head-to-head record between two models
+ */
+export interface ArenaHeadToHead {
+  modelA: string;
+  modelB: string;
+  winsA: number;
+  winsB: number;
+  ties: number;
+  total: number;
+  winRateA: number;
+}
+
+/**
  * Individual contestant in an arena battle
  */
 export interface ArenaContestant {
@@ -43,8 +87,12 @@ export interface ArenaContestant {
   model: string;
   /** Display name for the model */
   displayName: string;
-  /** Generated response content */
+  /** Generated response content (for single-turn) */
   response: string;
+  /** Conversation history (for multi-turn) */
+  messages?: ArenaMessage[];
+  /** Current turn number */
+  turnCount?: number;
   /** Error message if failed */
   error?: string;
   /** Response latency in milliseconds */
@@ -68,6 +116,22 @@ export interface ArenaContestant {
 }
 
 /**
+ * Model generation parameters for arena battles
+ */
+export interface ArenaModelParameters {
+  /** Temperature for generation (0-2) */
+  temperature?: number;
+  /** Maximum tokens to generate */
+  maxTokens?: number;
+  /** Top-p sampling */
+  topP?: number;
+  /** Frequency penalty */
+  frequencyPenalty?: number;
+  /** Presence penalty */
+  presencePenalty?: number;
+}
+
+/**
  * An arena battle session
  */
 export interface ArenaBattle {
@@ -81,6 +145,16 @@ export interface ArenaBattle {
   systemPrompt?: string;
   /** Battle mode */
   mode: ArenaBattleMode;
+  /** Conversation mode (single-turn or multi-turn) */
+  conversationMode?: ArenaConversationMode;
+  /** Maximum turns for multi-turn battles */
+  maxTurns?: number;
+  /** Current turn number for multi-turn battles */
+  currentTurn?: number;
+  /** Model generation parameters */
+  modelParameters?: ArenaModelParameters;
+  /** User-specified task category override */
+  taskCategoryOverride?: TaskCategory;
   /** Contestants in this battle */
   contestants: ArenaContestant[];
   /** Winner contestant ID */
@@ -97,6 +171,8 @@ export interface ArenaBattle {
   createdAt: Date;
   /** Battle completion time */
   completedAt?: Date;
+  /** Quality indicators for data validation */
+  qualityIndicators?: ArenaQualityIndicators;
 }
 
 /**
@@ -120,7 +196,7 @@ export interface ArenaPreference {
 }
 
 /**
- * Model rating using ELO-like system
+ * Model rating using Bradley-Terry/ELO system
  */
 export interface ArenaModelRating {
   /** Model identifier (provider:model) */
@@ -129,10 +205,18 @@ export interface ArenaModelRating {
   provider: ProviderName;
   /** Model name */
   model: string;
-  /** Overall ELO rating */
+  /** Overall ELO-like rating (derived from BT score) */
   rating: number;
+  /** Bradley-Terry score (log scale) */
+  btScore?: number;
+  /** 95% confidence interval lower bound */
+  ci95Lower?: number;
+  /** 95% confidence interval upper bound */
+  ci95Upper?: number;
   /** Category-specific ratings */
   categoryRatings: Partial<Record<TaskCategory, number>>;
+  /** Category-specific BT scores */
+  categoryBtScores?: Partial<Record<TaskCategory, number>>;
   /** Total battles participated */
   totalBattles: number;
   /** Total wins */
@@ -141,6 +225,10 @@ export interface ArenaModelRating {
   losses: number;
   /** Total ties */
   ties: number;
+  /** Win rate (0-1) */
+  winRate?: number;
+  /** Rating stability score (0-1) */
+  stabilityScore?: number;
   /** Last updated */
   updatedAt: Date;
 }
@@ -181,10 +269,28 @@ export interface ArenaSettings {
   historyRetentionDays: number;
   /** Default battle mode */
   defaultMode: ArenaBattleMode;
+  /** Default conversation mode */
+  defaultConversationMode: ArenaConversationMode;
+  /** Default max turns for multi-turn battles */
+  defaultMaxTurns: number;
   /** Show cost estimates */
   showCostEstimates: boolean;
   /** Show token counts */
   showTokenCounts: boolean;
+  /** Show confidence intervals */
+  showConfidenceIntervals: boolean;
+  /** Enable anti-gaming measures */
+  enableAntiGaming: boolean;
+  /** Maximum votes per hour (anti-gaming) */
+  maxVotesPerHour: number;
+  /** Minimum viewing time before voting (ms) */
+  minViewingTimeMs: number;
+  /** Number of bootstrap samples for CI calculation */
+  bootstrapSamples: number;
+  /** Enable global leaderboard sync */
+  enableLeaderboardSync: boolean;
+  /** Show global leaderboard tab */
+  showGlobalLeaderboard: boolean;
 }
 
 /**
@@ -197,8 +303,17 @@ export const DEFAULT_ARENA_SETTINGS: ArenaSettings = {
   preferenceLearning: true,
   historyRetentionDays: 30,
   defaultMode: 'normal',
+  defaultConversationMode: 'single',
+  defaultMaxTurns: 5,
   showCostEstimates: true,
   showTokenCounts: true,
+  showConfidenceIntervals: true,
+  enableAntiGaming: true,
+  maxVotesPerHour: 30,
+  minViewingTimeMs: 3000,
+  bootstrapSamples: 1000,
+  enableLeaderboardSync: false,
+  showGlobalLeaderboard: true,
 };
 
 /**
@@ -224,6 +339,9 @@ export interface ArenaModelPreset {
 /**
  * Default model presets
  */
+// Re-export leaderboard sync types
+export * from './leaderboard-sync';
+
 export const ARENA_MODEL_PRESETS: ArenaModelPreset[] = [
   {
     id: 'top-tier',

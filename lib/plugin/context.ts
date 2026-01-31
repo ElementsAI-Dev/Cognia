@@ -61,7 +61,7 @@ import { usePluginStore } from '@/stores/plugin';
 import { useA2UIStore } from '@/stores/a2ui';
 import { useSettingsStore } from '@/stores/settings';
 import type { PluginManager } from './manager';
-import type { ExtendedPluginContext } from '@/types/plugin/plugin-extended';
+import type { PluginContextAPI } from '@/types/plugin/plugin-extended';
 import {
   createSessionAPI,
   createProjectAPI,
@@ -84,7 +84,7 @@ import { getPluginDebugger } from './debugger';
 /**
  * Full plugin context combining base and extended APIs
  */
-export interface FullPluginContext extends PluginContext, ExtendedPluginContext {}
+export interface FullPluginContext extends PluginContext, PluginContextAPI {}
 
 // =============================================================================
 // Create Plugin Context
@@ -145,8 +145,8 @@ export function createFullPluginContext(
   // Get the base context (with optional debug mode)
   const baseContext = createPluginContext(plugin, manager, options);
   
-  // Create extended APIs
-  const extendedContext: ExtendedPluginContext = {
+  // Create feature APIs
+  const contextAPI: PluginContextAPI = {
     session: createSessionAPI(pluginId),
     project: createProjectAPI(pluginId),
     vector: createVectorAPI(pluginId),
@@ -176,7 +176,7 @@ export function createFullPluginContext(
 
   // Enhanced i18n combining base API with loader
   const enhancedI18n = {
-    ...extendedContext.i18n,
+    ...contextAPI.i18n,
     t: pluginI18n.t,
     getLocale: pluginI18n.getLocale,
     hasKey: pluginI18n.hasKey,
@@ -185,10 +185,10 @@ export function createFullPluginContext(
       pluginI18n.onLocaleChange((locale: string) => handler(locale as import('@/types/plugin/plugin-extended').Locale)),
   };
 
-  // Combine base and extended contexts with enhanced APIs
+  // Combine base and feature API contexts with enhanced APIs
   return {
     ...baseContext,
-    ...extendedContext,
+    ...contextAPI,
     events: enhancedEvents,
     i18n: enhancedI18n,
   };

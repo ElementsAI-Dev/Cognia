@@ -1,20 +1,20 @@
 /**
- * Extended Hooks Tests
+ * Plugin Hooks Tests
  *
- * @description Tests for extended plugin hook definitions.
+ * @description Tests for complete plugin hook definitions.
  */
 
-import type { ExtendedPluginHooks } from './extended';
+import type { PluginHooksAll } from './extended';
 
-describe('Extended Hooks Types', () => {
-  describe('ExtendedPluginHooks', () => {
+describe('Plugin Hooks Types', () => {
+  describe('PluginHooksAll', () => {
     it('should inherit from base PluginHooks', () => {
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         // Base hooks
         onLoad: jest.fn(),
         onEnable: jest.fn(),
         onAgentStart: jest.fn(),
-        // Extended hooks
+        // Feature hooks
         onProjectCreate: jest.fn(),
       };
 
@@ -25,7 +25,7 @@ describe('Extended Hooks Types', () => {
     });
 
     it('should support project hooks', () => {
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onProjectCreate: jest.fn(),
         onProjectUpdate: jest.fn(),
         onProjectDelete: jest.fn(),
@@ -47,7 +47,7 @@ describe('Extended Hooks Types', () => {
     });
 
     it('should support canvas hooks', () => {
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onCanvasCreate: jest.fn(),
         onCanvasUpdate: jest.fn(),
         onCanvasDelete: jest.fn(),
@@ -69,7 +69,7 @@ describe('Extended Hooks Types', () => {
     });
 
     it('should support artifact hooks', () => {
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onArtifactCreate: jest.fn(),
         onArtifactUpdate: jest.fn(),
         onArtifactDelete: jest.fn(),
@@ -89,7 +89,7 @@ describe('Extended Hooks Types', () => {
     });
 
     it('should support export hooks', () => {
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onExportStart: jest.fn(),
         onExportComplete: jest.fn(),
         onExportTransform: jest.fn(),
@@ -105,7 +105,7 @@ describe('Extended Hooks Types', () => {
     });
 
     it('should support theme hooks', () => {
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onThemeModeChange: jest.fn(),
         onColorPresetChange: jest.fn(),
         onCustomThemeActivate: jest.fn(),
@@ -117,7 +117,7 @@ describe('Extended Hooks Types', () => {
     });
 
     it('should support AI/Chat hooks', () => {
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onChatRequest: jest.fn(),
         onStreamStart: jest.fn(),
         onStreamChunk: jest.fn(),
@@ -135,7 +135,7 @@ describe('Extended Hooks Types', () => {
     });
 
     it('should support Vector/RAG hooks', () => {
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onDocumentsIndexed: jest.fn(),
         onVectorSearch: jest.fn(),
         onRAGContextRetrieved: jest.fn(),
@@ -147,7 +147,7 @@ describe('Extended Hooks Types', () => {
     });
 
     it('should support workflow hooks', () => {
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onWorkflowStart: jest.fn(),
         onWorkflowStepComplete: jest.fn(),
         onWorkflowComplete: jest.fn(),
@@ -161,7 +161,7 @@ describe('Extended Hooks Types', () => {
     });
 
     it('should support UI hooks', () => {
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onSidebarToggle: jest.fn(),
         onPanelOpen: jest.fn(),
         onPanelClose: jest.fn(),
@@ -179,7 +179,7 @@ describe('Extended Hooks Types', () => {
     it('should call project hooks with correct arguments', () => {
       const onProjectCreate = jest.fn();
       const onProjectSwitch = jest.fn();
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onProjectCreate,
         onProjectSwitch,
       };
@@ -195,7 +195,7 @@ describe('Extended Hooks Types', () => {
     it('should call canvas hooks with correct arguments', () => {
       const onCanvasContentChange = jest.fn();
       const onCanvasSelection = jest.fn();
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onCanvasContentChange,
         onCanvasSelection,
       };
@@ -213,7 +213,7 @@ describe('Extended Hooks Types', () => {
 
     it('should call theme hooks with correct arguments', () => {
       const onThemeModeChange = jest.fn();
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onThemeModeChange,
       };
 
@@ -229,7 +229,7 @@ describe('Extended Hooks Types', () => {
         ...messages,
         { role: 'system', content: 'Additional context' },
       ]);
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onChatRequest,
       };
 
@@ -244,7 +244,7 @@ describe('Extended Hooks Types', () => {
 
     it('should call token usage hook', () => {
       const onTokenUsage = jest.fn();
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onTokenUsage,
       };
 
@@ -265,7 +265,7 @@ describe('Extended Hooks Types', () => {
       const onExportTransform = jest.fn(async (content: string, format: string) => {
         return `<!-- Format: ${format} -->\n${content}`;
       });
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onExportTransform,
       };
 
@@ -277,7 +277,7 @@ describe('Extended Hooks Types', () => {
       const onWorkflowStart = jest.fn();
       const onWorkflowStepComplete = jest.fn();
       const onWorkflowComplete = jest.fn();
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onWorkflowStart,
         onWorkflowStepComplete,
         onWorkflowComplete,
@@ -299,7 +299,7 @@ describe('Extended Hooks Types', () => {
         }
         return false; // not handled
       });
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onShortcut,
       };
 
@@ -316,7 +316,7 @@ describe('Extended Hooks Types', () => {
         }
         return undefined;
       });
-      const hooks: ExtendedPluginHooks = {
+      const hooks: PluginHooksAll = {
         onContextMenuShow,
       };
 

@@ -1,7 +1,7 @@
 /**
- * Extended Plugin Hooks
+ * Plugin Hooks (Complete)
  *
- * @description Extended hook definitions for deeper integration with application features.
+ * @description Complete hook definitions for deeper integration with application features.
  * Includes additional event hooks for projects, canvas, artifacts, export, themes, etc.
  */
 
@@ -9,7 +9,7 @@ import type { PluginHooks, PluginMessage } from './base';
 import type { PluginCanvasDocument } from '../context/extended';
 
 /**
- * Extended plugin hooks combining base and event hooks
+ * Complete plugin hooks combining base and event hooks
  *
  * @remarks
  * Includes all base hooks plus additional event hooks for deeper
@@ -17,12 +17,12 @@ import type { PluginCanvasDocument } from '../context/extended';
  *
  * @example
  * ```typescript
- * const hooks: ExtendedPluginHooks = {
+ * const hooks: PluginHooksAll = {
  *   // Base hooks
  *   onEnable: async () => {},
  *   onAgentStep: (agentId, step) => {},
  *
- *   // Extended hooks
+ *   // Feature hooks
  *   onProjectCreate: (project) => {
  *     console.log('Project created:', project.id);
  *   },
@@ -35,7 +35,7 @@ import type { PluginCanvasDocument } from '../context/extended';
  * };
  * ```
  */
-export interface ExtendedPluginHooks extends PluginHooks {
+export interface PluginHooksAll extends PluginHooks {
   // Project hooks
   /** Called when a project is created */
   onProjectCreate?: (project: unknown) => void | Promise<void>; // Project
@@ -152,3 +152,12 @@ export interface ExtendedPluginHooks extends PluginHooks {
   /** Called when a context menu is about to be shown */
   onContextMenuShow?: (context: { type: string; target?: unknown }) => { items?: unknown[] } | void;
 }
+
+// =============================================================================
+// Backward Compatibility Aliases (Deprecated)
+// =============================================================================
+
+/**
+ * @deprecated Use `PluginHooksAll` instead
+ */
+export type ExtendedPluginHooks = PluginHooksAll;

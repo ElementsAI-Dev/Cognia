@@ -277,8 +277,120 @@ export function getProxyAuthHeaders(): Record<string, string> {
 }
 
 /**
+ * Check if an error is retryable for proxy requests
+ */
+function isRetryableProxyError(error: Error): boolean {
+  const message = error.message.toLowerCase();
+
+  // Network errors
+  if (
+    message.includes('network') ||
+    message.includes('timeout') ||
+    message.includes('econnreset') ||
+    message.includes('enotfound') ||
+    message.includes('econnrefused') ||
+    message.includes('socket hang up')
+  ) {
+    return true;
+  }
+
+  // Server errors (5xx)
+  if (
+    message.includes('500') ||
+    message.includes('502') ||
+    message.includes('503') ||
+    message.includes('504')
+  ) {
+    return true;
+  }
+
+  // Rate limiting
+  if (message.includes('429') || message.includes('rate limit')) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Sleep utility for retry delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export interface RetryableProxyFetchOptions extends ProxyFetchOptions {
+  /** Maximum number of retries (default: 3) */
+  maxRetries?: number;
+  /** Initial delay between retries in ms (default: 1000) */
+  initialDelay?: number;
+  /** Callback on retry */
+  onRetry?: (error: Error, attempt: number) => void;
+}
+
+/**
+ * Create a fetch function with proxy support and automatic retry
+ *
+ * Features:
+ * - Automatic retry on network errors, timeouts, 5xx errors
+ * - Exponential backoff with jitter
+ * - Configurable retry count and delays
+ */
+export function createRetryableProxyFetch(customProxyUrl?: string) {
+  const baseFetch = createProxyFetch(customProxyUrl);
+
+  return async (
+    input: RequestInfo | URL,
+    init?: RetryableProxyFetchOptions
+  ): Promise<Response> => {
+    const { maxRetries = 3, initialDelay = 1000, onRetry, ...fetchInit } = init || {};
+
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await baseFetch(input, fetchInit);
+
+        // Check for server errors that should be retried
+        if (response.status >= 500 && attempt < maxRetries) {
+          const error = new Error(`HTTP ${response.status}`);
+          lastError = error;
+          onRetry?.(error, attempt);
+
+          // Exponential backoff with jitter
+          const delay = initialDelay * Math.pow(2, attempt) + Math.random() * 500;
+          await sleep(delay);
+          continue;
+        }
+
+        return response;
+      } catch (error) {
+        lastError = error as Error;
+        onRetry?.(lastError, attempt);
+
+        // Check if we should retry
+        if (!isRetryableProxyError(lastError) || attempt === maxRetries) {
+          throw error;
+        }
+
+        // Exponential backoff with jitter
+        const delay = initialDelay * Math.pow(2, attempt) + Math.random() * 500;
+        await sleep(delay);
+      }
+    }
+
+    throw lastError;
+  };
+}
+
+/**
  * Default proxy-aware fetch instance
  */
 export const proxyFetch = createProxyFetch();
+
+/**
+ * Default retryable proxy-aware fetch instance
+ */
+export const retryableProxyFetch = createRetryableProxyFetch();
 
 export default proxyFetch;

@@ -69,7 +69,7 @@ impl McpClient {
         url: &str,
         notification_tx: mpsc::Sender<JsonRpcNotification>,
     ) -> McpResult<Self> {
-        Self::connect_sse_with_message_url(url, None, notification_tx).await
+        Self::connect_sse_with_options(url, None, None, notification_tx).await
     }
 
     /// Create a new MCP client with SSE transport and optional message URL
@@ -78,8 +78,22 @@ impl McpClient {
         message_url: Option<&str>,
         notification_tx: mpsc::Sender<JsonRpcNotification>,
     ) -> McpResult<Self> {
+        Self::connect_sse_with_options(url, message_url, None, notification_tx).await
+    }
+
+    /// Create a new MCP client with SSE transport, optional message URL and proxy support
+    pub async fn connect_sse_with_options(
+        url: &str,
+        message_url: Option<&str>,
+        proxy_url: Option<&str>,
+        notification_tx: mpsc::Sender<JsonRpcNotification>,
+    ) -> McpResult<Self> {
         log::debug!("Creating SSE MCP client: url='{}'", url);
-        let mut transport = SseTransport::connect(url).await?;
+        if let Some(proxy) = proxy_url {
+            log::debug!("Using proxy: {}", proxy);
+        }
+
+        let mut transport = SseTransport::connect_with_proxy(url, proxy_url).await?;
 
         if let Some(msg_url) = message_url {
             log::debug!("Setting custom message URL: {}", msg_url);

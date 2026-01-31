@@ -61,6 +61,8 @@
     "descObservability": "AI tracing, metrics, and cost analysis",
     "descAgentOptimization": "Claude best practices for agent systems",
     "descAgentTrace": "View AI attribution traces for generated files and artifacts",
+    "tabSync": "Cloud Sync",
+    "descSync": "Sync data via WebDAV or GitHub",
     "exportSettings": "Export Settings",
     "importSettings": "Import Settings",
     "resetAllSettings": "Reset All Settings",

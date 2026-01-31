@@ -14,6 +14,7 @@ import type {
   PluginStatus,
   PluginSource,
   PluginPermission,
+  PluginAPIPermission,
   ExtendedPluginPermission,
 } from './types';
 
@@ -180,9 +181,9 @@ describe('Core Types', () => {
     });
   });
 
-  describe('ExtendedPluginPermission', () => {
-    it('should allow valid extended permission values', () => {
-      const extendedPermissions: ExtendedPluginPermission[] = [
+  describe('PluginAPIPermission', () => {
+    it('should allow valid API permission values', () => {
+      const apiPermissions: PluginAPIPermission[] = [
         'session:read',
         'session:write',
         'session:delete',
@@ -205,35 +206,35 @@ describe('Core Types', () => {
         'notification:show',
       ];
 
-      expect(extendedPermissions).toContain('session:delete');
-      expect(extendedPermissions).toContain('project:delete');
-      expect(extendedPermissions).toContain('vector:read');
-      expect(extendedPermissions).toContain('canvas:write');
-      expect(extendedPermissions).toContain('ai:chat');
-      expect(extendedPermissions).toContain('export:session');
-      expect(extendedPermissions).toContain('theme:write');
-      expect(extendedPermissions).toContain('extension:ui');
-      expect(extendedPermissions).toContain('notification:show');
-      expect(extendedPermissions).toHaveLength(20);
+      expect(apiPermissions).toContain('session:delete');
+      expect(apiPermissions).toContain('project:delete');
+      expect(apiPermissions).toContain('vector:read');
+      expect(apiPermissions).toContain('canvas:write');
+      expect(apiPermissions).toContain('ai:chat');
+      expect(apiPermissions).toContain('export:session');
+      expect(apiPermissions).toContain('theme:write');
+      expect(apiPermissions).toContain('extension:ui');
+      expect(apiPermissions).toContain('notification:show');
+      expect(apiPermissions).toHaveLength(20);
     });
 
-    it('should have proper extended permission categories', () => {
-      const sessionPermissions: ExtendedPluginPermission[] = [
+    it('should have proper API permission categories', () => {
+      const sessionPermissions: PluginAPIPermission[] = [
         'session:read',
         'session:write',
         'session:delete',
       ];
-      const projectPermissions: ExtendedPluginPermission[] = [
+      const projectPermissions: PluginAPIPermission[] = [
         'project:read',
         'project:write',
         'project:delete',
       ];
-      const vectorPermissions: ExtendedPluginPermission[] = ['vector:read', 'vector:write'];
-      const canvasPermissions: ExtendedPluginPermission[] = ['canvas:read', 'canvas:write'];
-      const artifactPermissions: ExtendedPluginPermission[] = ['artifact:read', 'artifact:write'];
-      const aiPermissions: ExtendedPluginPermission[] = ['ai:chat', 'ai:embed'];
-      const exportPermissions: ExtendedPluginPermission[] = ['export:session', 'export:project'];
-      const themePermissions: ExtendedPluginPermission[] = ['theme:read', 'theme:write'];
+      const vectorPermissions: PluginAPIPermission[] = ['vector:read', 'vector:write'];
+      const canvasPermissions: PluginAPIPermission[] = ['canvas:read', 'canvas:write'];
+      const artifactPermissions: PluginAPIPermission[] = ['artifact:read', 'artifact:write'];
+      const aiPermissions: PluginAPIPermission[] = ['ai:chat', 'ai:embed'];
+      const exportPermissions: PluginAPIPermission[] = ['export:session', 'export:project'];
+      const themePermissions: PluginAPIPermission[] = ['theme:read', 'theme:write'];
 
       expect(sessionPermissions).toHaveLength(3);
       expect(projectPermissions).toHaveLength(3);
@@ -243,6 +244,13 @@ describe('Core Types', () => {
       expect(aiPermissions).toHaveLength(2);
       expect(exportPermissions).toHaveLength(2);
       expect(themePermissions).toHaveLength(2);
+    });
+
+    it('should support backward compatibility alias ExtendedPluginPermission', () => {
+      // ExtendedPluginPermission is an alias for PluginAPIPermission
+      const permission: ExtendedPluginPermission = 'session:read';
+      const apiPermission: PluginAPIPermission = permission;
+      expect(apiPermission).toBe('session:read');
     });
   });
 });

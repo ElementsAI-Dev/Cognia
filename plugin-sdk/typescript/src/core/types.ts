@@ -119,9 +119,9 @@ export type PluginPermission =
   | 'python:execute';      // Execute Python code
 
 /**
- * Extended plugin permission types
+ * Plugin API permission types for extended features
  */
-export type ExtendedPluginPermission =
+export type PluginAPIPermission =
   | 'session:read'
   | 'session:write'
   | 'session:delete'
@@ -142,3 +142,12 @@ export type ExtendedPluginPermission =
   | 'theme:write'
   | 'extension:ui'
   | 'notification:show';
+
+// =============================================================================
+// Backward Compatibility Aliases (Deprecated)
+// =============================================================================
+
+/**
+ * @deprecated Use `PluginAPIPermission` instead
+ */
+export type ExtendedPluginPermission = PluginAPIPermission;

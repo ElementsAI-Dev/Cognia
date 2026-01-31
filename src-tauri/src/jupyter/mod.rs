@@ -74,6 +74,7 @@ pub struct KernelInfo {
     pub created_at: String,
     #[serde(rename = "lastActivityAt")]
     pub last_activity_at: Option<String>,
+    pub config: KernelConfig,
 }
 
 /// Default kernel configuration

@@ -4,8 +4,9 @@ use crate::screen_recording::{
     ffmpeg, AudioDevices, CleanupResult, EncodingSupport, FFmpegInfo, FFmpegInstallGuide,
     HardwareAcceleration, MonitorInfo, RecordingConfig, RecordingHistoryEntry, RecordingMetadata,
     RecordingRegion, RecordingStats, RecordingStatus, RecordingToolbar, RecordingToolbarConfig,
-    RecordingToolbarState, ScreenRecordingManager, SnapEdge, StorageConfig, StorageStats,
-    VideoConvertOptions, VideoInfo, VideoProcessingResult, VideoProcessor, VideoTrimOptions,
+    RecordingToolbarState, ScreenRecordingManager, SnapEdge, StorageConfig, StorageFile,
+    StorageFileType, StorageStats, ToolbarPosition, VideoConvertOptions, VideoInfo,
+    VideoProcessingResult, VideoProcessor, VideoTrimOptions,
 };
 use tauri::State;
 use parking_lot::RwLock;
@@ -416,6 +417,53 @@ pub async fn storage_cleanup(
     manager.cleanup_old_files()
 }
 
+/// List all storage files (recordings and screenshots)
+#[tauri::command]
+pub async fn storage_list_files(
+    manager: State<'_, ScreenRecordingManager>,
+    file_type: Option<StorageFileType>,
+) -> Result<Vec<StorageFile>, String> {
+    Ok(manager.list_storage_files(file_type))
+}
+
+/// Get a single storage file by path
+#[tauri::command]
+pub async fn storage_get_file(
+    manager: State<'_, ScreenRecordingManager>,
+    file_path: String,
+) -> Result<Option<StorageFile>, String> {
+    Ok(manager.get_storage_file(&file_path))
+}
+
+/// Get app data directory path
+#[tauri::command]
+pub async fn recording_get_app_data_dir(
+    manager: State<'_, ScreenRecordingManager>,
+) -> Result<Option<String>, String> {
+    Ok(manager.get_app_data_dir().map(|p| p.to_string_lossy().to_string()))
+}
+
+/// Get recordings directory path
+#[tauri::command]
+pub async fn recording_get_recordings_dir(
+    manager: State<'_, ScreenRecordingManager>,
+) -> Result<Option<String>, String> {
+    Ok(manager.get_recordings_dir().map(|p| p.to_string_lossy().to_string()))
+}
+
+/// Calculate toolbar position coordinates for a given preset
+#[tauri::command]
+pub async fn recording_calculate_toolbar_position(
+    manager: State<'_, ScreenRecordingManager>,
+    position: ToolbarPosition,
+    monitor_width: u32,
+    monitor_height: u32,
+    toolbar_width: u32,
+    toolbar_height: u32,
+) -> Result<(i32, i32), String> {
+    Ok(manager.calculate_toolbar_position(position, monitor_width, monitor_height, toolbar_width, toolbar_height))
+}
+
 // ==================== Recording Toolbar Commands ====================
 
 /// Show the recording toolbar
@@ -523,6 +571,14 @@ pub async fn recording_toolbar_set_hovered(
 ) -> Result<(), String> {
     toolbar.set_hovered(hovered);
     Ok(())
+}
+
+/// Get toolbar hover state
+#[tauri::command]
+pub async fn recording_toolbar_is_hovered(
+    toolbar: State<'_, RecordingToolbar>,
+) -> Result<bool, String> {
+    Ok(toolbar.is_hovered())
 }
 
 /// Destroy the toolbar window

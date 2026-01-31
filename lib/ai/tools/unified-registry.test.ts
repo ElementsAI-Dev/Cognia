@@ -587,6 +587,14 @@ describe('inferToolCategory', () => {
     expect(inferToolCategory('learning_progress', 'Track learning')).toBe('learning');
   });
 
+  it('infers system category', () => {
+    expect(inferToolCategory('list_processes', 'List running processes')).toBe('system');
+    expect(inferToolCategory('terminate_process', 'Terminate a process')).toBe('system');
+    expect(inferToolCategory('check_program_allowed', 'Check if program is allowed')).toBe('system');
+    expect(inferToolCategory('create_venv', 'Create virtual environment')).toBe('system');
+    expect(inferToolCategory('run_in_env', 'Run in virtual environment')).toBe('system');
+  });
+
   it('returns other for unknown', () => {
     expect(inferToolCategory('random_tool', 'Does something')).toBe('other');
   });

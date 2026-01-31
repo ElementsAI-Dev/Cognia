@@ -115,3 +115,11 @@ export {
   ShortcutConflictDialog,
   ShortcutManager,
 } from './shortcuts';
+
+// Sync settings (WebDAV & GitHub)
+export {
+  SyncSettings,
+  WebDAVConfigForm,
+  GitHubConfigForm,
+  SyncHistoryDialog,
+} from './sync';

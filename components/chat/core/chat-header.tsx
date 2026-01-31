@@ -31,6 +31,7 @@ import {
   List,
   GitBranch,
   Target,
+  Scale,
 } from 'lucide-react';
 import { ConversationSearch, SessionStats } from '../utils';
 import { useMessages } from '@/hooks';
@@ -504,7 +505,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
 
         {/* Right side actions */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* View mode toggle - List/Flow - hidden in focused/zen modes */}
+          {/* View mode toggle - List/Flow/Arena - hidden in focused/zen modes */}
           {session && !isFocusedOrZen && (
             <div className="flex items-center border rounded-md">
               <Tooltip>
@@ -512,7 +513,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                   <Button
                     variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                     size="icon"
-                    className="h-8 w-8 rounded-r-none"
+                    className="h-8 w-8 rounded-none rounded-l-md"
                     onClick={() => onViewModeChange?.('list')}
                   >
                     <List className="h-4 w-4" />
@@ -525,13 +526,26 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                   <Button
                     variant={viewMode === 'flow' ? 'secondary' : 'ghost'}
                     size="icon"
-                    className="h-8 w-8 rounded-l-none"
+                    className="h-8 w-8 rounded-none border-x"
                     onClick={() => onViewModeChange?.('flow')}
                   >
                     <GitBranch className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{tFlow('viewFlow')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'arena' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8 rounded-none rounded-r-md"
+                    onClick={() => onViewModeChange?.('arena')}
+                  >
+                    <Scale className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tFlow('viewArena')}</TooltipContent>
               </Tooltip>
             </div>
           )}

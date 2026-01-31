@@ -16,6 +16,7 @@ import {
   getFileContext,
   getBrowserContext,
   getEditorContext,
+  isCodeEditor,
   getAllWindows,
   findWindowsByTitle,
   findWindowsByProcess,
@@ -166,6 +167,18 @@ describe('Context - Context Functions', () => {
     });
   });
 
+  describe('getBrowserSuggestedActions', () => {
+    it('should call invoke with correct command', async () => {
+      const mockActions = ['Summarize page', 'Explain concept'];
+      mockInvoke.mockResolvedValue(mockActions);
+
+      const { getBrowserSuggestedActions } = await import('./context');
+      const result = await getBrowserSuggestedActions();
+      expect(mockInvoke).toHaveBeenCalledWith('context_get_browser_suggested_actions');
+      expect(result).toEqual(mockActions);
+    });
+  });
+
   describe('getEditorContext', () => {
     it('should call invoke with correct command', async () => {
       const mockEditor: EditorContext = {
@@ -186,6 +199,23 @@ describe('Context - Context Functions', () => {
       const result = await getEditorContext();
       expect(mockInvoke).toHaveBeenCalledWith('context_get_editor');
       expect(result).toEqual(mockEditor);
+    });
+  });
+
+  describe('isCodeEditor', () => {
+    it('should call invoke with correct command', async () => {
+      mockInvoke.mockResolvedValue(true);
+
+      const result = await isCodeEditor();
+      expect(mockInvoke).toHaveBeenCalledWith('context_is_code_editor');
+      expect(result).toBe(true);
+    });
+
+    it('should return false when not in code editor', async () => {
+      mockInvoke.mockResolvedValue(false);
+
+      const result = await isCodeEditor();
+      expect(result).toBe(false);
     });
   });
 

@@ -34,6 +34,7 @@ import {
   Shield,
   Activity,
   X,
+  Cloud,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -104,6 +105,7 @@ import {
   GitSettings,
   SafetySettings,
   TraySettings,
+  SyncSettings,
 } from '@/components/settings';
 import { ObservabilitySettings } from '@/components/observability';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
@@ -477,6 +479,13 @@ export default function SettingsPage() {
         group: 'data',
       },
       {
+        id: 'sync',
+        label: t('tabSync') || 'Cloud Sync',
+        icon: <Cloud className="h-4 w-4" />,
+        description: t('descSync') || 'Sync data via WebDAV or GitHub',
+        group: 'data',
+      },
+      {
         id: 'vector',
         label: t('tabVector'),
         icon: <Database className="h-4 w-4" />,
@@ -578,6 +587,8 @@ export default function SettingsPage() {
         return <SearchSettings />;
       case 'data':
         return <DataSettings />;
+      case 'sync':
+        return <SyncSettings />;
       case 'agent-trace':
         return <AgentTraceSettings />;
       case 'vector':

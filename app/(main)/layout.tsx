@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "../providers";
 import { TitleBar, WindowInitializer } from "@/components/layout";
+import { SyncInitializer } from "@/components/sync";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -32,6 +33,7 @@ export default function MainLayout({
         <Providers>
           <TitleBar />
           <WindowInitializer />
+          <SyncInitializer />
           {children}
         </Providers>
       </body>

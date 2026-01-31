@@ -30,6 +30,11 @@ interface StartBattleOptions {
   sessionId?: string;
   systemPrompt?: string;
   blindMode?: boolean;
+  conversationMode?: 'single' | 'multi';
+  maxTurns?: number;
+  temperature?: number;
+  maxTokens?: number;
+  taskCategory?: string;
 }
 
 export function useArena(options: UseArenaOptions = {}) {
@@ -62,7 +67,8 @@ export function useArena(options: UseArenaOptions = {}) {
       battleId: string,
       contestant: ArenaContestant,
       prompt: string,
-      systemPrompt?: string
+      systemPrompt?: string,
+      modelParams?: { temperature?: number; maxTokens?: number }
     ): Promise<void> => {
       const abortController = new AbortController();
       abortControllersRef.current.set(contestant.id, abortController);
@@ -84,12 +90,22 @@ export function useArena(options: UseArenaOptions = {}) {
 
         const messages = [{ role: 'user' as const, content: prompt }];
 
-        const result = await streamText({
+        const streamOptions: Parameters<typeof streamText>[0] = {
           model,
           messages,
           system: systemPrompt,
           abortSignal: abortController.signal,
-        });
+        };
+
+        // Add optional model parameters if provided
+        if (modelParams?.temperature !== undefined) {
+          (streamOptions as Record<string, unknown>).temperature = modelParams.temperature;
+        }
+        if (modelParams?.maxTokens !== undefined) {
+          (streamOptions as Record<string, unknown>).maxTokens = modelParams.maxTokens;
+        }
+
+        const result = await streamText(streamOptions);
 
         let fullText = '';
         let inputTokens = 0;
@@ -182,10 +198,17 @@ export function useArena(options: UseArenaOptions = {}) {
           sessionId: battleOptions?.sessionId,
           systemPrompt: battleOptions?.systemPrompt,
           mode: battleOptions?.blindMode ? 'blind' : 'normal',
+          conversationMode: battleOptions?.conversationMode || 'single',
+          maxTurns: battleOptions?.maxTurns || 5,
           taskClassification,
         });
 
         onBattleStart?.(battle);
+
+        // Prepare model parameters
+        const modelParams = battleOptions?.temperature !== undefined || battleOptions?.maxTokens !== undefined
+          ? { temperature: battleOptions?.temperature, maxTokens: battleOptions?.maxTokens }
+          : undefined;
 
         // Execute all contestants in parallel
         const executions = battle.contestants.map((contestant) =>
@@ -193,7 +216,8 @@ export function useArena(options: UseArenaOptions = {}) {
             battle.id,
             contestant,
             prompt,
-            battleOptions?.systemPrompt
+            battleOptions?.systemPrompt,
+            modelParams
           )
         );
 
@@ -283,6 +307,69 @@ export function useArena(options: UseArenaOptions = {}) {
     return models;
   }, [providerSettings]);
 
+  /**
+   * Continue a multi-turn battle with a new user message
+   */
+  const continueTurn = useCallback(
+    async (battleId: string, userMessage: string): Promise<void> => {
+      const battle = getBattle(battleId);
+      if (!battle) return;
+      if (battle.conversationMode !== 'multi') return;
+      if (battle.currentTurn && battle.maxTurns && battle.currentTurn >= battle.maxTurns) return;
+
+      setIsExecuting(true);
+      setError(null);
+
+      try {
+        // Add user message to all contestants via store
+        const store = useArenaStore.getState();
+        store.continueBattle(battleId, userMessage);
+
+        // Execute next turn for all contestants
+        const updatedBattle = getBattle(battleId);
+        if (!updatedBattle) return;
+
+        const executions = updatedBattle.contestants.map((contestant) =>
+          executeContestant(
+            battleId,
+            contestant,
+            userMessage,
+            battle.systemPrompt
+          )
+        );
+
+        await Promise.allSettled(executions);
+
+        const completedBattle = getBattle(battleId);
+        if (completedBattle) {
+          onBattleComplete?.(completedBattle);
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+      } finally {
+        setIsExecuting(false);
+      }
+    },
+    [getBattle, executeContestant, onBattleComplete]
+  );
+
+  /**
+   * Check if battle can continue (multi-turn)
+   */
+  const canContinue = useCallback((battleId: string): boolean => {
+    const battle = getBattle(battleId);
+    if (!battle) return false;
+    if (battle.conversationMode !== 'multi') return false;
+    if (battle.winnerId || battle.isTie) return false;
+    if (battle.currentTurn && battle.maxTurns && battle.currentTurn >= battle.maxTurns) return false;
+
+    // Check if all contestants are done with current turn
+    return battle.contestants.every(
+      (c) => c.status === 'completed' || c.status === 'error'
+    );
+  }, [getBattle]);
+
   return {
     // State
     isExecuting,
@@ -294,6 +381,10 @@ export function useArena(options: UseArenaOptions = {}) {
     pickWinner,
     pickTie,
     getAvailableModels,
+
+    // Multi-turn
+    continueTurn,
+    canContinue,
   };
 }
 

@@ -3,8 +3,8 @@
 //! Uses FFmpeg for cross-platform screen recording
 
 use super::{
-    AudioDevice, AudioDevices, MonitorInfo, RecordingConfig, RecordingMetadata, RecordingRegion,
-    RecordingStatus,
+    AudioDevice, AudioDevices, MonitorInfo, RecordingConfig, RecordingError, RecordingMetadata,
+    RecordingRegion, RecordingStatus,
 };
 use log::{debug, error, info, trace, warn};
 use parking_lot::RwLock;
@@ -149,7 +149,10 @@ impl ScreenRecorder {
         let monitor = monitor_index
             .and_then(|i| monitors.get(i))
             .or_else(|| monitors.iter().find(|m| m.is_primary))
-            .ok_or("No monitor found")?;
+            .ok_or_else(|| {
+                let err = RecordingError::monitor_not_found(monitor_index.unwrap_or(0), monitors.len());
+                String::from(err)
+            })?;
 
         info!(
             "[ScreenRecorder] Selected monitor: index={}, name={}, {}x{}, primary={}",
@@ -235,7 +238,10 @@ impl ScreenRecorder {
         let monitor = monitors
             .iter()
             .find(|m| m.is_primary)
-            .ok_or("No monitor found")?;
+            .ok_or_else(|| {
+                let err = RecordingError::monitor_not_found(0, monitors.len());
+                String::from(err)
+            })?;
         debug!(
             "[ScreenRecorder] Using primary monitor: {}x{}",
             monitor.width, monitor.height
@@ -669,7 +675,8 @@ impl ScreenRecorder {
                 "[ScreenRecorder] check_not_recording failed - current status: {:?}",
                 state.status
             );
-            return Err("Already recording".to_string());
+            let err = RecordingError::already_recording(state.recording_id.as_deref());
+            return Err(String::from(err));
         }
         trace!("[ScreenRecorder] check_not_recording passed - status is Idle");
         Ok(())
@@ -808,7 +815,8 @@ impl ScreenRecorder {
             .spawn()
             .map_err(|e| {
                 error!("[ScreenRecorder] Failed to spawn FFmpeg process: {}", e);
-                format!("Failed to start FFmpeg: {}", e)
+                let err = RecordingError::ffmpeg_start_failed(&e.to_string());
+                String::from(err)
             })?;
 
         info!(
@@ -901,7 +909,8 @@ impl ScreenRecorder {
                     "[ScreenRecorder] Failed to spawn FFmpeg region process: {}",
                     e
                 );
-                format!("Failed to start FFmpeg: {}", e)
+                let err = RecordingError::ffmpeg_start_failed(&e.to_string());
+                String::from(err)
             })?;
 
         info!(

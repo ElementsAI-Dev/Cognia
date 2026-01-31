@@ -9,6 +9,9 @@ import {
   isProcessManagementAvailable,
   type ProcessInfo,
   type ProcessFilter,
+  type ProcessManagerConfig,
+  type StartProcessRequest,
+  type StartProcessResult,
 } from '@/lib/native/process';
 
 export interface UseProcessManagerReturn {
@@ -19,6 +22,10 @@ export interface UseProcessManagerReturn {
   lastRefresh: Date | null;
   isAvailable: boolean;
 
+  // Configuration
+  config: ProcessManagerConfig;
+  configLoading: boolean;
+
   // Tracked processes
   trackedPids: number[];
   getTrackedByAgent: (agentId: string) => TrackedProcess[];
@@ -28,8 +35,14 @@ export interface UseProcessManagerReturn {
   search: (query: string) => Promise<void>;
   getTopMemory: (limit?: number) => Promise<void>;
   terminate: (pid: number, force?: boolean) => Promise<boolean>;
+  startProcess: (request: StartProcessRequest) => Promise<StartProcessResult | null>;
   trackProcess: (process: TrackedProcess) => void;
   untrackProcess: (pid: number) => void;
+
+  // Configuration management
+  refreshConfig: () => Promise<void>;
+  updateConfig: (config: ProcessManagerConfig) => Promise<boolean>;
+  isProgramAllowed: (program: string) => Promise<boolean>;
 
   // Settings
   autoRefresh: boolean;
@@ -120,6 +133,76 @@ export function useProcessManager(): UseProcessManagerReturn {
     [store.trackedProcesses]
   );
 
+  // Start a new process
+  const startProcess = useCallback(
+    async (request: StartProcessRequest): Promise<StartProcessResult | null> => {
+      if (!isAvailable) return null;
+
+      try {
+        const result = await processService.start(request);
+        if (result.success && result.pid) {
+          // Track the process
+          store.trackProcess({
+            pid: result.pid,
+            program: request.program,
+            startedAt: new Date(),
+          });
+        }
+        return result;
+      } catch (err) {
+        store.setError(err instanceof Error ? err.message : 'Failed to start process');
+        return null;
+      }
+    },
+    [isAvailable, store]
+  );
+
+  // Refresh configuration from backend
+  const refreshConfig = useCallback(async () => {
+    if (!isAvailable) return;
+
+    store.setConfigLoading(true);
+    try {
+      const config = await processService.getConfig();
+      store.setConfig(config);
+    } catch (err) {
+      store.setError(err instanceof Error ? err.message : 'Failed to get config');
+      store.setConfigLoading(false);
+    }
+  }, [isAvailable, store]);
+
+  // Update configuration
+  const updateConfig = useCallback(
+    async (config: ProcessManagerConfig): Promise<boolean> => {
+      if (!isAvailable) return false;
+
+      store.setConfigLoading(true);
+      try {
+        await processService.updateConfig(config);
+        store.setConfig(config);
+        return true;
+      } catch (err) {
+        store.setError(err instanceof Error ? err.message : 'Failed to update config');
+        store.setConfigLoading(false);
+        return false;
+      }
+    },
+    [isAvailable, store]
+  );
+
+  // Check if program is allowed
+  const isProgramAllowed = useCallback(
+    async (program: string): Promise<boolean> => {
+      if (!isAvailable) return false;
+      try {
+        return await processService.isProgramAllowed(program);
+      } catch {
+        return false;
+      }
+    },
+    [isAvailable]
+  );
+
   // Auto-refresh effect
   useEffect(() => {
     if (!isAvailable || !store.autoRefresh) {
@@ -152,14 +235,20 @@ export function useProcessManager(): UseProcessManagerReturn {
     error: store.error,
     lastRefresh: store.lastRefresh,
     isAvailable,
+    config: store.config,
+    configLoading: store.configLoading,
     trackedPids: Array.from(store.trackedProcesses.keys()),
     getTrackedByAgent,
     refresh,
     search,
     getTopMemory,
     terminate,
+    startProcess,
     trackProcess: store.trackProcess,
     untrackProcess: store.untrackProcess,
+    refreshConfig,
+    updateConfig,
+    isProgramAllowed,
     autoRefresh: store.autoRefresh,
     setAutoRefresh: store.setAutoRefresh,
   };

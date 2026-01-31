@@ -375,6 +375,124 @@ pub async fn proxy_test(
     }
 }
 
+/// Test endpoint result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EndpointTestResult {
+    pub url: String,
+    pub name: String,
+    pub success: bool,
+    pub latency: Option<u64>,
+    pub status_code: Option<u16>,
+    pub error: Option<String>,
+}
+
+/// Multi-endpoint test result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiEndpointTestResult {
+    pub overall_success: bool,
+    pub successful_endpoints: u32,
+    pub total_endpoints: u32,
+    pub avg_latency: Option<u64>,
+    pub best_endpoint: Option<String>,
+    pub results: Vec<EndpointTestResult>,
+    pub ip: Option<String>,
+    pub location: Option<String>,
+}
+
+/// Test proxy connectivity with multiple endpoints
+#[tauri::command]
+pub async fn proxy_test_multi(
+    proxy_url: String,
+    test_urls: Option<Vec<String>>,
+) -> Result<MultiEndpointTestResult, String> {
+    let default_urls = vec![
+        ("https://www.google.com/generate_204".to_string(), "Google (204)".to_string()),
+        ("https://www.gstatic.com/generate_204".to_string(), "Google Static (204)".to_string()),
+        ("https://cp.cloudflare.com/".to_string(), "Cloudflare".to_string()),
+        ("https://www.msftconnecttest.com/connecttest.txt".to_string(), "Microsoft".to_string()),
+        ("https://captive.apple.com/".to_string(), "Apple Captive".to_string()),
+    ];
+
+    let urls: Vec<(String, String)> = test_urls
+        .map(|urls| urls.into_iter().map(|u| (u.clone(), u)).collect())
+        .unwrap_or(default_urls);
+
+    let proxy = reqwest::Proxy::all(&proxy_url).map_err(|e| e.to_string())?;
+    let client = reqwest::Client::builder()
+        .proxy(proxy)
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut results = Vec::new();
+    let mut successful_count = 0u32;
+    let mut total_latency = 0u64;
+    let mut best_latency = u64::MAX;
+    let mut best_endpoint: Option<String> = None;
+
+    for (url, name) in &urls {
+        let start = Instant::now();
+        let result = match client.get(url).send().await {
+            Ok(resp) => {
+                let latency = start.elapsed().as_millis() as u64;
+                let status = resp.status().as_u16();
+                let success = resp.status().is_success() || status == 204;
+
+                if success {
+                    successful_count += 1;
+                    total_latency += latency;
+                    if latency < best_latency {
+                        best_latency = latency;
+                        best_endpoint = Some(name.clone());
+                    }
+                }
+
+                EndpointTestResult {
+                    url: url.clone(),
+                    name: name.clone(),
+                    success,
+                    latency: Some(latency),
+                    status_code: Some(status),
+                    error: if success { None } else { Some(format!("HTTP {}", status)) },
+                }
+            }
+            Err(e) => EndpointTestResult {
+                url: url.clone(),
+                name: name.clone(),
+                success: false,
+                latency: None,
+                status_code: None,
+                error: Some(e.to_string()),
+            },
+        };
+        results.push(result);
+    }
+
+    // Get IP info if at least one endpoint succeeded
+    let (ip, location) = if successful_count > 0 {
+        get_ip_info(&client).await.ok().map(|(ip, loc)| (Some(ip), Some(loc))).unwrap_or((None, None))
+    } else {
+        (None, None)
+    };
+
+    let avg_latency = if successful_count > 0 {
+        Some(total_latency / successful_count as u64)
+    } else {
+        None
+    };
+
+    Ok(MultiEndpointTestResult {
+        overall_success: successful_count > 0,
+        successful_endpoints: successful_count,
+        total_endpoints: urls.len() as u32,
+        avg_latency,
+        best_endpoint,
+        results,
+        ip,
+        location,
+    })
+}
+
 /// Get IP info from ipinfo.io
 async fn get_ip_info(client: &reqwest::Client) -> Result<(String, String), String> {
     let resp = client

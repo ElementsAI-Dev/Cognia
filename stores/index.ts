@@ -361,3 +361,22 @@ export {
   selectSettings as selectArenaSettings,
   selectModelRatings,
 } from './arena';
+
+// Sync stores (WebDAV & GitHub)
+export {
+  useSyncStore,
+  selectSyncStatus,
+  selectSyncProgress,
+  selectActiveProvider,
+  selectWebDAVConfig,
+  selectGitHubConfig,
+  selectSyncHistory,
+  selectPendingConflicts,
+  selectLastError as selectSyncLastError,
+  selectDeviceInfo,
+  selectIsSyncing,
+  selectHasConflicts,
+  selectLastSyncTime,
+  DEFAULT_WEBDAV_CONFIG,
+  DEFAULT_GITHUB_CONFIG,
+} from './sync';

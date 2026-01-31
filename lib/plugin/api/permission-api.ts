@@ -6,15 +6,15 @@
 
 import type {
   PluginPermissionAPI,
-  ExtendedPluginPermission,
+  PluginAPIPermission,
 } from '@/types/plugin/plugin-extended';
 import { createPluginSystemLogger } from '../logger';
 
 // Permission grants by plugin
-const grantedPermissions = new Map<string, Set<ExtendedPluginPermission>>();
+const grantedPermissions = new Map<string, Set<PluginAPIPermission>>();
 
-// Permission mapping from manifest permissions to extended permissions
-const permissionMapping: Record<string, ExtendedPluginPermission[]> = {
+// Permission mapping from manifest permissions to API permissions
+const permissionMapping: Record<string, PluginAPIPermission[]> = {
   'network:fetch': [],
   'fs:read': [],
   'fs:write': [],
@@ -23,7 +23,7 @@ const permissionMapping: Record<string, ExtendedPluginPermission[]> = {
   'shell:execute': [],
   'secrets:read': [],
   'secrets:write': [],
-  // Extended permissions
+  // API permissions
   'session:read': ['session:read'],
   'session:write': ['session:write'],
   'session:delete': ['session:delete'],
@@ -50,9 +50,9 @@ const permissionMapping: Record<string, ExtendedPluginPermission[]> = {
  * Initialize permissions for a plugin based on its manifest
  */
 export function initializePluginPermissions(pluginId: string, manifestPermissions: string[]) {
-  const permissions = new Set<ExtendedPluginPermission>();
+  const permissions = new Set<PluginAPIPermission>();
   
-  // Map manifest permissions to extended permissions
+  // Map manifest permissions to API permissions
   for (const perm of manifestPermissions) {
     const mapped = permissionMapping[perm];
     if (mapped) {
@@ -85,12 +85,12 @@ export function createPermissionAPI(
   const getPermissions = () => grantedPermissions.get(pluginId) || new Set();
 
   return {
-    hasPermission: (permission: ExtendedPluginPermission): boolean => {
+    hasPermission: (permission: PluginAPIPermission): boolean => {
       return getPermissions().has(permission);
     },
 
     requestPermission: async (
-      permission: ExtendedPluginPermission, 
+      permission: PluginAPIPermission, 
       _reason?: string
     ): Promise<boolean> => {
       // For now, auto-grant requested permissions
@@ -101,16 +101,16 @@ export function createPermissionAPI(
       return true;
     },
 
-    getGrantedPermissions: (): ExtendedPluginPermission[] => {
+    getGrantedPermissions: (): PluginAPIPermission[] => {
       return Array.from(getPermissions());
     },
 
-    hasAllPermissions: (permissions: ExtendedPluginPermission[]): boolean => {
+    hasAllPermissions: (permissions: PluginAPIPermission[]): boolean => {
       const granted = getPermissions();
       return permissions.every(p => granted.has(p));
     },
 
-    hasAnyPermission: (permissions: ExtendedPluginPermission[]): boolean => {
+    hasAnyPermission: (permissions: PluginAPIPermission[]): boolean => {
       const granted = getPermissions();
       return permissions.some(p => granted.has(p));
     },
@@ -127,7 +127,7 @@ export function revokePluginPermissions(pluginId: string) {
 /**
  * Grant a specific permission to a plugin
  */
-export function grantPermission(pluginId: string, permission: ExtendedPluginPermission) {
+export function grantPermission(pluginId: string, permission: PluginAPIPermission) {
   const permissions = grantedPermissions.get(pluginId) || new Set();
   permissions.add(permission);
   grantedPermissions.set(pluginId, permissions);
@@ -136,7 +136,7 @@ export function grantPermission(pluginId: string, permission: ExtendedPluginPerm
 /**
  * Revoke a specific permission from a plugin
  */
-export function revokePermission(pluginId: string, permission: ExtendedPluginPermission) {
+export function revokePermission(pluginId: string, permission: PluginAPIPermission) {
   const permissions = grantedPermissions.get(pluginId);
   if (permissions) {
     permissions.delete(permission);

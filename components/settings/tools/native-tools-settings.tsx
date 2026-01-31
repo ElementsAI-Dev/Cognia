@@ -16,6 +16,7 @@ import {
   Activity,
   Terminal,
   Video,
+  Cpu,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,6 +31,7 @@ import {
   ContextPanel,
   SystemMonitorPanel,
   SandboxPanel,
+  ProcessSettingsPanel,
 } from '@/components/native';
 import { RecordingHistoryPanel } from '@/components/screen-recording';
 import { isTauri } from '@/lib/native/utils';
@@ -93,7 +95,7 @@ export function NativeToolsSettings() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-7 h-auto">
+            <TabsList className="grid w-full grid-cols-8 h-auto">
               <TabsTrigger
                 value="clipboard"
                 className="flex items-center gap-1 sm:gap-1.5 px-2 py-1.5"
@@ -139,6 +141,13 @@ export function NativeToolsSettings() {
               >
                 <Terminal className="h-4 w-4 shrink-0" />
                 <span className="hidden sm:inline text-xs">{t('sandbox')}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="process"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 py-1.5"
+              >
+                <Cpu className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline text-xs">{t('process')}</span>
               </TabsTrigger>
             </TabsList>
 
@@ -248,6 +257,12 @@ export function NativeToolsSettings() {
             <TabsContent value="sandbox" className="mt-4 space-y-4">
               <div className="h-75 sm:h-100 border rounded-lg overflow-hidden">
                 <SandboxPanel className="h-full" />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="process" className="mt-4 space-y-4">
+              <div className="h-75 sm:h-100 border rounded-lg overflow-hidden">
+                <ProcessSettingsPanel className="h-full" />
               </div>
             </TabsContent>
           </Tabs>

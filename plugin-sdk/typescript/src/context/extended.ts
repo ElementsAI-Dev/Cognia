@@ -1,12 +1,12 @@
 /**
- * Extended Plugin Context Types
+ * Plugin Context API Types
  *
- * @description Extended type definitions for deeper integration with application features.
+ * @description Type definitions for deeper integration with application features.
  * Includes session, project, vector, theme, export, i18n, canvas, artifact, notification,
  * AI provider, and extension APIs.
  */
 
-import type { ExtendedPluginPermission } from '../core/types';
+import type { PluginAPIPermission } from '../core/types';
 
 // =============================================================================
 // SESSION API TYPES
@@ -1056,25 +1056,25 @@ export interface PluginExtensionAPI {
  * ```
  */
 export interface PluginPermissionAPI {
-  hasPermission: (permission: ExtendedPluginPermission) => boolean;
-  requestPermission: (permission: ExtendedPluginPermission, reason?: string) => Promise<boolean>;
-  getGrantedPermissions: () => ExtendedPluginPermission[];
-  hasAllPermissions: (permissions: ExtendedPluginPermission[]) => boolean;
-  hasAnyPermission: (permissions: ExtendedPluginPermission[]) => boolean;
+  hasPermission: (permission: PluginAPIPermission) => boolean;
+  requestPermission: (permission: PluginAPIPermission, reason?: string) => Promise<boolean>;
+  getGrantedPermissions: () => PluginAPIPermission[];
+  hasAllPermissions: (permissions: PluginAPIPermission[]) => boolean;
+  hasAnyPermission: (permissions: PluginAPIPermission[]) => boolean;
 }
 
 // =============================================================================
-// EXTENDED PLUGIN CONTEXT
+// PLUGIN CONTEXT API
 // =============================================================================
 
 /**
- * Extended plugin context with all additional APIs
+ * Plugin context API with all additional feature APIs
  *
  * @remarks
- * Combines base PluginContext with extended APIs for deeper integration.
- * All extended APIs are optional and may not be available in all contexts.
+ * Combines base PluginContext with feature APIs for deeper integration.
+ * All feature APIs are optional and may not be available in all contexts.
  */
-export interface ExtendedPluginContext {
+export interface PluginContextAPI {
   session: PluginSessionAPI;
   project: PluginProjectAPI;
   vector: PluginVectorAPI;
@@ -1088,3 +1088,12 @@ export interface ExtendedPluginContext {
   extensions: PluginExtensionAPI;
   permissions: PluginPermissionAPI;
 }
+
+// =============================================================================
+// Backward Compatibility Aliases (Deprecated)
+// =============================================================================
+
+/**
+ * @deprecated Use `PluginContextAPI` instead
+ */
+export type ExtendedPluginContext = PluginContextAPI;

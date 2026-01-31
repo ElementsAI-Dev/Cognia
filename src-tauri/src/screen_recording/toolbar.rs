@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tokio_util::sync::CancellationToken;
 
 use super::window_snap::{SnapEdge, WindowSnap};
 
@@ -107,6 +108,7 @@ pub struct RecordingToolbar {
     snapped_edge: Arc<RwLock<Option<SnapEdge>>>,
     creation_lock: Arc<Mutex<()>>,
     config_path: PathBuf,
+    auto_hide_cancel: Arc<RwLock<Option<CancellationToken>>>,
 }
 
 impl RecordingToolbar {
@@ -129,6 +131,7 @@ impl RecordingToolbar {
             snapped_edge: Arc::new(RwLock::new(None)),
             creation_lock: Arc::new(Mutex::new(())),
             config_path,
+            auto_hide_cancel: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -277,21 +280,30 @@ impl RecordingToolbar {
                 tauri::WindowEvent::Moved(pos) => {
                     *position.write() = (pos.x, pos.y);
 
-                    // Check for edge snapping
+                    // Check for edge snapping and apply magnetic snap
                     let config = config_arc.read();
                     if config.auto_dock {
                         if let Some(window) = app_handle.get_webview_window(RECORDING_TOOLBAR_LABEL) {
                             let (work_w, work_h, work_x, work_y) = get_work_area_static();
                             let size = window.outer_size().unwrap_or(tauri::PhysicalSize { width: TOOLBAR_WIDTH as u32, height: TOOLBAR_HEIGHT as u32 });
                             
-                            if let Some(edge) = WindowSnap::detect_snap_edge(
+                            // Use apply_magnetic_snap for automatic snapping behavior
+                            let (snap_x, snap_y, edge) = WindowSnap::apply_magnetic_snap(
                                 pos.x, pos.y,
                                 size.width as i32, size.height as i32,
                                 work_x, work_y, work_w, work_h,
-                                SNAP_THRESHOLD,
-                            ) {
-                                *snapped_edge.write() = Some(edge);
-                                let _ = app_handle.emit("recording-toolbar://snapped", serde_json::json!({ "edge": edge }));
+                                SNAP_THRESHOLD, EDGE_PADDING,
+                            );
+                            
+                            if let Some(snap_edge) = edge {
+                                // Apply the snapped position if within threshold
+                                if snap_x != pos.x || snap_y != pos.y {
+                                    let _ = window.set_position(tauri::Position::Physical(
+                                        tauri::PhysicalPosition { x: snap_x, y: snap_y }
+                                    ));
+                                }
+                                *snapped_edge.write() = Some(snap_edge);
+                                let _ = app_handle.emit("recording-toolbar://snapped", serde_json::json!({ "edge": snap_edge }));
                             } else {
                                 *snapped_edge.write() = None;
                             }
@@ -324,11 +336,15 @@ impl RecordingToolbar {
 
             let _ = self.app_handle.emit("recording-toolbar://show", ());
             log::info!("[RecordingToolbar] Toolbar shown");
+
+            // Schedule auto-hide if enabled
+            self.schedule_auto_hide();
         }
         Ok(())
     }
 
     pub fn hide(&self) -> Result<(), String> {
+        self.cancel_auto_hide();
         if let Some(window) = self.app_handle.get_webview_window(RECORDING_TOOLBAR_LABEL) {
             window.hide().map_err(|e| format!("Failed to hide toolbar: {}", e))?;
             self.is_visible.store(false, Ordering::SeqCst);
@@ -344,12 +360,22 @@ impl RecordingToolbar {
     }
 
     pub fn set_position(&self, x: i32, y: i32) -> Result<(), String> {
+        // Clamp position to work area to prevent toolbar from going off-screen
+        let (work_w, work_h, work_x, work_y) = self.get_primary_work_area();
+        let (width, height) = self.get_toolbar_size();
+        let (clamped_x, clamped_y) = WindowSnap::clamp_to_work_area(
+            x, y,
+            width as i32, height as i32,
+            work_x, work_y, work_w, work_h,
+            EDGE_PADDING,
+        );
+
         if let Some(window) = self.app_handle.get_webview_window(RECORDING_TOOLBAR_LABEL) {
             window
-                .set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }))
+                .set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: clamped_x, y: clamped_y }))
                 .map_err(|e| format!("Failed to set position: {}", e))?;
         }
-        *self.position.write() = (x, y);
+        *self.position.write() = (clamped_x, clamped_y);
 
         // Update config if remember_position is enabled
         let mut config = self.config.write();
@@ -424,14 +450,74 @@ impl RecordingToolbar {
     }
 
     pub fn set_hovered(&self, hovered: bool) {
+        log::trace!("[RecordingToolbar] set_hovered: {}", hovered);
         self.is_hovered.store(hovered, Ordering::SeqCst);
+        if hovered {
+            // Cancel any pending auto-hide when mouse enters
+            self.cancel_auto_hide();
+        } else if self.is_visible() {
+            // Restart auto-hide timer when mouse leaves
+            self.schedule_auto_hide();
+        }
     }
 
     pub fn is_hovered(&self) -> bool {
         self.is_hovered.load(Ordering::SeqCst)
     }
 
+    fn cancel_auto_hide(&self) {
+        if let Some(token) = self.auto_hide_cancel.write().take() {
+            log::trace!("[RecordingToolbar] Cancelling auto-hide timer");
+            token.cancel();
+        }
+    }
+
+    fn schedule_auto_hide(&self) {
+        let config = self.config.read();
+        if !config.auto_hide {
+            return;
+        }
+        let timeout_ms = config.auto_hide_delay_ms;
+        drop(config);
+
+        if timeout_ms == 0 {
+            return;
+        }
+
+        log::trace!("[RecordingToolbar] Scheduling auto-hide in {}ms", timeout_ms);
+        self.cancel_auto_hide();
+
+        let cancel_token = CancellationToken::new();
+        *self.auto_hide_cancel.write() = Some(cancel_token.clone());
+
+        let is_visible = self.is_visible.clone();
+        let is_hovered = self.is_hovered.clone();
+        let app_handle = self.app_handle.clone();
+        let auto_hide_cancel = self.auto_hide_cancel.clone();
+
+        tauri::async_runtime::spawn(async move {
+            tokio::select! {
+                _ = cancel_token.cancelled() => {
+                    log::trace!("[RecordingToolbar] Auto-hide cancelled");
+                }
+                _ = tokio::time::sleep(tokio::time::Duration::from_millis(timeout_ms)) => {
+                    if is_visible.load(Ordering::SeqCst) && !is_hovered.load(Ordering::SeqCst) {
+                        if let Some(window) = app_handle.get_webview_window(RECORDING_TOOLBAR_LABEL) {
+                            let _ = window.hide();
+                            is_visible.store(false, Ordering::SeqCst);
+                            let _ = app_handle.emit("recording-toolbar://auto-hidden", ());
+                        }
+                        log::debug!("[RecordingToolbar] Auto-hidden after {}ms", timeout_ms);
+                    }
+                    *auto_hide_cancel.write() = None;
+                }
+            }
+        });
+    }
+
     pub fn destroy(&self) -> Result<(), String> {
+        self.cancel_auto_hide();
+
         if let Err(e) = self.save_config() {
             log::warn!("[RecordingToolbar] Failed to save config on destroy: {}", e);
         }
@@ -442,6 +528,7 @@ impl RecordingToolbar {
         }
 
         self.is_visible.store(false, Ordering::SeqCst);
+        self.is_hovered.store(false, Ordering::SeqCst);
         log::info!("[RecordingToolbar] Toolbar destroyed");
         Ok(())
     }

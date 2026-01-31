@@ -5,12 +5,12 @@
 //! - Communication via stdin/stdout (simplified protocol)
 //! - Process monitoring and cleanup
 
-use crate::jupyter::protocol::ExecuteRequest;
+use crate::jupyter::protocol::{ExecuteRequest, MessageHeader};
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::process::{Child, Command};
-use std::time::Instant;
+use std::process::{Child, Command, Stdio};
+use std::time::{Duration, Instant};
 
 /// Kernel status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,12 +151,14 @@ impl JupyterKernel {
             return Err("Kernel is dead".to_string());
         }
 
-        // Lightweight protocol integration: create ExecuteRequest for logging
+        // Lightweight protocol integration: create proper Jupyter message header and request
+        let msg_header = MessageHeader::new("execute_request", &self.id);
         let execute_request = ExecuteRequest::new(code.to_string());
         trace!(
-            "Kernel {} executing with protocol: msg_type={}, silent={}, store_history={}",
+            "Kernel {} executing with protocol: msg_id={}, msg_type={}, silent={}, store_history={}",
             self.id,
-            "execute_request",
+            msg_header.msg_id,
+            msg_header.msg_type,
             execute_request.silent,
             execute_request.store_history
         );
@@ -249,16 +251,18 @@ impl JupyterKernel {
         }
     }
 
-    /// Execute Python code using subprocess
+    /// Execute Python code using subprocess with timeout from config
     async fn execute_python(
         &self,
         python_path: &str,
         code: &str,
     ) -> Result<(String, String), String> {
         trace!(
-            "Kernel {}: Executing Python subprocess at {}",
+            "Kernel {}: Executing Python subprocess at {} (timeout={}s, max_output={})",
             self.id,
-            python_path
+            python_path,
+            self.config.timeout_secs,
+            self.config.max_output_size
         );
 
         // Use base64 encoding to safely pass code without escaping issues
@@ -298,7 +302,10 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
             code_base64
         );
 
-        let output = if cfg!(target_os = "windows") {
+        let timeout = Duration::from_secs(self.config.timeout_secs);
+        let max_output = self.config.max_output_size;
+
+        let child = if cfg!(target_os = "windows") {
             Command::new("cmd")
                 .args([
                     "/C",
@@ -308,50 +315,106 @@ print(json.dumps({{"stdout": stdout_val, "stderr": stderr_val}}))
                         wrapper_code.replace("\"", "\\\"").replace("\n", " ")
                     ),
                 ])
-                .output()
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
         } else {
             Command::new(python_path)
                 .args(["-c", &wrapper_code])
-                .output()
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
         };
 
-        match output {
-            Ok(out) => {
-                let raw_output = String::from_utf8_lossy(&out.stdout).to_string();
-                let raw_stderr = String::from_utf8_lossy(&out.stderr).to_string();
-                trace!(
-                    "Kernel {}: Subprocess raw output: {} bytes stdout, {} bytes stderr",
-                    self.id,
-                    raw_output.len(),
-                    raw_stderr.len()
-                );
-
-                // Try to parse JSON output
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(raw_output.trim()) {
-                    let stdout = parsed["stdout"].as_str().unwrap_or("").to_string();
-                    let stderr = parsed["stderr"].as_str().unwrap_or("").to_string();
-                    trace!("Kernel {}: Parsed JSON output successfully", self.id);
-                    Ok((
-                        stdout,
-                        if stderr.is_empty() {
-                            raw_stderr
-                        } else {
-                            stderr
-                        },
-                    ))
-                } else {
-                    // Fallback to raw output
-                    debug!(
-                        "Kernel {}: Could not parse JSON output, using raw output",
-                        self.id
-                    );
-                    Ok((raw_output, raw_stderr))
-                }
-            }
+        let child = match child {
+            Ok(c) => c,
             Err(e) => {
-                error!("Kernel {}: Subprocess execution error: {}", self.id, e);
-                Err(e.to_string())
+                error!("Kernel {}: Failed to spawn subprocess: {}", self.id, e);
+                return Err(e.to_string());
             }
+        };
+
+        // Wait with timeout
+        let start = Instant::now();
+        let output = tokio::task::spawn_blocking(move || {
+            child.wait_with_output()
+        });
+
+        let output = match tokio::time::timeout(timeout, output).await {
+            Ok(Ok(Ok(out))) => out,
+            Ok(Ok(Err(e))) => {
+                error!("Kernel {}: Subprocess wait error: {}", self.id, e);
+                return Err(e.to_string());
+            }
+            Ok(Err(e)) => {
+                error!("Kernel {}: Task join error: {}", self.id, e);
+                return Err(format!("Task join error: {}", e));
+            }
+            Err(_) => {
+                let elapsed = start.elapsed().as_secs();
+                error!(
+                    "Kernel {}: Execution timed out after {}s (limit: {}s)",
+                    self.id, elapsed, self.config.timeout_secs
+                );
+                return Err(format!(
+                    "Execution timed out after {}s (limit: {}s)",
+                    elapsed, self.config.timeout_secs
+                ));
+            }
+        };
+
+        let mut raw_output = String::from_utf8_lossy(&output.stdout).to_string();
+        let mut raw_stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+        // Apply max_output_size limit
+        if raw_output.len() > max_output {
+            warn!(
+                "Kernel {}: Truncating stdout from {} to {} bytes",
+                self.id,
+                raw_output.len(),
+                max_output
+            );
+            raw_output.truncate(max_output);
+            raw_output.push_str("\n... [output truncated]");
+        }
+        if raw_stderr.len() > max_output {
+            warn!(
+                "Kernel {}: Truncating stderr from {} to {} bytes",
+                self.id,
+                raw_stderr.len(),
+                max_output
+            );
+            raw_stderr.truncate(max_output);
+            raw_stderr.push_str("\n... [output truncated]");
+        }
+
+        trace!(
+            "Kernel {}: Subprocess raw output: {} bytes stdout, {} bytes stderr",
+            self.id,
+            raw_output.len(),
+            raw_stderr.len()
+        );
+
+        // Try to parse JSON output
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(raw_output.trim()) {
+            let stdout = parsed["stdout"].as_str().unwrap_or("").to_string();
+            let stderr = parsed["stderr"].as_str().unwrap_or("").to_string();
+            trace!("Kernel {}: Parsed JSON output successfully", self.id);
+            Ok((
+                stdout,
+                if stderr.is_empty() {
+                    raw_stderr
+                } else {
+                    stderr
+                },
+            ))
+        } else {
+            // Fallback to raw output
+            debug!(
+                "Kernel {}: Could not parse JSON output, using raw output",
+                self.id
+            );
+            Ok((raw_output, raw_stderr))
         }
     }
 
@@ -730,6 +793,7 @@ print(json.dumps(get_var_info()))
             execution_count: self.execution_count,
             created_at: self.created_at.to_rfc3339(),
             last_activity_at: self.last_activity_at.map(|t| t.to_rfc3339()),
+            config: self.get_config().clone(),
         }
     }
 }

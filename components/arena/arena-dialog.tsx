@@ -17,6 +17,9 @@ import {
   DollarSign,
   Eye,
   EyeOff,
+  ChevronDown,
+  ChevronUp,
+  Settings2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +29,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   Dialog,
   DialogContent,
@@ -77,6 +93,14 @@ export function ArenaDialog({
   const [selectedModels, setSelectedModels] = useState<ModelOption[]>([]);
   const [blindMode, setBlindMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'models' | 'presets'>('models');
+
+  // Advanced options state
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [multiTurn, setMultiTurn] = useState(false);
+  const [maxTurns, setMaxTurns] = useState(5);
+  const [temperature, setTemperature] = useState(0.7);
+  const [maxTokens, setMaxTokens] = useState(2048);
+  const [taskCategory, setTaskCategory] = useState<string>('auto');
 
   const { isExecuting, error, startBattle, getAvailableModels } = useArena({
     onBattleComplete: () => {
@@ -146,6 +170,11 @@ export function ArenaDialog({
       sessionId,
       systemPrompt,
       blindMode,
+      conversationMode: multiTurn ? 'multi' : 'single',
+      maxTurns: multiTurn ? maxTurns : undefined,
+      temperature,
+      maxTokens,
+      taskCategory: taskCategory !== 'auto' ? taskCategory : undefined,
     });
 
     onOpenChange(false);
@@ -156,6 +185,11 @@ export function ArenaDialog({
     sessionId,
     systemPrompt,
     blindMode,
+    multiTurn,
+    maxTurns,
+    temperature,
+    maxTokens,
+    taskCategory,
     onBattleStart,
     onOpenChange,
   ]);
@@ -336,6 +370,124 @@ export function ArenaDialog({
             </div>
             <Switch id="blind-mode" checked={blindMode} onCheckedChange={setBlindMode} />
           </div>
+
+          {/* Advanced Options */}
+          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-between p-3 h-auto rounded-lg bg-muted/30 border"
+              >
+                <div className="flex items-center gap-2">
+                  <Settings2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{t('advancedOptions')}</span>
+                </div>
+                {showAdvanced ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 pt-3">
+              {/* Multi-turn toggle */}
+              <div className="flex items-center justify-between p-3 rounded-lg border">
+                <div>
+                  <Label htmlFor="multi-turn" className="cursor-pointer">
+                    {t('enableMultiTurn')}
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t('enableMultiTurnDescription')}
+                  </p>
+                </div>
+                <Switch id="multi-turn" checked={multiTurn} onCheckedChange={setMultiTurn} />
+              </div>
+
+              {/* Max turns (when multi-turn enabled) */}
+              {multiTurn && (
+                <div className="p-3 rounded-lg border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>{t('maxTurnsLabel')}</Label>
+                    <span className="text-sm font-medium">{maxTurns}</span>
+                  </div>
+                  <Slider
+                    value={[maxTurns]}
+                    onValueChange={([v]) => setMaxTurns(v)}
+                    min={2}
+                    max={20}
+                    step={1}
+                  />
+                </div>
+              )}
+
+              {/* Task Category */}
+              <div className="p-3 rounded-lg border space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>{t('taskCategory')}</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t('taskCategoryDescription')}
+                    </p>
+                  </div>
+                  <Select value={taskCategory} onValueChange={setTaskCategory}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">{t('autoDetect')}</SelectItem>
+                      <SelectItem value="coding">{t('leaderboard.categories.coding')}</SelectItem>
+                      <SelectItem value="math">{t('leaderboard.categories.math')}</SelectItem>
+                      <SelectItem value="analysis">{t('leaderboard.categories.analysis')}</SelectItem>
+                      <SelectItem value="creative">{t('leaderboard.categories.creative')}</SelectItem>
+                      <SelectItem value="research">{t('leaderboard.categories.research')}</SelectItem>
+                      <SelectItem value="translation">{t('leaderboard.categories.translation')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Model Parameters */}
+              <div className="p-3 rounded-lg border space-y-3">
+                <Label className="text-sm font-medium">{t('modelParameters')}</Label>
+
+                {/* Temperature */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm">{t('temperature')}</span>
+                      <p className="text-xs text-muted-foreground">{t('temperatureDescription')}</p>
+                    </div>
+                    <span className="text-sm font-medium w-12 text-right">{temperature.toFixed(1)}</span>
+                  </div>
+                  <Slider
+                    value={[temperature]}
+                    onValueChange={([v]) => setTemperature(v)}
+                    min={0}
+                    max={2}
+                    step={0.1}
+                  />
+                </div>
+
+                {/* Max Tokens */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm">{t('maxTokens')}</span>
+                      <p className="text-xs text-muted-foreground">{t('maxTokensDescription')}</p>
+                    </div>
+                    <span className="text-sm font-medium w-16 text-right">{maxTokens}</span>
+                  </div>
+                  <Slider
+                    value={[maxTokens]}
+                    onValueChange={([v]) => setMaxTokens(v)}
+                    min={256}
+                    max={8192}
+                    step={256}
+                  />
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           {/* Error display */}
           {error && (

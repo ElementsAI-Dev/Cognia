@@ -559,7 +559,7 @@ describe('createFullPluginContext', () => {
     expect(context.storage).toBeDefined();
   });
 
-  it('should create context with extended APIs', () => {
+  it('should create context with feature APIs', () => {
     const plugin = createMockPlugin();
     const context = createFullPluginContext(plugin, mockManager);
     

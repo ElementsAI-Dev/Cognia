@@ -1030,9 +1030,9 @@ export interface PluginExtensionAPI {
 // =============================================================================
 
 /**
- * Extended plugin permissions
+ * Plugin API permissions for extended features
  */
-export type ExtendedPluginPermission =
+export type PluginAPIPermission =
   | 'session:read'
   | 'session:write'
   | 'session:delete'
@@ -1059,29 +1059,29 @@ export type ExtendedPluginPermission =
  */
 export interface PluginPermissionAPI {
   /** Check if plugin has a permission */
-  hasPermission: (permission: ExtendedPluginPermission) => boolean;
+  hasPermission: (permission: PluginAPIPermission) => boolean;
 
   /** Request a permission from user */
-  requestPermission: (permission: ExtendedPluginPermission, reason?: string) => Promise<boolean>;
+  requestPermission: (permission: PluginAPIPermission, reason?: string) => Promise<boolean>;
 
   /** Get all granted permissions */
-  getGrantedPermissions: () => ExtendedPluginPermission[];
+  getGrantedPermissions: () => PluginAPIPermission[];
 
   /** Check multiple permissions */
-  hasAllPermissions: (permissions: ExtendedPluginPermission[]) => boolean;
+  hasAllPermissions: (permissions: PluginAPIPermission[]) => boolean;
 
   /** Check if any permission is granted */
-  hasAnyPermission: (permissions: ExtendedPluginPermission[]) => boolean;
+  hasAnyPermission: (permissions: PluginAPIPermission[]) => boolean;
 }
 
 // =============================================================================
-// Extended Plugin Context
+// Plugin Context API
 // =============================================================================
 
 /**
- * Extended plugin context with all new APIs
+ * Plugin context API with all feature-specific APIs
  */
-export interface ExtendedPluginContext {
+export interface PluginContextAPI {
   /** Session management API */
   session: PluginSessionAPI;
 
@@ -1118,3 +1118,17 @@ export interface ExtendedPluginContext {
   /** Permission management API */
   permissions: PluginPermissionAPI;
 }
+
+// =============================================================================
+// Backward Compatibility Aliases (Deprecated)
+// =============================================================================
+
+/**
+ * @deprecated Use `PluginContextAPI` instead
+ */
+export type ExtendedPluginContext = PluginContextAPI;
+
+/**
+ * @deprecated Use `PluginAPIPermission` instead
+ */
+export type ExtendedPluginPermission = PluginAPIPermission;

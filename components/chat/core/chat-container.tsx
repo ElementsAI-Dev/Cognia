@@ -53,7 +53,7 @@ import {
 } from '../dialogs';
 import { PromptOptimizerDialog, PromptOptimizationHub } from '@/components/prompt';
 import { WorkflowPickerDialog } from '../workflow/workflow-picker-dialog';
-import { ArenaDialog, ArenaBattleView } from '@/components/arena';
+import { ArenaDialog, ArenaBattleView, ArenaChatView } from '@/components/arena';
 import {
   WorkflowResultCard,
   type WorkflowResultData,
@@ -1967,6 +1967,15 @@ Be thorough in your thinking but concise in your final answer.`;
                 deleteMessagesAfter(messageId);
               }
             }}
+          />
+        </div>
+      ) : viewMode === 'arena' ? (
+        /* Arena View */
+        <div className="flex-1 min-h-0">
+          <ArenaChatView
+            sessionId={activeSessionId || undefined}
+            systemPrompt={activePreset?.systemPrompt}
+            initialPrompt={inputValue}
           />
         </div>
       ) : (

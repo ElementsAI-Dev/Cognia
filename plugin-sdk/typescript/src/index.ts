@@ -56,6 +56,8 @@ export type {
   PluginStatus,
   PluginSource,
   PluginPermission,
+  PluginAPIPermission,
+  /** @deprecated Use PluginAPIPermission instead */
   ExtendedPluginPermission,
 } from './core';
 
@@ -102,6 +104,8 @@ export type {
 
 export type {
   PluginModeDef,
+  ModeDefinition,
+  /** @deprecated Use ModeDefinition instead */
   ExtendedModeDef,
   ModeToolConfig,
   ModePromptTemplate,
@@ -122,6 +126,8 @@ export type {
   HookPriority,
   HookRegistrationOptions,
   HookSandboxExecutionResult,
+  PluginHooksAll,
+  /** @deprecated Use PluginHooksAll instead */
   ExtendedPluginHooks,
 } from './hooks';
 
@@ -361,9 +367,32 @@ export type {
   PluginExtensionAPI,
   // Permission API
   PluginPermissionAPI,
-  // Extended Context
+  // Plugin Context API
+  PluginContextAPI,
+  /** @deprecated Use PluginContextAPI instead */
   ExtendedPluginContext,
 } from './context/extended';
+
+// =============================================================================
+// BROWSER API TYPES
+// =============================================================================
+
+export type {
+  PluginBrowserAPI,
+  BrowserLaunchOptions,
+  BrowserInstance,
+  BrowserContext,
+  BrowserPage,
+  NavigationOptions,
+  SelectorOptions,
+  ScreenshotOptions,
+  ScreenshotResult,
+  ElementInfo,
+  TableData,
+  ScrapeResult,
+  Cookie,
+  ProxyConfig,
+} from './api/browser';
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -374,6 +403,43 @@ export { definePlugin, defineTool, defineCommand } from './helpers/plugin';
 export { tool } from './helpers/tool';
 export type { PluginDefinition } from './helpers/plugin';
 export type { ToolConfig, ToolDefinition, InferSchemaType, InferParams } from './helpers/tool';
+
+// Export helpers
+export {
+  exportToCsv,
+  exportToJson,
+  exportToHtml,
+  exportToMarkdown,
+  flattenObject,
+  autoDetectColumns,
+} from './helpers/export';
+export type {
+  CsvExportOptions,
+  JsonExportOptions,
+  HtmlExportOptions,
+  MarkdownExportOptions,
+  DataExportResult,
+  ExportProgressCallback,
+} from './helpers/export';
+
+// Scraper helpers
+export {
+  BaseScraper,
+  ProviderRegistry,
+  parseTableData,
+  cleanText,
+  extractNumber,
+  extractPrice,
+  normalizeModelName,
+} from './helpers/scraper';
+export type {
+  ScraperConfig,
+  ScraperOptions,
+  ScraperState,
+  ScraperResult,
+  ProviderEntry,
+  ProgressCallback,
+} from './helpers/scraper';
 
 // =============================================================================
 // REACT HOOKS

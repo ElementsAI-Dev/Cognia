@@ -67,6 +67,58 @@ export interface ProxyTestResult {
   error?: string;
 }
 
+/** Test endpoint configuration */
+export interface TestEndpoint {
+  /** Endpoint URL */
+  url: string;
+  /** Display name */
+  name: string;
+  /** Expected response status (default: 200 or 204) */
+  expectedStatus?: number[];
+  /** Whether this endpoint is enabled */
+  enabled: boolean;
+}
+
+/** Default test endpoints for proxy verification */
+export const DEFAULT_TEST_ENDPOINTS: TestEndpoint[] = [
+  {
+    url: 'https://www.google.com/generate_204',
+    name: 'Google (204)',
+    expectedStatus: [204],
+    enabled: true,
+  },
+  {
+    url: 'https://www.gstatic.com/generate_204',
+    name: 'Google Static (204)',
+    expectedStatus: [204],
+    enabled: true,
+  },
+  {
+    url: 'https://cp.cloudflare.com/',
+    name: 'Cloudflare',
+    expectedStatus: [200],
+    enabled: true,
+  },
+  {
+    url: 'https://www.msftconnecttest.com/connecttest.txt',
+    name: 'Microsoft',
+    expectedStatus: [200],
+    enabled: true,
+  },
+  {
+    url: 'https://captive.apple.com/',
+    name: 'Apple Captive',
+    expectedStatus: [200],
+    enabled: true,
+  },
+  {
+    url: 'https://httpbin.org/status/200',
+    name: 'HTTPBin',
+    expectedStatus: [200],
+    enabled: false,
+  },
+];
+
 /** Proxy configuration */
 export interface ProxyConfig {
   /** Proxy mode */
@@ -77,10 +129,14 @@ export interface ProxyConfig {
   selectedProxy?: ProxySoftware;
   /** Apply proxy to all requests */
   enabled: boolean;
-  /** Test URL for proxy verification */
+  /** Test URL for proxy verification (primary) */
   testUrl: string;
+  /** Multiple test endpoints for fallback */
+  testEndpoints?: TestEndpoint[];
   /** Auto-detect interval in seconds (0 = disabled) */
   autoDetectInterval: number;
+  /** Health check interval in seconds (0 = disabled) */
+  healthCheckInterval?: number;
 }
 
 /** Proxy status */
@@ -191,7 +247,9 @@ export function createDefaultProxyConfig(): ProxyConfig {
     mode: 'off',
     enabled: false,
     testUrl: 'https://www.google.com/generate_204',
+    testEndpoints: DEFAULT_TEST_ENDPOINTS,
     autoDetectInterval: 30,
+    healthCheckInterval: 60,
   };
 }
 

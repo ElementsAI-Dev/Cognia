@@ -38,7 +38,7 @@ export type {
   PluginAIProviderAPI,
   PluginExtensionAPI,
   PluginPermissionAPI,
-  ExtendedPluginContext,
+  PluginContextAPI,
 } from '@/types/plugin/plugin-extended';
 
 // Re-export media API types

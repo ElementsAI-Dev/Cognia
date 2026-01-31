@@ -39,9 +39,9 @@ export interface ModePromptTemplate {
 }
 
 /**
- * Extended mode definition with all configuration options
+ * Mode definition with all configuration options
  */
-export interface ExtendedModeDef extends PluginModeDef {
+export interface ModeDefinition extends PluginModeDef {
   /** Prompt template with variables */
   promptTemplate?: ModePromptTemplate;
 
@@ -294,8 +294,8 @@ export class ModeBuilder {
   /**
    * Build the mode definition
    */
-  build(): ExtendedModeDef {
-    const mode: ExtendedModeDef = {
+  build(): ModeDefinition {
+    const mode: ModeDefinition = {
       id: this._id,
       name: this._name,
       description: this._description,
@@ -369,3 +369,12 @@ export class ModeBuilder {
 export function createModeBuilder(modeId: string): ModeBuilder {
   return new ModeBuilder(modeId);
 }
+
+// =============================================================================
+// Backward Compatibility Aliases (Deprecated)
+// =============================================================================
+
+/**
+ * @deprecated Use `ModeDefinition` instead
+ */
+export type ExtendedModeDef = ModeDefinition;

@@ -46,6 +46,7 @@ export type ToolCategory =
   | 'academic'    // Academic search and analysis
   | 'ppt'         // Presentation generation
   | 'learning'    // Learning/generative UI tools
+  | 'system'      // Process management, system tools
   | 'other';      // Uncategorized
 
 /**
@@ -378,6 +379,7 @@ export class UnifiedToolRegistry {
       academic: 0,
       ppt: 0,
       learning: 0,
+      system: 0,
       other: 0,
     };
 
@@ -479,6 +481,13 @@ export function inferToolCategory(name: string, description: string): ToolCatego
   // Skill tools
   if (lowerName.includes('skill')) {
     return 'skill';
+  }
+  // System tools (process management, environment)
+  if (lowerName.includes('process') || lowerName.includes('terminate') || 
+      lowerName.includes('program') || lowerDesc.includes('process') ||
+      lowerDesc.includes('terminate') || lowerName.includes('env') ||
+      lowerName.includes('venv') || lowerDesc.includes('virtual environment')) {
+    return 'system';
   }
 
   return 'other';

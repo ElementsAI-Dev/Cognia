@@ -829,6 +829,7 @@
   "flowChat": {
     "viewList": "List View",
     "viewFlow": "Flow View",
+    "viewArena": "Arena Mode",
     "createBranch": "Create Branch",
     "regenerate": "Regenerate",
     "followUp": "Follow Up",

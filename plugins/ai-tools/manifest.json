@@ -1,0 +1,175 @@
+{
+  "id": "cognia-ai-tools",
+  "name": "AI Tools",
+  "version": "1.0.0",
+  "description": "AI model pricing scraper, provider status monitoring, and rankings tools",
+  "author": "Cognia Team",
+  "license": "MIT",
+  "type": "frontend",
+  "main": "dist/index.js",
+  "icon": "sparkles",
+  "homepage": "https://github.com/cognia/plugins/ai-tools",
+  "repository": "https://github.com/cognia/plugins",
+  "keywords": [
+    "ai",
+    "pricing",
+    "status",
+    "rankings",
+    "lmarena",
+    "openrouter",
+    "monitoring"
+  ],
+  "capabilities": [
+    "tools",
+    "commands"
+  ],
+  "permissions": [
+    "network",
+    "filesystem",
+    "browser"
+  ],
+  "activationEvents": [
+    "onCommand:ai-tools.*",
+    "onAgentTool:ai_pricing_scraper",
+    "onAgentTool:provider_status_checker",
+    "onAgentTool:openrouter_rankings",
+    "onAgentTool:lmarena_leaderboard"
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "defaultOutputDir": {
+        "type": "string",
+        "title": "Output Directory",
+        "description": "Default output directory for scraped data",
+        "default": "ai-tools-output"
+      },
+      "defaultTimeout": {
+        "type": "number",
+        "title": "Request Timeout",
+        "description": "Default timeout for scraping operations (ms)",
+        "default": 30000,
+        "minimum": 5000,
+        "maximum": 120000
+      },
+      "headlessMode": {
+        "type": "boolean",
+        "title": "Headless Mode",
+        "description": "Run browser in headless mode (no visible window)",
+        "default": true
+      },
+      "enableScreenshots": {
+        "type": "boolean",
+        "title": "Enable Screenshots",
+        "description": "Take screenshots during scraping for debugging",
+        "default": false
+      },
+      "cacheExpiry": {
+        "type": "number",
+        "title": "Cache Expiry",
+        "description": "Cache expiry time in milliseconds",
+        "default": 3600000,
+        "minimum": 60000,
+        "maximum": 86400000
+      },
+      "pricingCacheExpiry": {
+        "type": "number",
+        "title": "Pricing Cache Expiry",
+        "description": "Pricing data cache expiry in milliseconds (default: 1 hour)",
+        "default": 3600000,
+        "minimum": 300000,
+        "maximum": 86400000
+      },
+      "statusCacheExpiry": {
+        "type": "number",
+        "title": "Status Cache Expiry",
+        "description": "Status check cache expiry in milliseconds (default: 5 minutes)",
+        "default": 300000,
+        "minimum": 60000,
+        "maximum": 3600000
+      },
+      "rankingsCacheExpiry": {
+        "type": "number",
+        "title": "Rankings Cache Expiry",
+        "description": "Rankings data cache expiry in milliseconds (default: 30 minutes)",
+        "default": 1800000,
+        "minimum": 300000,
+        "maximum": 86400000
+      },
+      "enabledProviders": {
+        "type": "array",
+        "title": "Enabled Providers",
+        "description": "List of provider IDs to enable (empty = all)",
+        "default": [],
+        "items": {
+          "type": "string"
+        }
+      },
+      "preferredRegion": {
+        "type": "string",
+        "title": "Preferred Region",
+        "description": "Default region for provider filtering",
+        "enum": ["US", "CN", "all"],
+        "enumDescriptions": ["US providers only", "CN providers only", "All regions"],
+        "default": "all"
+      }
+    }
+  },
+  "defaultConfig": {
+    "defaultOutputDir": "ai-tools-output",
+    "defaultTimeout": 30000,
+    "headlessMode": true,
+    "enableScreenshots": false,
+    "cacheExpiry": 3600000,
+    "pricingCacheExpiry": 3600000,
+    "statusCacheExpiry": 300000,
+    "rankingsCacheExpiry": 1800000,
+    "enabledProviders": [],
+    "preferredRegion": "all"
+  },
+  "tools": [
+    {
+      "name": "ai_pricing_scraper",
+      "description": "Scrape AI model pricing from various providers (OpenAI, Anthropic, DeepSeek, etc.)"
+    },
+    {
+      "name": "provider_status_checker",
+      "description": "Check health and availability status of AI model providers"
+    },
+    {
+      "name": "openrouter_rankings",
+      "description": "Get model rankings and usage statistics from OpenRouter"
+    },
+    {
+      "name": "lmarena_leaderboard",
+      "description": "Get LMArena (Chatbot Arena) model leaderboard and ELO ratings"
+    }
+  ],
+  "commands": [
+    {
+      "id": "ai-tools.scrape-pricing",
+      "name": "Scrape AI Pricing",
+      "description": "Scrape pricing data from AI providers",
+      "icon": "dollar-sign"
+    },
+    {
+      "id": "ai-tools.check-status",
+      "name": "Check Provider Status",
+      "description": "Check health status of AI providers",
+      "icon": "activity"
+    },
+    {
+      "id": "ai-tools.view-rankings",
+      "name": "View OpenRouter Rankings",
+      "description": "View model rankings from OpenRouter",
+      "icon": "bar-chart-2"
+    },
+    {
+      "id": "ai-tools.view-leaderboard",
+      "name": "View LMArena Leaderboard",
+      "description": "View LMArena chatbot arena leaderboard",
+      "icon": "trophy"
+    }
+  ],
+  "minAppVersion": "2.0.0"
+}

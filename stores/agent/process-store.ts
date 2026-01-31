@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ProcessInfo } from '@/lib/native/process';
+import type { ProcessInfo, ProcessManagerConfig } from '@/lib/native/process';
 
 export interface TrackedProcess {
   pid: number;
@@ -13,6 +13,17 @@ export interface TrackedProcess {
   startedAt: Date;
   program: string;
 }
+
+/** Default process manager configuration */
+export const DEFAULT_PROCESS_CONFIG: ProcessManagerConfig = {
+  enabled: false,
+  allowedPrograms: [],
+  deniedPrograms: ['rm', 'del', 'format', 'dd', 'mkfs', 'shutdown', 'reboot'],
+  allowTerminateAny: false,
+  onlyTerminateOwn: true,
+  maxTrackedProcesses: 100,
+  defaultTimeoutSecs: 30,
+};
 
 export interface ProcessStoreState {
   // Process list
@@ -23,6 +34,10 @@ export interface ProcessStoreState {
 
   // Tracked processes (started by agents)
   trackedProcesses: Map<number, TrackedProcess>;
+
+  // Configuration (synced from backend)
+  config: ProcessManagerConfig;
+  configLoading: boolean;
 
   // Settings
   autoRefresh: boolean;
@@ -37,6 +52,8 @@ export interface ProcessStoreState {
   clearTracked: () => void;
   setAutoRefresh: (enabled: boolean) => void;
   setAutoRefreshInterval: (interval: number) => void;
+  setConfig: (config: ProcessManagerConfig) => void;
+  setConfigLoading: (loading: boolean) => void;
   reset: () => void;
 }
 
@@ -46,6 +63,8 @@ const initialState = {
   error: null as string | null,
   lastRefresh: null as Date | null,
   trackedProcesses: new Map<number, TrackedProcess>(),
+  config: DEFAULT_PROCESS_CONFIG,
+  configLoading: false,
   autoRefresh: true,
   autoRefreshInterval: 5000,
 };
@@ -85,6 +104,10 @@ export const useProcessStore = create<ProcessStoreState>()(
       setAutoRefresh: (autoRefresh) => set({ autoRefresh }),
 
       setAutoRefreshInterval: (autoRefreshInterval) => set({ autoRefreshInterval }),
+
+      setConfig: (config) => set({ config, configLoading: false }),
+
+      setConfigLoading: (configLoading) => set({ configLoading }),
 
       reset: () => set(initialState),
     }),

@@ -18,7 +18,7 @@ import type { A2UISurfaceType } from '@/types/artifact/a2ui';
 import { usePluginStore } from '@/stores/plugin';
 import { loggers } from './logger';
 import type {
-  ExtendedPluginHooks,
+  PluginHooksAll,
   HookSandboxExecutionResult,
 } from '@/types/plugin/plugin-hooks';
 import type { Project, KnowledgeFile } from '@/types/project';
@@ -904,12 +904,12 @@ export class PluginEventHooks {
   /**
    * Get all plugins with hooks sorted by priority
    */
-  private getPluginsByPriority(hookName: keyof ExtendedPluginHooks): string[] {
+  private getPluginsByPriority(hookName: keyof PluginHooksAll): string[] {
     const store = usePluginStore.getState();
     const pluginsWithHook: { id: string; priority: HookPriority }[] = [];
 
     for (const [pluginId, plugin] of Object.entries(store.plugins)) {
-      const hooks = plugin.hooks as ExtendedPluginHooks | undefined;
+      const hooks = plugin.hooks as PluginHooksAll | undefined;
       if (plugin.status === 'enabled' && hooks?.[hookName]) {
         pluginsWithHook.push({
           id: pluginId,
@@ -927,8 +927,8 @@ export class PluginEventHooks {
    * Execute a hook on all plugins
    */
   private async executeHook<T>(
-    hookName: keyof ExtendedPluginHooks,
-    executor: (hooks: ExtendedPluginHooks, pluginId: string) => T | Promise<T>
+    hookName: keyof PluginHooksAll,
+    executor: (hooks: PluginHooksAll, pluginId: string) => T | Promise<T>
   ): Promise<HookSandboxExecutionResult<T>[]> {
     const store = usePluginStore.getState();
     const pluginIds = this.getPluginsByPriority(hookName);
@@ -940,7 +940,7 @@ export class PluginEventHooks {
 
       const startTime = performance.now();
       try {
-        const result = await executor(plugin.hooks as ExtendedPluginHooks, pluginId);
+        const result = await executor(plugin.hooks as PluginHooksAll, pluginId);
         results.push({
           success: true,
           result,
@@ -1266,7 +1266,7 @@ export class PluginEventHooks {
   }
 
   // =============================================================================
-  // Additional Hooks - From ExtendedPluginHooks type definition
+  // Additional Hooks - From PluginHooksAll type definition
   // =============================================================================
 
   // Project - Additional hooks

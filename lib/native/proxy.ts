@@ -14,6 +14,28 @@ import type {
   ProxyTestResult,
 } from '@/types/system/proxy';
 
+/** Endpoint test result */
+export interface EndpointTestResult {
+  url: string;
+  name: string;
+  success: boolean;
+  latency?: number;
+  statusCode?: number;
+  error?: string;
+}
+
+/** Multi-endpoint test result */
+export interface MultiEndpointTestResult {
+  overallSuccess: boolean;
+  successfulEndpoints: number;
+  totalEndpoints: number;
+  avgLatency?: number;
+  bestEndpoint?: string;
+  results: EndpointTestResult[];
+  ip?: string;
+  location?: string;
+}
+
 /** System proxy settings from OS */
 export interface SystemProxySettings {
   enabled: boolean;
@@ -111,6 +133,70 @@ export async function getClashInfo(
   }
 }
 
+/** Test proxy connectivity with multiple endpoints */
+export async function testProxyMulti(
+  proxyUrl: string,
+  testUrls?: string[]
+): Promise<MultiEndpointTestResult> {
+  if (!isTauri()) {
+    return {
+      overallSuccess: false,
+      successfulEndpoints: 0,
+      totalEndpoints: 0,
+      results: [],
+    };
+  }
+
+  try {
+    const result = await invoke<{
+      overall_success: boolean;
+      successful_endpoints: number;
+      total_endpoints: number;
+      avg_latency?: number;
+      best_endpoint?: string;
+      results: Array<{
+        url: string;
+        name: string;
+        success: boolean;
+        latency?: number;
+        status_code?: number;
+        error?: string;
+      }>;
+      ip?: string;
+      location?: string;
+    }>('proxy_test_multi', {
+      proxyUrl,
+      testUrls,
+    });
+
+    // Convert snake_case to camelCase
+    return {
+      overallSuccess: result.overall_success,
+      successfulEndpoints: result.successful_endpoints,
+      totalEndpoints: result.total_endpoints,
+      avgLatency: result.avg_latency,
+      bestEndpoint: result.best_endpoint,
+      results: result.results.map((r) => ({
+        url: r.url,
+        name: r.name,
+        success: r.success,
+        latency: r.latency,
+        statusCode: r.status_code,
+        error: r.error,
+      })),
+      ip: result.ip,
+      location: result.location,
+    };
+  } catch {
+    return {
+      overallSuccess: false,
+      successfulEndpoints: 0,
+      totalEndpoints: 0,
+      results: [],
+    };
+  }
+}
+
 /** Build proxy URL from detected proxy */
 export function buildProxyUrlFromDetected(proxy: DetectedProxy): string | null {
   if (!proxy.running) {
@@ -130,6 +216,7 @@ export const proxyService = {
   isAvailable: isProxyAvailable,
   detectAll: detectAllProxies,
   test: testProxy,
+  testMulti: testProxyMulti,
   getSystem: getSystemProxy,
   checkPort,
   getClashInfo,

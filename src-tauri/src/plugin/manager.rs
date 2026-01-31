@@ -165,6 +165,19 @@ impl PluginManager {
             )));
         }
 
+        // Validate engine version compatibility
+        if let Some(ref engines) = manifest.engines {
+            if let Some(ref required_version) = engines.cognia {
+                let current_version = env!("CARGO_PKG_VERSION");
+                if !Self::is_version_compatible(current_version, required_version) {
+                    return Err(PluginError::VersionMismatch(format!(
+                        "Plugin requires Cognia {}, but current version is {}",
+                        required_version, current_version
+                    )));
+                }
+            }
+        }
+
         // Validate entry points based on type
         match manifest.plugin_type {
             PluginType::Frontend => {
@@ -187,6 +200,73 @@ impl PluginManager {
         }
 
         Ok(())
+    }
+
+    /// Check if current version satisfies required version (semver-compatible)
+    /// Supports: exact "1.0.0", caret "^1.0.0", tilde "~1.0.0", range ">=1.0.0"
+    fn is_version_compatible(current: &str, required: &str) -> bool {
+        let current_parts: Vec<u32> = current
+            .split('.')
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        
+        if current_parts.len() < 3 {
+            return false;
+        }
+
+        let (operator, version_str) = if required.starts_with(">=") {
+            (">=", &required[2..])
+        } else if required.starts_with('^') {
+            ("^", &required[1..])
+        } else if required.starts_with('~') {
+            ("~", &required[1..])
+        } else if required.starts_with('>') {
+            (">", &required[1..])
+        } else {
+            ("=", required)
+        };
+
+        let required_parts: Vec<u32> = version_str
+            .trim()
+            .split('.')
+            .filter_map(|s| s.parse().ok())
+            .collect();
+
+        if required_parts.is_empty() {
+            return false;
+        }
+
+        let (cur_major, cur_minor, cur_patch) = (current_parts[0], current_parts[1], current_parts[2]);
+        let req_major = required_parts.first().copied().unwrap_or(0);
+        let req_minor = required_parts.get(1).copied().unwrap_or(0);
+        let req_patch = required_parts.get(2).copied().unwrap_or(0);
+
+        match operator {
+            ">=" => {
+                (cur_major, cur_minor, cur_patch) >= (req_major, req_minor, req_patch)
+            }
+            ">" => {
+                (cur_major, cur_minor, cur_patch) > (req_major, req_minor, req_patch)
+            }
+            "^" => {
+                // Caret: allow changes that do not modify the left-most non-zero digit
+                if req_major > 0 {
+                    cur_major == req_major && (cur_minor, cur_patch) >= (req_minor, req_patch)
+                } else if req_minor > 0 {
+                    cur_major == 0 && cur_minor == req_minor && cur_patch >= req_patch
+                } else {
+                    cur_major == 0 && cur_minor == 0 && cur_patch == req_patch
+                }
+            }
+            "~" => {
+                // Tilde: allow patch-level changes
+                cur_major == req_major && cur_minor == req_minor && cur_patch >= req_patch
+            }
+            _ => {
+                // Exact match
+                (cur_major, cur_minor, cur_patch) == (req_major, req_minor, req_patch)
+            }
+        }
     }
 
     /// Install a plugin from source
@@ -932,6 +1012,49 @@ mod tests {
         assert!(options.query.is_none());
         assert!(options.category.is_none());
         assert!(options.limit.is_none());
+    }
+
+    #[test]
+    fn test_is_version_compatible() {
+        // Exact match
+        assert!(PluginManager::is_version_compatible("1.0.0", "1.0.0"));
+        assert!(!PluginManager::is_version_compatible("1.0.1", "1.0.0"));
+
+        // Greater or equal
+        assert!(PluginManager::is_version_compatible("1.0.0", ">=1.0.0"));
+        assert!(PluginManager::is_version_compatible("1.0.1", ">=1.0.0"));
+        assert!(PluginManager::is_version_compatible("2.0.0", ">=1.0.0"));
+        assert!(!PluginManager::is_version_compatible("0.9.0", ">=1.0.0"));
+
+        // Caret (^) - compatible with same major
+        assert!(PluginManager::is_version_compatible("1.0.0", "^1.0.0"));
+        assert!(PluginManager::is_version_compatible("1.5.0", "^1.0.0"));
+        assert!(PluginManager::is_version_compatible("1.9.9", "^1.0.0"));
+        assert!(!PluginManager::is_version_compatible("2.0.0", "^1.0.0"));
+        assert!(!PluginManager::is_version_compatible("0.9.0", "^1.0.0"));
+
+        // Tilde (~) - compatible with same minor
+        assert!(PluginManager::is_version_compatible("1.0.0", "~1.0.0"));
+        assert!(PluginManager::is_version_compatible("1.0.5", "~1.0.0"));
+        assert!(!PluginManager::is_version_compatible("1.1.0", "~1.0.0"));
+    }
+
+    #[test]
+    fn test_validate_manifest_version_mismatch() {
+        let temp_dir = tempdir().unwrap();
+        let manager = PluginManager::new(temp_dir.path().to_path_buf());
+        
+        let mut manifest = create_test_manifest();
+        manifest.engines = Some(PluginEngines {
+            cognia: Some(">=99.0.0".to_string()),
+            node: None,
+            python: None,
+        });
+        
+        let result = manager.validate_manifest(&manifest);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, PluginError::VersionMismatch(_)));
     }
 }
 

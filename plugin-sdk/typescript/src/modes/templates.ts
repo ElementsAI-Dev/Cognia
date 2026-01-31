@@ -4,7 +4,7 @@
  * @description Ready-to-use mode templates for common use cases.
  */
 
-import { ModeBuilder, type ExtendedModeDef } from './builder';
+import { ModeBuilder, type ModeDefinition } from './builder';
 
 /**
  * Pre-defined mode templates for common use cases
@@ -13,7 +13,7 @@ export const ModeTemplates = {
   /**
    * Code assistant mode template
    */
-  codeAssistant(modeId = 'code-assistant'): ExtendedModeDef {
+  codeAssistant(modeId = 'code-assistant'): ModeDefinition {
     return new ModeBuilder(modeId)
       .name('Code Assistant')
       .description('AI-powered coding assistant for development tasks')
@@ -33,7 +33,7 @@ export const ModeTemplates = {
   /**
    * Creative writer mode template
    */
-  creativeWriter(modeId = 'creative-writer'): ExtendedModeDef {
+  creativeWriter(modeId = 'creative-writer'): ModeDefinition {
     return new ModeBuilder(modeId)
       .name('Creative Writer')
       .description('Creative writing and storytelling mode')
@@ -52,7 +52,7 @@ export const ModeTemplates = {
   /**
    * Data analyst mode template
    */
-  dataAnalyst(modeId = 'data-analyst'): ExtendedModeDef {
+  dataAnalyst(modeId = 'data-analyst'): ModeDefinition {
     return new ModeBuilder(modeId)
       .name('Data Analyst')
       .description('Data analysis and visualization mode')
@@ -72,7 +72,7 @@ export const ModeTemplates = {
   /**
    * Researcher mode template
    */
-  researcher(modeId = 'researcher'): ExtendedModeDef {
+  researcher(modeId = 'researcher'): ModeDefinition {
     return new ModeBuilder(modeId)
       .name('Researcher')
       .description('Research and fact-finding mode')
@@ -92,7 +92,7 @@ export const ModeTemplates = {
   /**
    * Code reviewer mode template
    */
-  codeReviewer(modeId = 'code-reviewer'): ExtendedModeDef {
+  codeReviewer(modeId = 'code-reviewer'): ModeDefinition {
     return new ModeBuilder(modeId)
       .name('Code Reviewer')
       .description('Expert code review and analysis')
@@ -112,7 +112,7 @@ export const ModeTemplates = {
   /**
    * Technical writer mode template
    */
-  technicalWriter(modeId = 'technical-writer'): ExtendedModeDef {
+  technicalWriter(modeId = 'technical-writer'): ModeDefinition {
     return new ModeBuilder(modeId)
       .name('Technical Writer')
       .description('Technical documentation and API docs')

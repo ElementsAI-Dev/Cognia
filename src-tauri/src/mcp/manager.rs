@@ -82,10 +82,64 @@ impl McpManager {
 
     // ==================== Helper Methods ====================
 
+    /// Get proxy URL from system configuration
+    /// Reads from environment variables or system proxy settings
+    fn get_system_proxy_url() -> Option<String> {
+        // First, check environment variables (HTTP_PROXY, HTTPS_PROXY, ALL_PROXY)
+        if let Ok(proxy) = std::env::var("ALL_PROXY") {
+            if !proxy.is_empty() {
+                log::debug!("Using proxy from ALL_PROXY environment variable: {}", proxy);
+                return Some(proxy);
+            }
+        }
+
+        if let Ok(proxy) = std::env::var("HTTPS_PROXY") {
+            if !proxy.is_empty() {
+                log::debug!("Using proxy from HTTPS_PROXY environment variable: {}", proxy);
+                return Some(proxy);
+            }
+        }
+
+        if let Ok(proxy) = std::env::var("HTTP_PROXY") {
+            if !proxy.is_empty() {
+                log::debug!("Using proxy from HTTP_PROXY environment variable: {}", proxy);
+                return Some(proxy);
+            }
+        }
+
+        // Check lowercase variants as well
+        if let Ok(proxy) = std::env::var("all_proxy") {
+            if !proxy.is_empty() {
+                log::debug!("Using proxy from all_proxy environment variable: {}", proxy);
+                return Some(proxy);
+            }
+        }
+
+        if let Ok(proxy) = std::env::var("https_proxy") {
+            if !proxy.is_empty() {
+                log::debug!("Using proxy from https_proxy environment variable: {}", proxy);
+                return Some(proxy);
+            }
+        }
+
+        if let Ok(proxy) = std::env::var("http_proxy") {
+            if !proxy.is_empty() {
+                log::debug!("Using proxy from http_proxy environment variable: {}", proxy);
+                return Some(proxy);
+            }
+        }
+
+        // TODO: In the future, integrate with the app's proxy store configuration
+        // For now, environment variables provide a good fallback
+
+        None
+    }
+
     /// Create a client based on connection type
     async fn create_client(
         config: &McpServerConfig,
         notification_tx: mpsc::Sender<JsonRpcNotification>,
+        proxy_url: Option<&str>,
     ) -> McpResult<McpClient> {
         let transport_type = match config.connection_type {
             McpConnectionType::Stdio => TransportType::Stdio,
@@ -93,9 +147,10 @@ impl McpManager {
         };
 
         log::debug!(
-            "Creating MCP client: transport_type={:?}, name='{}'",
+            "Creating MCP client: transport_type={:?}, name='{}', proxy={:?}",
             transport_type,
-            config.name
+            config.name,
+            proxy_url
         );
 
         match config.connection_type {
@@ -122,10 +177,11 @@ impl McpManager {
                     McpError::MissingUrl
                 })?;
 
-                log::trace!("Using SSE transport: url='{}'", url);
-                McpClient::connect_sse_with_message_url(
+                log::trace!("Using SSE transport: url='{}', proxy={:?}", url, proxy_url);
+                McpClient::connect_sse_with_options(
                     url,
                     config.message_url.as_deref(),
+                    proxy_url,
                     notification_tx,
                 )
                 .await
@@ -437,9 +493,16 @@ impl McpManager {
         log::trace!("Creating notification channel for server '{}'", id);
         let (notification_tx, notification_rx) = mpsc::channel(100);
 
+        // Get proxy URL if configured (only for SSE connections)
+        let proxy_url = if config.connection_type == McpConnectionType::Sse {
+            Self::get_system_proxy_url()
+        } else {
+            None
+        };
+
         // Create client using helper method
         log::debug!("Creating MCP client for server '{}'", id);
-        let client = match Self::create_client(&config, notification_tx).await {
+        let client = match Self::create_client(&config, notification_tx, proxy_url.as_deref()).await {
             Ok(c) => c,
             Err(e) => {
                 log::error!("Failed to create client for server '{}': {}", id, e);
@@ -1228,7 +1291,14 @@ impl McpManager {
             // Create notification channel and client
             let (notification_tx, notification_rx) = mpsc::channel(100);
 
-            let client = match Self::create_client(&config, notification_tx).await {
+            // Get proxy URL if configured (only for SSE connections)
+            let proxy_url = if config.connection_type == McpConnectionType::Sse {
+                Self::get_system_proxy_url()
+            } else {
+                None
+            };
+
+            let client = match Self::create_client(&config, notification_tx, proxy_url.as_deref()).await {
                 Ok(c) => c,
                 Err(e) => {
                     log::error!("Reconnection failed for {}: {}", server_id, e);

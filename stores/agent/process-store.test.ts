@@ -9,6 +9,7 @@ import {
   selectIsLoading,
   selectTrackedPids,
   selectTrackedByAgent,
+  DEFAULT_PROCESS_CONFIG,
   type TrackedProcess,
 } from './process-store';
 import type { ProcessInfo } from '@/lib/native/process';
@@ -30,14 +31,16 @@ describe('useProcessStore', () => {
       expect(state.trackedProcesses.size).toBe(0);
       expect(state.autoRefresh).toBe(true);
       expect(state.autoRefreshInterval).toBe(5000);
+      expect(state.config).toEqual(DEFAULT_PROCESS_CONFIG);
+      expect(state.configLoading).toBe(false);
     });
   });
 
   describe('process list management', () => {
     it('should set processes', () => {
       const mockProcesses: ProcessInfo[] = [
-        { pid: 1234, name: 'node.exe', cpu: 5.2, memory: 1024000 },
-        { pid: 5678, name: 'code.exe', cpu: 2.1, memory: 512000 },
+        { pid: 1234, name: 'node.exe', cpuPercent: 5.2, memoryBytes: 1024000, status: 'running' },
+        { pid: 5678, name: 'code.exe', cpuPercent: 2.1, memoryBytes: 512000, status: 'running' },
       ];
 
       act(() => {
@@ -201,7 +204,7 @@ describe('useProcessStore', () => {
     it('should reset to initial state', () => {
       act(() => {
         useProcessStore.getState().setProcesses([
-          { pid: 1, name: 'test', cpu: 1, memory: 1000 },
+          { pid: 1, name: 'test', cpuPercent: 1, memoryBytes: 1000, status: 'running' },
         ]);
         useProcessStore.getState().setLoading(true);
         useProcessStore.getState().setError('error');
@@ -223,9 +226,117 @@ describe('useProcessStore', () => {
     });
   });
 
+  describe('config management', () => {
+    it('should have correct default config', () => {
+      expect(DEFAULT_PROCESS_CONFIG).toEqual({
+        enabled: false,
+        allowedPrograms: [],
+        deniedPrograms: ['rm', 'del', 'format', 'dd', 'mkfs', 'shutdown', 'reboot'],
+        allowTerminateAny: false,
+        onlyTerminateOwn: true,
+        maxTrackedProcesses: 100,
+        defaultTimeoutSecs: 30,
+      });
+    });
+
+    it('should set config', () => {
+      const newConfig = {
+        ...DEFAULT_PROCESS_CONFIG,
+        enabled: true,
+        allowedPrograms: ['python', 'node'],
+      };
+
+      act(() => {
+        useProcessStore.getState().setConfig(newConfig);
+      });
+
+      const state = useProcessStore.getState();
+      expect(state.config).toEqual(newConfig);
+      expect(state.configLoading).toBe(false);
+    });
+
+    it('should set config loading state', () => {
+      act(() => {
+        useProcessStore.getState().setConfigLoading(true);
+      });
+
+      expect(useProcessStore.getState().configLoading).toBe(true);
+
+      act(() => {
+        useProcessStore.getState().setConfigLoading(false);
+      });
+
+      expect(useProcessStore.getState().configLoading).toBe(false);
+    });
+
+    it('should clear configLoading when setting config', () => {
+      act(() => {
+        useProcessStore.getState().setConfigLoading(true);
+        useProcessStore.getState().setConfig(DEFAULT_PROCESS_CONFIG);
+      });
+
+      expect(useProcessStore.getState().configLoading).toBe(false);
+    });
+
+    it('should update allowed programs', () => {
+      const config = {
+        ...DEFAULT_PROCESS_CONFIG,
+        allowedPrograms: ['python', 'node', 'npm'],
+      };
+
+      act(() => {
+        useProcessStore.getState().setConfig(config);
+      });
+
+      expect(useProcessStore.getState().config.allowedPrograms).toEqual(['python', 'node', 'npm']);
+    });
+
+    it('should update denied programs', () => {
+      const config = {
+        ...DEFAULT_PROCESS_CONFIG,
+        deniedPrograms: ['rm', 'del', 'format', 'shutdown'],
+      };
+
+      act(() => {
+        useProcessStore.getState().setConfig(config);
+      });
+
+      expect(useProcessStore.getState().config.deniedPrograms).toEqual(['rm', 'del', 'format', 'shutdown']);
+    });
+
+    it('should update termination settings', () => {
+      const config = {
+        ...DEFAULT_PROCESS_CONFIG,
+        allowTerminateAny: true,
+        onlyTerminateOwn: false,
+      };
+
+      act(() => {
+        useProcessStore.getState().setConfig(config);
+      });
+
+      const state = useProcessStore.getState();
+      expect(state.config.allowTerminateAny).toBe(true);
+      expect(state.config.onlyTerminateOwn).toBe(false);
+    });
+
+    it('should reset config to default on store reset', () => {
+      act(() => {
+        useProcessStore.getState().setConfig({
+          ...DEFAULT_PROCESS_CONFIG,
+          enabled: true,
+          allowedPrograms: ['python'],
+        });
+        useProcessStore.getState().reset();
+      });
+
+      expect(useProcessStore.getState().config).toEqual(DEFAULT_PROCESS_CONFIG);
+    });
+  });
+
   describe('selectors', () => {
     const mockProcesses: ProcessInfo[] = [
-      { pid: 1234, name: 'node.exe', cpu: 5.2, memory: 1024000 },
+      { pid: 1234, name: 'node.exe', cpuPercent: 5.2, memoryBytes: 1024000, status: 'running' },
     ];
 
     it('selectProcesses returns processes', () => {

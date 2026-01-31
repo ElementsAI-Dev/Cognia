@@ -1,7 +1,20 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Swords, Trash2, Download, Upload, RotateCcw, Trophy, BarChart3 } from 'lucide-react';
+import {
+  Swords,
+  Trash2,
+  Download,
+  Upload,
+  RotateCcw,
+  Trophy,
+  BarChart3,
+  Shield,
+  Settings2,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +45,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { useArenaStore } from '@/stores/arena';
 import { exportPreferences, importPreferences } from '@/lib/ai/generation/preference-learner';
@@ -40,6 +58,10 @@ export function ArenaSettings() {
   const t = useTranslations('arena.settings');
   const tArena = useTranslations('arena');
   const tCommon = useTranslations('common');
+
+  // Collapsible state
+  const [showAntiGaming, setShowAntiGaming] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Arena store
   const settings = useArenaStore((state) => state.settings);
@@ -136,7 +158,7 @@ export function ArenaSettings() {
         {/* Auto-select Models */}
         <SettingsCard
           title={t('autoSelect')}
-          description="Automatically select models based on tier"
+          description={t('autoSelectDescription')}
         >
           <Switch
             checked={settings.autoSelectModels}
@@ -158,7 +180,7 @@ export function ArenaSettings() {
         {/* Default Mode */}
         <SettingsCard
           title={t('defaultMode')}
-          description="Choose whether to show or hide model names"
+          description={t('defaultModeDescription')}
         >
           <Select
             value={settings.defaultMode}
@@ -172,6 +194,43 @@ export function ArenaSettings() {
               <SelectItem value="blind">{t('blindMode')}</SelectItem>
             </SelectContent>
           </Select>
+        </SettingsCard>
+
+        {/* Default Conversation Mode - NEW */}
+        <SettingsCard
+          title={t('conversationMode')}
+          description={t('conversationModeDescription')}
+        >
+          <Select
+            value={settings.defaultConversationMode}
+            onValueChange={(value) =>
+              updateSettings({ defaultConversationMode: value as 'single' | 'multi' })
+            }
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="single">{t('singleTurn')}</SelectItem>
+              <SelectItem value="multi">{t('multiTurn')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingsCard>
+
+        {/* Default Max Turns - NEW */}
+        <SettingsCard
+          title={t('maxTurns')}
+          description={`${settings.defaultMaxTurns} ${t('maxTurnsDescription')}`}
+        >
+          <div className="w-32">
+            <Slider
+              value={[settings.defaultMaxTurns]}
+              onValueChange={([value]) => updateSettings({ defaultMaxTurns: value })}
+              min={2}
+              max={20}
+              step={1}
+            />
+          </div>
         </SettingsCard>
 
         {/* History Retention */}
@@ -193,7 +252,7 @@ export function ArenaSettings() {
         {/* Show Cost Estimates */}
         <SettingsCard
           title={t('showCost')}
-          description="Display estimated cost per response"
+          description={t('showCostDescription')}
         >
           <Switch
             checked={settings.showCostEstimates}
@@ -204,14 +263,122 @@ export function ArenaSettings() {
         {/* Show Token Counts */}
         <SettingsCard
           title={t('showTokens')}
-          description="Display token counts for each response"
+          description={t('showTokensDescription')}
         >
           <Switch
             checked={settings.showTokenCounts}
             onCheckedChange={(checked) => updateSettings({ showTokenCounts: checked })}
           />
         </SettingsCard>
+
+        {/* Show Confidence Intervals - NEW */}
+        <SettingsCard
+          title={t('showConfidenceIntervals')}
+          description={t('showConfidenceIntervalsDescription')}
+        >
+          <Switch
+            checked={settings.showConfidenceIntervals}
+            onCheckedChange={(checked) => updateSettings({ showConfidenceIntervals: checked })}
+          />
+        </SettingsCard>
       </SettingsGrid>
+
+      {/* Anti-Gaming Settings - NEW */}
+      <Collapsible open={showAntiGaming} onOpenChange={setShowAntiGaming}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="w-full justify-between p-4 h-auto">
+            <div className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              <span className="font-semibold">{t('antiGaming')}</span>
+            </div>
+            {showAntiGaming ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SettingsGrid className="pt-2">
+            <SettingsCard
+              title={t('enableAntiGaming')}
+              description={t('enableAntiGamingDescription')}
+            >
+              <Switch
+                checked={settings.enableAntiGaming}
+                onCheckedChange={(checked) => updateSettings({ enableAntiGaming: checked })}
+              />
+            </SettingsCard>
+
+            <SettingsCard
+              title={t('maxVotesPerHour')}
+              description={`${settings.maxVotesPerHour} votes/hour`}
+            >
+              <div className="w-32">
+                <Slider
+                  value={[settings.maxVotesPerHour]}
+                  onValueChange={([value]) => updateSettings({ maxVotesPerHour: value })}
+                  min={5}
+                  max={100}
+                  step={5}
+                  disabled={!settings.enableAntiGaming}
+                />
+              </div>
+            </SettingsCard>
+
+            <SettingsCard
+              title={t('minViewingTime')}
+              description={t('minViewingTimeDescription')}
+            >
+              <div className="w-32">
+                <Slider
+                  value={[settings.minViewingTimeMs / 1000]}
+                  onValueChange={([value]) => updateSettings({ minViewingTimeMs: value * 1000 })}
+                  min={1}
+                  max={30}
+                  step={1}
+                  disabled={!settings.enableAntiGaming}
+                />
+              </div>
+            </SettingsCard>
+          </SettingsGrid>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Advanced Settings - NEW */}
+      <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="w-full justify-between p-4 h-auto">
+            <div className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5" />
+              <span className="font-semibold">{t('advancedSettings')}</span>
+            </div>
+            {showAdvanced ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SettingsGrid className="pt-2">
+            <SettingsCard
+              title={t('bootstrapSamples')}
+              description={`${settings.bootstrapSamples} ${t('bootstrapSamplesDescription')}`}
+            >
+              <div className="w-32">
+                <Slider
+                  value={[settings.bootstrapSamples]}
+                  onValueChange={([value]) => updateSettings({ bootstrapSamples: value })}
+                  min={100}
+                  max={5000}
+                  step={100}
+                />
+              </div>
+            </SettingsCard>
+          </SettingsGrid>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Statistics */}
       <div className="space-y-4">
@@ -235,7 +402,7 @@ export function ArenaSettings() {
           </div>
           <div className="p-4 rounded-lg border bg-card">
             <div className="text-2xl font-bold">{modelRatings.length}</div>
-            <div className="text-sm text-muted-foreground">Models Rated</div>
+            <div className="text-sm text-muted-foreground">{t('modelsRated')}</div>
           </div>
         </div>
       </div>
@@ -304,8 +471,8 @@ export function ArenaSettings() {
       {modelRatings.length === 0 && (
         <SettingsEmptyState
           icon={<Trophy className="h-8 w-8 text-muted-foreground" />}
-          title="No battles yet"
-          description="Start comparing models in the Chat Arena to see rankings here."
+          title={t('noBattlesYet')}
+          description={t('noBattlesDescription')}
         />
       )}
 
@@ -313,32 +480,31 @@ export function ArenaSettings() {
       <div className="flex flex-wrap gap-2 pt-4 border-t">
         <Button variant="outline" size="sm" onClick={handleExport}>
           <Download className="h-4 w-4 mr-2" />
-          Export Preferences
+          {t('exportPreferences')}
         </Button>
 
         <Button variant="outline" size="sm" onClick={handleImport}>
           <Upload className="h-4 w-4 mr-2" />
-          Import Preferences
+          {t('importPreferences')}
         </Button>
 
         <Button variant="outline" size="sm" onClick={resetSettings}>
           <RotateCcw className="h-4 w-4 mr-2" />
-          Reset Settings
+          {t('resetSettings')}
         </Button>
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm">
               <Trash2 className="h-4 w-4 mr-2" />
-              Clear All Data
+              {t('clearAllData')}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Clear all arena data?</AlertDialogTitle>
+              <AlertDialogTitle>{t('clearAllTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                This will delete all battle history, model ratings, and preferences. This action
-                cannot be undone.
+                {t('clearAllDescription')}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -93,6 +93,9 @@ impl InputCompletionManager {
 
         log::info!("Starting InputCompletionManager");
         self.is_running.store(true, Ordering::SeqCst);
+        
+        // Emit started event
+        let _ = self.app_handle.emit("input-completion://event", InputCompletionEvent::Started);
 
         // Start keyboard monitoring
         let (key_tx, mut key_rx) = mpsc::unbounded_channel::<KeyEvent>();
@@ -146,6 +149,9 @@ impl InputCompletionManager {
         log::info!("Stopping InputCompletionManager");
         self.is_running.store(false, Ordering::SeqCst);
         
+        // Emit stopped event
+        let _ = self.app_handle.emit("input-completion://event", InputCompletionEvent::Stopped);
+        
         // Only stop keyboard monitor if it's running
         if self.keyboard_monitor.is_running() {
             self.keyboard_monitor.stop();
@@ -189,8 +195,8 @@ impl InputCompletionManager {
                     if let Some(suggestion) = current_suggestion.read().clone() {
                         log::debug!("Accepting completion suggestion");
                         
-                        // Emit accept event
-                        let _ = app_handle.emit("input-completion-accept", &suggestion);
+                        // Emit accept event using structured event type
+                        let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Accept(suggestion.clone()));
                         
                         // Clear current suggestion
                         *current_suggestion.write() = None;
@@ -206,7 +212,7 @@ impl InputCompletionManager {
                         log::debug!("Dismissing completion suggestion");
                         *current_suggestion.write() = None;
                         
-                        let _ = app_handle.emit("input-completion-dismiss", ());
+                        let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Dismiss);
                         return;
                     }
                 }
@@ -253,7 +259,7 @@ impl InputCompletionManager {
                     
                     // Clear suggestion on backspace
                     *current_suggestion.write() = None;
-                    let _ = app_handle.emit("input-completion-dismiss", ());
+                    let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Dismiss);
                 }
             }
             KeyEventType::KeyRelease => {
@@ -320,12 +326,13 @@ impl InputCompletionManager {
                                     
                                     *current_suggestion.write() = Some(suggestion.clone());
                                     
-                                    // Emit suggestion event
-                                    let _ = app_handle.emit("input-completion-suggestion", suggestion);
+                                    // Emit suggestion event using structured event type
+                                    let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Suggestion(suggestion.clone()));
                                 }
                             }
                             Err(e) => {
                                 log::warn!("Completion request failed: {}", e);
+                                let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Error(e));
                             }
                         }
                     });
@@ -358,7 +365,7 @@ impl InputCompletionManager {
     /// Dismiss current suggestion
     pub fn dismiss_suggestion(&self) {
         *self.current_suggestion.write() = None;
-        let _ = self.app_handle.emit("input-completion-dismiss", ());
+        let _ = self.app_handle.emit("input-completion://event", InputCompletionEvent::Dismiss);
     }
 
     /// Update configuration

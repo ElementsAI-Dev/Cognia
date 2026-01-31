@@ -149,4 +149,11 @@ export const SETTINGS_SEARCH_INDEX: SearchableSetting[] = [
     sectionId: 'agent-trace',
     description: 'View AI attribution traces for generated files and artifacts',
   },
+  {
+    id: 'cloud-sync',
+    title: 'Cloud Sync',
+    keywords: ['sync', 'webdav', 'github', 'backup', 'cloud', 'remote', 'synchronize', 'gist'],
+    sectionId: 'sync',
+    description: 'Sync data across devices via WebDAV or GitHub',
+  },
 ];

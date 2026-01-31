@@ -8,9 +8,9 @@ import type { UIMessage, MessageRole } from '../core/message';
 import type { ConversationBranch } from '../core/session';
 
 /**
- * Chat view mode - list (traditional) or flow (canvas)
+ * Chat view mode - list (traditional), flow (canvas), or arena (model comparison)
  */
-export type ChatViewMode = 'list' | 'flow';
+export type ChatViewMode = 'list' | 'flow' | 'arena';
 
 /**
  * Node type identifiers for ReactFlow

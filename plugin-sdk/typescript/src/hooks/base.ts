@@ -37,7 +37,7 @@ export interface PluginMessage {
  * };
  * ```
  *
- * @see {@link ExtendedPluginHooks} for additional event hooks
+ * @see {@link PluginHooksAll} for additional event hooks
  */
 export interface PluginHooks {
   // Lifecycle hooks

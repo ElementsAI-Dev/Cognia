@@ -16,3 +16,4 @@ export * from './profiler';
 export * from './i18n';
 export * from './version';
 export * from './dependencies';
+export * from './browser';

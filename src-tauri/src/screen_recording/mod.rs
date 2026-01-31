@@ -17,20 +17,17 @@ pub mod toolbar;
 mod video_processor;
 pub mod window_snap;
 
+pub use error::RecordingError;
+// RecordingErrorCode exported for API consumers to match error types
 #[allow(unused_imports)]
-pub use error::{RecordingError, RecordingErrorCode};
+pub use error::RecordingErrorCode;
 pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
-#[allow(unused_imports)]
-pub use progress::{
-    VideoProcessingProgress, emit_processing_started, emit_processing_completed,
-    emit_processing_error, monitor_ffmpeg_progress, parse_ffmpeg_progress,
-};
-pub use storage::{CleanupResult, StorageConfig, StorageManager, StorageStats};
-#[allow(unused_imports)]
-pub use storage::{StorageFile, StorageFileType};
+pub use storage::{CleanupResult, StorageConfig, StorageFile, StorageFileType, StorageManager, StorageStats};
 pub use history::{RecordingHistory, RecordingHistoryEntry};
 pub use recorder::ScreenRecorder;
 pub use toolbar::{RecordingToolbar, RecordingToolbarConfig, RecordingToolbarState, ToolbarPosition};
+
+use toolbar::ToolbarPosition as ToolbarPos;
 pub use video_processor::{
     EncodingSupport, VideoConvertOptions, VideoInfo, VideoProcessingResult, VideoProcessor,
     VideoTrimOptions,
@@ -612,9 +609,74 @@ impl ScreenRecordingManager {
         self.storage.cleanup_old_files(&pinned_ids)
     }
 
+    /// List all storage files (recordings and screenshots)
+    pub fn list_storage_files(&self, file_type: Option<StorageFileType>) -> Vec<StorageFile> {
+        debug!("[ScreenRecording] Listing storage files, type filter: {:?}", file_type);
+        let pinned_ids: Vec<String> = self.history
+            .get_all()
+            .iter()
+            .filter(|e| e.is_pinned)
+            .map(|e| e.id.clone())
+            .collect();
+        
+        self.storage.list_files(file_type, &pinned_ids)
+    }
+
+    /// Get a single storage file by path
+    pub fn get_storage_file(&self, file_path: &str) -> Option<StorageFile> {
+        debug!("[ScreenRecording] Getting storage file: {}", file_path);
+        let pinned_ids: Vec<String> = self.history
+            .get_all()
+            .iter()
+            .filter(|e| e.is_pinned)
+            .map(|e| e.id.clone())
+            .collect();
+        
+        self.storage.get_file(std::path::Path::new(file_path), &pinned_ids)
+    }
+
     /// Get app handle reference
     pub fn app_handle(&self) -> &AppHandle {
         &self.app_handle
+    }
+
+    /// Get app data directory path
+    pub fn get_app_data_dir(&self) -> Option<PathBuf> {
+        self.app_handle().path().app_data_dir().ok()
+    }
+
+    /// Get recordings directory path
+    pub fn get_recordings_dir(&self) -> Option<PathBuf> {
+        self.get_app_data_dir().map(|p| p.join("recordings"))
+    }
+
+    /// Calculate toolbar position coordinates for a given preset
+    pub fn calculate_toolbar_position(&self, position: ToolbarPos, monitor_width: u32, monitor_height: u32, toolbar_width: u32, toolbar_height: u32) -> (i32, i32) {
+        let padding = 16;
+        match position {
+            ToolbarPos::TopCenter => (
+                ((monitor_width - toolbar_width) / 2) as i32,
+                padding,
+            ),
+            ToolbarPos::BottomCenter => (
+                ((monitor_width - toolbar_width) / 2) as i32,
+                (monitor_height - toolbar_height) as i32 - padding,
+            ),
+            ToolbarPos::TopLeft => (padding, padding),
+            ToolbarPos::TopRight => (
+                (monitor_width - toolbar_width) as i32 - padding,
+                padding,
+            ),
+            ToolbarPos::BottomLeft => (
+                padding,
+                (monitor_height - toolbar_height) as i32 - padding,
+            ),
+            ToolbarPos::BottomRight => (
+                (monitor_width - toolbar_width) as i32 - padding,
+                (monitor_height - toolbar_height) as i32 - padding,
+            ),
+            ToolbarPos::Custom { x, y } => (x, y),
+        }
     }
 }
 

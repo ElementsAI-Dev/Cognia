@@ -69,3 +69,6 @@ export * from './agent-trace';
 
 // Arena types
 export * from './arena';
+
+// Sync types (WebDAV & GitHub)
+export * from './sync';

@@ -5,7 +5,7 @@
  */
 
 import type { PluginContext } from '../context/base';
-import type { ExtendedPluginHooks } from '../hooks/extended';
+import type { PluginHooksAll } from '../hooks/extended';
 import type { PluginToolDef, PluginToolContext } from '../tools/types';
 import type { PluginCommand } from '../commands/types';
 
@@ -40,8 +40,8 @@ export interface PluginDefinition {
    * @returns Hooks to register, or void if no hooks
    */
   activate: (context: PluginContext) =>
-    Promise<ExtendedPluginHooks | void> |
-    ExtendedPluginHooks |
+    Promise<PluginHooksAll | void> |
+    PluginHooksAll |
     void;
 
   /**

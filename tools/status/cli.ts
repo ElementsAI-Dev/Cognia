@@ -2,6 +2,11 @@
 /**
  * Provider Status CLI Tool
  *
+ * @deprecated This CLI tool is deprecated. Please use the AI Tools plugin instead:
+ *   - Plugin: plugins/ai-tools
+ *   - Tool: provider_status_checker
+ *   - The plugin provides agent-callable tools with the same functionality.
+ *
  * Monitor AI model provider health and availability.
  *
  * Usage:
@@ -25,6 +30,10 @@
  *   --csv               Export to CSV
  *   --webhook <url>     Webhook URL for notifications
  */
+
+console.warn('\x1b[33m⚠️  DEPRECATION WARNING: This CLI tool is deprecated.\x1b[0m')
+console.warn('\x1b[33m   Please use the AI Tools plugin (plugins/ai-tools) instead.\x1b[0m')
+console.warn('\x1b[33m   Tool: provider_status_checker\x1b[0m\n')
 
 import * as path from 'path'
 import { StatusChecker, StatusWatcher } from './checker.js'

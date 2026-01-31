@@ -1,7 +1,7 @@
 /**
- * Extended Context Tests
+ * Plugin Context API Tests
  *
- * @description Tests for extended plugin context type definitions.
+ * @description Tests for plugin context API type definitions.
  */
 
 import type {
@@ -60,10 +60,10 @@ import type {
   ExtensionProps,
   PluginExtensionAPI,
   PluginPermissionAPI,
-  ExtendedPluginContext,
+  PluginContextAPI,
 } from './extended';
 
-describe('Extended Context Types', () => {
+describe('Plugin Context API Types', () => {
   describe('Session API Types', () => {
     it('should create valid session filter', () => {
       const filter: SessionFilter = {
@@ -482,9 +482,9 @@ describe('Extended Context Types', () => {
     });
   });
 
-  describe('ExtendedPluginContext', () => {
-    it('should define all extended APIs', () => {
-      const mockContext: ExtendedPluginContext = {
+  describe('PluginContextAPI', () => {
+    it('should define all feature APIs', () => {
+      const mockContext: PluginContextAPI = {
         session: {} as PluginSessionAPI,
         project: {} as PluginProjectAPI,
         vector: {} as PluginVectorAPI,

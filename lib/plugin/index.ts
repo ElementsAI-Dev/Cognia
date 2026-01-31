@@ -28,14 +28,9 @@ export {
   type HookMiddleware,
   type HookExecutionConfig,
 } from './hooks-system';
-// Backward compatibility (deprecated aliases)
+// Backward compatibility (deprecated aliases - will be removed in future version)
+/** @deprecated Use PluginLifecycleHooks instead */
 export { PluginLifecycleHooks as PluginHooksManager } from './hooks-system';
-export { PluginEventHooks as ExtendedHooksManager } from './hooks-system';
-export { getPluginEventHooks as getExtendedHooksManager } from './hooks-system';
-export { resetPluginEventHooks as resetExtendedHooksManager } from './hooks-system';
-export { PluginEventHooks as AdvancedHooksManager } from './hooks-system';
-export { getPluginEventHooks as getAdvancedHooksManager } from './hooks-system';
-export { resetPluginEventHooks as resetAdvancedHooksManager } from './hooks-system';
 export {
   PluginWorkflowIntegration,
   getPluginWorkflowIntegration,
@@ -301,8 +296,10 @@ export type {
   PluginDefinition,
 } from '@/types/plugin';
 
-// Extended types
+// Plugin Context API types
 export type {
+  PluginContextAPI,
+  /** @deprecated Use PluginContextAPI instead */
   ExtendedPluginContext,
   PluginSessionAPI,
   PluginProjectAPI,
@@ -316,6 +313,9 @@ export type {
   PluginAIProviderAPI,
   PluginExtensionAPI,
   PluginPermissionAPI,
+  PluginAPIPermission,
+  /** @deprecated Use PluginAPIPermission instead */
+  ExtendedPluginPermission,
   ExtensionPoint,
   ExtensionRegistration,
 } from '@/types/plugin/plugin-extended';

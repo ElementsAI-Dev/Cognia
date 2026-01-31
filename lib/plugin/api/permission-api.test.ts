@@ -9,7 +9,7 @@ import {
   grantPermission,
   revokePermission,
 } from './permission-api';
-import type { ExtendedPluginPermission } from '@/types/plugin/plugin-extended';
+import type { PluginAPIPermission } from '@/types/plugin/plugin-extended';
 
 describe('Permission API', () => {
   const testPluginId = 'test-plugin';
@@ -42,7 +42,7 @@ describe('Permission API', () => {
       expect(api.hasPermission('theme:read')).toBe(true);
     });
 
-    it('should map manifest permissions to extended permissions', () => {
+    it('should map manifest permissions to API permissions', () => {
       initializePluginPermissions(testPluginId, ['session:read', 'session:write']);
       const api = createPermissionAPI(testPluginId, ['session:read', 'session:write']);
 
@@ -233,8 +233,8 @@ describe('Permission API', () => {
   });
 
   describe('Permission types', () => {
-    it('should handle all extended permission types', () => {
-      const allPermissions: ExtendedPluginPermission[] = [
+    it('should handle all API permission types', () => {
+      const allPermissions: PluginAPIPermission[] = [
         'session:read',
         'session:write',
         'session:delete',

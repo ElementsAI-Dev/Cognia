@@ -3,3 +3,4 @@
  */
 
 export * from './arena-store';
+export * from './leaderboard-sync-store';

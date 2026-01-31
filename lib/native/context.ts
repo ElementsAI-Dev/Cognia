@@ -226,10 +226,26 @@ export async function getBrowserContext(): Promise<BrowserContext> {
 }
 
 /**
+ * Get suggested actions for the current browser page
+ * Returns actions like "Summarize page", "Explain code", etc. based on page type
+ */
+export async function getBrowserSuggestedActions(): Promise<string[]> {
+  return invoke("context_get_browser_suggested_actions");
+}
+
+/**
  * Get editor context
  */
 export async function getEditorContext(): Promise<EditorContext> {
   return invoke("context_get_editor");
+}
+
+/**
+ * Check if the current context is a code editor
+ * Returns true if a programming language is detected or if a file with extension is open
+ */
+export async function isCodeEditor(): Promise<boolean> {
+  return invoke("context_is_code_editor");
 }
 
 /**

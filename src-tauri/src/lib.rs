@@ -806,7 +806,9 @@ pub fn run() {
             commands::context::context::context_get_app,
             commands::context::context::context_get_file,
             commands::context::context::context_get_browser,
+            commands::context::context::context_get_browser_suggested_actions,
             commands::context::context::context_get_editor,
+            commands::context::context::context_is_code_editor,
             commands::context::context::context_get_all_windows,
             commands::context::context::context_clear_cache,
             commands::context::context::context_find_windows_by_title,
@@ -964,6 +966,7 @@ pub fn run() {
             // Proxy commands
             commands::system::proxy::proxy_detect_all,
             commands::system::proxy::proxy_test,
+            commands::system::proxy::proxy_test_multi,
             commands::system::proxy::proxy_get_system,
             commands::system::proxy::proxy_check_port,
             commands::system::proxy::proxy_get_clash_info,
@@ -1019,6 +1022,11 @@ pub fn run() {
             commands::media::screen_recording::storage_is_exceeded,
             commands::media::screen_recording::storage_get_usage_percent,
             commands::media::screen_recording::storage_cleanup,
+            commands::media::screen_recording::storage_list_files,
+            commands::media::screen_recording::storage_get_file,
+            commands::media::screen_recording::recording_get_app_data_dir,
+            commands::media::screen_recording::recording_get_recordings_dir,
+            commands::media::screen_recording::recording_calculate_toolbar_position,
             // Recording toolbar commands
             commands::media::screen_recording::recording_toolbar_show,
             commands::media::screen_recording::recording_toolbar_hide,
@@ -1032,6 +1040,7 @@ pub fn run() {
             commands::media::screen_recording::recording_toolbar_get_state,
             commands::media::screen_recording::recording_toolbar_update_state,
             commands::media::screen_recording::recording_toolbar_set_hovered,
+            commands::media::screen_recording::recording_toolbar_is_hovered,
             commands::media::screen_recording::recording_toolbar_destroy,
             // Chat widget commands
             commands::window::chat_widget::chat_widget_show,

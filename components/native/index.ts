@@ -12,6 +12,7 @@ export { ContextPanel } from './context-panel';
 export { ScreenshotPanel } from './screenshot-panel';
 export { SystemMonitorPanel } from './system-monitor-panel';
 export { SandboxPanel } from './sandbox-panel';
+export { ProcessSettingsPanel } from './process-settings-panel';
 
 // Platform utilities
 export {

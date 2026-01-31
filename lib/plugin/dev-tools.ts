@@ -6,7 +6,7 @@
 
 import { usePluginStore } from '@/stores/plugin';
 import type { Plugin, PluginManifest } from '@/types/plugin';
-import type { ExtendedPluginHooks } from '@/types/plugin/plugin-hooks';
+import type { PluginHooksAll } from '@/types/plugin/plugin-hooks';
 import type { FullPluginContext } from './context';
 import { loggers } from './logger';
 
@@ -231,8 +231,8 @@ export function inspectPlugin(pluginId: string): PluginInspection | null {
 
   if (!plugin) return null;
 
-  const hooks = plugin.hooks as ExtendedPluginHooks | undefined;
-  const registeredHooks = hooks ? Object.keys(hooks).filter(k => typeof hooks[k as keyof ExtendedPluginHooks] === 'function') : [];
+  const hooks = plugin.hooks as PluginHooksAll | undefined;
+  const registeredHooks = hooks ? Object.keys(hooks).filter(k => typeof hooks[k as keyof PluginHooksAll] === 'function') : [];
 
   return {
     id: pluginId,

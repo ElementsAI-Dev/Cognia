@@ -1,5 +1,6 @@
 /**
  * Arena Store - manages arena battles, preferences, and model ratings
+ * Enhanced with Bradley-Terry model for statistical rating
  */
 
 import { create } from 'zustand';
@@ -15,6 +16,7 @@ import type {
   ArenaSettings,
   ArenaWinReason,
   ArenaBattleMode,
+  ArenaHeadToHead,
 } from '@/types/arena';
 import {
   DEFAULT_ARENA_SETTINGS,
@@ -23,12 +25,37 @@ import {
 } from '@/types/arena';
 import type { ProviderName } from '@/types/provider';
 import type { TaskCategory, TaskClassification } from '@/types/provider/auto-router';
+import {
+  computeBradleyTerryRatings,
+  computeModelStats,
+  computeHeadToHead,
+  btScoreToRating,
+  getRecommendedMatchup,
+  type Matchup,
+  type HeadToHead,
+} from '@/lib/ai/arena/bradley-terry';
+import {
+  generateBootstrapSamples,
+  computeBootstrapCI,
+  computeRatingStability,
+} from '@/lib/ai/arena/bootstrap';
 
 /**
  * Get model identifier from provider and model
  */
 function getModelId(provider: ProviderName, model: string): string {
   return `${provider}:${model}`;
+}
+
+/**
+ * Parse model identifier to provider and model
+ */
+function parseModelId(modelId: string): { provider: ProviderName; model: string } {
+  const [provider, ...modelParts] = modelId.split(':');
+  return {
+    provider: provider as ProviderName,
+    model: modelParts.join(':'),
+  };
 }
 
 /**
@@ -52,6 +79,17 @@ function calculateNewRatings(
   return { newWinnerRating, newLoserRating };
 }
 
+/**
+ * Convert preferences to matchups for BT calculation
+ */
+function preferencesToMatchups(preferences: ArenaPreference[]): Matchup[] {
+  return preferences.map((p) => ({
+    winner: p.winner,
+    loser: p.loser,
+    isTie: false,
+  }));
+}
+
 interface ArenaState {
   // State
   battles: ArenaBattle[];
@@ -68,6 +106,8 @@ interface ArenaState {
       sessionId?: string;
       systemPrompt?: string;
       mode?: ArenaBattleMode;
+      conversationMode?: 'single' | 'multi';
+      maxTurns?: number;
       taskClassification?: TaskClassification;
     }
   ) => ArenaBattle;
@@ -123,6 +163,24 @@ interface ArenaState {
 
   // Cleanup
   cleanupOldBattles: () => void;
+
+  // Bradley-Terry ratings
+  recalculateBTRatings: () => void;
+  getBTRatings: () => ArenaModelRating[];
+  getHeadToHead: () => ArenaHeadToHead[];
+  getRecommendedMatchup: (excludeModels?: string[]) => { modelA: string; modelB: string; reason: string } | null;
+
+  // Multi-turn support
+  addTurnToContestant: (battleId: string, contestantId: string, message: { role: 'user' | 'assistant'; content: string }) => void;
+  continueBattle: (battleId: string, userMessage: string) => void;
+
+  // Anti-gaming
+  canVote: () => { allowed: boolean; reason?: string };
+  recordVoteAttempt: () => void;
+  voteHistory: { timestamp: number }[];
+
+  // Data management
+  clearAllData: () => void;
 }
 
 export const useArenaStore = create<ArenaState>()(
@@ -135,18 +193,24 @@ export const useArenaStore = create<ArenaState>()(
       settings: DEFAULT_ARENA_SETTINGS,
 
       createBattle: (prompt, contestants, options) => {
+        const settings = get().settings;
         const battle: ArenaBattle = {
           id: nanoid(),
           sessionId: options?.sessionId,
           prompt,
           systemPrompt: options?.systemPrompt,
-          mode: options?.mode || get().settings.defaultMode,
+          mode: options?.mode || settings.defaultMode,
+          conversationMode: options?.conversationMode || settings.defaultConversationMode,
+          maxTurns: options?.maxTurns || settings.defaultMaxTurns,
+          currentTurn: 1,
           contestants: contestants.map((c) => ({
             id: nanoid(),
             provider: c.provider,
             model: c.model,
             displayName: c.displayName,
             response: '',
+            messages: [],
+            turnCount: 0,
             status: 'pending' as ArenaContestantStatus,
           })),
           taskClassification: options?.taskClassification,
@@ -555,6 +619,205 @@ export const useArenaStore = create<ArenaState>()(
           battles: battles.filter((b) => new Date(b.createdAt) > cutoff),
         });
       },
+
+      // Bradley-Terry ratings
+      voteHistory: [],
+
+      recalculateBTRatings: () => {
+        const { preferences, settings } = get();
+        if (preferences.length === 0) return;
+
+        const matchups = preferencesToMatchups(preferences);
+        const btScores = computeBradleyTerryRatings(matchups);
+        const stats = computeModelStats(matchups);
+
+        // Generate bootstrap samples for confidence intervals
+        const bootstrapSamples = generateBootstrapSamples(matchups.length, {
+          numSamples: settings.bootstrapSamples,
+        });
+
+        // Compute bootstrap ratings for CI
+        const bootstrapRatings = new Map<string, number[]>();
+        for (const sampleIndices of bootstrapSamples) {
+          const sampleMatchups = sampleIndices.map((i) => matchups[i]);
+          const sampleScores = computeBradleyTerryRatings(sampleMatchups);
+          for (const [modelId, score] of sampleScores) {
+            if (!bootstrapRatings.has(modelId)) bootstrapRatings.set(modelId, []);
+            bootstrapRatings.get(modelId)!.push(btScoreToRating(score));
+          }
+        }
+
+        // Build new ratings
+        const newRatings: ArenaModelRating[] = [];
+        for (const [modelId, btScore] of btScores) {
+          const { provider, model } = parseModelId(modelId);
+          const modelStats = stats.get(modelId) || { wins: 0, losses: 0, ties: 0, total: 0 };
+          const rating = btScoreToRating(btScore);
+
+          // Compute CI
+          const samples = bootstrapRatings.get(modelId) || [];
+          const ci = samples.length > 0
+            ? computeBootstrapCI(samples, 0.95)
+            : { lower: rating - 50, upper: rating + 50 };
+
+          const stability = computeRatingStability(ci.lower, ci.upper, modelStats.total);
+
+          newRatings.push({
+            modelId,
+            provider,
+            model,
+            rating,
+            btScore,
+            ci95Lower: ci.lower,
+            ci95Upper: ci.upper,
+            categoryRatings: {},
+            totalBattles: modelStats.total,
+            wins: modelStats.wins,
+            losses: modelStats.losses,
+            ties: modelStats.ties,
+            winRate: modelStats.total > 0 ? modelStats.wins / modelStats.total : 0,
+            stabilityScore: stability,
+            updatedAt: new Date(),
+          });
+        }
+
+        set({ modelRatings: newRatings.sort((a, b) => b.rating - a.rating) });
+      },
+
+      getBTRatings: () => {
+        return get().modelRatings;
+      },
+
+      getHeadToHead: (): ArenaHeadToHead[] => {
+        const { preferences } = get();
+        const matchups = preferencesToMatchups(preferences);
+        const h2h = computeHeadToHead(matchups);
+        return h2h.map((record: HeadToHead) => ({
+          modelA: record.modelA,
+          modelB: record.modelB,
+          winsA: record.winsA,
+          winsB: record.winsB,
+          ties: record.ties,
+          total: record.total,
+          winRateA: record.winRateA,
+        }));
+      },
+
+      getRecommendedMatchup: (excludeModels) => {
+        const { modelRatings, preferences } = get();
+        if (modelRatings.length < 2) return null;
+
+        const matchups = preferencesToMatchups(preferences);
+        const h2h = computeHeadToHead(matchups);
+
+        const btRatings = modelRatings.map((r) => ({
+          modelId: r.modelId,
+          provider: r.provider,
+          model: r.model,
+          btScore: r.btScore || 0,
+          rating: r.rating,
+          ci95Lower: r.ci95Lower || r.rating - 50,
+          ci95Upper: r.ci95Upper || r.rating + 50,
+          totalBattles: r.totalBattles,
+          wins: r.wins,
+          losses: r.losses,
+          ties: r.ties,
+          winRate: r.winRate || 0,
+        }));
+
+        return getRecommendedMatchup(btRatings, h2h, excludeModels);
+      },
+
+      // Multi-turn support
+      addTurnToContestant: (battleId, contestantId, message) => {
+        set((state) => ({
+          battles: state.battles.map((battle) => {
+            if (battle.id !== battleId) return battle;
+            return {
+              ...battle,
+              contestants: battle.contestants.map((c) => {
+                if (c.id !== contestantId) return c;
+                const newMessage = {
+                  id: nanoid(),
+                  ...message,
+                  timestamp: new Date(),
+                };
+                return {
+                  ...c,
+                  messages: [...(c.messages || []), newMessage],
+                  turnCount: (c.turnCount || 0) + (message.role === 'assistant' ? 1 : 0),
+                };
+              }),
+            };
+          }),
+        }));
+      },
+
+      continueBattle: (battleId, userMessage) => {
+        const battle = get().getBattle(battleId);
+        if (!battle) return;
+
+        // Check max turns limit
+        if (battle.maxTurns && (battle.currentTurn || 1) >= battle.maxTurns) {
+          return;
+        }
+
+        // Add user message to all contestants
+        for (const contestant of battle.contestants) {
+          get().addTurnToContestant(battleId, contestant.id, {
+            role: 'user',
+            content: userMessage,
+          });
+        }
+
+        // Update battle turn count
+        set((state) => ({
+          battles: state.battles.map((b) =>
+            b.id === battleId
+              ? { ...b, currentTurn: (b.currentTurn || 1) + 1 }
+              : b
+          ),
+        }));
+      },
+
+      // Anti-gaming
+      canVote: () => {
+        const { settings, voteHistory } = get();
+        if (!settings.enableAntiGaming) {
+          return { allowed: true };
+        }
+
+        const oneHourAgo = Date.now() - 60 * 60 * 1000;
+        const recentVotes = voteHistory.filter((v) => v.timestamp > oneHourAgo);
+
+        if (recentVotes.length >= settings.maxVotesPerHour) {
+          return {
+            allowed: false,
+            reason: `Rate limit exceeded. Maximum ${settings.maxVotesPerHour} votes per hour.`,
+          };
+        }
+
+        return { allowed: true };
+      },
+
+      recordVoteAttempt: () => {
+        set((state) => ({
+          voteHistory: [
+            ...state.voteHistory.filter((v) => v.timestamp > Date.now() - 60 * 60 * 1000),
+            { timestamp: Date.now() },
+          ],
+        }));
+      },
+
+      clearAllData: () => {
+        set({
+          battles: [],
+          activeBattleId: null,
+          preferences: [],
+          modelRatings: [],
+          voteHistory: [],
+        });
+      },
     }),
     {
       name: 'cognia-arena',
@@ -564,24 +827,24 @@ export const useArenaStore = create<ArenaState>()(
         modelRatings: state.modelRatings,
         settings: state.settings,
       }),
-      onRehydrate: () => (state) => {
+      onRehydrateStorage: () => (state: ArenaState | undefined) => {
         if (state) {
           // Convert date strings back to Date objects
-          state.battles = state.battles.map((b) => ({
+          state.battles = state.battles.map((b: ArenaBattle) => ({
             ...b,
             createdAt: new Date(b.createdAt),
             completedAt: b.completedAt ? new Date(b.completedAt) : undefined,
-            contestants: b.contestants.map((c) => ({
+            contestants: b.contestants.map((c: ArenaContestant) => ({
               ...c,
               startedAt: c.startedAt ? new Date(c.startedAt) : undefined,
               completedAt: c.completedAt ? new Date(c.completedAt) : undefined,
             })),
           }));
-          state.preferences = state.preferences.map((p) => ({
+          state.preferences = state.preferences.map((p: ArenaPreference) => ({
             ...p,
             timestamp: new Date(p.timestamp),
           }));
-          state.modelRatings = state.modelRatings.map((r) => ({
+          state.modelRatings = state.modelRatings.map((r: ArenaModelRating) => ({
             ...r,
             updatedAt: new Date(r.updatedAt),
           }));

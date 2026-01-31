@@ -52,6 +52,10 @@ export interface UseUnifiedToolsOptions {
   enableRAG?: boolean;
   /** Enable web scraper tools */
   enableWebScraper?: boolean;
+  /** Enable process management tools (desktop only) */
+  enableProcessTools?: boolean;
+  /** Enable environment tools (Python venv management) */
+  enableEnvironmentTools?: boolean;
   /** Custom tools to include */
   customTools?: Record<string, AgentTool>;
   /** Auto-sync with stores */
@@ -102,6 +106,8 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
     enableMcpTools = true,
     enableRAG = true,
     enableWebScraper = true,
+    enableProcessTools = false, // Desktop only, disabled by default for security
+    enableEnvironmentTools = false, // Desktop only, disabled by default
     customTools = {},
     autoSync = true,
   } = options;
@@ -138,6 +144,8 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
       enableWebScraper,
       enableCalculator: true,
       enableRAGSearch: false, // We handle RAG separately
+      enableProcessTools,
+      enableEnvironmentTools,
     });
 
     // Clear existing builtin tools
@@ -145,7 +153,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
 
     // Register new builtin tools
     registerBuiltinTools(registry, builtinTools);
-  }, [enableBuiltinTools, enableWebScraper, providerSettings.tavily?.apiKey, registry]);
+  }, [enableBuiltinTools, enableWebScraper, enableProcessTools, enableEnvironmentTools, providerSettings.tavily?.apiKey, registry]);
 
   // Sync skill tools
   const syncSkillTools = useCallback(() => {

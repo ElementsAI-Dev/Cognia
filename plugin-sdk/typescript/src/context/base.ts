@@ -18,6 +18,7 @@ import type {
   PluginContextMenuAPI,
   PluginWindowAPI,
   PluginSecretsAPI,
+  PluginBrowserAPI,
 } from '../api';
 
 /**
@@ -173,7 +174,7 @@ export interface PluginPythonModule {
  * }
  * ```
  *
- * @see {@link ExtendedPluginContext} for additional APIs
+ * @see {@link PluginContextAPI} for additional APIs
  */
 export interface PluginContext {
   /** Plugin ID */
@@ -235,4 +236,7 @@ export interface PluginContext {
 
   /** Secrets API for secure storage */
   secrets: PluginSecretsAPI;
+
+  /** Browser Automation API (optional) */
+  browser?: PluginBrowserAPI;
 }

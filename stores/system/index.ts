@@ -43,9 +43,13 @@ export {
   useDetectedProxies,
   useProxyDetecting,
   useProxyTesting,
+  useProxyHealth,
+  useProxyHealthMonitoring,
   getActiveProxyUrl,
   type ProxyState,
   type ProxyActions,
+  type ProxyHealthCheckResult,
+  type ProxyHealthState,
 } from './proxy-store';
 
 export {

@@ -1,5 +1,5 @@
 /**
- * Extended Plugin Hooks Types
+ * Plugin Hooks Types
  *
  * Additional hook definitions for deeper integration with the application.
  */
@@ -250,13 +250,13 @@ export interface UIHookEvents {
 }
 
 // =============================================================================
-// Extended Plugin Hooks
+// Plugin Hooks (Complete)
 // =============================================================================
 
 /**
- * Complete extended hooks interface combining base and new hooks
+ * Complete plugin hooks interface combining base and event hooks
  */
-export interface ExtendedPluginHooks extends PluginHooks {
+export interface PluginHooksAll extends PluginHooks {
   // Project hooks
   onProjectCreate?: ProjectHookEvents['onProjectCreate'];
   onProjectUpdate?: ProjectHookEvents['onProjectUpdate'];
@@ -369,3 +369,12 @@ export interface HookSandboxExecutionResult<T = unknown> {
   /** Whether hook was skipped */
   skipped?: boolean;
 }
+
+// =============================================================================
+// Backward Compatibility Aliases (Deprecated)
+// =============================================================================
+
+/**
+ * @deprecated Use `PluginHooksAll` instead
+ */
+export type ExtendedPluginHooks = PluginHooksAll;

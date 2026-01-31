@@ -1,0 +1,48 @@
+{
+  "name": "@cognia/plugin-ai-tools",
+  "version": "1.0.0",
+  "description": "AI model pricing, status monitoring, and rankings tools for Cognia",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "test": "jest",
+    "lint": "eslint src --ext .ts,.tsx"
+  },
+  "dependencies": {
+    "@cognia/plugin-sdk": "workspace:*",
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.0"
+  },
+  "peerDependencies": {
+    "@cognia/plugin-sdk": ">=2.0.0"
+  },
+  "keywords": [
+    "cognia",
+    "plugin",
+    "ai",
+    "pricing",
+    "status",
+    "rankings",
+    "lmarena"
+  ],
+  "author": "Cognia Team",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "manifest.json"
+  ]
+}

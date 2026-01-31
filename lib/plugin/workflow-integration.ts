@@ -7,7 +7,7 @@
 import { usePluginStore } from '@/stores/plugin';
 import { getPluginEventHooks } from './hooks-system';
 import type { PluginMessage } from '@/types/plugin';
-import type { ExtendedPluginHooks } from '@/types/plugin/plugin-hooks';
+import type { PluginHooksAll } from '@/types/plugin/plugin-hooks';
 import { loggers } from './logger';
 
 /**
@@ -29,7 +29,7 @@ export class PluginWorkflowIntegration {
     for (const [pluginId, plugin] of Object.entries(store.plugins)) {
       if (plugin.status !== 'enabled' || !plugin.hooks) continue;
       
-      const hooks = plugin.hooks as ExtendedPluginHooks;
+      const hooks = plugin.hooks as PluginHooksAll;
       if (hooks.onChatRequest) {
         try {
           const transformed = await hooks.onChatRequest(messages, model);

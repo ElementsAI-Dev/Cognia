@@ -949,6 +949,7 @@
   "flowChat": {
     "viewList": "列表视图",
     "viewFlow": "画布视图",
+    "viewArena": "竞技场模式",
     "createBranch": "创建分支",
     "regenerate": "重新生成",
     "reference": "引用",

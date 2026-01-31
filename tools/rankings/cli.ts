@@ -2,6 +2,11 @@
 /**
  * OpenRouter Rankings CLI Tool
  *
+ * @deprecated This CLI tool is deprecated. Please use the AI Tools plugin instead:
+ *   - Plugin: plugins/ai-tools
+ *   - Tool: openrouter_rankings
+ *   - The plugin provides agent-callable tools with the same functionality.
+ *
  * Command-line interface for scraping OpenRouter model rankings.
  *
  * Usage:
@@ -18,6 +23,10 @@
  *   --verbose          Verbose logging
  *   --no-headless      Run browser with UI (for debugging)
  */
+
+console.warn('\x1b[33m⚠️  DEPRECATION WARNING: This CLI tool is deprecated.\x1b[0m')
+console.warn('\x1b[33m   Please use the AI Tools plugin (plugins/ai-tools) instead.\x1b[0m')
+console.warn('\x1b[33m   Tool: openrouter_rankings\x1b[0m\n')
 
 import * as path from 'path'
 import * as fs from 'fs'

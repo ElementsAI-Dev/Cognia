@@ -61,6 +61,8 @@
     "descObservability": "AI 追踪、指标和成本分析",
     "descAgentOptimization": "Claude 智能体系统最佳实践",
     "descAgentTrace": "查看 AI 生成文件与作品的归因追踪",
+    "tabSync": "云同步",
+    "descSync": "通过 WebDAV 或 GitHub 同步数据",
     "exportSettings": "导出设置",
     "importSettings": "导入设置",
     "resetAllSettings": "重置所有设置",
