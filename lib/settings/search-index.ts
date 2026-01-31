@@ -141,5 +141,12 @@ export const SETTINGS_SEARCH_INDEX: SearchableSetting[] = [
     title: 'Observability Settings',
     keywords: ['observability', 'metrics', 'tracing', 'logs', 'analytics', 'langfuse'],
     sectionId: 'observability',
-  }
+  },
+  {
+    id: 'agent-trace-viewer',
+    title: 'Agent Trace',
+    keywords: ['agent trace', 'attribution', 'code provenance', 'trace', 'files', 'artifacts'],
+    sectionId: 'agent-trace',
+    description: 'View AI attribution traces for generated files and artifacts',
+  },
 ];

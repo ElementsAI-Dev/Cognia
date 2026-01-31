@@ -376,7 +376,7 @@ pub struct GitFullStatus {
 
 // ==================== Helper Functions ====================
 
-fn run_git_command(args: &[&str], cwd: Option<&str>) -> Result<String, String> {
+pub fn run_git_command(args: &[&str], cwd: Option<&str>) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.args(args);
     
@@ -1995,6 +1995,130 @@ pub async fn git_restore_designer(
         Some(&repo_path),
     ) {
         Ok(content) => GitOperationResult::success(content),
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+/// Blame info for a single line
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitBlameLineInfo {
+    pub line_number: u32,
+    pub commit_hash: String,
+    pub author_name: String,
+    pub author_email: String,
+    pub author_date: String,
+    pub commit_message: String,
+    pub content: String,
+}
+
+/// Git blame result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitBlameResult {
+    pub file_path: String,
+    pub lines: Vec<GitBlameLineInfo>,
+}
+
+/// Parse git blame porcelain output
+fn parse_blame_output(output: &str, file_path: &str) -> GitBlameResult {
+    let mut lines: Vec<GitBlameLineInfo> = Vec::new();
+    let mut current_commit = String::new();
+    let mut current_author = String::new();
+    let mut current_email = String::new();
+    let mut current_date = String::new();
+    let mut current_summary = String::new();
+    let mut line_number: u32 = 0;
+
+    for line in output.lines() {
+        if line.starts_with('\t') {
+            // This is the actual content line
+            lines.push(GitBlameLineInfo {
+                line_number,
+                commit_hash: current_commit.clone(),
+                author_name: current_author.clone(),
+                author_email: current_email.clone(),
+                author_date: current_date.clone(),
+                commit_message: current_summary.clone(),
+                content: line[1..].to_string(), // Skip the leading tab
+            });
+        } else if let Some(rest) = line.strip_prefix("author ") {
+            current_author = rest.to_string();
+        } else if let Some(rest) = line.strip_prefix("author-mail ") {
+            current_email = rest.trim_matches(|c| c == '<' || c == '>').to_string();
+        } else if let Some(rest) = line.strip_prefix("author-time ") {
+            // Convert Unix timestamp to ISO 8601
+            if let Ok(ts) = rest.parse::<i64>() {
+                current_date = chrono::DateTime::from_timestamp(ts, 0)
+                    .map(|dt| dt.to_rfc3339())
+                    .unwrap_or_else(|| rest.to_string());
+            }
+        } else if let Some(rest) = line.strip_prefix("summary ") {
+            current_summary = rest.to_string();
+        } else if line.len() >= 40 && line.chars().take(40).all(|c| c.is_ascii_hexdigit()) {
+            // This is a commit hash line (40 hex chars followed by line numbers)
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if !parts.is_empty() {
+                current_commit = parts[0].to_string();
+                if parts.len() >= 2 {
+                    line_number = parts[1].parse().unwrap_or(0);
+                }
+            }
+        }
+    }
+
+    GitBlameResult {
+        file_path: file_path.to_string(),
+        lines,
+    }
+}
+
+/// Get git blame for a file
+/// Returns line-by-line attribution showing which commit last modified each line
+#[tauri::command]
+pub async fn git_blame(
+    repo_path: String,
+    file_path: String,
+    start_line: Option<u32>,
+    end_line: Option<u32>,
+) -> GitOperationResult<GitBlameResult> {
+    let mut args = vec!["blame", "--porcelain"];
+
+    // Add line range if specified
+    let line_range: String;
+    if let (Some(start), Some(end)) = (start_line, end_line) {
+        line_range = format!("-L{},{}", start, end);
+        args.push(&line_range);
+    }
+
+    args.push(&file_path);
+
+    match run_git_command(&args, Some(&repo_path)) {
+        Ok(output) => {
+            let result = parse_blame_output(&output, &file_path);
+            GitOperationResult::success(result)
+        }
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+/// Get the commit that last modified a specific line
+#[tauri::command]
+pub async fn git_blame_line(
+    repo_path: String,
+    file_path: String,
+    line_number: u32,
+) -> GitOperationResult<GitBlameLineInfo> {
+    let line_range = format!("-L{},{}", line_number, line_number);
+    let args = vec!["blame", "--porcelain", &line_range, &file_path];
+
+    match run_git_command(&args, Some(&repo_path)) {
+        Ok(output) => {
+            let result = parse_blame_output(&output, &file_path);
+            if let Some(line_info) = result.lines.into_iter().next() {
+                GitOperationResult::success(line_info)
+            } else {
+                GitOperationResult::error("No blame information found for line".to_string())
+            }
+        }
         Err(e) => GitOperationResult::error(e),
     }
 }

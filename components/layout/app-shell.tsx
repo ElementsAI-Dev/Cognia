@@ -6,7 +6,7 @@
  * Includes mobile bottom navigation for touch devices
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useUIStore, useSettingsStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,8 +30,26 @@ export function AppShell({ children, sidebar }: AppShellProps) {
   const setSidebarOpen = useUIStore((state) => state.setSidebarOpen);
   const sidebarCollapsed = useSettingsStore((state) => state.sidebarCollapsed);
   const setSidebarCollapsed = useSettingsStore((state) => state.setSidebarCollapsed);
+  const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
   const isMobile = useIsMobile();
   const mainRef = useRef<HTMLDivElement>(null);
+  const prevSidebarStateRef = useRef<{ open: boolean; collapsed: boolean } | null>(null);
+
+  // Auto-hide sidebar when simplified mode is enabled with autoHideSidebar setting
+  useEffect(() => {
+    const isSimplifiedMode = simplifiedModeSettings.enabled;
+    const shouldAutoHide = isSimplifiedMode && simplifiedModeSettings.autoHideSidebar;
+    
+    if (shouldAutoHide && sidebarOpen) {
+      // Store previous state before hiding
+      prevSidebarStateRef.current = { open: sidebarOpen, collapsed: sidebarCollapsed };
+      setSidebarOpen(false);
+    } else if (!shouldAutoHide && prevSidebarStateRef.current) {
+      // Restore previous state when exiting simplified mode
+      setSidebarOpen(prevSidebarStateRef.current.open);
+      prevSidebarStateRef.current = null;
+    }
+  }, [simplifiedModeSettings.enabled, simplifiedModeSettings.autoHideSidebar, sidebarOpen, sidebarCollapsed, setSidebarOpen]);
 
   // Swipe gesture for mobile - swipe right to open sidebar
   useSwipeGesture(mainRef, {

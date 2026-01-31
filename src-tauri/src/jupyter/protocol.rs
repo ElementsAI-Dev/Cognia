@@ -19,7 +19,6 @@ pub struct MessageHeader {
 
 impl MessageHeader {
     /// Create a new message header for Jupyter protocol messages
-    #[allow(dead_code)]
     pub fn new(msg_type: &str, session: &str) -> Self {
         Self {
             msg_id: uuid::Uuid::new_v4().to_string(),

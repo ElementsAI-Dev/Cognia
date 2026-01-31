@@ -1,0 +1,420 @@
+'use client';
+
+/**
+ * ArenaBattleView - Live battle comparison view
+ * Displays streaming responses from multiple models side-by-side
+ */
+
+import { memo, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
+import {
+  X,
+  Trophy,
+  Clock,
+  Coins,
+  Hash,
+  Copy,
+  Check,
+  ThumbsUp,
+  Scale,
+  Maximize2,
+  Minimize2,
+  Loader2,
+  Ban,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { useCopy } from '@/hooks/ui';
+import { useArenaStore } from '@/stores/arena';
+import type { ArenaContestant, ArenaWinReason } from '@/types/arena';
+
+interface ArenaBattleViewProps {
+  battleId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onClose?: () => void;
+}
+
+const WIN_REASONS: ArenaWinReason[] = [
+  'quality',
+  'accuracy',
+  'clarity',
+  'speed',
+  'completeness',
+  'creativity',
+  'conciseness',
+  'other',
+];
+
+function ContestantCard({
+  contestant,
+  index,
+  isWinner,
+  blindMode,
+  onSelectWinner,
+  onCopy,
+  isCopying,
+}: {
+  contestant: ArenaContestant;
+  index: number;
+  isWinner: boolean;
+  blindMode: boolean;
+  onSelectWinner: () => void;
+  onCopy: () => void;
+  isCopying: boolean;
+}) {
+  const t = useTranslations('arena');
+
+  const isStreaming = contestant.status === 'streaming';
+  const isCompleted = contestant.status === 'completed';
+  const isError = contestant.status === 'error';
+
+  // Get status badge
+  const getStatusBadge = () => {
+    if (isStreaming) {
+      return (
+        <Badge variant="outline" className="gap-1 text-blue-600 border-blue-300">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          {t('streaming')}
+        </Badge>
+      );
+    }
+    if (isError) {
+      return (
+        <Badge variant="destructive" className="gap-1">
+          {t('error')}
+        </Badge>
+      );
+    }
+    if (isCompleted) {
+      return (
+        <Badge variant="outline" className="gap-1 text-green-600 border-green-300">
+          <Check className="h-3 w-3" />
+          {t('completed')}
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        {t('pending')}
+      </Badge>
+    );
+  };
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col h-full border rounded-lg overflow-hidden transition-all',
+        isWinner && 'ring-2 ring-primary border-primary',
+        isError && 'border-destructive/50'
+      )}
+    >
+      {/* Card header */}
+      <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            #{index + 1}
+          </Badge>
+          {!blindMode && (
+            <span className="text-xs text-muted-foreground">
+              {contestant.displayName}
+            </span>
+          )}
+          {blindMode && (
+            <span className="text-xs text-muted-foreground italic">
+              {t('model')} {String.fromCharCode(65 + index)}
+            </span>
+          )}
+          {isWinner && (
+            <Badge className="text-[10px] gap-1 bg-primary">
+              <Trophy className="h-2.5 w-2.5" />
+              {t('winner')}
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {getStatusBadge()}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={onCopy}
+                disabled={!contestant.response}
+              >
+                {isCopying ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('copy')}</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+
+      {/* Content */}
+      <ScrollArea className="flex-1 p-3">
+        {isError ? (
+          <p className="text-sm text-destructive">{contestant.error}</p>
+        ) : (
+          <p className="text-sm whitespace-pre-wrap">
+            {contestant.response || (
+              <span className="text-muted-foreground italic">{t('waiting')}</span>
+            )}
+          </p>
+        )}
+      </ScrollArea>
+
+      {/* Stats and actions */}
+      <div className="flex items-center justify-between px-3 py-2 border-t bg-muted/30">
+        {/* Stats */}
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          {contestant.latencyMs && (
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {(contestant.latencyMs / 1000).toFixed(1)}s
+            </div>
+          )}
+          {contestant.tokenCount && (
+            <div className="flex items-center gap-1">
+              <Hash className="h-3 w-3" />
+              {contestant.tokenCount.total}
+            </div>
+          )}
+          {contestant.estimatedCost && (
+            <div className="flex items-center gap-1">
+              <Coins className="h-3 w-3" />
+              ${contestant.estimatedCost.toFixed(4)}
+            </div>
+          )}
+        </div>
+
+        {/* Select winner button */}
+        <Button
+          variant={isWinner ? 'secondary' : 'outline'}
+          size="sm"
+          className="h-7 gap-1"
+          onClick={onSelectWinner}
+          disabled={!isCompleted || isError}
+        >
+          <ThumbsUp className="h-3 w-3" />
+          {isWinner ? t('selected') : t('selectWinner')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ArenaBattleViewComponent({
+  battleId,
+  open,
+  onOpenChange,
+  onClose,
+}: ArenaBattleViewProps) {
+  const t = useTranslations('arena');
+  const tToasts = useTranslations('toasts');
+  const { copy, isCopying } = useCopy({ toastMessage: tToasts('messageCopied') });
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [selectedReason, setSelectedReason] = useState<ArenaWinReason>('quality');
+
+  const battle = useArenaStore((state) => state.battles.find((b) => b.id === battleId));
+  const selectWinner = useArenaStore((state) => state.selectWinner);
+  const declareTie = useArenaStore((state) => state.declareTie);
+
+  // Check if all contestants are done
+  const allDone = battle?.contestants.every(
+    (c) => c.status === 'completed' || c.status === 'error' || c.status === 'cancelled'
+  );
+
+  const handleSelectWinner = useCallback(
+    (contestantId: string) => {
+      selectWinner(battleId, contestantId, { reason: selectedReason });
+    },
+    [battleId, selectWinner, selectedReason]
+  );
+
+  const handleDeclareTie = useCallback(() => {
+    declareTie(battleId);
+  }, [battleId, declareTie]);
+
+  const handleCopy = useCallback(
+    async (content: string) => {
+      await copy(content);
+    },
+    [copy]
+  );
+
+  const handleClose = useCallback(() => {
+    onOpenChange(false);
+    onClose?.();
+  }, [onOpenChange, onClose]);
+
+  if (!battle) {
+    return null;
+  }
+
+  const isBlindMode = battle.mode === 'blind' && !battle.winnerId;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className={cn(
+          'p-0 overflow-hidden',
+          isFullscreen
+            ? 'max-w-[100vw] max-h-[100vh] w-screen h-screen rounded-none'
+            : 'max-w-[90vw] max-h-[85vh] w-[1200px]'
+        )}
+        showCloseButton={false}
+      >
+        {/* Header */}
+        <DialogHeader className="flex flex-row items-center justify-between px-4 py-3 border-b">
+          <div className="flex items-center gap-2">
+            <Scale className="h-5 w-5" />
+            <DialogTitle>{t('battleInProgress')}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Compare AI model responses side by side
+            </DialogDescription>
+            <Badge variant="secondary" className="text-xs">
+              {battle.contestants.length} {t('models')}
+            </Badge>
+            {battle.winnerId && (
+              <Badge className="text-xs bg-primary">
+                <Trophy className="h-3 w-3 mr-1" />
+                {t('winnerSelected')}
+              </Badge>
+            )}
+            {battle.isTie && (
+              <Badge variant="outline" className="text-xs">
+                {t('tie')}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="h-4 w-4" />
+                  ) : (
+                    <Maximize2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isFullscreen ? t('exitFullscreen') : t('fullscreen')}
+              </TooltipContent>
+            </Tooltip>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogHeader>
+
+        {/* Prompt preview */}
+        <div className="px-4 py-2 bg-muted/30 border-b">
+          <p className="text-xs text-muted-foreground mb-1">{t('prompt')}:</p>
+          <p className="text-sm line-clamp-2">{battle.prompt}</p>
+        </div>
+
+        {/* Comparison grid */}
+        <div
+          className={cn(
+            'flex-1 p-4 overflow-hidden',
+            isFullscreen ? 'h-[calc(100vh-180px)]' : 'h-[calc(85vh-240px)]'
+          )}
+        >
+          <div
+            className="grid gap-4 h-full"
+            style={{
+              gridTemplateColumns: `repeat(${Math.min(battle.contestants.length, 4)}, 1fr)`,
+            }}
+          >
+            {battle.contestants.map((contestant, index) => (
+              <ContestantCard
+                key={contestant.id}
+                contestant={contestant}
+                index={index}
+                isWinner={battle.winnerId === contestant.id}
+                blindMode={isBlindMode}
+                onSelectWinner={() => handleSelectWinner(contestant.id)}
+                onCopy={() => handleCopy(contestant.response)}
+                isCopying={isCopying}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-3 border-t bg-muted/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">{t('winReason')}:</span>
+                <Select
+                  value={selectedReason}
+                  onValueChange={(v) => setSelectedReason(v as ArenaWinReason)}
+                >
+                  <SelectTrigger className="w-[140px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WIN_REASONS.map((reason) => (
+                      <SelectItem key={reason} value={reason}>
+                        {t(`reasons.${reason}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {allDone && !battle.winnerId && !battle.isTie && (
+                <Button variant="outline" size="sm" onClick={handleDeclareTie}>
+                  <Ban className="h-4 w-4 mr-2" />
+                  {t('declareTie')}
+                </Button>
+              )}
+              <Button size="sm" onClick={handleClose}>
+                {battle.winnerId || battle.isTie ? t('done') : t('close')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export const ArenaBattleView = memo(ArenaBattleViewComponent);
+export default ArenaBattleView;

@@ -9,7 +9,7 @@ import type {
 } from '@/types/media/video';
 
 // Studio modes
-export type StudioMode = 'recording' | 'ai-generation';
+export type StudioMode = 'recording' | 'ai-generation' | 'editor';
 
 // Video job interface for AI generation
 export interface VideoJob {

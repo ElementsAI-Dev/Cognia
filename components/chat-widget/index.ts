@@ -17,6 +17,7 @@ export { ChatWidgetInput } from "./chat-widget-input";
 export { ChatWidgetSettings } from "./chat-widget-settings";
 export { ChatWidgetSuggestions } from "./chat-widget-suggestions";
 export { ChatWidgetShortcuts } from "./chat-widget-shortcuts";
+export { ChatWidgetModelSelector } from "./chat-widget-model-selector";
 
 // Floating assistant components (Tauri only)
 export { ChatAssistantContainer } from "./chat-assistant-container";

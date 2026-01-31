@@ -2,14 +2,17 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { FilePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useVectorDB } from '@/hooks/rag';
+import { useVectorStore } from '@/stores';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { AddDocumentModal } from './add-document-modal';
 import {
   Select,
   SelectContent,
@@ -40,8 +43,10 @@ import type { VectorCollectionInfo, VectorStats, CollectionExport } from '@/lib/
 
 export function VectorManager() {
   const t = useTranslations('vectorManager');
+  const settings = useVectorStore((state) => state.settings);
 
   const [collectionName, setCollectionName] = useState('default');
+  const [showAddDocModal, setShowAddDocModal] = useState(false);
   const [collections, setCollections] = useState<VectorCollectionInfo[]>([]);
   const [newCollection, setNewCollection] = useState('');
   const [query, setQuery] = useState('');
@@ -225,6 +230,16 @@ export function VectorManager() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleAddDocumentsFromModal = async (
+    documents: Array<{ content: string; metadata: Record<string, unknown> }>
+  ) => {
+    for (const doc of documents) {
+      await vector.addDocument(doc.content, doc.metadata as Record<string, string | number | boolean>);
+    }
+    await handleRefresh();
+    setShowAddDocModal(false);
   };
 
   const handleSearchWithPagination = async (page: number = 1) => {
@@ -464,6 +479,16 @@ export function VectorManager() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('importTooltip')}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" onClick={() => setShowAddDocModal(true)} className="gap-1.5">
+                  <FilePlus className="h-4 w-4" />
+                  {t('addFromFiles')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('addFromFilesTooltip')}</TooltipContent>
             </Tooltip>
 
             <input
@@ -729,6 +754,16 @@ export function VectorManager() {
           </div>
         </div>
       </CardContent>
+
+      {/* Add Document Modal */}
+      <AddDocumentModal
+        open={showAddDocModal}
+        onOpenChange={setShowAddDocModal}
+        collectionName={collectionName}
+        onAddDocuments={handleAddDocumentsFromModal}
+        chunkSize={settings.chunkSize}
+        chunkOverlap={settings.chunkOverlap}
+      />
     </Card>
   );
 }

@@ -14,13 +14,10 @@ use super::types::*;
 #[derive(Debug, Default)]
 pub struct PythonRuntimeStats {
     /// Total number of tool calls
-    #[allow(dead_code)]
     pub total_calls: AtomicU64,
     /// Total execution time in milliseconds
-    #[allow(dead_code)]
     pub total_execution_time_ms: AtomicU64,
     /// Number of failed calls
-    #[allow(dead_code)]
     pub failed_calls: AtomicU64,
 }
 
@@ -28,24 +25,20 @@ pub struct PythonRuntimeStats {
 pub struct PythonRuntime {
     /// Python executable path
     python_path: String,
-    /// Python version string (used by version() method for future API)
-    #[allow(dead_code)]
+    /// Python version string
     python_version: Option<String>,
     /// Loaded plugin modules
     loaded_plugins: HashMap<String, PythonPluginInstance>,
-    /// Runtime statistics (reserved for future monitoring API)
-    #[allow(dead_code)]
+    /// Runtime statistics for monitoring
     stats: PythonRuntimeStats,
     /// Whether Python is available
-    #[allow(dead_code)]
     python_available: bool,
 }
 
 /// Instance of a loaded Python plugin
 #[derive(Debug)]
 struct PythonPluginInstance {
-    /// Plugin ID (used for logging and error messages)
-    #[allow(dead_code)]
+    /// Plugin ID
     plugin_id: String,
     /// Plugin path
     plugin_path: String,
@@ -98,25 +91,21 @@ impl PythonRuntime {
     }
 
     /// Check if Python runtime is available
-    #[allow(dead_code)]
     pub fn is_available(&self) -> bool {
         self.python_available
     }
 
     /// Get Python version
-    #[allow(dead_code)]
     pub fn version(&self) -> Option<&str> {
         self.python_version.as_deref()
     }
 
     /// Get runtime statistics
-    #[allow(dead_code)]
     pub fn stats(&self) -> &PythonRuntimeStats {
         &self.stats
     }
 
     /// Get loaded plugin count
-    #[allow(dead_code)]
     pub fn plugin_count(&self) -> usize {
         self.loaded_plugins.len()
     }
@@ -316,7 +305,6 @@ except Exception as e:
     }
     
     /// Check if a plugin is initialized
-    #[allow(dead_code)]
     pub fn is_plugin_initialized(&self, plugin_id: &str) -> bool {
         self.loaded_plugins
             .get(plugin_id)
@@ -325,7 +313,6 @@ except Exception as e:
     }
     
     /// Get plugin info for debugging
-    #[allow(dead_code)]
     pub fn get_plugin_info(&self, plugin_id: &str) -> Option<(String, usize, usize)> {
         self.loaded_plugins.get(plugin_id).map(|p| {
             (p.plugin_id.clone(), p.tools.len(), p.hooks.len())
@@ -547,7 +534,6 @@ except Exception as e:
     }
     
     /// Unload a plugin
-    #[allow(dead_code)]
     pub fn unload_plugin(&mut self, plugin_id: &str) -> PluginResult<()> {
         if self.loaded_plugins.remove(plugin_id).is_none() {
             return Err(PluginError::NotFound(plugin_id.to_string()));

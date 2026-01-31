@@ -9,9 +9,12 @@ import type { VirtualEnvInfo } from '@/types/system/environment';
 const messages = {
   virtualEnv: {
     active: 'Active',
+    idle: 'Idle',
+    outdated: 'Outdated',
     activate: 'Activate',
     viewPackages: 'View Packages',
     clone: 'Clone',
+    importRequirements: 'Import Requirements',
     exportRequirements: 'Export Requirements',
     delete: 'Delete',
     packagesCount: 'packages',
@@ -43,6 +46,7 @@ describe('EnvCard', () => {
     onViewPackages: jest.fn(),
     onClone: jest.fn(),
     onExport: jest.fn(),
+    onImport: jest.fn(),
     onSelect: jest.fn(),
   };
 
@@ -56,6 +60,7 @@ describe('EnvCard', () => {
         env={mockEnv}
         isActive={false}
         isSelected={false}
+        latestPythonVersion={'3.12.0'}
         {...mockHandlers}
       />
     );
@@ -68,6 +73,7 @@ describe('EnvCard', () => {
         env={mockEnv}
         isActive={true}
         isSelected={false}
+        latestPythonVersion={'3.12.0'}
         {...mockHandlers}
       />
     );
@@ -80,6 +86,7 @@ describe('EnvCard', () => {
         env={mockEnv}
         isActive={false}
         isSelected={false}
+        latestPythonVersion={'3.12.0'}
         {...mockHandlers}
       />
     );
@@ -93,6 +100,7 @@ describe('EnvCard', () => {
         env={mockEnv}
         isActive={false}
         isSelected={false}
+        latestPythonVersion={'3.12.0'}
         {...mockHandlers}
       />
     );
@@ -105,6 +113,7 @@ describe('EnvCard', () => {
         env={mockEnv}
         isActive={false}
         isSelected={false}
+        latestPythonVersion={'3.12.0'}
         {...mockHandlers}
       />
     );
@@ -118,6 +127,7 @@ describe('EnvCard', () => {
         env={mockEnv}
         isActive={false}
         isSelected={false}
+        latestPythonVersion={'3.12.0'}
         {...mockHandlers}
       />
     );
@@ -135,6 +145,7 @@ describe('EnvCard', () => {
         env={mockEnv}
         isActive={false}
         isSelected={false}
+        latestPythonVersion={'3.12.0'}
         {...mockHandlers}
       />
     );

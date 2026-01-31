@@ -3,7 +3,7 @@
  */
 
 export { db, default } from './schema';
-export type { DBSession, DBMessage, DBDocument, DBMCPServer, DBProject, DBKnowledgeFile } from './schema';
+export type { DBSession, DBMessage, DBDocument, DBMCPServer, DBProject, DBKnowledgeFile, DBAgentTrace } from './schema';
 
 export {
   messageRepository,
@@ -11,6 +11,7 @@ export {
   documentRepository,
   mcpServerRepository,
   projectRepository,
+  agentTraceRepository,
   type CreateDocumentInput,
   type UpdateDocumentInput,
   type StoredMCPServer,

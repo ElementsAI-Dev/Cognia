@@ -70,3 +70,18 @@ export * from './storage';
 
 // Observability hooks
 export * from './observability';
+
+// System hooks (environment variables, etc.)
+export * from './system';
+
+// Provider hooks (API testing, connection management)
+export * from './provider';
+
+// Arena hooks (multi-model comparison)
+export * from './arena';
+
+// Agent Trace hooks
+export * from './agent-trace';
+
+// VCS hooks (multi-VCS support)
+export * from './vcs';

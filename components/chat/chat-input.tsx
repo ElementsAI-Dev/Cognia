@@ -196,6 +196,7 @@ interface ChatInputProps {
   // Workflow and prompt optimization
   onOpenWorkflowPicker?: () => void;
   onOpenPromptOptimization?: () => void;
+  onOpenArena?: () => void;
   hasActivePreset?: boolean;
 }
 
@@ -229,6 +230,7 @@ export function ChatInput({
   onManagePresets,
   onOpenWorkflowPicker,
   onOpenPromptOptimization,
+  onOpenArena: _onOpenArena,
   hasActivePreset,
 }: ChatInputProps) {
   const t = useTranslations('chatInput');
@@ -1019,6 +1021,9 @@ export function ChatInput({
             hasActivePreset={hasActivePreset}
             disabled={disabled}
             isProcessing={isProcessing}
+            hideTokenCount={isSimplifiedMode && simplifiedModeSettings.hideTokenCount}
+            hideWebSearchToggle={isSimplifiedMode && simplifiedModeSettings.hideWebSearchToggle}
+            hideThinkingToggle={isSimplifiedMode && simplifiedModeSettings.hideThinkingToggle}
           />
         )}
 

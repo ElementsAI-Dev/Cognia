@@ -82,6 +82,11 @@ export interface EnvironmentActions {
 const initialState: EnvironmentState = {
   platform: 'unknown',
   tools: {
+    python: createDefaultToolStatus('python'),
+    nodejs: createDefaultToolStatus('nodejs'),
+    ruby: createDefaultToolStatus('ruby'),
+    postgresql: createDefaultToolStatus('postgresql'),
+    rust: createDefaultToolStatus('rust'),
     uv: createDefaultToolStatus('uv'),
     nvm: createDefaultToolStatus('nvm'),
     docker: createDefaultToolStatus('docker'),
@@ -197,6 +202,18 @@ export const useEnvironmentStore = create<EnvironmentState & EnvironmentActions>
     }),
     {
       name: 'environment-store',
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<EnvironmentState> | undefined;
+
+        return {
+          ...currentState,
+          ...(persisted ?? {}),
+          tools: {
+            ...currentState.tools,
+            ...(persisted?.tools ?? {}),
+          },
+        };
+      },
       partialize: (state) => ({
         platform: state.platform,
         tools: state.tools,

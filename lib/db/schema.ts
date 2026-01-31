@@ -168,6 +168,16 @@ export interface DBFolder {
   updatedAt: Date;
 }
 
+export interface DBAgentTrace {
+  id: string;
+  sessionId?: string;
+  timestamp: Date;
+  vcsType?: string;
+  vcsRevision?: string;
+  record: string;
+  createdAt: Date;
+}
+
 // Database class
 class CogniaDB extends Dexie {
   sessions!: EntityTable<DBSession, 'id'>;
@@ -179,6 +189,7 @@ class CogniaDB extends Dexie {
   workflows!: EntityTable<DBWorkflow, 'id'>;
   workflowExecutions!: EntityTable<DBWorkflowExecution, 'id'>;
   summaries!: EntityTable<DBSummary, 'id'>;
+  agentTraces!: EntityTable<DBAgentTrace, 'id'>;
   assets!: EntityTable<DBAsset, 'id'>;
   folders!: EntityTable<DBFolder, 'id'>;
 
@@ -260,6 +271,21 @@ class CogniaDB extends Dexie {
       workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
       workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
       summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
+      assets: 'id, kind, createdAt',
+      folders: 'id, name, order, createdAt',
+    });
+
+    this.version(8).stores({
+      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
+      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
+      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
+      agentTraces: 'id, sessionId, timestamp, vcsRevision, [sessionId+timestamp], [vcsRevision+timestamp]',
       assets: 'id, kind, createdAt',
       folders: 'id, name, order, createdAt',
     });

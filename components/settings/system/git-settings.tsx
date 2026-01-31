@@ -41,7 +41,9 @@ import {
 import { useGit } from '@/hooks/native/use-git';
 import { useGitStore } from '@/stores/git';
 import { gitService } from '@/lib/native/git';
+import { useVcs } from '@/hooks/vcs';
 import type { GitConfig } from '@/types/system/git';
+import type { VcsStatus } from '@/types/system/vcs';
 
 export function GitSettings() {
   const t = useTranslations('settings.git');
@@ -63,6 +65,10 @@ export function GitSettings() {
   const setAutoCommitConfig = useGitStore((state) => state.setAutoCommitConfig);
   const trackedRepos = useGitStore((state) => state.trackedRepos);
 
+  // Multi-VCS support
+  const { isAvailable: isVcsAvailable, installedVcs, checkInstalled: checkVcsInstalled } = useVcs();
+  const [isCheckingVcs, setIsCheckingVcs] = useState(false);
+
   const [gitConfig, setGitConfig] = useState<GitConfig | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -79,6 +85,33 @@ export function GitSettings() {
       loadGitConfig();
     }
   }, [isInstalled]);
+
+  // Load VCS status on mount
+  useEffect(() => {
+    if (isVcsAvailable) {
+      handleCheckVcs();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVcsAvailable]);
+
+  const handleCheckVcs = async () => {
+    setIsCheckingVcs(true);
+    try {
+      await checkVcsInstalled();
+    } finally {
+      setIsCheckingVcs(false);
+    }
+  };
+
+  const getVcsDisplayName = (vcsType: string): string => {
+    const names: Record<string, string> = {
+      git: 'Git',
+      jj: 'Jujutsu (jj)',
+      hg: 'Mercurial (hg)',
+      svn: 'Subversion (svn)',
+    };
+    return names[vcsType] || vcsType;
+  };
 
   const loadGitConfig = async () => {
     setIsLoadingConfig(true);
@@ -416,6 +449,67 @@ export function GitSettings() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Multi-VCS Support */}
+      {isVcsAvailable && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <GitBranch className="h-5 w-5" />
+                  Version Control Systems
+                </CardTitle>
+                <CardDescription>
+                  Detected VCS tools on your system (Git, Jujutsu, Mercurial, Subversion)
+                </CardDescription>
+              </div>
+              <Button size="sm" variant="ghost" onClick={handleCheckVcs} disabled={isCheckingVcs}>
+                {isCheckingVcs ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isCheckingVcs ? (
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+            ) : installedVcs.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {installedVcs.map((vcs: VcsStatus) => (
+                  <div
+                    key={vcs.vcsType}
+                    className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                  >
+                    <div
+                      className={`h-2 w-2 rounded-full ${vcs.installed ? 'bg-green-500' : 'bg-muted'}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{getVcsDisplayName(vcs.vcsType)}</p>
+                      {vcs.installed && vcs.version && (
+                        <p className="text-xs text-muted-foreground truncate">v{vcs.version}</p>
+                      )}
+                    </div>
+                    <Badge variant={vcs.installed ? 'default' : 'secondary'} className="shrink-0">
+                      {vcs.installed ? 'Installed' : 'Not Found'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No version control systems detected. Install Git or other VCS tools to enable
+                version control features.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}

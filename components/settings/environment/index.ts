@@ -11,3 +11,4 @@ export { RequirementsDialog, type RequirementsDialogProps } from './requirements
 export { CloneDialog, type CloneDialogProps } from './clone-dialog';
 export { EnvVarRow, type EnvVarRowProps } from './env-var-row';
 export { ProjectConfigCard, type ProjectConfigCardProps } from './project-config-card';
+export { EnvVarsPanel } from './env-vars-panel';

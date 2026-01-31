@@ -14,7 +14,8 @@
       "clearMessages": "清空消息",
       "exportChat": "导出对话",
       "settings": "设置",
-      "close": "关闭 (Esc)"
+      "close": "关闭 (Esc)",
+      "expandToFull": "打开完整聊天"
     },
     "input": {
       "placeholder": "输入消息...",
@@ -93,6 +94,11 @@
     "export": {
       "user": "👤 用户",
       "assistant": "🤖 助手"
+    },
+    "modelSelector": {
+      "changeModel": "切换 AI 模型",
+      "selectProvider": "提供商",
+      "selectModel": "模型"
     },
     "continueGeneration": "请继续"
   }

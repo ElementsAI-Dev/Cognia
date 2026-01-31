@@ -9,11 +9,13 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { TextInput } from './text-input';
+import { ResizeHandles } from './resize-handles';
 import type {
   Annotation,
   AnnotationTool,
   AnnotationStyle,
   Point,
+  ResizeHandle,
 } from '@/types/screenshot';
 
 // ============== Helper Functions ==============
@@ -694,12 +696,12 @@ export function AnnotationCanvas({
 
   // Handle text input confirmation
   const handleTextConfirm = useCallback(
-    (text: string) => {
+    (text: string, fontSize?: number) => {
       if (textInputPosition) {
         const annotation: Annotation = {
           id: `text-${Date.now()}`,
           type: 'text',
-          style,
+          style: fontSize ? { ...style, fontSize } : style,
           timestamp: Date.now(),
           x: textInputPosition.x,
           y: textInputPosition.y,
@@ -715,6 +717,22 @@ export function AnnotationCanvas({
   const handleTextCancel = useCallback(() => {
     setTextInputPosition(null);
   }, []);
+
+  // Get selected annotation bounds for resize handles
+  const selectedAnnotation = selectedAnnotationId
+    ? annotations.find((a) => a.id === selectedAnnotationId)
+    : null;
+  const selectedBounds = selectedAnnotation ? getAnnotationBounds(selectedAnnotation) : null;
+
+  // Handle resize start
+  const handleResizeStart = useCallback(
+    (handle: ResizeHandle, e: React.MouseEvent) => {
+      e.stopPropagation();
+      // TODO: Implement resize logic in Phase 2.3
+      console.log('Resize started:', handle);
+    },
+    []
+  );
 
   return (
     <div className={cn('relative', className)} style={{ width, height }}>
@@ -735,6 +753,23 @@ export function AnnotationCanvas({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       />
+      {/* Resize handles for selected annotation */}
+      {selectedBounds && currentTool === 'select' && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            left: selectedBounds.x,
+            top: selectedBounds.y,
+            width: selectedBounds.width,
+            height: selectedBounds.height,
+          }}
+        >
+          <div className="absolute inset-0 border-2 border-primary border-dashed pointer-events-none" />
+          <div className="pointer-events-auto">
+            <ResizeHandles onResizeStart={handleResizeStart} />
+          </div>
+        </div>
+      )}
       {/* Inline text input */}
       {textInputPosition && (
         <TextInput

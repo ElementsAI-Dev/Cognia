@@ -3,9 +3,9 @@
 //! Commands for capturing screenshots and performing OCR.
 
 use crate::screenshot::{
-    Annotation, CaptureRegion, MonitorInfo, ScreenshotAnnotator, ScreenshotConfig,
-    ScreenshotHistoryEntry, ScreenshotManager, ScreenshotMetadata, SelectionState, SnapConfig,
-    SnapResult, WinOcrResult, WindowInfo,
+    Annotation, CaptureRegion, ElementInfo, MonitorInfo, ScreenshotAnnotator, ScreenshotConfig,
+    ScreenshotHistoryEntry, ScreenshotManager, ScreenshotMetadata, SelectionSnapResult,
+    SelectionState, SnapConfig, SnapResult, WinOcrResult, WindowInfo,
 };
 use tauri::State;
 
@@ -479,6 +479,55 @@ pub async fn screenshot_set_snap_config(
 ) -> Result<(), String> {
     manager.set_snap_config(config);
     Ok(())
+}
+
+// ============== Window Auto-Detection Commands ==============
+
+/// Get the window at a specific screen point (for auto-detection during selection)
+#[tauri::command]
+pub async fn screenshot_get_window_at_point(
+    manager: State<'_, ScreenshotManager>,
+    x: i32,
+    y: i32,
+) -> Result<Option<WindowInfo>, String> {
+    Ok(manager.get_window_at_point(x, y))
+}
+
+/// Get child elements of a window (for element-level detection)
+#[tauri::command]
+pub async fn screenshot_get_child_elements(
+    manager: State<'_, ScreenshotManager>,
+    hwnd: isize,
+    max_depth: Option<u32>,
+) -> Result<Vec<ElementInfo>, String> {
+    Ok(manager.get_child_elements(hwnd, max_depth.unwrap_or(1)))
+}
+
+/// Calculate snapped selection rectangle during region selection
+#[tauri::command]
+pub async fn screenshot_calculate_selection_snap(
+    manager: State<'_, ScreenshotManager>,
+    selection_x: i32,
+    selection_y: i32,
+    selection_width: u32,
+    selection_height: u32,
+) -> Result<SelectionSnapResult, String> {
+    Ok(manager.calculate_selection_snap(
+        selection_x,
+        selection_y,
+        selection_width,
+        selection_height,
+    ))
+}
+
+/// Get pixel color at screen coordinates (for color picker)
+#[tauri::command]
+pub async fn screenshot_get_pixel_color(
+    manager: State<'_, ScreenshotManager>,
+    x: i32,
+    y: i32,
+) -> Result<Option<String>, String> {
+    Ok(manager.get_pixel_color(x, y))
 }
 
 // ============== Selection State Commands ==============

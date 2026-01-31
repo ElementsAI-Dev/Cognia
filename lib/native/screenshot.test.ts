@@ -34,10 +34,24 @@ import {
   updateConfig,
   getMonitors,
   saveToFile,
+  getWindows,
+  getWindowsWithThumbnails,
+  getWindowAtPoint,
+  getChildElements,
+  captureWindowByHwnd,
+  captureWindowByHwndWithHistory,
+  calculateSelectionSnap,
+  getPixelColor,
+  getSnapConfig,
+  setSnapConfig,
   type ScreenshotResult,
   type ScreenshotConfig,
   type MonitorInfo,
   type WinOcrResult,
+  type WindowInfo,
+  type ElementInfo,
+  type SelectionSnapResult,
+  type SnapConfig,
 } from './screenshot';
 
 const mockInvoke = invoke as jest.MockedFunction<typeof invoke>;
@@ -349,6 +363,239 @@ describe('Screenshot - Configuration', () => {
         path: '/path/to/screenshot.png',
       });
       expect(result).toBe('/path/to/screenshot.png');
+    });
+  });
+});
+
+describe('Screenshot - Window Detection', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getWindows', () => {
+    it('should call invoke and return windows list', async () => {
+      const mockWindows: WindowInfo[] = [
+        {
+          hwnd: 12345,
+          title: 'Test Window',
+          process_name: 'test.exe',
+          pid: 1000,
+          x: 100,
+          y: 200,
+          width: 800,
+          height: 600,
+          is_minimized: false,
+          is_maximized: false,
+          is_visible: true,
+        },
+      ];
+      mockInvoke.mockResolvedValue(mockWindows);
+
+      const result = await getWindows();
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_get_windows');
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toBe('Test Window');
+    });
+  });
+
+  describe('getWindowsWithThumbnails', () => {
+    it('should call invoke with thumbnail size', async () => {
+      mockInvoke.mockResolvedValue([]);
+      await getWindowsWithThumbnails(200);
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_get_windows_with_thumbnails', {
+        thumbnailSize: 200,
+      });
+    });
+
+    it('should work without thumbnail size', async () => {
+      mockInvoke.mockResolvedValue([]);
+      await getWindowsWithThumbnails();
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_get_windows_with_thumbnails', {
+        thumbnailSize: undefined,
+      });
+    });
+  });
+
+  describe('getWindowAtPoint', () => {
+    it('should call invoke with coordinates', async () => {
+      const mockWindow: WindowInfo = {
+        hwnd: 12345,
+        title: 'Window at Point',
+        process_name: 'app.exe',
+        pid: 2000,
+        x: 0,
+        y: 0,
+        width: 1920,
+        height: 1080,
+        is_minimized: false,
+        is_maximized: true,
+        is_visible: true,
+      };
+      mockInvoke.mockResolvedValue(mockWindow);
+
+      const result = await getWindowAtPoint(500, 300);
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_get_window_at_point', { x: 500, y: 300 });
+      expect(result?.title).toBe('Window at Point');
+    });
+
+    it('should return null when no window at point', async () => {
+      mockInvoke.mockResolvedValue(null);
+      const result = await getWindowAtPoint(0, 0);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getChildElements', () => {
+    it('should call invoke with hwnd and max depth', async () => {
+      const mockElements: ElementInfo[] = [
+        {
+          x: 50,
+          y: 100,
+          width: 200,
+          height: 30,
+          element_type: 'Button',
+          name: 'Submit',
+          parent_hwnd: 12345,
+        },
+      ];
+      mockInvoke.mockResolvedValue(mockElements);
+
+      const result = await getChildElements(12345, 2);
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_get_child_elements', {
+        hwnd: 12345,
+        maxDepth: 2,
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0].element_type).toBe('Button');
+    });
+  });
+
+  describe('captureWindowByHwnd', () => {
+    it('should call invoke with hwnd', async () => {
+      mockInvoke.mockResolvedValue({} as ScreenshotResult);
+      await captureWindowByHwnd(12345);
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_capture_window_by_hwnd', { hwnd: 12345 });
+    });
+  });
+
+  describe('captureWindowByHwndWithHistory', () => {
+    it('should call invoke with hwnd', async () => {
+      mockInvoke.mockResolvedValue({} as ScreenshotResult);
+      await captureWindowByHwndWithHistory(12345);
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_capture_window_by_hwnd_with_history', {
+        hwnd: 12345,
+      });
+    });
+  });
+});
+
+describe('Screenshot - Selection Snap', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('calculateSelectionSnap', () => {
+    it('should call invoke with selection parameters', async () => {
+      const mockResult: SelectionSnapResult = {
+        x: 100,
+        y: 200,
+        width: 800,
+        height: 600,
+        snapped: true,
+        guides: [
+          {
+            orientation: 'vertical',
+            position: 100,
+            start: 0,
+            end: 1080,
+            source: 'Screen',
+          },
+        ],
+      };
+      mockInvoke.mockResolvedValue(mockResult);
+
+      const result = await calculateSelectionSnap(100, 200, 800, 600);
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_calculate_selection_snap', {
+        selectionX: 100,
+        selectionY: 200,
+        selectionWidth: 800,
+        selectionHeight: 600,
+      });
+      expect(result.snapped).toBe(true);
+      expect(result.guides).toHaveLength(1);
+    });
+
+    it('should return unsnapped result when no edges nearby', async () => {
+      const mockResult: SelectionSnapResult = {
+        x: 150,
+        y: 250,
+        width: 400,
+        height: 300,
+        snapped: false,
+        guides: [],
+      };
+      mockInvoke.mockResolvedValue(mockResult);
+
+      const result = await calculateSelectionSnap(150, 250, 400, 300);
+      expect(result.snapped).toBe(false);
+      expect(result.guides).toHaveLength(0);
+    });
+  });
+
+  describe('getSnapConfig', () => {
+    it('should call invoke and return config', async () => {
+      const mockConfig: SnapConfig = {
+        snap_distance: 20,
+        snap_to_screen: true,
+        snap_to_windows: true,
+        snap_to_elements: false,
+        show_guide_lines: true,
+        magnetic_edges: true,
+      };
+      mockInvoke.mockResolvedValue(mockConfig);
+
+      const result = await getSnapConfig();
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_get_snap_config');
+      expect(result.snap_distance).toBe(20);
+      expect(result.magnetic_edges).toBe(true);
+    });
+  });
+
+  describe('setSnapConfig', () => {
+    it('should call invoke with config', async () => {
+      const config: SnapConfig = {
+        snap_distance: 30,
+        snap_to_screen: false,
+        snap_to_windows: true,
+        snap_to_elements: true,
+        show_guide_lines: false,
+        magnetic_edges: true,
+      };
+      mockInvoke.mockResolvedValue(undefined);
+
+      await setSnapConfig(config);
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_set_snap_config', { config });
+    });
+  });
+});
+
+describe('Screenshot - Color Picker', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getPixelColor', () => {
+    it('should call invoke with coordinates and return hex color', async () => {
+      mockInvoke.mockResolvedValue('#FF5733');
+      const result = await getPixelColor(100, 200);
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_get_pixel_color', { x: 100, y: 200 });
+      expect(result).toBe('#FF5733');
+    });
+
+    it('should return null when color cannot be retrieved', async () => {
+      mockInvoke.mockResolvedValue(null);
+      const result = await getPixelColor(0, 0);
+      expect(result).toBeNull();
     });
   });
 });

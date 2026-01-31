@@ -38,6 +38,7 @@ import chatWidget from './chatWidget.json';
 import imageStudio from './imageStudio.json';
 import latex from './latex.json';
 import observability from './observability.json';
+import arena from './arena.json';
 
 const messages = {
   ...common,
@@ -77,7 +78,8 @@ const messages = {
   ...chatWidget,
   ...imageStudio,
   latex,
-  ...observability
+  ...observability,
+  arena
 };
 
 export default messages;

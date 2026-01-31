@@ -3,3 +3,4 @@
  */
 
 export * from './annotation';
+export * from './window-detection';

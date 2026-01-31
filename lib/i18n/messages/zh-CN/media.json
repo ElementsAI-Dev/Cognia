@@ -12,6 +12,7 @@
     "actions": "操作",
     "recording": "录制",
     "aiGeneration": "AI 生成",
+    "editor": "编辑器",
     "primaryMonitor": "主显示器",
     "monitor": "显示器 {index}",
     "countdown": "准备中...",

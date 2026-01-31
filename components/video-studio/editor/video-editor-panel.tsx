@@ -14,7 +14,7 @@
  * work together with the useVideoEditor and useVideoTimeline hooks.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,7 @@ import {
   Music,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 import { VideoTimeline } from '../timeline/video-timeline';
 import { VideoPreview } from '../preview/video-preview';
@@ -59,7 +60,7 @@ import { ZoomControls } from '../common/zoom-controls';
 import { ColorCorrectionPanel, DEFAULT_COLOR_CORRECTION_SETTINGS, type ColorCorrectionSettings } from '../effects/color-correction-panel';
 import { SpeedControls, DEFAULT_SPEED_SETTINGS, type SpeedSettings } from '../timeline/speed-controls';
 import { MarkersPanel, type Marker } from '../timeline/markers-panel';
-import { type HistoryEntry } from '../common/history-panel';
+import { type HistoryEntry as _HistoryEntry } from '../common/history-panel';
 import { KeyboardShortcutsPanel, DEFAULT_SHORTCUTS, type KeyboardShortcut } from '../common/keyboard-shortcuts-panel';
 import { ProjectSettingsPanel, DEFAULT_PROJECT_SETTINGS, type ProjectSettings } from '../common/project-settings-panel';
 import { ExportDialog, type ExportSettings } from '../export/export-dialog';
@@ -68,6 +69,7 @@ import { LayerPanel, type VideoLayer } from '../composition/layer-panel';
 import { useVideoEditor, type VideoClip } from '@/hooks/video-studio/use-video-editor';
 import { useVideoTimeline } from '@/hooks/video-studio/use-video-timeline';
 import { useVideoSubtitles } from '@/hooks/video-studio/use-video-subtitles';
+import { useVideoEditorStore } from '@/stores/media';
 
 export interface VideoEditorPanelProps {
   initialVideoUrl?: string;
@@ -104,8 +106,17 @@ export function VideoEditorPanel({
   const [colorSettings, setColorSettings] = useState<ColorCorrectionSettings>(DEFAULT_COLOR_CORRECTION_SETTINGS);
   const [speedSettings, setSpeedSettings] = useState<SpeedSettings>(DEFAULT_SPEED_SETTINGS);
   const [markers, setMarkers] = useState<Marker[]>([]);
-  const [historyEntries, _setHistoryEntries] = useState<HistoryEntry[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  // Use the video editor store for history management
+  const {
+    pushHistory,
+    undo: storeUndo,
+    redo: storeRedo,
+    canUndo,
+    canRedo,
+  } = useVideoEditorStore();
+
+  // Track last action for history
+  const lastActionRef = useRef<string>('initial');
   const [shortcuts, setShortcuts] = useState<KeyboardShortcut[]>(DEFAULT_SHORTCUTS);
   const [projectSettings, setProjectSettings] = useState<ProjectSettings>(DEFAULT_PROJECT_SETTINGS);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
@@ -119,8 +130,15 @@ export function VideoEditorPanel({
 
   // Use the video editor hook
   const editor = useVideoEditor({
-    onClipChange: (clips) => {
-      console.log('Clips changed:', clips.length);
+    onClipChange: (_clips) => {
+      // Push to history when clips change (skip if this is from undo/redo)
+      if (lastActionRef.current !== 'undo' && lastActionRef.current !== 'redo') {
+        const tracks = editor?.state?.tracks;
+        if (tracks && tracks.length > 0) {
+          pushHistory(lastActionRef.current || 'edit', tracks, editor.state.duration);
+        }
+      }
+      lastActionRef.current = 'edit';
     },
     onPlaybackChange: (isPlaying, time) => {
       timeline.setCurrentTime(time);
@@ -325,18 +343,22 @@ export function VideoEditorPanel({
     editor.seek(time);
   }, [editor]);
 
-  // Handle history
+  // Handle history with store - actual track restoration
   const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      setHistoryIndex(prev => prev - 1);
+    lastActionRef.current = 'undo';
+    const snapshot = storeUndo();
+    if (snapshot) {
+      editor.setTracks(snapshot.tracks, snapshot.duration);
     }
-  }, [historyIndex]);
+  }, [storeUndo, editor]);
 
   const handleRedo = useCallback(() => {
-    if (historyIndex < historyEntries.length - 1) {
-      setHistoryIndex(prev => prev + 1);
+    lastActionRef.current = 'redo';
+    const snapshot = storeRedo();
+    if (snapshot) {
+      editor.setTracks(snapshot.tracks, snapshot.duration);
     }
-  }, [historyIndex, historyEntries.length]);
+  }, [storeRedo, editor]);
 
   // Handle side panel toggle
   const handleToggleSidePanel = useCallback((tab: SidePanelTab) => {
@@ -369,7 +391,7 @@ export function VideoEditorPanel({
               <Button 
                 variant="ghost" 
                 size="icon" 
-                disabled={historyIndex <= 0}
+                disabled={!canUndo()}
                 onClick={handleUndo}
               >
                 <Undo className="h-4 w-4" />
@@ -383,7 +405,7 @@ export function VideoEditorPanel({
               <Button 
                 variant="ghost" 
                 size="icon" 
-                disabled={historyIndex >= historyEntries.length - 1}
+                disabled={!canRedo()}
                 onClick={handleRedo}
               >
                 <Redo className="h-4 w-4" />
@@ -557,33 +579,38 @@ export function VideoEditorPanel({
 
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Preview area */}
-        <div className="flex-1 flex flex-col">
+        {/* Preview and Timeline area */}
+        <ResizablePanelGroup direction="vertical" className="flex-1">
           {/* Video preview */}
-          <div className="flex-1 bg-black flex items-center justify-center">
-            {previewUrl ? (
-              <VideoPreview
-                src={previewUrl}
-                currentTime={editor.state.currentTime}
-                isPlaying={editor.state.isPlaying}
-                onTimeUpdate={editor.seek}
-                onPlayingChange={(playing) => playing ? editor.play() : editor.pause()}
-                className="w-full h-full"
-              />
-            ) : (
-              <div className="text-center text-muted-foreground">
-                <Film className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>{t('importHint')}</p>
-                <Button variant="outline" className="mt-4" onClick={handleImportVideo}>
-                  <FolderOpen className="h-4 w-4 mr-2" />
-                  {t('importVideo')}
-                </Button>
-              </div>
-            )}
-          </div>
+          <ResizablePanel defaultSize={70} minSize={30}>
+            <div className="h-full bg-black flex items-center justify-center">
+              {previewUrl ? (
+                <VideoPreview
+                  src={previewUrl}
+                  currentTime={editor.state.currentTime}
+                  isPlaying={editor.state.isPlaying}
+                  onTimeUpdate={editor.seek}
+                  onPlayingChange={(playing) => playing ? editor.play() : editor.pause()}
+                  className="w-full h-full"
+                />
+              ) : (
+                <div className="text-center text-muted-foreground">
+                  <Film className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p>{t('importHint')}</p>
+                  <Button variant="outline" className="mt-4" onClick={handleImportVideo}>
+                    <FolderOpen className="h-4 w-4 mr-2" />
+                    {t('importVideo')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
 
           {/* Timeline */}
-          <div className="h-[200px] border-t relative">
+          <ResizablePanel defaultSize={30} minSize={15} maxSize={50}>
+            <div className="h-full border-t relative">
             {/* Zoom controls */}
             <div className="absolute top-2 right-2 z-10">
               <ZoomControls
@@ -645,12 +672,24 @@ export function VideoEditorPanel({
                 onCueDelete={(cueId) => subtitles.removeCue(subtitles.activeTrack!.id, cueId)}
                 onCueSplit={(cueId, atTime) => subtitles.splitCue(subtitles.activeTrack!.id, cueId, atTime)}
                 onCueMerge={(cueIds) => subtitles.mergeCues(subtitles.activeTrack!.id, cueIds)}
-                onCueDuplicate={() => {}}
+                onCueDuplicate={(cueId) => {
+                  if (subtitles.activeTrack) {
+                    const cue = subtitles.activeTrack.cues.find(c => c.id === cueId);
+                    if (cue) {
+                      subtitles.addCue(subtitles.activeTrack.id, {
+                        ...cue,
+                        startTime: cue.endTime,
+                        endTime: cue.endTime + (cue.endTime - cue.startTime),
+                      });
+                    }
+                  }
+                }}
                 onTimeChange={(time) => editor.seek(time / 1000)}
               />
             )}
-          </div>
-        </div>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
 
         {/* Side panel with tabs */}
         {showSidePanel && (
@@ -820,7 +859,19 @@ export function VideoEditorPanel({
             transitionDuration={transitionDuration}
             onTransitionSelect={setSelectedTransitionId}
             onDurationChange={setTransitionDuration}
-            onPreview={() => {}}
+            onPreview={() => {
+              // Preview transition by seeking to the clip's end point
+              if (transitionClipId) {
+                const clip = editor.state.tracks
+                  .flatMap(t => t.clips)
+                  .find(c => c.id === transitionClipId);
+                if (clip) {
+                  editor.seek(clip.startTime + clip.duration - transitionDuration);
+                  editor.play();
+                  setTimeout(() => editor.pause(), transitionDuration * 1000 + 500);
+                }
+              }
+            }}
             onApply={handleTransitionApply}
             onCancel={handleTransitionCancel}
           />

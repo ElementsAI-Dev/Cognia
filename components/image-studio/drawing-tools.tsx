@@ -36,9 +36,11 @@ import {
   X,
   RotateCcw,
   Highlighter,
+  MousePointer2,
+  Trash,
 } from 'lucide-react';
 
-export type ShapeType = 'freehand' | 'rectangle' | 'circle' | 'arrow' | 'line' | 'highlighter';
+export type ShapeType = 'select' | 'freehand' | 'rectangle' | 'circle' | 'arrow' | 'line' | 'highlighter';
 
 export interface DrawingShape {
   id: string;
@@ -65,6 +67,7 @@ const PRESET_COLORS = [
 ];
 
 const SHAPE_TOOLS: Array<{ type: ShapeType; icon: React.ReactNode; label: string }> = [
+  { type: 'select', icon: <MousePointer2 className="h-4 w-4" />, label: 'Select' },
   { type: 'freehand', icon: <Pencil className="h-4 w-4" />, label: 'Freehand' },
   { type: 'highlighter', icon: <Highlighter className="h-4 w-4" />, label: 'Highlighter' },
   { type: 'line', icon: <Minus className="h-4 w-4" />, label: 'Line' },
@@ -97,6 +100,7 @@ export function DrawingTools({
   const [shapes, setShapes] = useState<DrawingShape[]>(initialShapes);
   const [redoStack, setRedoStack] = useState<DrawingShape[]>([]);
   const [currentTool, setCurrentTool] = useState<ShapeType>('freehand');
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [strokeColor, setStrokeColor] = useState('#ff0000');
   const [strokeWidth, setStrokeWidth] = useState(4);
   const [opacity, setOpacity] = useState(100);
@@ -364,18 +368,70 @@ export function DrawingTools({
     [currentTool, strokeColor, strokeWidth, isDrawing, startPoint]
   );
 
+  // Get shape bounds for hit testing
+  const getShapeBounds = useCallback((shape: DrawingShape) => {
+    if (shape.points.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
+    
+    const xs = shape.points.map(p => p.x);
+    const ys = shape.points.map(p => p.y);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    const maxX = Math.max(...xs);
+    const maxY = Math.max(...ys);
+    
+    return {
+      x: minX - shape.strokeWidth,
+      y: minY - shape.strokeWidth,
+      width: maxX - minX + shape.strokeWidth * 2,
+      height: maxY - minY + shape.strokeWidth * 2,
+    };
+  }, []);
+
+  // Find shape at point
+  const findShapeAtPoint = useCallback((point: { x: number; y: number }) => {
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      const shape = shapes[i];
+      const bounds = getShapeBounds(shape);
+      if (
+        point.x >= bounds.x &&
+        point.x <= bounds.x + bounds.width &&
+        point.y >= bounds.y &&
+        point.y <= bounds.y + bounds.height
+      ) {
+        return shape;
+      }
+    }
+    return null;
+  }, [shapes, getShapeBounds]);
+
+  // Delete selected shape
+  const handleDeleteSelected = useCallback(() => {
+    if (!selectedShapeId) return;
+    setShapes((prev) => prev.filter((s) => s.id !== selectedShapeId));
+    setSelectedShapeId(null);
+  }, [selectedShapeId]);
+
   // Mouse handlers
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
       const point = getCanvasCoords(e);
+
+      // Handle select tool
+      if (currentTool === 'select') {
+        const shape = findShapeAtPoint(point);
+        setSelectedShapeId(shape?.id || null);
+        return;
+      }
+
       setIsDrawing(true);
       setStartPoint(point);
+      setSelectedShapeId(null);
 
       if (currentTool === 'freehand' || currentTool === 'highlighter') {
         setCurrentPoints([point]);
       }
     },
-    [currentTool, getCanvasCoords]
+    [currentTool, getCanvasCoords, findShapeAtPoint]
   );
 
   const handleMouseMove = useCallback(
@@ -599,6 +655,23 @@ export function DrawingTools({
 
           <Separator orientation="vertical" className="h-6" />
 
+          {/* Delete selected */}
+          {selectedShapeId && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={handleDeleteSelected}
+                >
+                  <Trash className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete Selected</TooltipContent>
+            </Tooltip>
+          )}
+
           {/* Clear */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -630,7 +703,7 @@ export function DrawingTools({
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseLeave}
-              style={{ cursor: 'crosshair' }}
+              style={{ cursor: currentTool === 'select' ? 'default' : 'crosshair' }}
             />
             <canvas ref={cursorCanvasRef} className="absolute inset-0 pointer-events-none" />
           </div>

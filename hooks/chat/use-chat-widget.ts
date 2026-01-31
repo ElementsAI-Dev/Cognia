@@ -502,6 +502,19 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
     [updateConfig]
   );
 
+  // Open main window (expand to full chat)
+  const openMainWindow = useCallback(async (hideWidget = true) => {
+    if (typeof window === 'undefined' || !isTauri()) {
+      return;
+    }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('chat_widget_open_main', { hideWidget });
+    } catch (err) {
+      console.error('[ChatWidget] Failed to open main window:', err);
+    }
+  }, []);
+
   return {
     // State
     isVisible,
@@ -527,6 +540,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
     setPinned,
     stop,
     regenerate,
+    openMainWindow,
   };
 }
 

@@ -1,11 +1,11 @@
 //! Screen Recording Tauri commands
 
 use crate::screen_recording::{
-    ffmpeg, AudioDevices, CleanupResult, EncodingSupport, FFmpegInfo, FFmpegInstallGuide, 
-    HardwareAcceleration, MonitorInfo, RecordingConfig, RecordingHistoryEntry, RecordingMetadata, 
-    RecordingRegion, RecordingStats, RecordingStatus, ScreenRecordingManager, StorageConfig,
-    StorageStats, VideoConvertOptions, VideoInfo, VideoProcessingResult, VideoProcessor,
-    VideoTrimOptions,
+    ffmpeg, AudioDevices, CleanupResult, EncodingSupport, FFmpegInfo, FFmpegInstallGuide,
+    HardwareAcceleration, MonitorInfo, RecordingConfig, RecordingHistoryEntry, RecordingMetadata,
+    RecordingRegion, RecordingStats, RecordingStatus, RecordingToolbar, RecordingToolbarConfig,
+    RecordingToolbarState, ScreenRecordingManager, SnapEdge, StorageConfig, StorageStats,
+    VideoConvertOptions, VideoInfo, VideoProcessingResult, VideoProcessor, VideoTrimOptions,
 };
 use tauri::State;
 use parking_lot::RwLock;
@@ -414,6 +414,123 @@ pub async fn storage_cleanup(
     manager: State<'_, ScreenRecordingManager>,
 ) -> Result<CleanupResult, String> {
     manager.cleanup_old_files()
+}
+
+// ==================== Recording Toolbar Commands ====================
+
+/// Show the recording toolbar
+#[tauri::command]
+pub async fn recording_toolbar_show(
+    toolbar: State<'_, RecordingToolbar>,
+) -> Result<(), String> {
+    toolbar.show()
+}
+
+/// Hide the recording toolbar
+#[tauri::command]
+pub async fn recording_toolbar_hide(
+    toolbar: State<'_, RecordingToolbar>,
+) -> Result<(), String> {
+    toolbar.hide()
+}
+
+/// Check if toolbar is visible
+#[tauri::command]
+pub async fn recording_toolbar_is_visible(
+    toolbar: State<'_, RecordingToolbar>,
+) -> Result<bool, String> {
+    Ok(toolbar.is_visible())
+}
+
+/// Set toolbar position
+#[tauri::command]
+pub async fn recording_toolbar_set_position(
+    toolbar: State<'_, RecordingToolbar>,
+    x: i32,
+    y: i32,
+) -> Result<(), String> {
+    toolbar.set_position(x, y)
+}
+
+/// Get toolbar position
+#[tauri::command]
+pub async fn recording_toolbar_get_position(
+    toolbar: State<'_, RecordingToolbar>,
+) -> Result<(i32, i32), String> {
+    Ok(toolbar.get_position())
+}
+
+/// Snap toolbar to edge
+#[tauri::command]
+pub async fn recording_toolbar_snap_to_edge(
+    toolbar: State<'_, RecordingToolbar>,
+    edge: SnapEdge,
+) -> Result<(), String> {
+    toolbar.snap_to_edge(edge)
+}
+
+/// Toggle compact mode
+#[tauri::command]
+pub async fn recording_toolbar_toggle_compact(
+    toolbar: State<'_, RecordingToolbar>,
+) -> Result<bool, String> {
+    toolbar.toggle_compact_mode()
+}
+
+/// Get toolbar configuration
+#[tauri::command]
+pub async fn recording_toolbar_get_config(
+    toolbar: State<'_, RecordingToolbar>,
+) -> Result<RecordingToolbarConfig, String> {
+    Ok(toolbar.get_config())
+}
+
+/// Update toolbar configuration
+#[tauri::command]
+pub async fn recording_toolbar_update_config(
+    toolbar: State<'_, RecordingToolbar>,
+    config: RecordingToolbarConfig,
+) -> Result<(), String> {
+    toolbar.update_config(config);
+    Ok(())
+}
+
+/// Get toolbar state (recording status, duration, etc.)
+#[tauri::command]
+pub async fn recording_toolbar_get_state(
+    toolbar: State<'_, RecordingToolbar>,
+) -> Result<RecordingToolbarState, String> {
+    Ok(toolbar.get_state())
+}
+
+/// Update toolbar recording state
+#[tauri::command]
+pub async fn recording_toolbar_update_state(
+    toolbar: State<'_, RecordingToolbar>,
+    is_recording: bool,
+    is_paused: bool,
+    duration_ms: u64,
+) -> Result<(), String> {
+    toolbar.update_recording_state(is_recording, is_paused, duration_ms);
+    Ok(())
+}
+
+/// Set toolbar hover state
+#[tauri::command]
+pub async fn recording_toolbar_set_hovered(
+    toolbar: State<'_, RecordingToolbar>,
+    hovered: bool,
+) -> Result<(), String> {
+    toolbar.set_hovered(hovered);
+    Ok(())
+}
+
+/// Destroy the toolbar window
+#[tauri::command]
+pub async fn recording_toolbar_destroy(
+    toolbar: State<'_, RecordingToolbar>,
+) -> Result<(), String> {
+    toolbar.destroy()
 }
 
 #[cfg(test)]

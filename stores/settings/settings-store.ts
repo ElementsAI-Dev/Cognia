@@ -202,6 +202,28 @@ const DEFAULT_OBSERVABILITY_SETTINGS: ObservabilitySettings = {
   serviceName: 'cognia-ai',
 };
 
+// Agent Trace settings
+export interface AgentTraceSettings {
+  /** Enable agent trace recording */
+  enabled: boolean;
+  /** Maximum number of trace records to keep (0 = unlimited) */
+  maxRecords: number;
+  /** Auto-cleanup traces older than N days (0 = never) */
+  autoCleanupDays: number;
+  /** Include shell commands in traces */
+  traceShellCommands: boolean;
+  /** Include code edits in traces */
+  traceCodeEdits: boolean;
+}
+
+export const DEFAULT_AGENT_TRACE_SETTINGS: AgentTraceSettings = {
+  enabled: true,
+  maxRecords: 1000,
+  autoCleanupDays: 30,
+  traceShellCommands: true,
+  traceCodeEdits: true,
+};
+
 // Agent Optimization settings (Claude Best Practices)
 export interface AgentOptimizationSettings {
   // Smart Routing - decide single vs multi-agent automatically
@@ -848,6 +870,16 @@ interface SettingsState {
   setToolWarningsEnabled: (enabled: boolean) => void;
   setSkillMcpAutoLoadEnabled: (enabled: boolean) => void;
   resetAgentOptimizationSettings: () => void;
+
+  // Agent Trace settings
+  agentTraceSettings: AgentTraceSettings;
+  setAgentTraceSettings: (settings: Partial<AgentTraceSettings>) => void;
+  setAgentTraceEnabled: (enabled: boolean) => void;
+  setAgentTraceMaxRecords: (maxRecords: number) => void;
+  setAgentTraceAutoCleanupDays: (days: number) => void;
+  setAgentTraceShellCommands: (enabled: boolean) => void;
+  setAgentTraceCodeEdits: (enabled: boolean) => void;
+  resetAgentTraceSettings: () => void;
 
   // Reset
   resetSettings: () => void;
@@ -2524,6 +2556,35 @@ export const useSettingsStore = create<SettingsState>()(
       resetAgentOptimizationSettings: () =>
         set({ agentOptimizationSettings: { ...DEFAULT_AGENT_OPTIMIZATION_SETTINGS } }),
 
+      // Agent Trace settings
+      agentTraceSettings: { ...DEFAULT_AGENT_TRACE_SETTINGS },
+      setAgentTraceSettings: (settings) =>
+        set((state) => ({
+          agentTraceSettings: { ...state.agentTraceSettings, ...settings },
+        })),
+      setAgentTraceEnabled: (enabled) =>
+        set((state) => ({
+          agentTraceSettings: { ...state.agentTraceSettings, enabled },
+        })),
+      setAgentTraceMaxRecords: (maxRecords) =>
+        set((state) => ({
+          agentTraceSettings: { ...state.agentTraceSettings, maxRecords },
+        })),
+      setAgentTraceAutoCleanupDays: (autoCleanupDays) =>
+        set((state) => ({
+          agentTraceSettings: { ...state.agentTraceSettings, autoCleanupDays },
+        })),
+      setAgentTraceShellCommands: (traceShellCommands) =>
+        set((state) => ({
+          agentTraceSettings: { ...state.agentTraceSettings, traceShellCommands },
+        })),
+      setAgentTraceCodeEdits: (traceCodeEdits) =>
+        set((state) => ({
+          agentTraceSettings: { ...state.agentTraceSettings, traceCodeEdits },
+        })),
+      resetAgentTraceSettings: () =>
+        set({ agentTraceSettings: { ...DEFAULT_AGENT_TRACE_SETTINGS } }),
+
       // Onboarding actions
       setOnboardingCompleted: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
 
@@ -2678,6 +2739,8 @@ export const useSettingsStore = create<SettingsState>()(
           hasCompletedOnboarding: state.hasCompletedOnboarding,
           // Agent Optimization settings (Claude Best Practices)
           agentOptimizationSettings: state.agentOptimizationSettings,
+          // Agent Trace settings
+          agentTraceSettings: state.agentTraceSettings,
         };
       },
     }
@@ -2724,3 +2787,5 @@ export const selectContextIsolationEnabled = (state: SettingsState) =>
   state.agentOptimizationSettings.enableContextIsolation;
 export const selectSkillMcpAutoLoadEnabled = (state: SettingsState) =>
   state.agentOptimizationSettings.enableSkillMcpAutoLoad;
+export const selectAgentTraceSettings = (state: SettingsState) => state.agentTraceSettings;
+export const selectAgentTraceEnabled = (state: SettingsState) => state.agentTraceSettings.enabled;

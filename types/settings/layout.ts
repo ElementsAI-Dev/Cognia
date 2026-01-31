@@ -14,6 +14,7 @@ export type SettingsSection =
   | 'speech'
   | 'search'
   | 'data'
+  | 'agent-trace'
   | 'vector'
   | 'desktop'
   | 'environment'

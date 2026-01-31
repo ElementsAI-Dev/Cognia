@@ -9,7 +9,17 @@
  */
 
 /** Supported environment tools */
-export type EnvironmentTool = 'uv' | 'nvm' | 'docker' | 'podman' | 'ffmpeg';
+export type EnvironmentTool =
+  | 'python'
+  | 'nodejs'
+  | 'ruby'
+  | 'postgresql'
+  | 'rust'
+  | 'uv'
+  | 'nvm'
+  | 'docker'
+  | 'podman'
+  | 'ffmpeg';
 
 /** Installation status for a tool */
 export type InstallationStatus =
@@ -17,7 +27,8 @@ export type InstallationStatus =
   | 'installed'
   | 'installing'
   | 'error'
-  | 'checking';
+  | 'checking'
+  | 'disabled';
 
 // Platform is defined in git.ts
 import type { Platform } from './git';
@@ -37,6 +48,7 @@ export interface ToolInfo {
 /** Tool status */
 export interface ToolStatus {
   tool: EnvironmentTool;
+  enabled: boolean;
   installed: boolean;
   version: string | null;
   path: string | null;
@@ -52,6 +64,26 @@ export interface InstallProgress {
   progress: number; // 0-100
   message: string;
   error: string | null;
+}
+
+export type EnvVarCategory = 'api_keys' | 'database' | 'config' | 'other';
+
+export interface EnvVariable {
+  key: string;
+  value: string;
+  category: EnvVarCategory;
+  isSecret: boolean;
+  updatedAt: string;
+}
+
+export interface EnvFileImportOptions {
+  overwrite?: boolean;
+  markSecrets?: boolean;
+  autoDetectCategory?: boolean;
+}
+
+export interface EnvFileExportOptions {
+  keys?: string[];
 }
 
 /** Installation options */
@@ -105,6 +137,51 @@ export interface ContainerRuntimeInfo {
 
 /** Tool metadata with installation commands */
 export const TOOL_INFO: Record<EnvironmentTool, ToolInfo> = {
+  python: {
+    id: 'python',
+    name: 'Python',
+    description: 'Python runtime and tooling',
+    icon: '🐍',
+    category: 'language_manager',
+    website: 'https://www.python.org/',
+    docsUrl: 'https://docs.python.org/',
+  },
+  nodejs: {
+    id: 'nodejs',
+    name: 'Node.js',
+    description: 'JavaScript runtime built on V8',
+    icon: '🟢',
+    category: 'language_manager',
+    website: 'https://nodejs.org/',
+    docsUrl: 'https://nodejs.org/en/docs',
+  },
+  ruby: {
+    id: 'ruby',
+    name: 'Ruby',
+    description: 'Ruby programming language runtime',
+    icon: '💎',
+    category: 'language_manager',
+    website: 'https://www.ruby-lang.org/',
+    docsUrl: 'https://www.ruby-lang.org/en/documentation/',
+  },
+  postgresql: {
+    id: 'postgresql',
+    name: 'PostgreSQL',
+    description: 'Open source relational database',
+    icon: '🐘',
+    category: 'container_runtime',
+    website: 'https://www.postgresql.org/',
+    docsUrl: 'https://www.postgresql.org/docs/',
+  },
+  rust: {
+    id: 'rust',
+    name: 'Rust',
+    description: 'Rust toolchain (rustc, cargo, rustup)',
+    icon: '🦀',
+    category: 'language_manager',
+    website: 'https://www.rust-lang.org/',
+    docsUrl: 'https://doc.rust-lang.org/',
+  },
   uv: {
     id: 'uv',
     name: 'uv',
@@ -174,6 +251,86 @@ export interface InstallCommands {
 
 /** Platform-specific installation commands for each tool */
 export const INSTALL_COMMANDS: Record<EnvironmentTool, InstallCommands> = {
+  python: {
+    windows: {
+      check: 'python --version',
+      install: [
+        'winget install --id Python.Python.3.12 -e --accept-source-agreements --accept-package-agreements',
+      ],
+    },
+    macos: {
+      check: 'python3 --version',
+      install: ['brew install python@3.12'],
+    },
+    linux: {
+      check: 'python3 --version',
+      install: ['sudo apt-get update && sudo apt-get install -y python3 python3-pip'],
+    },
+  },
+  nodejs: {
+    windows: {
+      check: 'node --version',
+      install: [
+        'winget install --id OpenJS.NodeJS -e --accept-source-agreements --accept-package-agreements',
+      ],
+    },
+    macos: {
+      check: 'node --version',
+      install: ['brew install node'],
+    },
+    linux: {
+      check: 'node --version',
+      install: ['sudo apt-get update && sudo apt-get install -y nodejs npm'],
+    },
+  },
+  ruby: {
+    windows: {
+      check: 'ruby --version',
+      install: [
+        'winget install --id RubyInstallerTeam.RubyWithDevKit.3.3 -e --accept-source-agreements --accept-package-agreements',
+      ],
+    },
+    macos: {
+      check: 'ruby --version',
+      install: ['brew install ruby'],
+    },
+    linux: {
+      check: 'ruby --version',
+      install: ['sudo apt-get update && sudo apt-get install -y ruby-full'],
+    },
+  },
+  postgresql: {
+    windows: {
+      check: 'psql --version',
+      install: [
+        'winget install --id PostgreSQL.PostgreSQL -e --accept-source-agreements --accept-package-agreements',
+      ],
+    },
+    macos: {
+      check: 'psql --version',
+      install: ['brew install postgresql@16'],
+    },
+    linux: {
+      check: 'psql --version',
+      install: ['sudo apt-get update && sudo apt-get install -y postgresql'],
+    },
+  },
+  rust: {
+    windows: {
+      check: 'rustc --version',
+      install: [
+        'winget install --id Rustlang.Rustup -e --accept-source-agreements --accept-package-agreements',
+      ],
+    },
+    macos: {
+      check: 'rustc --version',
+      install: ['brew install rustup'],
+    },
+    linux: {
+      check: 'rustc --version',
+      install: ['curl https://sh.rustup.rs -sSf | sh -s -- -y'],
+    },
+  },
   uv: {
     windows: {
       check: 'uv --version',
@@ -281,10 +438,11 @@ export const INSTALL_COMMANDS: Record<EnvironmentTool, InstallCommands> = {
 export function createDefaultToolStatus(tool: EnvironmentTool): ToolStatus {
   return {
     tool,
+    enabled: true,
     installed: false,
     version: null,
     path: null,
-    status: 'checking',
+    status: 'not_installed',
     error: null,
     lastChecked: null,
   };
@@ -295,6 +453,11 @@ export function createDefaultEnvironmentStatus(): EnvironmentStatus {
   return {
     platform: 'unknown',
     tools: {
+      python: createDefaultToolStatus('python'),
+      nodejs: createDefaultToolStatus('nodejs'),
+      ruby: createDefaultToolStatus('ruby'),
+      postgresql: createDefaultToolStatus('postgresql'),
+      rust: createDefaultToolStatus('rust'),
       uv: createDefaultToolStatus('uv'),
       nvm: createDefaultToolStatus('nvm'),
       docker: createDefaultToolStatus('docker'),

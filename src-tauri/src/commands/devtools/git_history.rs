@@ -196,12 +196,12 @@ pub async fn git_get_history(
 pub async fn git_undo_last(
     state: State<'_, HistoryManagerState>,
     repo_path: String,
-) -> GitOperationResult<()> {
+) -> Result<GitOperationResult<()>, String> {
     let mut manager = state.lock();
 
     let operation = match manager.get_last_undoable(&repo_path) {
         Some(op) => op.clone(),
-        None => return GitOperationResult::error("No undoable operation found".to_string()),
+        None => return Ok(GitOperationResult::error("No undoable operation found".to_string())),
     };
 
     // Perform the undo based on operation type
@@ -229,7 +229,7 @@ pub async fn git_undo_last(
         GitOperationType::Unstage => {
             // Re-stage the affected files
             if operation.affected_files.is_empty() {
-                return GitOperationResult::error("Cannot redo unstage: no files recorded".to_string());
+                return Ok(GitOperationResult::error("Cannot redo unstage: no files recorded".to_string()));
             }
             let mut args = vec!["add", "--"];
             for file in &operation.affected_files {
@@ -242,7 +242,7 @@ pub async fn git_undo_last(
             if let Some(ref before) = operation.before_ref {
                 run_git_command(&["checkout", before], Some(&repo_path))
             } else {
-                return GitOperationResult::error("Cannot undo checkout: no previous ref recorded".to_string());
+                return Ok(GitOperationResult::error("Cannot undo checkout: no previous ref recorded".to_string()));
             }
         }
         GitOperationType::Reset => {
@@ -250,24 +250,24 @@ pub async fn git_undo_last(
             if let Some(ref before) = operation.before_ref {
                 run_git_command(&["reset", "--hard", before], Some(&repo_path))
             } else {
-                return GitOperationResult::error("Cannot undo reset: no previous ref recorded".to_string());
+                return Ok(GitOperationResult::error("Cannot undo reset: no previous ref recorded".to_string()));
             }
         }
         _ => {
-            return GitOperationResult::error(format!(
+            return Ok(GitOperationResult::error(format!(
                 "Undo not supported for {:?}",
                 operation.operation_type
-            ));
+            )));
         }
     };
 
-    match result {
+    Ok(match result {
         Ok(output) => {
             manager.mark_undone(&operation.id);
             GitOperationResult::ok_with_output(output)
         }
         Err(e) => GitOperationResult::error(e),
-    }
+    })
 }
 
 /// Clear operation history for a repository
@@ -286,10 +286,10 @@ pub async fn git_clear_history(
 pub async fn git_reflog(
     repo_path: String,
     max_count: Option<u32>,
-) -> GitOperationResult<Vec<ReflogEntry>> {
+) -> Result<GitOperationResult<Vec<ReflogEntry>>, String> {
     let count = max_count.unwrap_or(20);
 
-    match run_git_command(
+    Ok(match run_git_command(
         &[
             "reflog",
             &format!("-{}", count),
@@ -318,7 +318,7 @@ pub async fn git_reflog(
             GitOperationResult::success(entries)
         }
         Err(e) => GitOperationResult::error(e),
-    }
+    })
 }
 
 /// Reflog entry
@@ -337,11 +337,11 @@ pub struct ReflogEntry {
 pub async fn git_recover_to_reflog(
     repo_path: String,
     selector: String,
-) -> GitOperationResult<()> {
-    match run_git_command(&["reset", "--hard", &selector], Some(&repo_path)) {
+) -> Result<GitOperationResult<()>, String> {
+    Ok(match run_git_command(&["reset", "--hard", &selector], Some(&repo_path)) {
         Ok(output) => GitOperationResult::ok_with_output(output),
         Err(e) => GitOperationResult::error(e),
-    }
+    })
 }
 
 #[cfg(test)]

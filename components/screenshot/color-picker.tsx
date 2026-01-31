@@ -8,28 +8,47 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check } from 'lucide-react';
+import { Check, Square, SquareDashed } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PRESET_COLORS, STROKE_WIDTHS } from '@/types/screenshot';
+import { Slider } from '@/components/ui/slider';
+import { PRESET_COLORS, STROKE_WIDTHS, FONT_SIZES } from '@/types/screenshot';
 
 interface ColorPickerProps {
   color: string;
   strokeWidth: number;
+  opacity?: number;
+  fontSize?: number;
+  filled?: boolean;
+  showStrokeWidth?: boolean;
+  showFilledToggle?: boolean;
+  showOpacity?: boolean;
+  showFontSize?: boolean;
   onColorChange: (color: string) => void;
   onStrokeWidthChange: (width: number) => void;
-  showStrokeWidth?: boolean;
+  onOpacityChange?: (opacity: number) => void;
+  onFontSizeChange?: (fontSize: number) => void;
+  onFilledChange?: (filled: boolean) => void;
   className?: string;
 }
 
 export function ColorPicker({
   color,
   strokeWidth,
+  opacity = 100,
+  fontSize = 16,
+  filled = false,
+  showStrokeWidth = true,
+  showFilledToggle = false,
+  showOpacity = false,
+  showFontSize = false,
   onColorChange,
   onStrokeWidthChange,
-  showStrokeWidth = true,
+  onOpacityChange,
+  onFontSizeChange,
+  onFilledChange,
   className,
 }: ColorPickerProps) {
   const t = useTranslations('screenshot.colorPicker');
@@ -103,6 +122,74 @@ export function ColorPicker({
                         height: Math.min(width * 2, 16),
                       }}
                     />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {showFilledToggle && (
+            <div>
+              <Label className="text-sm font-medium mb-2 block">{t('fillStyle')}</Label>
+              <div className="flex gap-2">
+                <button
+                  className={cn(
+                    'flex-1 h-8 rounded border transition-colors flex items-center justify-center gap-1',
+                    !filled ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'
+                  )}
+                  onClick={() => onFilledChange?.(false)}
+                >
+                  <SquareDashed className="h-4 w-4" />
+                  <span className="text-xs">{t('outlined')}</span>
+                </button>
+                <button
+                  className={cn(
+                    'flex-1 h-8 rounded border transition-colors flex items-center justify-center gap-1',
+                    filled ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'
+                  )}
+                  onClick={() => onFilledChange?.(true)}
+                >
+                  <Square className="h-4 w-4" />
+                  <span className="text-xs">{t('filled')}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showOpacity && (
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                {t('opacity', { value: opacity })}
+              </Label>
+              <Slider
+                value={[opacity]}
+                onValueChange={([v]) => onOpacityChange?.(v)}
+                min={10}
+                max={100}
+                step={5}
+                className="w-full"
+              />
+            </div>
+          )}
+
+          {showFontSize && (
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                {t('fontSize', { size: fontSize })}
+              </Label>
+              <div className="flex gap-1 flex-wrap">
+                {FONT_SIZES.map((size) => (
+                  <button
+                    key={size}
+                    className={cn(
+                      'w-8 h-8 rounded border transition-colors text-xs',
+                      fontSize === size
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:bg-muted'
+                    )}
+                    onClick={() => onFontSizeChange?.(size)}
+                  >
+                    {size}
                   </button>
                 ))}
               </div>

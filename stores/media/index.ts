@@ -47,6 +47,15 @@ export {
 } from './screen-recording-store';
 
 export {
+  useRecordingToolbarStore,
+  selectToolbarVisible,
+  selectToolbarConfig,
+  selectRecordingState,
+  selectSnappedEdge,
+  selectIsCompact,
+} from './recording-toolbar-store';
+
+export {
   useScreenshotStore,
   selectHistory,
   selectPinnedScreenshots,
@@ -70,3 +79,16 @@ export {
   type BatchJob,
   type BatchEditState,
 } from './batch-edit-store';
+
+export {
+  useVideoEditorStore,
+  selectCurrentProject,
+  selectRecentProjects,
+  selectPreferences,
+  selectCanUndo,
+  selectCanRedo,
+  type VideoProject,
+  type RecentProject,
+  type EditorPreferences,
+  type HistorySnapshot,
+} from './video-editor-store';

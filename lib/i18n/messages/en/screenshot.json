@@ -1,6 +1,7 @@
 {
   "screenshot": {
     "tools": {
+      "select": "Select",
       "rectangle": "Rectangle",
       "ellipse": "Ellipse",
       "arrow": "Arrow",
@@ -8,28 +9,35 @@
       "text": "Text",
       "blur": "Blur",
       "highlight": "Highlight",
-      "marker": "Marker",
-      "select": "Select"
+      "marker": "Marker"
     },
     "actions": {
       "undo": "Undo",
       "redo": "Redo",
       "clear": "Clear Annotations",
+      "delete": "Delete Selected",
       "copy": "Copy to Clipboard",
       "save": "Save",
       "cancel": "Cancel",
-      "confirm": "Done"
+      "confirm": "Done",
+      "magnifier": "Magnifier"
     },
     "shortcuts": {
       "undo": "Ctrl+Z",
       "redo": "Ctrl+Y",
       "copy": "Ctrl+C",
-      "save": "Ctrl+S"
+      "save": "Ctrl+S",
+      "delete": "Delete"
     },
     "colorPicker": {
       "selectColor": "Select color",
       "color": "Color",
-      "strokeWidth": "Stroke Width: {width}px"
+      "strokeWidth": "Stroke Width: {width}px",
+      "fillStyle": "Fill Style",
+      "outlined": "Outlined",
+      "filled": "Filled",
+      "opacity": "Opacity: {value}%",
+      "fontSize": "Font Size: {size}px"
     },
     "editor": {
       "annotationCount": "{count} annotation(s)",

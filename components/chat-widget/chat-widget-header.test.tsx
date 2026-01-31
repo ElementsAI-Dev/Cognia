@@ -17,6 +17,7 @@ jest.mock('next-intl', () => ({
       exportChat: '导出对话',
       settings: '设置',
       close: '关闭',
+      expandToFull: '打开完整聊天',
     };
     return translations[key] || key;
   },
@@ -227,5 +228,31 @@ describe('ChatWidgetHeader', () => {
   it('renders shortcuts component in dropdown', () => {
     render(<ChatWidgetHeader {...defaultProps} />);
     expect(screen.getByTestId('shortcuts')).toBeInTheDocument();
+  });
+
+  it('displays expand button when onExpandToFull is provided', () => {
+    const onExpandToFull = jest.fn();
+    render(<ChatWidgetHeader {...defaultProps} onExpandToFull={onExpandToFull} />);
+    const buttons = screen.getAllByRole('button');
+    // Expand button should be present (before pin button)
+    expect(buttons.length).toBeGreaterThan(2);
+  });
+
+  it('calls onExpandToFull when expand button is clicked', () => {
+    const onExpandToFull = jest.fn();
+    render(<ChatWidgetHeader {...defaultProps} onExpandToFull={onExpandToFull} />);
+    const buttons = screen.getAllByRole('button');
+    // First button should be expand when onExpandToFull is provided
+    const expandButton = buttons[0];
+    
+    fireEvent.click(expandButton);
+    expect(onExpandToFull).toHaveBeenCalled();
+  });
+
+  it('does not display expand button when onExpandToFull is not provided', () => {
+    render(<ChatWidgetHeader {...defaultProps} />);
+    const buttons = screen.getAllByRole('button');
+    // Without expand button, should have: pin, menu, close = 3 buttons
+    expect(buttons.length).toBe(3);
   });
 });

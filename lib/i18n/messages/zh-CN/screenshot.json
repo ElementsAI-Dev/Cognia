@@ -1,6 +1,7 @@
 {
   "screenshot": {
     "tools": {
+      "select": "选择",
       "rectangle": "矩形",
       "ellipse": "椭圆",
       "arrow": "箭头",
@@ -8,28 +9,35 @@
       "text": "文字",
       "blur": "马赛克",
       "highlight": "高亮",
-      "marker": "序号",
-      "select": "选择"
+      "marker": "序号"
     },
     "actions": {
       "undo": "撤销",
       "redo": "重做",
       "clear": "清除标注",
+      "delete": "删除选中",
       "copy": "复制到剪贴板",
       "save": "保存",
       "cancel": "取消",
-      "confirm": "完成"
+      "confirm": "完成",
+      "magnifier": "放大镜"
     },
     "shortcuts": {
       "undo": "Ctrl+Z",
       "redo": "Ctrl+Y",
       "copy": "Ctrl+C",
-      "save": "Ctrl+S"
+      "save": "Ctrl+S",
+      "delete": "Delete"
     },
     "colorPicker": {
       "selectColor": "选择颜色",
       "color": "颜色",
-      "strokeWidth": "线宽: {width}px"
+      "strokeWidth": "线宽: {width}px",
+      "fillStyle": "填充样式",
+      "outlined": "描边",
+      "filled": "填充",
+      "opacity": "透明度: {value}%",
+      "fontSize": "字号: {size}px"
     },
     "editor": {
       "annotationCount": "{count} 个标注",

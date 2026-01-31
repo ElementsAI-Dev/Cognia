@@ -15,6 +15,10 @@ import type {
   ToolStatus,
   InstallProgress,
   Platform,
+  EnvFileExportOptions,
+  EnvFileImportOptions,
+  EnvVarCategory,
+  EnvVariable,
   PythonSandboxExecutionResult,
   PythonExecutionProgress,
   PythonExecutionOptions,
@@ -58,6 +62,15 @@ export async function checkAllTools(): Promise<ToolStatus[]> {
   return invoke<ToolStatus[]>('environment_check_all_tools');
 }
 
+/** Enable/disable a tool (persisted) */
+export async function setToolEnabled(tool: EnvironmentTool, enabled: boolean): Promise<void> {
+  if (!isTauri()) {
+    throw new Error('Environment management requires Tauri environment');
+  }
+
+  await invoke('environment_set_tool_enabled', { tool, enabled });
+}
+
 /** Install a tool */
 export async function installTool(tool: EnvironmentTool): Promise<ToolStatus> {
   if (!isTauri()) {
@@ -81,6 +94,11 @@ export async function openToolWebsite(tool: EnvironmentTool): Promise<void> {
   if (!isTauri()) {
     // Fallback to window.open for browser
     const urls: Record<EnvironmentTool, string> = {
+      python: 'https://www.python.org/',
+      nodejs: 'https://nodejs.org/',
+      ruby: 'https://www.ruby-lang.org/',
+      postgresql: 'https://www.postgresql.org/',
+      rust: 'https://www.rust-lang.org/',
       uv: 'https://docs.astral.sh/uv/',
       nvm: 'https://github.com/nvm-sh/nvm',
       docker: 'https://www.docker.com/',
@@ -139,6 +157,7 @@ export const environmentService = {
   getPlatform,
   checkTool,
   checkAllTools,
+  setToolEnabled,
   installTool,
   uninstallTool,
   openToolWebsite,
@@ -148,6 +167,57 @@ export const environmentService = {
 };
 
 export default environmentService;
+
+// ==================== Environment Variables Service ====================
+
+export async function listEnvVars(): Promise<EnvVariable[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  return invoke<EnvVariable[]>('environment_list_env_vars');
+}
+
+export async function upsertEnvVar(input: {
+  key: string;
+  value: string;
+  category?: EnvVarCategory;
+  isSecret?: boolean;
+}): Promise<EnvVariable> {
+  if (!isTauri()) {
+    throw new Error('Environment management requires Tauri environment');
+  }
+  const { key, value, category, isSecret } = input;
+  return invoke<EnvVariable>('environment_upsert_env_var', {
+    key,
+    value,
+    category,
+    isSecret,
+  });
+}
+
+export async function deleteEnvVar(key: string): Promise<boolean> {
+  if (!isTauri()) {
+    throw new Error('Environment management requires Tauri environment');
+  }
+  return invoke<boolean>('environment_delete_env_var', { key });
+}
+
+export async function importEnvFile(
+  content: string,
+  options?: EnvFileImportOptions
+): Promise<EnvVariable[]> {
+  if (!isTauri()) {
+    throw new Error('Environment management requires Tauri environment');
+  }
+  return invoke<EnvVariable[]>('environment_import_env_file', { content, options });
+}
+
+export async function exportEnvFile(options?: EnvFileExportOptions): Promise<string> {
+  if (!isTauri()) {
+    throw new Error('Environment management requires Tauri environment');
+  }
+  return invoke<string>('environment_export_env_file', { options });
+}
 
 // ==================== Virtual Environment Service ====================
 

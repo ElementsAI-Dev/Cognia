@@ -264,6 +264,11 @@ pub fn run() {
             let screen_recording_manager = ScreenRecordingManager::new(app.handle().clone());
             app.manage(screen_recording_manager);
 
+            // Initialize Recording Toolbar
+            let recording_toolbar = screen_recording::RecordingToolbar::new(app.handle().clone());
+            app.manage(recording_toolbar);
+            log::info!("Recording toolbar initialized");
+
             // Initialize Context Manager
             let context_manager = ContextManager::new();
             app.manage(context_manager);
@@ -779,6 +784,10 @@ pub fn run() {
             commands::media::screenshot::screenshot_calculate_snap,
             commands::media::screenshot::screenshot_get_snap_config,
             commands::media::screenshot::screenshot_set_snap_config,
+            commands::media::screenshot::screenshot_get_window_at_point,
+            commands::media::screenshot::screenshot_get_child_elements,
+            commands::media::screenshot::screenshot_calculate_selection_snap,
+            commands::media::screenshot::screenshot_get_pixel_color,
             // Context commands
             commands::context::context::context_get_full,
             commands::context::context::context_get_window,
@@ -890,11 +899,17 @@ pub fn run() {
             commands::system::environment::environment_get_platform,
             commands::system::environment::environment_check_tool,
             commands::system::environment::environment_check_all_tools,
+            commands::system::environment::environment_set_tool_enabled,
             commands::system::environment::environment_install_tool,
             commands::system::environment::environment_uninstall_tool,
             commands::system::environment::environment_open_tool_website,
             commands::system::environment::environment_get_python_versions,
             commands::system::environment::environment_get_node_versions,
+            commands::system::environment::environment_list_env_vars,
+            commands::system::environment::environment_upsert_env_var,
+            commands::system::environment::environment_delete_env_var,
+            commands::system::environment::environment_import_env_file,
+            commands::system::environment::environment_export_env_file,
             // Virtual environment commands
             commands::system::environment::environment_create_venv,
             commands::system::environment::environment_list_venvs,
@@ -930,6 +945,7 @@ pub fn run() {
             commands::devtools::jupyter::jupyter_get_kernel_status,
             commands::devtools::jupyter::jupyter_is_kernel_alive,
             commands::devtools::jupyter::jupyter_get_session_by_id,
+            commands::devtools::jupyter::jupyter_get_config,
             // Proxy commands
             commands::system::proxy::proxy_detect_all,
             commands::system::proxy::proxy_test,
@@ -988,6 +1004,20 @@ pub fn run() {
             commands::media::screen_recording::storage_is_exceeded,
             commands::media::screen_recording::storage_get_usage_percent,
             commands::media::screen_recording::storage_cleanup,
+            // Recording toolbar commands
+            commands::media::screen_recording::recording_toolbar_show,
+            commands::media::screen_recording::recording_toolbar_hide,
+            commands::media::screen_recording::recording_toolbar_is_visible,
+            commands::media::screen_recording::recording_toolbar_set_position,
+            commands::media::screen_recording::recording_toolbar_get_position,
+            commands::media::screen_recording::recording_toolbar_snap_to_edge,
+            commands::media::screen_recording::recording_toolbar_toggle_compact,
+            commands::media::screen_recording::recording_toolbar_get_config,
+            commands::media::screen_recording::recording_toolbar_update_config,
+            commands::media::screen_recording::recording_toolbar_get_state,
+            commands::media::screen_recording::recording_toolbar_update_state,
+            commands::media::screen_recording::recording_toolbar_set_hovered,
+            commands::media::screen_recording::recording_toolbar_destroy,
             // Chat widget commands
             commands::window::chat_widget::chat_widget_show,
             commands::window::chat_widget::chat_widget_hide,
@@ -1008,6 +1038,7 @@ pub fn run() {
             commands::window::chat_widget::chat_widget_save_config,
             commands::window::chat_widget::chat_widget_recreate,
             commands::window::chat_widget::chat_widget_sync_state,
+            commands::window::chat_widget::chat_widget_open_main,
             // Assistant bubble commands
             commands::window::assistant_bubble::assistant_bubble_show,
             commands::window::assistant_bubble::assistant_bubble_hide,
@@ -1078,6 +1109,13 @@ pub fn run() {
             commands::devtools::git::git_export_history,
             commands::devtools::git::git_restore_chat,
             commands::devtools::git::git_restore_designer,
+            commands::devtools::git::git_blame,
+            commands::devtools::git::git_blame_line,
+            // Multi-VCS commands (git, jj, hg, svn)
+            commands::devtools::vcs::vcs_detect,
+            commands::devtools::vcs::vcs_check_installed,
+            commands::devtools::vcs::vcs_get_info,
+            commands::devtools::vcs::vcs_blame,
             // Process management commands
             commands::system::process::process_list,
             commands::system::process::process_get,
@@ -1156,6 +1194,11 @@ pub fn run() {
             commands::extensions::plugin::plugin_python_module_getattr,
             commands::extensions::plugin::plugin_get_state,
             commands::extensions::plugin::plugin_get_all,
+            commands::extensions::plugin::plugin_python_runtime_info,
+            commands::extensions::plugin::plugin_python_is_initialized,
+            commands::extensions::plugin::plugin_python_get_info,
+            commands::extensions::plugin::plugin_python_unload,
+            commands::extensions::plugin::plugin_python_list,
             commands::extensions::plugin::plugin_show_notification,
             // Skill commands
             commands::extensions::skill::skill_list_repos,

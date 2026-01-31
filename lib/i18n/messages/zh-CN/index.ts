@@ -35,7 +35,9 @@ import plugin from './plugin.json';
 import document from './document.json';
 import tray from './tray.json';
 import chatWidget from './chatWidget.json';
+import latex from './latex.json';
 import observability from './observability.json';
+import arena from './arena.json';
 
 const messages = {
   ...common,
@@ -72,7 +74,9 @@ const messages = {
   ...document,
   ...tray,
   ...chatWidget,
-  ...observability
+  latex,
+  ...observability,
+  arena
 };
 
 export default messages;

@@ -94,7 +94,7 @@ describe('TextInput', () => {
       expect((textarea as HTMLTextAreaElement).value).toBe('Hello World');
     });
 
-    it('should call onConfirm with text when Enter is pressed', () => {
+    it('should call onConfirm with text and fontSize when Enter is pressed', () => {
       render(
         <TextInput
           position={defaultPosition}
@@ -108,7 +108,7 @@ describe('TextInput', () => {
       fireEvent.change(textarea, { target: { value: 'Test Text' } });
       fireEvent.keyDown(textarea, { key: 'Enter' });
 
-      expect(mockOnConfirm).toHaveBeenCalledWith('Test Text');
+      expect(mockOnConfirm).toHaveBeenCalledWith('Test Text', 16);
     });
 
     it('should not call onConfirm when Shift+Enter is pressed (new line)', () => {
@@ -179,7 +179,7 @@ describe('TextInput', () => {
   });
 
   describe('Blur Handling', () => {
-    it('should call onConfirm when textarea loses focus with text', () => {
+    it('should call onConfirm with text and fontSize when textarea loses focus with text', () => {
       render(
         <TextInput
           position={defaultPosition}
@@ -193,7 +193,7 @@ describe('TextInput', () => {
       fireEvent.change(textarea, { target: { value: 'Blur Text' } });
       fireEvent.blur(textarea);
 
-      expect(mockOnConfirm).toHaveBeenCalledWith('Blur Text');
+      expect(mockOnConfirm).toHaveBeenCalledWith('Blur Text', 16);
     });
 
     it('should call onCancel when textarea loses focus without text', () => {
@@ -229,6 +229,51 @@ describe('TextInput', () => {
       fireEvent.change(textarea, { target: { value: multilineText } });
 
       expect((textarea as HTMLTextAreaElement).value).toBe(multilineText);
+    });
+  });
+
+  describe('Font Size Controls', () => {
+    it('should render font size control buttons', () => {
+      const { container } = render(
+        <TextInput
+          position={defaultPosition}
+          style={defaultStyle}
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Should have increase/decrease font size buttons
+      const buttons = container.querySelectorAll('button');
+      expect(buttons.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should display current font size', () => {
+      const { container } = render(
+        <TextInput
+          position={defaultPosition}
+          style={{ color: '#FF0000', fontSize: 24 }}
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Should show font size value
+      expect(container.textContent).toContain('24px');
+    });
+
+    it('should use style fontSize as initial value', () => {
+      const { container } = render(
+        <TextInput
+          position={defaultPosition}
+          style={{ color: '#FF0000', fontSize: 32 }}
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      const textarea = container.querySelector('textarea');
+      expect(textarea?.style.fontSize).toBe('32px');
     });
   });
 });

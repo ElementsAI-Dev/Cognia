@@ -619,6 +619,80 @@ impl PluginManager {
         plugins.values().cloned().collect()
     }
 
+    /// Get Python runtime info
+    pub async fn get_python_runtime_info(&self) -> PluginResult<PythonRuntimeInfo> {
+        let runtime = self.python_runtime.as_ref()
+            .ok_or_else(|| PluginError::Python("Python runtime not initialized".to_string()))?;
+
+        let runtime = runtime.read().await;
+        Ok(PythonRuntimeInfo {
+            available: runtime.is_available(),
+            version: runtime.version().map(|s| s.to_string()),
+            plugin_count: runtime.plugin_count(),
+            total_calls: runtime.stats().total_calls.load(std::sync::atomic::Ordering::Relaxed),
+            total_execution_time_ms: runtime.stats().total_execution_time_ms.load(std::sync::atomic::Ordering::Relaxed),
+            failed_calls: runtime.stats().failed_calls.load(std::sync::atomic::Ordering::Relaxed),
+        })
+    }
+
+    /// Check if a Python plugin is initialized
+    pub async fn is_python_plugin_initialized(&self, plugin_id: &str) -> PluginResult<bool> {
+        let runtime = self.python_runtime.as_ref()
+            .ok_or_else(|| PluginError::Python("Python runtime not initialized".to_string()))?;
+
+        let runtime = runtime.read().await;
+        Ok(runtime.is_plugin_initialized(plugin_id))
+    }
+
+    /// Get Python plugin info
+    pub async fn get_python_plugin_info(&self, plugin_id: &str) -> PluginResult<Option<PythonPluginInfo>> {
+        let runtime = self.python_runtime.as_ref()
+            .ok_or_else(|| PluginError::Python("Python runtime not initialized".to_string()))?;
+
+        let runtime = runtime.read().await;
+        Ok(runtime.get_plugin_info(plugin_id).map(|(id, tools, hooks)| PythonPluginInfo {
+            plugin_id: id,
+            tool_count: tools,
+            hook_count: hooks,
+        }))
+    }
+
+    /// Unload a Python plugin
+    pub async fn unload_python_plugin(&self, plugin_id: &str) -> PluginResult<()> {
+        let runtime = self.python_runtime.as_ref()
+            .ok_or_else(|| PluginError::Python("Python runtime not initialized".to_string()))?;
+
+        let mut runtime = runtime.write().await;
+        runtime.unload_plugin(plugin_id)
+    }
+
+    /// List loaded Python plugins
+    pub async fn list_python_plugins(&self) -> PluginResult<Vec<String>> {
+        let runtime = self.python_runtime.as_ref()
+            .ok_or_else(|| PluginError::Python("Python runtime not initialized".to_string()))?;
+
+        let runtime = runtime.read().await;
+        Ok(runtime.list_plugins())
+    }
+}
+
+/// Python runtime information
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PythonRuntimeInfo {
+    pub available: bool,
+    pub version: Option<String>,
+    pub plugin_count: usize,
+    pub total_calls: u64,
+    pub total_execution_time_ms: u64,
+    pub failed_calls: u64,
+}
+
+/// Python plugin information
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PythonPluginInfo {
+    pub plugin_id: String,
+    pub tool_count: usize,
+    pub hook_count: usize,
 }
 
 #[cfg(test)]

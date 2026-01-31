@@ -820,6 +820,115 @@ describe('useVideoEditor', () => {
       expect(result.current.state.isPlaying).toBe(false);
       expect(result.current.state.currentTime).toBe(0);
     });
+
+    it('should set tracks directly for undo/redo', () => {
+      const { result } = renderHook(() => useVideoEditor());
+
+      const mockTracks = [
+        {
+          id: 'track-1',
+          name: 'Video Track',
+          type: 'video' as const,
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test Clip',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 15,
+              sourceStartTime: 0,
+              sourceEndTime: 15,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
+          muted: false,
+          locked: false,
+          visible: true,
+          volume: 1,
+          height: 60,
+        },
+      ];
+
+      act(() => {
+        result.current.setTracks(mockTracks);
+      });
+
+      expect(result.current.state.tracks).toHaveLength(1);
+      expect(result.current.state.tracks[0].id).toBe('track-1');
+      expect(result.current.state.tracks[0].clips).toHaveLength(1);
+      expect(result.current.state.duration).toBe(15);
+    });
+
+    it('should set tracks with custom duration', () => {
+      const { result } = renderHook(() => useVideoEditor());
+
+      const mockTracks = [
+        {
+          id: 'track-1',
+          name: 'Video Track',
+          type: 'video' as const,
+          clips: [],
+          muted: false,
+          locked: false,
+          visible: true,
+          volume: 1,
+          height: 60,
+        },
+      ];
+
+      act(() => {
+        result.current.setTracks(mockTracks, 30);
+      });
+
+      expect(result.current.state.tracks).toHaveLength(1);
+      expect(result.current.state.duration).toBe(30);
+    });
+
+    it('should call onClipChange when setTracks is called', () => {
+      const onClipChange = jest.fn();
+      const { result } = renderHook(() => useVideoEditor({ onClipChange }));
+
+      const mockTracks = [
+        {
+          id: 'track-1',
+          name: 'Video Track',
+          type: 'video' as const,
+          clips: [
+            {
+              id: 'clip-1',
+              name: 'Test',
+              sourceUrl: 'test.mp4',
+              trackIndex: 0,
+              startTime: 0,
+              duration: 10,
+              sourceStartTime: 0,
+              sourceEndTime: 10,
+              volume: 1,
+              playbackSpeed: 1,
+              muted: false,
+              locked: false,
+              effects: [],
+            },
+          ],
+          muted: false,
+          locked: false,
+          visible: true,
+          volume: 1,
+          height: 60,
+        },
+      ];
+
+      act(() => {
+        result.current.setTracks(mockTracks);
+      });
+
+      expect(onClipChange).toHaveBeenCalledWith(mockTracks[0].clips);
+    });
   });
 
   describe('callbacks', () => {

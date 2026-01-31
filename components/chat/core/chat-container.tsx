@@ -53,6 +53,7 @@ import {
 } from '../dialogs';
 import { PromptOptimizerDialog, PromptOptimizationHub } from '@/components/prompt';
 import { WorkflowPickerDialog } from '../workflow/workflow-picker-dialog';
+import { ArenaDialog, ArenaBattleView } from '@/components/arena';
 import {
   WorkflowResultCard,
   type WorkflowResultData,
@@ -287,6 +288,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   // Workflow states
   const [showWorkflowSelector, setShowWorkflowSelector] = useState(false);
   const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
+
+  // Arena states
+  const [showArenaDialog, setShowArenaDialog] = useState(false);
+  const [showArenaBattle, setShowArenaBattle] = useState(false);
+  const [arenaBattleId, setArenaBattleId] = useState<string | null>(null);
   const [showPPTPreview, setShowPPTPreview] = useState(false);
   const [workflowResults, setWorkflowResults] = useState<Map<string, WorkflowResultData>>(
     new Map()
@@ -2031,6 +2037,7 @@ Be thorough in your thinking but concise in your final answer.`;
                 workflowResults={workflowResults}
                 onWorkflowRerun={(_input) => setShowWorkflowPicker(true)}
                 hideMessageActions={isSimplifiedMode && simplifiedModeSettings.hideMessageActions}
+                hideMessageTimestamps={isSimplifiedMode && simplifiedModeSettings.hideMessageTimestamps}
               />
             </ConversationContent>
           )}
@@ -2165,6 +2172,7 @@ Be thorough in your thinking but concise in your final answer.`;
         }}
         onOpenWorkflowPicker={() => setShowWorkflowPicker(true)}
         onOpenPromptOptimization={() => setShowPromptOptimizationHub(true)}
+        onOpenArena={() => setShowArenaDialog(true)}
         hasActivePreset={!!activePreset}
       />
 
@@ -2435,6 +2443,34 @@ Be thorough in your thinking but concise in your final answer.`;
           onGenerateSummary={handleGenerateSummaryForModeSwitch}
         />
       )}
+
+      {/* Arena Dialog - for comparing multiple AI models */}
+      <ArenaDialog
+        open={showArenaDialog}
+        onOpenChange={setShowArenaDialog}
+        initialPrompt={inputValue}
+        sessionId={activeSessionId || undefined}
+        systemPrompt={activePreset?.systemPrompt}
+        onBattleStart={() => {
+          // Could track arena battle start
+        }}
+        onBattleComplete={() => {
+          // Arena battle completed
+        }}
+      />
+
+      {/* Arena Battle View - shows ongoing battle comparison */}
+      {arenaBattleId && (
+        <ArenaBattleView
+          battleId={arenaBattleId}
+          open={showArenaBattle}
+          onOpenChange={setShowArenaBattle}
+          onClose={() => {
+            setArenaBattleId(null);
+            setShowArenaBattle(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -2503,6 +2539,7 @@ interface ChatMessageItemProps {
   workflowResult?: WorkflowResultData;
   onWorkflowRerun?: (input: Record<string, unknown>) => void;
   hideMessageActions?: boolean;
+  hideMessageTimestamps?: boolean;
 }
 
 function ChatMessageItem({
@@ -2521,6 +2558,7 @@ function ChatMessageItem({
   workflowResult,
   onWorkflowRerun,
   hideMessageActions = false,
+  hideMessageTimestamps = false,
 }: ChatMessageItemProps) {
   const t = useTranslations('chat');
   const tCommon = useTranslations('common');
@@ -2728,6 +2766,12 @@ function ChatMessageItem({
               )}
               {/* Message artifacts */}
               {message.role === 'assistant' && <MessageArtifacts messageId={message.id} compact />}
+              {/* Message timestamp */}
+              {!hideMessageTimestamps && message.createdAt && (
+                <div className="mt-1 text-[10px] text-muted-foreground/50">
+                  {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              )}
             </div>
           )}
         </MessageContent>
@@ -2811,6 +2855,7 @@ interface VirtualizedChatMessageListProps {
   workflowResults?: Map<string, WorkflowResultData>;
   onWorkflowRerun?: (input: Record<string, unknown>) => void;
   hideMessageActions?: boolean;
+  hideMessageTimestamps?: boolean;
 }
 
 function VirtualizedChatMessageList({
@@ -2833,6 +2878,7 @@ function VirtualizedChatMessageList({
   workflowResults,
   onWorkflowRerun,
   hideMessageActions = false,
+  hideMessageTimestamps = false,
 }: VirtualizedChatMessageListProps) {
   const { scrollRef } = useStickToBottomContext();
 
@@ -2903,6 +2949,7 @@ function VirtualizedChatMessageList({
             workflowResult={workflowResults?.get(message.id)}
             onWorkflowRerun={onWorkflowRerun}
             hideMessageActions={hideMessageActions}
+            hideMessageTimestamps={hideMessageTimestamps}
           />
         ))}
       </>
@@ -2965,6 +3012,7 @@ function VirtualizedChatMessageList({
             workflowResult={workflowResults?.get(message.id)}
             onWorkflowRerun={onWorkflowRerun}
             hideMessageActions={hideMessageActions}
+            hideMessageTimestamps={hideMessageTimestamps}
           />
         );
       }}

@@ -99,6 +99,7 @@ import {
   VideoDetailsPanel,
   VideoPreviewDialog,
   DeleteConfirmDialog,
+  VideoEditorPanel,
   DURATION_OPTIONS,
   type StudioMode,
   type VideoJob,
@@ -111,7 +112,8 @@ export default function VideoStudioPage() {
   const searchParams = useSearchParams();
 
   // Get initial mode from URL query parameter
-  const initialMode = searchParams.get('mode') === 'recording' ? 'recording' : 'ai-generation';
+  const modeParam = searchParams.get('mode');
+  const initialMode: StudioMode = modeParam === 'recording' ? 'recording' : modeParam === 'editor' ? 'editor' : 'ai-generation';
 
   // Studio Mode State
   const [studioMode, setStudioMode] = useState<StudioMode>(initialMode);
@@ -1450,6 +1452,24 @@ export default function VideoStudioPage() {
                 )}
               </ScrollArea>
             </>
+          )}
+
+          {/* Editor Mode Content */}
+          {studioMode === 'editor' && (
+            <VideoEditorPanel
+              initialVideoUrl={selectedRecording?.file_path ? `file://${selectedRecording.file_path}` : undefined}
+              onExport={(blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `edited-video-${Date.now()}.mp4`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }}
+              className="flex-1"
+            />
           )}
         </main>
 

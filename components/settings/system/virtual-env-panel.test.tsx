@@ -14,9 +14,22 @@ jest.mock('next-intl', () => ({
 const mockRefreshEnvironments = jest.fn();
 const mockCreateEnvironment = jest.fn();
 const mockDeleteEnvironment = jest.fn();
+const mockDeleteEnvironments = jest.fn();
 const mockActivateEnvironment = jest.fn();
-const mockGetPackages = jest.fn();
-const mockInstallPackage = jest.fn();
+const mockCloneEnvironment = jest.fn();
+const mockLoadPackages = jest.fn();
+const mockInstallPackages = jest.fn();
+const mockUninstallPackages = jest.fn();
+const mockUpgradeAllPackages = jest.fn();
+const mockExportRequirements = jest.fn();
+const mockImportRequirements = jest.fn();
+const mockRefreshPythonVersions = jest.fn();
+const mockSetFilter = jest.fn();
+const mockClearFilters = jest.fn();
+const mockToggleEnvSelection = jest.fn();
+const mockSelectAllEnvs = jest.fn();
+const mockDeselectAllEnvs = jest.fn();
+const mockClearError = jest.fn();
 
 let mockEnvironments: Array<{
   id: string;
@@ -37,31 +50,37 @@ jest.mock('@/hooks/sandbox', () => ({
     environments: mockEnvironments,
     filteredEnvironments: mockEnvironments,
     activeEnvId: mockActiveEnvId,
+    progress: null,
     isLoading: false,
     isCreating: false,
+    isInstalling: false,
+    isDeleting: false,
+    isExporting: false,
+    error: null,
     isAvailable: mockIsAvailable,
     availablePythonVersions: ['3.10', '3.11', '3.12'],
     refreshEnvironments: mockRefreshEnvironments,
-    refreshPythonVersions: jest.fn(),
+    refreshPythonVersions: mockRefreshPythonVersions,
     createEnvironment: mockCreateEnvironment,
     deleteEnvironment: mockDeleteEnvironment,
+    deleteEnvironments: mockDeleteEnvironments,
     activateEnvironment: mockActivateEnvironment,
-    getPackages: mockGetPackages,
-    installPackage: mockInstallPackage,
-    projectConfigs: [],
-    updateProjectConfig: jest.fn(),
-    removeProjectConfig: jest.fn(),
-    createProjectConfig: jest.fn(),
-    setFilter: jest.fn(),
-    filter: { search: '' },
+    cloneEnvironment: mockCloneEnvironment,
+    loadPackages: mockLoadPackages,
+    installPackages: mockInstallPackages,
+    uninstallPackages: mockUninstallPackages,
+    upgradeAllPackages: mockUpgradeAllPackages,
+    exportRequirements: mockExportRequirements,
+    importRequirements: mockImportRequirements,
+    selectedEnvPackages: [],
     filterOptions: { types: [] },
-    setFilterOptions: jest.fn(),
-    searchQuery: '',
-    setSearchQuery: jest.fn(),
     selectedEnvIds: [],
-    setSelectedEnvIds: jest.fn(),
-    selectAllEnvs: jest.fn(),
-    clearSelectedEnvs: jest.fn(),
+    setFilter: mockSetFilter,
+    clearFilters: mockClearFilters,
+    toggleEnvSelection: mockToggleEnvSelection,
+    selectAllEnvs: mockSelectAllEnvs,
+    deselectAllEnvs: mockDeselectAllEnvs,
+    clearError: mockClearError,
   }),
 }));
 

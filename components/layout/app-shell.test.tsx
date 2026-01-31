@@ -22,16 +22,26 @@ jest.mock('@/hooks/network/use-network-status', () => ({
 
 // Mock stores
 const mockSetSidebarCollapsed = jest.fn();
+const mockSetSidebarOpen = jest.fn();
+
+const mockSimplifiedModeSettings = {
+  enabled: false,
+  autoHideSidebar: false,
+};
 
 jest.mock('@/stores', () => ({
   useUIStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = { sidebarOpen: true };
+    const state = { 
+      sidebarOpen: true,
+      setSidebarOpen: mockSetSidebarOpen,
+    };
     return selector(state);
   },
   useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       sidebarCollapsed: false,
       setSidebarCollapsed: mockSetSidebarCollapsed,
+      simplifiedModeSettings: mockSimplifiedModeSettings,
     };
     return selector(state);
   },
@@ -94,5 +104,25 @@ describe('AppShell', () => {
     );
     fireEvent.click(screen.getByRole('button'));
     expect(mockSetSidebarCollapsed).toHaveBeenCalledWith(true);
+  });
+
+  describe('autoHideSidebar', () => {
+    it('renders sidebar when simplified mode is disabled', () => {
+      mockSimplifiedModeSettings.enabled = false;
+      mockSimplifiedModeSettings.autoHideSidebar = false;
+      render(
+        <AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>Content</AppShell>
+      );
+      expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    });
+
+    it('renders sidebar when simplified mode is enabled but autoHideSidebar is false', () => {
+      mockSimplifiedModeSettings.enabled = true;
+      mockSimplifiedModeSettings.autoHideSidebar = false;
+      render(
+        <AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>Content</AppShell>
+      );
+      expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    });
   });
 });

@@ -134,6 +134,7 @@ export interface UseVideoEditorReturn {
   getClipAtTime: (trackId: string, time: number) => VideoClip | null;
   getTracksWithClipsAtTime: (time: number) => VideoTrack[];
   getDuration: () => number;
+  setTracks: (tracks: VideoTrack[], duration?: number) => void;
   reset: () => void;
 
   // Refs
@@ -692,6 +693,19 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
     return state.duration;
   }, [state.duration]);
 
+  // Set tracks directly (used for undo/redo)
+  const setTracks = useCallback(
+    (tracks: VideoTrack[], duration?: number) => {
+      setState((prev) => ({
+        ...prev,
+        tracks,
+        duration: duration ?? calculateDuration(tracks),
+      }));
+      onClipChange?.(tracks.flatMap((t) => t.clips));
+    },
+    [calculateDuration, onClipChange]
+  );
+
   const reset = useCallback(() => {
     if (playbackIntervalRef.current) {
       clearInterval(playbackIntervalRef.current);
@@ -769,6 +783,7 @@ export function useVideoEditor(options: UseVideoEditorOptions = {}): UseVideoEdi
     getClipAtTime,
     getTracksWithClipsAtTime,
     getDuration,
+    setTracks,
     reset,
 
     videoRef,

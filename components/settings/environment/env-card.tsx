@@ -19,6 +19,7 @@ import {
   Clock,
   Sparkles,
   Download,
+  Upload,
   Copy,
 } from 'lucide-react';
 import {
@@ -53,15 +54,44 @@ export interface EnvCardProps {
   env: VirtualEnvInfo;
   isActive: boolean;
   isSelected: boolean;
+  latestPythonVersion?: string | null;
   onActivate: () => void;
   onDelete: () => void;
   onViewPackages: () => void;
   onClone: () => void;
   onExport: () => void;
+  onImport: () => void;
   onSelect: () => void;
 }
 
-export function EnvCard({ env, isActive, isSelected, onActivate, onDelete, onViewPackages, onClone, onExport, onSelect }: EnvCardProps) {
+function parseVersion(version: string): [number, number, number] {
+  const parts = version.split('.').map((p) => Number.parseInt(p, 10));
+  return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
+}
+
+function compareVersions(a: string, b: string): number {
+  const [am, an, ap] = parseVersion(a);
+  const [bm, bn, bp] = parseVersion(b);
+
+  if (am !== bm) return am > bm ? 1 : -1;
+  if (an !== bn) return an > bn ? 1 : -1;
+  if (ap !== bp) return ap > bp ? 1 : -1;
+  return 0;
+}
+
+export function EnvCard({
+  env,
+  isActive,
+  isSelected,
+  latestPythonVersion,
+  onActivate,
+  onDelete,
+  onViewPackages,
+  onClone,
+  onExport,
+  onImport,
+  onSelect,
+}: EnvCardProps) {
   const t = useTranslations('virtualEnv');
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -76,8 +106,38 @@ export function EnvCard({ env, isActive, isSelected, onActivate, onDelete, onVie
     }
   };
 
+  const isOutdated =
+    !isActive &&
+    !!latestPythonVersion &&
+    !!env.pythonVersion &&
+    compareVersions(env.pythonVersion, latestPythonVersion) < 0;
+
+  const statusBadge = isActive
+    ? {
+        label: t('active'),
+        className: 'bg-green-100 text-green-700 border-green-300',
+      }
+    : isOutdated
+      ? {
+          label: t('outdated'),
+          className: 'bg-amber-100 text-amber-800 border-amber-300',
+        }
+      : {
+          label: t('idle'),
+          className: 'bg-muted/60 text-muted-foreground border-border',
+        };
+
+  const cardTintClass = isActive
+    ? 'border-green-500 bg-green-50/30 dark:bg-green-950/20'
+    : isOutdated
+      ? 'border-amber-300 bg-amber-50/30 dark:bg-amber-950/10'
+      : '';
+
   return (
-    <Card className={`transition-all ${isActive ? 'border-green-500 bg-green-50/30 dark:bg-green-950/20' : ''} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+    <Card
+      data-testid="env-card"
+      className={`transition-all ${cardTintClass} ${isSelected ? 'ring-2 ring-primary' : ''}`}
+    >
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <CardHeader className="pb-2 pt-3 px-4">
           <div className="flex items-center justify-between">
@@ -98,11 +158,9 @@ export function EnvCard({ env, isActive, isSelected, onActivate, onDelete, onVie
               </CollapsibleTrigger>
               {getTypeIcon(env.type)}
               <span className="font-medium text-sm truncate">{env.name}</span>
-              {isActive && (
-                <Badge variant="outline" className="text-[10px] bg-green-100 text-green-700 border-green-300">
-                  {t('active')}
-                </Badge>
-              )}
+              <Badge variant="outline" className={`text-[10px] ${statusBadge.className}`}>
+                {statusBadge.label}
+              </Badge>
             </div>
             <div className="flex items-center gap-1">
               {!isActive && (
@@ -135,6 +193,21 @@ export function EnvCard({ env, isActive, isSelected, onActivate, onDelete, onVie
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{t('viewPackages')}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={onImport}
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('importRequirements')}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
               <DropdownMenu>

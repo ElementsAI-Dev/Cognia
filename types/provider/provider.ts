@@ -39,16 +39,23 @@ export interface ModelConfig {
   id: string;
   name: string;
   contextLength: number;
+  maxOutputTokens?: number;
   supportsTools: boolean;
   supportsVision: boolean;
   supportsAudio: boolean;
   supportsVideo: boolean;
   supportsStreaming: boolean;
+  supportsReasoning?: boolean;
+  supportsImageGeneration?: boolean;
+  supportsEmbedding?: boolean;
   pricing?: {
     promptPer1M: number;
     completionPer1M: number;
   };
 }
+
+// Alias for component usage
+export type Model = ModelConfig;
 
 export interface ProviderConfig {
   id: string;

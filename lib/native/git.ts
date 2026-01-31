@@ -593,6 +593,66 @@ export async function restoreDesignerFromGit(
   });
 }
 
+// ==================== Git Blame Operations ====================
+
+/** Git blame line info */
+export interface GitBlameLineInfo {
+  lineNumber: number;
+  commitHash: string;
+  authorName: string;
+  authorEmail: string;
+  authorDate: string;
+  commitMessage: string;
+  content: string;
+}
+
+/** Git blame result */
+export interface GitBlameResult {
+  filePath: string;
+  lines: GitBlameLineInfo[];
+}
+
+/**
+ * Get git blame for a file - line-by-line attribution showing which commit
+ * last modified each line. Used for agent trace line attribution per spec section 6.5.
+ */
+export async function getBlame(
+  repoPath: string,
+  filePath: string,
+  options?: { startLine?: number; endLine?: number }
+): Promise<GitOperationResult<GitBlameResult>> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationResult<GitBlameResult>>('git_blame', {
+    repoPath,
+    filePath,
+    startLine: options?.startLine,
+    endLine: options?.endLine,
+  });
+}
+
+/**
+ * Get the commit that last modified a specific line.
+ * Useful for looking up agent trace attribution for a single line.
+ */
+export async function getBlameLine(
+  repoPath: string,
+  filePath: string,
+  lineNumber: number
+): Promise<GitOperationResult<GitBlameLineInfo>> {
+  if (!isTauri()) {
+    throw new Error('Git operations require Tauri desktop environment');
+  }
+
+  return invoke<GitOperationResult<GitBlameLineInfo>>('git_blame_line', {
+    repoPath,
+    filePath,
+    lineNumber,
+  });
+}
+
 // ==================== Service Object ====================
 
 /** Git service object for convenient access */
@@ -663,6 +723,10 @@ export const gitService = {
   exportDesignerToGit,
   restoreChatFromGit,
   restoreDesignerFromGit,
+  
+  // Blame (for agent trace integration)
+  blame: getBlame,
+  blameLine: getBlameLine,
 };
 
 export default gitService;

@@ -15,12 +15,14 @@ import {
   Loader2,
   Terminal,
   Box,
+  Film,
   RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { TOOL_INFO, type EnvironmentTool, type ToolStatus } from '@/types/system/environment';
 
@@ -31,6 +33,7 @@ export interface ToolCardProps {
   onInstall: () => void;
   onOpenWebsite: () => void;
   onRefresh: () => void;
+  onToggleEnabled?: (enabled: boolean) => void;
 }
 
 export function ToolCard({
@@ -40,12 +43,22 @@ export function ToolCard({
   onInstall,
   onOpenWebsite,
   onRefresh,
+  onToggleEnabled,
 }: ToolCardProps) {
   const t = useTranslations('environmentSettings');
   const info = TOOL_INFO[tool];
   const isCurrentlyInstalling = isInstalling && status.status === 'installing';
+  const isDisabled = status.status === 'disabled' || !status.enabled;
 
   const getStatusBadge = () => {
+    if (isDisabled) {
+      return (
+        <Badge variant="outline" className="gap-1 text-muted-foreground">
+          <X className="h-3 w-3" />
+          {t('disabled')}
+        </Badge>
+      );
+    }
     if (status.status === 'checking') {
       return (
         <Badge variant="outline" className="gap-1">
@@ -90,6 +103,9 @@ export function ToolCard({
     if (info.category === 'language_manager') {
       return <Terminal className="h-4 w-4" />;
     }
+    if (info.category === 'media_tool') {
+      return <Film className="h-4 w-4" />;
+    }
     return <Box className="h-4 w-4" />;
   };
 
@@ -107,18 +123,28 @@ export function ToolCard({
               <CardDescription className="text-xs mt-0.5">{info.description}</CardDescription>
             </div>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="text-muted-foreground">{getCategoryIcon()}</div>
-              </TooltipTrigger>
-              <TooltipContent>
-                {info.category === 'language_manager'
-                  ? t('categoryLanguageManager')
-                  : t('categoryContainerRuntime')}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-muted-foreground">{getCategoryIcon()}</div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {info.category === 'language_manager'
+                    ? t('categoryLanguageManager')
+                    : info.category === 'media_tool'
+                      ? t('categoryMediaTool')
+                      : t('categoryContainerRuntime')}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            {onToggleEnabled && (
+              <Switch
+                checked={!isDisabled}
+                onCheckedChange={(checked) => onToggleEnabled(checked)}
+              />
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -150,7 +176,7 @@ export function ToolCard({
             <Button
               size="sm"
               onClick={onInstall}
-              disabled={isCurrentlyInstalling}
+              disabled={isCurrentlyInstalling || isDisabled}
               className="gap-1.5"
             >
               {isCurrentlyInstalling ? (
@@ -165,7 +191,7 @@ export function ToolCard({
             size="sm"
             variant="outline"
             onClick={onRefresh}
-            disabled={status.status === 'checking' || isCurrentlyInstalling}
+            disabled={status.status === 'checking' || isCurrentlyInstalling || isDisabled}
             className="gap-1.5"
           >
             <RefreshCw
@@ -173,7 +199,13 @@ export function ToolCard({
             />
             {t('refresh')}
           </Button>
-          <Button size="sm" variant="ghost" onClick={onOpenWebsite} className="gap-1.5 ml-auto">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onOpenWebsite}
+            className="gap-1.5 ml-auto"
+            disabled={isDisabled}
+          >
             <ExternalLink className="h-3.5 w-3.5" />
             {t('docs')}
           </Button>

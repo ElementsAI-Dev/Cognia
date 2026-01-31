@@ -138,7 +138,10 @@
     "workflow": "工作流",
     "runWorkflow": "运行工作流",
     "insertTemplate": "插入模板",
-    "toolHistory": "工具历史"
+    "toolHistory": "工具历史",
+    "arena": "竞技场",
+    "openArena": "比较多个 AI 模型",
+    "optimize": "优化"
   },
   "chatGoal": {
     "label": "对话目标",

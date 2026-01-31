@@ -179,4 +179,22 @@ describe('ChatHeader', () => {
     const header = screen.getByRole('banner');
     expect(header).toBeInTheDocument();
   });
+
+  describe('simplified mode', () => {
+    it('displays mode selector when simplified mode is disabled', () => {
+      render(<ChatHeader />);
+      // Mode selector should be visible - "Chat" text appears
+      expect(screen.getAllByText('Chat').length).toBeGreaterThan(0);
+    });
+
+    it('renders preset selector when simplified mode is disabled', () => {
+      render(<ChatHeader />);
+      expect(screen.getByTestId('preset-selector')).toBeInTheDocument();
+    });
+
+    it('renders branch selector when simplified mode is disabled', () => {
+      render(<ChatHeader />);
+      expect(screen.getByTestId('branch-selector')).toBeInTheDocument();
+    });
+  });
 });

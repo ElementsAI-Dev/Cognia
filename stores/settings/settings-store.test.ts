@@ -8,6 +8,9 @@ import {
   selectTheme,
   selectLanguage,
   selectDefaultProvider,
+  selectAgentTraceSettings,
+  selectAgentTraceEnabled,
+  DEFAULT_AGENT_TRACE_SETTINGS,
 } from './settings-store';
 
 const mockIsStrongholdAvailable = jest.fn(() => false);
@@ -704,6 +707,177 @@ describe('useSettingsStore', () => {
         expect(settings.enableSkillMcpAutoLoad).toBe(true);
         expect(settings.singleAgentThreshold).toBe(0.6);
         expect(settings.maxTokenBudget).toBe(50000);
+      });
+    });
+  });
+
+  describe('agent trace settings', () => {
+    beforeEach(() => {
+      act(() => {
+        useSettingsStore.getState().resetAgentTraceSettings();
+      });
+    });
+
+    describe('initial state', () => {
+      it('has correct default values', () => {
+        const state = useSettingsStore.getState();
+        expect(state.agentTraceSettings.enabled).toBe(DEFAULT_AGENT_TRACE_SETTINGS.enabled);
+        expect(state.agentTraceSettings.maxRecords).toBe(DEFAULT_AGENT_TRACE_SETTINGS.maxRecords);
+        expect(state.agentTraceSettings.autoCleanupDays).toBe(DEFAULT_AGENT_TRACE_SETTINGS.autoCleanupDays);
+        expect(state.agentTraceSettings.traceShellCommands).toBe(DEFAULT_AGENT_TRACE_SETTINGS.traceShellCommands);
+        expect(state.agentTraceSettings.traceCodeEdits).toBe(DEFAULT_AGENT_TRACE_SETTINGS.traceCodeEdits);
+      });
+
+      it('matches DEFAULT_AGENT_TRACE_SETTINGS', () => {
+        const state = useSettingsStore.getState();
+        expect(state.agentTraceSettings).toEqual(DEFAULT_AGENT_TRACE_SETTINGS);
+      });
+    });
+
+    describe('setAgentTraceEnabled', () => {
+      it('should enable agent trace', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceEnabled(true);
+        });
+        expect(useSettingsStore.getState().agentTraceSettings.enabled).toBe(true);
+      });
+
+      it('should disable agent trace', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceEnabled(false);
+        });
+        expect(useSettingsStore.getState().agentTraceSettings.enabled).toBe(false);
+      });
+    });
+
+    describe('setAgentTraceMaxRecords', () => {
+      it('should set max records', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceMaxRecords(500);
+        });
+        expect(useSettingsStore.getState().agentTraceSettings.maxRecords).toBe(500);
+      });
+
+      it('should set max records to 0 (unlimited)', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceMaxRecords(0);
+        });
+        expect(useSettingsStore.getState().agentTraceSettings.maxRecords).toBe(0);
+      });
+    });
+
+    describe('setAgentTraceAutoCleanupDays', () => {
+      it('should set auto cleanup days', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceAutoCleanupDays(7);
+        });
+        expect(useSettingsStore.getState().agentTraceSettings.autoCleanupDays).toBe(7);
+      });
+
+      it('should set auto cleanup to 0 (never)', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceAutoCleanupDays(0);
+        });
+        expect(useSettingsStore.getState().agentTraceSettings.autoCleanupDays).toBe(0);
+      });
+    });
+
+    describe('setAgentTraceShellCommands', () => {
+      it('should enable shell command tracing', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceShellCommands(true);
+        });
+        expect(useSettingsStore.getState().agentTraceSettings.traceShellCommands).toBe(true);
+      });
+
+      it('should disable shell command tracing', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceShellCommands(false);
+        });
+        expect(useSettingsStore.getState().agentTraceSettings.traceShellCommands).toBe(false);
+      });
+    });
+
+    describe('setAgentTraceCodeEdits', () => {
+      it('should enable code edit tracing', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceCodeEdits(true);
+        });
+        expect(useSettingsStore.getState().agentTraceSettings.traceCodeEdits).toBe(true);
+      });
+
+      it('should disable code edit tracing', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceCodeEdits(false);
+        });
+        expect(useSettingsStore.getState().agentTraceSettings.traceCodeEdits).toBe(false);
+      });
+    });
+
+    describe('setAgentTraceSettings', () => {
+      it('should update multiple settings at once', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceSettings({
+            enabled: false,
+            maxRecords: 2000,
+            autoCleanupDays: 14,
+          });
+        });
+        const settings = useSettingsStore.getState().agentTraceSettings;
+        expect(settings.enabled).toBe(false);
+        expect(settings.maxRecords).toBe(2000);
+        expect(settings.autoCleanupDays).toBe(14);
+      });
+
+      it('should preserve unmodified settings during partial update', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceSettings({
+            enabled: false,
+          });
+        });
+        const settings = useSettingsStore.getState().agentTraceSettings;
+        expect(settings.enabled).toBe(false);
+        // Other settings should remain at defaults
+        expect(settings.maxRecords).toBe(DEFAULT_AGENT_TRACE_SETTINGS.maxRecords);
+        expect(settings.traceShellCommands).toBe(DEFAULT_AGENT_TRACE_SETTINGS.traceShellCommands);
+      });
+    });
+
+    describe('resetAgentTraceSettings', () => {
+      it('should reset to defaults', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceSettings({
+            enabled: false,
+            maxRecords: 5000,
+            autoCleanupDays: 60,
+            traceShellCommands: false,
+            traceCodeEdits: false,
+          });
+          useSettingsStore.getState().resetAgentTraceSettings();
+        });
+        expect(useSettingsStore.getState().agentTraceSettings).toEqual(DEFAULT_AGENT_TRACE_SETTINGS);
+      });
+    });
+
+    describe('selectors', () => {
+      it('should select agent trace settings', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceSettings({ maxRecords: 999 });
+        });
+        const settings = selectAgentTraceSettings(useSettingsStore.getState());
+        expect(settings.maxRecords).toBe(999);
+      });
+
+      it('should select agent trace enabled', () => {
+        act(() => {
+          useSettingsStore.getState().setAgentTraceEnabled(false);
+        });
+        expect(selectAgentTraceEnabled(useSettingsStore.getState())).toBe(false);
+
+        act(() => {
+          useSettingsStore.getState().setAgentTraceEnabled(true);
+        });
+        expect(selectAgentTraceEnabled(useSettingsStore.getState())).toBe(true);
       });
     });
   });

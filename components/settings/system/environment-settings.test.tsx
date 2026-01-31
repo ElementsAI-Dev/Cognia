@@ -27,10 +27,106 @@ jest.mock('@/hooks/sandbox', () => ({
   useEnvironment: () => ({
     platform: mockPlatform,
     tools: {
-      uv: { installed: true, version: '0.1.0', path: '/usr/local/bin/uv', status: 'ready' },
-      nvm: { installed: false, status: 'ready' },
-      docker: { installed: true, version: '24.0.0', path: '/usr/bin/docker', status: 'ready' },
-      podman: { installed: false, status: 'ready' },
+      python: {
+        tool: 'python',
+        enabled: true,
+        installed: true,
+        version: '3.12.0',
+        path: '/usr/bin/python3',
+        status: 'installed',
+        error: null,
+        lastChecked: null,
+      },
+      nodejs: {
+        tool: 'nodejs',
+        enabled: true,
+        installed: true,
+        version: '20.11.0',
+        path: '/usr/bin/node',
+        status: 'installed',
+        error: null,
+        lastChecked: null,
+      },
+      ruby: {
+        tool: 'ruby',
+        enabled: true,
+        installed: false,
+        version: null,
+        path: null,
+        status: 'not_installed',
+        error: null,
+        lastChecked: null,
+      },
+      postgresql: {
+        tool: 'postgresql',
+        enabled: true,
+        installed: false,
+        version: null,
+        path: null,
+        status: 'not_installed',
+        error: null,
+        lastChecked: null,
+      },
+      rust: {
+        tool: 'rust',
+        enabled: true,
+        installed: false,
+        version: null,
+        path: null,
+        status: 'not_installed',
+        error: null,
+        lastChecked: null,
+      },
+      uv: {
+        tool: 'uv',
+        enabled: true,
+        installed: true,
+        version: '0.1.0',
+        path: '/usr/local/bin/uv',
+        status: 'installed',
+        error: null,
+        lastChecked: null,
+      },
+      nvm: {
+        tool: 'nvm',
+        enabled: true,
+        installed: false,
+        version: null,
+        path: null,
+        status: 'not_installed',
+        error: null,
+        lastChecked: null,
+      },
+      docker: {
+        tool: 'docker',
+        enabled: true,
+        installed: true,
+        version: '24.0.0',
+        path: '/usr/bin/docker',
+        status: 'installed',
+        error: null,
+        lastChecked: null,
+      },
+      podman: {
+        tool: 'podman',
+        enabled: true,
+        installed: false,
+        version: null,
+        path: null,
+        status: 'not_installed',
+        error: null,
+        lastChecked: null,
+      },
+      ffmpeg: {
+        tool: 'ffmpeg',
+        enabled: true,
+        installed: false,
+        version: null,
+        path: null,
+        status: 'not_installed',
+        error: null,
+        lastChecked: null,
+      },
     },
     isRefreshing: false,
     isInstalling: false,
@@ -48,6 +144,36 @@ jest.mock('@/hooks/sandbox', () => ({
 // Mock environment types
 jest.mock('@/types/system/environment', () => ({
   TOOL_INFO: {
+    python: {
+      name: 'Python',
+      description: 'Python runtime',
+      icon: '🐍',
+      category: 'language_manager',
+    },
+    nodejs: {
+      name: 'Node.js',
+      description: 'JavaScript runtime',
+      icon: '🟢',
+      category: 'language_manager',
+    },
+    ruby: {
+      name: 'Ruby',
+      description: 'Ruby runtime',
+      icon: '💎',
+      category: 'language_manager',
+    },
+    postgresql: {
+      name: 'PostgreSQL',
+      description: 'Database',
+      icon: '🐘',
+      category: 'container_runtime',
+    },
+    rust: {
+      name: 'Rust',
+      description: 'Rust toolchain',
+      icon: '🦀',
+      category: 'language_manager',
+    },
     uv: {
       name: 'uv',
       description: 'Fast Python package manager',
@@ -71,6 +197,12 @@ jest.mock('@/types/system/environment', () => ({
       description: 'Container runtime',
       icon: '🦭',
       category: 'container_runtime',
+    },
+    ffmpeg: {
+      name: 'FFmpeg',
+      description: 'Media tool',
+      icon: '🎬',
+      category: 'media_tool',
     },
   },
 }));
@@ -119,6 +251,28 @@ jest.mock('@/components/ui/alert', () => ({
 
 jest.mock('@/components/ui/separator', () => ({
   Separator: () => <hr />,
+}));
+
+jest.mock('@/components/ui/input', () => ({
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input data-testid="input" {...props} />
+  ),
+}));
+
+jest.mock('@/components/ui/select', () => ({
+  Select: ({ children }: { children: React.ReactNode }) => <div data-testid="select">{children}</div>,
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+    <button data-testid="select-trigger">{children}</button>
+  ),
+  SelectValue: ({ placeholder }: { placeholder?: string }) => (
+    <span data-testid="select-value">{placeholder}</span>
+  ),
+  SelectContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="select-content">{children}</div>
+  ),
+  SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <div data-testid={`select-item-${value}`}>{children}</div>
+  ),
 }));
 
 jest.mock('@/components/ui/tooltip', () => ({

@@ -8,7 +8,7 @@ import type { EmbeddingModelConfig, EmbeddingProvider } from '@/lib/vector/embed
 import { DEFAULT_EMBEDDING_MODELS } from '@/lib/vector/embedding';
 
 export type VectorDBMode = 'embedded' | 'server';
-export type VectorDBProvider = 'chroma' | 'native';
+export type VectorDBProvider = 'chroma' | 'native' | 'pinecone' | 'qdrant' | 'milvus';
 
 export interface VectorCollection {
   id: string;
@@ -35,6 +35,13 @@ export interface VectorSettings {
   provider: VectorDBProvider;
   mode: VectorDBMode;
   serverUrl: string;
+  pineconeApiKey: string;
+  pineconeIndexName: string;
+  pineconeNamespace: string;
+  qdrantUrl: string;
+  qdrantApiKey: string;
+  milvusAddress: string;
+  milvusToken: string;
   embeddingProvider: EmbeddingProvider;
   embeddingModel: string;
   chunkSize: number;
@@ -42,18 +49,27 @@ export interface VectorSettings {
   autoEmbed: boolean;
   /** Default collection name for RAG searches when not specified */
   defaultCollectionName: string;
+  setupCompleted: boolean;
 }
 
 const DEFAULT_SETTINGS: VectorSettings = {
   provider: 'chroma',
   mode: 'embedded',
   serverUrl: 'http://localhost:8000',
+  pineconeApiKey: '',
+  pineconeIndexName: '',
+  pineconeNamespace: '',
+  qdrantUrl: 'http://localhost:6333',
+  qdrantApiKey: '',
+  milvusAddress: 'http://localhost:19530',
+  milvusToken: '',
   embeddingProvider: 'openai',
   embeddingModel: 'text-embedding-3-small',
   chunkSize: 1000,
   chunkOverlap: 200,
   autoEmbed: true,
   defaultCollectionName: 'default',
+  setupCompleted: false,
 };
 
 interface VectorState {

@@ -339,7 +339,8 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
           <SidebarTrigger className="-ml-1 shrink-0" />
           <Separator orientation="vertical" className="mr-1 sm:mr-2 h-4 shrink-0" />
 
-          {/* Enhanced Mode selector with animations */}
+          {/* Enhanced Mode selector with animations - hidden when hideModeSelector is true */}
+          {!(isSimplifiedMode && simplifiedModeSettings.hideModeSelector) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -432,6 +433,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
               })}
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
 
           {/* Agent sub-mode selector - only shown in agent mode, hidden in focused/zen modes */}
           {currentMode === 'agent' && !isFocusedOrZen && (
@@ -445,8 +447,8 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
             </div>
           )}
 
-          {/* Preset selector - hidden in focused/zen modes */}
-          {!isFocusedOrZen && (
+          {/* Preset selector - hidden in focused/zen modes or when hidePresetSelector is true */}
+          {!isFocusedOrZen && !(isSimplifiedMode && simplifiedModeSettings.hidePresetSelector) && (
             <div className="hidden min-[400px]:flex items-center gap-2">
               <Separator orientation="vertical" className="h-4" />
               <PresetSelector
@@ -684,8 +686,8 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
             </Tooltip>
           )}
 
-          {/* More actions dropdown */}
-          {session && (
+          {/* More actions dropdown - hidden when hideSessionActions is true */}
+          {session && !(isSimplifiedMode && simplifiedModeSettings.hideSessionActions) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">

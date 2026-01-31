@@ -10,16 +10,9 @@ jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       providerSettings: {
-        openai: { enabled: true, apiKey: 'test-key' },
+        openai: { enabled: true, apiKey: 'test-key', defaultModel: 'gpt-4' },
       },
       defaultProvider: 'openai',
-      theme: 'dark',
-      colorTheme: 'default',
-      defaultTemperature: 0.7,
-      searchEnabled: true,
-      enableFileTools: true,
-      enableWebSearch: false,
-      customShortcuts: {},
     };
     return selector(state);
   },
@@ -28,20 +21,50 @@ jest.mock('@/stores', () => ({
 // Mock providers
 jest.mock('@/types/provider', () => ({
   PROVIDERS: {
-    openai: { name: 'OpenAI' },
+    openai: {
+      name: 'OpenAI',
+      defaultModel: 'gpt-4',
+      models: [
+        { id: 'gpt-4', name: 'GPT-4', contextLength: 8192 },
+        { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', contextLength: 4096 },
+      ],
+    },
   },
 }));
 
 // Mock UI components
 jest.mock('@/components/ui/card', () => ({
-  Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,
-  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+  Card: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="card" className={className}>{children}</div>
+  ),
+  CardContent: ({ children }: { children: React.ReactNode }) => <div data-testid="card-content">{children}</div>,
+  CardHeader: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="card-header" className={className}>{children}</div>
+  ),
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span>,
+  Badge: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <span data-testid="badge" className={className}>{children}</span>
+  ),
+}));
+
+jest.mock('@/components/ui/button', () => ({
+  Button: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button data-testid="button" onClick={onClick}>{children}</button>
+  ),
+}));
+
+jest.mock('@/components/ui/collapsible', () => ({
+  Collapsible: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
+    <div data-testid="collapsible" data-open={open}>{children}</div>
+  ),
+  CollapsibleContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="collapsible-content">{children}</div>
+  ),
+  CollapsibleTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => (
+    <div data-testid="collapsible-trigger">{children}</div>
+  ),
 }));
 
 describe('QuickSettingsCard', () => {
@@ -59,39 +82,30 @@ describe('QuickSettingsCard', () => {
     expect(screen.getByText('Quick Overview')).toBeInTheDocument();
   });
 
-  it('displays Providers count', () => {
+  it('displays provider count', () => {
     render(<QuickSettingsCard />);
-    expect(screen.getByText('Providers')).toBeInTheDocument();
-    expect(screen.getByText('1 configured')).toBeInTheDocument();
+    // Configured provider count
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
-  it('displays Default provider', () => {
+  it('displays model count', () => {
     render(<QuickSettingsCard />);
-    expect(screen.getByText('Default')).toBeInTheDocument();
+    // Total models from configured providers
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('displays default provider name', () => {
+    render(<QuickSettingsCard />);
     expect(screen.getByText('OpenAI')).toBeInTheDocument();
   });
 
-  it('displays Theme info', () => {
+  it('displays default model', () => {
     render(<QuickSettingsCard />);
-    expect(screen.getByText('Theme')).toBeInTheDocument();
-    expect(screen.getByText('dark / default')).toBeInTheDocument();
+    expect(screen.getByText('gpt-4')).toBeInTheDocument();
   });
 
-  it('displays Temperature value', () => {
+  it('is collapsible', () => {
     render(<QuickSettingsCard />);
-    expect(screen.getByText('Temperature')).toBeInTheDocument();
-    expect(screen.getByText('0.7')).toBeInTheDocument();
-  });
-
-  it('displays Search status', () => {
-    render(<QuickSettingsCard />);
-    expect(screen.getByText('Search')).toBeInTheDocument();
-    expect(screen.getByText('Enabled')).toBeInTheDocument();
-  });
-
-  it('displays Tools count', () => {
-    render(<QuickSettingsCard />);
-    expect(screen.getByText('Tools')).toBeInTheDocument();
-    expect(screen.getByText('1 active')).toBeInTheDocument();
+    expect(screen.getByTestId('collapsible')).toBeInTheDocument();
   });
 });

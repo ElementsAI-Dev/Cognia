@@ -146,7 +146,6 @@ impl ScreenContentAnalyzer {
         Ok(content)
     }
 
-    #[allow(dead_code)]
     fn perform_analysis(
         &self,
         _image_data: &[u8],
@@ -314,7 +313,6 @@ impl ScreenContentAnalyzer {
     }
 
     /// Clear analysis cache
-    #[allow(dead_code)]
     pub fn clear_cache(&self) {
         debug!("Clearing screen content analysis cache");
         *self.last_analysis.write() = None;

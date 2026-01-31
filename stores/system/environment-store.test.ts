@@ -80,8 +80,59 @@ describe('useEnvironmentStore', () => {
       const { result } = renderHook(() => useEnvironmentStore());
 
       const statuses: Record<EnvironmentTool, ToolStatus> = {
+        python: {
+          tool: 'python',
+          enabled: true,
+          installed: false,
+          status: 'not_installed',
+          version: null,
+          path: null,
+          error: null,
+          lastChecked: null,
+        },
+        nodejs: {
+          tool: 'nodejs',
+          enabled: true,
+          installed: false,
+          status: 'not_installed',
+          version: null,
+          path: null,
+          error: null,
+          lastChecked: null,
+        },
+        ruby: {
+          tool: 'ruby',
+          enabled: true,
+          installed: false,
+          status: 'not_installed',
+          version: null,
+          path: null,
+          error: null,
+          lastChecked: null,
+        },
+        postgresql: {
+          tool: 'postgresql',
+          enabled: true,
+          installed: false,
+          status: 'not_installed',
+          version: null,
+          path: null,
+          error: null,
+          lastChecked: null,
+        },
+        rust: {
+          tool: 'rust',
+          enabled: true,
+          installed: false,
+          status: 'not_installed',
+          version: null,
+          path: null,
+          error: null,
+          lastChecked: null,
+        },
         uv: {
           tool: 'uv',
+          enabled: true,
           installed: true,
           status: 'installed',
           version: '1.0',
@@ -91,6 +142,7 @@ describe('useEnvironmentStore', () => {
         },
         nvm: {
           tool: 'nvm',
+          enabled: true,
           installed: true,
           status: 'installed',
           version: '0.39',
@@ -100,6 +152,7 @@ describe('useEnvironmentStore', () => {
         },
         docker: {
           tool: 'docker',
+          enabled: true,
           installed: false,
           status: 'not_installed',
           version: null,
@@ -109,6 +162,7 @@ describe('useEnvironmentStore', () => {
         },
         podman: {
           tool: 'podman',
+          enabled: true,
           installed: false,
           status: 'not_installed',
           version: null,
@@ -118,6 +172,7 @@ describe('useEnvironmentStore', () => {
         },
         ffmpeg: {
           tool: 'ffmpeg',
+          enabled: true,
           installed: true,
           status: 'installed',
           version: '6.0',

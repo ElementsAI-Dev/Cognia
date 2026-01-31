@@ -352,3 +352,12 @@ export {
   type LaTeXEditorSettings,
   type LaTeXState,
 } from './latex';
+
+// Arena stores
+export {
+  useArenaStore,
+  selectBattles,
+  selectActiveBattle,
+  selectSettings as selectArenaSettings,
+  selectModelRatings,
+} from './arena';

@@ -25,6 +25,7 @@ export interface UseEnvironmentReturn {
   // Actions
   refreshStatus: () => Promise<void>;
   checkTool: (tool: EnvironmentTool) => Promise<ToolStatus | null>;
+  setToolEnabled: (tool: EnvironmentTool, enabled: boolean) => Promise<boolean>;
   installTool: (tool: EnvironmentTool) => Promise<boolean>;
   uninstallTool: (tool: EnvironmentTool) => Promise<boolean>;
   openToolWebsite: (tool: EnvironmentTool) => Promise<void>;
@@ -114,7 +115,7 @@ export function useEnvironment(): UseEnvironmentReturn {
           acc[status.tool] = status;
           return acc;
         },
-        {} as Record<EnvironmentTool, ToolStatus>
+        { ...tools } as Record<EnvironmentTool, ToolStatus>
       );
       setAllToolStatuses(statusMap);
     } catch (err) {
@@ -122,7 +123,7 @@ export function useEnvironment(): UseEnvironmentReturn {
     } finally {
       setRefreshing(false);
     }
-  }, [isAvailable, setRefreshing, setGlobalError, setAllToolStatuses]);
+  }, [isAvailable, setRefreshing, setGlobalError, setAllToolStatuses, tools]);
 
   // Check a specific tool
   const checkTool = useCallback(
@@ -144,6 +145,40 @@ export function useEnvironment(): UseEnvironmentReturn {
       }
     },
     [isAvailable, setToolStatus]
+  );
+
+  const setToolEnabled = useCallback(
+    async (tool: EnvironmentTool, enabled: boolean): Promise<boolean> => {
+      if (!isAvailable) return false;
+
+      setToolStatus(tool, {
+        enabled,
+        status: enabled ? tools[tool].status : 'disabled',
+      });
+
+      try {
+        await environmentService.setToolEnabled(tool, enabled);
+
+        if (!enabled) {
+          setToolStatus(tool, {
+            enabled: false,
+            installed: false,
+            version: null,
+            path: null,
+            error: null,
+            status: 'disabled',
+          });
+          return true;
+        }
+
+        await checkTool(tool);
+        return true;
+      } catch (err) {
+        setGlobalError(err instanceof Error ? err.message : String(err));
+        return false;
+      }
+    },
+    [isAvailable, setToolStatus, setGlobalError, checkTool, tools]
   );
 
   // Install a tool
@@ -205,6 +240,7 @@ export function useEnvironment(): UseEnvironmentReturn {
     isAvailable,
     refreshStatus,
     checkTool,
+    setToolEnabled,
     installTool,
     uninstallTool,
     openToolWebsite,

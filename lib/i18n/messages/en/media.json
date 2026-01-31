@@ -12,6 +12,7 @@
     "actions": "Actions",
     "recording": "Recording",
     "aiGeneration": "AI Generation",
+    "editor": "Editor",
     "primaryMonitor": "Primary Monitor",
     "monitor": "Monitor {index}",
     "countdown": "Starting...",

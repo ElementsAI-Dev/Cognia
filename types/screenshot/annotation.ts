@@ -30,6 +30,7 @@ export interface BaseAnnotation {
   type: AnnotationTool;
   style: AnnotationStyle;
   timestamp: number;
+  rotation?: number; // degrees, default 0
 }
 
 export interface RectangleAnnotation extends BaseAnnotation {

@@ -63,7 +63,7 @@ export interface LocalProviderSettingsProps {
   onProviderSelect?: (providerId: LocalProviderName) => void;
 }
 
-export function LocalProviderSettings({ onProviderSelect: _onProviderSelect }: LocalProviderSettingsProps) {
+export function LocalProviderSettings(_props: LocalProviderSettingsProps) {
   const t = useTranslations('providers');
 
   const providerSettings = useSettingsStore((state) => state.providerSettings);

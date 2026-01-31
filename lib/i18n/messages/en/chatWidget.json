@@ -14,7 +14,8 @@
       "clearMessages": "Clear Messages",
       "exportChat": "Export Chat",
       "settings": "Settings",
-      "close": "Close (Esc)"
+      "close": "Close (Esc)",
+      "expandToFull": "Open in full chat"
     },
     "input": {
       "placeholder": "Type a message...",
@@ -93,6 +94,11 @@
     "export": {
       "user": "👤 User",
       "assistant": "🤖 Assistant"
+    },
+    "modelSelector": {
+      "changeModel": "Change AI model",
+      "selectProvider": "Provider",
+      "selectModel": "Model"
     },
     "continueGeneration": "Please continue"
   }

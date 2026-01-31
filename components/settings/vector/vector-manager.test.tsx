@@ -51,6 +51,8 @@ jest.mock('next-intl', () => ({
       noResults: 'No results found',
       score: 'Score',
       metadata: 'Metadata',
+      addFromFiles: 'Add from files',
+      addFromFilesTooltip: 'Upload files, chunk them, and add into the active collection',
     };
     return translations[key] || key;
   },
@@ -64,6 +66,8 @@ const mockListAllCollections = jest.fn();
 const mockAddDocument = jest.fn();
 const mockSearchWithOptions = jest.fn();
 const mockPeek = jest.fn();
+const mockGetStats = jest.fn();
+const mockGetCollectionInfo = jest.fn();
 
 jest.mock('@/hooks/rag', () => ({
   useVectorDB: jest.fn(() => ({
@@ -78,7 +82,29 @@ jest.mock('@/hooks/rag', () => ({
     searchWithOptions: mockSearchWithOptions,
     searchWithTotal: mockSearchWithOptions,
     peek: mockPeek,
+    getStats: mockGetStats,
+    getCollectionInfo: mockGetCollectionInfo,
   })),
+}));
+
+// Mock useVectorStore
+jest.mock('@/stores', () => ({
+  useVectorStore: (selector: (state: unknown) => unknown) => {
+    const state = {
+      settings: {
+        chunkSize: 1000,
+        chunkOverlap: 200,
+      },
+    };
+    return selector(state);
+  },
+}));
+
+// Mock AddDocumentModal
+jest.mock('./add-document-modal', () => ({
+  AddDocumentModal: ({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) => (
+    open ? <div data-testid="add-document-modal"><button onClick={() => onOpenChange(false)}>Close</button></div> : null
+  ),
 }));
 
 // Mock UI components
@@ -638,6 +664,23 @@ describe('VectorManager', () => {
     await waitFor(() => {
       expect(screen.getByText('Score: 0.9500')).toBeInTheDocument();
       expect(screen.getByText('Score: 0.8700')).toBeInTheDocument();
+    });
+  });
+
+  it('displays Add from files button', () => {
+    render(<VectorManager />);
+    expect(screen.getByText('Add from files')).toBeInTheDocument();
+  });
+
+  it('opens AddDocumentModal when Add from files button is clicked', async () => {
+    const user = userEvent.setup();
+    render(<VectorManager />);
+
+    const addFromFilesButton = screen.getByText('Add from files');
+    await user.click(addFromFilesButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('add-document-modal')).toBeInTheDocument();
     });
   });
 });

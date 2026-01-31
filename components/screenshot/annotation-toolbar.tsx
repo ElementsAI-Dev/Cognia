@@ -23,6 +23,9 @@ import {
   X,
   Copy,
   Download,
+  MousePointer2,
+  ZoomIn,
+  Trash,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -36,15 +39,19 @@ interface AnnotationToolbarProps {
   style: AnnotationStyle;
   canUndo: boolean;
   canRedo: boolean;
+  selectedAnnotationId: string | null;
+  showMagnifier: boolean;
   onToolChange: (tool: AnnotationTool) => void;
   onStyleChange: (style: Partial<AnnotationStyle>) => void;
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
+  onDelete: () => void;
   onConfirm: () => void;
   onCancel: () => void;
   onCopy: () => void;
   onSave: () => void;
+  onToggleMagnifier: () => void;
   className?: string;
 }
 
@@ -55,12 +62,13 @@ interface ToolButton {
 }
 
 const toolDefinitions: ToolButton[] = [
+  { id: 'select', icon: MousePointer2, shortcut: 'V' },
   { id: 'rectangle', icon: Square, shortcut: 'R' },
   { id: 'ellipse', icon: Circle, shortcut: 'O' },
   { id: 'arrow', icon: ArrowRight, shortcut: 'A' },
   { id: 'freehand', icon: Pencil, shortcut: 'P' },
   { id: 'text', icon: Type, shortcut: 'T' },
-  { id: 'blur', icon: Grid3X3, shortcut: 'M' },
+  { id: 'blur', icon: Grid3X3, shortcut: 'B' },
   { id: 'highlight', icon: Highlighter, shortcut: 'H' },
   { id: 'marker', icon: Hash, shortcut: 'N' },
 ];
@@ -70,17 +78,22 @@ export function AnnotationToolbar({
   style,
   canUndo,
   canRedo,
+  selectedAnnotationId,
+  showMagnifier,
   onToolChange,
   onStyleChange,
   onUndo,
   onRedo,
   onClear,
+  onDelete,
   onConfirm,
   onCancel,
   onCopy,
   onSave,
+  onToggleMagnifier,
   className,
 }: AnnotationToolbarProps) {
+  const showFilledToggle = currentTool === 'rectangle' || currentTool === 'ellipse';
   const t = useTranslations('screenshot');
 
   return (
@@ -120,8 +133,17 @@ export function AnnotationToolbar({
       <ColorPicker
         color={style.color}
         strokeWidth={style.strokeWidth}
+        opacity={style.opacity}
+        fontSize={style.fontSize}
+        filled={style.filled}
+        showFilledToggle={showFilledToggle}
+        showOpacity={currentTool === 'highlight' || style.filled}
+        showFontSize={currentTool === 'text'}
         onColorChange={(color) => onStyleChange({ color })}
         onStrokeWidthChange={(strokeWidth) => onStyleChange({ strokeWidth })}
+        onOpacityChange={(opacity: number) => onStyleChange({ opacity })}
+        onFontSizeChange={(fontSize: number) => onStyleChange({ fontSize })}
+        onFilledChange={(filled: boolean) => onStyleChange({ filled })}
       />
 
       <Separator orientation="vertical" className="h-6 mx-1" />
@@ -175,6 +197,45 @@ export function AnnotationToolbar({
           </TooltipTrigger>
           <TooltipContent>
             <p>{t('actions.clear')}</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {selectedAnnotationId && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive"
+                onClick={onDelete}
+              >
+                <Trash className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('actions.delete')} (Delete)</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+
+      <Separator orientation="vertical" className="h-6 mx-1" />
+
+      {/* View Controls */}
+      <div className="flex items-center gap-0.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={showMagnifier ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-8 w-8"
+              onClick={onToggleMagnifier}
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{t('actions.magnifier')} (G)</p>
           </TooltipContent>
         </Tooltip>
       </div>

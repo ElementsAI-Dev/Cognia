@@ -14,29 +14,20 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  FolderOpen,
   Plus,
   Trash2,
   RefreshCw,
   Package,
-  Play,
   Loader2,
-  ChevronDown,
-  ChevronRight,
   Terminal,
-  HardDrive,
-  Clock,
   Sparkles,
   Search,
   Filter,
-  Download,
-  Upload,
   Copy,
   CheckSquare,
   Square,
   ArrowUpCircle,
   X,
-  FileText,
 } from 'lucide-react';
 import {
   Card,
@@ -66,24 +57,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useVirtualEnv } from '@/hooks/sandbox';
 import type { VirtualEnvInfo, VirtualEnvType, PackageInfo } from '@/types/system/environment';
 import { ENV_PRESETS, type EnvPresetTemplate } from '@/types/system/environment';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -91,151 +70,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface EnvCardProps {
-  env: VirtualEnvInfo;
-  isActive: boolean;
-  isSelected: boolean;
-  onActivate: () => void;
-  onDelete: () => void;
-  onViewPackages: () => void;
-  onClone: () => void;
-  onExport: () => void;
-  onSelect: () => void;
-}
-
-function EnvCard({ env, isActive, isSelected, onActivate, onDelete, onViewPackages, onClone, onExport, onSelect }: EnvCardProps) {
-  const t = useTranslations('virtualEnv');
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const getTypeIcon = (type: VirtualEnvType) => {
-    switch (type) {
-      case 'uv':
-        return <Sparkles className="h-3.5 w-3.5 text-yellow-500" />;
-      case 'conda':
-        return <Package className="h-3.5 w-3.5 text-green-500" />;
-      default:
-        return <Terminal className="h-3.5 w-3.5 text-blue-500" />;
-    }
-  };
-
-  return (
-    <Card className={`transition-all ${isActive ? 'border-green-500 bg-green-50/30 dark:bg-green-950/20' : ''} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
-      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <CardHeader className="pb-2 pt-3 px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={onSelect}
-                className="h-4 w-4"
-              />
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </Button>
-              </CollapsibleTrigger>
-              {getTypeIcon(env.type)}
-              <span className="font-medium text-sm truncate">{env.name}</span>
-              {isActive && (
-                <Badge variant="outline" className="text-[10px] bg-green-100 text-green-700 border-green-300">
-                  {t('active')}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              {!isActive && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={onActivate}
-                      >
-                        <Play className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('activate')}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      onClick={onViewPackages}
-                    >
-                      <Package className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('viewPackages')}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={onClone}>
-                    <Copy className="h-3.5 w-3.5 mr-2" />
-                    {t('clone')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onExport}>
-                    <Download className="h-3.5 w-3.5 mr-2" />
-                    {t('exportRequirements')}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onDelete} className="text-destructive">
-                    <Trash2 className="h-3.5 w-3.5 mr-2" />
-                    {t('delete')}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </CardHeader>
-        <CollapsibleContent>
-          <CardContent className="pt-0 px-4 pb-3 space-y-2">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Terminal className="h-3 w-3" />
-                <span>Python {env.pythonVersion || 'N/A'}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Package className="h-3 w-3" />
-                <span>{env.packages} {t('packagesCount')}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <HardDrive className="h-3 w-3" />
-                <span>{env.size || 'N/A'}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                <span>{new Date(env.createdAt).toLocaleDateString()}</span>
-              </div>
-            </div>
-            <div className="text-[10px] text-muted-foreground truncate">
-              <FolderOpen className="h-3 w-3 inline mr-1" />
-              {env.path}
-            </div>
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
-  );
-}
+import { EnvCard, RequirementsDialog } from '@/components/settings/environment';
 
 interface CreateEnvDialogProps {
   open: boolean;
@@ -592,132 +427,6 @@ function PackagesDialog({
 }
 
 // Requirements Import/Export Dialog
-interface RequirementsDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  envPath: string;
-  onExport: () => Promise<string>;
-  onImport: (content: string) => Promise<boolean>;
-  isExporting: boolean;
-  isInstalling: boolean;
-}
-
-function RequirementsDialog({
-  open,
-  onOpenChange,
-  onExport,
-  onImport,
-  isExporting,
-  isInstalling,
-}: RequirementsDialogProps) {
-  const t = useTranslations('virtualEnv');
-  const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
-  const [exportContent, setExportContent] = useState('');
-  const [importContent, setImportContent] = useState('');
-
-  const handleExport = async () => {
-    const content = await onExport();
-    setExportContent(content);
-  };
-
-  const handleImport = async () => {
-    const success = await onImport(importContent);
-    if (success) {
-      setImportContent('');
-      onOpenChange(false);
-    }
-  };
-
-  const handleCopyToClipboard = () => {
-    navigator.clipboard.writeText(exportContent);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            {t('requirementsTitle')}
-          </DialogTitle>
-        </DialogHeader>
-
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'export' | 'import')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="export" className="gap-1.5">
-              <Download className="h-3.5 w-3.5" />
-              {t('export')}
-            </TabsTrigger>
-            <TabsTrigger value="import" className="gap-1.5">
-              <Upload className="h-3.5 w-3.5" />
-              {t('import')}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="export" className="space-y-3">
-            <Button
-              onClick={handleExport}
-              disabled={isExporting}
-              className="w-full"
-            >
-              {isExporting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4 mr-2" />
-              )}
-              {t('generateRequirements')}
-            </Button>
-            {exportContent && (
-              <>
-                <Textarea
-                  value={exportContent}
-                  readOnly
-                  className="h-[200px] font-mono text-xs"
-                />
-                <Button
-                  variant="outline"
-                  onClick={handleCopyToClipboard}
-                  className="w-full"
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  {t('copyToClipboard')}
-                </Button>
-              </>
-            )}
-          </TabsContent>
-
-          <TabsContent value="import" className="space-y-3">
-            <Textarea
-              value={importContent}
-              onChange={(e) => setImportContent(e.target.value)}
-              placeholder={t('pasteRequirements')}
-              className="h-[200px] font-mono text-xs"
-            />
-            <Button
-              onClick={handleImport}
-              disabled={!importContent || isInstalling}
-              className="w-full"
-            >
-              {isInstalling ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4 mr-2" />
-              )}
-              {t('installFromRequirements')}
-            </Button>
-          </TabsContent>
-        </Tabs>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t('close')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // Clone Dialog
 interface CloneDialogProps {
   open: boolean;
@@ -828,6 +537,7 @@ export function VirtualEnvPanel() {
   const [showCloneDialog, setShowCloneDialog] = useState(false);
   const [selectedEnvForPackages, setSelectedEnvForPackages] = useState<VirtualEnvInfo | null>(null);
   const [selectedEnvForClone, setSelectedEnvForClone] = useState<VirtualEnvInfo | null>(null);
+  const [requirementsDefaultTab, setRequirementsDefaultTab] = useState<'export' | 'import'>('export');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmBatchDelete, setConfirmBatchDelete] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -899,6 +609,13 @@ export function VirtualEnvPanel() {
 
   const handleExportRequirements = (env: VirtualEnvInfo) => {
     setSelectedEnvForPackages(env);
+    setRequirementsDefaultTab('export');
+    setShowRequirementsDialog(true);
+  };
+
+  const handleImportRequirements = (env: VirtualEnvInfo) => {
+    setSelectedEnvForPackages(env);
+    setRequirementsDefaultTab('import');
     setShowRequirementsDialog(true);
   };
 
@@ -1116,11 +833,13 @@ export function VirtualEnvPanel() {
                 env={env}
                 isActive={env.id === activeEnvId}
                 isSelected={selectedEnvIds.includes(env.id)}
+                latestPythonVersion={availablePythonVersions[0] ?? null}
                 onActivate={() => activateEnvironment(env.id)}
                 onDelete={() => setConfirmDelete(env.id)}
                 onViewPackages={() => handleViewPackages(env)}
                 onClone={() => handleClone(env)}
                 onExport={() => handleExportRequirements(env)}
+                onImport={() => handleImportRequirements(env)}
                 onSelect={() => toggleEnvSelection(env.id)}
               />
             ))}
@@ -1159,6 +878,7 @@ export function VirtualEnvPanel() {
           open={showRequirementsDialog}
           onOpenChange={setShowRequirementsDialog}
           envPath={selectedEnvForPackages.path}
+          defaultTab={requirementsDefaultTab}
           onExport={() => exportRequirements(selectedEnvForPackages.path)}
           onImport={(content) => importRequirements(selectedEnvForPackages.path, content)}
           isExporting={isExporting}

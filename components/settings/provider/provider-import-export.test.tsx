@@ -63,6 +63,33 @@ jest.mock('@/components/ui/label', () => ({
   ),
 }));
 
+jest.mock('@/components/ui/scroll-area', () => ({
+  ScrollArea: ({ children }: { children: React.ReactNode }) => <div data-testid="scroll-area">{children}</div>,
+}));
+
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span>,
+}));
+
+jest.mock('@/components/ui/tabs', () => ({
+  Tabs: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs">{children}</div>,
+  TabsList: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs-list">{children}</div>,
+  TabsTrigger: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <button data-testid={`tab-${value}`}>{children}</button>
+  ),
+  TabsContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+jest.mock('@/components/ui/select', () => ({
+  Select: ({ children }: { children: React.ReactNode }) => <div data-testid="select">{children}</div>,
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="select-trigger">{children}</div>,
+  SelectValue: () => <span data-testid="select-value" />,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <div data-testid={`select-item-${value}`}>{children}</div>
+  ),
+}));
+
 describe('ProviderImportExport', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -101,10 +128,10 @@ describe('ProviderImportExport', () => {
     expect(screen.getByText('includeApiKeys')).toBeInTheDocument();
   });
 
-  it('displays export warning alert', () => {
+  it('displays api key warning text', () => {
     render(<ProviderImportExport />);
     fireEvent.click(screen.getByText('export'));
-    expect(screen.getByText('exportWarning')).toBeInTheDocument();
+    expect(screen.getByText('apiKeyWarning')).toBeInTheDocument();
   });
 
   it('displays export description', () => {
@@ -128,8 +155,28 @@ describe('ProviderImportExport', () => {
   it('toggles includeApiKeys checkbox', () => {
     render(<ProviderImportExport />);
     fireEvent.click(screen.getByText('export'));
-    const checkbox = screen.getByTestId('checkbox');
-    fireEvent.click(checkbox);
-    expect(checkbox).toBeInTheDocument();
+    // Multiple checkboxes exist (provider list + include API keys)
+    const checkboxes = screen.getAllByTestId('checkbox');
+    expect(checkboxes.length).toBeGreaterThan(0);
+    fireEvent.click(checkboxes[0]);
+    expect(checkboxes[0]).toBeInTheDocument();
+  });
+
+  it('displays JSON format button in export dialog', () => {
+    render(<ProviderImportExport />);
+    fireEvent.click(screen.getByText('export'));
+    expect(screen.getByText('JSON')).toBeInTheDocument();
+  });
+
+  it('displays .env format button in export dialog', () => {
+    render(<ProviderImportExport />);
+    fireEvent.click(screen.getByText('export'));
+    expect(screen.getByText('.env')).toBeInTheDocument();
+  });
+
+  it('renders with onClose callback', () => {
+    const mockOnClose = jest.fn();
+    render(<ProviderImportExport onClose={mockOnClose} />);
+    expect(screen.getByText('export')).toBeInTheDocument();
   });
 });

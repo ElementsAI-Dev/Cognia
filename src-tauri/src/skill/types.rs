@@ -238,7 +238,6 @@ pub struct SkillDiscoveryResult {
 
 /// Skill error types
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum SkillError {
     /// Skill not found
     NotFound(String),

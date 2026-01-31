@@ -6,7 +6,7 @@ import { PresetQuickPrompts } from '@/components/presets/preset-quick-prompts';
 import { PresetQuickSwitcher } from '@/components/presets/preset-quick-switcher';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
-import { Brain, Globe, Radio, Settings2, Presentation, Workflow, Wand2 } from 'lucide-react';
+import { Brain, Globe, Radio, Settings2, Presentation, Workflow, Wand2, Swords } from 'lucide-react';
 import { usePresetStore, useSessionStore } from '@/stores';
 import styles from './bottom-toolbar.module.css';
 
@@ -28,9 +28,13 @@ interface BottomToolbarProps {
   onSelectPrompt: (content: string) => void;
   onOpenWorkflowPicker?: () => void;
   onOpenPromptOptimization?: () => void;
+  onOpenArena?: () => void;
   hasActivePreset?: boolean;
   disabled?: boolean;
   isProcessing: boolean;
+  hideTokenCount?: boolean;
+  hideWebSearchToggle?: boolean;
+  hideThinkingToggle?: boolean;
 }
 
 function PresetQuickPromptsWrapper({
@@ -74,9 +78,13 @@ export function BottomToolbar({
   onSelectPrompt,
   onOpenWorkflowPicker,
   onOpenPromptOptimization,
+  onOpenArena,
   hasActivePreset,
   disabled,
   isProcessing,
+  hideTokenCount = false,
+  hideWebSearchToggle = false,
+  hideThinkingToggle = false,
 }: BottomToolbarProps) {
   const t = useTranslations('chatInput');
 
@@ -115,51 +123,55 @@ export function BottomToolbar({
 
         <div className="mx-0.5 sm:mx-1 h-3 sm:h-4 w-px bg-border" />
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
-                webSearchEnabled
-                  ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-              onClick={() => onWebSearchChange?.(!webSearchEnabled)}
-            >
-              <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              <span className="hidden sm:inline">{t('search')}</span>
-              {webSearchEnabled && (
-                <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-primary animate-pulse" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('toggleWebSearch')}</TooltipContent>
-        </Tooltip>
+        {!hideWebSearchToggle && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
+                  webSearchEnabled
+                    ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+                onClick={() => onWebSearchChange?.(!webSearchEnabled)}
+              >
+                <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                <span className="hidden sm:inline">{t('search')}</span>
+                {webSearchEnabled && (
+                  <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-primary animate-pulse" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('toggleWebSearch')}</TooltipContent>
+          </Tooltip>
+        )}
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
-                thinkingEnabled
-                  ? 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-              onClick={() => onThinkingChange?.(!thinkingEnabled)}
-            >
-              <Brain className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              <span className="hidden sm:inline">{t('think')}</span>
-              {thinkingEnabled && (
-                <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-purple-500 animate-pulse" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('extendedThinking')}</TooltipContent>
-        </Tooltip>
+        {!hideThinkingToggle && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal',
+                  thinkingEnabled
+                    ? 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+                onClick={() => onThinkingChange?.(!thinkingEnabled)}
+              >
+                <Brain className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                <span className="hidden sm:inline">{t('think')}</span>
+                {thinkingEnabled && (
+                  <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-purple-500 animate-pulse" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('extendedThinking')}</TooltipContent>
+          </Tooltip>
+        )}
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -218,6 +230,23 @@ export function BottomToolbar({
           </Tooltip>
         )}
 
+        {onOpenArena && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal text-muted-foreground hover:text-foreground"
+                onClick={onOpenArena}
+              >
+                <Swords className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />
+                <span className="hidden sm:inline">{t('arena') || 'Arena'}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('openArena') || 'Compare multiple AI models'}</TooltipContent>
+          </Tooltip>
+        )}
+
         {onOpenPromptOptimization && hasActivePreset && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -268,34 +297,36 @@ export function BottomToolbar({
         </div>
       </div>
 
-      <div className="flex items-center gap-1 sm:gap-2">
-        <Button
-          onClick={onOpenContextSettings}
-          variant="ghost"
-          size="sm"
-          className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs h-auto p-0 hover:bg-transparent"
-          title={t('contextWindowUsage')}
-        >
-          <div className="flex items-center gap-1 sm:gap-1.5">
-            <div className="w-10 sm:w-16 h-1 sm:h-1.5 bg-muted rounded-full overflow-hidden">
-              <progress
-                max={100}
-                value={boundedPercent}
-                className={cn(styles.usageProgress, styles[severityClass])}
-                aria-label={t('contextWindowUsage')}
-              />
+      {!hideTokenCount && (
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Button
+            onClick={onOpenContextSettings}
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs h-auto p-0 hover:bg-transparent"
+            title={t('contextWindowUsage')}
+          >
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <div className="w-10 sm:w-16 h-1 sm:h-1.5 bg-muted rounded-full overflow-hidden">
+                <progress
+                  max={100}
+                  value={boundedPercent}
+                  className={cn(styles.usageProgress, styles[severityClass])}
+                  aria-label={t('contextWindowUsage')}
+                />
+              </div>
+              <span
+                className={cn(
+                  'tabular-nums',
+                  contextUsagePercent >= 80 && 'text-red-500 font-medium'
+                )}
+              >
+                {contextUsagePercent}%
+              </span>
             </div>
-            <span
-              className={cn(
-                'tabular-nums',
-                contextUsagePercent >= 80 && 'text-red-500 font-medium'
-              )}
-            >
-              {contextUsagePercent}%
-            </span>
-          </div>
-        </Button>
-      </div>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

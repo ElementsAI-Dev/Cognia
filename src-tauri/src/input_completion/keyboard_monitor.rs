@@ -31,12 +31,10 @@ pub struct KeyEvent {
     /// Whether Ctrl/Cmd is held
     pub ctrl: bool,
     /// Whether Shift is held
-    #[allow(dead_code)]
     pub shift: bool,
     /// Whether Alt is held
     pub alt: bool,
     /// Timestamp in milliseconds
-    #[allow(dead_code)]
     pub timestamp: i64,
 }
 
@@ -183,7 +181,6 @@ impl KeyboardMonitor {
     }
 
     /// Check if monitor is running
-    #[allow(dead_code)]
     pub fn is_running(&self) -> bool {
         self.is_running.load(Ordering::SeqCst)
     }

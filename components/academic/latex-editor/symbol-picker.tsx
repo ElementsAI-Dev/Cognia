@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -40,7 +41,6 @@ const MATH_FUNCTIONS: LaTeXSymbol[] = [
   { name: 'prod', command: '\\prod', category: 'functions' },
   { name: 'int', command: '\\int', category: 'functions' },
 ];
-import { Search } from 'lucide-react';
 
 interface SymbolPickerProps {
   onSelect: (symbol: LaTeXSymbol) => void;

@@ -4,12 +4,85 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
+import type { ApiProtocol } from '@/types/provider';
 
 export interface ApiTestResult {
   success: boolean;
   message: string;
   latency_ms?: number;
   model_info?: string;
+}
+
+export async function testCustomProviderConnectionByProtocol(
+  baseUrl: string,
+  apiKey: string,
+  apiProtocol: ApiProtocol = 'openai'
+): Promise<ApiTestResult> {
+  const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, '');
+  const start = Date.now();
+
+  try {
+    let response: Response;
+
+    if (apiProtocol === 'anthropic') {
+      response = await proxyFetch(`${normalizedBaseUrl}/messages`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 1,
+          messages: [{ role: 'user', content: 'test' }],
+        }),
+      });
+
+      const latency = Date.now() - start;
+      const ok = response.ok || response.status === 400;
+      return {
+        success: ok,
+        message: ok ? 'Connected successfully.' : `API error: ${response.status}`,
+        latency_ms: latency,
+      };
+    }
+
+    if (apiProtocol === 'gemini') {
+      response = await proxyFetch(`${normalizedBaseUrl}/models?key=${apiKey}`);
+
+      const latency = Date.now() - start;
+      if (response.ok) {
+        return { success: true, message: 'Connected successfully.', latency_ms: latency };
+      }
+      return {
+        success: false,
+        message: `API error: ${response.status}`,
+        latency_ms: latency,
+      };
+    }
+
+    response = await proxyFetch(`${normalizedBaseUrl}/models`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+
+    const latency = Date.now() - start;
+    if (response.ok) {
+      return { success: true, message: 'Connected successfully.', latency_ms: latency };
+    }
+    return {
+      success: false,
+      message: `API error: ${response.status}`,
+      latency_ms: latency,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Connection failed',
+    };
+  }
 }
 
 /**

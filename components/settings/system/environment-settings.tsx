@@ -21,6 +21,8 @@ import {
   Terminal,
   Package,
   Box,
+  Search,
+  Film,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +30,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -43,6 +53,8 @@ import { ProjectEnvConfigPanel } from './project-env-config';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToolCard } from '@/components/settings/environment';
 
+type ToolFilter = 'all' | 'language_manager' | 'container_runtime' | 'media_tool';
+
 export function EnvironmentSettings() {
   const t = useTranslations('environmentSettings');
   const {
@@ -55,12 +67,15 @@ export function EnvironmentSettings() {
     isAvailable,
     refreshStatus,
     checkTool,
+    setToolEnabled,
     installTool,
     openToolWebsite,
     clearError,
   } = useEnvironment();
 
   const [confirmInstall, setConfirmInstall] = useState<EnvironmentTool | null>(null);
+  const [toolSearchQuery, setToolSearchQuery] = useState('');
+  const [toolFilter, setToolFilter] = useState<ToolFilter>('all');
   const initializedRef = useRef(false);
 
   // Initial status check
@@ -82,8 +97,30 @@ export function EnvironmentSettings() {
     }
   };
 
-  const languageManagers: EnvironmentTool[] = ['uv', 'nvm'];
-  const containerRuntimes: EnvironmentTool[] = ['docker', 'podman'];
+  const languageManagers: EnvironmentTool[] = ['python', 'uv', 'nodejs', 'nvm', 'ruby', 'rust'];
+  const containerRuntimes: EnvironmentTool[] = ['docker', 'podman', 'postgresql'];
+  const mediaTools: EnvironmentTool[] = ['ffmpeg'];
+
+  const normalizedSearchQuery = toolSearchQuery.trim().toLowerCase();
+  const matchesTool = (tool: EnvironmentTool) => {
+    if (toolFilter !== 'all' && TOOL_INFO[tool].category !== toolFilter) {
+      return false;
+    }
+
+    if (!normalizedSearchQuery) return true;
+
+    const info = TOOL_INFO[tool];
+    const haystack = `${tool} ${info.name} ${info.description}`.toLowerCase();
+    return haystack.includes(normalizedSearchQuery);
+  };
+
+  const visibleLanguageManagers = languageManagers.filter(matchesTool);
+  const visibleContainerRuntimes = containerRuntimes.filter(matchesTool);
+  const visibleMediaTools = mediaTools.filter(matchesTool);
+  const hasVisibleTools =
+    visibleLanguageManagers.length > 0 ||
+    visibleContainerRuntimes.length > 0 ||
+    visibleMediaTools.length > 0;
 
   // Not available state (browser environment)
   if (!isAvailable) {
@@ -188,51 +225,126 @@ export function EnvironmentSettings() {
 
         {/* Tools Tab */}
         <TabsContent value="tools" className="space-y-6 mt-4">
-          {/* Language Managers Section */}
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              <Terminal className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">{t('languageManagers')}</h3>
-            </div>
-            <p className="text-xs text-muted-foreground">{t('languageManagersDesc')}</p>
-            <div className="grid gap-4 md:grid-cols-2">
-              {languageManagers.map((tool) => (
-                <ToolCard
-                  key={tool}
-                  tool={tool}
-                  status={tools[tool]}
-                  isInstalling={isInstalling}
-                  onInstall={() => handleInstallClick(tool)}
-                  onOpenWebsite={() => openToolWebsite(tool)}
-                  onRefresh={() => checkTool(tool)}
+              <div className="relative flex-1 sm:flex-none sm:w-56">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder={t('searchToolsPlaceholder')}
+                  value={toolSearchQuery}
+                  onChange={(e) => setToolSearchQuery(e.target.value)}
+                  className="h-9 text-sm pl-10 sm:h-8"
+                  autoComplete="off"
+                  data-form-type="other"
+                  data-lpignore="true"
                 />
-              ))}
+              </div>
+              <Select value={toolFilter} onValueChange={(v) => setToolFilter(v as ToolFilter)}>
+                <SelectTrigger className="h-9 w-40 text-sm sm:h-8">
+                  <SelectValue placeholder={t('allTools')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('allTools')}</SelectItem>
+                  <SelectItem value="language_manager">{t('categoryLanguageManager')}</SelectItem>
+                  <SelectItem value="container_runtime">{t('categoryContainerRuntime')}</SelectItem>
+                  <SelectItem value="media_tool">{t('categoryMediaTool')}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={refreshStatus}
+              disabled={isRefreshing}
+              className="gap-1.5"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {t('autoDetect')}
+            </Button>
           </div>
 
-          <Separator />
+          {!hasVisibleTools ? (
+            <div className="text-center py-8 text-sm text-muted-foreground">{t('noToolsFound')}</div>
+          ) : (
+            <>
+              {visibleLanguageManagers.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold">{t('languageManagers')}</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('languageManagersDesc')}</p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {visibleLanguageManagers.map((tool) => (
+                      <ToolCard
+                        key={tool}
+                        tool={tool}
+                        status={tools[tool]}
+                        isInstalling={isInstalling}
+                        onInstall={() => handleInstallClick(tool)}
+                        onOpenWebsite={() => openToolWebsite(tool)}
+                        onRefresh={() => checkTool(tool)}
+                        onToggleEnabled={(enabled) => setToolEnabled(tool, enabled)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Container Runtimes Section */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Box className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">{t('containerRuntimes')}</h3>
-            </div>
-            <p className="text-xs text-muted-foreground">{t('containerRuntimesDesc')}</p>
-            <div className="grid gap-4 md:grid-cols-2">
-              {containerRuntimes.map((tool) => (
-                <ToolCard
-                  key={tool}
-                  tool={tool}
-                  status={tools[tool]}
-                  isInstalling={isInstalling}
-                  onInstall={() => handleInstallClick(tool)}
-                  onOpenWebsite={() => openToolWebsite(tool)}
-                  onRefresh={() => checkTool(tool)}
-                />
-              ))}
-            </div>
-          </div>
+              {visibleLanguageManagers.length > 0 &&
+                (visibleContainerRuntimes.length > 0 || visibleMediaTools.length > 0) && <Separator />}
+
+              {visibleContainerRuntimes.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Box className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold">{t('containerRuntimes')}</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('containerRuntimesDesc')}</p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {visibleContainerRuntimes.map((tool) => (
+                      <ToolCard
+                        key={tool}
+                        tool={tool}
+                        status={tools[tool]}
+                        isInstalling={isInstalling}
+                        onInstall={() => handleInstallClick(tool)}
+                        onOpenWebsite={() => openToolWebsite(tool)}
+                        onRefresh={() => checkTool(tool)}
+                        onToggleEnabled={(enabled) => setToolEnabled(tool, enabled)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {visibleContainerRuntimes.length > 0 && visibleMediaTools.length > 0 && <Separator />}
+
+              {visibleMediaTools.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Film className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold">{t('mediaTools')}</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('mediaToolsDesc')}</p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {visibleMediaTools.map((tool) => (
+                      <ToolCard
+                        key={tool}
+                        tool={tool}
+                        status={tools[tool]}
+                        isInstalling={isInstalling}
+                        onInstall={() => handleInstallClick(tool)}
+                        onOpenWebsite={() => openToolWebsite(tool)}
+                        onRefresh={() => checkTool(tool)}
+                        onToggleEnabled={(enabled) => setToolEnabled(tool, enabled)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </TabsContent>
 
         {/* Virtual Environments Tab */}

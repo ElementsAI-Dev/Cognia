@@ -13,11 +13,14 @@ mod history;
 pub mod progress;
 mod recorder;
 pub mod storage;
+pub mod toolbar;
 mod video_processor;
+pub mod window_snap;
 
 #[allow(unused_imports)]
 pub use error::{RecordingError, RecordingErrorCode};
 pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
+#[allow(unused_imports)]
 pub use progress::{
     VideoProcessingProgress, emit_processing_started, emit_processing_completed,
     emit_processing_error, monitor_ffmpeg_progress, parse_ffmpeg_progress,
@@ -27,10 +30,12 @@ pub use storage::{CleanupResult, StorageConfig, StorageManager, StorageStats};
 pub use storage::{StorageFile, StorageFileType};
 pub use history::{RecordingHistory, RecordingHistoryEntry};
 pub use recorder::ScreenRecorder;
+pub use toolbar::{RecordingToolbar, RecordingToolbarConfig, RecordingToolbarState, ToolbarPosition};
 pub use video_processor::{
     EncodingSupport, VideoConvertOptions, VideoInfo, VideoProcessingResult, VideoProcessor,
     VideoTrimOptions,
 };
+pub use window_snap::SnapEdge;
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -170,7 +175,6 @@ pub struct ScreenRecordingManager {
     recorder: ScreenRecorder,
     history: RecordingHistory,
     storage: StorageManager,
-    #[allow(dead_code)]
     app_handle: AppHandle,
 }
 
@@ -606,6 +610,11 @@ impl ScreenRecordingManager {
             .collect();
         
         self.storage.cleanup_old_files(&pinned_ids)
+    }
+
+    /// Get app handle reference
+    pub fn app_handle(&self) -> &AppHandle {
+        &self.app_handle
     }
 }
 

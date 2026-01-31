@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useSettingsStore } from '@/stores';
+import { testCustomProviderConnectionByProtocol } from '@/lib/ai/infrastructure/api-test';
 
 interface CustomProviderDialogProps {
   open: boolean;
@@ -115,57 +116,8 @@ export function CustomProviderDialog({
     setTestResult(null);
 
     try {
-      let response: Response;
-      
-      switch (apiProtocol) {
-        case 'anthropic':
-          // Anthropic uses x-api-key header and different endpoint
-          response = await fetch(`${baseURL}/messages`, {
-            method: 'POST',
-            headers: {
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'claude-3-haiku-20240307',
-              max_tokens: 1,
-              messages: [{ role: 'user', content: 'test' }],
-            }),
-          });
-          // A 400 error for invalid model is still a successful connection
-          if (response.ok || response.status === 400) {
-            setTestResult('success');
-          } else {
-            setTestResult('error');
-          }
-          break;
-          
-        case 'gemini':
-          // Gemini uses API key as query parameter
-          response = await fetch(`${baseURL}/models?key=${apiKey}`);
-          if (response.ok) {
-            setTestResult('success');
-          } else {
-            setTestResult('error');
-          }
-          break;
-          
-        case 'openai':
-        default:
-          // OpenAI-compatible uses Bearer token
-          response = await fetch(`${baseURL}/models`, {
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-            },
-          });
-          if (response.ok) {
-            setTestResult('success');
-          } else {
-            setTestResult('error');
-          }
-          break;
-      }
+      const result = await testCustomProviderConnectionByProtocol(baseURL, apiKey, apiProtocol);
+      setTestResult(result.success ? 'success' : 'error');
     } catch {
       setTestResult('error');
     } finally {
@@ -184,7 +136,7 @@ export function CustomProviderDialog({
       apiProtocol,
       customModels: models,
       defaultModel: defaultModel || models[0],
-      enabled: true,
+      enabled: editingProviderId ? (customProviders[editingProviderId]?.enabled ?? true) : true,
     };
 
     if (editingProviderId) {
@@ -233,7 +185,13 @@ export function CustomProviderDialog({
           {/* API Protocol */}
           <div className="space-y-2">
             <Label htmlFor="api-protocol">{t('apiProtocol')}</Label>
-            <Select value={apiProtocol} onValueChange={(v) => setApiProtocol(v as ApiProtocol)}>
+            <Select
+              value={apiProtocol}
+              onValueChange={(v) => {
+                setApiProtocol(v as ApiProtocol);
+                setTestResult(null);
+              }}
+            >
               <SelectTrigger id="api-protocol">
                 <SelectValue placeholder={t('selectProtocol')} />
               </SelectTrigger>
@@ -269,7 +227,10 @@ export function CustomProviderDialog({
             <Input
               id="base-url"
               value={baseURL}
-              onChange={(e) => setBaseURL(e.target.value)}
+              onChange={(e) => {
+                setBaseURL(e.target.value);
+                setTestResult(null);
+              }}
               placeholder={
                 apiProtocol === 'anthropic' 
                   ? 'https://api.anthropic.com/v1' 
@@ -292,7 +253,10 @@ export function CustomProviderDialog({
                   id="api-key"
                   type={showKey ? 'text' : 'password'}
                   value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  onChange={(e) => {
+                    setApiKey(e.target.value);
+                    setTestResult(null);
+                  }}
                   placeholder={t('apiKeyPlaceholder')}
                   className="pr-10"
                 />

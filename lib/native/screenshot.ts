@@ -178,6 +178,51 @@ export interface SnapConfig {
   snap_distance: number;
   snap_to_screen: boolean;
   snap_to_windows: boolean;
+  snap_to_elements: boolean;
+  show_guide_lines: boolean;
+  magnetic_edges: boolean;
+}
+
+export interface WindowInfo {
+  hwnd: number;
+  title: string;
+  process_name: string;
+  pid: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  is_minimized: boolean;
+  is_maximized: boolean;
+  is_visible: boolean;
+  thumbnail_base64?: string;
+}
+
+export interface ElementInfo {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  element_type: string;
+  name?: string;
+  parent_hwnd: number;
+}
+
+export interface SnapGuide {
+  orientation: 'horizontal' | 'vertical';
+  position: number;
+  start: number;
+  end: number;
+  source: string;
+}
+
+export interface SelectionSnapResult {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  snapped: boolean;
+  guides: SnapGuide[];
 }
 
 // ============== Basic Capture Functions ==============
@@ -469,4 +514,88 @@ export async function saveToFile(
   path: string
 ): Promise<string> {
   return invoke("screenshot_save", { imageBase64, path });
+}
+
+// ============== Window Detection Functions ==============
+
+/**
+ * Get all visible windows
+ */
+export async function getWindows(): Promise<WindowInfo[]> {
+  return invoke("screenshot_get_windows");
+}
+
+/**
+ * Get all visible windows with thumbnails
+ */
+export async function getWindowsWithThumbnails(
+  thumbnailSize?: number
+): Promise<WindowInfo[]> {
+  return invoke("screenshot_get_windows_with_thumbnails", { thumbnailSize });
+}
+
+/**
+ * Get the window at a specific screen point (for auto-detection during selection)
+ */
+export async function getWindowAtPoint(
+  x: number,
+  y: number
+): Promise<WindowInfo | null> {
+  return invoke("screenshot_get_window_at_point", { x, y });
+}
+
+/**
+ * Get child elements of a window (for element-level detection)
+ */
+export async function getChildElements(
+  hwnd: number,
+  maxDepth?: number
+): Promise<ElementInfo[]> {
+  return invoke("screenshot_get_child_elements", { hwnd, maxDepth });
+}
+
+/**
+ * Capture a specific window by its HWND
+ */
+export async function captureWindowByHwnd(hwnd: number): Promise<ScreenshotResult> {
+  return invoke("screenshot_capture_window_by_hwnd", { hwnd });
+}
+
+/**
+ * Capture a specific window by HWND and add to history
+ */
+export async function captureWindowByHwndWithHistory(
+  hwnd: number
+): Promise<ScreenshotResult> {
+  return invoke("screenshot_capture_window_by_hwnd_with_history", { hwnd });
+}
+
+// ============== Selection Snap Functions ==============
+
+/**
+ * Calculate snapped selection rectangle during region selection
+ * Returns adjusted coordinates if edges are near window/screen boundaries
+ */
+export async function calculateSelectionSnap(
+  selectionX: number,
+  selectionY: number,
+  selectionWidth: number,
+  selectionHeight: number
+): Promise<SelectionSnapResult> {
+  return invoke("screenshot_calculate_selection_snap", {
+    selectionX,
+    selectionY,
+    selectionWidth,
+    selectionHeight,
+  });
+}
+
+// ============== Color Picker Functions ==============
+
+/**
+ * Get pixel color at screen coordinates
+ * Returns hex color string (e.g., "#FF5733") or null if failed
+ */
+export async function getPixelColor(x: number, y: number): Promise<string | null> {
+  return invoke("screenshot_get_pixel_color", { x, y });
 }

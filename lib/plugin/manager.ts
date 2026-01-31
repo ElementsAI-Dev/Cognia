@@ -39,6 +39,23 @@ interface DiscoveredPlugin {
   source: PluginSource;
 }
 
+/** Python runtime information */
+export interface PythonRuntimeInfo {
+  available: boolean;
+  version: string | null;
+  plugin_count: number;
+  total_calls: number;
+  total_execution_time_ms: number;
+  failed_calls: number;
+}
+
+/** Python plugin information */
+export interface PythonPluginInfo {
+  plugin_id: string;
+  tool_count: number;
+  hook_count: number;
+}
+
 // =============================================================================
 // Plugin Manager Singleton
 // =============================================================================
@@ -462,6 +479,41 @@ export class PluginManager {
       functionName,
       args,
     });
+  }
+
+  /**
+   * Get Python runtime information
+   */
+  async getPythonRuntimeInfo(): Promise<PythonRuntimeInfo> {
+    return invoke<PythonRuntimeInfo>('plugin_python_runtime_info');
+  }
+
+  /**
+   * Check if a Python plugin is initialized
+   */
+  async isPythonPluginInitialized(pluginId: string): Promise<boolean> {
+    return invoke<boolean>('plugin_python_is_initialized', { pluginId });
+  }
+
+  /**
+   * Get Python plugin info (tool/hook counts)
+   */
+  async getPythonPluginInfo(pluginId: string): Promise<PythonPluginInfo | null> {
+    return invoke<PythonPluginInfo | null>('plugin_python_get_info', { pluginId });
+  }
+
+  /**
+   * Unload a Python plugin
+   */
+  async unloadPythonPlugin(pluginId: string): Promise<void> {
+    return invoke('plugin_python_unload', { pluginId });
+  }
+
+  /**
+   * List all loaded Python plugins
+   */
+  async listPythonPlugins(): Promise<string[]> {
+    return invoke<string[]>('plugin_python_list');
   }
 
   // ===========================================================================

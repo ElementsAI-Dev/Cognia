@@ -28,9 +28,12 @@ import {
   Sparkles,
   GripHorizontal,
   Download,
+  Maximize2,
 } from "lucide-react";
 import type { ChatWidgetConfig, ChatWidgetMessage } from "@/stores/chat";
+import type { ProviderName } from "@/types";
 import { ChatWidgetShortcuts } from "./chat-widget-shortcuts";
+import { ChatWidgetModelSelector } from "./chat-widget-model-selector";
 
 interface ChatWidgetHeaderProps {
   config: ChatWidgetConfig;
@@ -41,6 +44,9 @@ interface ChatWidgetHeaderProps {
   onTogglePin: () => void;
   onSettings?: () => void;
   onExport?: () => void;
+  onExpandToFull?: () => void;
+  onProviderChange?: (provider: ProviderName) => void;
+  onModelChange?: (model: string) => void;
   className?: string;
 }
 
@@ -53,6 +59,9 @@ export function ChatWidgetHeader({
   onTogglePin,
   onSettings,
   onExport,
+  onExpandToFull,
+  onProviderChange,
+  onModelChange,
   className,
 }: ChatWidgetHeaderProps) {
   const t = useTranslations("chatWidget.header");
@@ -94,9 +103,38 @@ export function ChatWidgetHeader({
         )}
       </div>
 
+      {/* Model selector */}
+      {onProviderChange && onModelChange && (
+        <ChatWidgetModelSelector
+          provider={config.provider as ProviderName}
+          model={config.model}
+          onProviderChange={onProviderChange}
+          onModelChange={onModelChange}
+        />
+      )}
+
       {/* Right side - actions */}
       <div className="flex items-center gap-1">
         <TooltipProvider delayDuration={300}>
+          {/* Expand to full chat */}
+          {onExpandToFull && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={onExpandToFull}
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {t("expandToFull")}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           {/* Pin toggle */}
           <Tooltip>
             <TooltipTrigger asChild>

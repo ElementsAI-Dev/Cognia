@@ -21,3 +21,19 @@ export { OpenRouterSettings } from './openrouter-settings';
 
 // Model management
 export { ModelManager } from './model-manager';
+export { ModelListDialog } from './model-list-dialog';
+export { ModelSettingsDialog } from './model-settings-dialog';
+
+// UI State components
+export { ProviderEmptyState } from './provider-empty-state';
+export { ProviderSkeleton } from './provider-skeleton';
+
+// Provider card component
+export { ProviderCard } from './provider-card';
+
+// Shared/Extracted components
+export { ProviderStatusBadge, getProviderStatus, type ProviderStatus } from './provider-status-badge';
+export { BatchTestProgress, TestResultsSummary } from './batch-test-progress';
+export { ProviderFilters } from './provider-filters';
+export { CustomProvidersList, CustomProvidersListItem } from './custom-providers-list';
+export { ProviderTableView } from './provider-table-view';

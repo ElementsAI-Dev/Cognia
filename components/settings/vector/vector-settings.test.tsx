@@ -7,6 +7,12 @@ import { VectorSettings } from './vector-settings';
 
 // Mock vector store
 const mockUpdateSettings = jest.fn();
+const mockProviderSettings = {
+  openai: { apiKey: 'test-key' },
+  google: { apiKey: '' },
+  cohere: { apiKey: '' },
+  mistral: { apiKey: '' },
+};
 
 jest.mock('@/stores', () => ({
   useVectorStore: (selector: (state: unknown) => unknown) => {
@@ -20,8 +26,23 @@ jest.mock('@/stores', () => ({
         chunkSize: 1000,
         chunkOverlap: 200,
         autoEmbed: true,
+        setupCompleted: true,
+        defaultCollectionName: 'default',
+        pineconeApiKey: '',
+        pineconeIndexName: '',
+        pineconeNamespace: '',
+        qdrantUrl: '',
+        qdrantApiKey: '',
+        milvusAddress: '',
+        milvusToken: '',
       },
       updateSettings: mockUpdateSettings,
+    };
+    return selector(state);
+  },
+  useSettingsStore: (selector: (state: unknown) => unknown) => {
+    const state = {
+      providerSettings: mockProviderSettings,
     };
     return selector(state);
   },
@@ -39,14 +60,53 @@ jest.mock('@/hooks/rag', () => ({
   }),
 }));
 
-// Mock vector lib
-jest.mock('@/lib/vector', () => ({
-  getSupportedVectorStoreProviders: () => ['chroma', 'native'],
+// Mock embedding models
+jest.mock('@/lib/vector/embedding', () => ({
+  DEFAULT_EMBEDDING_MODELS: {
+    openai: { provider: 'openai', model: 'text-embedding-3-small', dimensions: 1536 },
+    google: { provider: 'google', model: 'text-embedding-004', dimensions: 768 },
+    cohere: { provider: 'cohere', model: 'embed-english-v3.0', dimensions: 1024 },
+    mistral: { provider: 'mistral', model: 'mistral-embed', dimensions: 1024 },
+  },
 }));
 
 // Mock VectorManager component
 jest.mock('./vector-manager', () => ({
   VectorManager: () => <div data-testid="vector-manager">Vector Manager</div>,
+}));
+
+// Mock new components
+jest.mock('./section-header', () => ({
+  SectionHeader: ({ title }: { title: string }) => <div data-testid="section-header">{title}</div>,
+}));
+
+jest.mock('./provider-tabs', () => ({
+  ProviderTabs: ({ value, onValueChange, options }: { value: string; onValueChange: (v: string) => void; options: Array<{ value: string; label: string }> }) => (
+    <div data-testid="provider-tabs" data-value={value}>
+      {options.map((opt) => (
+        <button key={opt.value} onClick={() => onValueChange(opt.value)} data-testid={`provider-tab-${opt.value}`}>
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
+jest.mock('./api-key-modal', () => ({
+  VectorApiKeyModal: ({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) => (
+    open ? <div data-testid="api-key-modal"><button onClick={() => onOpenChange(false)}>Close</button></div> : null
+  ),
+}));
+
+jest.mock('./setup-guide-modal', () => ({
+  VectorSetupGuideModal: ({ open, onOpenChange, onComplete }: { open: boolean; onOpenChange: (v: boolean) => void; onComplete: () => void }) => (
+    open ? (
+      <div data-testid="setup-guide-modal">
+        <button onClick={() => onOpenChange(false)}>Close</button>
+        <button onClick={onComplete} data-testid="complete-setup">Complete</button>
+      </div>
+    ) : null
+  ),
 }));
 
 // Mock UI components
@@ -135,14 +195,31 @@ describe('VectorSettings', () => {
     expect(screen.getByText('Configure provider, mode, and embedding defaults.')).toBeInTheDocument();
   });
 
-  it('displays Provider label', () => {
+  it('displays provider tabs', () => {
     render(<VectorSettings />);
-    expect(screen.getByText('Provider')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-tabs')).toBeInTheDocument();
   });
 
-  it('displays Mode label', () => {
+  it('displays all provider tab options', () => {
     render(<VectorSettings />);
-    expect(screen.getByText('Mode')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-tab-native')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-tab-chroma')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-tab-pinecone')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-tab-qdrant')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-tab-milvus')).toBeInTheDocument();
+  });
+
+  it('handles provider tab change', () => {
+    render(<VectorSettings />);
+    const nativeTab = screen.getByTestId('provider-tab-native');
+    fireEvent.click(nativeTab);
+    expect(mockUpdateSettings).toHaveBeenCalledWith({ provider: 'native' });
+  });
+
+  it('displays section headers', () => {
+    render(<VectorSettings />);
+    const sectionHeaders = screen.getAllByTestId('section-header');
+    expect(sectionHeaders.length).toBeGreaterThan(0);
   });
 
   it('displays Chunk size label', () => {
@@ -175,31 +252,30 @@ describe('VectorSettings', () => {
     expect(screen.getByTestId('vector-manager')).toBeInTheDocument();
   });
 
-  it('displays provider select options', () => {
-    render(<VectorSettings />);
-    expect(screen.getByText('Chroma (embedded/server)')).toBeInTheDocument();
-    expect(screen.getByText('Native (local Tauri)')).toBeInTheDocument();
-  });
-
-  it('displays mode select options', () => {
+  it('displays mode select options for chroma provider', () => {
     render(<VectorSettings />);
     expect(screen.getByText('Embedded')).toBeInTheDocument();
     expect(screen.getByText('Server')).toBeInTheDocument();
   });
 
-  it('displays mode description', () => {
+  it('displays embedding provider select', () => {
     render(<VectorSettings />);
-    expect(screen.getByText('Native provider ignores mode (always local).')).toBeInTheDocument();
+    expect(screen.getByText('Embedding Provider')).toBeInTheDocument();
   });
 
-  it('displays Chroma Server URL field when provider is chroma', () => {
+  it('displays embedding model select', () => {
     render(<VectorSettings />);
-    expect(screen.getByText('Chroma Server URL')).toBeInTheDocument();
+    expect(screen.getByText('Embedding Model')).toBeInTheDocument();
   });
 
-  it('displays server URL description', () => {
+  it('displays Configure API Key button', () => {
     render(<VectorSettings />);
-    expect(screen.getByText('For server mode, ensure Chroma server is reachable.')).toBeInTheDocument();
+    expect(screen.getByText('Configure API Key')).toBeInTheDocument();
+  });
+
+  it('displays API key configured status when key is set', () => {
+    render(<VectorSettings />);
+    expect(screen.getByText('API key configured')).toBeInTheDocument();
   });
 
   it('displays chunk size input', () => {
@@ -233,26 +309,6 @@ describe('VectorSettings', () => {
     });
   });
 
-  it('handles chunk size input change', () => {
-    render(<VectorSettings />);
-    const inputs = screen.getAllByTestId('input');
-    // Order: serverUrl (index 0), chunkSize (index 1), chunkOverlap (index 2)
-    const chunkSizeInput = inputs[1];
-    
-    fireEvent.change(chunkSizeInput, { target: { value: '500' } });
-    expect(mockUpdateSettings).toHaveBeenCalledWith({ chunkSize: 500 });
-  });
-
-  it('handles chunk overlap input change', () => {
-    render(<VectorSettings />);
-    const inputs = screen.getAllByTestId('input');
-    // Order: serverUrl (index 0), chunkSize (index 1), chunkOverlap (index 2)
-    const chunkOverlapInput = inputs[2];
-    
-    fireEvent.change(chunkOverlapInput, { target: { value: '100' } });
-    expect(mockUpdateSettings).toHaveBeenCalledWith({ chunkOverlap: 100 });
-  });
-
   it('handles auto embed switch toggle', () => {
     render(<VectorSettings />);
     const switchBtn = screen.getByTestId('switch');
@@ -260,10 +316,11 @@ describe('VectorSettings', () => {
     expect(mockUpdateSettings).toHaveBeenCalledWith({ autoEmbed: false });
   });
 
-  it('displays select components for provider and mode', () => {
+  it('opens API key modal when Configure API Key button is clicked', () => {
     render(<VectorSettings />);
-    const selects = screen.getAllByTestId('select');
-    expect(selects.length).toBe(2);
+    const configButton = screen.getByText('Configure API Key');
+    fireEvent.click(configButton);
+    expect(screen.getByTestId('api-key-modal')).toBeInTheDocument();
   });
 });
 

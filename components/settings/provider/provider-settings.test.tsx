@@ -69,6 +69,20 @@ jest.mock('@/types/provider', () => ({
 // Mock API test
 jest.mock('@/lib/ai/infrastructure/api-test', () => ({
   testProviderConnection: jest.fn().mockResolvedValue({ success: true, latency_ms: 100 }),
+  testCustomProviderConnectionByProtocol: jest.fn().mockResolvedValue({
+    success: true,
+    message: 'Connected successfully.',
+    latency_ms: 100,
+  }),
+}));
+
+jest.mock('@/components/ui/sonner', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+    warning: jest.fn(),
+    info: jest.fn(),
+  },
 }));
 
 // Mock API key rotation
@@ -95,6 +109,10 @@ jest.mock('./provider-health-status', () => ({
 
 jest.mock('./ollama-model-manager', () => ({
   OllamaModelManager: () => <div data-testid="ollama-model-manager" />,
+}));
+
+jest.mock('./local-provider-settings', () => ({
+  LocalProviderSettings: () => <div data-testid="local-provider-settings" />,
 }));
 
 // Mock UI components
@@ -144,6 +162,34 @@ jest.mock('@/components/ui/alert', () => ({
   AlertTitle: ({ children }: { children: React.ReactNode }) => <h4>{children}</h4>,
 }));
 
+jest.mock('@/components/ui/tabs', () => {
+  const React = jest.requireActual<typeof import('react')>('react');
+
+  const TabsContext = React.createContext({
+    value: undefined as string | undefined,
+    onValueChange: undefined as ((v: string) => void) | undefined,
+  });
+
+  return {
+    Tabs: ({ children, value, onValueChange }: { children: React.ReactNode; value?: string; onValueChange?: (v: string) => void }) => (
+      <TabsContext.Provider value={{ value, onValueChange }}>
+        <div data-testid="tabs">{children}</div>
+      </TabsContext.Provider>
+    ),
+    TabsList: ({ children }: { children: React.ReactNode }) => <div role="tablist">{children}</div>,
+    TabsTrigger: ({ children, value }: { children: React.ReactNode; value: string }) => {
+      const ctx = React.useContext(TabsContext);
+      const selected = ctx.value === value;
+      return (
+        <button role="tab" aria-selected={selected} onClick={() => ctx.onValueChange?.(value)}>
+          {children}
+        </button>
+      );
+    },
+    TabsContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  };
+});
+
 jest.mock('@/components/ui/select', () => ({
   Select: ({ children, value }: { children: React.ReactNode; value?: string }) => (
     <div data-testid="select" data-value={value}>{children}</div>
@@ -192,14 +238,17 @@ describe('ProviderSettings', () => {
     expect(screen.getByText('Anthropic')).toBeInTheDocument();
   });
 
-  it('displays Ollama provider', () => {
+  it('shows local providers section when local tab is selected', async () => {
     render(<ProviderSettings />);
-    expect(screen.getByText('Ollama')).toBeInTheDocument();
+    const localTab = screen.getAllByRole('tab').find((el) => el.textContent?.includes('local'));
+    expect(localTab).toBeTruthy();
+    fireEvent.click(localTab as HTMLElement);
+    expect(await screen.findByTestId('local-provider-settings')).toBeInTheDocument();
   });
 
   it('displays Test All Providers button', () => {
     render(<ProviderSettings />);
-    expect(screen.getByText('Test All Providers')).toBeInTheDocument();
+    expect(screen.getByText('testAllProviders')).toBeInTheDocument();
   });
 
   it('displays custom providers section', () => {

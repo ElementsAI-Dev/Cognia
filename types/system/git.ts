@@ -564,3 +564,22 @@ export function generateAutoCommitMessage(
 
   return message;
 }
+
+// ==================== Git Blame Types ====================
+
+/** Git blame line info - attribution for a single line */
+export interface GitBlameLineInfo {
+  lineNumber: number;
+  commitHash: string;
+  authorName: string;
+  authorEmail: string;
+  authorDate: string;
+  commitMessage: string;
+  content: string;
+}
+
+/** Git blame result - full file blame */
+export interface GitBlameResult {
+  filePath: string;
+  lines: GitBlameLineInfo[];
+}

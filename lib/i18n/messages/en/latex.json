@@ -15,6 +15,83 @@
   },
   "templateLibrary": "Template Library",
   "documentHistory": "Document History",
+  "untitledDocument": "Untitled Document",
   "noHistory": "No document history yet",
-  "startEditing": "Start editing to create history"
+  "startEditing": "Start editing to create history",
+  "historyActions": {
+    "rename": "Rename",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "renameDialog": {
+      "title": "Rename Document",
+      "description": "Enter a new name for the document.",
+      "placeholder": "Document name"
+    },
+    "deleteDialog": {
+      "title": "Delete document?",
+      "description": "This will permanently remove the document from history."
+    }
+  },
+  "toolbar": {
+    "undo": "Undo",
+    "redo": "Redo",
+    "math": "Math",
+    "symbol": "Symbol",
+    "sourceView": "Source View",
+    "splitView": "Split View",
+    "preview": "Preview",
+    "import": "Import",
+    "export": "Export",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit Fullscreen"
+  },
+  "ai": {
+    "button": "AI",
+    "features": "AI Features",
+    "actions": "AI Actions",
+    "writingAssistant": {
+      "title": "Writing Assistant",
+      "description": "Improve your writing with AI"
+    },
+    "equationGenerator": {
+      "title": "Equation Generator",
+      "description": "Convert text to LaTeX math"
+    },
+    "grammarCheck": {
+      "title": "Grammar Check",
+      "description": "Fix grammar and style issues"
+    },
+    "translation": {
+      "title": "Translation",
+      "description": "Translate text between languages"
+    },
+    "menu": {
+      "improveWriting": "Improve writing",
+      "fixGrammar": "Fix grammar",
+      "makeConcise": "Make concise",
+      "expandText": "Expand text",
+      "translate": "Translate",
+      "settings": "AI Settings"
+    },
+    "chat": {
+      "title": "AI Assistant",
+      "tabs": {
+        "chat": "Chat",
+        "suggestions": "Suggestions",
+        "history": "History"
+      },
+      "inputPlaceholder": "Ask AI anything...",
+      "send": "Send"
+    },
+    "equationDialog": {
+      "title": "Generate LaTeX Equation",
+      "description": "Describe the formula you want. AI will generate LaTeX you can insert.",
+      "inputPlaceholder": "e.g. quadratic formula",
+      "resultPlaceholder": "e.g. \\frac{a}{b}",
+      "generate": "Generate",
+      "insert": "Insert",
+      "cancel": "Cancel"
+    }
+  }
 }

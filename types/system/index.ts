@@ -10,6 +10,7 @@ export * from './context';
 export * from './compression';
 export * from './geolocation';
 export * from './git';
+export * from './vcs';
 export * from './proxy';
 export * from './sandbox';
 export * from './memory';

@@ -22,13 +22,17 @@ let otelModules: any = null;
 async function loadOpenTelemetry(): Promise<boolean> {
   if (!isServer || otelModules) return !!otelModules;
   try {
-    const [sdkNode, exporterHttp, resources, autoInstr, semconv] = await Promise.all([
-      import('@opentelemetry/sdk-node'),
-      import('@opentelemetry/exporter-trace-otlp-http'),
-      import('@opentelemetry/resources'),
-      import('@opentelemetry/auto-instrumentations-node'),
-      import('@opentelemetry/semantic-conventions'),
-    ]);
+    const sdkNode = (await (0, eval)('import("@opentelemetry/sdk-node")')) as typeof import('@opentelemetry/sdk-node');
+    const exporterHttp = (await (0, eval)(
+      'import("@opentelemetry/exporter-trace-otlp-http")'
+    )) as typeof import('@opentelemetry/exporter-trace-otlp-http');
+    const resources = (await (0, eval)('import("@opentelemetry/resources")')) as typeof import('@opentelemetry/resources');
+    const autoInstr = (await (0, eval)(
+      'import("@opentelemetry/auto-instrumentations-node")'
+    )) as typeof import('@opentelemetry/auto-instrumentations-node');
+    const semconv = (await (0, eval)(
+      'import("@opentelemetry/semantic-conventions")'
+    )) as typeof import('@opentelemetry/semantic-conventions');
     
     otelModules = {
       NodeSDK: sdkNode.NodeSDK,

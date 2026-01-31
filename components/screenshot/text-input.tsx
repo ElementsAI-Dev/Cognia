@@ -9,6 +9,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Minus, Plus } from 'lucide-react';
+import { FONT_SIZES } from '@/types/screenshot';
 
 interface TextInputProps {
   position: { x: number; y: number };
@@ -17,7 +20,7 @@ interface TextInputProps {
     fontSize?: number;
   };
   initialText?: string;
-  onConfirm: (text: string) => void;
+  onConfirm: (text: string, fontSize?: number) => void;
   onCancel: () => void;
   className?: string;
 }
@@ -32,7 +35,13 @@ export function TextInput({
 }: TextInputProps) {
   const t = useTranslations('screenshot.editor');
   const [text, setText] = useState(initialText);
+  const [fontSize, setFontSize] = useState(style.fontSize || 16);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Find current font size index
+  const currentIndex = FONT_SIZES.indexOf(fontSize);
+  const canDecrease = currentIndex > 0;
+  const canIncrease = currentIndex < FONT_SIZES.length - 1;
 
   useEffect(() => {
     // Focus the input when mounted
@@ -47,7 +56,7 @@ export function TextInput({
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         if (text.trim()) {
-          onConfirm(text);
+          onConfirm(text, fontSize);
         } else {
           onCancel();
         }
@@ -56,16 +65,28 @@ export function TextInput({
         onCancel();
       }
     },
-    [text, onConfirm, onCancel]
+    [text, fontSize, onConfirm, onCancel]
   );
 
   const handleBlur = useCallback(() => {
     if (text.trim()) {
-      onConfirm(text);
+      onConfirm(text, fontSize);
     } else {
       onCancel();
     }
-  }, [text, onConfirm, onCancel]);
+  }, [text, fontSize, onConfirm, onCancel]);
+
+  const decreaseFontSize = useCallback(() => {
+    if (canDecrease) {
+      setFontSize(FONT_SIZES[currentIndex - 1]);
+    }
+  }, [canDecrease, currentIndex]);
+
+  const increaseFontSize = useCallback(() => {
+    if (canIncrease) {
+      setFontSize(FONT_SIZES[currentIndex + 1]);
+    }
+  }, [canIncrease, currentIndex]);
 
   return (
     <div
@@ -78,6 +99,28 @@ export function TextInput({
         top: position.y,
       }}
     >
+      {/* Font size controls */}
+      <div className="flex items-center gap-1 mb-1 bg-background/90 rounded px-1 py-0.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5"
+          onClick={decreaseFontSize}
+          disabled={!canDecrease}
+        >
+          <Minus className="h-3 w-3" />
+        </Button>
+        <span className="text-xs min-w-[32px] text-center">{fontSize}px</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5"
+          onClick={increaseFontSize}
+          disabled={!canIncrease}
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
+      </div>
       <textarea
         ref={inputRef}
         value={text}
@@ -93,7 +136,7 @@ export function TextInput({
         )}
         style={{
           color: style.color,
-          fontSize: style.fontSize || 16,
+          fontSize: fontSize,
           fontFamily: 'sans-serif',
         }}
         rows={1}

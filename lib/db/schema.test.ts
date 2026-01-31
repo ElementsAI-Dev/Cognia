@@ -14,6 +14,7 @@ describe('CogniaDB Schema', () => {
     await db.messages.clear();
     await db.documents.clear();
     await db.mcpServers.clear();
+    await db.agentTraces.clear();
     await db.assets.clear();
   });
 
@@ -48,6 +49,31 @@ describe('CogniaDB Schema', () => {
 
     it('has assets table', () => {
       expect(db.assets).toBeDefined();
+    });
+
+    it('has agentTraces table', () => {
+      expect(db.agentTraces).toBeDefined();
+    });
+  });
+
+  describe('Agent Traces Table', () => {
+    it('creates agent trace record', async () => {
+      const now = new Date();
+
+      await db.agentTraces.add({
+        id: 'trace-1',
+        sessionId: 'session-1',
+        timestamp: now,
+        vcsType: 'git',
+        vcsRevision: 'abc123',
+        record: JSON.stringify({ version: '0.1.0', id: 'trace-1', timestamp: now.toISOString(), files: [] }),
+        createdAt: now,
+      });
+
+      const retrieved = await db.agentTraces.get('trace-1');
+      expect(retrieved).toBeDefined();
+      expect(retrieved?.sessionId).toBe('session-1');
+      expect(retrieved?.vcsRevision).toBe('abc123');
     });
   });
 

@@ -5,28 +5,19 @@
  * Enhanced with batch testing, collapsible sections, multi-key rotation, and default model selection
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import {
-  Eye,
-  EyeOff,
   Check,
   AlertCircle,
-  ExternalLink,
   Plus,
   Edit2,
   Loader2,
-  Clock,
   Zap,
   RefreshCw,
-  Star,
   ChevronDown,
   ChevronUp,
-  Trash2,
-  RotateCcw,
-  Activity,
-  Globe,
   Search,
-  Server,
   LayoutGrid,
   TableIcon,
   Wrench,
@@ -38,7 +29,6 @@ import {
 import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
   Card,
@@ -52,18 +42,6 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@/components/ui/alert';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -76,39 +54,42 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
-import { PROVIDERS, type ApiKeyRotationStrategy } from '@/types/provider';
-import { CustomProviderDialog } from './custom-provider-dialog';
+import { PROVIDERS, type ApiKeyRotationStrategy, type ProviderConfig } from '@/types/provider';
 import { OAuthLoginButton } from './oauth-login-button';
-import { ProviderImportExport } from './provider-import-export';
+import { ProviderCard } from './provider-card';
+import { ProviderEmptyState } from './provider-empty-state';
 import { ProviderHealthStatus } from './provider-health-status';
-import { OllamaModelManager } from './ollama-model-manager';
-import { LocalProviderSettings } from './local-provider-settings';
+import { ProviderSkeleton } from './provider-skeleton';
 import { OpenRouterSettings } from './openrouter-settings';
 import { OpenRouterKeyManagement } from './openrouter-key-management';
 import { CLIProxyAPISettings } from './cliproxyapi-settings';
-import { testProviderConnection, type ApiTestResult } from '@/lib/ai/infrastructure/api-test';
-import { maskApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
-import { ProviderIcon } from '@/components/providers/ai/provider-icon';
+
+// Dynamic imports for heavy dialog components (code splitting)
+const CustomProviderDialog = dynamic(() => import('./custom-provider-dialog').then(mod => ({ default: mod.CustomProviderDialog })), { ssr: false });
+const ProviderImportExport = dynamic(() => import('./provider-import-export').then(mod => ({ default: mod.ProviderImportExport })), { ssr: false });
+const LocalProviderSettings = dynamic(() => import('./local-provider-settings').then(mod => ({ default: mod.LocalProviderSettings })), { ssr: false, loading: () => <ProviderSkeleton /> });
+import { testCustomProviderConnectionByProtocol, testProviderConnection, type ApiTestResult } from '@/lib/ai/infrastructure/api-test';
+import { toast } from '@/components/ui/sonner';
 import {
-  getProviderDashboardUrl,
-  getProviderDescription,
   getCategoryIcon,
   CATEGORY_CONFIG,
   PROVIDER_CATEGORIES,
   type ProviderCategory,
 } from '@/lib/ai/providers/provider-helpers';
 
-// Get provider icon
-function getProviderIcon(providerId: string) {
-  return <ProviderIcon icon={`/icons/providers/${providerId}.svg`} size={16} className="shrink-0" />;
-}
-
 export function ProviderSettings() {
   const t = useTranslations('providers');
-  const _tc = useTranslations('common');
   const tPlaceholders = useTranslations('placeholders');
+  const tModelPicker = useTranslations('modelPicker');
+
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const updateProviderSettings = useSettingsStore((state) => state.updateProviderSettings);
@@ -119,21 +100,25 @@ export function ProviderSettings() {
   const setApiKeyRotation = useSettingsStore((state) => state.setApiKeyRotation);
   const resetApiKeyStats = useSettingsStore((state) => state.resetApiKeyStats);
 
-  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, ApiTestResult | null>>({});
   const [testingProviders, setTestingProviders] = useState<Record<string, boolean>>({});
   const [showCustomDialog, setShowCustomDialog] = useState(false);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [isBatchTesting, setIsBatchTesting] = useState(false);
   const [batchTestProgress, setBatchTestProgress] = useState(0);
+  const [batchTestCancelRequested, setBatchTestCancelRequested] = useState(false);
+  const batchTestCancelRef = useRef(false);
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
-  const [newApiKeys, setNewApiKeys] = useState<Record<string, string>>({});
   const [categoryFilter, setCategoryFilter] = useState<ProviderCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [sortBy, setSortBy] = useState<'name' | 'models' | 'context' | 'price' | 'status'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [expandedTableRows, setExpandedTableRows] = useState<Record<string, boolean>>({});
+  const [selectedProviderIds, setSelectedProviderIds] = useState<Set<string>>(() => new Set());
+  const [customTestResults, setCustomTestResults] = useState<Record<string, 'success' | 'error' | null>>({});
+  const [testingCustomProviders, setTestingCustomProviders] = useState<Record<string, boolean>>({});
+  const [customTestMessages, setCustomTestMessages] = useState<Record<string, string | null>>({});
 
   const toggleExpanded = useCallback((providerId: string) => {
     setExpandedProviders((prev) => ({ ...prev, [providerId]: !prev[providerId] }));
@@ -141,14 +126,6 @@ export function ProviderSettings() {
 
   const handleSetDefaultModel = (providerId: string, modelId: string) => {
     updateProviderSettings(providerId, { defaultModel: modelId });
-  };
-
-  const handleAddApiKey = (providerId: string) => {
-    const newKey = newApiKeys[providerId]?.trim();
-    if (newKey && newKey.length >= 10) {
-      addApiKey(providerId, newKey);
-      setNewApiKeys((prev) => ({ ...prev, [providerId]: '' }));
-    }
   };
 
   const handleRemoveApiKey = (providerId: string, index: number) => {
@@ -166,12 +143,16 @@ export function ProviderSettings() {
 
   // Get count of configured providers
   const configuredCount = Object.entries(providerSettings).filter(
-    ([id, settings]) => settings?.enabled && (settings?.apiKey || id === 'ollama')
+    ([id, settings]) =>
+      settings?.enabled &&
+      (settings?.apiKey || (settings?.apiKeys && settings.apiKeys.length > 0) || PROVIDER_CATEGORIES[id] === 'local')
   ).length;
 
-  const toggleShowKey = (providerId: string) => {
-    setShowKeys((prev) => ({ ...prev, [providerId]: !prev[providerId] }));
-  };
+  const configuredCustomCount = Object.values(customProviders).filter(
+    (provider) => provider.enabled && !!provider.baseURL && !!provider.apiKey
+  ).length;
+
+  const totalConfiguredCount = configuredCount + configuredCustomCount;
 
   const handleKeyChange = (providerId: string, apiKey: string) => {
     updateProviderSettings(providerId, { apiKey });
@@ -183,7 +164,13 @@ export function ProviderSettings() {
 
   const handleTestConnection = useCallback(async (providerId: string) => {
     const settings = providerSettings[providerId];
-    if (!settings?.apiKey && providerId !== 'ollama') return;
+    const activeApiKey =
+      settings?.apiKey ||
+      settings?.apiKeys?.[settings.currentKeyIndex || 0] ||
+      settings?.apiKeys?.[0] ||
+      '';
+
+    if (!activeApiKey && PROVIDER_CATEGORIES[providerId] !== 'local') return undefined;
 
     setTestingProviders((prev) => ({ ...prev, [providerId]: true }));
     setTestResults((prev) => ({ ...prev, [providerId]: null }));
@@ -191,54 +178,156 @@ export function ProviderSettings() {
     try {
       const result = await testProviderConnection(
         providerId,
-        settings?.apiKey || '',
+        activeApiKey,
         settings?.baseURL
       );
       setTestResults((prev) => ({ ...prev, [providerId]: result }));
+      return result;
     } catch (error) {
+      const failedResult: ApiTestResult = {
+        success: false,
+        message: error instanceof Error ? error.message : 'Connection failed',
+      };
       setTestResults((prev) => ({
         ...prev,
-        [providerId]: {
-          success: false,
-          message: error instanceof Error ? error.message : 'Connection failed',
-        },
+        [providerId]: failedResult,
       }));
+      return failedResult;
     } finally {
       setTestingProviders((prev) => ({ ...prev, [providerId]: false }));
     }
   }, [providerSettings]);
 
+  const handleTestCustomProvider = useCallback(async (providerId: string) => {
+    const provider = customProviders[providerId];
+    if (!provider?.baseURL || !provider?.apiKey) return;
+
+    try {
+      new URL(provider.baseURL);
+    } catch {
+      const message = t('invalidBaseUrl');
+      setCustomTestResults((prev) => ({ ...prev, [providerId]: 'error' }));
+      setCustomTestMessages((prev) => ({ ...prev, [providerId]: message }));
+      toast.error(t('connectionFailed'), { description: message });
+      return { success: false, message };
+    }
+
+    setTestingCustomProviders((prev) => ({ ...prev, [providerId]: true }));
+    setCustomTestResults((prev) => ({ ...prev, [providerId]: null }));
+    setCustomTestMessages((prev) => ({ ...prev, [providerId]: null }));
+
+    try {
+      const result = await testCustomProviderConnectionByProtocol(
+        provider.baseURL,
+        provider.apiKey,
+        provider.apiProtocol || 'openai'
+      );
+      setCustomTestResults((prev) => ({
+        ...prev,
+        [providerId]: result.success ? 'success' : 'error',
+      }));
+      setCustomTestMessages((prev) => ({
+        ...prev,
+        [providerId]: result.message,
+      }));
+
+      if (result.success) {
+        toast.success(t('connectionSuccess'), { description: result.message });
+      } else {
+        toast.error(t('connectionFailed'), { description: result.message });
+      }
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('connectionFailed');
+      setCustomTestResults((prev) => ({ ...prev, [providerId]: 'error' }));
+      setCustomTestMessages((prev) => ({ ...prev, [providerId]: message }));
+      toast.error(t('connectionFailed'), { description: message });
+      return {
+        success: false,
+        message,
+      };
+    } finally {
+      setTestingCustomProviders((prev) => ({ ...prev, [providerId]: false }));
+    }
+  }, [customProviders, t]);
+
+  const handleCancelBatchTest = useCallback(() => {
+    batchTestCancelRef.current = true;
+    setBatchTestCancelRequested(true);
+  }, []);
+
   // Batch test all configured providers
   const handleBatchTest = useCallback(async () => {
     const enabledProviders = Object.entries(providerSettings)
-      .filter(([id, settings]) => settings?.enabled && (settings?.apiKey || id === 'ollama'))
+      .filter(
+        ([id, settings]) =>
+          settings?.enabled &&
+          (settings?.apiKey || (settings?.apiKeys && settings.apiKeys.length > 0) || PROVIDER_CATEGORIES[id] === 'local')
+      )
       .map(([id]) => id);
 
-    if (enabledProviders.length === 0) return;
+    const enabledCustomProviders = Object.entries(customProviders)
+      .filter(([_id, provider]) => provider.enabled && !!provider.baseURL && !!provider.apiKey)
+      .map(([id]) => id);
 
+    const totalProvidersToTest = enabledProviders.length + enabledCustomProviders.length;
+
+    if (totalProvidersToTest === 0) return;
+
+    batchTestCancelRef.current = false;
+    setBatchTestCancelRequested(false);
     setIsBatchTesting(true);
     setBatchTestProgress(0);
     setTestResults({});
+    setCustomTestResults({});
+    setCustomTestMessages({});
 
-    for (let i = 0; i < enabledProviders.length; i++) {
-      const providerId = enabledProviders[i];
-      await handleTestConnection(providerId);
-      setBatchTestProgress(((i + 1) / enabledProviders.length) * 100);
+    try {
+      let completed = 0;
+
+      for (let i = 0; i < enabledProviders.length; i++) {
+        if (batchTestCancelRef.current) break;
+        const providerId = enabledProviders[i];
+        await handleTestConnection(providerId);
+        if (batchTestCancelRef.current) break;
+        completed += 1;
+        setBatchTestProgress((completed / totalProvidersToTest) * 100);
+      }
+
+      for (let i = 0; i < enabledCustomProviders.length; i++) {
+        if (batchTestCancelRef.current) break;
+        const providerId = enabledCustomProviders[i];
+        await handleTestCustomProvider(providerId);
+        if (batchTestCancelRef.current) break;
+        completed += 1;
+        setBatchTestProgress((completed / totalProvidersToTest) * 100);
+      }
+    } finally {
+      setIsBatchTesting(false);
+      setBatchTestCancelRequested(false);
+      batchTestCancelRef.current = false;
     }
-
-    setIsBatchTesting(false);
-  }, [providerSettings, handleTestConnection]);
+  }, [providerSettings, customProviders, handleTestConnection, handleTestCustomProvider]);
 
   // Count test results
   const testResultsSummary = {
-    success: Object.values(testResults).filter((r) => r?.success).length,
-    failed: Object.values(testResults).filter((r) => r && !r.success).length,
-    total: Object.values(testResults).filter((r) => r !== null).length,
+    success:
+      Object.values(testResults).filter((r) => r?.success).length +
+      Object.values(customTestResults).filter((r) => r === 'success').length,
+    failed:
+      Object.values(testResults).filter((r) => r && !r.success).length +
+      Object.values(customTestResults).filter((r) => r === 'error').length,
+    total:
+      Object.values(testResults).filter((r) => r !== null).length +
+      Object.values(customTestResults).filter((r) => r !== null).length,
   };
 
   // Filter and sort providers
   const filteredProviders = useMemo(() => {
     const filtered = Object.entries(PROVIDERS).filter(([providerId, provider]) => {
+      // Local providers are handled by LocalProviderSettings
+      if (PROVIDER_CATEGORIES[providerId] === 'local') return false;
+
       // Category filter
       if (categoryFilter !== 'all') {
         const providerCategory = PROVIDER_CATEGORIES[providerId];
@@ -283,8 +372,16 @@ export function ProviderSettings() {
             break;
           }
           case 'status': {
-            const statusA = settingsA.enabled && (settingsA.apiKey || idA === 'ollama') ? 1 : 0;
-            const statusB = settingsB.enabled && (settingsB.apiKey || idB === 'ollama') ? 1 : 0;
+            const statusA =
+              settingsA.enabled &&
+              (settingsA.apiKey || (settingsA.apiKeys && settingsA.apiKeys.length > 0) || idA === 'ollama')
+                ? 1
+                : 0;
+            const statusB =
+              settingsB.enabled &&
+              (settingsB.apiKey || (settingsB.apiKeys && settingsB.apiKeys.length > 0) || idB === 'ollama')
+                ? 1
+                : 0;
             comparison = statusA - statusB;
             break;
           }
@@ -295,6 +392,111 @@ export function ProviderSettings() {
 
     return filtered;
   }, [categoryFilter, searchQuery, viewMode, sortBy, sortOrder, providerSettings]);
+
+  const filteredCustomProviders = useMemo(() => {
+    if (!searchQuery.trim()) return customProviders;
+    const query = searchQuery.toLowerCase();
+    return Object.fromEntries(
+      Object.entries(customProviders).filter(([_providerId, provider]) => {
+        const matchesName = (provider.customName || '').toLowerCase().includes(query);
+        const matchesUrl = (provider.baseURL || '').toLowerCase().includes(query);
+        const matchesModel = (provider.customModels || []).some((m: string) =>
+          m.toLowerCase().includes(query)
+        );
+        return matchesName || matchesUrl || matchesModel;
+      })
+    );
+  }, [customProviders, searchQuery]);
+
+  const visibleProviderIds = useMemo(
+    () => filteredProviders.map(([providerId]) => providerId),
+    [filteredProviders]
+  );
+
+  // Auto-trim selectedProviderIds when filter changes (remove IDs no longer visible)
+  useEffect(() => {
+    const visibleSet = new Set(visibleProviderIds);
+    setSelectedProviderIds((prev) => {
+      const trimmed = new Set<string>();
+      for (const id of prev) {
+        if (visibleSet.has(id)) trimmed.add(id);
+      }
+      // Only update if something was removed
+      if (trimmed.size !== prev.size) return trimmed;
+      return prev;
+    });
+  }, [visibleProviderIds]);
+
+  const selectedVisibleCount = useMemo(() => {
+    let count = 0;
+    for (const id of visibleProviderIds) {
+      if (selectedProviderIds.has(id)) count += 1;
+    }
+    return count;
+  }, [selectedProviderIds, visibleProviderIds]);
+
+  const isAllVisibleSelected = selectedVisibleCount > 0 && selectedVisibleCount === visibleProviderIds.length;
+  const isSomeVisibleSelected = selectedVisibleCount > 0 && !isAllVisibleSelected;
+
+  const toggleSelectAllVisible = () => {
+    setSelectedProviderIds((prev) => {
+      const next = new Set(prev);
+      if (visibleProviderIds.length === 0) return next;
+
+      const allSelected = visibleProviderIds.every((id) => next.has(id));
+      if (allSelected) {
+        for (const id of visibleProviderIds) next.delete(id);
+      } else {
+        for (const id of visibleProviderIds) next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectProvider = (providerId: string, checked: boolean) => {
+    setSelectedProviderIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(providerId);
+      else next.delete(providerId);
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedProviderIds(new Set());
+  };
+
+  const handleBatchTestSelected = useCallback(async () => {
+    const selectedIds = visibleProviderIds.filter((id) => selectedProviderIds.has(id));
+    if (selectedIds.length === 0) return;
+
+    batchTestCancelRef.current = false;
+    setBatchTestCancelRequested(false);
+    setIsBatchTesting(true);
+    setBatchTestProgress(0);
+
+    try {
+      for (let i = 0; i < selectedIds.length; i++) {
+        if (batchTestCancelRef.current) break;
+        const providerId = selectedIds[i];
+        await handleTestConnection(providerId);
+        if (batchTestCancelRef.current) break;
+        setBatchTestProgress(((i + 1) / selectedIds.length) * 100);
+      }
+    } finally {
+      setIsBatchTesting(false);
+      setBatchTestCancelRequested(false);
+      batchTestCancelRef.current = false;
+    }
+  }, [handleTestConnection, selectedProviderIds, visibleProviderIds]);
+
+  const handleSetSelectedEnabled = (enabled: boolean) => {
+    const selectedIds = visibleProviderIds.filter((id) => selectedProviderIds.has(id));
+    if (selectedIds.length === 0) return;
+    for (const providerId of selectedIds) {
+      handleToggleProvider(providerId, enabled);
+    }
+  };
 
   // Toggle sort column
   const handleSort = (column: typeof sortBy) => {
@@ -311,6 +513,130 @@ export function ProviderSettings() {
     setExpandedTableRows(prev => ({ ...prev, [providerId]: !prev[providerId] }));
   };
 
+  const handleConfigureProviderFromTable = useCallback((providerId: string) => {
+    setViewMode('cards');
+    setExpandedProviders((prev) => ({ ...prev, [providerId]: true }));
+
+    requestAnimationFrame(() => {
+      document.getElementById(`provider-${providerId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  }, []);
+
+  const renderBuiltInProviderCard = (providerId: string, provider: ProviderConfig) => {
+    const settings = providerSettings[providerId] || {};
+    const isExpanded = expandedProviders[providerId] ?? false;
+    const isEnabled = settings.enabled !== false;
+    const apiKey = settings.apiKey || '';
+    const hasAnyApiKey = apiKey.length > 0 || (settings.apiKeys && settings.apiKeys.length > 0);
+    const testResult = testResults[providerId];
+
+    return (
+      <div id={`provider-${providerId}`} key={providerId} className="scroll-mt-24">
+        <ProviderCard
+          provider={provider}
+        settings={{
+          providerId,
+          enabled: isEnabled,
+          apiKey: settings.apiKey,
+          baseURL: settings.baseURL,
+          defaultModel: settings.defaultModel || provider.defaultModel,
+          apiKeys: settings.apiKeys,
+          apiKeyRotationEnabled: settings.apiKeyRotationEnabled,
+          apiKeyRotationStrategy: settings.apiKeyRotationStrategy,
+          apiKeyUsageStats: settings.apiKeyUsageStats,
+          currentKeyIndex: settings.currentKeyIndex,
+          oauthConnected: settings.oauthConnected,
+          oauthExpiresAt: settings.oauthExpiresAt,
+          lastHealthCheck: settings.lastHealthCheck,
+          healthStatus: settings.healthStatus,
+          quotaUsed: settings.quotaUsed,
+          quotaLimit: settings.quotaLimit,
+          rateLimitRemaining: settings.rateLimitRemaining,
+          openRouterSettings: settings.openRouterSettings,
+          cliProxyAPISettings: settings.cliProxyAPISettings,
+        }}
+        isExpanded={isExpanded}
+        onToggleExpanded={() => toggleExpanded(providerId)}
+        onToggleEnabled={(enabled) => handleToggleProvider(providerId, enabled)}
+        onApiKeyChange={(key) => handleKeyChange(providerId, key)}
+        onBaseURLChange={(url) => updateProviderSettings(providerId, { baseURL: url || undefined })}
+        onDefaultModelChange={(model) => handleSetDefaultModel(providerId, model)}
+        onTestConnection={async () => {
+          const result = await handleTestConnection(providerId);
+          return {
+            success: !!result?.success,
+            message: result?.message || '',
+            latency: result?.latency_ms,
+          };
+        }}
+        testResult={
+          testResult
+            ? {
+                success: testResult.success,
+                message: testResult.message,
+                latency: testResult.latency_ms,
+              }
+            : testResult
+        }
+        isTesting={!!testingProviders[providerId]}
+        apiKeys={settings.apiKeys || []}
+        apiKeyUsageStats={settings.apiKeyUsageStats || {}}
+        currentKeyIndex={settings.currentKeyIndex}
+        onAddApiKey={(key) => addApiKey(providerId, key)}
+        onRemoveApiKey={(index) => handleRemoveApiKey(providerId, index)}
+        onResetApiKeyStats={(key) => resetApiKeyStats(providerId, key)}
+        rotationEnabled={!!settings.apiKeyRotationEnabled}
+        onToggleRotation={(enabled) => handleToggleRotation(providerId, enabled)}
+        rotationStrategy={settings.apiKeyRotationStrategy || 'round-robin'}
+        onRotationStrategyChange={(strategy) => handleRotationStrategyChange(providerId, strategy)}
+      >
+        {isEnabled && hasAnyApiKey && <ProviderHealthStatus providerId={providerId} />}
+
+        {provider.supportsOAuth && isEnabled && <OAuthLoginButton providerId={providerId} />}
+
+        {providerId === 'openrouter' && isEnabled && (
+          <div className="space-y-4 pt-2 border-t">
+            <OpenRouterSettings />
+            <OpenRouterKeyManagement />
+          </div>
+        )}
+
+        {providerId === 'cliproxyapi' && isEnabled && (
+          <div className="space-y-4 pt-2 border-t">
+            <CLIProxyAPISettings />
+          </div>
+        )}
+        </ProviderCard>
+      </div>
+    );
+  };
+
+  if (!isMounted) {
+    return <ProviderSkeleton />;
+  }
+
+  const showEmptyState =
+    configuredCount === 0 &&
+    Object.keys(customProviders).length === 0 &&
+    categoryFilter === 'all' &&
+    !searchQuery.trim();
+
+  if (showEmptyState) {
+    return (
+      <ProviderEmptyState
+        onAddProvider={() => {
+          setEditingProviderId(null);
+          setShowCustomDialog(true);
+        }}
+        onImportSettings={() => {}}
+        importButton={<ProviderImportExport />}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header with batch actions */}
@@ -318,7 +644,7 @@ export function ProviderSettings() {
         <div>
           <h2 className="text-lg font-semibold">{t('title')}</h2>
           <p className="text-sm text-muted-foreground">
-            {t('providersConfigured', { count: configuredCount })}
+            {t('providersConfigured', { count: totalConfiguredCount })}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -327,7 +653,7 @@ export function ProviderSettings() {
             variant="outline"
             size="sm"
             onClick={handleBatchTest}
-            disabled={isBatchTesting || configuredCount === 0}
+            disabled={isBatchTesting || totalConfiguredCount === 0}
           >
             {isBatchTesting ? (
               <>
@@ -348,9 +674,20 @@ export function ProviderSettings() {
       {isBatchTesting && (
         <div className="space-y-2">
           <Progress value={batchTestProgress} className="h-2" />
-          <p className="text-xs text-muted-foreground text-center">
-            {t('testingProviders', { progress: Math.round(batchTestProgress) })}
-          </p>
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-xs text-muted-foreground text-center">
+              {t('testingProviders', { progress: Math.round(batchTestProgress) })}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={handleCancelBatchTest}
+              disabled={batchTestCancelRequested}
+            >
+              {t('cancel')}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -390,6 +727,12 @@ export function ProviderSettings() {
           <TabsList className="h-8 p-0.5 bg-muted/50">
             {(Object.keys(CATEGORY_CONFIG) as ProviderCategory[]).map((cat) => {
               const config = CATEGORY_CONFIG[cat];
+              const label =
+                cat === 'specialized'
+                  ? tModelPicker('fast')
+                  : cat === 'all'
+                    ? tModelPicker('all')
+                    : tModelPicker(cat);
               const count = cat === 'all'
                 ? Object.keys(PROVIDERS).length
                 : Object.keys(PROVIDERS).filter(id => PROVIDER_CATEGORIES[id] === cat).length;
@@ -400,8 +743,8 @@ export function ProviderSettings() {
                   className="h-7 px-2.5 text-xs gap-1 data-[state=active]:bg-background"
                 >
                   {config.icon}
-                  <span className="hidden sm:inline">{config.label}</span>
-                  <span className="sm:hidden">{config.label.slice(0, 3)}</span>
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden max-w-[56px] truncate">{label}</span>
                   <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px]">
                     {count}
                   </Badge>
@@ -411,19 +754,20 @@ export function ProviderSettings() {
           </TabsList>
         </Tabs>
         <div className="flex items-center gap-2">
-          <div className="relative w-full sm:w-48">
+          <div className="relative flex-1 sm:flex-none sm:w-48">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <Input
               placeholder={tPlaceholders('searchProviders')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 text-sm pl-10 max-sm:h-10 max-sm:text-base"
+              className="h-9 text-sm pl-10 sm:h-8"
               autoComplete="off"
               data-form-type="other"
               data-lpignore="true"
             />
           </div>
-          <div className="flex items-center border rounded-md">
+          {/* Hide table view toggle on mobile - cards only */}
+          <div className="hidden sm:flex items-center border rounded-md">
             <Button
               variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
               size="sm"
@@ -450,49 +794,99 @@ export function ProviderSettings() {
       )}
 
       {/* Built-in Providers - Grid or Table Layout */}
-      <TooltipProvider delayDuration={300}>
-        {filteredProviders.length === 0 ? (
-          <div className="text-center py-8 text-sm text-muted-foreground">
-            {t('noProvidersFound')}
-          </div>
-        ) : viewMode === 'table' ? (
-          /* Table View */
-          <Card>
+      {categoryFilter !== 'local' && (
+        <TooltipProvider delayDuration={300}>
+          {filteredProviders.length === 0 ? (
+            <div className="text-center py-8 text-sm text-muted-foreground">
+              {t('noProvidersFound')}
+            </div>
+          ) : viewMode === 'table' ? (
+          <>
+          {/* Table View - Hidden on mobile (sm:), forced to cards */}
+          <Card className="overflow-hidden hidden sm:block">
+            <div className="flex items-center justify-between gap-2 border-b px-3 py-2 bg-muted/20">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={isAllVisibleSelected ? true : isSomeVisibleSelected ? 'indeterminate' : false}
+                  onCheckedChange={() => toggleSelectAllVisible()}
+                  aria-label={t('selectAllProviders')}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {t('selectedCount', { count: selectedVisibleCount })}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBatchTestSelected}
+                  disabled={isBatchTesting || selectedVisibleCount === 0}
+                >
+                  {t('testSelected')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSetSelectedEnabled(true)}
+                  disabled={selectedVisibleCount === 0}
+                >
+                  {t('enableSelected')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSetSelectedEnabled(false)}
+                  disabled={selectedVisibleCount === 0}
+                >
+                  {t('disableSelected')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearSelection}
+                  disabled={selectedVisibleCount === 0}
+                >
+                  {t('clearSelection')}
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-[600px] overflow-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
+              <TableHeader className="sticky top-0 bg-card z-10 shadow-[0_1px_0_0_hsl(var(--border))]">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-10" />
                   <TableHead className="w-[180px]">
                     <Button variant="ghost" size="sm" className="h-7 -ml-2 px-2 font-medium" onClick={() => handleSort('name')}>
-                      Provider
+                      {t('provider')}
                       {sortBy === 'name' ? (sortOrder === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />) : <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />}
                     </Button>
                   </TableHead>
                   <TableHead>
                     <Button variant="ghost" size="sm" className="h-7 -ml-2 px-2 font-medium" onClick={() => handleSort('models')}>
-                      Models
+                      {t('models')}
                       {sortBy === 'models' ? (sortOrder === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />) : <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />}
                     </Button>
                   </TableHead>
                   <TableHead className="hidden md:table-cell">
                     <Button variant="ghost" size="sm" className="h-7 -ml-2 px-2 font-medium" onClick={() => handleSort('context')}>
-                      Context
+                      {t('context')}
                       {sortBy === 'context' ? (sortOrder === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />) : <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />}
                     </Button>
                   </TableHead>
-                  <TableHead className="hidden lg:table-cell">Features</TableHead>
+                  <TableHead className="hidden lg:table-cell">{t('features')}</TableHead>
                   <TableHead className="hidden xl:table-cell">
                     <Button variant="ghost" size="sm" className="h-7 -ml-2 px-2 font-medium" onClick={() => handleSort('price')}>
-                      Pricing
+                      {t('pricing')}
                       {sortBy === 'price' ? (sortOrder === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />) : <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />}
                     </Button>
                   </TableHead>
                   <TableHead className="text-center">
                     <Button variant="ghost" size="sm" className="h-7 px-2 font-medium" onClick={() => handleSort('status')}>
-                      Status
+                      {t('status')}
                       {sortBy === 'status' ? (sortOrder === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />) : <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />}
                     </Button>
                   </TableHead>
-                  <TableHead className="text-right w-[100px]">Actions</TableHead>
+                  <TableHead className="text-right w-[100px]">{t('actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -500,16 +894,27 @@ export function ProviderSettings() {
                   const settings = providerSettings[providerId] || {};
                   const isEnabled = settings.enabled !== false;
                   const apiKey = settings.apiKey || '';
+                  const hasAnyApiKey = apiKey.length > 0 || (settings.apiKeys && settings.apiKeys.length > 0);
+                  const defaultModel = provider.models.find(m => m.id === (settings.defaultModel || provider.defaultModel));
                   const testResult = testResults[providerId];
-                  const defaultModel = provider.models.find(m => 
-                    m.id === (settings.defaultModel || provider.defaultModel)
-                  ) || provider.models[0];
-                  const minPrice = Math.min(...provider.models.filter(m => m.pricing).map(m => m.pricing?.promptPer1M || 0));
-                  const maxPrice = Math.max(...provider.models.filter(m => m.pricing).map(m => m.pricing?.completionPer1M || 0));
+                  const pricedModels = provider.models.filter((m) => m.pricing);
+                  const minPrice = pricedModels.length
+                    ? Math.min(...pricedModels.map((m) => m.pricing?.promptPer1M || 0))
+                    : 0;
+                  const maxPrice = pricedModels.length
+                    ? Math.max(...pricedModels.map((m) => m.pricing?.completionPer1M || 0))
+                    : 0;
                   
                   return (
                     <React.Fragment key={providerId}>
                     <TableRow className={cn(!isEnabled && 'opacity-50')}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedProviderIds.has(providerId)}
+                          onCheckedChange={(v) => toggleSelectProvider(providerId, !!v)}
+                          aria-label={t('selectProviderRow')}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="text-muted-foreground">
@@ -518,7 +923,7 @@ export function ProviderSettings() {
                           <div>
                             <div className="font-medium">{provider.name}</div>
                             <div className="text-xs text-muted-foreground truncate max-w-[140px]">
-                              {getProviderDescription(providerId).split(',')[0]}
+                              {provider.description || (t(`${providerId}Description`) as string) || ''}
                             </div>
                           </div>
                         </div>
@@ -543,9 +948,13 @@ export function ProviderSettings() {
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <span className="text-xs text-muted-foreground">
-                          {defaultModel?.contextLength >= 1000000 
-                            ? `${(defaultModel.contextLength / 1000000).toFixed(1)}M` 
-                            : `${Math.round(defaultModel?.contextLength / 1000)}K`}
+                          {(() => {
+                            const ctx = defaultModel?.contextLength;
+                            if (typeof ctx !== 'number' || ctx <= 0) return '-';
+                            return ctx >= 1000000
+                              ? `${(ctx / 1000000).toFixed(1)}M`
+                              : `${Math.round(ctx / 1000)}K`;
+                          })()}
                         </span>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
@@ -555,7 +964,7 @@ export function ProviderSettings() {
                               <TooltipTrigger asChild>
                                 <span><ImageIcon className="h-3.5 w-3.5 text-muted-foreground" /></span>
                               </TooltipTrigger>
-                              <TooltipContent>Vision</TooltipContent>
+                              <TooltipContent>{t('capabilityVision')}</TooltipContent>
                             </Tooltip>
                           )}
                           {defaultModel?.supportsTools && (
@@ -563,7 +972,7 @@ export function ProviderSettings() {
                               <TooltipTrigger>
                                 <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
                               </TooltipTrigger>
-                              <TooltipContent>Tool Use</TooltipContent>
+                              <TooltipContent>{t('capabilityTools')}</TooltipContent>
                             </Tooltip>
                           )}
                         </div>
@@ -575,32 +984,30 @@ export function ProviderSettings() {
                           </span>
                         ) : (
                           <Badge variant="secondary" className="text-[10px]">
-                            {providerId === 'ollama' ? 'Free' : 'Varies'}
+                            {t('pricingVaries')}
                           </Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {isEnabled && apiKey ? (
+                        {isEnabled && hasAnyApiKey ? (
                           testResult?.success ? (
                             <Badge variant="default" className="text-[10px] bg-green-600">
                               <Check className="h-3 w-3 mr-0.5" />
-                              OK
+                              {t('connected')}
                             </Badge>
                           ) : testResult && !testResult.success ? (
                             <Badge variant="destructive" className="text-[10px]">
                               <AlertCircle className="h-3 w-3 mr-0.5" />
-                              Error
+                              {t('failed')}
                             </Badge>
                           ) : (
                             <Badge variant="default" className="text-[10px]">
                               <Check className="h-3 w-3 mr-0.5" />
-                              Ready
+                              {t('ready')}
                             </Badge>
                           )
-                        ) : providerId === 'ollama' && isEnabled ? (
-                          <Badge variant="secondary" className="text-[10px]">Local</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-[10px]">Not Set</Badge>
+                          <Badge variant="outline" className="text-[10px]">{t('notSet')}</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
@@ -612,7 +1019,7 @@ export function ProviderSettings() {
                                 size="icon"
                                 className="h-7 w-7"
                                 onClick={() => handleTestConnection(providerId)}
-                                disabled={(!apiKey && providerId !== 'ollama') || testingProviders[providerId]}
+                                disabled={(!hasAnyApiKey && providerId !== 'ollama') || testingProviders[providerId]}
                               >
                                 {testingProviders[providerId] ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -621,7 +1028,7 @@ export function ProviderSettings() {
                                 )}
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Test Connection</TooltipContent>
+                            <TooltipContent>{t('testConnection')}</TooltipContent>
                           </Tooltip>
                           <Switch
                             checked={isEnabled}
@@ -646,11 +1053,11 @@ export function ProviderSettings() {
                     {/* Expanded Row Details */}
                     {expandedTableRows[providerId] && (
                       <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <TableCell colSpan={7} className="p-4">
+                        <TableCell colSpan={8} className="p-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {/* All Models */}
                             <div className="space-y-2">
-                              <h4 className="text-sm font-medium">All Models ({provider.models.length})</h4>
+                              <h4 className="text-sm font-medium">{t('allModels')} ({provider.models.length})</h4>
                               <div className="flex flex-wrap gap-1">
                                 {provider.models.map((model) => (
                                   <Badge 
@@ -668,7 +1075,7 @@ export function ProviderSettings() {
                             </div>
                             {/* Pricing Details */}
                             <div className="space-y-2">
-                              <h4 className="text-sm font-medium">Pricing (per 1M tokens)</h4>
+                              <h4 className="text-sm font-medium">{t('pricingPerMillion')}</h4>
                               <div className="text-xs space-y-1">
                                 {provider.models.filter(m => m.pricing).slice(0, 4).map((model) => (
                                   <div key={model.id} className="flex justify-between text-muted-foreground">
@@ -680,31 +1087,31 @@ export function ProviderSettings() {
                                 ))}
                                 {!provider.models.some(m => m.pricing) && (
                                   <span className="text-muted-foreground">
-                                    {providerId === 'ollama' ? 'Free (Local)' : 'Pricing varies'}
+                                    {t('pricingVaries')}
                                   </span>
                                 )}
                               </div>
                             </div>
                             {/* Quick Actions */}
                             <div className="space-y-2">
-                              <h4 className="text-sm font-medium">Quick Actions</h4>
+                              <h4 className="text-sm font-medium">{t('quickActions')}</h4>
                               <div className="flex flex-wrap gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="h-7 text-xs"
-                                  onClick={() => toggleExpanded(providerId)}
+                                  onClick={() => handleConfigureProviderFromTable(providerId)}
                                 >
-                                  Configure API Key
+                                  {t('configureApiKey')}
                                 </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="h-7 text-xs"
                                   onClick={() => handleTestConnection(providerId)}
-                                  disabled={(!apiKey && providerId !== 'ollama') || testingProviders[providerId]}
+                                  disabled={(!hasAnyApiKey && providerId !== 'ollama') || testingProviders[providerId]}
                                 >
-                                  {testingProviders[providerId] ? 'Testing...' : 'Test Connection'}
+                                  {testingProviders[providerId] ? t('testing') : t('testConnection')}
                                 </Button>
                               </div>
                             </div>
@@ -717,488 +1124,21 @@ export function ProviderSettings() {
                 })}
               </TableBody>
             </Table>
+            </div>
           </Card>
+          {/* Mobile fallback: show cards when table view selected but on small screen */}
+          <div className="sm:hidden grid grid-cols-1 gap-3">
+            {filteredProviders.map(([providerId, provider]) => renderBuiltInProviderCard(providerId, provider))}
+          </div>
+          </>
         ) : (
           /* Cards View */
           <div className="grid grid-cols-1 gap-3">
-            {filteredProviders.map(([providerId, provider]) => {
-        const settings = providerSettings[providerId] || {};
-        const isEnabled = settings.enabled !== false;
-        const apiKey = settings.apiKey || '';
-        const showKey = showKeys[providerId] || false;
-        const testResult = testResults[providerId];
-        const isExpanded = expandedProviders[providerId] ?? false;
-        const apiKeys = settings.apiKeys || [];
-        const rotationEnabled = settings.apiKeyRotationEnabled || false;
-        const rotationStrategy = settings.apiKeyRotationStrategy || 'round-robin';
-        const usageStats = settings.apiKeyUsageStats || {};
-
-        return (
-          <Collapsible
-            key={providerId}
-            open={isExpanded}
-            onOpenChange={() => toggleExpanded(providerId)}
-          >
-            <Card>
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors active:bg-muted/50 py-3 px-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <CardTitle className="flex items-center gap-2 text-base max-sm:text-sm max-sm:flex-wrap">
-                          <span className="truncate">{provider.name}</span>
-                          {providerId === 'ollama' && (
-                            <Badge variant="secondary" className="text-xs shrink-0">{t('local')}</Badge>
-                          )}
-                          {isEnabled && apiKey && (
-                            <Badge variant="default" className="text-xs shrink-0 max-sm:hidden">
-                              <Check className="h-3 w-3 mr-1" />
-                              {t('configured')}
-                            </Badge>
-                          )}
-                          {apiKeys.length > 1 && (
-                            <Badge variant="outline" className="text-xs shrink-0 max-sm:hidden">
-                              <RotateCcw className="h-3 w-3 mr-1" />
-                              {apiKeys.length} {t('keys')}
-                            </Badge>
-                          )}
-                        </CardTitle>
-                        <CardDescription className="text-xs flex items-center gap-2 max-sm:hidden">
-                          <span className="text-muted-foreground">
-                            {getProviderIcon(providerId)}
-                          </span>
-                          {getProviderDescription(providerId) || t('ollamaDescription')}
-                          {provider.supportsOAuth && (
-                            <Badge variant="outline" className="text-[10px] ml-1">
-                              <Globe className="h-2.5 w-2.5 mr-0.5" />
-                              {t('oauth')}
-                            </Badge>
-                          )}
-                        </CardDescription>
-                        {/* Mobile: Show configured status as icon */}
-                        {isEnabled && apiKey && (
-                          <div className="hidden max-sm:flex items-center gap-1 text-xs text-green-600">
-                            <Check className="h-3 w-3" />
-                            <span>{t('configured')}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Switch
-                        checked={isEnabled}
-                        onCheckedChange={(checked) => handleToggleProvider(providerId, checked)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="max-sm:scale-110"
-                      />
-                      {isExpanded ? (
-                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-
-              <CollapsibleContent>
-                <CardContent className="space-y-4 pt-0 px-4 pb-4">
-                  {providerId === 'ollama' ? (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor={`${providerId}-url`}>{t('ollamaURL')}</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id={`${providerId}-url`}
-                            placeholder="http://localhost:11434"
-                            value={settings.baseURL || 'http://localhost:11434'}
-                            onChange={(e) =>
-                              updateProviderSettings(providerId, { baseURL: e.target.value })
-                            }
-                            disabled={!isEnabled}
-                            autoComplete="off"
-                            data-form-type="other"
-                          />
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleTestConnection(providerId)}
-                                disabled={!isEnabled || testingProviders[providerId]}
-                              >
-                                {testingProviders[providerId] ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  t('test')
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{t('testOllamaConnection')}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        {testResult?.success && (
-                          <div className="flex items-center gap-1 text-sm text-green-600">
-                            <Check className="h-4 w-4" />
-                            <span>{testResult.message}</span>
-                            {testResult.latency_ms && (
-                              <span className="ml-2 flex items-center gap-1 text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                {testResult.latency_ms}ms
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {testResult && !testResult.success && (
-                          <p className="flex items-center gap-1 text-sm text-destructive">
-                            <AlertCircle className="h-4 w-4" /> {testResult.message}
-                          </p>
-                        )}
-                        <p className="text-sm text-muted-foreground">
-                          {t('ollamaHint')}{' '}
-                          <a
-                            href="https://ollama.ai"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline inline-flex items-center gap-1"
-                          >
-                            {t('learnMore')} <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </p>
-                      </div>
-
-                      {/* Ollama Model Manager */}
-                      {isEnabled && (
-                        <OllamaModelManager
-                          baseUrl={settings.baseURL || 'http://localhost:11434'}
-                          selectedModel={settings.defaultModel}
-                          onModelSelect={(modelName: string) => handleSetDefaultModel(providerId, modelName)}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Two-column layout for API Key and Base URL */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Primary API Key */}
-                        <div className="space-y-2">
-                          <Label htmlFor={`${providerId}-key`}>{t('apiKey')}</Label>
-                          <div className="flex gap-2">
-                            <div className="relative flex-1">
-                              <Input
-                                id={`${providerId}-key`}
-                                type={showKey ? 'text' : 'password'}
-                                placeholder={t('apiKeyPlaceholder', { provider: provider.name })}
-                                value={apiKey}
-                                onChange={(e) => handleKeyChange(providerId, e.target.value)}
-                                disabled={!isEnabled}
-                                className="pr-10"
-                                autoComplete="off"
-                                data-form-type="other"
-                                data-lpignore="true"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="absolute right-0 top-0 h-full"
-                                onClick={() => toggleShowKey(providerId)}
-                                disabled={!isEnabled}
-                              >
-                                {showKey ? (
-                                  <EyeOff className="h-4 w-4" />
-                                ) : (
-                                  <Eye className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleTestConnection(providerId)}
-                                  disabled={!isEnabled || !apiKey || testingProviders[providerId]}
-                                >
-                                  {testingProviders[providerId] ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    t('test')
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{t('verifyApiKey', { provider: provider.name })}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                          {testResult?.success && (
-                            <div className="flex items-center gap-1 text-sm text-green-600">
-                              <Check className="h-4 w-4" />
-                              <span>{testResult.message}</span>
-                              {testResult.latency_ms && (
-                                <span className="ml-2 flex items-center gap-1 text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  {testResult.latency_ms}ms
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          {testResult && !testResult.success && (
-                            <p className="flex items-center gap-1 text-sm text-destructive">
-                              <AlertCircle className="h-4 w-4" /> {testResult.message}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs text-muted-foreground">
-                              {t('getApiKey')}{' '}
-                              <a
-                                href={getProviderDashboardUrl(providerId)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline inline-flex items-center gap-1"
-                              >
-                                {provider.name} Dashboard <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </p>
-                            {/* OAuth Quick Login */}
-                            {provider.supportsOAuth && (
-                              <OAuthLoginButton providerId={providerId} />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Custom Base URL (for proxy/self-hosted) */}
-                        <div className="space-y-2">
-                          <Label className="text-sm flex items-center gap-1.5">
-                            <Server className="h-3.5 w-3.5" />
-                            {t('customBaseURL')}
-                            <Badge variant="outline" className="text-[10px] ml-1">{t('optional')}</Badge>
-                          </Label>
-                          <Input
-                            placeholder={t('baseURLPlaceholder')}
-                            value={settings.baseURL || ''}
-                            onChange={(e) =>
-                              updateProviderSettings(providerId, { baseURL: e.target.value || undefined })
-                            }
-                            disabled={!isEnabled}
-                            className="font-mono"
-                            autoComplete="off"
-                            data-form-type="other"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            {t('baseURLHint')}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Two-column: Multi-Key Rotation & Available Models */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Multi-Key Rotation Section */}
-                        <div className="border rounded-lg p-3 space-y-3 bg-muted/20">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Activity className="h-4 w-4 text-muted-foreground" />
-                              <Label className="text-sm font-medium">{t('apiKeyRotation')}</Label>
-                              <Badge variant="outline" className="text-xs">
-                                {apiKeys.length} key{apiKeys.length !== 1 ? 's' : ''}
-                              </Badge>
-                            </div>
-                            <Switch
-                              checked={rotationEnabled}
-                              onCheckedChange={(checked) => handleToggleRotation(providerId, checked)}
-                              disabled={!isEnabled || apiKeys.length < 2}
-                            />
-                          </div>
-
-                          {/* Rotation Strategy */}
-                          {rotationEnabled && apiKeys.length >= 2 && (
-                            <div className="flex items-center gap-2">
-                              <Label className="text-xs text-muted-foreground">{t('strategy')}:</Label>
-                              <Select
-                                value={rotationStrategy}
-                                onValueChange={(value: ApiKeyRotationStrategy) =>
-                                  handleRotationStrategyChange(providerId, value)
-                                }
-                                disabled={!isEnabled}
-                              >
-                                <SelectTrigger className="h-7 w-32 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="round-robin">{t('rotationStrategies.roundRobin')}</SelectItem>
-                                  <SelectItem value="random">{t('rotationStrategies.random')}</SelectItem>
-                                  <SelectItem value="least-used">{t('rotationStrategies.leastUsed')}</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          )}
-
-                          {/* API Keys List */}
-                          {apiKeys.length > 0 && (
-                            <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                              {apiKeys.map((key, index) => {
-                                const stats = usageStats[key];
-                                const isActive = settings.currentKeyIndex === index;
-                                return (
-                                  <div
-                                    key={index}
-                                    className={cn(
-                                      'flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs',
-                                      isActive && rotationEnabled && 'border-primary bg-primary/5'
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                      {isActive && rotationEnabled && (
-                                        <Badge variant="default" className="text-[10px] px-1 py-0 shrink-0">
-                                          {t('active')}
-                                        </Badge>
-                                      )}
-                                      <code className="font-mono text-muted-foreground truncate text-[11px]">
-                                        {maskApiKey(key)}
-                                      </code>
-                                    </div>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      {stats && (
-                                        <span className="text-muted-foreground text-[10px] hidden sm:inline">
-                                          {stats.usageCount}x
-                                          {stats.errorCount > 0 && (
-                                            <span className="text-destructive ml-0.5">
-                                              ({stats.errorCount}err)
-                                            </span>
-                                          )}
-                                        </span>
-                                      )}
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5"
-                                        onClick={() => resetApiKeyStats(providerId, key)}
-                                        title="Reset stats"
-                                      >
-                                        <RotateCcw className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5 text-destructive hover:text-destructive"
-                                        onClick={() => handleRemoveApiKey(providerId, index)}
-                                        disabled={apiKeys.length === 1 && key === apiKey}
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* Add New Key */}
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder={tPlaceholders('addApiKey')}
-                              value={newApiKeys[providerId] || ''}
-                              onChange={(e) =>
-                                setNewApiKeys((prev) => ({ ...prev, [providerId]: e.target.value }))
-                              }
-                              disabled={!isEnabled}
-                              className="h-7 text-xs"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleAddApiKey(providerId);
-                                }
-                              }}
-                              autoComplete="off"
-                              data-form-type="other"
-                              data-lpignore="true"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2"
-                              onClick={() => handleAddApiKey(providerId)}
-                              disabled={!isEnabled || !newApiKeys[providerId]?.trim()}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-
-                          <p className="text-[10px] text-muted-foreground">
-                            {t('multiKeyHint')}
-                          </p>
-                        </div>
-                        {/* Available models with default selection */}
-                        <div className="border rounded-lg p-3 space-y-3 bg-muted/20">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm font-medium flex items-center gap-2">
-                              <Star className="h-4 w-4 text-muted-foreground" />
-                              {t('availableModels')}
-                            </Label>
-                            <span className="text-[10px] text-muted-foreground">
-                              {t('clickToSetDefault')}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {provider.models.map((model) => {
-                              const isDefault = settings.defaultModel === model.id || 
-                                (!settings.defaultModel && model.id === provider.defaultModel);
-                              return (
-                                <button
-                                  key={model.id}
-                                  onClick={() => handleSetDefaultModel(providerId, model.id)}
-                                  disabled={!isEnabled}
-                                  className={cn(
-                                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-colors',
-                                    isDefault
-                                      ? 'bg-primary text-primary-foreground'
-                                      : isEnabled
-                                        ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                                        : 'bg-muted text-muted-foreground'
-                                  )}
-                                >
-                                  {isDefault && <Star className="h-3 w-3 fill-current" />}
-                                  {model.name}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Health Status */}
-                  {isEnabled && apiKey && (
-                    <ProviderHealthStatus providerId={providerId} />
-                  )}
-
-                  {/* OpenRouter-specific settings */}
-                  {providerId === 'openrouter' && isEnabled && (
-                    <div className="space-y-4 pt-2 border-t">
-                      <OpenRouterSettings />
-                      <OpenRouterKeyManagement />
-                    </div>
-                  )}
-
-                  {/* CLIProxyAPI-specific settings */}
-                  {providerId === 'cliproxyapi' && isEnabled && (
-                    <div className="space-y-4 pt-2 border-t">
-                      <CLIProxyAPISettings />
-                    </div>
-                  )}
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-              </Collapsible>
-            );
-          })}
+            {filteredProviders.map(([providerId, provider]) => renderBuiltInProviderCard(providerId, provider))}
           </div>
         )}
-      </TooltipProvider>
+        </TooltipProvider>
+      )}
 
       {/* Custom Providers Section */}
       <Card>
@@ -1227,46 +1167,92 @@ export function ProviderSettings() {
             </Button>
           </div>
         </CardHeader>
-        {Object.keys(customProviders).length > 0 && (
-          <CardContent className="space-y-4">
-            {Object.entries(customProviders).map(([providerId, provider]) => (
-              <div
-                key={providerId}
-                className="flex items-center justify-between rounded-lg border p-4"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{provider.customName}</span>
-                    <Badge variant="secondary" className="text-xs">
-                      {provider.customModels?.length || 0} {t('modelsCount')}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {provider.baseURL}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setEditingProviderId(providerId);
-                      setShowCustomDialog(true);
-                    }}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Switch
-                    checked={provider.enabled}
-                    onCheckedChange={(checked) =>
-                      updateCustomProvider(providerId, { enabled: checked })
-                    }
-                  />
-                </div>
-              </div>
-            ))}
+        {Object.keys(customProviders).length === 0 ? (
+          <CardContent className="py-6 text-center text-sm text-muted-foreground">
+            {t('noCustomProviders')}
           </CardContent>
-        )}
+        ) : Object.keys(filteredCustomProviders).length === 0 && searchQuery.trim() ? (
+          <CardContent className="py-6 text-center text-sm text-muted-foreground">
+            {t('noProvidersFound')}
+          </CardContent>
+        ) : Object.keys(filteredCustomProviders).length > 0 ? (
+          <CardContent className="space-y-4">
+            {Object.entries(filteredCustomProviders).map(([providerId, provider]) => {
+              const isTesting = testingCustomProviders[providerId];
+              const testResult = customTestResults[providerId];
+              const testMessage = customTestMessages[providerId];
+              const canTest = !!provider.baseURL && !!provider.apiKey && !!provider.enabled;
+
+              return (
+                <div
+                  key={providerId}
+                  className="flex items-center justify-between rounded-lg border p-4"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{provider.customName}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {provider.customModels?.length || 0} {t('modelsCount')}
+                      </Badge>
+                      {testResult === 'success' && (
+                        <Check className="h-4 w-4 text-green-500" />
+                      )}
+                      {testResult === 'error' && (
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {provider.baseURL}
+                    </p>
+                    {testMessage && (
+                      <p
+                        className={cn(
+                          'text-xs',
+                          testResult === 'error' ? 'text-destructive' : 'text-muted-foreground'
+                        )}
+                      >
+                        {testMessage}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleTestCustomProvider(providerId)}
+                      disabled={!canTest || isTesting}
+                      title={t('testConnection')}
+                    >
+                      {isTesting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setCustomTestResults((prev) => ({ ...prev, [providerId]: null }));
+                        setCustomTestMessages((prev) => ({ ...prev, [providerId]: null }));
+                        setEditingProviderId(providerId);
+                        setShowCustomDialog(true);
+                      }}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Switch
+                      checked={provider.enabled}
+                      onCheckedChange={(checked) =>
+                        updateCustomProvider(providerId, { enabled: checked })
+                      }
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        ) : null}
       </Card>
 
       {/* Custom Provider Dialog */}

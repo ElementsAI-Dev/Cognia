@@ -102,15 +102,12 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
 
   const vectorStore = useVectorStore();
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const embeddingProvider = vectorStore.settings.embeddingProvider;
 
   // Get API key for embeddings
   const getApiKey = useCallback((): string => {
-    const openaiKey = providerSettings.openai?.apiKey;
-    const googleKey = providerSettings.google?.apiKey;
-    const mistralKey = providerSettings.mistral?.apiKey;
-    const cohereKey = providerSettings.cohere?.apiKey;
-    return openaiKey || googleKey || mistralKey || cohereKey || '';
-  }, [providerSettings]);
+    return providerSettings[embeddingProvider]?.apiKey || '';
+  }, [embeddingProvider, providerSettings]);
 
   // Get embedding config
   const getEmbeddingConfig = useCallback((): EmbeddingModelConfig => {
@@ -121,11 +118,18 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
   const getVectorStoreConfig = useCallback((): VectorStoreConfig => {
     const settings = vectorStore.settings;
     return {
-      provider: settings.provider === 'native' ? 'native' : 'chroma',
+      provider: settings.provider,
       embeddingConfig: getEmbeddingConfig(),
       embeddingApiKey: getApiKey(),
       chromaMode: settings.mode,
       chromaServerUrl: settings.serverUrl,
+      pineconeApiKey: settings.pineconeApiKey,
+      pineconeIndexName: settings.pineconeIndexName,
+      pineconeNamespace: settings.pineconeNamespace,
+      qdrantUrl: settings.qdrantUrl,
+      qdrantApiKey: settings.qdrantApiKey,
+      milvusAddress: settings.milvusAddress,
+      milvusToken: settings.milvusToken,
       native: {},
     };
   }, [vectorStore.settings, getEmbeddingConfig, getApiKey]);

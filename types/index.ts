@@ -64,3 +64,8 @@ export * from './input-completion';
 
 // Skill marketplace types
 export * from './skill';
+
+export * from './agent-trace';
+
+// Arena types
+export * from './arena';

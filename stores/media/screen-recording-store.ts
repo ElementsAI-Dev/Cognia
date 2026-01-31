@@ -45,6 +45,11 @@ import {
   getStorageUsagePercent,
   cleanupStorage,
 } from '@/lib/native/screen-recording';
+import {
+  showRecordingToolbar,
+  hideRecordingToolbar,
+  updateRecordingToolbarState,
+} from '@/lib/native/recording-toolbar';
 import { isTauri } from '@/lib/native/utils';
 
 export type RecordingMode = 'fullscreen' | 'window' | 'region';
@@ -343,6 +348,10 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             isLoading: false,
           });
 
+          // Show recording toolbar
+          await showRecordingToolbar();
+          await updateRecordingToolbarState(true, false, 0);
+
           // Status will be updated via events automatically
           return recordingId;
         } catch (error) {
@@ -359,6 +368,9 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
         try {
           await pauseRecording();
           await get().updateStatus();
+          // Update toolbar state to paused
+          const duration = get().duration;
+          await updateRecordingToolbarState(true, true, duration);
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to pause' });
         }
@@ -369,6 +381,9 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
         try {
           await resumeRecording();
           await get().updateStatus();
+          // Update toolbar state to resumed
+          const duration = get().duration;
+          await updateRecordingToolbarState(true, false, duration);
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to resume' });
         }
@@ -387,6 +402,11 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             isLoading: false,
           });
           await get().updateStatus();
+
+          // Hide recording toolbar
+          await hideRecordingToolbar();
+          await updateRecordingToolbarState(false, false, 0);
+
           return metadata;
         } catch (error) {
           set({
@@ -406,6 +426,10 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             duration: 0,
           });
           await get().updateStatus();
+
+          // Hide recording toolbar
+          await hideRecordingToolbar();
+          await updateRecordingToolbarState(false, false, 0);
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to cancel' });
         }

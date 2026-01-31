@@ -83,11 +83,14 @@
     "truncateTooltip": "Reset collection to empty state",
     "deleteAllDocsTooltip": "Remove all documents from collection",
     "exportTooltip": "Export collection data as JSON file",
-    "importTooltip": "Import collection from JSON file"
+    "importTooltip": "Import collection from JSON file",
+    "addFromFiles": "Add from files",
+    "addFromFilesTooltip": "Upload files, chunk them, and add into the active collection"
   },
   "vectorSettings": {
     "title": "Vector Database",
     "description": "Configure provider, mode, and embedding defaults.",
+    "providerConfiguration": "Provider Configuration",
     "provider": "Provider",
     "chooseProvider": "Choose provider",
     "mode": "Mode",
@@ -97,12 +100,20 @@
     "nativeModeHint": "Native provider ignores mode (always local).",
     "chromaServerUrl": "Chroma Server URL",
     "chromaServerHint": "For server mode, ensure Chroma server is reachable.",
+    "embeddingConfiguration": "Embedding Configuration",
+    "embeddingProvider": "Embedding Provider",
+    "embeddingModel": "Embedding Model",
+    "configureApiKey": "Configure API Key",
+    "apiKeyNotSet": "API key not set",
+    "apiKeySet": "API key configured",
+    "chunkingSettings": "Chunking Settings",
     "chunkSize": "Chunk size",
     "chunkSizeHint": "Characters per chunk (recommended: 500-2000)",
     "chunkOverlap": "Chunk overlap",
     "chunkOverlapHint": "Overlap between chunks (10-20% of chunk size)",
     "autoEmbed": "Auto embed on import",
     "autoEmbedDesc": "Automatically generate embeddings when adding documents.",
+    "connection": "Connection",
     "defaultCollection": "Default Collection",
     "defaultCollectionHint": "The default collection name used for RAG searches when not specified.",
     "testConnection": "Test connection",
@@ -110,7 +121,113 @@
     "nativeProviderHint": "Native provider stores vectors locally via Tauri commands (JSON-backed). Ensure desktop runtime is used.",
     "providerChroma": "Chroma (embedded/server)",
     "providerNative": "Native (local Tauri)",
+    "providerPinecone": "Pinecone",
+    "providerQdrant": "Qdrant",
+    "providerMilvus": "Milvus",
     "connectionSuccess": "Success: {count} collections reachable",
-    "connectionFailed": "Connection failed"
+    "connectionFailed": "Connection failed",
+    "providerNotSupported": "This provider is not available in the current runtime.",
+    "providerNotSupportedHint": "Some providers require server-side execution and are intentionally disabled in static web builds.",
+    "providers": {
+      "title": "Vector Database Provider",
+      "pinecone": {
+        "apiKey": "API Key",
+        "apiKeyPlaceholder": "Enter your Pinecone API key",
+        "indexName": "Index Name",
+        "indexPlaceholder": "my-index",
+        "namespace": "Namespace",
+        "namespacePlaceholder": "default"
+      },
+      "qdrant": {
+        "url": "Server URL",
+        "urlPlaceholder": "http://localhost:6333",
+        "apiKey": "API Key (optional)",
+        "apiKeyPlaceholder": "Enter API key if required"
+      },
+      "milvus": {
+        "address": "Server Address",
+        "addressPlaceholder": "localhost:19530",
+        "token": "Token (optional)",
+        "tokenPlaceholder": "Enter token if required"
+      }
+    },
+    "embedding": {
+      "title": "Embedding Configuration",
+      "provider": "Embedding Provider",
+      "model": "Embedding Model",
+      "configureKey": "Configure API Key",
+      "keyConfigured": "API key configured",
+      "keyMissing": "API key not configured",
+      "providers": {
+        "openai": "OpenAI",
+        "google": "Google AI",
+        "cohere": "Cohere",
+        "mistral": "Mistral AI"
+      }
+    },
+    "chunking": {
+      "title": "Chunking Settings"
+    },
+    "addDocument": {
+      "title": "Add Documents",
+      "description": "Upload files to collection: {collection}",
+      "dropHere": "Drop files here",
+      "orClick": "or click to browse",
+      "supportedFormats": "Supports: .txt, .md, .json, .csv, .xml, .html",
+      "chunkingStrategy": "Chunking Strategy",
+      "strategy": {
+        "fixed": "Fixed Size",
+        "sentence": "Sentence",
+        "paragraph": "Paragraph",
+        "semantic": "Semantic",
+        "recursive": "Recursive",
+        "sliding_window": "Sliding Window"
+      },
+      "invalidType": "Unsupported file type",
+      "fileTooLarge": "File exceeds 10MB limit",
+      "processing": "Processing... {progress}%",
+      "stats": "{total} files: {pending} pending, {done} done, {error} errors",
+      "cancel": "Cancel",
+      "add": "Add Documents"
+    }
+  },
+  "vectorSetupGuide": {
+    "title": "Vector Database Setup",
+    "subtitle": "Configure your vector database in 3 easy steps",
+    "step1Title": "Choose Provider",
+    "step1Desc": "Select Native for local storage, or Chroma/Pinecone/Qdrant/Milvus for advanced features.",
+    "step2Title": "Configure Embedding",
+    "step2Desc": "Choose an embedding provider and model for vector generation.",
+    "step3Title": "Test Connection",
+    "step3Desc": "Verify your configuration by testing the connection and creating your first collection.",
+    "skip": "Skip Guide",
+    "continue": "Continue Setup",
+    "hint": "You can always change these settings later"
+  },
+  "vectorApiKeyModal": {
+    "title": "Configure API Key",
+    "apiKey": "API Key",
+    "getKey": "Get your API key from {provider} Dashboard",
+    "cancel": "Cancel",
+    "save": "Save API Key",
+    "saved": "Saved"
+  },
+  "vectorAddDocument": {
+    "title": "Add Document",
+    "dropHint": "Drag and drop files here",
+    "browseHint": "or click to browse from your computer",
+    "formatsHint": "Supports: PDF, TXT, MD, DOCX, JSON",
+    "selectedFiles": "Selected Files",
+    "clearAll": "Clear All",
+    "processingOptions": "Processing Options",
+    "targetCollection": "Target Collection",
+    "metadata": "Metadata (JSON)",
+    "filesProcessedHint": "Files will be processed and indexed",
+    "cancel": "Cancel",
+    "uploadAndProcess": "Upload & Process",
+    "autoGenerate": "Auto Generate Embeddings",
+    "autoGenerateDesc": "Automatically create vector embeddings after upload",
+    "invalidMetadata": "Invalid metadata JSON",
+    "autoEmbedDisabled": "Auto embed is disabled. Enable it to upload and process documents."
   }
 }

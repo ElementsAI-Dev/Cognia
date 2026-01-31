@@ -14,6 +14,9 @@ export {
   selectCompressionEnabled,
   selectBackgroundSettings,
   selectBackgroundEnabled,
+  selectAgentTraceSettings,
+  selectAgentTraceEnabled,
+  DEFAULT_AGENT_TRACE_SETTINGS,
   type Theme,
   type Language,
   type CustomTheme,
@@ -22,6 +25,7 @@ export {
   type CodeTheme,
   type FontFamily,
   type MessageBubbleStyle,
+  type AgentTraceSettings,
 } from './settings-store';
 
 export { usePresetStore, selectPresets, selectSelectedPresetId } from './preset-store';

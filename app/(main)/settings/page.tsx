@@ -84,6 +84,7 @@ import {
   MemorySettings,
   CustomInstructionsSettings,
   UsageSettings,
+  AgentTraceSettings,
   McpSettings,
   ResponseSettings,
   KeyboardSettings,
@@ -469,6 +470,13 @@ export default function SettingsPage() {
         group: 'data',
       },
       {
+        id: 'agent-trace',
+        label: t('tabAgentTrace') || 'Agent Trace',
+        icon: <FileText className="h-4 w-4" />,
+        description: t('descAgentTrace') || 'View AI attribution traces for generated files and artifacts',
+        group: 'data',
+      },
+      {
         id: 'vector',
         label: t('tabVector'),
         icon: <Database className="h-4 w-4" />,
@@ -570,6 +578,8 @@ export default function SettingsPage() {
         return <SearchSettings />;
       case 'data':
         return <DataSettings />;
+      case 'agent-trace':
+        return <AgentTraceSettings />;
       case 'vector':
         return <VectorSettings />;
       case 'tools':

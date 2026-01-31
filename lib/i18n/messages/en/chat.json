@@ -138,7 +138,10 @@
     "workflow": "Workflow",
     "runWorkflow": "Run Workflow",
     "insertTemplate": "Insert template",
-    "toolHistory": "Tool History"
+    "toolHistory": "Tool History",
+    "arena": "Arena",
+    "openArena": "Compare multiple AI models",
+    "optimize": "Optimize"
   },
   "chatGoal": {
     "label": "Conversation Goal",

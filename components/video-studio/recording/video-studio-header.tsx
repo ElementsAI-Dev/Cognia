@@ -17,6 +17,7 @@ import {
   RefreshCw,
   PanelLeftClose,
   PanelLeft,
+  Scissors,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -126,6 +127,15 @@ export function VideoStudioHeader({
           >
             <Sparkles className="h-3 w-3 mr-1" />
             {tGen('aiGeneration')}
+          </Button>
+          <Button
+            variant={studioMode === 'editor' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => onStudioModeChange('editor')}
+            className="h-7"
+          >
+            <Scissors className="h-3 w-3 mr-1" />
+            {t('editor')}
           </Button>
         </div>
       </div>

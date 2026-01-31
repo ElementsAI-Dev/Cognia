@@ -16,6 +16,7 @@ When working on this project, **actively use these MCP tools**:
    - **FIRST CHOICE** for codebase search
    - Use for semantic code understanding
    - Always query before making edits to understand context
+   - If the user's input is inaccurate, the tool will optimize the prompt
 
 2. **exa** (`mcp2_web_search_exa`, `mcp2_get_code_context_exa`, `mcp2_company_research_exa`)
    - Use for web search and documentation lookup

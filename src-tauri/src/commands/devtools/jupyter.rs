@@ -685,6 +685,12 @@ pub async fn jupyter_get_session_by_id(
     Ok(state.manager.get_session(&session_id).await)
 }
 
+/// Get Jupyter kernel configuration
+#[tauri::command]
+pub fn jupyter_get_config(state: State<'_, JupyterState>) -> Result<KernelConfig, String> {
+    Ok(state.get_config().clone())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

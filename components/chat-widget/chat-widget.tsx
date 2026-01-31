@@ -43,6 +43,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
     setPinned,
     stop,
     regenerate,
+    openMainWindow,
   } = useChatWidget();
 
   // Mark content as ready after initial render
@@ -136,6 +137,9 @@ export function ChatWidget({ className }: ChatWidgetProps) {
         onClearMessages={clearMessages}
         onTogglePin={() => setPinned(!config.pinned)}
         onSettings={() => setSettingsOpen(true)}
+        onExpandToFull={() => openMainWindow(true)}
+        onProviderChange={(provider) => updateConfig({ provider })}
+        onModelChange={(model) => updateConfig({ model })}
         onExport={() => {
           const content = messages
             .map((m) => `${m.role === "user" ? t("export.user") : t("export.assistant")}:\n${m.content}`)

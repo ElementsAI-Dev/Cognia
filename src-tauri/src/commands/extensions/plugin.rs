@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 
 use crate::plugin::{
     PluginManager, PluginScanResult, PluginInstallOptions, PluginState,
-    PythonToolRegistration,
+    PythonToolRegistration, PythonRuntimeInfo, PythonPluginInfo,
 };
 
 /// Plugin manager state
@@ -197,6 +197,54 @@ pub async fn plugin_get_all(
 ) -> Result<Vec<PluginState>, String> {
     let manager = state.0.read().await;
     Ok(manager.get_all_plugins().await)
+}
+
+/// Get Python runtime info
+#[tauri::command]
+pub async fn plugin_python_runtime_info(
+    state: State<'_, PluginManagerState>,
+) -> Result<PythonRuntimeInfo, String> {
+    let manager = state.0.read().await;
+    manager.get_python_runtime_info().await.map_err(|e| e.to_string())
+}
+
+/// Check if a Python plugin is initialized
+#[tauri::command]
+pub async fn plugin_python_is_initialized(
+    state: State<'_, PluginManagerState>,
+    plugin_id: String,
+) -> Result<bool, String> {
+    let manager = state.0.read().await;
+    manager.is_python_plugin_initialized(&plugin_id).await.map_err(|e| e.to_string())
+}
+
+/// Get Python plugin info
+#[tauri::command]
+pub async fn plugin_python_get_info(
+    state: State<'_, PluginManagerState>,
+    plugin_id: String,
+) -> Result<Option<PythonPluginInfo>, String> {
+    let manager = state.0.read().await;
+    manager.get_python_plugin_info(&plugin_id).await.map_err(|e| e.to_string())
+}
+
+/// Unload a Python plugin
+#[tauri::command]
+pub async fn plugin_python_unload(
+    state: State<'_, PluginManagerState>,
+    plugin_id: String,
+) -> Result<(), String> {
+    let manager = state.0.read().await;
+    manager.unload_python_plugin(&plugin_id).await.map_err(|e| e.to_string())
+}
+
+/// List loaded Python plugins
+#[tauri::command]
+pub async fn plugin_python_list(
+    state: State<'_, PluginManagerState>,
+) -> Result<Vec<String>, String> {
+    let manager = state.0.read().await;
+    manager.list_python_plugins().await.map_err(|e| e.to_string())
 }
 
 /// Show notification (for plugins)

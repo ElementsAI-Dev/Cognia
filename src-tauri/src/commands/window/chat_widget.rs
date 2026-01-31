@@ -3,7 +3,7 @@
 //! Commands for controlling the AI chat widget floating window.
 
 use crate::chat_widget::{ChatWidgetConfig, ChatWidgetStatus, ChatWidgetWindow};
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 /// Show the chat widget window
 #[tauri::command]
@@ -135,5 +135,36 @@ pub async fn chat_widget_recreate(manager: State<'_, ChatWidgetWindow>) -> Resul
 #[tauri::command]
 pub async fn chat_widget_sync_state(manager: State<'_, ChatWidgetWindow>) -> Result<(), String> {
     manager.sync_visibility();
+    Ok(())
+}
+
+/// Open the main window from chat widget (expand to full chat)
+#[tauri::command]
+pub async fn chat_widget_open_main(
+    app: AppHandle,
+    manager: State<'_, ChatWidgetWindow>,
+    hide_widget: bool,
+) -> Result<(), String> {
+    log::debug!("[ChatWidget] Opening main window, hide_widget={}", hide_widget);
+    
+    // Show and focus the main window
+    if let Some(main_window) = app.get_webview_window("main") {
+        main_window
+            .show()
+            .map_err(|e| format!("Failed to show main window: {}", e))?;
+        main_window
+            .set_focus()
+            .map_err(|e| format!("Failed to focus main window: {}", e))?;
+        let _ = main_window.unminimize();
+        log::info!("[ChatWidget] Main window opened and focused");
+    } else {
+        return Err("Main window not found".to_string());
+    }
+    
+    // Optionally hide the chat widget
+    if hide_widget {
+        manager.hide()?;
+    }
+    
     Ok(())
 }

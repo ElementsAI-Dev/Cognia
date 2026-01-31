@@ -7,7 +7,9 @@
 //! - Podman (container runtime)
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
@@ -15,7 +17,7 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 
 /// Supported environment tools
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
 pub enum EnvironmentTool {
     Uv,
@@ -23,7 +25,270 @@ pub enum EnvironmentTool {
     Docker,
     Podman,
     Ffmpeg,
+    Python,
+    Nodejs,
+    Ruby,
+    Postgresql,
+    Rust,
 }
+
+ #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+ #[serde(rename_all = "snake_case")]
+ pub enum EnvVarCategory {
+     ApiKeys,
+     Database,
+     Config,
+     Other,
+ }
+
+ #[derive(Debug, Clone, Serialize, Deserialize)]
+ pub struct EnvVariable {
+     pub key: String,
+     pub value: String,
+     pub category: EnvVarCategory,
+     #[serde(rename = "isSecret")]
+     pub is_secret: bool,
+     #[serde(rename = "updatedAt")]
+     pub updated_at: String,
+ }
+
+ fn env_vars_path(app: &AppHandle) -> Result<PathBuf, String> {
+     app.path()
+         .app_data_dir()
+         .map(|p| p.join("environment_variables.json"))
+         .map_err(|e| format!("Failed to get app data dir: {}", e))
+ }
+
+ async fn load_env_vars(app: &AppHandle) -> Result<Vec<EnvVariable>, String> {
+     let path = env_vars_path(app)?;
+     if !path.exists() {
+         return Ok(Vec::new());
+     }
+     let content = tokio::fs::read_to_string(&path)
+         .await
+         .map_err(|e| format!("Failed to read env vars: {}", e))?;
+     let env_vars: Vec<EnvVariable> = serde_json::from_str(&content).unwrap_or_default();
+     Ok(env_vars)
+ }
+
+ async fn save_env_vars(app: &AppHandle, env_vars: &[EnvVariable]) -> Result<(), String> {
+     let path = env_vars_path(app)?;
+     if let Some(parent) = path.parent() {
+         tokio::fs::create_dir_all(parent)
+             .await
+             .map_err(|e| format!("Failed to create env vars dir: {}", e))?;
+     }
+     let content = serde_json::to_string_pretty(env_vars)
+         .map_err(|e| format!("Failed to serialize env vars: {}", e))?;
+     tokio::fs::write(&path, content)
+         .await
+         .map_err(|e| format!("Failed to write env vars: {}", e))?;
+     Ok(())
+ }
+
+ fn detect_env_var_category(key: &str) -> EnvVarCategory {
+     let upper = key.to_ascii_uppercase();
+     if upper.contains("KEY") || upper.contains("TOKEN") || upper.contains("SECRET") {
+         return EnvVarCategory::ApiKeys;
+     }
+     if upper.contains("DATABASE")
+         || upper.contains("DB_")
+         || upper.contains("POSTGRES")
+         || upper.contains("MYSQL")
+         || upper.contains("REDIS")
+         || upper.contains("MONGO")
+     {
+         return EnvVarCategory::Database;
+     }
+     if upper.contains("ENV") || upper.contains("MODE") || upper.contains("CONFIG") {
+         return EnvVarCategory::Config;
+     }
+     EnvVarCategory::Other
+ }
+
+ fn parse_env_content(content: &str) -> Vec<(String, String)> {
+     let mut pairs = Vec::new();
+     for raw_line in content.lines() {
+         let line = raw_line.trim();
+         if line.is_empty() || line.starts_with('#') {
+             continue;
+         }
+         let line = line.strip_prefix("export ").unwrap_or(line).trim();
+         let Some((k, v)) = line.split_once('=') else {
+             continue;
+         };
+         let key = k.trim().to_string();
+         if key.is_empty() {
+             continue;
+         }
+         let mut value = v.trim().to_string();
+         if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
+             value = value[1..value.len() - 1].to_string();
+         } else if value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2 {
+             value = value[1..value.len() - 1].to_string();
+         }
+         pairs.push((key, value));
+     }
+     pairs
+ }
+
+ #[tauri::command]
+ pub async fn environment_list_env_vars(app: AppHandle) -> Result<Vec<EnvVariable>, String> {
+     load_env_vars(&app).await
+ }
+
+ #[tauri::command]
+ pub async fn environment_upsert_env_var(
+     app: AppHandle,
+     key: String,
+     value: String,
+     category: Option<EnvVarCategory>,
+     is_secret: Option<bool>,
+ ) -> Result<EnvVariable, String> {
+     let mut env_vars = load_env_vars(&app).await?;
+     let now = chrono::Utc::now().to_rfc3339();
+
+     let cat = category.unwrap_or_else(|| detect_env_var_category(&key));
+     let secret = is_secret.unwrap_or_else(|| cat == EnvVarCategory::ApiKeys);
+
+     if let Some(existing) = env_vars.iter_mut().find(|v| v.key == key) {
+         existing.value = value;
+         existing.category = cat;
+         existing.is_secret = secret;
+         existing.updated_at = now;
+         save_env_vars(&app, &env_vars).await?;
+         return Ok(existing.clone());
+     }
+
+     let item = EnvVariable {
+         key,
+         value,
+         category: cat,
+         is_secret: secret,
+         updated_at: now,
+     };
+     env_vars.push(item.clone());
+     save_env_vars(&app, &env_vars).await?;
+     Ok(item)
+ }
+
+ #[tauri::command]
+ pub async fn environment_delete_env_var(app: AppHandle, key: String) -> Result<bool, String> {
+     let mut env_vars = load_env_vars(&app).await?;
+     let before = env_vars.len();
+     env_vars.retain(|v| v.key != key);
+     let changed = env_vars.len() != before;
+     if changed {
+         save_env_vars(&app, &env_vars).await?;
+     }
+     Ok(changed)
+ }
+
+ #[derive(Debug, Clone, Serialize, Deserialize)]
+ pub struct EnvFileImportOptions {
+     pub overwrite: Option<bool>,
+     #[serde(rename = "markSecrets")]
+     pub mark_secrets: Option<bool>,
+     #[serde(rename = "autoDetectCategory")]
+     pub auto_detect_category: Option<bool>,
+ }
+
+ #[tauri::command]
+ pub async fn environment_import_env_file(
+     app: AppHandle,
+     content: String,
+     options: Option<EnvFileImportOptions>,
+ ) -> Result<Vec<EnvVariable>, String> {
+     let opts = options.unwrap_or(EnvFileImportOptions {
+         overwrite: Some(true),
+         mark_secrets: Some(true),
+         auto_detect_category: Some(true),
+     });
+     let overwrite = opts.overwrite.unwrap_or(true);
+     let mark_secrets = opts.mark_secrets.unwrap_or(true);
+     let auto_detect_category = opts.auto_detect_category.unwrap_or(true);
+
+     let mut env_vars = load_env_vars(&app).await?;
+     let mut changed = false;
+     let now = chrono::Utc::now().to_rfc3339();
+
+     for (key, value) in parse_env_content(&content) {
+         let cat = if auto_detect_category {
+             detect_env_var_category(&key)
+         } else {
+             EnvVarCategory::Other
+         };
+         let upper = key.to_ascii_uppercase();
+         let secret = if mark_secrets {
+             cat == EnvVarCategory::ApiKeys
+                 || upper.contains("KEY")
+                 || upper.contains("TOKEN")
+                 || upper.contains("SECRET")
+         } else {
+             false
+         };
+
+         if let Some(existing) = env_vars.iter_mut().find(|v| v.key == key) {
+             if overwrite {
+                 existing.value = value;
+                 if auto_detect_category {
+                     existing.category = cat;
+                 }
+                 if mark_secrets {
+                     existing.is_secret = secret;
+                 }
+                 existing.updated_at = now.clone();
+                 changed = true;
+             }
+             continue;
+         }
+
+         env_vars.push(EnvVariable {
+             key,
+             value,
+             category: cat,
+             is_secret: secret,
+             updated_at: now.clone(),
+         });
+         changed = true;
+     }
+
+     if changed {
+         save_env_vars(&app, &env_vars).await?;
+     }
+
+     Ok(env_vars)
+ }
+
+ #[derive(Debug, Clone, Serialize, Deserialize)]
+ pub struct EnvFileExportOptions {
+     pub keys: Option<Vec<String>>,
+ }
+
+ #[tauri::command]
+ pub async fn environment_export_env_file(
+     app: AppHandle,
+     options: Option<EnvFileExportOptions>,
+ ) -> Result<String, String> {
+     let env_vars = load_env_vars(&app).await?;
+     let allow = options.and_then(|o| o.keys);
+
+     let mut lines = Vec::new();
+     for v in env_vars {
+         if let Some(keys) = &allow {
+             if !keys.iter().any(|k| k == &v.key) {
+                 continue;
+             }
+         }
+         let mut value = v.value;
+         if value.contains(' ') || value.contains('\n') {
+             value = format!("\"{}\"", value.replace('"', "\\\""));
+         }
+         lines.push(format!("{}={}", v.key, value));
+     }
+
+     Ok(lines.join("\n"))
+ }
 
 impl std::fmt::Display for EnvironmentTool {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -33,6 +298,11 @@ impl std::fmt::Display for EnvironmentTool {
             EnvironmentTool::Docker => write!(f, "docker"),
             EnvironmentTool::Podman => write!(f, "podman"),
             EnvironmentTool::Ffmpeg => write!(f, "ffmpeg"),
+            EnvironmentTool::Python => write!(f, "python"),
+            EnvironmentTool::Nodejs => write!(f, "nodejs"),
+            EnvironmentTool::Ruby => write!(f, "ruby"),
+            EnvironmentTool::Postgresql => write!(f, "postgresql"),
+            EnvironmentTool::Rust => write!(f, "rust"),
         }
     }
 }
@@ -41,6 +311,8 @@ impl std::fmt::Display for EnvironmentTool {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolStatus {
     pub tool: EnvironmentTool,
+    #[serde(default)]
+    pub enabled: bool,
     pub installed: bool,
     pub version: Option<String>,
     pub path: Option<String>,
@@ -60,6 +332,72 @@ pub struct InstallProgress {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EnvironmentToolSettings {
+    pub enabled: HashMap<EnvironmentTool, bool>,
+}
+
+fn all_tools() -> Vec<EnvironmentTool> {
+    vec![
+        EnvironmentTool::Python,
+        EnvironmentTool::Nodejs,
+        EnvironmentTool::Ruby,
+        EnvironmentTool::Postgresql,
+        EnvironmentTool::Rust,
+        EnvironmentTool::Uv,
+        EnvironmentTool::Nvm,
+        EnvironmentTool::Docker,
+        EnvironmentTool::Podman,
+        EnvironmentTool::Ffmpeg,
+    ]
+}
+
+fn default_tool_settings() -> EnvironmentToolSettings {
+    let mut enabled = HashMap::new();
+    for tool in all_tools() {
+        enabled.insert(tool, true);
+    }
+    EnvironmentToolSettings { enabled }
+}
+
+fn tool_settings_path(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map(|p| p.join("environment_tools.json"))
+        .map_err(|e| format!("Failed to get app data dir: {}", e))
+}
+
+async fn load_tool_settings(app: &AppHandle) -> Result<EnvironmentToolSettings, String> {
+    let path = tool_settings_path(app)?;
+    if !path.exists() {
+        return Ok(default_tool_settings());
+    }
+    let content = tokio::fs::read_to_string(&path)
+        .await
+        .map_err(|e| format!("Failed to read tool settings: {}", e))?;
+    let mut settings: EnvironmentToolSettings =
+        serde_json::from_str(&content).unwrap_or_else(|_| default_tool_settings());
+    for tool in all_tools() {
+        settings.enabled.entry(tool).or_insert(true);
+    }
+    Ok(settings)
+}
+
+async fn save_tool_settings(app: &AppHandle, settings: &EnvironmentToolSettings) -> Result<(), String> {
+    let path = tool_settings_path(app)?;
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| format!("Failed to create tool settings dir: {}", e))?;
+    }
+    let content = serde_json::to_string_pretty(settings)
+        .map_err(|e| format!("Failed to serialize tool settings: {}", e))?;
+    tokio::fs::write(&path, content)
+        .await
+        .map_err(|e| format!("Failed to write tool settings: {}", e))?;
+    Ok(())
+}
+
 /// Get current platform
 #[tauri::command]
 pub fn environment_get_platform() -> String {
@@ -75,8 +413,24 @@ pub fn environment_get_platform() -> String {
 
 /// Check if a tool is installed and get its version
 #[tauri::command]
-pub async fn environment_check_tool(tool: EnvironmentTool) -> Result<ToolStatus, String> {
+pub async fn environment_check_tool(app: AppHandle, tool: EnvironmentTool) -> Result<ToolStatus, String> {
     let now = chrono::Utc::now().to_rfc3339();
+
+    let settings = load_tool_settings(&app).await?;
+    let enabled = settings.enabled.get(&tool).copied().unwrap_or(true);
+
+    if !enabled {
+        return Ok(ToolStatus {
+            tool,
+            enabled,
+            installed: false,
+            version: None,
+            path: None,
+            status: "disabled".to_string(),
+            error: None,
+            last_checked: Some(now),
+        });
+    }
 
     let (check_cmd, version_arg) = get_check_command(&tool);
 
@@ -111,6 +465,7 @@ pub async fn environment_check_tool(tool: EnvironmentTool) -> Result<ToolStatus,
 
                 Ok(ToolStatus {
                     tool,
+                    enabled,
                     installed: true,
                     version: Some(version),
                     path,
@@ -121,6 +476,7 @@ pub async fn environment_check_tool(tool: EnvironmentTool) -> Result<ToolStatus,
             } else {
                 Ok(ToolStatus {
                     tool,
+                    enabled,
                     installed: false,
                     version: None,
                     path: None,
@@ -132,6 +488,7 @@ pub async fn environment_check_tool(tool: EnvironmentTool) -> Result<ToolStatus,
         }
         Err(e) => Ok(ToolStatus {
             tool,
+            enabled,
             installed: false,
             version: None,
             path: None,
@@ -144,22 +501,19 @@ pub async fn environment_check_tool(tool: EnvironmentTool) -> Result<ToolStatus,
 
 /// Check all tools at once
 #[tauri::command]
-pub async fn environment_check_all_tools() -> Result<Vec<ToolStatus>, String> {
-    let tools = vec![
-        EnvironmentTool::Uv,
-        EnvironmentTool::Nvm,
-        EnvironmentTool::Docker,
-        EnvironmentTool::Podman,
-        EnvironmentTool::Ffmpeg,
-    ];
+pub async fn environment_check_all_tools(app: AppHandle) -> Result<Vec<ToolStatus>, String> {
+    let tools = all_tools();
 
     let mut results = Vec::new();
     for tool in tools {
-        match environment_check_tool(tool).await {
+        match environment_check_tool(app.clone(), tool).await {
             Ok(status) => results.push(status),
             Err(e) => {
+                let settings = load_tool_settings(&app).await?;
+                let enabled = settings.enabled.get(&tool).copied().unwrap_or(true);
                 results.push(ToolStatus {
                     tool,
+                    enabled,
                     installed: false,
                     version: None,
                     path: None,
@@ -172,6 +526,18 @@ pub async fn environment_check_all_tools() -> Result<Vec<ToolStatus>, String> {
     }
 
     Ok(results)
+}
+
+#[tauri::command]
+pub async fn environment_set_tool_enabled(
+    app: AppHandle,
+    tool: EnvironmentTool,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = load_tool_settings(&app).await?;
+    settings.enabled.insert(tool, enabled);
+    save_tool_settings(&app, &settings).await?;
+    Ok(())
 }
 
 /// Install a tool
@@ -239,7 +605,7 @@ pub async fn environment_install_tool(
     // Wait a moment for installation to complete
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-    let status = environment_check_tool(tool).await?;
+    let status = environment_check_tool(app.clone(), tool).await?;
 
     if status.installed {
         emit_progress(&app, &tool, "done", 100, "Installation complete!", None);
@@ -277,6 +643,21 @@ fn get_install_commands(tool: &EnvironmentTool) -> Vec<String> {
             EnvironmentTool::Ffmpeg => vec![
                 "winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements".to_string(),
             ],
+            EnvironmentTool::Python => vec![
+                "winget install --id Python.Python.3.12 -e --accept-source-agreements --accept-package-agreements".to_string(),
+            ],
+            EnvironmentTool::Nodejs => vec![
+                "winget install --id OpenJS.NodeJS -e --accept-source-agreements --accept-package-agreements".to_string(),
+            ],
+            EnvironmentTool::Ruby => vec![
+                "winget install --id RubyInstallerTeam.RubyWithDevKit.3.3 -e --accept-source-agreements --accept-package-agreements".to_string(),
+            ],
+            EnvironmentTool::Postgresql => vec![
+                "winget install --id PostgreSQL.PostgreSQL -e --accept-source-agreements --accept-package-agreements".to_string(),
+            ],
+            EnvironmentTool::Rust => vec![
+                "winget install --id Rustlang.Rustup -e --accept-source-agreements --accept-package-agreements".to_string(),
+            ],
         }
     }
 
@@ -293,6 +674,11 @@ fn get_install_commands(tool: &EnvironmentTool) -> Vec<String> {
             EnvironmentTool::Docker => vec!["brew install --cask docker".to_string()],
             EnvironmentTool::Podman => vec!["brew install podman".to_string()],
             EnvironmentTool::Ffmpeg => vec!["brew install ffmpeg".to_string()],
+            EnvironmentTool::Python => vec!["brew install python@3.12".to_string()],
+            EnvironmentTool::Nodejs => vec!["brew install node".to_string()],
+            EnvironmentTool::Ruby => vec!["brew install ruby".to_string()],
+            EnvironmentTool::Postgresql => vec!["brew install postgresql@16".to_string()],
+            EnvironmentTool::Rust => vec!["brew install rustup".to_string()],
         }
     }
 
@@ -313,6 +699,17 @@ fn get_install_commands(tool: &EnvironmentTool) -> Vec<String> {
             EnvironmentTool::Ffmpeg => {
                 vec!["sudo apt-get update && sudo apt-get install -y ffmpeg".to_string()]
             }
+            EnvironmentTool::Python => {
+                vec!["sudo apt-get update && sudo apt-get install -y python3 python3-pip".to_string()]
+            }
+            EnvironmentTool::Nodejs => {
+                vec!["sudo apt-get update && sudo apt-get install -y nodejs npm".to_string()]
+            }
+            EnvironmentTool::Ruby => vec!["sudo apt-get update && sudo apt-get install -y ruby-full".to_string()],
+            EnvironmentTool::Postgresql => {
+                vec!["sudo apt-get update && sudo apt-get install -y postgresql".to_string()]
+            }
+            EnvironmentTool::Rust => vec!["curl https://sh.rustup.rs -sSf | sh -s -- -y".to_string()],
         }
     }
 
@@ -372,6 +769,11 @@ fn get_check_command(tool: &EnvironmentTool) -> (&'static str, &'static str) {
         EnvironmentTool::Docker => ("docker", "--version"),
         EnvironmentTool::Podman => ("podman", "--version"),
         EnvironmentTool::Ffmpeg => ("ffmpeg", "-version"),
+        EnvironmentTool::Python => ("python", "--version"),
+        EnvironmentTool::Nodejs => ("node", "--version"),
+        EnvironmentTool::Ruby => ("ruby", "--version"),
+        EnvironmentTool::Postgresql => ("psql", "--version"),
+        EnvironmentTool::Rust => ("rustc", "--version"),
     }
 }
 
@@ -383,6 +785,11 @@ fn get_tool_path(tool: &EnvironmentTool) -> Option<String> {
         EnvironmentTool::Docker => "docker",
         EnvironmentTool::Podman => "podman",
         EnvironmentTool::Ffmpeg => "ffmpeg",
+        EnvironmentTool::Python => "python",
+        EnvironmentTool::Nodejs => "node",
+        EnvironmentTool::Ruby => "ruby",
+        EnvironmentTool::Postgresql => "psql",
+        EnvironmentTool::Rust => "rustc",
     };
 
     #[cfg(target_os = "windows")]
@@ -506,6 +913,13 @@ fn get_uninstall_command(tool: &EnvironmentTool) -> Option<String> {
             EnvironmentTool::Docker => Some("winget uninstall Docker.DockerDesktop".to_string()),
             EnvironmentTool::Podman => Some("winget uninstall RedHat.Podman".to_string()),
             EnvironmentTool::Ffmpeg => Some("winget uninstall Gyan.FFmpeg".to_string()),
+            EnvironmentTool::Python => Some("winget uninstall Python.Python.3.12".to_string()),
+            EnvironmentTool::Nodejs => Some("winget uninstall OpenJS.NodeJS".to_string()),
+            EnvironmentTool::Ruby => {
+                Some("winget uninstall RubyInstallerTeam.RubyWithDevKit.3.3".to_string())
+            }
+            EnvironmentTool::Postgresql => Some("winget uninstall PostgreSQL.PostgreSQL".to_string()),
+            EnvironmentTool::Rust => Some("winget uninstall Rustlang.Rustup".to_string()),
             _ => None,
         }
     }
@@ -516,6 +930,11 @@ fn get_uninstall_command(tool: &EnvironmentTool) -> Option<String> {
             EnvironmentTool::Docker => Some("brew uninstall --cask docker".to_string()),
             EnvironmentTool::Podman => Some("brew uninstall podman".to_string()),
             EnvironmentTool::Ffmpeg => Some("brew uninstall ffmpeg".to_string()),
+            EnvironmentTool::Python => Some("brew uninstall python@3.12".to_string()),
+            EnvironmentTool::Nodejs => Some("brew uninstall node".to_string()),
+            EnvironmentTool::Ruby => Some("brew uninstall ruby".to_string()),
+            EnvironmentTool::Postgresql => Some("brew uninstall postgresql@16".to_string()),
+            EnvironmentTool::Rust => Some("brew uninstall rustup".to_string()),
             _ => None,
         }
     }
@@ -528,6 +947,10 @@ fn get_uninstall_command(tool: &EnvironmentTool) -> Option<String> {
             }
             EnvironmentTool::Podman => Some("sudo apt-get remove -y podman".to_string()),
             EnvironmentTool::Ffmpeg => Some("sudo apt-get remove -y ffmpeg".to_string()),
+            EnvironmentTool::Python => Some("sudo apt-get remove -y python3 python3-pip".to_string()),
+            EnvironmentTool::Nodejs => Some("sudo apt-get remove -y nodejs npm".to_string()),
+            EnvironmentTool::Ruby => Some("sudo apt-get remove -y ruby-full".to_string()),
+            EnvironmentTool::Postgresql => Some("sudo apt-get remove -y postgresql".to_string()),
             _ => None,
         }
     }
@@ -547,6 +970,11 @@ pub async fn environment_open_tool_website(tool: EnvironmentTool) -> Result<(), 
         EnvironmentTool::Docker => "https://www.docker.com/",
         EnvironmentTool::Podman => "https://podman.io/",
         EnvironmentTool::Ffmpeg => "https://ffmpeg.org/",
+        EnvironmentTool::Python => "https://www.python.org/",
+        EnvironmentTool::Nodejs => "https://nodejs.org/",
+        EnvironmentTool::Ruby => "https://www.ruby-lang.org/",
+        EnvironmentTool::Postgresql => "https://www.postgresql.org/",
+        EnvironmentTool::Rust => "https://www.rust-lang.org/",
     };
 
     open::that(url).map_err(|e| e.to_string())

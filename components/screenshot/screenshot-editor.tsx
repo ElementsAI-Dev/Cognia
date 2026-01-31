@@ -146,7 +146,7 @@ export function ScreenshotEditor({
           case 't':
             setCurrentTool('text');
             break;
-          case 'm':
+          case 'b':
             setCurrentTool('blur');
             break;
           case 'h':
@@ -275,15 +275,19 @@ export function ScreenshotEditor({
           style={style}
           canUndo={canUndo}
           canRedo={canRedo}
+          selectedAnnotationId={selectedAnnotationId}
+          showMagnifier={showMagnifier}
           onToolChange={setCurrentTool}
           onStyleChange={setStyle}
           onUndo={undo}
           onRedo={redo}
           onClear={clearAnnotations}
+          onDelete={() => selectedAnnotationId && deleteAnnotation(selectedAnnotationId)}
           onConfirm={handleConfirm}
           onCancel={onCancel}
           onCopy={handleCopy}
           onSave={handleSave}
+          onToggleMagnifier={() => setShowMagnifier((prev) => !prev)}
         />
       </div>
 
@@ -338,10 +342,17 @@ export function ScreenshotEditor({
       {/* Magnifier */}
       {showMagnifier && (
         <div
-          className="absolute pointer-events-none"
+          className="absolute pointer-events-none z-20"
           style={{
-            left: cursorPosition.x + 20,
-            top: cursorPosition.y + 20,
+            // Clamp magnifier position within viewport
+            left: Math.min(
+              Math.max(20, cursorPosition.x + 20),
+              window.innerWidth - 140
+            ),
+            top: Math.min(
+              Math.max(20, cursorPosition.y + 20),
+              window.innerHeight - 160
+            ),
           }}
         >
           <Magnifier

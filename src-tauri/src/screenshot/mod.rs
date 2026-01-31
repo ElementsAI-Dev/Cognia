@@ -37,7 +37,9 @@ pub use providers::{
 pub use region_selector::RegionSelector;
 pub use region_selector::SelectionState;
 pub use screenshot_history::{ScreenshotHistory, ScreenshotHistoryEntry};
-pub use window_manager::{SnapConfig, SnapResult, WindowInfo, WindowManager};
+pub use window_manager::{
+    ElementInfo, SelectionSnapResult, SnapConfig, SnapGuide, SnapResult, WindowInfo, WindowManager,
+};
 pub use windows_ocr::{OcrBounds, OcrLine, OcrWord, WinOcrResult, WindowsOcr};
 
 use serde::{Deserialize, Serialize};
@@ -449,6 +451,39 @@ impl ScreenshotManager {
     /// Get current snap configuration
     pub fn get_snap_config(&self) -> SnapConfig {
         self.window_manager.read().get_snap_config().clone()
+    }
+
+    // ==================== New Window Detection Methods ====================
+
+    /// Get the window at a specific screen point (for auto-detection during selection)
+    pub fn get_window_at_point(&self, x: i32, y: i32) -> Option<WindowInfo> {
+        self.window_manager.read().get_window_at_point(x, y)
+    }
+
+    /// Get child elements of a window (for element-level detection)
+    pub fn get_child_elements(&self, hwnd: isize, max_depth: u32) -> Vec<ElementInfo> {
+        self.window_manager.read().get_child_elements(hwnd, max_depth)
+    }
+
+    /// Calculate snapped selection rectangle during region selection
+    pub fn calculate_selection_snap(
+        &self,
+        selection_x: i32,
+        selection_y: i32,
+        selection_width: u32,
+        selection_height: u32,
+    ) -> SelectionSnapResult {
+        self.window_manager.read().calculate_selection_snap(
+            selection_x,
+            selection_y,
+            selection_width,
+            selection_height,
+        )
+    }
+
+    /// Get pixel color at screen coordinates
+    pub fn get_pixel_color(&self, x: i32, y: i32) -> Option<String> {
+        self.window_manager.read().get_pixel_color(x, y)
     }
 }
 

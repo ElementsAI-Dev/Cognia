@@ -241,4 +241,45 @@ describe('BottomToolbar', () => {
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);
   });
+
+  describe('hideTokenCount prop', () => {
+    it('displays token count by default', () => {
+      render(<BottomToolbar {...defaultProps} contextUsagePercent={50} />);
+      expect(screen.getByText('50%')).toBeInTheDocument();
+    });
+
+    it('hides token count when hideTokenCount is true', () => {
+      render(<BottomToolbar {...defaultProps} contextUsagePercent={50} hideTokenCount={true} />);
+      expect(screen.queryByText('50%')).not.toBeInTheDocument();
+    });
+
+    it('shows token count when hideTokenCount is false', () => {
+      render(<BottomToolbar {...defaultProps} contextUsagePercent={75} hideTokenCount={false} />);
+      expect(screen.getByText('75%')).toBeInTheDocument();
+    });
+  });
+
+  describe('hideWebSearchToggle prop', () => {
+    it('displays web search toggle by default', () => {
+      render(<BottomToolbar {...defaultProps} />);
+      expect(screen.getByText('Search')).toBeInTheDocument();
+    });
+
+    it('hides web search toggle when hideWebSearchToggle is true', () => {
+      render(<BottomToolbar {...defaultProps} hideWebSearchToggle={true} />);
+      expect(screen.queryByText('Search')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('hideThinkingToggle prop', () => {
+    it('displays thinking toggle by default', () => {
+      render(<BottomToolbar {...defaultProps} />);
+      expect(screen.getByText('Think')).toBeInTheDocument();
+    });
+
+    it('hides thinking toggle when hideThinkingToggle is true', () => {
+      render(<BottomToolbar {...defaultProps} hideThinkingToggle={true} />);
+      expect(screen.queryByText('Think')).not.toBeInTheDocument();
+    });
+  });
 });

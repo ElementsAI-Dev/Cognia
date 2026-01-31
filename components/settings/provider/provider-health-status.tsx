@@ -69,17 +69,23 @@ export function ProviderHealthStatus({
   const quotaUsed = settings?.quotaUsed;
   const quotaLimit = settings?.quotaLimit;
   const rateLimitRemaining = settings?.rateLimitRemaining;
+  const baseURL = settings?.baseURL;
+  const activeApiKey =
+    settings?.apiKey ||
+    settings?.apiKeys?.[settings.currentKeyIndex || 0] ||
+    settings?.apiKeys?.[0] ||
+    '';
   
   const checkHealth = useCallback(async () => {
-    if (!settings?.apiKey && providerId !== 'ollama') return;
+    if (!activeApiKey && providerId !== 'ollama') return;
     
     setIsChecking(true);
     
     try {
       const result = await testProviderConnection(
         providerId,
-        settings?.apiKey || '',
-        settings?.baseURL
+        activeApiKey,
+        baseURL
       );
       
       let newStatus: HealthStatus = 'unknown';
@@ -102,16 +108,16 @@ export function ProviderHealthStatus({
     } finally {
       setIsChecking(false);
     }
-  }, [providerId, settings, updateProviderSettings]);
+  }, [providerId, activeApiKey, baseURL, updateProviderSettings]);
   
   // Auto-check health on mount if stale (> 5 minutes)
   useEffect(() => {
     if (!lastHealthCheck || Date.now() - lastHealthCheck > 5 * 60 * 1000) {
-      if (settings?.apiKey || providerId === 'ollama') {
+      if (activeApiKey || providerId === 'ollama') {
         checkHealth();
       }
     }
-  }, [providerId, settings?.apiKey, lastHealthCheck, checkHealth]);
+  }, [providerId, activeApiKey, lastHealthCheck, checkHealth]);
   
   const formatLastCheck = () => {
     if (!lastHealthCheck) return t('neverChecked');

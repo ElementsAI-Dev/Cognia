@@ -18,6 +18,8 @@ import { globalToolCache, type ToolCacheConfig } from '../tools/tool-cache';
 import { globalMetricsCollector } from './performance-metrics';
 import { globalMemoryManager, type MemoryEntry } from './memory-manager';
 import { getPluginLifecycleHooks } from '@/lib/plugin/hooks-system';
+import { recordAgentTraceFromToolCall } from '@/lib/agent-trace';
+import { useSettingsStore } from '@/stores';
 import {
   type StopCondition as FunctionalStopCondition,
   type StopConditionResult,
@@ -62,6 +64,23 @@ function formatMemoriesAsContext(memories: MemoryEntry[]): string {
     })
     .join('\n');
 }
+
+const NON_CACHEABLE_TOOLS = new Set<string>([
+  'file_write',
+  'file_append',
+  'file_delete',
+  'directory_create',
+  'file_copy',
+  'file_rename',
+  'artifact_create',
+  'artifact_update',
+  'artifact_delete',
+  'canvas_create',
+  'canvas_update',
+  'canvas_open',
+  'memory_store',
+  'memory_forget',
+]);
 
 export interface ToolCall {
   id: string;
@@ -287,6 +306,7 @@ export interface AgentConfig {
   enableMetrics?: boolean;
   /** Enable memory integration for context persistence */
   enableMemory?: boolean;
+  enableAgentTrace?: boolean;
   /** Tool execution mode: blocking waits for results, non-blocking returns immediately */
   toolExecutionMode?: 'blocking' | 'non-blocking';
   /** Maximum concurrent tool executions (default: 5) */
@@ -408,7 +428,8 @@ function createSDKTool(
 
       // Check cache if enabled
       let cached = false;
-      if (enableCache) {
+      const shouldUseCache = Boolean(enableCache) && !NON_CACHEABLE_TOOLS.has(name);
+      if (shouldUseCache) {
         const cachedResult = globalToolCache.get(name, args as Record<string, unknown>);
         if (cachedResult !== null) {
           cached = true;
@@ -466,7 +487,7 @@ function createSDKTool(
             const result = await agentTool.execute(args as Record<string, unknown>);
             
             // Cache the result if not from cache
-            if (!cached && enableCache) {
+            if (!cached && shouldUseCache) {
               globalToolCache.set(name, args as Record<string, unknown>, result);
             }
 
@@ -617,7 +638,12 @@ export async function executeAgent(
     toolCacheConfig,
     toolRetryConfig,
     enableMetrics = true,
+    enableAgentTrace,
   } = config;
+
+  // Get agent trace settings from store if not explicitly provided
+  const agentTraceSettings = useSettingsStore.getState().agentTraceSettings;
+  const effectiveEnableAgentTrace = enableAgentTrace ?? agentTraceSettings.enabled;
 
   // Memory configuration
   const enableMemoryValue = config.enableMemory ?? false;
@@ -648,6 +674,26 @@ export async function executeAgent(
   const startTime = new Date();
   const steps: AgentStep[] = [];
   const toolCallTracker = new Map<string, ToolCall>();
+
+  const recordedTraceToolCalls = new Set<string>();
+
+  const handleToolResult = (toolCall: ToolCall) => {
+    onToolResult?.(toolCall);
+
+    if (!effectiveEnableAgentTrace || !sessionId) return;
+    if (recordedTraceToolCalls.has(toolCall.id)) return;
+    recordedTraceToolCalls.add(toolCall.id);
+
+    void recordAgentTraceFromToolCall({
+      sessionId,
+      agentName,
+      provider,
+      model,
+      toolName: toolCall.name,
+      toolArgs: toolCall.args,
+      toolResult: toolCall.result,
+    });
+  };
 
   // Generate agent ID for tracking
   const agentId = `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -800,7 +846,7 @@ export async function executeAgent(
     maxConcurrent: maxConcurrentToolCalls,
     defaultTimeout: toolTimeout,
     onToolStart: onToolCall,
-    onToolResult: onToolResult,
+    onToolResult: handleToolResult,
     onToolError: (toolCall, error) => {
       onError?.(error);
     },
@@ -820,7 +866,7 @@ export async function executeAgent(
   const sdkTools = toolCount > 0
     ? convertToAISDKTools(tools, toolCallTracker, {
         onToolCall,
-        onToolResult,
+        onToolResult: handleToolResult,
         requireApproval,
         safetyOptions: config.safetyOptions,
         retryConfig: toolRetryConfig,

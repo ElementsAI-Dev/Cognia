@@ -93,6 +93,7 @@ export {
   DataSettings,
   MemorySettings,
   UsageSettings,
+  AgentTraceSettings,
 } from './data';
 
 // System settings

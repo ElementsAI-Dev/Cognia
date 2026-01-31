@@ -5,7 +5,16 @@
  * A real-time LaTeX editor with preview, syntax highlighting, and autocomplete
  */
 
-import React, { useState, useCallback, useRef, useEffect, startTransition, useMemo } from 'react';
+import React, {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  startTransition,
+} from 'react';
 import { cn } from '@/lib/utils';
 import {
   ResizableHandle,
@@ -15,6 +24,7 @@ import {
 import { LaTeXPreview } from './latex-preview';
 import { LaTeXToolbar } from './latex-toolbar';
 import { LaTeXAutocomplete } from './latex-autocomplete';
+import { LatexAIContextMenu } from './latex-ai-context-menu';
 import { validate, extractMetadata } from '@/lib/latex/parser';
 import type {
   LaTeXEditorConfig,
@@ -33,23 +43,41 @@ interface LaTeXEditorProps {
   onChange?: (content: string) => void;
   onSave?: (content: string) => void;
   onError?: (errors: LaTeXError[]) => void;
+  onOpenAIChat?: () => void;
+  onOpenEquationDialog?: () => void;
+  onOpenAISettings?: () => void;
+  onAITextAction?: (action: import('@/hooks/latex/use-latex-ai').LatexAITextAction) => void;
   className?: string;
   readOnly?: boolean;
+}
+
+export interface LaTeXEditorHandle {
+  insertText: (text: string) => void;
+  replaceSelection: (text: string) => void;
+  getSelectedText: () => string;
+  focus: () => void;
 }
 
 // ============================================================================
 // Component
 // ============================================================================
 
-export function LaTeXEditor({
-  initialContent = '',
-  config: userConfig,
-  onChange,
-  onSave,
-  onError,
-  className,
-  readOnly = false,
-}: LaTeXEditorProps) {
+export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(function LaTeXEditor(
+  {
+    initialContent = '',
+    config: userConfig,
+    onChange,
+    onSave,
+    onError,
+    onOpenAIChat,
+    onOpenEquationDialog,
+    onOpenAISettings,
+    onAITextAction,
+    className,
+    readOnly = false,
+  },
+  ref
+) {
   // State
   const [content, setContent] = useState(initialContent);
   const [mode, setMode] = useState<LaTeXEditMode>('split');
@@ -59,11 +87,13 @@ export function LaTeXEditor({
   const [autocompletePosition, setAutocompletePosition] = useState({ x: 0, y: 0 });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
+  const [selectedText, setSelectedText] = useState('');
   const [undoStack, setUndoStack] = useState<string[]>([]);
   const [redoStack, setRedoStack] = useState<string[]>([]);
 
   // Refs
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const selectionRangeRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
   const previewRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -94,6 +124,12 @@ export function LaTeXEditor({
 
   // Validate content on change - use ref to avoid cascading renders
   const errorsRef = useRef<LaTeXError[]>([]);
+
+  useEffect(() => {
+    startTransition(() => {
+      setContent((prev) => (prev === initialContent ? prev : initialContent));
+    });
+  }, [initialContent]);
   
   useEffect(() => {
     const validationErrors = validate(content);
@@ -136,6 +172,14 @@ export function LaTeXEditor({
     const textarea = editorRef.current;
     const value = textarea.value;
     const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+
+    selectionRangeRef.current = { start: selectionStart, end: selectionEnd };
+    if (selectionEnd > selectionStart) {
+      setSelectedText(value.slice(selectionStart, selectionEnd));
+    } else {
+      setSelectedText('');
+    }
 
     const lines = value.slice(0, selectionStart).split('\n');
     const line = lines.length;
@@ -281,6 +325,33 @@ export function LaTeXEditor({
     [content, handleContentChange]
   );
 
+  const replaceSelection = useCallback(
+    (text: string) => {
+      if (!editorRef.current) return;
+      const textarea = editorRef.current;
+
+      const { start, end } = selectionRangeRef.current;
+      textarea.focus();
+      textarea.selectionStart = start;
+      textarea.selectionEnd = end;
+      insertAtCursor(text);
+    },
+    [insertAtCursor]
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertText: (text: string) => insertAtCursor(text),
+      replaceSelection: (text: string) => replaceSelection(text),
+      getSelectedText: () => selectedText,
+      focus: () => {
+        editorRef.current?.focus();
+      },
+    }),
+    [insertAtCursor, replaceSelection, selectedText]
+  );
+
   // Handle autocomplete selection
   const handleAutocompleteSelect = useCallback(
     (suggestion: LaTeXSuggestion) => {
@@ -357,6 +428,10 @@ export function LaTeXEditor({
         onExport={handleExport}
         onFullscreen={toggleFullscreen}
         isFullscreen={isFullscreen}
+        onOpenAIChat={onOpenAIChat}
+        onOpenEquationDialog={onOpenEquationDialog}
+        onOpenAISettings={onOpenAISettings}
+        onAITextAction={onAITextAction}
         readOnly={readOnly}
       />
 
@@ -364,39 +439,7 @@ export function LaTeXEditor({
       <div className="flex-1 overflow-hidden">
         {mode === 'source' && (
           <div className="h-full">
-            <textarea
-              ref={editorRef}
-              value={content}
-              onChange={handleTextareaChange}
-              onKeyDown={handleKeyDown}
-              onSelect={handleCursorChange}
-              onClick={handleCursorChange}
-              className={cn(
-                'w-full h-full p-4 resize-none focus:outline-none',
-                'font-mono text-sm bg-muted/30',
-                config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre overflow-x-auto'
-              )}
-              style={{
-                fontFamily: config.fontFamily,
-                fontSize: config.fontSize,
-                tabSize: config.tabSize,
-              }}
-              spellCheck={config.spellCheck}
-              readOnly={readOnly}
-              placeholder="Enter LaTeX code here..."
-            />
-          </div>
-        )}
-
-        {mode === 'visual' && (
-          <div ref={previewRef} className="h-full overflow-auto p-4">
-            <LaTeXPreview content={content} scale={config.previewScale} />
-          </div>
-        )}
-
-        {mode === 'split' && (
-          <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={50} minSize={30}>
+            {readOnly ? (
               <textarea
                 ref={editorRef}
                 value={content}
@@ -404,6 +447,7 @@ export function LaTeXEditor({
                 onKeyDown={handleKeyDown}
                 onSelect={handleCursorChange}
                 onClick={handleCursorChange}
+                onContextMenu={handleCursorChange}
                 className={cn(
                   'w-full h-full p-4 resize-none focus:outline-none',
                   'font-mono text-sm bg-muted/30',
@@ -418,6 +462,103 @@ export function LaTeXEditor({
                 readOnly={readOnly}
                 placeholder="Enter LaTeX code here..."
               />
+            ) : (
+              <LatexAIContextMenu
+                selectedText={selectedText}
+                onReplaceSelection={replaceSelection}
+              >
+                <div className="h-full">
+                  <textarea
+                    ref={editorRef}
+                    value={content}
+                    onChange={handleTextareaChange}
+                    onKeyDown={handleKeyDown}
+                    onSelect={handleCursorChange}
+                    onClick={handleCursorChange}
+                    onContextMenu={handleCursorChange}
+                    className={cn(
+                      'w-full h-full p-4 resize-none focus:outline-none',
+                      'font-mono text-sm bg-muted/30',
+                      config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre overflow-x-auto'
+                    )}
+                    style={{
+                      fontFamily: config.fontFamily,
+                      fontSize: config.fontSize,
+                      tabSize: config.tabSize,
+                    }}
+                    spellCheck={config.spellCheck}
+                    readOnly={readOnly}
+                    placeholder="Enter LaTeX code here..."
+                  />
+                </div>
+              </LatexAIContextMenu>
+            )}
+          </div>
+        )}
+
+        {mode === 'visual' && (
+          <div ref={previewRef} className="h-full overflow-auto p-4">
+            <LaTeXPreview content={content} scale={config.previewScale} />
+          </div>
+        )}
+
+        {mode === 'split' && (
+          <ResizablePanelGroup direction="horizontal">
+            <ResizablePanel defaultSize={50} minSize={30}>
+              {readOnly ? (
+                <textarea
+                  ref={editorRef}
+                  value={content}
+                  onChange={handleTextareaChange}
+                  onKeyDown={handleKeyDown}
+                  onSelect={handleCursorChange}
+                  onClick={handleCursorChange}
+                  onContextMenu={handleCursorChange}
+                  className={cn(
+                    'w-full h-full p-4 resize-none focus:outline-none',
+                    'font-mono text-sm bg-muted/30',
+                    config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre overflow-x-auto'
+                  )}
+                  style={{
+                    fontFamily: config.fontFamily,
+                    fontSize: config.fontSize,
+                    tabSize: config.tabSize,
+                  }}
+                  spellCheck={config.spellCheck}
+                  readOnly={readOnly}
+                  placeholder="Enter LaTeX code here..."
+                />
+              ) : (
+                <LatexAIContextMenu
+                  selectedText={selectedText}
+                  onReplaceSelection={replaceSelection}
+                >
+                  <div className="h-full">
+                    <textarea
+                      ref={editorRef}
+                      value={content}
+                      onChange={handleTextareaChange}
+                      onKeyDown={handleKeyDown}
+                      onSelect={handleCursorChange}
+                      onClick={handleCursorChange}
+                      onContextMenu={handleCursorChange}
+                      className={cn(
+                        'w-full h-full p-4 resize-none focus:outline-none',
+                        'font-mono text-sm bg-muted/30',
+                        config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre overflow-x-auto'
+                      )}
+                      style={{
+                        fontFamily: config.fontFamily,
+                        fontSize: config.fontSize,
+                        tabSize: config.tabSize,
+                      }}
+                      spellCheck={config.spellCheck}
+                      readOnly={readOnly}
+                      placeholder="Enter LaTeX code here..."
+                    />
+                  </div>
+                </LatexAIContextMenu>
+              )}
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={50} minSize={30}>
@@ -466,6 +607,8 @@ export function LaTeXEditor({
       )}
     </div>
   );
-}
+});
+
+LaTeXEditor.displayName = 'LaTeXEditor';
 
 export default LaTeXEditor;

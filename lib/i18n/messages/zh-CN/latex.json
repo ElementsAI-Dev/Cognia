@@ -1,0 +1,97 @@
+{
+  "title": "LaTeX 编辑器",
+  "description": "编写并预览 LaTeX 文档，支持 AI 辅助",
+  "templates": "模板",
+  "selectTemplate": "选择模板",
+  "templateDescription": "选择一个模板来开始你的文档",
+  "export": "导出",
+  "exportDocument": "导出文档",
+  "exportDescription": "选择导出格式",
+  "save": "保存",
+  "tabs": {
+    "editor": "编辑器",
+    "templates": "模板",
+    "history": "历史"
+  },
+  "templateLibrary": "模板库",
+  "documentHistory": "文档历史",
+  "untitledDocument": "未命名文档",
+  "noHistory": "暂无文档历史",
+  "startEditing": "开始编辑以生成历史记录",
+  "historyActions": {
+    "rename": "重命名",
+    "duplicate": "创建副本",
+    "delete": "删除",
+    "cancel": "取消",
+    "renameDialog": {
+      "title": "重命名文档",
+      "description": "为该文档输入一个新名称。",
+      "placeholder": "文档名称"
+    },
+    "deleteDialog": {
+      "title": "删除文档？",
+      "description": "这将从历史记录中永久移除该文档。"
+    }
+  },
+  "toolbar": {
+    "undo": "撤销",
+    "redo": "重做",
+    "math": "数学",
+    "symbol": "符号",
+    "sourceView": "源码视图",
+    "splitView": "分栏视图",
+    "preview": "预览",
+    "import": "导入",
+    "export": "导出",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏"
+  },
+  "ai": {
+    "button": "AI",
+    "features": "AI 功能",
+    "actions": "AI 操作",
+    "writingAssistant": {
+      "title": "写作助手",
+      "description": "使用 AI 改进你的写作"
+    },
+    "equationGenerator": {
+      "title": "公式生成",
+      "description": "将文本转换为 LaTeX 数学公式"
+    },
+    "grammarCheck": {
+      "title": "语法检查",
+      "description": "修复语法与风格问题"
+    },
+    "translation": {
+      "title": "翻译",
+      "description": "在不同语言之间翻译文本"
+    },
+    "menu": {
+      "improveWriting": "改进表达",
+      "fixGrammar": "修复语法",
+      "makeConcise": "精简文本",
+      "expandText": "扩展文本",
+      "translate": "翻译",
+      "settings": "AI 设置"
+    },
+    "chat": {
+      "title": "AI 助手",
+      "tabs": {
+        "chat": "对话",
+        "suggestions": "建议",
+        "history": "历史"
+      },
+      "inputPlaceholder": "问 AI 点什么…",
+      "send": "发送"
+    },
+    "equationDialog": {
+      "title": "生成 LaTeX 公式",
+      "description": "输入你想表达的公式含义，AI 将生成可插入的 LaTeX 代码",
+      "inputPlaceholder": "例如：二次方程求根公式",
+      "resultPlaceholder": "例如：\\frac{a}{b}",
+      "generate": "生成",
+      "insert": "插入",
+      "cancel": "取消"
+    }
+  }
+}

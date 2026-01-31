@@ -59,6 +59,7 @@ describe('ToolCard', () => {
 
   const installedStatus: ToolStatus = {
     tool: 'uv',
+    enabled: true,
     installed: true,
     version: '0.1.0',
     path: '/usr/local/bin/uv',
@@ -69,6 +70,7 @@ describe('ToolCard', () => {
 
   const notInstalledStatus: ToolStatus = {
     tool: 'uv',
+    enabled: true,
     installed: false,
     version: null,
     path: null,
@@ -79,6 +81,7 @@ describe('ToolCard', () => {
 
   const checkingStatus: ToolStatus = {
     tool: 'uv',
+    enabled: true,
     installed: false,
     version: null,
     path: null,
@@ -89,6 +92,7 @@ describe('ToolCard', () => {
 
   const installingStatus: ToolStatus = {
     tool: 'uv',
+    enabled: true,
     installed: false,
     version: null,
     path: null,
@@ -99,6 +103,7 @@ describe('ToolCard', () => {
 
   const errorStatus: ToolStatus = {
     tool: 'uv',
+    enabled: true,
     installed: false,
     version: null,
     path: null,

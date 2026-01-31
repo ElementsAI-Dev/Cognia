@@ -4,8 +4,9 @@
  * LaTeX Editor Page - Full-featured LaTeX editing with preview, templates, and AI assistance
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +17,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -28,20 +47,42 @@ import {
   Save,
   Copy,
   Check,
+  MoreHorizontal,
+  Pencil,
+  Copy as CopyIcon,
+  Trash2,
 } from 'lucide-react';
-import { LaTeXEditor } from '@/components/academic/latex-editor';
+import {
+  LaTeXEditor,
+  LatexAISidebar,
+  LatexAIFab,
+  LatexEquationDialog,
+  type LaTeXEditorHandle,
+} from '@/components/academic/latex-editor';
+import { useLatexAI } from '@/hooks/latex';
 import { useLatex } from '@/hooks/latex';
 import { useLatexStore } from '@/stores/latex';
 import { cn } from '@/lib/utils';
+import type { LatexAITextAction } from '@/hooks/latex/use-latex-ai';
 
 type LaTeXTab = 'editor' | 'templates' | 'history';
 
 export default function LaTeXPage() {
   const t = useTranslations('latex');
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<LaTeXTab>('editor');
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
+  const [equationDialogOpen, setEquationDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameDocId, setRenameDocId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const editorRef = useRef<LaTeXEditorHandle | null>(null);
+
+  const { generateEquation, runTextAction, isLoading: aiLoading } = useLatexAI();
 
   const {
     content,
@@ -58,6 +99,9 @@ export default function LaTeXPage() {
     currentDocumentId,
     saveDocument,
     loadDocument,
+    renameDocument,
+    duplicateDocument,
+    deleteDocument,
   } = useLatexStore();
 
   const handleContentChange = useCallback(
@@ -106,6 +150,42 @@ export default function LaTeXPage() {
     setTimeout(() => setCopied(false), 2000);
   }, [content]);
 
+  const openRename = useCallback((docId: string, currentName: string) => {
+    setRenameDocId(docId);
+    setRenameValue(currentName);
+    setRenameOpen(true);
+  }, []);
+
+  const submitRename = useCallback(() => {
+    if (!renameDocId) return;
+    const next = renameValue.trim();
+    if (!next) return;
+    renameDocument(renameDocId, next);
+    setRenameOpen(false);
+    setRenameDocId(null);
+  }, [renameDocId, renameDocument, renameValue]);
+
+  const handleToolbarAITextAction = useCallback(
+    async (action: LatexAITextAction) => {
+      const selection = editorRef.current?.getSelectedText()?.trim() || '';
+      if (!selection) {
+        setAiSidebarOpen(true);
+        return;
+      }
+
+      const result = await runTextAction({
+        action,
+        text: selection,
+        targetLanguage: action === 'translate' ? 'Chinese (Simplified)' : undefined,
+      });
+
+      if (result) {
+        editorRef.current?.replaceSelection(result);
+      }
+    },
+    [runTextAction]
+  );
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -136,6 +216,7 @@ export default function LaTeXPage() {
                   {t('templateDescription', { defaultValue: 'Choose a template to start your document' })}
                 </DialogDescription>
               </DialogHeader>
+              <Separator />
               <ScrollArea className="h-[500px] pr-4">
                 <div className="space-y-6">
                   {templateCategories.map(({ category, count }) => (
@@ -193,6 +274,7 @@ export default function LaTeXPage() {
                   {t('exportDescription', { defaultValue: 'Choose export format' })}
                 </DialogDescription>
               </DialogHeader>
+              <Separator />
               <div className="grid gap-3 py-4">
                 <Button
                   variant="outline"
@@ -280,9 +362,14 @@ export default function LaTeXPage() {
 
         <TabsContent value="editor" className="flex-1 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
           <LaTeXEditor
+            ref={editorRef}
             initialContent={content}
             onChange={handleContentChange}
             onSave={handleSave}
+            onOpenAIChat={() => setAiSidebarOpen(true)}
+            onOpenEquationDialog={() => setEquationDialogOpen(true)}
+            onOpenAISettings={() => router.push('/settings')}
+            onAITextAction={(action) => void handleToolbarAITextAction(action)}
             className="flex-1"
           />
         </TabsContent>
@@ -333,7 +420,7 @@ export default function LaTeXPage() {
         </TabsContent>
 
         <TabsContent value="history" className="flex-1 mt-0 overflow-auto p-4">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-3xl mx-auto">
             <h2 className="text-lg font-semibold mb-4">
               {t('documentHistory', { defaultValue: 'Document History' })}
             </h2>
@@ -348,30 +435,155 @@ export default function LaTeXPage() {
             ) : (
               <div className="space-y-2">
                 {documentHistory.map((doc) => (
-                  <button
+                  <div
                     key={doc.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => loadDocument(doc.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        loadDocument(doc.id);
+                      }
+                    }}
                     className={cn(
-                      'w-full text-left p-3 rounded-lg border hover:border-primary transition-colors',
-                      currentDocumentId === doc.id && 'border-primary bg-accent'
+                      'w-full text-left px-4 py-3 rounded-lg border transition-colors',
+                      'hover:border-primary/60 hover:bg-muted/20',
+                      currentDocumentId === doc.id && 'border-primary'
                     )}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{doc.name || 'Untitled Document'}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(doc.updatedAt).toLocaleDateString()}
-                      </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium truncate">{doc.name || t('untitledDocument')}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(doc.updatedAt).toLocaleDateString()}
+                        </span>
+
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openRename(doc.id, doc.name || t('untitledDocument'));
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              {t('historyActions.rename')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                duplicateDocument(doc.id);
+                              }}
+                            >
+                              <CopyIcon className="h-4 w-4" />
+                              {t('historyActions.duplicate')}
+                            </DropdownMenuItem>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                  }}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  {t('historyActions.delete')}
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>{t('historyActions.deleteDialog.title')}</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    {t('historyActions.deleteDialog.description')}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>{t('historyActions.cancel')}</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => {
+                                      deleteDocument(doc.id);
+                                    }}
+                                  >
+                                    {t('historyActions.delete')}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
                       {doc.content.slice(0, 100)}...
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('historyActions.renameDialog.title')}</DialogTitle>
+            <DialogDescription>{t('historyActions.renameDialog.description')}</DialogDescription>
+          </DialogHeader>
+          <Separator />
+          <div className="space-y-3">
+            <Input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              placeholder={t('historyActions.renameDialog.placeholder')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  submitRename();
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>
+                {t('historyActions.cancel')}
+              </Button>
+              <Button type="button" onClick={submitRename} disabled={!renameValue.trim()}>
+                {t('save')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <LatexAISidebar open={aiSidebarOpen} onClose={() => setAiSidebarOpen(false)} />
+
+      <LatexAIFab onClick={() => setAiSidebarOpen(true)} />
+
+      <LatexEquationDialog
+        open={equationDialogOpen}
+        onOpenChange={setEquationDialogOpen}
+        onGenerate={generateEquation}
+        isLoading={aiLoading}
+        onInsert={(latex) => {
+          editorRef.current?.insertText(latex);
+          setEquationDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

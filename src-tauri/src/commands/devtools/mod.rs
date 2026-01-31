@@ -9,3 +9,4 @@ pub mod git_history;
 pub mod git2_ops;
 pub mod jupyter;
 pub mod sandbox;
+pub mod vcs;

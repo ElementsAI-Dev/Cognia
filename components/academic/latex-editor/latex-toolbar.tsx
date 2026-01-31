@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -21,6 +22,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
+import { LatexAIDropdown, type LatexAIFeature } from './latex-ai-dropdown';
+import { SymbolPicker } from './symbol-picker';
+import type { LatexAITextAction } from '@/hooks/latex/use-latex-ai';
 import type { LaTeXEditMode } from '@/types/latex';
 import {
   Bold,
@@ -59,6 +63,10 @@ interface LaTeXToolbarProps {
   onExport: () => void;
   onFullscreen: () => void;
   isFullscreen: boolean;
+  onOpenAIChat?: () => void;
+  onOpenEquationDialog?: () => void;
+  onOpenAISettings?: () => void;
+  onAITextAction?: (action: LatexAITextAction) => void;
   readOnly?: boolean;
   className?: string;
 }
@@ -82,9 +90,15 @@ export function LaTeXToolbar({
   onExport,
   onFullscreen,
   isFullscreen,
+  onOpenAIChat,
+  onOpenEquationDialog,
+  onOpenAISettings,
+  onAITextAction,
   readOnly = false,
   className,
 }: LaTeXToolbarProps) {
+  const t = useTranslations('latex');
+
   const formatButtons: ToolbarButton[] = [
     { icon: <Bold className="h-4 w-4" />, label: 'Bold', action: () => onInsert('\\textbf{}') },
     { icon: <Italic className="h-4 w-4" />, label: 'Italic', action: () => onInsert('\\textit{}') },
@@ -114,6 +128,31 @@ export function LaTeXToolbar({
     { label: 'Matrix', insert: '\\begin{pmatrix}\na & b \\\\\nc & d\n\\end{pmatrix}' },
     { label: 'Cases', insert: '\\begin{cases}\nx & \\text{if } x > 0 \\\\\n-x & \\text{otherwise}\n\\end{cases}' },
   ];
+
+  const handleAISelect = (feature: LatexAIFeature) => {
+    if (
+      feature === 'improveWriting' ||
+      feature === 'fixGrammar' ||
+      feature === 'makeConcise' ||
+      feature === 'expandText' ||
+      feature === 'translate'
+    ) {
+      onAITextAction?.(feature);
+      return;
+    }
+
+    if (feature === 'equationGenerator') {
+      onOpenEquationDialog?.();
+      return;
+    }
+
+    if (feature === 'settings') {
+      onOpenAISettings?.();
+      return;
+    }
+
+    onOpenAIChat?.();
+  };
 
   const renderButton = (btn: ToolbarButton) => (
     <TooltipProvider key={btn.label}>
@@ -152,7 +191,7 @@ export function LaTeXToolbar({
               <Undo className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+          <TooltipContent>{t('toolbar.undo')} (Ctrl+Z)</TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
@@ -169,7 +208,7 @@ export function LaTeXToolbar({
               <Redo className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
+          <TooltipContent>{t('toolbar.redo')} (Ctrl+Y)</TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
@@ -192,7 +231,7 @@ export function LaTeXToolbar({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="h-8 px-2" disabled={readOnly}>
-            <span className="text-xs">Math</span>
+            <span className="text-xs">{t('toolbar.math')}</span>
             <ChevronDown className="h-3 w-3 ml-1" />
           </Button>
         </DropdownMenuTrigger>
@@ -204,6 +243,28 @@ export function LaTeXToolbar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Symbol picker dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-8 px-2" disabled={readOnly}>
+            <span className="text-xs">{t('toolbar.symbol')}</span>
+            <ChevronDown className="h-3 w-3 ml-1" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="p-2 w-[360px]" align="start">
+          <SymbolPicker
+            onSelect={(symbol) => {
+              onInsert(symbol.command);
+            }}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <LatexAIDropdown
+        onSelect={handleAISelect}
+        className="h-8"
+      />
 
       <div className="flex-1" />
 
@@ -221,7 +282,7 @@ export function LaTeXToolbar({
                 <FileCode className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Source View</TooltipContent>
+            <TooltipContent>{t('toolbar.sourceView')}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
@@ -237,7 +298,7 @@ export function LaTeXToolbar({
                 <SplitSquareHorizontal className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Split View</TooltipContent>
+            <TooltipContent>{t('toolbar.splitView')}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
@@ -253,7 +314,7 @@ export function LaTeXToolbar({
                 <Eye className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Preview</TooltipContent>
+            <TooltipContent>{t('toolbar.preview')}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
@@ -268,7 +329,7 @@ export function LaTeXToolbar({
               <Upload className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Import</TooltipContent>
+          <TooltipContent>{t('toolbar.import')}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
@@ -279,7 +340,7 @@ export function LaTeXToolbar({
               <Download className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Export</TooltipContent>
+          <TooltipContent>{t('toolbar.export')}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
@@ -294,7 +355,9 @@ export function LaTeXToolbar({
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</TooltipContent>
+          <TooltipContent>
+            {isFullscreen ? t('toolbar.exitFullscreen') : t('toolbar.fullscreen')}
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
     </div>

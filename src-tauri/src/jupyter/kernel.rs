@@ -53,7 +53,6 @@ pub struct JupyterKernel {
     pub python_version: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub last_activity_at: Option<chrono::DateTime<chrono::Utc>>,
-    #[allow(dead_code)]
     config: KernelConfig,
     process: Option<Child>,
     variables: HashMap<String, String>,
@@ -655,6 +654,11 @@ print(json.dumps(get_var_info()))
                 size: None,
             })
             .collect()
+    }
+
+    /// Get kernel configuration
+    pub fn get_config(&self) -> &KernelConfig {
+        &self.config
     }
 
     /// Cache variables from execution output
