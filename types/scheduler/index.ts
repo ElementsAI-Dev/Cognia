@@ -420,7 +420,7 @@ export function deserializeTask(data: Record<string, unknown>): ScheduledTask {
     createdAt: new Date(data.createdAt as string),
     updatedAt: new Date(data.updatedAt as string),
     trigger: {
-      ...(trigger as TaskTrigger),
+      ...(trigger as unknown as TaskTrigger),
       runAt: trigger.runAt ? new Date(trigger.runAt as string) : undefined,
     },
   };
@@ -451,7 +451,7 @@ export function deserializeExecution(data: Record<string, unknown>): TaskExecuti
     startedAt: new Date(data.startedAt as string),
     completedAt: data.completedAt ? new Date(data.completedAt as string) : undefined,
     logs: logs.map((log) => ({
-      ...(log as TaskExecutionLog),
+      ...(log as unknown as TaskExecutionLog),
       timestamp: new Date(log.timestamp as string),
     })),
   };

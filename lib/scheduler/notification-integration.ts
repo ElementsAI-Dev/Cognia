@@ -143,7 +143,7 @@ async function sendDesktopNotification(title: string, body: string): Promise<voi
     await sendNotification({ title, body });
     log.debug(`Desktop notification sent: ${title}`);
   } catch (error) {
-    log.warn('Failed to send desktop notification:', error);
+    log.warn('Failed to send desktop notification:', { error });
   }
 }
 

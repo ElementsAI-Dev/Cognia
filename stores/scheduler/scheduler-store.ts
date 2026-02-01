@@ -56,9 +56,12 @@ interface SchedulerActions {
   
   // UI Actions
   selectTask: (taskId: string | null) => void;
+  setTasks: (tasks: ScheduledTask[]) => void;
   setFilter: (filter: Partial<TaskFilter>) => void;
   clearFilter: () => void;
+  clearSelection: () => void;
   setError: (error: string | null) => void;
+  clearError: () => void;
   
   // Initialization
   initialize: () => Promise<void>;
@@ -308,8 +311,20 @@ export const useSchedulerStore = create<SchedulerStore>()(
         get().loadTasks();
       },
 
+      setTasks: (tasks) => {
+        set({ tasks });
+      },
+
+      clearSelection: () => {
+        set({ selectedTaskId: null, executions: [] });
+      },
+
       setError: (error) => {
         set({ error });
+      },
+
+      clearError: () => {
+        set({ error: null });
       },
 
       // ========== Initialization ==========

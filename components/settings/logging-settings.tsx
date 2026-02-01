@@ -74,8 +74,7 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
       minLevel: currentConfig.minLevel,
       includeStackTrace: currentConfig.includeStackTrace,
       includeSource: currentConfig.includeSource,
-      enableSampling: currentConfig.enableSampling,
-      maxBatchSize: currentConfig.maxBatchSize,
+      bufferSize: currentConfig.bufferSize,
       flushInterval: currentConfig.flushInterval,
     };
   });
@@ -124,12 +123,12 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
   };
 
   const handleTransportChange = (transport: keyof typeof transports, enabled: boolean) => {
-    setTransports(prev => ({ ...prev, [transport]: enabled }));
+    setTransports((prev: typeof transports) => ({ ...prev, [transport]: enabled }));
     setHasChanges(true);
   };
 
   const handleRetentionChange = (key: keyof typeof retention, value: number) => {
-    setRetention(prev => ({ ...prev, [key]: value }));
+    setRetention((prev: typeof retention) => ({ ...prev, [key]: value }));
     setHasChanges(true);
   };
 
@@ -159,8 +158,7 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
       minLevel: 'info',
       includeStackTrace: true,
       includeSource: false,
-      enableSampling: false,
-      maxBatchSize: 50,
+      bufferSize: 50,
       flushInterval: 5000,
     });
     setTransports({
@@ -273,20 +271,6 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
               <Switch
                 checked={config.includeSource}
                 onCheckedChange={(checked) => handleConfigChange('includeSource', checked)}
-                className="shrink-0"
-              />
-            </div>
-
-            <div className="flex items-start sm:items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <Label className="text-sm">Enable Log Sampling</Label>
-                <p className="text-xs text-muted-foreground">
-                  Sample high-volume logs to reduce storage and performance impact
-                </p>
-              </div>
-              <Switch
-                checked={config.enableSampling}
-                onCheckedChange={(checked) => handleConfigChange('enableSampling', checked)}
                 className="shrink-0"
               />
             </div>

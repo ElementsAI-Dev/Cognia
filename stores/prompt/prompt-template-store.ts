@@ -23,7 +23,7 @@ import {
   createOptimizationHistoryEntry,
   generateOptimizationRecommendations,
   getTopOptimizationCandidates,
-} from '@/lib/prompt/prompt-optimization';
+} from '@/lib/ai/prompts/prompt-self-optimizer';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.store;

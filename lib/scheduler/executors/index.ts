@@ -4,6 +4,7 @@
  */
 
 import type { ScheduledTask, TaskExecution } from '@/types/scheduler';
+import type { ProviderName } from '@/types/provider';
 import { registerTaskExecutor } from '../task-scheduler';
 import { loggers } from '@/lib/logger';
 
@@ -32,13 +33,14 @@ async function executeWorkflowTask(
     
     const settings = useSettingsStore.getState();
     
+    const providerSettings = settings.providerSettings[settings.defaultProvider];
     const result = await executeWorkflow(
       workflowId,
       `scheduled-${task.id}`,
       input || {},
       {
-        provider: settings.defaultProvider,
-        model: settings.defaultModel,
+        provider: settings.defaultProvider as ProviderName,
+        model: providerSettings?.defaultModel || 'gpt-4o',
         apiKey: '', // Will be fetched from settings
       }
     );
@@ -85,9 +87,10 @@ async function executeAgentTask(
     
     const settings = useSettingsStore.getState();
     
+    const providerSettings = settings.providerSettings[settings.defaultProvider];
     const result = await executeAgentLoop(agentTask, {
-      provider: (config?.provider as string) || settings.defaultProvider,
-      model: (config?.model as string) || settings.defaultModel,
+      provider: ((config?.provider as string) || settings.defaultProvider) as ProviderName,
+      model: (config?.model as string) || providerSettings?.defaultModel || 'gpt-4o',
       apiKey: '', // Will be fetched from settings
       maxStepsPerTask: (config?.maxSteps as number) || 10,
       planningEnabled: (config?.planningEnabled as boolean) ?? true,
@@ -99,7 +102,7 @@ async function executeAgentTask(
         taskCount: result.tasks.length,
         totalSteps: result.totalSteps,
         duration: result.duration,
-        finalResponse: result.finalResponse?.substring(0, 500),
+        finalSummary: result.finalSummary?.substring(0, 500),
       },
       error: result.error,
     };
@@ -222,7 +225,7 @@ async function executeBackupTask(
         await backupManager.initialize();
         results.plugins = { backed: true };
       } catch (pluginError) {
-        log.warn('Plugin backup skipped:', pluginError);
+        log.warn('Plugin backup skipped:', { error: pluginError });
         results.plugins = { 
           backed: false, 
           error: pluginError instanceof Error ? pluginError.message : 'Plugin backup failed',
