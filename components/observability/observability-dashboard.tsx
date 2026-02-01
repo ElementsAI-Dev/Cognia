@@ -1,22 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Activity, DollarSign, AlertTriangle, Zap } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import {
+  Activity,
+  DollarSign,
+  AlertTriangle,
+  Zap,
+  RefreshCw,
+  BarChart3,
+  PieChart,
+  LineChart,
+  Clock,
+} from 'lucide-react';
 import { TraceViewer } from './trace-viewer';
 import { MetricsPanel } from './metrics-panel';
 import { CostAnalysis } from './cost-analysis';
 import { StatCard } from './stat-card';
 import { EmptyState } from './empty-state';
 import { RecommendationsPanel } from './recommendations-panel';
-import { UsageTrendChart } from './charts';
-import { useSettingsStore } from '@/stores';
+import { SessionAnalyticsPanel } from './session-analytics-panel';
+import { EfficiencyMetricsCard } from './efficiency-metrics-card';
+import {
+  UsageTrendChart,
+  ProviderChart,
+  TokenBreakdownChart,
+  LatencyDistributionChart,
+} from './charts';
+import { useSettingsStore, useUsageStore } from '@/stores';
 import { useObservabilityData } from '@/hooks/observability';
+import { getTopSessionsByUsage } from '@/lib/ai/usage-analytics';
+import { cn } from '@/lib/utils';
 
 export interface TraceData {
   id: string;
@@ -84,8 +106,12 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
   const [selectedTrace, _setSelectedTrace] = useState<TraceData | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+  const usageRecords = useUsageStore((state) => state.records);
+  const records = useMemo(() => usageRecords || [], [usageRecords]);
 
   // Use real data from usage store
   const {
@@ -95,7 +121,55 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
     trend,
     recommendations,
     hasData,
+    efficiency,
+    providerBreakdown,
   } = useObservabilityData(timeRange);
+
+  // Get top sessions
+  const topSessions = useMemo(() => {
+    return getTopSessionsByUsage(records, 10);
+  }, [records]);
+
+  // Sparkline data from time series
+  const sparklineData = useMemo(() => {
+    return timeSeries.map((point) => ({
+      value: point.tokens,
+      label: point.date,
+    }));
+  }, [timeSeries]);
+
+  // Auto-refresh effect
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      setIsRefreshing(true);
+      // Trigger a re-render by slightly changing state
+      setTimeout(() => setIsRefreshing(false), 500);
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
+
+  // Manual refresh handler
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setTimeout(() => setIsRefreshing(false), 500);
+  }, []);
+
+  // Calculate trend percentage for stat cards
+  const trendPercent = trend.percentChange;
+
+  // Convert provider breakdown to chart format
+  const providerChartData = useMemo(() => {
+    return providerBreakdown.map((p) => ({
+      provider: p.provider,
+      tokens: p.tokens,
+      cost: p.cost,
+      requests: p.requests,
+      percentage: p.percentage,
+    }));
+  }, [providerBreakdown]);
 
   // Show empty state if observability is disabled
   if (!observabilitySettings?.enabled) {
@@ -134,16 +208,48 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
     );
   }
 
-  // Calculate trend percentage for stat cards
-  const trendPercent = trend.percentChange;
-
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b">
-        <h2 className="text-xl font-semibold">{t('title')}</h2>
-        <div className="flex items-center gap-4">
+    <div className={cn('flex flex-col h-full', isRefreshing && 'opacity-75 transition-opacity')}>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <BarChart3 className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold">{t('title')}</h2>
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              {t('subtitle') || 'Monitor AI usage and performance'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Auto-refresh toggle */}
+          <div className="flex items-center gap-2">
+            <Switch
+              id="auto-refresh"
+              checked={autoRefresh}
+              onCheckedChange={setAutoRefresh}
+              className="scale-90"
+            />
+            <Label htmlFor="auto-refresh" className="text-xs text-muted-foreground cursor-pointer">
+              <Clock className="h-3 w-3 inline mr-1" />
+              {t('autoRefresh') || 'Auto'}
+            </Label>
+          </div>
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="gap-1"
+          >
+            <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+            <span className="hidden sm:inline">{t('refresh') || 'Refresh'}</span>
+          </Button>
           <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-28 sm:w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -161,52 +267,98 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-4">
+      {/* Stats Cards - Responsive grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
         <StatCard
           title={t('totalRequests')}
           value={statistics.totalRequests.toLocaleString()}
-          icon={<Activity className="h-4 w-4" />}
+          icon={<Activity className="h-4 w-4 text-blue-500" />}
           trend={{ value: trendPercent, label: tTime(timeRange) }}
+          sparklineData={sparklineData.length > 1 ? sparklineData : undefined}
+          sparklineColor="#3b82f6"
+          animated
         />
         <StatCard
           title={t('totalTokens')}
           value={statistics.totalTokens >= 1000 ? `${(statistics.totalTokens / 1000).toFixed(1)}K` : statistics.totalTokens.toString()}
-          icon={<Zap className="h-4 w-4" />}
+          icon={<Zap className="h-4 w-4 text-yellow-500" />}
           subtitle={`${t('avgPerRequest')}: ${Math.round(statistics.averageTokensPerRequest)}`}
+          animated
         />
         <StatCard
           title={t('totalCost')}
           value={`$${statistics.totalCost.toFixed(4)}`}
-          icon={<DollarSign className="h-4 w-4" />}
+          icon={<DollarSign className="h-4 w-4 text-green-500" />}
           subtitle={`${t('avgPerRequest')}: $${statistics.averageCostPerRequest.toFixed(6)}`}
+          animated
         />
         <StatCard
           title={t('errorRate')}
           value={`${(metricsData.errorRate * 100).toFixed(1)}%`}
-          icon={<AlertTriangle className="h-4 w-4" />}
-          valueClassName={metricsData.errorRate > 0.05 ? 'text-red-600' : undefined}
+          icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}
+          valueClassName={metricsData.errorRate > 0.05 ? 'text-red-600' : 'text-green-600'}
+          animated
         />
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 px-4 pb-4">
-        <TabsList>
-          <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
-          <TabsTrigger value="metrics">{t('tabs.metrics')}</TabsTrigger>
-          <TabsTrigger value="costs">{t('tabs.costs')}</TabsTrigger>
-          <TabsTrigger value="traces">{t('tabs.traces')}</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 px-4 pb-4 overflow-hidden">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="overview" className="gap-1">
+            <LineChart className="h-3.5 w-3.5 hidden sm:inline" />
+            {t('tabs.overview')}
+          </TabsTrigger>
+          <TabsTrigger value="metrics" className="gap-1">
+            <BarChart3 className="h-3.5 w-3.5 hidden sm:inline" />
+            {t('tabs.metrics')}
+          </TabsTrigger>
+          <TabsTrigger value="costs" className="gap-1">
+            <PieChart className="h-3.5 w-3.5 hidden sm:inline" />
+            {t('tabs.costs')}
+          </TabsTrigger>
+          <TabsTrigger value="traces" className="gap-1">
+            <Activity className="h-3.5 w-3.5 hidden sm:inline" />
+            {t('tabs.traces')}
+          </TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="mt-4 space-y-4">
+        {/* Overview Tab - Enhanced layout */}
+        <TabsContent value="overview" className="mt-4 space-y-4 overflow-auto">
+          {/* Main charts row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <UsageTrendChart data={timeSeries} height={280} />
+            <div className="lg:col-span-2 space-y-4">
+              <UsageTrendChart data={timeSeries} height={260} />
+              {/* Secondary charts */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <TokenBreakdownChart
+                  data={{
+                    inputTokens: statistics.inputTokens,
+                    outputTokens: statistics.outputTokens,
+                  }}
+                  height={200}
+                />
+                <LatencyDistributionChart
+                  data={metricsData.latencyPercentiles}
+                  averageLatency={metricsData.averageLatency}
+                  height={180}
+                />
+              </div>
             </div>
-            <div>
+            {/* Sidebar */}
+            <div className="space-y-4">
               <RecommendationsPanel recommendations={recommendations} />
+              <EfficiencyMetricsCard metrics={efficiency} />
+              {topSessions.length > 0 && (
+                <SessionAnalyticsPanel sessions={topSessions} maxSessions={5} />
+              )}
             </div>
           </div>
+          {/* Provider distribution */}
+          {providerChartData.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ProviderChart data={providerChartData} dataKey="tokens" height={220} />
+              <ProviderChart data={providerChartData} dataKey="cost" height={220} />
+            </div>
+          )}
         </TabsContent>
 
         {/* Metrics Tab */}

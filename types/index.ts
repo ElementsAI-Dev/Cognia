@@ -75,3 +75,6 @@ export * from './sync';
 
 // Scheduler types
 export * from './scheduler';
+
+// Import types (ChatGPT, etc.)
+export * from './import';

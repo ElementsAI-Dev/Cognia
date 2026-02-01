@@ -550,6 +550,49 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
             </div>
           )}
 
+          {/* Multi-Model Toggle - hidden in focused/zen modes */}
+          {session && !isFocusedOrZen && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={session.multiModelConfig?.enabled ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className={cn(
+                    'h-8 gap-1.5 px-2',
+                    session.multiModelConfig?.enabled && 'bg-primary/10 text-primary border-primary/20'
+                  )}
+                  onClick={() => {
+                    const currentConfig = session.multiModelConfig;
+                    updateSession(session.id, {
+                      multiModelConfig: {
+                        enabled: !currentConfig?.enabled,
+                        models: currentConfig?.models || [],
+                        layout: currentConfig?.layout || 'columns',
+                        syncScroll: currentConfig?.syncScroll ?? true,
+                        showMetrics: currentConfig?.showMetrics ?? true,
+                      },
+                    });
+                  }}
+                >
+                  <Scale className="h-4 w-4" />
+                  <span className="hidden sm:inline text-xs">
+                    {session.multiModelConfig?.enabled ? t('multiModelOn') : t('multiModel')}
+                  </span>
+                  {session.multiModelConfig?.enabled && session.multiModelConfig.models.length > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                      {session.multiModelConfig.models.length}
+                    </Badge>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {session.multiModelConfig?.enabled
+                  ? t('disableMultiModel')
+                  : t('enableMultiModel')}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           {/* Background Agent Indicator - hidden in focused/zen modes */}
           {!isFocusedOrZen && <BackgroundAgentIndicator />}
 

@@ -25,14 +25,14 @@ import {
   Pencil,
   Sparkles,
 } from 'lucide-react';
-import { MaskCanvas } from './mask-canvas';
-import { ImageCropper } from './image-cropper';
-import { ImageAdjustmentsPanel } from './image-adjustments';
-import { ImageUpscaler } from './image-upscaler';
-import { BackgroundRemover } from './background-remover';
-import { TextOverlay } from './text-overlay';
-import { DrawingTools } from './drawing-tools';
-import { FiltersGallery } from './filters-gallery';
+import { MaskCanvas } from '../tools/mask-canvas';
+import { ImageCropper } from '../tools/image-cropper';
+import { ImageAdjustmentsPanel } from '../adjustments/image-adjustments';
+import { ImageUpscaler } from '../ai/image-upscaler';
+import { BackgroundRemover } from '../ai/background-remover';
+import { TextOverlay } from '../tools/text-overlay';
+import { DrawingTools } from '../tools/drawing-tools';
+import { FiltersGallery } from '../adjustments/filters-gallery';
 
 import type { EditorMode } from '@/types';
 

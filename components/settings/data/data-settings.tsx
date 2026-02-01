@@ -49,6 +49,7 @@ import { useSessionStore, useArtifactStore } from '@/stores';
 import { db } from '@/lib/db';
 import { downloadExport, parseImportFile, importFullBackup } from '@/lib/storage';
 import { BatchExportDialog } from '@/components/export';
+import { ChatImportDialog } from '@/components/chat/dialogs';
 import { toast } from '@/components/ui/sonner';
 import { resetOnboardingTour } from '@/components/onboarding';
 import { useStorageStats, useStorageCleanup } from '@/hooks/storage';
@@ -65,6 +66,7 @@ export function DataSettings() {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [chatImportOpen, setChatImportOpen] = useState(false);
 
   const sessions = useSessionStore((state) => state.sessions);
   const clearAllSessions = useSessionStore((state) => state.clearAllSessions);
@@ -348,6 +350,29 @@ export function DataSettings() {
                       {t('batchExport')}
                     </Button>
                   }
+                />
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setChatImportOpen(true)}
+                >
+                  <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+                  {t('importChatGPT') || 'Import ChatGPT'}
+                </Button>
+
+                <ChatImportDialog
+                  open={chatImportOpen}
+                  onOpenChange={setChatImportOpen}
+                  onImportComplete={(result) => {
+                    if (result.success) {
+                      toast.success(
+                        t('chatImportSuccess') ||
+                          `Imported ${result.imported.sessions} chats with ${result.imported.messages} messages`
+                      );
+                      refreshStats();
+                    }
+                  }}
                 />
               </div>
 

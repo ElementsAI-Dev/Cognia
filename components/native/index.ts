@@ -14,6 +14,11 @@ export { SystemMonitorPanel } from './system-monitor-panel';
 export { SandboxPanel } from './sandbox-panel';
 export { ProcessSettingsPanel } from './process-settings-panel';
 
+// Layout components
+export { NativeToolSidebar, NATIVE_TOOLS, type NativeToolItem } from './native-tool-sidebar';
+export { NativeToolMobileNav } from './native-tool-mobile-nav';
+export { NativeToolHeader } from './native-tool-header';
+
 // Platform utilities
 export {
   PlatformWarning,

@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/tooltip';
 import { getGitIntegrationService } from '@/lib/workflow/git-integration-service';
 import type { GitRepository } from '@/types/workflow/template';
+import { isTauri } from '@/lib/utils';
 
 export function GitIntegrationPanel() {
   const t = useTranslations('marketplace.git');
@@ -61,11 +62,20 @@ export function GitIntegrationPanel() {
       return;
     }
 
+    // Git operations require Tauri (desktop) environment
+    if (!isTauri()) {
+      setStatus({ type: 'error', message: 'Git integration is only available in the desktop app' });
+      return;
+    }
+
     setIsCloning(true);
     setStatus({ type: 'info', message: t('cloning') });
 
     try {
-      const destination = `/tmp/templates/${Date.now()}`;
+      // Generate a safe destination path based on repo name
+      const repoName = cloneUrl.split('/').pop()?.replace('.git', '') || `repo-${Date.now()}`;
+      // Use app data directory pattern for cross-platform compatibility
+      const destination = `templates/${repoName}-${Date.now()}`;
       await gitService.cloneRepository(cloneUrl, destination, cloneBranch);
 
       const repo = gitService.getRepository(destination);
@@ -90,7 +100,8 @@ export function GitIntegrationPanel() {
     setStatus({ type: 'info', message: t('pulling') });
 
     try {
-      await gitService.pullChanges(selectedRepo.url);
+      // Use localPath for git operations
+      await gitService.pullChanges(selectedRepo.localPath);
       setStatus({ type: 'success', message: t('pullSuccess') });
     } catch (error) {
       setStatus({
@@ -106,7 +117,8 @@ export function GitIntegrationPanel() {
     setStatus({ type: 'info', message: t('pushing') });
 
     try {
-      await gitService.pushChanges(selectedRepo.url);
+      // Use localPath for git operations
+      await gitService.pushChanges(selectedRepo.localPath);
       setStatus({ type: 'success', message: t('pushSuccess') });
     } catch (error) {
       setStatus({
@@ -120,7 +132,8 @@ export function GitIntegrationPanel() {
     if (!selectedRepo) return;
 
     try {
-      const hasUpdates = await gitService.checkForUpdates(selectedRepo.url);
+      // Use localPath for git operations
+      const hasUpdates = await gitService.checkForUpdates(selectedRepo.localPath);
       if (hasUpdates) {
         setStatus({ type: 'info', message: t('updatesAvailable') });
       } else {
@@ -148,9 +161,9 @@ export function GitIntegrationPanel() {
     }
   };
 
-  const handleRemoveRepo = (url: string) => {
-    setRepositories(repositories.filter((r) => r.url !== url));
-    if (selectedRepo?.url === url) {
+  const handleRemoveRepo = (localPath: string) => {
+    setRepositories(repositories.filter((r) => r.localPath !== localPath));
+    if (selectedRepo?.localPath === localPath) {
       setSelectedRepo(null);
     }
   };
@@ -258,11 +271,11 @@ export function GitIntegrationPanel() {
             <div className="space-y-4">
               {repositories.map((repo) => (
                 <RepositoryCard
-                  key={repo.url}
+                  key={repo.localPath}
                   repository={repo}
-                  isSelected={selectedRepo?.url === repo.url}
+                  isSelected={selectedRepo?.localPath === repo.localPath}
                   onSelect={() => setSelectedRepo(repo)}
-                  onRemove={() => handleRemoveRepo(repo.url)}
+                  onRemove={() => handleRemoveRepo(repo.localPath)}
                   onPull={handlePull}
                   onPush={handlePush}
                   onCheckUpdates={handleCheckUpdates}

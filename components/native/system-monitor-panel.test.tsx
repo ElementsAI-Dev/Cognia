@@ -27,6 +27,30 @@ jest.mock('@/hooks/context', () => ({
   }),
 }));
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      title: 'System Monitor',
+      refresh: 'Refresh',
+      uptime: 'Uptime',
+      cpu: 'CPU',
+      memory: 'Memory',
+      disk: 'Disk',
+      battery: 'Battery',
+      charging: 'Charging',
+      systemInfo: 'System Info',
+      processes: 'Processes',
+      network: 'Network',
+      connected: 'Connected',
+      powerMode: 'Power Mode',
+      noData: 'No system data available',
+      noDataHint: 'System monitoring will appear here',
+    };
+    return translations[key] || key;
+  },
+}));
+
 describe('SystemMonitorPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -62,11 +86,15 @@ describe('SystemMonitorPanel', () => {
     expect(screen.getByText('Charging')).toBeInTheDocument();
   });
 
+  it('displays uptime in header', () => {
+    render(<SystemMonitorPanel />);
+    // Uptime should be displayed in header subtitle
+    expect(screen.getByText(/Uptime.*1d 0h 0m/i)).toBeInTheDocument();
+  });
+
   it('displays system info', () => {
     render(<SystemMonitorPanel />);
     expect(screen.getByText('System Info')).toBeInTheDocument();
-    expect(screen.getByText('Uptime')).toBeInTheDocument();
-    expect(screen.getByText('1d 0h 0m')).toBeInTheDocument();
     expect(screen.getByText('Processes')).toBeInTheDocument();
     expect(screen.getByText('256')).toBeInTheDocument();
     expect(screen.getByText('Network')).toBeInTheDocument();

@@ -5,7 +5,7 @@
 import type { UIMessage } from './message';
 import type { ProviderName } from '../provider/provider';
 import type { SessionCompressionOverrides } from '../system/compression';
-import type { ChatViewMode, FlowChatCanvasState } from '../chat/flow-chat';
+import type { ChatViewMode, FlowChatCanvasState, MultiModelConfig } from '../chat';
 
 export type { ProviderName, UIMessage, ChatViewMode, FlowChatCanvasState };
 
@@ -139,6 +139,9 @@ export interface Session {
 
   // Conversation goal - what this chat aims to achieve
   goal?: ChatGoal;
+
+  // Multi-model arena mode configuration
+  multiModelConfig?: MultiModelConfig;
 }
 
 export interface SessionWithMessages extends Session {
@@ -190,6 +193,7 @@ export interface UpdateSessionInput {
   viewMode?: ChatViewMode;
   flowCanvasState?: FlowChatCanvasState;
   goal?: ChatGoal;
+  multiModelConfig?: MultiModelConfig;
 }
 
 export interface CreateGoalInput {

@@ -40,6 +40,7 @@ import observability from './observability.json';
 import arena from './arena.json';
 import syncSettings from './syncSettings.json';
 import logging from './logging.json';
+import importMessages from './import.json';
 
 const messages = {
   ...common,
@@ -81,6 +82,7 @@ const messages = {
   arena,
   syncSettings,
   ...logging,
+  import: importMessages,
 };
 
 export default messages;

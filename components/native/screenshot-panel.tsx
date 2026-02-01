@@ -137,16 +137,25 @@ export function ScreenshotPanel({
   }, []);
 
   return (
-    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden', className)}>
-      <div className="p-2 sm:p-3 border-b space-y-2 sm:space-y-3 shrink-0">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Camera className="h-5 w-5" />
-            <span className="font-medium">{t('title')}</span>
+    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b bg-muted/30 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-purple-500/10">
+            <Camera className="h-4 w-4 text-purple-500" />
           </div>
-          <PlatformBadge platform="windows" />
+          <div>
+            <h3 className="text-sm font-semibold leading-none">{t('title')}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {t('screenshotCount', { count: history.length })}
+            </p>
+          </div>
         </div>
-        
+        <PlatformBadge platform="windows" />
+      </div>
+
+      {/* Actions */}
+      <div className="p-3 border-b space-y-3 shrink-0">
         <PlatformWarning
           supportedPlatforms={['windows']}
           featureName={t('title')}

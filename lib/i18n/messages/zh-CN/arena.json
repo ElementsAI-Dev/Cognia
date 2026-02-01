@@ -251,5 +251,16 @@
     "shuffle": "随机选择",
     "blindMode": "盲选模式",
     "multiTurn": "多轮对话"
-  }
+  },
+  "addModel": "添加模型",
+  "selectAtLeast2Models": "至少选择2个模型开始对比",
+  "selectModelsToStart": "选择模型以开始多模型聊天",
+  "selectModelsHint": "选择 {min}-{max} 个模型进行并行对比",
+  "typeMessagePlaceholder": "输入消息发送给所有模型...",
+  "noModelsConfigured": "未配置模型。请在设置中添加 API 密钥。",
+  "waitingForMessage": "等待消息...",
+  "selectModel": "选择 {name}",
+  "statusStreaming": "流式传输中...",
+  "statusCompleted": "已完成",
+  "statusError": "错误"
 }

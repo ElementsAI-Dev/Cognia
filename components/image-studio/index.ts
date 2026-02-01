@@ -1,50 +1,55 @@
 /**
  * Image Studio Components
- * Export all image editing components
+ * Export all image editing components organized by category
  */
 
-export { MaskCanvas } from './mask-canvas';
-export type { MaskCanvasProps } from './mask-canvas';
+// Core components - Main editor panel and preview
+export { ImageEditorPanel } from './core/image-editor-panel';
+export type { ImageEditorPanelProps } from './core/image-editor-panel';
 
-export { ImageCropper } from './image-cropper';
-export type { ImageCropperProps } from './image-cropper';
+export { ImagePreview } from './core/image-preview';
+export type { ImagePreviewProps, ComparisonMode as ImagePreviewComparisonMode } from './core/image-preview';
 
-export { ImageAdjustmentsPanel } from './image-adjustments';
-export type { ImageAdjustmentsProps } from './image-adjustments';
+export { ImageComparison } from './core/image-comparison';
+export type { ImageComparisonProps, ComparisonMode } from './core/image-comparison';
 
-export { ImageUpscaler } from './image-upscaler';
-export type { ImageUpscalerProps } from './image-upscaler';
+// Tools - Editing tools (mask, crop, drawing, text)
+export { MaskCanvas } from './tools/mask-canvas';
+export type { MaskCanvasProps } from './tools/mask-canvas';
 
-export { BackgroundRemover } from './background-remover';
-export type { BackgroundRemoverProps } from './background-remover';
+export { ImageCropper } from './tools/image-cropper';
+export type { ImageCropperProps } from './tools/image-cropper';
 
-export { ImageEditorPanel } from './image-editor-panel';
-export type { ImageEditorPanelProps } from './image-editor-panel';
+export { DrawingTools } from './tools/drawing-tools';
+export type { DrawingToolsProps, DrawingShape, ShapeType } from './tools/drawing-tools';
 
-export { BatchExportDialog } from './batch-export-dialog';
-export type { BatchExportDialogProps } from './batch-export-dialog';
+export { TextOverlay } from './tools/text-overlay';
+export type { TextOverlayProps, TextLayer } from './tools/text-overlay';
 
-// New components
-export { TextOverlay } from './text-overlay';
-export type { TextOverlayProps, TextLayer } from './text-overlay';
+// Adjustments - Image adjustments and filters
+export { ImageAdjustmentsPanel } from './adjustments/image-adjustments';
+export type { ImageAdjustmentsProps } from './adjustments/image-adjustments';
 
-export { DrawingTools } from './drawing-tools';
-export type { DrawingToolsProps, DrawingShape, ShapeType } from './drawing-tools';
+export { FiltersGallery } from './adjustments/filters-gallery';
+export type { FiltersGalleryProps, FilterPreset as GalleryFilterPreset } from './adjustments/filters-gallery';
 
-export { ImageComparison } from './image-comparison';
-export type { ImageComparisonProps, ComparisonMode } from './image-comparison';
+// AI - AI-powered features (upscaler, background remover)
+export { ImageUpscaler } from './ai/image-upscaler';
+export type { ImageUpscalerProps } from './ai/image-upscaler';
 
-export { LayersPanel } from './layers-panel';
-export type { LayersPanelProps, Layer, LayerType, BlendMode } from './layers-panel';
+export { BackgroundRemover } from './ai/background-remover';
+export type { BackgroundRemoverProps } from './ai/background-remover';
 
-export { HistoryPanel } from './history-panel';
-export type { HistoryPanelProps, HistoryEntry, HistoryOperationType } from './history-panel';
+// Panels - Side panels (layers, history)
+export { LayersPanel } from './panels/layers-panel';
+export type { LayersPanelProps, Layer, LayerType, BlendMode } from './panels/layers-panel';
 
-export { FiltersGallery } from './filters-gallery';
-export type { FiltersGalleryProps, FilterPreset as GalleryFilterPreset } from './filters-gallery';
+export { HistoryPanel } from './panels/history-panel';
+export type { HistoryPanelProps, HistoryEntry, HistoryOperationType } from './panels/history-panel';
 
-export { ImagePreview } from './image-preview';
-export type { ImagePreviewProps, ComparisonMode as ImagePreviewComparisonMode } from './image-preview';
+// Export - Batch export functionality
+export { BatchExportDialog } from './export/batch-export-dialog';
+export type { BatchExportDialogProps } from './export/batch-export-dialog';
 
 // Re-export types from centralized types
 export type {

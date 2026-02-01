@@ -54,6 +54,7 @@ import {
 import { PromptOptimizerDialog, PromptOptimizationHub } from '@/components/prompt';
 import { WorkflowPickerDialog } from '../workflow/workflow-picker-dialog';
 import { ArenaDialog, ArenaBattleView, ArenaChatView } from '@/components/arena';
+import { MultiColumnChat } from './multi-column-chat';
 import {
   WorkflowResultCard,
   type WorkflowResultData,
@@ -1976,6 +1977,25 @@ Be thorough in your thinking but concise in your final answer.`;
             sessionId={activeSessionId || undefined}
             systemPrompt={activePreset?.systemPrompt}
             initialPrompt={inputValue}
+          />
+        </div>
+      ) : session?.multiModelConfig?.enabled && session.multiModelConfig.models.length >= 2 ? (
+        /* Multi-Model Arena Chat View */
+        <div className="flex-1 min-h-0">
+          <MultiColumnChat
+            sessionId={activeSessionId || ''}
+            models={session.multiModelConfig.models}
+            onModelsChange={(models) => {
+              if (session) {
+                updateSession(session.id, {
+                  multiModelConfig: {
+                    ...session.multiModelConfig!,
+                    models,
+                  },
+                });
+              }
+            }}
+            systemPrompt={session.systemPrompt || activePreset?.systemPrompt}
           />
         </div>
       ) : (

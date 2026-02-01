@@ -1,12 +1,15 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, TrendingUp, PieChart, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { DollarSign, TrendingUp, TrendingDown, PieChart, AlertCircle, Calendar, Target } from 'lucide-react';
 import { ProviderChart, UsageTrendChart } from './charts';
 import type { MetricsData, TimeRange } from './observability-dashboard';
 import type { TimeSeriesDataPoint } from '@/lib/ai/usage-analytics';
+import { cn } from '@/lib/utils';
 
 interface CostAnalysisProps {
   metrics: MetricsData | null;
@@ -55,6 +58,17 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
     : 0;
 
   const totalProviderCost = Object.values(metrics.costByProvider).reduce((a, b) => a + b, 0);
+
+  // Calculate cost trend from time series
+  const costTrend = (() => {
+    if (timeSeries.length < 2) return 0;
+    const mid = Math.floor(timeSeries.length / 2);
+    const firstHalf = timeSeries.slice(0, mid);
+    const secondHalf = timeSeries.slice(mid);
+    const firstAvg = firstHalf.reduce((sum, p) => sum + p.cost, 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((sum, p) => sum + p.cost, 0) / secondHalf.length;
+    return firstAvg > 0 ? ((secondAvg - firstAvg) / firstAvg) * 100 : 0;
+  })();
 
   return (
     <div className="space-y-4">
@@ -126,13 +140,17 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Cost by Provider with Progress Bars */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">{t('costByProvider')}</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              {t('costByProvider')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ScrollArea className="max-h-64">
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {Object.entries(metrics.costByProvider).length === 0 ? (
                   <p className="text-sm text-muted-foreground">{t('noData')}</p>
                 ) : (
@@ -141,18 +159,17 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
                     .map(([provider, cost]) => {
                       const percentage = totalProviderCost > 0 ? (cost / totalProviderCost) * 100 : 0;
                       return (
-                        <div key={provider}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm capitalize">{provider}</span>
-                            <span className="font-medium">${cost.toFixed(4)}</span>
+                        <div key={provider} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="capitalize text-xs">
+                                {provider}
+                              </Badge>
+                            </div>
+                            <span className="font-medium text-sm">${cost.toFixed(4)}</span>
                           </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full transition-all"
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
+                          <Progress value={percentage} className="h-2" />
+                          <div className="text-xs text-muted-foreground">
                             {t('percentOfTotal', { percent: percentage.toFixed(1) })}
                           </div>
                         </div>
@@ -164,37 +181,54 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
           </CardContent>
         </Card>
 
+        {/* Cost Breakdown Summary */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">{t('costBreakdown')}</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              {t('costBreakdown')}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {t('costSummaryDesc') || 'Summary of costs for the selected period'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">{t('apiCosts')}</span>
-                  <span className="font-bold">${metrics.totalCost.toFixed(4)}</span>
+              {/* Main cost display */}
+              <div className={cn(
+                'p-4 rounded-lg border-2 text-center',
+                metrics.totalCost > 1 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : 'border-green-200 bg-green-50 dark:bg-green-950/20'
+              )}>
+                <div className="text-3xl font-bold">${metrics.totalCost.toFixed(4)}</div>
+                <div className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
+                  {costTrend > 0 ? (
+                    <TrendingUp className="h-3 w-3 text-red-500" />
+                  ) : costTrend < 0 ? (
+                    <TrendingDown className="h-3 w-3 text-green-500" />
+                  ) : null}
+                  {t('apiCosts')}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {t('costBreakdownDesc', {
-                    requests: metrics.totalRequests.toLocaleString(),
-                    tokens: metrics.totalTokens.toLocaleString(),
-                  })}
-                </p>
               </div>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t('totalRequests')}</span>
-                  <span>{metrics.totalRequests.toLocaleString()}</span>
+              {/* Stats grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <div className="text-lg font-semibold">{metrics.totalRequests.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">{t('totalRequests')}</div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t('totalTokens')}</span>
-                  <span>{metrics.totalTokens.toLocaleString()}</span>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <div className="text-lg font-semibold">
+                    {metrics.totalTokens >= 1000 ? `${(metrics.totalTokens / 1000).toFixed(1)}K` : metrics.totalTokens}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{t('totalTokens')}</div>
                 </div>
+              </div>
+
+              {/* Efficiency metric */}
+              <div className="p-3 border rounded-lg">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t('avgTokensPerRequest')}</span>
-                  <span>
+                  <span className="text-sm text-muted-foreground">{t('avgTokensPerRequest')}</span>
+                  <span className="font-medium">
                     {metrics.totalRequests > 0
                       ? Math.round(metrics.totalTokens / metrics.totalRequests).toLocaleString()
                       : 0}

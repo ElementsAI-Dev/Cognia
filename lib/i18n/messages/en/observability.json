@@ -26,6 +26,7 @@
 
     "dashboard": {
       "title": "Observability Dashboard",
+      "subtitle": "Monitor AI usage and performance",
       "disabledTitle": "Observability Disabled",
       "disabledDescription": "Enable observability in settings to track AI operations, view traces, and analyze costs.",
       "totalRequests": "Total Requests",
@@ -38,6 +39,8 @@
       "noTraces": "No traces yet. Start using AI features to see traces here.",
       "selectTrace": "Select a trace to view details",
       "traceRunning": "Running...",
+      "autoRefresh": "Auto",
+      "refresh": "Refresh",
       "tabs": {
         "overview": "Overview",
         "traces": "Traces",
@@ -72,7 +75,47 @@
       "modelUsage": "Model Usage",
       "tokensByModel": "Tokens by Model",
       "costByModel": "Cost by Model",
-      "requestsByModel": "Requests by Model"
+      "requestsByModel": "Requests by Model",
+      "latencyDistribution": "Latency Distribution",
+      "requestsTimeline": "Requests Timeline",
+      "tokenBreakdown": "Token Breakdown",
+      "inputTokens": "Input Tokens",
+      "outputTokens": "Output Tokens",
+      "ratio": "I/O Ratio",
+      "requests": "Requests",
+      "cost": "Cost",
+      "efficiencyRadar": "Efficiency Overview",
+      "costEfficiency": "Cost Efficiency",
+      "tokenEfficiency": "Token Efficiency",
+      "latencyScore": "Latency",
+      "reliability": "Reliability",
+      "utilization": "Utilization",
+      "overallScore": "Overall"
+    },
+
+    "sessions": {
+      "title": "Top Sessions",
+      "noSessions": "No session data available",
+      "sessions": "sessions",
+      "totalTokens": "Tokens",
+      "totalCost": "Cost",
+      "requests": "Requests",
+      "showingTop": "Showing top {count} of {total} sessions"
+    },
+
+    "efficiency": {
+      "title": "Cost Efficiency",
+      "efficiencyScore": "Efficiency Score",
+      "excellent": "Excellent",
+      "good": "Good",
+      "moderate": "Moderate",
+      "needsImprovement": "Needs Improvement",
+      "costPerKToken": "Cost / 1K Tokens",
+      "tokensPerDollar": "Tokens / $1",
+      "mostEfficient": "Most Efficient",
+      "leastEfficient": "Least Efficient",
+      "potentialSavings": "Potential Savings",
+      "savingsHint": "By using more cost-effective models for applicable tasks"
     },
 
     "recommendations": {
@@ -107,6 +150,9 @@
       "p50": "P50",
       "p90": "P90",
       "p99": "P99",
+      "median": "Median",
+      "90thPercentile": "90th Percentile",
+      "99thPercentile": "99th Percentile",
       "requestsByProvider": "Requests by Provider",
       "requestsByModel": "Requests by Model",
       "tokensByProvider": "Tokens by Provider"

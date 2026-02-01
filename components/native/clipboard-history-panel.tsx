@@ -79,17 +79,48 @@ export function ClipboardHistoryPanel({
   }, [checkAndUpdate]);
 
   return (
-    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden', className)}>
-      <div className="flex items-center gap-2 p-2 sm:p-3 border-b shrink-0">
+    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b bg-muted/30 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10">
+            <Clipboard className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold leading-none">{t('title') || 'Clipboard History'}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {t('itemCount', { count: history.length })}
+            </p>
+          </div>
+        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => fetchHistory()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('refresh')}</TooltipContent>
+        </Tooltip>
+      </div>
+
+      {/* Search */}
+      <div className="flex items-center gap-2 p-3 border-b shrink-0">
         <InputGroup className="flex-1">
           <InputGroupAddon align="inline-start">
-            <Search className="h-4 w-4" />
+            <Search className="h-4 w-4 text-muted-foreground" />
           </InputGroupAddon>
           <InputGroupInput
             placeholder={t('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            className="h-9"
           />
           {searchQuery && (
             <InputGroupAddon align="inline-end">
@@ -103,19 +134,6 @@ export function ClipboardHistoryPanel({
             </InputGroupAddon>
           )}
         </InputGroup>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => fetchHistory()}
-              disabled={isLoading}
-            >
-              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('refresh')}</TooltipContent>
-        </Tooltip>
       </div>
 
       {pinnedItems.length > 0 && !searchResults && (
@@ -162,16 +180,15 @@ export function ClipboardHistoryPanel({
         </div>
       </ScrollArea>
 
-      <div className="p-2 border-t flex justify-between items-center shrink-0">
-        <span className="text-xs text-muted-foreground">
-          {t('itemCount', { count: history.length })}
-        </span>
+      {/* Footer */}
+      <div className="p-3 border-t bg-muted/20 flex justify-end items-center shrink-0">
         <Button
           variant="ghost"
           size="sm"
           onClick={clearUnpinned}
-          className="text-xs"
+          className="text-xs h-8 text-muted-foreground hover:text-destructive"
         >
+          <Trash2 className="h-3.5 w-3.5 mr-1.5" />
           {t('clearUnpinned')}
         </Button>
       </div>
@@ -199,68 +216,101 @@ function ClipboardItem({
   const getContentTypeIcon = (type: ClipboardEntry['content_type']) => {
     switch (type) {
       case 'Image':
-        return <ImageIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+        return <ImageIcon className="h-4 w-4" aria-hidden="true" />;
       case 'Files':
-        return <File className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+        return <File className="h-4 w-4" aria-hidden="true" />;
       default:
-        return <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+        return <FileText className="h-4 w-4" aria-hidden="true" />;
+    }
+  };
+
+  const getContentTypeBg = (type: ClipboardEntry['content_type']) => {
+    switch (type) {
+      case 'Image':
+        return 'bg-purple-500/10 text-purple-500';
+      case 'Files':
+        return 'bg-blue-500/10 text-blue-500';
+      default:
+        return 'bg-muted text-muted-foreground';
     }
   };
 
   return (
     <div
       className={cn(
-        'group flex items-start gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer',
-        isPinned && 'bg-muted/30'
+        'group flex items-start gap-3 p-3 rounded-lg cursor-pointer',
+        'border border-transparent transition-all duration-200',
+        'hover:bg-muted/50 hover:border-border/50',
+        isPinned && 'bg-amber-500/5 border-amber-500/20'
       )}
       onClick={onSelect}
     >
-      <div className="mt-0.5">{getContentTypeIcon(entry.content_type)}</div>
+      <div className={cn(
+        'flex items-center justify-center h-8 w-8 rounded-md shrink-0',
+        getContentTypeBg(entry.content_type)
+      )}>
+        {getContentTypeIcon(entry.content_type)}
+      </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm truncate">{entry.preview}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm font-medium truncate">{entry.preview}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
           {new Date(entry.timestamp).toLocaleTimeString()}
           {entry.source_app && ` · ${entry.source_app}`}
         </p>
       </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCopy();
-          }}
-        >
-          <Copy className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPin();
-          }}
-        >
-          {isPinned ? (
-            <PinOff className="h-3.5 w-3.5" />
-          ) : (
-            <Pin className="h-3.5 w-3.5" />
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-destructive"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy();
+              }}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">Copy</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPin();
+              }}
+            >
+              {isPinned ? (
+                <PinOff className="h-4 w-4" />
+              ) : (
+                <Pin className="h-4 w-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">{isPinned ? 'Unpin' : 'Pin'}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">Delete</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

@@ -29,9 +29,17 @@ import { Star, Download, User, Calendar, GitBranch, FileJson } from 'lucide-reac
 
 interface TemplatePreviewProps {
   template: WorkflowTemplate;
+  onUse?: (template: WorkflowTemplate) => void;
+  onClone?: (template: WorkflowTemplate) => void;
+  onExport?: (template: WorkflowTemplate) => void;
 }
 
-export function TemplatePreview({ template }: TemplatePreviewProps) {
+export function TemplatePreview({
+  template,
+  onUse,
+  onClone,
+  onExport,
+}: TemplatePreviewProps) {
   const t = useTranslations('marketplace.previewPanel');
   const tMarketplace = useTranslations('marketplace');
 
@@ -246,15 +254,30 @@ export function TemplatePreview({ template }: TemplatePreviewProps) {
 
         {/* Actions */}
         <div className="flex gap-2">
-          <Button size="lg" className="flex-1">
+          <Button
+            size="lg"
+            className="flex-1"
+            onClick={() => onUse?.(template)}
+            disabled={!onUse}
+          >
             {tMarketplace('useTemplate')}
           </Button>
-          <Button size="lg" variant="outline">
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => onClone?.(template)}
+            disabled={!onClone}
+          >
             {tMarketplace('cloneTemplate')}
           </Button>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button size="lg" variant="ghost">
+              <Button
+                size="lg"
+                variant="ghost"
+                onClick={() => onExport?.(template)}
+                disabled={!onExport}
+              >
                 <FileJson className="h-4 w-4 mr-2" />
                 {t('export')}
               </Button>

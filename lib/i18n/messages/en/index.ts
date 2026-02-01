@@ -42,6 +42,7 @@ import arena from './arena.json';
 import syncSettings from './syncSettings.json';
 import scheduler from './scheduler.json';
 import logging from './logging.json';
+import importMessages from './import.json';
 
 const messages = {
   ...common,
@@ -86,6 +87,7 @@ const messages = {
   syncSettings,
   scheduler,
   ...logging,
+  import: importMessages,
 };
 
 export default messages;

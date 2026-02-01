@@ -698,4 +698,278 @@ describe('useTemplateMarketStore', () => {
       consoleSpy.mockRestore();
     });
   });
+
+  describe('Initialization and Loading States', () => {
+    it('should have correct initial loading states', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      // Reset to test initial state
+      act(() => {
+        useTemplateMarketStore.setState({
+          isInitialized: false,
+          isLoading: false,
+          error: null,
+        });
+      });
+
+      expect(result.current.isInitialized).toBe(false);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+    });
+
+    it('should set loading state when loadBuiltInTemplates starts', async () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      // Reset state
+      act(() => {
+        useTemplateMarketStore.setState({
+          isInitialized: false,
+          isLoading: false,
+          error: null,
+          templates: {},
+          builtInTemplates: {},
+        });
+      });
+
+      // Start loading (don't await yet)
+      let loadPromise: Promise<void>;
+      act(() => {
+        loadPromise = result.current.loadBuiltInTemplates();
+      });
+
+      // isLoading should be true immediately after calling
+      expect(result.current.isLoading).toBe(true);
+
+      // Wait for completion
+      await act(async () => {
+        await loadPromise;
+      });
+
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isInitialized).toBe(true);
+    });
+
+    it('should not re-initialize if already initialized', async () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      // Set as already initialized
+      act(() => {
+        useTemplateMarketStore.setState({
+          isInitialized: true,
+          isLoading: false,
+        });
+      });
+
+      const templateCount = Object.keys(result.current.templates).length;
+
+      // Try to initialize again
+      await act(async () => {
+        await result.current.initialize();
+      });
+
+      // Should not change anything
+      expect(result.current.isInitialized).toBe(true);
+      expect(Object.keys(result.current.templates).length).toBe(templateCount);
+    });
+
+    it('should not start loading if already loading', async () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      // Set as currently loading
+      act(() => {
+        useTemplateMarketStore.setState({
+          isInitialized: false,
+          isLoading: true,
+        });
+      });
+
+      // Try to initialize - should be a no-op
+      await act(async () => {
+        await result.current.initialize();
+      });
+
+      // Still in loading state (the actual load would be handled by the first call)
+      expect(result.current.isLoading).toBe(true);
+    });
+  });
+
+  describe('Multiple Source Filtering', () => {
+    it('should filter by multiple sources', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+      const template1 = createMockTemplate({
+        id: 't1',
+        metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 0, ratingCount: 0, isOfficial: false },
+      });
+      const template2 = createMockTemplate({
+        id: 't2',
+        metadata: { source: 'built-in', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 0, ratingCount: 0, isOfficial: true },
+      });
+      const template3 = createMockTemplate({
+        id: 't3',
+        metadata: { source: 'git', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 0, ratingCount: 0, isOfficial: false },
+      });
+
+      act(() => {
+        useTemplateMarketStore.setState({
+          templates: { [template1.id]: template1, [template2.id]: template2, [template3.id]: template3 },
+          filters: { source: ['user', 'git'] },
+        });
+      });
+
+      const filtered = result.current.getFilteredTemplates();
+      expect(filtered).toHaveLength(2);
+      expect(filtered.map((t) => t.metadata.source)).toContain('user');
+      expect(filtered.map((t) => t.metadata.source)).toContain('git');
+      expect(filtered.map((t) => t.metadata.source)).not.toContain('built-in');
+    });
+
+    it('should combine source and rating filters', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+      const template1 = createMockTemplate({
+        id: 't1',
+        metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 4.5, ratingCount: 10, isOfficial: false },
+      });
+      const template2 = createMockTemplate({
+        id: 't2',
+        metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 3.0, ratingCount: 5, isOfficial: false },
+      });
+      const template3 = createMockTemplate({
+        id: 't3',
+        metadata: { source: 'built-in', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 5.0, ratingCount: 100, isOfficial: true },
+      });
+
+      act(() => {
+        useTemplateMarketStore.setState({
+          templates: { [template1.id]: template1, [template2.id]: template2, [template3.id]: template3 },
+          filters: { source: ['user'], minRating: 4.0 },
+        });
+      });
+
+      const filtered = result.current.getFilteredTemplates();
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].id).toBe('t1');
+    });
+
+    it('should combine category, source, and search query filters', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+      const template1 = createMockTemplate({
+        id: 't1',
+        name: 'Data Pipeline',
+        category: 'automation',
+        metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 4.0, ratingCount: 10, isOfficial: false },
+      });
+      const template2 = createMockTemplate({
+        id: 't2',
+        name: 'Data Processor',
+        category: 'automation',
+        metadata: { source: 'built-in', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 4.5, ratingCount: 20, isOfficial: true },
+      });
+      const template3 = createMockTemplate({
+        id: 't3',
+        name: 'Email Sender',
+        category: 'automation',
+        metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 3.5, ratingCount: 5, isOfficial: false },
+      });
+
+      act(() => {
+        useTemplateMarketStore.setState({
+          templates: { [template1.id]: template1, [template2.id]: template2, [template3.id]: template3 },
+          filters: { category: 'automation', source: ['user'] },
+          searchQuery: 'data',
+        });
+      });
+
+      const filtered = result.current.getFilteredTemplates();
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].id).toBe('t1');
+    });
+  });
+
+  describe('Date Rehydration', () => {
+    it('should handle persisted state with stringified dates in getFilteredTemplates', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      // Simulate templates with proper Date objects
+      const template1 = createMockTemplate({
+        id: 'date-test-1',
+        name: 'Older Template',
+        metadata: {
+          source: 'user',
+          createdAt: new Date('2024-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+          usageCount: 0,
+          rating: 0,
+          ratingCount: 0,
+          isOfficial: false,
+        },
+      });
+      const template2 = createMockTemplate({
+        id: 'date-test-2',
+        name: 'Newer Template',
+        metadata: {
+          source: 'user',
+          createdAt: new Date('2024-06-01T00:00:00.000Z'),
+          updatedAt: new Date('2024-06-01T00:00:00.000Z'),
+          usageCount: 0,
+          rating: 0,
+          ratingCount: 0,
+          isOfficial: false,
+        },
+      });
+
+      act(() => {
+        result.current.setTemplates([template1, template2]);
+        result.current.setFilters({ sortBy: 'date', sortOrder: 'asc' });
+      });
+
+      // This should not throw - the dates should be proper Date objects
+      const filtered = result.current.getFilteredTemplates();
+      expect(filtered).toHaveLength(2);
+      expect(filtered[0].id).toBe('date-test-1'); // Older first (asc)
+      expect(filtered[1].id).toBe('date-test-2');
+
+      // Verify dates are Date objects
+      expect(filtered[0].metadata.createdAt).toBeInstanceOf(Date);
+      expect(filtered[1].metadata.createdAt).toBeInstanceOf(Date);
+    });
+
+    it('should correctly sort templates by date after simulated rehydration', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      // Create templates with Date objects
+      const template1 = createMockTemplate({
+        id: 'sort-date-1',
+        metadata: {
+          source: 'user',
+          createdAt: new Date('2024-03-15'),
+          updatedAt: new Date('2024-03-15'),
+          usageCount: 5,
+          rating: 4.0,
+          ratingCount: 10,
+          isOfficial: false,
+        },
+      });
+      const template2 = createMockTemplate({
+        id: 'sort-date-2',
+        metadata: {
+          source: 'user',
+          createdAt: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+          usageCount: 10,
+          rating: 3.0,
+          ratingCount: 20,
+          isOfficial: false,
+        },
+      });
+
+      act(() => {
+        result.current.setTemplates([template1, template2]);
+        result.current.setFilters({ sortBy: 'date', sortOrder: 'desc' });
+      });
+
+      const filtered = result.current.getFilteredTemplates();
+      expect(filtered[0].id).toBe('sort-date-1'); // Newer first (desc)
+      expect(filtered[1].id).toBe('sort-date-2');
+    });
+  });
 });

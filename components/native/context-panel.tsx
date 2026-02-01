@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Folder,
   GitBranch,
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -62,17 +63,28 @@ export function ContextPanel({ className }: ContextPanelProps) {
   };
 
   return (
-    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden', className)}>
-      <div className="flex items-center justify-between p-2 sm:p-3 border-b shrink-0">
-        <div className="flex items-center gap-2">
-          <Monitor className="h-5 w-5" />
-          <span className="font-medium">{t('title')}</span>
+    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b bg-muted/30 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
+            <Eye className="h-4 w-4 text-blue-500" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold leading-none">{t('title')}</h3>
+            {context?.window && (
+              <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">
+                {context.window.process_name}
+              </p>
+            )}
+          </div>
         </div>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8"
               onClick={() => fetchContext()}
               disabled={isLoading}
             >

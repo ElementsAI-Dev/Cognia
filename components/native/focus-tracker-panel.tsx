@@ -53,36 +53,56 @@ export function FocusTrackerPanel({ className }: FocusTrackerPanelProps) {
   const totalTodayMs = todaySummary?.total_active_ms ?? 0;
 
   return (
-    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden', className)}>
-      <div className="flex items-center justify-between p-2 sm:p-3 border-b shrink-0">
-        <div className="flex items-center gap-2">
-          <Monitor className="h-5 w-5" />
-          <span className="font-medium">{t('title')}</span>
+    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b bg-muted/30 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className={cn(
+            'flex items-center justify-center h-8 w-8 rounded-lg',
+            isTracking ? 'bg-green-500/10' : 'bg-muted'
+          )}>
+            <Monitor className={cn('h-4 w-4', isTracking ? 'text-green-500' : 'text-muted-foreground')} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold leading-none">{t('title')}</h3>
+              {isTracking && (
+                <span className="flex items-center gap-1 text-xs text-green-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Active
+                </span>
+              )}
+            </div>
+            {todaySummary && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {formatDuration(todaySummary.total_active_ms)} today
+              </p>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={isTracking ? 'destructive' : 'default'}
-                size="sm"
-                onClick={isTracking ? stopTracking : startTracking}
-              >
-                {isTracking ? (
-                  <>
-                    <Pause className="h-4 w-4 mr-1" />
-                    {t('stop')}
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4 mr-1" />
-                    {t('start')}
-                  </>
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('toggleTracking')}</TooltipContent>
-          </Tooltip>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={isTracking ? 'destructive' : 'default'}
+              size="sm"
+              className="h-8"
+              onClick={isTracking ? stopTracking : startTracking}
+            >
+              {isTracking ? (
+                <>
+                  <Pause className="h-4 w-4 mr-1.5" />
+                  {t('stop')}
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-1.5" />
+                  {t('start')}
+                </>
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('toggleTracking')}</TooltipContent>
+        </Tooltip>
       </div>
 
       <ScrollArea className="flex-1 min-h-0">

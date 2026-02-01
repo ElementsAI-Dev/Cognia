@@ -22,6 +22,7 @@ import {
   Filter,
   Calendar,
   Timer,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,20 +60,7 @@ import { cn } from '@/lib/utils';
 import { workflowRepository } from '@/lib/db/repositories';
 import { toast } from 'sonner';
 import { useWorkflowEditorStore } from '@/stores/workflow';
-
-// Execution record type (matches repository)
-interface WorkflowExecutionRecord {
-  id: string;
-  workflowId: string;
-  status: string;
-  input?: Record<string, unknown>;
-  output?: Record<string, unknown>;
-  nodeStates?: Record<string, unknown>;
-  logs?: Array<{ timestamp: Date; level: string; message: string }>;
-  error?: string;
-  startedAt: Date;
-  completedAt?: Date;
-}
+import type { WorkflowExecutionHistoryRecord } from '@/types/workflow/workflow-editor';
 
 interface WorkflowExecutionHistoryPanelProps {
   className?: string;
@@ -88,7 +76,7 @@ export function WorkflowExecutionHistoryPanel({
 
   const effectiveWorkflowId = workflowId || currentWorkflow?.id;
 
-  const [executions, setExecutions] = useState<WorkflowExecutionRecord[]>([]);
+  const [executions, setExecutions] = useState<WorkflowExecutionHistoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedExecution, setExpandedExecution] = useState<string | null>(null);
@@ -122,24 +110,37 @@ export function WorkflowExecutionHistoryPanel({
     return executions.filter((e) => e.status === statusFilter);
   }, [executions, statusFilter]);
 
-  // Group executions by date
+  // Group executions by date with stable sorting
   const groupedExecutions = useMemo(() => {
-    const groups: Record<string, WorkflowExecutionRecord[]> = {};
+    // Sort executions by startedAt descending (newest first)
+    const sortedExecutions = [...filteredExecutions].sort(
+      (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+    );
 
-    filteredExecutions.forEach((execution) => {
+    const groups: Record<string, WorkflowExecutionHistoryRecord[]> = {};
+    const dateOrder: string[] = [];
+
+    sortedExecutions.forEach((execution) => {
       const date = new Date(execution.startedAt).toLocaleDateString();
       if (!groups[date]) {
         groups[date] = [];
+        dateOrder.push(date);
       }
       groups[date].push(execution);
     });
 
-    return groups;
+    // Return as ordered object (Map would be better but Object.entries preserves insertion order)
+    const orderedGroups: Record<string, WorkflowExecutionHistoryRecord[]> = {};
+    dateOrder.forEach((date) => {
+      orderedGroups[date] = groups[date];
+    });
+
+    return orderedGroups;
   }, [filteredExecutions]);
 
   // Re-run with same input
   const handleRerun = useCallback(
-    (execution: WorkflowExecutionRecord) => {
+    (execution: WorkflowExecutionHistoryRecord) => {
       startExecution(execution.input || {});
     },
     [startExecution]
@@ -150,18 +151,22 @@ export function WorkflowExecutionHistoryPanel({
     if (!executionToDelete) return;
 
     try {
-      // Note: Repository doesn't have delete single execution method
-      // For now, we just remove from local state
-      setExecutions((prev) => prev.filter((e) => e.id !== executionToDelete));
+      const deleted = await workflowRepository.deleteExecution(executionToDelete);
+      if (deleted) {
+        setExecutions((prev) => prev.filter((e) => e.id !== executionToDelete));
+        toast.success(t('executionDeleted') || 'Execution deleted');
+      } else {
+        toast.error(t('executionNotFound') || 'Execution not found');
+      }
     } catch (error) {
-      toast.error('Failed to delete execution', {
+      toast.error(t('deleteExecutionFailed') || 'Failed to delete execution', {
         description: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
       setExecutionToDelete(null);
       setDeleteDialogOpen(false);
     }
-  }, [executionToDelete]);
+  }, [executionToDelete, t]);
 
   // Format duration
   const formatDuration = (start: Date, end?: Date) => {
@@ -185,6 +190,10 @@ export function WorkflowExecutionHistoryPanel({
         return <Clock className="h-4 w-4 text-yellow-500" />;
       case 'paused':
         return <Clock className="h-4 w-4 text-orange-500" />;
+      case 'cancelled':
+        return <XCircle className="h-4 w-4 text-gray-500" />;
+      case 'idle':
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
       default:
         return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
@@ -199,6 +208,11 @@ export function WorkflowExecutionHistoryPanel({
         return 'destructive';
       case 'running':
         return 'secondary';
+      case 'pending':
+      case 'paused':
+        return 'secondary';
+      case 'cancelled':
+        return 'outline';
       default:
         return 'outline';
     }
@@ -221,11 +235,12 @@ export function WorkflowExecutionHistoryPanel({
                   className="h-8 w-8"
                   onClick={loadExecutions}
                   disabled={isLoading}
+                  aria-label={t('refresh')}
                 >
                   <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
+              <TooltipContent>{t('refresh')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -235,14 +250,16 @@ export function WorkflowExecutionHistoryPanel({
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-8 text-sm flex-1">
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="running">Running</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="all">{t('allStatuses')}</SelectItem>
+              <SelectItem value="completed">{t('statusCompleted')}</SelectItem>
+              <SelectItem value="failed">{t('statusFailed')}</SelectItem>
+              <SelectItem value="running">{t('statusRunning')}</SelectItem>
+              <SelectItem value="pending">{t('statusPending')}</SelectItem>
+              <SelectItem value="paused">{t('statusPaused')}</SelectItem>
+              <SelectItem value="cancelled">{t('statusCancelled')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -297,6 +314,7 @@ export function WorkflowExecutionHistoryPanel({
                         formatDuration={formatDuration}
                         getStatusIcon={getStatusIcon}
                         getStatusVariant={getStatusVariant}
+                        t={t}
                       />
                     ))}
                   </div>
@@ -311,19 +329,18 @@ export function WorkflowExecutionHistoryPanel({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Execution Record?</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteExecutionTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this execution record and its logs.
-              This action cannot be undone.
+              {t('deleteExecutionDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancelAction')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground"
             >
-              Delete
+              {t('deleteExecution')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -333,7 +350,7 @@ export function WorkflowExecutionHistoryPanel({
 }
 
 interface ExecutionItemProps {
-  execution: WorkflowExecutionRecord;
+  execution: WorkflowExecutionHistoryRecord;
   isExpanded: boolean;
   onToggle: () => void;
   onRerun: () => void;
@@ -341,6 +358,7 @@ interface ExecutionItemProps {
   formatDuration: (start: Date, end?: Date) => string;
   getStatusIcon: (status: string) => React.ReactNode;
   getStatusVariant: (status: string) => 'default' | 'destructive' | 'secondary' | 'outline';
+  t: (key: string) => string;
 }
 
 function ExecutionItem({
@@ -352,6 +370,7 @@ function ExecutionItem({
   formatDuration,
   getStatusIcon,
   getStatusVariant,
+  t,
 }: ExecutionItemProps) {
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
@@ -390,6 +409,7 @@ function ExecutionItem({
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
+                      aria-label={t('rerunWithSameInput')}
                       onClick={(e) => {
                         e.stopPropagation();
                         onRerun();
@@ -398,7 +418,7 @@ function ExecutionItem({
                       <RotateCcw className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Re-run with same input</TooltipContent>
+                  <TooltipContent>{t('rerunWithSameInput')}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
 
@@ -417,7 +437,7 @@ function ExecutionItem({
             {/* Error message */}
             {execution.error && (
               <div className="p-2 bg-destructive/10 border border-destructive/20 rounded-md">
-                <p className="text-xs text-destructive font-medium">Error</p>
+                <p className="text-xs text-destructive font-medium">{t('error')}</p>
                 <p className="text-xs text-destructive/80 mt-1">{execution.error}</p>
               </div>
             )}
@@ -425,7 +445,21 @@ function ExecutionItem({
             {/* Input */}
             {execution.input && Object.keys(execution.input).length > 0 && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Input</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-medium text-muted-foreground">{t('input')}</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    aria-label={t('copyToClipboard')}
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(execution.input, null, 2));
+                      toast.success(t('copied'));
+                    }}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
                 <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
                   {JSON.stringify(execution.input, null, 2)}
                 </pre>
@@ -435,7 +469,21 @@ function ExecutionItem({
             {/* Output */}
             {execution.output && Object.keys(execution.output).length > 0 && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Output</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-medium text-muted-foreground">{t('output')}</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    aria-label={t('copyToClipboard')}
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(execution.output, null, 2));
+                      toast.success(t('copied'));
+                    }}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
                 <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto max-h-40 overflow-y-auto">
                   {JSON.stringify(execution.output, null, 2)}
                 </pre>
@@ -445,9 +493,23 @@ function ExecutionItem({
             {/* Logs */}
             {execution.logs && execution.logs.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  Logs ({execution.logs.length})
-                </p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {t('logs')} ({execution.logs.length})
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    aria-label={t('copyToClipboard')}
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(execution.logs, null, 2));
+                      toast.success(t('copied'));
+                    }}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
                 <div className="bg-muted rounded-md p-2 max-h-32 overflow-y-auto space-y-1">
                   {execution.logs.slice(-10).map((log, i) => (
                     <div key={i} className="flex items-start gap-2 text-xs">
@@ -458,7 +520,7 @@ function ExecutionItem({
                         variant={
                           log.level === 'error'
                             ? 'destructive'
-                            : log.level === 'warning'
+                            : log.level === 'warn'
                             ? 'secondary'
                             : 'outline'
                         }
@@ -482,7 +544,7 @@ function ExecutionItem({
                 onClick={onRerun}
               >
                 <Play className="h-3 w-3 mr-1" />
-                Re-run
+                {t('rerun')}
               </Button>
               <Button
                 variant="ghost"
@@ -491,7 +553,7 @@ function ExecutionItem({
                 onClick={onDelete}
               >
                 <Trash2 className="h-3 w-3 mr-1" />
-                Delete
+                {t('deleteExecution')}
               </Button>
             </div>
           </div>

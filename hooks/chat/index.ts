@@ -62,3 +62,4 @@ export {
   type UseInputCompletionUnifiedOptions,
   type UseInputCompletionUnifiedReturn,
 } from './use-input-completion-unified';
+export { useMultiModelChat } from './use-multi-model-chat';

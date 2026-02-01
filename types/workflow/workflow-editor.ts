@@ -502,7 +502,7 @@ export interface ExecutionLog {
 export interface WorkflowExecutionState {
   executionId: string;
   workflowId: string;
-  status: 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  status: EditorExecutionStatus;
   progress: number;
   currentNodeId?: string;
   nodeStates: Record<string, NodeExecutionState>;
@@ -513,6 +513,35 @@ export interface WorkflowExecutionState {
   output?: Record<string, unknown>;
   error?: string;
   logs: ExecutionLog[];
+}
+
+/**
+ * Editor execution status (distinct from workflow execution status)
+ */
+export type EditorExecutionStatus =
+  | 'idle'
+  | 'pending'
+  | 'running'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+/**
+ * Workflow execution history record (persisted to database)
+ * Used for execution history panel display
+ */
+export interface WorkflowExecutionHistoryRecord {
+  id: string;
+  workflowId: string;
+  status: EditorExecutionStatus;
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  nodeStates?: Record<string, NodeExecutionState>;
+  logs?: ExecutionLog[];
+  error?: string;
+  startedAt: Date;
+  completedAt?: Date;
 }
 
 // =====================

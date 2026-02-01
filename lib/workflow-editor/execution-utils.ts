@@ -217,6 +217,7 @@ export function exportExecutionState(state: WorkflowExecutionState): string {
 export function formatExecutionStatus(status: WorkflowExecutionState['status']): string {
   const statusMap: Record<WorkflowExecutionState['status'], string> = {
     idle: 'Idle',
+    pending: 'Pending',
     running: 'Running',
     paused: 'Paused',
     completed: 'Completed',
@@ -235,6 +236,7 @@ export function getStatusColor(
 ): string {
   const colorMap: Record<WorkflowExecutionState['status'], string> = {
     idle: 'gray',
+    pending: 'orange',
     running: 'blue',
     paused: 'yellow',
     completed: 'green',

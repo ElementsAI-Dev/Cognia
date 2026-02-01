@@ -26,6 +26,7 @@
 
     "dashboard": {
       "title": "可观测性仪表板",
+      "subtitle": "监控 AI 使用情况和性能",
       "disabledTitle": "可观测性已禁用",
       "disabledDescription": "在设置中启用可观测性以追踪 AI 操作、查看链路追踪和分析成本。",
       "totalRequests": "总请求数",
@@ -38,6 +39,8 @@
       "noTraces": "暂无追踪记录。开始使用 AI 功能后将在此显示追踪信息。",
       "selectTrace": "选择一个追踪以查看详情",
       "traceRunning": "运行中...",
+      "autoRefresh": "自动",
+      "refresh": "刷新",
       "tabs": {
         "overview": "概览",
         "traces": "追踪",
@@ -72,7 +75,47 @@
       "modelUsage": "模型使用",
       "tokensByModel": "按模型 Token 数",
       "costByModel": "按模型成本",
-      "requestsByModel": "按模型请求数"
+      "requestsByModel": "按模型请求数",
+      "latencyDistribution": "延迟分布",
+      "requestsTimeline": "请求时间线",
+      "tokenBreakdown": "Token 构成",
+      "inputTokens": "输入 Token",
+      "outputTokens": "输出 Token",
+      "ratio": "输入/输出比",
+      "requests": "请求",
+      "cost": "成本",
+      "efficiencyRadar": "效率概览",
+      "costEfficiency": "成本效率",
+      "tokenEfficiency": "Token 效率",
+      "latencyScore": "延迟",
+      "reliability": "可靠性",
+      "utilization": "利用率",
+      "overallScore": "综合"
+    },
+
+    "sessions": {
+      "title": "热门会话",
+      "noSessions": "暂无会话数据",
+      "sessions": "个会话",
+      "totalTokens": "Token",
+      "totalCost": "成本",
+      "requests": "请求",
+      "showingTop": "显示前 {count} 个（共 {total} 个会话）"
+    },
+
+    "efficiency": {
+      "title": "成本效率",
+      "efficiencyScore": "效率评分",
+      "excellent": "优秀",
+      "good": "良好",
+      "moderate": "中等",
+      "needsImprovement": "待优化",
+      "costPerKToken": "每千 Token 成本",
+      "tokensPerDollar": "每美元 Token 数",
+      "mostEfficient": "最高效",
+      "leastEfficient": "最低效",
+      "potentialSavings": "潜在节省",
+      "savingsHint": "通过为适用任务使用更具成本效益的模型"
     },
 
     "recommendations": {
@@ -107,6 +150,9 @@
       "p50": "P50",
       "p90": "P90",
       "p99": "P99",
+      "median": "中位数",
+      "90thPercentile": "90% 分位",
+      "99thPercentile": "99% 分位",
       "requestsByProvider": "按提供商请求数",
       "requestsByModel": "按模型请求数",
       "tokensByProvider": "按提供商 Token 数"

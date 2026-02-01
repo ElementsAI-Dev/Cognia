@@ -18,9 +18,20 @@ export { LogPanel as UnifiedLogPanel } from '@/components/logging';
 export { StatCard } from './stat-card';
 export { EmptyState } from './empty-state';
 export { RecommendationsPanel } from './recommendations-panel';
+export { SessionAnalyticsPanel } from './session-analytics-panel';
+export { EfficiencyMetricsCard } from './efficiency-metrics-card';
 
 // Charts
-export { UsageTrendChart, ProviderChart, ModelChart } from './charts';
+export {
+  UsageTrendChart,
+  ProviderChart,
+  ModelChart,
+  LatencyDistributionChart,
+  EfficiencyRadarChart,
+  TokenBreakdownChart,
+  RequestsTimelineChart,
+  calculateEfficiencyScores,
+} from './charts';
 
 // Types
 export type { TraceData, SpanData, MetricsData, TimeRange } from './observability-dashboard';

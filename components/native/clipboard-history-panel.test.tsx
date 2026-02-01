@@ -5,8 +5,10 @@ import { ClipboardHistoryPanel } from './clipboard-history-panel';
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
     const translations: Record<string, string> = {
+      title: 'Clipboard History',
       searchPlaceholder: 'Search clipboard...',
       clearSearch: 'Clear search',
+      refresh: 'Refresh',
       pinned: 'Pinned',
       noResultsFound: 'No results found',
       noHistory: 'No clipboard history',
@@ -113,7 +115,12 @@ describe('ClipboardHistoryPanel', () => {
     expect(screen.getByText('Test content 2')).toBeInTheDocument();
   });
 
-  it('displays item count in footer', () => {
+  it('displays panel header with title', () => {
+    render(<ClipboardHistoryPanel />);
+    expect(screen.getByText('Clipboard History')).toBeInTheDocument();
+  });
+
+  it('displays item count in header', () => {
     render(<ClipboardHistoryPanel />);
     expect(screen.getByText('2 items')).toBeInTheDocument();
   });

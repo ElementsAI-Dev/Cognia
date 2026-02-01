@@ -68,9 +68,10 @@ export class GitIntegrationService {
       throw new Error(result.error || 'Failed to clone repository');
     }
 
-    // Track repository
+    // Track repository by local path
     this.repositories.set(destination, {
       url,
+      localPath: destination,
       branch: branch || this.config.defaultBranch,
       commit: result.data?.lastCommit?.hash || '',
       lastSyncAt: new Date(),
@@ -422,7 +423,8 @@ export class GitIntegrationService {
     const repos = this.getAllRepositories();
     for (const repo of repos) {
       try {
-        await this.pullChanges(repo.url);
+        // Use localPath for git operations, not URL
+        await this.pullChanges(repo.localPath);
       } catch (error) {
         log.error(`Failed to sync repository ${repo.url}`, error as Error);
       }

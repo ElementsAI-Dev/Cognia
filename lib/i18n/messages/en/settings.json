@@ -268,7 +268,9 @@
     "restartTour": "Restart Tour",
     "tourReset": "Tour has been reset. Reloading...",
     "indexedDB": "IndexedDB",
-    "usage": "Usage"
+    "usage": "Usage",
+    "importChatGPT": "Import ChatGPT",
+    "chatImportSuccess": "Imported {sessions} chats with {messages} messages"
   },
   "themeEditor": {
     "title": "Theme Editor",

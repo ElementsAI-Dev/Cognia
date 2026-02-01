@@ -1,0 +1,48 @@
+{
+  "title": "Import Conversations",
+  "description": "Import chat history from ChatGPT, Claude, Gemini or other sources",
+  "selectFile": "Click to select a file",
+  "supportedFormats": "Supports ChatGPT, Claude, and Gemini exports",
+  "formats": {
+    "chatgpt": "ChatGPT",
+    "claude": "Claude (Anthropic)",
+    "gemini": "Gemini (Google)",
+    "cognia": "Cognia Export",
+    "unknown": "Unknown Format"
+  },
+  "detected": "Detected format: {format}",
+  "platformHint": {
+    "chatgpt": "Export from ChatGPT: Settings > Data controls > Export data",
+    "claude": "Export from Claude: Settings > Privacy > Export data",
+    "gemini": "Export from Gemini: Use Google Takeout (takeout.google.com)"
+  },
+  "analyzing": "Analyzing file...",
+  "conversations": "conversations",
+  "messages": "messages",
+  "importing": "Importing...",
+  "importButton": "Import {count} conversations",
+  "back": "Back",
+  "importOptions": "Import Options",
+  "warnings": "Warnings",
+  "options": {
+    "preserveTimestamps": "Preserve timestamps",
+    "preserveTimestampsDesc": "Keep original creation dates from ChatGPT",
+    "generateNewIds": "Generate new IDs",
+    "generateNewIdsDesc": "Create new unique IDs for imported conversations"
+  },
+  "errors": {
+    "title": "Error",
+    "invalidJson": "Invalid JSON file format",
+    "unknownFormat": "Unknown file format. Please use a ChatGPT, Claude, or Gemini export file.",
+    "useCogniaImport": "This is a Cognia backup file. Use the standard Import button instead.",
+    "readFailed": "Failed to read file",
+    "importFailed": "Import failed",
+    "parseWarnings": "Some conversations could not be parsed",
+    "conversationsFailed": "conversations failed to import",
+    "importPartial": "Import completed with errors"
+  },
+  "success": {
+    "title": "Import Complete",
+    "description": "Successfully imported {sessions} conversations with {messages} messages"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "title": "导入对话",
+  "description": "从 ChatGPT、Claude、Gemini 或其他来源导入聊天记录",
+  "selectFile": "点击选择文件",
+  "supportedFormats": "支持 ChatGPT、Claude 和 Gemini 导出文件",
+  "formats": {
+    "chatgpt": "ChatGPT",
+    "claude": "Claude (Anthropic)",
+    "gemini": "Gemini (Google)",
+    "cognia": "Cognia 导出",
+    "unknown": "未知格式"
+  },
+  "detected": "检测到格式：{format}",
+  "platformHint": {
+    "chatgpt": "从 ChatGPT 导出：设置 > 数据控制 > 导出数据",
+    "claude": "从 Claude 导出：设置 > 隐私 > 导出数据",
+    "gemini": "从 Gemini 导出：使用 Google Takeout (takeout.google.com)"
+  },
+  "analyzing": "正在分析文件...",
+  "conversations": "个对话",
+  "messages": "条消息",
+  "importing": "正在导入...",
+  "importButton": "导入 {count} 个对话",
+  "back": "返回",
+  "importOptions": "导入选项",
+  "warnings": "警告",
+  "options": {
+    "preserveTimestamps": "保留时间戳",
+    "preserveTimestampsDesc": "保留 ChatGPT 原始创建日期",
+    "generateNewIds": "生成新 ID",
+    "generateNewIdsDesc": "为导入的对话创建新的唯一标识符"
+  },
+  "errors": {
+    "title": "错误",
+    "invalidJson": "无效的 JSON 文件格式",
+    "unknownFormat": "未知文件格式，请使用 ChatGPT、Claude 或 Gemini 导出文件",
+    "useCogniaImport": "这是 Cognia 备份文件，请使用标准导入按钮",
+    "readFailed": "读取文件失败",
+    "importFailed": "导入失败",
+    "parseWarnings": "部分对话无法解析",
+    "conversationsFailed": "个对话导入失败",
+    "importPartial": "导入完成，但有错误"
+  },
+  "success": {
+    "title": "导入完成",
+    "description": "成功导入 {sessions} 个对话，共 {messages} 条消息"
+  }
+}

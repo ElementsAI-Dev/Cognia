@@ -3,25 +3,18 @@
 /**
  * Native Tools Page - Full-page view for native desktop tools
  * Provides access to clipboard history, screenshot, focus tracking, and context awareness
+ * 
+ * Layout:
+ * - Desktop (lg+): Sidebar navigation + content area
+ * - Mobile/Tablet (<lg): Full content + bottom scrollable navigation
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import {
-  ArrowLeft,
-  Clipboard,
-  Camera,
-  Monitor,
-  Eye,
-  Wrench,
-  Activity,
-  Terminal,
-  Sparkles,
-  FileText,
-} from 'lucide-react';
+import { ArrowLeft, Wrench, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   ClipboardHistoryPanel,
   ClipboardContextPanel,
@@ -31,8 +24,12 @@ import {
   ContextPanel,
   SystemMonitorPanel,
   SandboxPanel,
+  NativeToolSidebar,
+  NativeToolMobileNav,
+  NATIVE_TOOLS,
 } from '@/components/native';
 import { isTauri } from '@/lib/native/utils';
+import { cn } from '@/lib/utils';
 
 export default function NativeToolsPage() {
   const t = useTranslations('nativeToolsPage');
@@ -43,18 +40,30 @@ export default function NativeToolsPage() {
     return isTauri();
   }, []);
 
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+  }, []);
+
+  const activeTool = useMemo(() => {
+    return NATIVE_TOOLS.find((tool) => tool.id === activeTab);
+  }, [activeTab]);
+
   if (!isDesktop) {
     return (
       <div className="flex h-svh flex-col items-center justify-center bg-background p-4">
-        <div className="text-center space-y-4">
-          <Wrench className="h-16 w-16 mx-auto text-muted-foreground/50" />
-          <h1 className="text-2xl font-bold">{t('title')}</h1>
-          <p className="text-muted-foreground max-w-md">
-            {t('desktopOnlyMessage')}
-          </p>
+        <div className="text-center space-y-6 max-w-md animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+          <div className="mx-auto h-20 w-20 rounded-2xl bg-muted/50 flex items-center justify-center">
+            <Wrench className="h-10 w-10 text-muted-foreground/50" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight">{t('title')}</h1>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {t('desktopOnlyMessage')}
+            </p>
+          </div>
           <Link href="/">
-            <Button variant="outline">
-              <ArrowLeft className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="lg" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
               {t('backToChat')}
             </Button>
           </Link>
@@ -65,105 +74,87 @@ export default function NativeToolsPage() {
 
   return (
     <div className="flex h-svh flex-col bg-background">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b px-3">
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
+      {/* Header */}
+      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b px-4 bg-background/95 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href="/">
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">{t('backToChat')}</TooltipContent>
+          </Tooltip>
+
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10">
+              <Wrench className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-sm font-semibold leading-none">{t('title')}</h1>
+              {activeTool && (
+                <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">
+                  {t(`tabs.${activeTool.labelKey}`)}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
-          <Wrench className="h-5 w-5" />
-          <h1 className="text-base font-semibold">{t('title')}</h1>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href="/settings/native-tools">
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>Settings</TooltipContent>
+          </Tooltip>
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden p-2 sm:p-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <TabsList className="grid w-full max-w-4xl grid-cols-8 shrink-0">
-            <TabsTrigger value="clipboard" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
-              <Clipboard className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.history')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="clipboard-context" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
-              <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.smart')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="templates" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.templates')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="screenshot" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
-              <Camera className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.screenshot')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="focus" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
-              <Monitor className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.focus')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="context" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.context')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="system" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
-              <Activity className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.system')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="sandbox" className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3">
-              <Terminal className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs sm:text-sm">{t('tabs.sandbox')}</span>
-            </TabsTrigger>
-          </TabsList>
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Desktop Sidebar - Hidden on mobile/tablet */}
+        <NativeToolSidebar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          className="hidden lg:flex"
+        />
 
-          <div className="flex-1 mt-2 sm:mt-4 overflow-hidden min-h-0">
-            <TabsContent value="clipboard" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="h-full border rounded-lg overflow-hidden">
-                <ClipboardHistoryPanel className="h-full" />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="clipboard-context" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="h-full border rounded-lg overflow-hidden">
-                <ClipboardContextPanel className="h-full" />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="templates" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="h-full border rounded-lg overflow-hidden">
-                <ClipboardTemplatesPanel className="h-full" />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="screenshot" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="h-full border rounded-lg overflow-hidden">
-                <ScreenshotPanel className="h-full" />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="focus" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="h-full border rounded-lg overflow-hidden">
-                <FocusTrackerPanel className="h-full" />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="context" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="h-full border rounded-lg overflow-hidden">
-                <ContextPanel className="h-full" />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="system" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="h-full border rounded-lg overflow-hidden">
-                <SystemMonitorPanel className="h-full" />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="sandbox" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="h-full border rounded-lg overflow-hidden">
-                <SandboxPanel className="h-full" />
-              </div>
-            </TabsContent>
+        {/* Content Panel */}
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-hidden p-3 sm:p-4 lg:p-6">
+            <div
+              className={cn(
+                'h-full rounded-xl border bg-card shadow-sm overflow-hidden',
+                'transition-all duration-300 ease-in-out',
+                'animate-in fade-in-0 slide-in-from-right-2'
+              )}
+              key={activeTab}
+            >
+              {activeTab === 'clipboard' && <ClipboardHistoryPanel className="h-full" />}
+              {activeTab === 'clipboard-context' && <ClipboardContextPanel className="h-full" />}
+              {activeTab === 'templates' && <ClipboardTemplatesPanel className="h-full" />}
+              {activeTab === 'screenshot' && <ScreenshotPanel className="h-full" />}
+              {activeTab === 'focus' && <FocusTrackerPanel className="h-full" />}
+              {activeTab === 'context' && <ContextPanel className="h-full" />}
+              {activeTab === 'system' && <SystemMonitorPanel className="h-full" />}
+              {activeTab === 'sandbox' && <SandboxPanel className="h-full" />}
+            </div>
           </div>
-        </Tabs>
+
+          {/* Mobile/Tablet Bottom Navigation - Hidden on desktop */}
+          <NativeToolMobileNav
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            className="lg:hidden"
+          />
+        </main>
       </div>
     </div>
   );

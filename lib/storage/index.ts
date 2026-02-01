@@ -119,3 +119,40 @@ export {
   getIndexedStorageKeys,
   getIndexedStorageSize,
 } from './indexed-storage';
+
+// ChatGPT import utilities
+export {
+  isChatGPTFormat,
+  convertConversation,
+  parseChatGPTExport,
+  importChatGPTConversations,
+  previewChatGPTImport,
+} from './chatgpt-import';
+
+// Claude import utilities
+export {
+  isClaudeFormat,
+  ClaudeImporter,
+  parseClaudeExport,
+  previewClaudeImport,
+} from './claude-import';
+
+// Gemini import utilities
+export {
+  isGeminiFormat,
+  GeminiImporter,
+  parseGeminiExport,
+  previewGeminiImport,
+} from './gemini-import';
+
+// Unified import registry
+export {
+  detectImportFormat,
+  getImporter,
+  getProviderInfo,
+  getSupportedFormats,
+  parseImport,
+  previewImport,
+  importConversations,
+  PLATFORM_INFO,
+} from './import-registry';

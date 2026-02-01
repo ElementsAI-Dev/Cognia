@@ -268,7 +268,9 @@
     "restartTour": "重启引导",
     "tourReset": "引导已重置，正在刷新...",
     "indexedDB": "IndexedDB",
-    "usage": "使用量"
+    "usage": "使用量",
+    "importChatGPT": "导入 ChatGPT",
+    "chatImportSuccess": "已导入 {sessions} 个对话，共 {messages} 条消息"
   },
   "themeEditor": {
     "title": "主题编辑器",

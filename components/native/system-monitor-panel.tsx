@@ -64,17 +64,28 @@ export function SystemMonitorPanel({ className }: SystemMonitorPanelProps) {
   };
 
   return (
-    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden', className)}>
-      <div className="flex items-center justify-between p-2 sm:p-3 border-b shrink-0">
-        <div className="flex items-center gap-2">
-          <Activity className="h-5 w-5" />
-          <span className="font-medium">{t('title')}</span>
+    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b bg-muted/30 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-green-500/10">
+            <Activity className="h-4 w-4 text-green-500" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold leading-none">{t('title')}</h3>
+            {systemState && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t('uptime')}: {formatUptime(systemState.uptime_seconds)}
+              </p>
+            )}
+          </div>
         </div>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8"
               onClick={() => fetchSystemState()}
               disabled={isLoading}
             >

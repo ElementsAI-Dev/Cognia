@@ -90,6 +90,17 @@ export interface SpeedPassState {
     lastActiveDate?: string;
   };
 
+  // User Profile (for SpeedPass preferences)
+  userProfile: {
+    id: string;
+    displayName: string;
+    preferredMode: 'extreme' | 'speed' | 'comprehensive';
+    studyGoal: 'passing' | 'good' | 'excellent';
+    dailyStudyTarget: number;
+    reminderEnabled: boolean;
+    reminderTime?: string;
+  } | null;
+
   // Loading states
   isLoading: boolean;
   parseProgress: {
@@ -99,6 +110,11 @@ export interface SpeedPassState {
     message?: string;
   } | null;
   error: string | null;
+
+  // ============================================================================
+  // Actions - User Profile
+  // ============================================================================
+  setUserProfile: (profile: SpeedPassState['userProfile']) => void;
 
   // ============================================================================
   // Actions - Academic Profile
@@ -266,6 +282,8 @@ const initialState = {
     lastActiveDate: undefined,
   },
 
+  userProfile: null,
+
   isLoading: false,
   parseProgress: null,
   error: null,
@@ -279,6 +297,14 @@ export const useSpeedPassStore = create<SpeedPassState>()(
   persist(
     (set, get) => ({
       ...initialState,
+
+      // ========================================================================
+      // User Profile Actions
+      // ========================================================================
+
+      setUserProfile: (profile) => {
+        set({ userProfile: profile });
+      },
 
       // ========================================================================
       // Academic Profile Actions

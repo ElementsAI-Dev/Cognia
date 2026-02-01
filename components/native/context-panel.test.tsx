@@ -50,6 +50,27 @@ jest.mock('@/hooks/context', () => ({
   }),
 }));
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      title: 'Context Awareness',
+      refreshContext: 'Refresh context',
+      activeWindow: 'Active Window',
+      application: 'Application',
+      suggestedActions: 'Suggested Actions',
+      editorContext: 'Editor Context',
+      browserContext: 'Browser Context',
+      fileContext: 'File Context',
+      textInput: 'Text Input',
+      devTool: 'Dev Tool',
+      noContext: 'No context available',
+      noContextHint: 'Context will appear when you focus on an application',
+    };
+    return translations[key] || key;
+  },
+}));
+
 describe('ContextPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -76,7 +97,9 @@ describe('ContextPanel', () => {
     render(<ContextPanel />);
     expect(screen.getByText('Active Window')).toBeInTheDocument();
     expect(screen.getByText('Test Window Title')).toBeInTheDocument();
-    expect(screen.getByText(/test-process.exe/)).toBeInTheDocument();
+    // Process name appears in both header subtitle and window section
+    const processNames = screen.getAllByText(/test-process.exe/);
+    expect(processNames.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/1920x1080/)).toBeInTheDocument();
   });
 
@@ -125,9 +148,11 @@ describe('ContextPanel', () => {
     expect(screen.getByText('/home/user/documents')).toBeInTheDocument();
   });
 
-  it('displays last updated timestamp', () => {
+  it('displays header with process name', () => {
     render(<ContextPanel />);
-    expect(screen.getByText(/Last updated:/)).toBeInTheDocument();
+    // Header shows process name when context is available
+    const processNames = screen.getAllByText(/test-process.exe/);
+    expect(processNames.length).toBeGreaterThanOrEqual(1);
   });
 
   it('applies custom className', () => {

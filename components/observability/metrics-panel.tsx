@@ -3,8 +3,16 @@
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { BarChart3, TrendingUp, Zap, Hash } from 'lucide-react';
-import { ProviderChart, ModelChart, UsageTrendChart } from './charts';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { BarChart3, TrendingUp, Zap, Hash, Clock } from 'lucide-react';
+import {
+  ProviderChart,
+  ModelChart,
+  UsageTrendChart,
+  LatencyDistributionChart,
+  RequestsTimelineChart,
+} from './charts';
 import type { MetricsData, TimeRange } from './observability-dashboard';
 import type { TimeSeriesDataPoint } from '@/lib/ai/usage-analytics';
 
@@ -112,7 +120,19 @@ export function MetricsPanel({ metrics, timeRange, timeSeries = [] }: MetricsPan
         </Card>
       </div>
 
-      {/* Charts Section */}
+      {/* Charts Section - Primary */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {timeSeries.length > 0 && (
+          <RequestsTimelineChart data={timeSeries} showCost height={260} />
+        )}
+        <LatencyDistributionChart
+          data={metrics.latencyPercentiles}
+          averageLatency={metrics.averageLatency}
+          height={220}
+        />
+      </div>
+
+      {/* Charts Section - Secondary */}
       {timeSeries.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <UsageTrendChart data={timeSeries} showCost={false} height={220} />
@@ -126,23 +146,45 @@ export function MetricsPanel({ metrics, timeRange, timeSeries = [] }: MetricsPan
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Latency Stats Card with visual progress bars */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">{t('latencyPercentiles')}</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              {t('latencyPercentiles')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{t('p50')}</span>
-                <span className="font-medium">{metrics.latencyPercentiles.p50.toFixed(0)}ms</span>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">P50</Badge>
+                    {t('median') || 'Median'}
+                  </span>
+                  <span className="font-medium">{metrics.latencyPercentiles.p50.toFixed(0)}ms</span>
+                </div>
+                <Progress value={Math.min(100, (metrics.latencyPercentiles.p50 / metrics.latencyPercentiles.p99) * 100)} className="h-1.5" />
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{t('p90')}</span>
-                <span className="font-medium">{metrics.latencyPercentiles.p90.toFixed(0)}ms</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <Badge variant="outline" className="bg-yellow-100 text-yellow-700 text-xs">P90</Badge>
+                    {t('90thPercentile') || '90th Percentile'}
+                  </span>
+                  <span className="font-medium">{metrics.latencyPercentiles.p90.toFixed(0)}ms</span>
+                </div>
+                <Progress value={Math.min(100, (metrics.latencyPercentiles.p90 / metrics.latencyPercentiles.p99) * 100)} className="h-1.5" />
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{t('p99')}</span>
-                <span className="font-medium">{metrics.latencyPercentiles.p99.toFixed(0)}ms</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <Badge variant="outline" className="bg-red-100 text-red-700 text-xs">P99</Badge>
+                    {t('99thPercentile') || '99th Percentile'}
+                  </span>
+                  <span className="font-medium">{metrics.latencyPercentiles.p99.toFixed(0)}ms</span>
+                </div>
+                <Progress value={100} className="h-1.5" />
               </div>
             </div>
           </CardContent>

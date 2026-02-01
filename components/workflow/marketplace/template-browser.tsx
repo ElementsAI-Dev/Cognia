@@ -6,10 +6,10 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Search, Filter, Star, Download, GitBranch } from 'lucide-react';
+import { Search, Filter, Star, Download, GitBranch, Loader2, AlertCircle, Upload } from 'lucide-react';
 import { useTemplateMarketStore } from '@/stores/workflow/template-market-store';
 import type { WorkflowTemplate } from '@/types/workflow/template';
 import { Button } from '@/components/ui/button';
@@ -51,17 +51,37 @@ export function TemplateBrowser() {
     cloneTemplate,
     incrementUsage,
     setSelectedTemplate,
+    initialize,
+    isInitialized,
+    isLoading,
+    error,
   } = useTemplateMarketStore();
 
   const { loadFromTemplate } = useWorkflowEditorStore();
 
   const [searchInput, setSearchInput] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedSource, setSelectedSource] = useState<string>('all');
+  const [minRating, setMinRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState<'name' | 'rating' | 'usage' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [previewTemplate, setPreviewTemplate] = useState<WorkflowTemplate | null>(null);
+  const [displayCount, setDisplayCount] = useState<number>(12);
 
-  const templates = getFilteredTemplates();
+  // Initialize store on mount
+  useEffect(() => {
+    if (!isInitialized && !isLoading) {
+      initialize();
+    }
+  }, [isInitialized, isLoading, initialize]);
+
+  const allTemplates = getFilteredTemplates();
+  const templates = allTemplates.slice(0, displayCount);
+  const hasMoreTemplates = allTemplates.length > displayCount;
+
+  const handleLoadMore = () => {
+    setDisplayCount((prev) => prev + 12);
+  };
 
   const handleSearch = (value: string) => {
     setSearchInput(value);
@@ -71,6 +91,21 @@ export function TemplateBrowser() {
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
     setFilters({ category: category === 'all' ? undefined : category });
+  };
+
+  const handleSourceChange = (source: string) => {
+    setSelectedSource(source);
+    if (source === 'all') {
+      setFilters({ source: undefined });
+    } else {
+      setFilters({ source: [source as 'built-in' | 'user' | 'git'] });
+    }
+  };
+
+  const handleMinRatingChange = (rating: string) => {
+    const ratingNum = Number(rating);
+    setMinRating(ratingNum);
+    setFilters({ minRating: ratingNum > 0 ? ratingNum : undefined });
   };
 
   const handleSortChange = (value: string) => {
@@ -112,12 +147,63 @@ export function TemplateBrowser() {
     }
   };
 
+  const { exportTemplate, importTemplate } = useTemplateMarketStore();
+
+  const handleExportTemplate = (template: WorkflowTemplate) => {
+    const json = exportTemplate(template.id, 'json', true);
+    if (json) {
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${template.name.toLowerCase().replace(/\s+/g, '-')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleImportTemplate = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const imported = importTemplate(text, 'json');
+        if (imported) {
+          toast.success(t('importSuccess'), { description: imported.name });
+        } else {
+          toast.error(t('importError'));
+        }
+      } catch (error) {
+        toast.error(t('importError'), {
+          description: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    };
+    input.click();
+  };
+
   return (
     <TooltipProvider>
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="border-b p-4">
-          <h2 className="text-2xl font-bold mb-4">{t('title')}</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">{t('title')}</h2>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={handleImportTemplate}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {t('importTemplate')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('importDescription')}</TooltipContent>
+            </Tooltip>
+          </div>
 
           {/* Search and Filters */}
           <div className="flex gap-2 mb-4">
@@ -132,7 +218,7 @@ export function TemplateBrowser() {
             </div>
 
             <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder={t('category')} />
               </SelectTrigger>
               <SelectContent>
@@ -142,6 +228,30 @@ export function TemplateBrowser() {
                     {category.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedSource} onValueChange={handleSourceChange}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder={t('filterBySource')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('allSources')}</SelectItem>
+                <SelectItem value="built-in">{t('sourceBuiltIn')}</SelectItem>
+                <SelectItem value="user">{t('sourceUser')}</SelectItem>
+                <SelectItem value="git">{t('sourceGit')}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={String(minRating)} onValueChange={handleMinRatingChange}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder={t('minRating')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">{t('anyRating')}</SelectItem>
+                <SelectItem value="3">3+ ⭐</SelectItem>
+                <SelectItem value="4">4+ ⭐</SelectItem>
+                <SelectItem value="4.5">4.5+ ⭐</SelectItem>
               </SelectContent>
             </Select>
 
@@ -174,23 +284,53 @@ export function TemplateBrowser() {
 
         {/* Templates Grid */}
         <ScrollArea className="flex-1 p-4">
-          {templates.length === 0 ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+              <Loader2 className="h-12 w-12 mb-4 animate-spin" />
+              <p>{t('loadingTemplates')}</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-full text-destructive">
+              <AlertCircle className="h-12 w-12 mb-4" />
+              <p>{t('loadError')}</p>
+              <p className="text-sm text-muted-foreground">{error}</p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => initialize()}
+              >
+                {t('retry')}
+              </Button>
+            </div>
+          ) : templates.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <Filter className="h-12 w-12 mb-4" />
               <p>{t('noTemplates')}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {templates.map((template) => (
-                <TemplateCard
-                  key={template.id}
-                  template={template}
-                  onPreview={() => handlePreview(template)}
-                  onUse={() => handleUseTemplate(template)}
-                  onClone={() => handleCloneTemplate(template)}
-                  t={t}
-                />
-              ))}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {templates.map((template) => (
+                  <TemplateCard
+                    key={template.id}
+                    template={template}
+                    onPreview={() => handlePreview(template)}
+                    onUse={() => handleUseTemplate(template)}
+                    onClone={() => handleCloneTemplate(template)}
+                    t={t}
+                  />
+                ))}
+              </div>
+              {hasMoreTemplates && (
+                <div className="flex flex-col items-center gap-2 py-4">
+                  <p className="text-sm text-muted-foreground">
+                    {t('showingOf', { count: templates.length, total: allTemplates.length })}
+                  </p>
+                  <Button variant="outline" onClick={handleLoadMore}>
+                    {t('loadMore')}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </ScrollArea>
@@ -212,7 +352,18 @@ export function TemplateBrowser() {
               </DialogTitle>
             </DialogHeader>
             {previewTemplate && (
-              <TemplatePreview template={previewTemplate} />
+              <TemplatePreview
+                template={previewTemplate}
+                onUse={(t) => {
+                  handleUseTemplate(t);
+                  setPreviewTemplate(null);
+                }}
+                onClone={(t) => {
+                  handleCloneTemplate(t);
+                  setPreviewTemplate(null);
+                }}
+                onExport={handleExportTemplate}
+              />
             )}
           </DialogContent>
         </Dialog>

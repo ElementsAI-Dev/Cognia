@@ -251,5 +251,16 @@
     "shuffle": "Shuffle Models",
     "blindMode": "Blind Mode",
     "multiTurn": "Multi-turn"
-  }
+  },
+  "addModel": "Add Model",
+  "selectAtLeast2Models": "Select at least 2 models to start comparing",
+  "selectModelsToStart": "Select models to start multi-model chat",
+  "selectModelsHint": "Select {min}-{max} models for parallel comparison",
+  "typeMessagePlaceholder": "Type a message to send to all models...",
+  "noModelsConfigured": "No models configured. Add API keys in settings.",
+  "waitingForMessage": "Waiting for message...",
+  "selectModel": "Select {name}",
+  "statusStreaming": "Streaming...",
+  "statusCompleted": "Completed",
+  "statusError": "Error"
 }

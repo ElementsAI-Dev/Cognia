@@ -106,6 +106,7 @@ export interface GitIntegrationConfig {
  */
 export interface GitRepository {
   url: string;
+  localPath: string;
   branch: string;
   commit: string;
   lastSyncAt: Date;
