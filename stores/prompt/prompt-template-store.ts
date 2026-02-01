@@ -23,7 +23,11 @@ import {
   createOptimizationHistoryEntry,
   generateOptimizationRecommendations,
   getTopOptimizationCandidates,
-} from '@/lib/ai/prompts/prompt-self-optimizer';
+} from '@/lib/prompt/prompt-optimization';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
+
 import { buildTemplateVariables } from '@/lib/prompts/template-utils';
 
 interface PromptTemplateState {
@@ -670,7 +674,7 @@ function safeParse(payload: string): unknown {
   try {
     return JSON.parse(payload);
   } catch (error) {
-    console.warn('Failed to parse prompt template payload', error);
+    log.warn('Failed to parse prompt template payload', { error });
     return null;
   }
 }

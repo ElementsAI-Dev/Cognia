@@ -5,6 +5,9 @@
 
 import type { TTSResponse, HumeTTSVoice } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface HumeTTSOptions {
   apiKey: string;
@@ -79,7 +82,7 @@ export async function generateHumeTTS(
       mimeType: 'audio/mpeg',
     };
   } catch (error) {
-    console.error('Hume TTS error:', error);
+    log.error('Hume TTS error', error as Error);
     return {
       success: false,
       error: getTTSError('api-error', error instanceof Error ? error.message : 'Unknown error').message,
@@ -128,7 +131,7 @@ export async function generateHumeTTSViaApi(
       mimeType: 'audio/mpeg',
     };
   } catch (error) {
-    console.error('Hume TTS API error:', error);
+    log.error('Hume TTS API error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to generate speech',

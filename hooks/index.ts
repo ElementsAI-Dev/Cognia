@@ -85,3 +85,6 @@ export * from './agent-trace';
 
 // VCS hooks (multi-VCS support)
 export * from './vcs';
+
+// Scheduler hooks (task automation)
+export * from './scheduler';

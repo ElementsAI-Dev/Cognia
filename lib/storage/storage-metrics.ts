@@ -5,6 +5,9 @@
 
 import { StorageManager } from './storage-manager';
 import type { StorageStats, StorageCategory, StorageHealth } from './types';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 /**
  * Storage metric snapshot
@@ -246,11 +249,11 @@ export class StorageMetricsService {
     if (this.snapshotIntervalId) return;
 
     this.snapshotIntervalId = setInterval(() => {
-      this.takeSnapshot().catch(console.error);
+      this.takeSnapshot().catch((e) => log.error('Failed to take snapshot', e as Error));
     }, this.config.snapshotInterval);
 
     // Take initial snapshot
-    this.takeSnapshot().catch(console.error);
+    this.takeSnapshot().catch((e) => log.error('Failed to take initial snapshot', e as Error));
   }
 
   /**
@@ -288,7 +291,7 @@ export class StorageMetricsService {
     try {
       localStorage.setItem(this.config.storageKey, JSON.stringify(this.snapshots));
     } catch (error) {
-      console.warn('Failed to save storage metrics:', error);
+      log.warn('Failed to save storage metrics', { error: String(error) });
     }
   }
 

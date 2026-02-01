@@ -10,6 +10,9 @@
  */
 
 import { getCircuitState, isProviderAvailable } from './circuit-breaker';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export type LoadBalancingStrategy =
   | 'round-robin'
@@ -567,10 +570,7 @@ export async function withFailover<T>(
       lb.recordRequestEnd(selection.providerId, Date.now() - startTime, false);
       lb.setProviderHealth(selection.providerId, false);
       lastError = error instanceof Error ? error : new Error(String(error));
-      console.warn(
-        `[LoadBalancer] Provider ${selection.providerId} failed (attempt ${attempts}):`,
-        lastError.message
-      );
+      log.warn(`LoadBalancer provider ${selection.providerId} failed`, { providerId: selection.providerId, attempt: attempts, error: lastError.message });
     }
   }
 

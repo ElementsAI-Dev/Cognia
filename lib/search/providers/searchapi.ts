@@ -11,6 +11,9 @@ import type {
   SearchRecency,
 } from '@/types/search';
 import { searchApiFetch } from '../proxy-search-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 const SEARCHAPI_URL = 'https://www.searchapi.io/api/v1/search';
 
@@ -240,7 +243,7 @@ export async function searchWithSearchAPI(
       totalResults: data.search_information?.total_results,
     };
   } catch (error) {
-    console.error('SearchAPI error:', error);
+    log.error('SearchAPI error', error as Error);
     throw new Error(
       error instanceof Error
         ? `SearchAPI search failed: ${error.message}`

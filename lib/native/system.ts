@@ -3,13 +3,16 @@
  */
 
 import { isTauri } from './utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 /**
  * Exit the application
  */
 export async function exitApp(code: number = 0): Promise<void> {
   if (!isTauri()) {
-    console.warn('Exit is only available in Tauri');
+    log.warn('Exit is only available in Tauri');
     return;
   }
 
@@ -17,7 +20,7 @@ export async function exitApp(code: number = 0): Promise<void> {
     const { exit } = await import('@tauri-apps/plugin-process');
     await exit(code);
   } catch (error) {
-    console.error('Failed to exit app:', error);
+    log.error('Failed to exit app', error as Error);
   }
 }
 
@@ -35,7 +38,7 @@ export async function restartApp(): Promise<void> {
     const { relaunch } = await import('@tauri-apps/plugin-process');
     await relaunch();
   } catch (error) {
-    console.error('Failed to restart app:', error);
+    log.error('Failed to restart app', error as Error);
   }
 }
 
@@ -53,7 +56,7 @@ export async function openInBrowser(url: string): Promise<boolean> {
     await open(url);
     return true;
   } catch (error) {
-    console.error('Failed to open URL:', error);
+    log.error('Failed to open URL', error as Error);
     return false;
   }
 }
@@ -69,7 +72,7 @@ export async function openInFileExplorer(path: string): Promise<boolean> {
     await open(path);
     return true;
   } catch (error) {
-    console.error('Failed to open path:', error);
+    log.error('Failed to open path', error as Error);
     return false;
   }
 }

@@ -4,15 +4,21 @@
  */
 
 import { editor, KeyMod, KeyCode, languages } from './monaco-stub';
+import { loggers } from '@/lib/logger';
+
+// Mock the logger
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    app: {
+      warn: jest.fn(),
+    },
+  },
+}));
 
 describe('monaco-stub', () => {
   describe('editor', () => {
     beforeEach(() => {
-      jest.spyOn(console, 'warn').mockImplementation();
-    });
-
-    afterEach(() => {
-      jest.restoreAllMocks();
+      jest.clearAllMocks();
     });
 
     describe('create', () => {
@@ -20,7 +26,7 @@ describe('monaco-stub', () => {
         const container = document.createElement('div');
         editor.create(container);
 
-        expect(console.warn).toHaveBeenCalledWith(
+        expect(loggers.app.warn).toHaveBeenCalledWith(
           expect.stringContaining('monaco-editor direct import is not available')
         );
       });

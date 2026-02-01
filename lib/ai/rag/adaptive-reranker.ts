@@ -13,6 +13,9 @@
  */
 
 import type { RerankResult } from './reranker';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface RelevanceFeedback {
   queryId: string;
@@ -116,7 +119,7 @@ export class AdaptiveReranker {
           this.rebuildBoosts();
         }
       } catch (error) {
-        console.warn('Failed to load feedback history:', error);
+        log.warn('Failed to load feedback history', { error: String(error) });
       }
     }
 
@@ -340,7 +343,7 @@ export class AdaptiveReranker {
       };
       localStorage.setItem(this.config.storageKey, JSON.stringify(data));
     } catch (error) {
-      console.warn('Failed to persist feedback:', error);
+      log.warn('Failed to persist feedback', { error: String(error) });
     }
   }
 

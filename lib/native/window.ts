@@ -3,6 +3,9 @@
  */
 
 import { isTauri } from './utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface WindowSize {
   width: number;
@@ -39,7 +42,7 @@ export async function setAlwaysOnTop(enabled: boolean): Promise<boolean> {
     await window.setAlwaysOnTop(enabled);
     return true;
   } catch (error) {
-    console.error('Failed to set always on top:', error);
+    log.error('Failed to set always on top', error as Error);
     return false;
   }
 }

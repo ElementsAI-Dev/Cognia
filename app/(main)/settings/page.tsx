@@ -35,6 +35,7 @@ import {
   Activity,
   X,
   Cloud,
+  ScrollText,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -106,6 +107,8 @@ import {
   SafetySettings,
   TraySettings,
   SyncSettings,
+  LogViewer,
+  LoggingSettings,
 } from '@/components/settings';
 import { ObservabilitySettings } from '@/components/observability';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
@@ -550,6 +553,20 @@ export default function SettingsPage() {
               description: '配置系统托盘菜单显示模式和内容',
               group: 'system' as const,
             },
+            {
+              id: 'logs' as const,
+              label: t('tabLogs') || 'Application Logs',
+              icon: <ScrollText className="h-4 w-4" />,
+              description: t('descLogs') || 'View and export application logs',
+              group: 'system' as const,
+            },
+            {
+              id: 'logging-config' as const,
+              label: t('tabLoggingConfig') || 'Logging Config',
+              icon: <Settings2 className="h-4 w-4" />,
+              description: t('descLoggingConfig') || 'Configure logging levels and transports',
+              group: 'system' as const,
+            },
           ]
         : []),
     ],
@@ -625,6 +642,10 @@ export default function SettingsPage() {
         return <ObservabilitySettings />;
       case 'agent-optimization':
         return <AgentOptimizationSettings />;
+      case 'logs':
+        return <LogViewer />;
+      case 'logging-config':
+        return <LoggingSettings />;
       default:
         return <ProviderSettings />;
     }

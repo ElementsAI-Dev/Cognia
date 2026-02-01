@@ -12,6 +12,10 @@
  * OpenTelemetry SDK features are only available in Node.js server context.
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
+
 // Only import OpenTelemetry in Node.js environment
 const isServer = typeof window === 'undefined';
 
@@ -44,7 +48,7 @@ async function loadOpenTelemetry(): Promise<boolean> {
     };
     return true;
   } catch (error) {
-    console.warn('Failed to load OpenTelemetry modules:', error);
+    log.warn('Failed to load OpenTelemetry modules', { error });
     return false;
   }
 }
@@ -99,7 +103,7 @@ export async function initializeOpenTelemetry(config?: OpenTelemetryConfig): Pro
   // Load OpenTelemetry modules dynamically
   const loaded = await loadOpenTelemetry();
   if (!loaded || !otelModules) {
-    console.warn('OpenTelemetry could not be loaded - tracing disabled');
+    log.warn('OpenTelemetry could not be loaded - tracing disabled');
     return null;
   }
 
@@ -137,7 +141,7 @@ export async function initializeOpenTelemetry(config?: OpenTelemetryConfig): Pro
 
     return sdk;
   } catch (error) {
-    console.warn('Failed to initialize OpenTelemetry:', error);
+    log.warn('Failed to initialize OpenTelemetry', { error });
     return null;
   }
 }

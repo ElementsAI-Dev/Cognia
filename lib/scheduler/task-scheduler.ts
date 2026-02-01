@@ -1,0 +1,670 @@
+/**
+ * Task Scheduler Service
+ * Core service for managing scheduled tasks execution
+ */
+
+import { nanoid } from 'nanoid';
+import {
+  type ScheduledTask,
+  type TaskExecution,
+  type TaskExecutionLog,
+  type CreateScheduledTaskInput,
+  type UpdateScheduledTaskInput,
+  type ScheduledTaskStatus,
+  DEFAULT_EXECUTION_CONFIG,
+  DEFAULT_NOTIFICATION_CONFIG,
+} from '@/types/scheduler';
+import { getNextCronTime } from './cron-parser';
+import { schedulerDb } from './scheduler-db';
+import { notifyTaskEvent } from './notification-integration';
+import { loggers } from '@/lib/logger';
+
+// Logger
+const log = loggers.app;
+
+// Task executor registry
+type TaskExecutor = (
+  task: ScheduledTask,
+  execution: TaskExecution
+) => Promise<{ success: boolean; output?: Record<string, unknown>; error?: string }>;
+
+const executors: Map<string, TaskExecutor> = new Map();
+
+/**
+ * Register a task executor for a specific task type
+ */
+export function registerTaskExecutor(taskType: string, executor: TaskExecutor): void {
+  executors.set(taskType, executor);
+  log.info(`Registered executor for task type: ${taskType}`);
+}
+
+/**
+ * Unregister a task executor
+ */
+export function unregisterTaskExecutor(taskType: string): void {
+  executors.delete(taskType);
+  log.info(`Unregistered executor for task type: ${taskType}`);
+}
+
+/**
+ * Task Scheduler class
+ */
+class TaskSchedulerImpl {
+  private timers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private runningExecutions: Map<string, TaskExecution> = new Map();
+  private isInitialized = false;
+  private checkInterval: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * Initialize the scheduler
+   */
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    log.info('Initializing task scheduler...');
+
+    try {
+      // Load all active tasks and schedule them
+      const tasks = await schedulerDb.getTasksByStatus('active');
+      log.info(`Found ${tasks.length} active tasks to schedule`);
+
+      for (const task of tasks) {
+        await this.scheduleTask(task);
+      }
+
+      // Start periodic check for missed tasks
+      this.startPeriodicCheck();
+
+      this.isInitialized = true;
+      log.info('Task scheduler initialized successfully');
+    } catch (error) {
+      log.error('Failed to initialize task scheduler:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Start periodic check for tasks that might have been missed
+   */
+  private startPeriodicCheck(): void {
+    // Check every minute for any missed tasks
+    this.checkInterval = setInterval(() => {
+      this.checkMissedTasks().catch((err) => {
+        log.error('Error checking missed tasks:', err);
+      });
+    }, 60000);
+  }
+
+  /**
+   * Check and run any missed tasks
+   */
+  private async checkMissedTasks(): Promise<void> {
+    const tasks = await schedulerDb.getTasksByStatus('active');
+    const now = new Date();
+
+    for (const task of tasks) {
+      if (task.nextRunAt && task.nextRunAt < now) {
+        const missedBy = now.getTime() - task.nextRunAt.getTime();
+        
+        // Only run if missed by less than the check interval (1 minute) 
+        // to avoid running very old tasks
+        if (missedBy < 60000 && task.config.runMissedOnStartup) {
+          log.warn(`Task ${task.name} was missed, running now`);
+          await this.executeTask(task);
+        } else {
+          // Just update the next run time
+          await this.updateNextRunTime(task);
+        }
+      }
+    }
+  }
+
+  /**
+   * Stop the scheduler
+   */
+  stop(): void {
+    log.info('Stopping task scheduler...');
+
+    // Clear all timers
+    for (const [taskId, timer] of this.timers) {
+      clearTimeout(timer);
+      log.debug(`Cleared timer for task: ${taskId}`);
+    }
+    this.timers.clear();
+
+    // Clear periodic check
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      this.checkInterval = null;
+    }
+
+    this.isInitialized = false;
+    log.info('Task scheduler stopped');
+  }
+
+  /**
+   * Create a new scheduled task
+   */
+  async createTask(input: CreateScheduledTaskInput): Promise<ScheduledTask> {
+    const now = new Date();
+    
+    const task: ScheduledTask = {
+      id: nanoid(),
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      trigger: input.trigger,
+      payload: input.payload,
+      config: { ...DEFAULT_EXECUTION_CONFIG, ...input.config },
+      notification: { ...DEFAULT_NOTIFICATION_CONFIG, ...input.notification },
+      status: 'active',
+      tags: input.tags,
+      runCount: 0,
+      successCount: 0,
+      failureCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // Calculate next run time
+    task.nextRunAt = this.calculateNextRunTime(task);
+
+    // Save to database
+    await schedulerDb.createTask(task);
+    log.info(`Created task: ${task.name} (${task.id})`);
+
+    // Schedule if active
+    if (task.status === 'active') {
+      await this.scheduleTask(task);
+    }
+
+    return task;
+  }
+
+  /**
+   * Update an existing task
+   */
+  async updateTask(taskId: string, input: UpdateScheduledTaskInput): Promise<ScheduledTask | null> {
+    const task = await schedulerDb.getTask(taskId);
+    if (!task) {
+      log.warn(`Task not found: ${taskId}`);
+      return null;
+    }
+
+    // Update fields
+    const updatedTask: ScheduledTask = {
+      ...task,
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.description !== undefined && { description: input.description }),
+      ...(input.trigger && { trigger: { ...task.trigger, ...input.trigger } }),
+      ...(input.payload && { payload: { ...task.payload, ...input.payload } }),
+      ...(input.config && { config: { ...task.config, ...input.config } }),
+      ...(input.notification && { notification: { ...task.notification, ...input.notification } }),
+      ...(input.status !== undefined && { status: input.status }),
+      ...(input.tags !== undefined && { tags: input.tags }),
+      updatedAt: new Date(),
+    };
+
+    // Recalculate next run time if trigger changed
+    if (input.trigger) {
+      updatedTask.nextRunAt = this.calculateNextRunTime(updatedTask);
+    }
+
+    // Save to database
+    await schedulerDb.updateTask(updatedTask);
+    log.info(`Updated task: ${updatedTask.name} (${taskId})`);
+
+    // Reschedule
+    this.unscheduleTask(taskId);
+    if (updatedTask.status === 'active') {
+      await this.scheduleTask(updatedTask);
+    }
+
+    return updatedTask;
+  }
+
+  /**
+   * Delete a task
+   */
+  async deleteTask(taskId: string): Promise<boolean> {
+    this.unscheduleTask(taskId);
+    const deleted = await schedulerDb.deleteTask(taskId);
+    if (deleted) {
+      log.info(`Deleted task: ${taskId}`);
+    }
+    return deleted;
+  }
+
+  /**
+   * Get a task by ID
+   */
+  async getTask(taskId: string): Promise<ScheduledTask | null> {
+    return schedulerDb.getTask(taskId);
+  }
+
+  /**
+   * Get all tasks
+   */
+  async getAllTasks(): Promise<ScheduledTask[]> {
+    return schedulerDb.getAllTasks();
+  }
+
+  /**
+   * Pause a task
+   */
+  async pauseTask(taskId: string): Promise<boolean> {
+    const task = await schedulerDb.getTask(taskId);
+    if (!task) return false;
+
+    this.unscheduleTask(taskId);
+    await schedulerDb.updateTask({ ...task, status: 'paused', updatedAt: new Date() });
+    log.info(`Paused task: ${task.name} (${taskId})`);
+    return true;
+  }
+
+  /**
+   * Resume a task
+   */
+  async resumeTask(taskId: string): Promise<boolean> {
+    const task = await schedulerDb.getTask(taskId);
+    if (!task || task.status !== 'paused') return false;
+
+    const updatedTask = {
+      ...task,
+      status: 'active' as ScheduledTaskStatus,
+      nextRunAt: this.calculateNextRunTime(task),
+      updatedAt: new Date(),
+    };
+    await schedulerDb.updateTask(updatedTask);
+    await this.scheduleTask(updatedTask);
+    log.info(`Resumed task: ${task.name} (${taskId})`);
+    return true;
+  }
+
+  /**
+   * Run a task immediately
+   */
+  async runTaskNow(taskId: string): Promise<TaskExecution | null> {
+    const task = await schedulerDb.getTask(taskId);
+    if (!task) {
+      log.warn(`Task not found for immediate run: ${taskId}`);
+      return null;
+    }
+
+    return this.executeTask(task);
+  }
+
+  /**
+   * Get task executions
+   */
+  async getTaskExecutions(taskId: string, limit: number = 50): Promise<TaskExecution[]> {
+    return schedulerDb.getTaskExecutions(taskId, limit);
+  }
+
+  /**
+   * Schedule a task for execution
+   */
+  private async scheduleTask(task: ScheduledTask): Promise<void> {
+    if (task.status !== 'active') return;
+
+    const nextRun = task.nextRunAt || this.calculateNextRunTime(task);
+    if (!nextRun) {
+      log.warn(`Could not calculate next run time for task: ${task.name}`);
+      return;
+    }
+
+    const delay = nextRun.getTime() - Date.now();
+    
+    if (delay <= 0) {
+      // Run immediately if the scheduled time has passed
+      log.debug(`Task ${task.name} is overdue, running now`);
+      this.executeTask(task).catch((err) => {
+        log.error(`Error executing overdue task ${task.name}:`, err);
+      });
+      return;
+    }
+
+    // Clear existing timer
+    this.unscheduleTask(task.id);
+
+    // Set new timer
+    const timer = setTimeout(() => {
+      this.executeTask(task).catch((err) => {
+        log.error(`Error executing scheduled task ${task.name}:`, err);
+      });
+    }, delay);
+
+    this.timers.set(task.id, timer);
+    log.debug(`Scheduled task ${task.name} for ${nextRun.toISOString()} (in ${Math.round(delay / 1000)}s)`);
+  }
+
+  /**
+   * Unschedule a task
+   */
+  private unscheduleTask(taskId: string): void {
+    const timer = this.timers.get(taskId);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(taskId);
+      log.debug(`Unscheduled task: ${taskId}`);
+    }
+  }
+
+  /**
+   * Execute a task
+   */
+  private async executeTask(task: ScheduledTask, retryAttempt: number = 0): Promise<TaskExecution> {
+    const executionId = nanoid();
+    const startTime = new Date();
+
+    // Check for concurrent execution
+    if (!task.config.allowConcurrent && this.runningExecutions.has(task.id)) {
+      log.warn(`Task ${task.name} is already running, skipping`);
+      const skippedExecution: TaskExecution = {
+        id: executionId,
+        taskId: task.id,
+        taskName: task.name,
+        taskType: task.type,
+        status: 'skipped',
+        retryAttempt,
+        startedAt: startTime,
+        completedAt: startTime,
+        duration: 0,
+        logs: [this.createLog('info', 'Skipped: concurrent execution not allowed')],
+      };
+      await schedulerDb.createExecution(skippedExecution);
+      return skippedExecution;
+    }
+
+    // Create execution record
+    const execution: TaskExecution = {
+      id: executionId,
+      taskId: task.id,
+      taskName: task.name,
+      taskType: task.type,
+      status: 'running',
+      input: task.payload,
+      retryAttempt,
+      startedAt: startTime,
+      logs: [this.createLog('info', `Starting task execution (attempt ${retryAttempt + 1})`)],
+    };
+
+    this.runningExecutions.set(task.id, execution);
+    await schedulerDb.createExecution(execution);
+
+    // Notify start
+    if (task.notification.onStart) {
+      await notifyTaskEvent(task, execution, 'start');
+    }
+
+    log.info(`Executing task: ${task.name} (execution: ${executionId})`);
+
+    try {
+      // Get executor
+      const executor = executors.get(task.type);
+      if (!executor) {
+        throw new Error(`No executor registered for task type: ${task.type}`);
+      }
+
+      // Execute with timeout
+      const result = await this.executeWithTimeout(
+        () => executor(task, execution),
+        task.config.timeout
+      );
+
+      // Update execution
+      execution.status = result.success ? 'completed' : 'failed';
+      execution.output = result.output;
+      execution.error = result.error;
+      execution.completedAt = new Date();
+      execution.duration = execution.completedAt.getTime() - startTime.getTime();
+      execution.logs.push(
+        this.createLog(
+          result.success ? 'info' : 'error',
+          result.success ? 'Task completed successfully' : `Task failed: ${result.error}`
+        )
+      );
+
+      // Update task statistics
+      await this.updateTaskStats(task, execution);
+
+      // Notify completion
+      if (result.success && task.notification.onComplete) {
+        await notifyTaskEvent(task, execution, 'complete');
+      } else if (!result.success && task.notification.onError) {
+        await notifyTaskEvent(task, execution, 'error');
+      }
+
+      log.info(`Task ${task.name} ${result.success ? 'completed' : 'failed'} in ${execution.duration}ms`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      execution.status = 'failed';
+      execution.error = errorMessage;
+      execution.completedAt = new Date();
+      execution.duration = execution.completedAt.getTime() - startTime.getTime();
+      execution.logs.push(this.createLog('error', `Execution error: ${errorMessage}`));
+
+      log.error(`Task ${task.name} failed with error:`, error);
+
+      // Notify error
+      if (task.notification.onError) {
+        await notifyTaskEvent(task, execution, 'error');
+      }
+
+      // Handle retry
+      if (retryAttempt < task.config.maxRetries) {
+        execution.logs.push(
+          this.createLog('info', `Scheduling retry ${retryAttempt + 1}/${task.config.maxRetries}`)
+        );
+        
+        setTimeout(() => {
+          this.executeTask(task, retryAttempt + 1).catch((err) => {
+            log.error(`Retry failed for task ${task.name}:`, err);
+          });
+        }, task.config.retryDelay);
+      }
+
+      // Update task statistics
+      await this.updateTaskStats(task, execution);
+    } finally {
+      this.runningExecutions.delete(task.id);
+      await schedulerDb.updateExecution(execution);
+
+      // Schedule next run
+      await this.updateNextRunTime(task);
+    }
+
+    return execution;
+  }
+
+  /**
+   * Execute a function with timeout
+   */
+  private async executeWithTimeout<T>(
+    fn: () => Promise<T>,
+    timeoutMs: number
+  ): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`Execution timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      fn()
+        .then((result) => {
+          clearTimeout(timer);
+          resolve(result);
+        })
+        .catch((error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+    });
+  }
+
+  /**
+   * Update task statistics after execution
+   */
+  private async updateTaskStats(task: ScheduledTask, execution: TaskExecution): Promise<void> {
+    const updates: Partial<ScheduledTask> = {
+      runCount: task.runCount + 1,
+      lastRunAt: execution.startedAt,
+      updatedAt: new Date(),
+    };
+
+    if (execution.status === 'completed') {
+      updates.successCount = task.successCount + 1;
+      updates.lastError = undefined;
+    } else if (execution.status === 'failed') {
+      updates.failureCount = task.failureCount + 1;
+      updates.lastError = execution.error;
+    }
+
+    await schedulerDb.updateTask({ ...task, ...updates });
+  }
+
+  /**
+   * Update the next run time for a task and reschedule
+   */
+  private async updateNextRunTime(task: ScheduledTask): Promise<void> {
+    const nextRunAt = this.calculateNextRunTime(task);
+    
+    if (nextRunAt) {
+      await schedulerDb.updateTask({
+        ...task,
+        nextRunAt,
+        updatedAt: new Date(),
+      });
+
+      // Reschedule
+      if (task.status === 'active') {
+        await this.scheduleTask({ ...task, nextRunAt });
+      }
+    } else if (task.trigger.type === 'once') {
+      // One-time task completed, mark as expired
+      await schedulerDb.updateTask({
+        ...task,
+        status: 'expired',
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  /**
+   * Calculate the next run time for a task
+   */
+  private calculateNextRunTime(task: ScheduledTask): Date | undefined {
+    const trigger = task.trigger;
+    const now = new Date();
+
+    switch (trigger.type) {
+      case 'cron':
+        if (trigger.cronExpression) {
+          return getNextCronTime(trigger.cronExpression, now) || undefined;
+        }
+        break;
+
+      case 'interval':
+        if (trigger.intervalMs && trigger.intervalMs > 0) {
+          const baseTime = task.lastRunAt || task.createdAt;
+          const nextTime = new Date(baseTime.getTime() + trigger.intervalMs);
+          return nextTime > now ? nextTime : new Date(now.getTime() + trigger.intervalMs);
+        }
+        break;
+
+      case 'once':
+        if (trigger.runAt && trigger.runAt > now) {
+          return trigger.runAt;
+        }
+        break;
+
+      case 'event':
+        // Event-based tasks don't have a scheduled time
+        return undefined;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Create a log entry
+   */
+  private createLog(level: TaskExecutionLog['level'], message: string, data?: unknown): TaskExecutionLog {
+    return {
+      id: nanoid(),
+      timestamp: new Date(),
+      level,
+      message,
+      data,
+    };
+  }
+
+  /**
+   * Trigger an event-based task
+   */
+  async triggerEventTask(eventType: string, eventSource?: string, payload?: Record<string, unknown>): Promise<void> {
+    const tasks = await schedulerDb.getAllTasks();
+    
+    for (const task of tasks) {
+      if (
+        task.status === 'active' &&
+        task.trigger.type === 'event' &&
+        task.trigger.eventType === eventType &&
+        (!task.trigger.eventSource || task.trigger.eventSource === eventSource)
+      ) {
+        log.info(`Event ${eventType} triggered task: ${task.name}`);
+        
+        // Merge event payload with task payload
+        const mergedPayload = { ...task.payload, event: { type: eventType, source: eventSource, data: payload } };
+        const taskWithPayload = { ...task, payload: mergedPayload };
+        
+        this.executeTask(taskWithPayload).catch((err) => {
+          log.error(`Error executing event-triggered task ${task.name}:`, err);
+        });
+      }
+    }
+  }
+
+  /**
+   * Get scheduler status
+   */
+  getStatus(): { initialized: boolean; scheduledCount: number; runningCount: number } {
+    return {
+      initialized: this.isInitialized,
+      scheduledCount: this.timers.size,
+      runningCount: this.runningExecutions.size,
+    };
+  }
+}
+
+// Singleton instance
+let schedulerInstance: TaskSchedulerImpl | null = null;
+
+/**
+ * Get the task scheduler instance
+ */
+export function getTaskScheduler(): TaskSchedulerImpl {
+  if (!schedulerInstance) {
+    schedulerInstance = new TaskSchedulerImpl();
+  }
+  return schedulerInstance;
+}
+
+/**
+ * Initialize the task scheduler
+ */
+export async function initTaskScheduler(): Promise<void> {
+  const scheduler = getTaskScheduler();
+  await scheduler.initialize();
+}
+
+/**
+ * Stop the task scheduler
+ */
+export function stopTaskScheduler(): void {
+  if (schedulerInstance) {
+    schedulerInstance.stop();
+  }
+}
+
+export { TaskSchedulerImpl };

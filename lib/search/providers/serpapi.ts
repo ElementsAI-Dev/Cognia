@@ -11,6 +11,9 @@ import type {
   SearchRecency,
 } from '@/types/search';
 import { serpApiFetch } from '../proxy-search-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 const SERPAPI_URL = 'https://serpapi.com/search.json';
 
@@ -229,7 +232,7 @@ export async function searchWithSerpAPI(
       totalResults: data.search_information?.total_results,
     };
   } catch (error) {
-    console.error('SerpAPI error:', error);
+    log.error('SerpAPI error', error as Error);
     throw new Error(
       error instanceof Error
         ? `SerpAPI search failed: ${error.message}`

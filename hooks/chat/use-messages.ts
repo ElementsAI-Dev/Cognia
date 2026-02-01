@@ -6,6 +6,9 @@ import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react
 import { messageRepository } from '@/lib/db';
 import type { UIMessage, MessageRole } from '@/types';
 import { nanoid } from 'nanoid';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.chat;
 
 interface UseMessagesOptions {
   sessionId: string | null;
@@ -105,7 +108,7 @@ export function useMessages({
           setIsInitialized(true);
         }
       } catch (err) {
-        console.error('Failed to load messages:', err);
+        log.error('Failed to load messages', err as Error);
         onErrorRef.current?.(err instanceof Error ? err : new Error('Failed to load messages'));
         // Still set initialized even on error to prevent infinite loading
         if (!cancelled) {
@@ -145,7 +148,7 @@ export function useMessages({
       oldestMessageCreatedAtRef.current = oldest ?? null;
       setHasOlderMessages(totalCount > loadedMessages.length);
     } catch (err) {
-      console.error('Failed to reload messages:', err);
+      log.error('Failed to reload messages', err as Error);
       onErrorRef.current?.(err instanceof Error ? err : new Error('Failed to reload messages'));
     } finally {
       setIsLoading(false);
@@ -184,7 +187,7 @@ export function useMessages({
 
       setHasOlderMessages(totalCount > messages.length + older.length);
     } catch (err) {
-      console.error('Failed to load older messages:', err);
+      log.error('Failed to load older messages', err as Error);
       onErrorRef.current?.(err instanceof Error ? err : new Error('Failed to load older messages'));
     } finally {
       setIsLoadingOlder(false);
@@ -212,7 +215,7 @@ export function useMessages({
       try {
         await messageRepository.createWithBranch(sessionId, branchId ?? undefined, newMessage);
       } catch (err) {
-        console.error('Failed to save message:', err);
+        log.error('Failed to save message', err as Error);
         // Revert on error
         setMessages((prev) => prev.filter((m) => m.id !== newMessage.id));
         throw err;
@@ -233,7 +236,7 @@ export function useMessages({
       try {
         await messageRepository.update(id, updates);
       } catch (err) {
-        console.error('Failed to update message:', err);
+        log.error('Failed to update message', err as Error);
         throw err;
       }
     },
@@ -249,7 +252,7 @@ export function useMessages({
     try {
       await messageRepository.delete(id);
     } catch (err) {
-      console.error('Failed to delete message:', err);
+      log.error('Failed to delete message', err as Error);
       throw err;
     }
   }, []);
@@ -269,7 +272,7 @@ export function useMessages({
       try {
         await Promise.all(messagesToDelete.map((m) => messageRepository.delete(m.id)));
       } catch (err) {
-        console.error('Failed to delete messages:', err);
+        log.error('Failed to delete messages', err as Error);
         throw err;
       }
     },
@@ -287,7 +290,7 @@ export function useMessages({
     try {
       await messageRepository.deleteBySessionId(sessionId);
     } catch (err) {
-      console.error('Failed to clear messages:', err);
+      log.error('Failed to clear messages', err as Error);
       throw err;
     }
   }, [sessionId]);
@@ -338,7 +341,7 @@ export function useMessages({
           try {
             await messageRepository.update(id, { content: messageToSaveInner.content });
           } catch (err) {
-            console.error('Failed to save streaming message:', err);
+            log.error('Failed to save streaming message', err as Error);
           }
           pendingSaves.current.delete(id);
         }
@@ -383,7 +386,7 @@ export function useMessages({
         );
         return copiedMessages;
       } catch (err) {
-        console.error('Failed to copy messages for branch:', err);
+        log.error('Failed to copy messages for branch', err as Error);
         throw err;
       }
     },

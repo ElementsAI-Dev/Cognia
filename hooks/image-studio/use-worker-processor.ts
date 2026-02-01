@@ -9,6 +9,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 import type {
   WorkerMessage,
   WorkerResponse,
@@ -85,7 +88,7 @@ export function useWorkerProcessor(
 
     const initWorkers = () => {
       if (typeof Worker === 'undefined') {
-        console.warn('Web Workers not supported, falling back to main thread');
+        log.warn('Web Workers not supported, falling back to main thread');
         return;
       }
 
@@ -133,7 +136,7 @@ export function useWorkerProcessor(
           };
 
           worker.onerror = (e) => {
-            console.error('Worker error:', e);
+            log.error(`Worker error: ${e.message}`);
             onError?.(e.message);
           };
 
@@ -142,7 +145,7 @@ export function useWorkerProcessor(
 
         workersRef.current = workers;
       } catch (error) {
-        console.error('Failed to initialize workers:', error);
+        log.error('Failed to initialize workers', error as Error);
       }
     };
 

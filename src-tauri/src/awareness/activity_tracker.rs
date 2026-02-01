@@ -2,8 +2,6 @@
 //!
 //! Tracks user activities for context-aware suggestions.
 
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
@@ -260,6 +258,7 @@ impl Default for ActivityTracker {
 
 impl UserActivity {
     /// Create a text selection activity
+    #[allow(dead_code)]
     pub fn text_selection(text: &str, app: Option<String>) -> Self {
         Self {
             activity_type: ActivityType::TextSelection,
@@ -282,6 +281,7 @@ impl UserActivity {
     }
 
     /// Create a screenshot activity
+    #[allow(dead_code)]
     pub fn screenshot(mode: &str, width: u32, height: u32) -> Self {
         Self {
             activity_type: ActivityType::Screenshot,
@@ -301,6 +301,7 @@ impl UserActivity {
     }
 
     /// Create an app switch activity
+    #[allow(dead_code)]
     pub fn app_switch(from_app: Option<String>, to_app: String) -> Self {
         Self {
             activity_type: ActivityType::AppSwitch,
@@ -314,6 +315,7 @@ impl UserActivity {
     }
 
     /// Create an AI query activity
+    #[allow(dead_code)]
     pub fn ai_query(query: &str, action: &str) -> Self {
         Self {
             activity_type: ActivityType::AiQuery,

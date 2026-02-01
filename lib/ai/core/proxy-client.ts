@@ -11,6 +11,9 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createMistral } from '@ai-sdk/mistral';
 import { proxyFetch, isProxyEnabled, getCurrentProxyUrl } from '@/lib/network/proxy-fetch';
 import type { ProviderName } from '@/types/provider';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface ProxyProviderOptions {
   apiKey: string;
@@ -267,8 +270,8 @@ export function logProxyStatus() {
   const url = getCurrentProxyUrl();
   
   if (enabled && url) {
-    console.log(`[AI Client] Proxy enabled: ${url}`);
+    log.info(`Proxy enabled: ${url}`);
   } else {
-    console.log('[AI Client] Proxy disabled');
+    log.info('Proxy disabled');
   }
 }

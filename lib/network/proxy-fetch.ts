@@ -11,6 +11,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/lib/native/utils';
 import { useProxyStore, getActiveProxyUrl } from '@/stores/system';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 /** Input for proxied HTTP request via Tauri */
 interface ProxiedRequestInput {
@@ -205,7 +208,7 @@ export function createProxyFetch(customProxyUrl?: string) {
     if (isTauri()) {
       // Log proxy usage in development
       if (process.env.NODE_ENV === 'development' && proxyUrl) {
-        console.log(`[Proxy] Routing request through Tauri: ${proxyUrl}`);
+        log.debug(`Proxy: Routing request through Tauri: ${proxyUrl}`);
       }
 
       // Use Tauri backend for proxied requests

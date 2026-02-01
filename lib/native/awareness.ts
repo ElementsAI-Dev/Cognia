@@ -102,6 +102,15 @@ export interface DailyUsageSummary {
   switch_count: number;
 }
 
+export interface ActivityStats {
+  total_activities: number;
+  activities_last_hour: number;
+  activities_last_day: number;
+  most_common_type: string | null;
+  most_used_application: string | null;
+  activity_counts: Record<string, number>;
+}
+
 // ============== State Functions ==============
 
 /**
@@ -265,4 +274,108 @@ export async function getDailyUsageSummary(date: string): Promise<DailyUsageSumm
  */
 export async function clearFocusHistory(): Promise<void> {
   return invoke("awareness_clear_focus_history");
+}
+
+// ============== Activity Tracker Extended Functions ==============
+
+/**
+ * Get activities by type
+ */
+export async function getActivitiesByType(activityType: string): Promise<UserActivity[]> {
+  return invoke("awareness_get_activities_by_type", { activityType });
+}
+
+/**
+ * Get activities in time range
+ */
+export async function getActivitiesInRange(startMs: number, endMs: number): Promise<UserActivity[]> {
+  return invoke("awareness_get_activities_in_range", { startMs, endMs });
+}
+
+/**
+ * Get activities by application
+ */
+export async function getActivitiesByApplication(appName: string): Promise<UserActivity[]> {
+  return invoke("awareness_get_activities_by_application", { appName });
+}
+
+/**
+ * Get activity statistics
+ */
+export async function getActivityStats(): Promise<ActivityStats> {
+  return invoke("awareness_get_activity_stats");
+}
+
+/**
+ * Set activity tracking enabled/disabled
+ */
+export async function setActivityTrackingEnabled(enabled: boolean): Promise<void> {
+  return invoke("awareness_set_activity_tracking_enabled", { enabled });
+}
+
+/**
+ * Check if activity tracking is enabled
+ */
+export async function isActivityTrackingEnabled(): Promise<boolean> {
+  return invoke("awareness_is_activity_tracking_enabled");
+}
+
+/**
+ * Export activity history as JSON
+ */
+export async function exportActivityHistory(): Promise<string> {
+  return invoke("awareness_export_activity_history");
+}
+
+/**
+ * Import activity history from JSON
+ */
+export async function importActivityHistory(json: string): Promise<number> {
+  return invoke("awareness_import_activity_history", { json });
+}
+
+// ============== Smart Suggestions Extended Functions ==============
+
+/**
+ * Dismiss a suggestion
+ */
+export async function dismissSuggestion(action: string): Promise<void> {
+  return invoke("awareness_dismiss_suggestion", { action });
+}
+
+/**
+ * Clear all dismissed suggestions
+ */
+export async function clearDismissedSuggestions(): Promise<void> {
+  return invoke("awareness_clear_dismissed_suggestions");
+}
+
+/**
+ * Check if a suggestion is dismissed
+ */
+export async function isSuggestionDismissed(action: string): Promise<boolean> {
+  return invoke("awareness_is_suggestion_dismissed", { action });
+}
+
+/**
+ * Get list of dismissed suggestions
+ */
+export async function getDismissedSuggestions(): Promise<string[]> {
+  return invoke("awareness_get_dismissed_suggestions");
+}
+
+// ============== Focus Tracker Extended Functions ==============
+
+/**
+ * Get all focus sessions
+ */
+export async function getAllFocusSessions(): Promise<FocusSession[]> {
+  return invoke("awareness_get_all_focus_sessions");
+}
+
+/**
+ * Get focus session count
+ */
+export async function getFocusSessionCount(): Promise<number> {
+  return invoke("awareness_get_focus_session_count");
 }

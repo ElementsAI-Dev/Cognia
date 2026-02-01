@@ -7,6 +7,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauri } from '@/lib/native/utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 import type {
   JupyterSession,
   KernelInfo,
@@ -36,7 +39,7 @@ export async function getCachedVariables(
       sessionId,
     });
   } catch (error) {
-    console.warn('[Jupyter] Failed to get cached variables:', error);
+    log.warn('Jupyter: Failed to get cached variables', { error });
     return [];
   }
 }
@@ -71,7 +74,7 @@ export async function listSessions(): Promise<JupyterSession[]> {
   try {
     return await invoke<JupyterSession[]>('jupyter_list_sessions');
   } catch (error) {
-    console.warn('[Jupyter] Failed to list sessions:', error);
+    log.warn('Jupyter: Failed to list sessions', { error });
     return [];
   }
 }
@@ -89,7 +92,7 @@ export async function getSession(
       sessionId,
     });
   } catch (error) {
-    console.warn('[Jupyter] Failed to get session:', error);
+    log.warn('Jupyter: Failed to get session', { error });
     return null;
   }
 }
@@ -114,7 +117,7 @@ export async function listKernels(): Promise<KernelInfo[]> {
   try {
     return await invoke<KernelInfo[]>('jupyter_list_kernels');
   } catch (error) {
-    console.warn('[Jupyter] Failed to list kernels:', error);
+    log.warn('Jupyter: Failed to list kernels', { error });
     return [];
   }
 }
@@ -150,7 +153,7 @@ export async function getKernelStatus(
       sessionId,
     });
   } catch (error) {
-    console.warn('[Jupyter] Failed to get kernel status:', error);
+    log.warn('Jupyter: Failed to get kernel status', { error });
     return null;
   }
 }
@@ -164,7 +167,7 @@ export async function isKernelAlive(sessionId: string): Promise<boolean> {
   try {
     return await invoke<boolean>('jupyter_is_kernel_alive', { sessionId });
   } catch (error) {
-    console.warn('[Jupyter] Failed to check kernel alive:', error);
+    log.warn('Jupyter: Failed to check kernel alive', { error });
     return false;
   }
 }
@@ -182,7 +185,7 @@ export async function getSessionById(
       sessionId,
     });
   } catch (error) {
-    console.warn('[Jupyter] Failed to get session by ID:', error);
+    log.warn('Jupyter: Failed to get session by ID', { error });
     return null;
   }
 }
@@ -267,7 +270,7 @@ export async function getVariables(
       sessionId,
     });
   } catch (error) {
-    console.warn('[Jupyter] Failed to get variables:', error);
+    log.warn('Jupyter: Failed to get variables', { error });
     return [];
   }
 }
@@ -300,7 +303,7 @@ export async function checkKernelAvailable(envPath: string): Promise<boolean> {
       envPath,
     });
   } catch (error) {
-    console.warn('[Jupyter] Failed to check kernel available:', error);
+    log.warn('Jupyter: Failed to check kernel available', { error });
     return false;
   }
 }
@@ -357,7 +360,7 @@ export async function getKernelConfig(): Promise<KernelConfig | null> {
   try {
     return await invoke<KernelConfig>('jupyter_get_config');
   } catch (error) {
-    console.warn('[Jupyter] Failed to get kernel config:', error);
+    log.warn('Jupyter: Failed to get kernel config', { error });
     return null;
   }
 }

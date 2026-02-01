@@ -5,6 +5,9 @@ import { withRetry } from '../utils';
 import type { AgentTraceRecord, TraceFile } from '@/types/agent-trace';
 import { gitService, type GitBlameLineInfo } from '@/lib/native/git';
 import { useGitStore } from '@/stores/git';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 function parseTraceRecord(json: string): AgentTraceRecord {
   return JSON.parse(json) as AgentTraceRecord;
@@ -132,7 +135,7 @@ export const agentTraceRepository = {
         }
       } catch (error) {
         // ignore malformed records
-        console.error('Failed to parse agent trace record:', error);
+        log.error('Failed to parse agent trace record', error as Error);
       }
     }
 

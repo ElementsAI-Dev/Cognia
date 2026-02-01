@@ -18,6 +18,9 @@ import {
   CanvasWebSocketProvider,
   type ConnectionState 
 } from '@/lib/canvas/collaboration/websocket-provider';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 interface UseCollaborativeSessionReturn {
   session: CollaborativeSession | null;
@@ -160,7 +163,7 @@ export function useCollaborativeSession(
         setConnectionState('connecting');
         await provider.connect(newSession.id, localParticipant);
       } catch (error) {
-        console.error('Failed to connect WebSocket:', error);
+        log.error('Failed to connect WebSocket', error as Error);
         setConnectionState('disconnected');
       }
     }
@@ -253,7 +256,7 @@ export function useCollaborativeSession(
           await provider.connect(sessionId, localParticipant);
           provider.requestSync();
         } catch (error) {
-          console.error('Failed to join session:', error);
+          log.error('Failed to join session', error as Error);
           setConnectionState('error');
         }
       }

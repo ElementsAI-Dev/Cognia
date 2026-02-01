@@ -11,6 +11,9 @@
 import type { LanguageModel } from 'ai';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { cosineSimilarity } from '@/lib/ai/embedding/embedding';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface RerankDocument {
   id: string;
@@ -90,7 +93,7 @@ Respond with only a JSON array like: [{"id": "doc1", "score": 8}, {"id": "doc2",
     // Parse the JSON response
     const jsonMatch = result.text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      console.warn('Failed to parse reranking response, returning original order');
+      log.warn('Failed to parse reranking response, returning original order');
       return documents.map(doc => ({
         id: doc.id,
         content: doc.content,
@@ -121,7 +124,7 @@ Respond with only a JSON array like: [{"id": "doc1", "score": 8}, {"id": "doc2",
       .sort((a, b) => b.rerankScore - a.rerankScore)
       .slice(0, topN);
   } catch (error) {
-    console.error('LLM reranking failed:', error);
+    log.error('LLM reranking failed', error as Error);
     // Fallback to original scores
     return documents
       .map(doc => ({
@@ -188,7 +191,7 @@ export async function rerankWithCohere(
       };
     });
   } catch (error) {
-    console.error('Cohere reranking failed:', error);
+    log.error('Cohere reranking failed', error as Error);
     // Fallback to original order
     return documents
       .map(doc => ({

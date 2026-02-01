@@ -3,22 +3,26 @@
 /**
  * VegaLiteBlock - Renders VegaLite charts in chat messages
  * Features:
+ * - Uses react-vega (VegaEmbed) for proper React lifecycle management
+ * - Native Vega view export (PNG/SVG) via view.toImageURL()
  * - Fullscreen view dialog
  * - Copy spec JSON
- * - Export as PNG/SVG
  * - Toggle source view
  * - Accessibility support
- * - Theme auto-detection
+ * - Theme auto-detection with dark mode listener
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { 
-  AlertCircle, 
-  Copy, 
-  Check, 
-  Maximize2, 
-  Code2, 
+import { VegaEmbed } from 'react-vega';
+import type { View } from 'vega';
+import type { VisualizationSpec } from 'vega-embed';
+import {
+  AlertCircle,
+  Copy,
+  Check,
+  Maximize2,
+  Code2,
   Download,
   ImageIcon,
   FileCode,
@@ -44,7 +48,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCopy } from '@/hooks/ui';
-import { exportDiagram, generateDiagramFilename } from '@/lib/export/diagram-export';
+import { generateDiagramFilename } from '@/lib/export/diagram-export';
 import { toast } from 'sonner';
 import { LoadingAnimation } from './loading-animation';
 
@@ -56,107 +60,131 @@ interface VegaLiteBlockProps {
 export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
   const t = useTranslations('renderer');
   const tToasts = useTranslations('toasts');
-  const containerRef = useRef<HTMLDivElement>(null);
-  const fullscreenRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<View | null>(null);
+  const fullscreenViewRef = useRef<View | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isDark, setIsDark] = useState(false);
   const { copy, isCopying } = useCopy({ toastMessage: tToasts('vegaLiteCopied') });
 
-  const renderChart = useCallback(async (container: HTMLDivElement | null, spec: object) => {
-    if (!container) return;
+  // Parse spec once with memoization
+  const { spec, parseError } = useMemo(() => {
+    try {
+      const parsed = JSON.parse(content) as VisualizationSpec;
+      return { spec: parsed, parseError: null };
+    } catch (err) {
+      return {
+        spec: null,
+        parseError: err instanceof Error ? err.message : 'Invalid JSON',
+      };
+    }
+  }, [content]);
 
-    const vegaEmbed = (await import('vega-embed')).default;
-    const isDark = document.documentElement.classList.contains('dark');
-    
-    await vegaEmbed(container, spec as never, {
-      actions: false,
-      renderer: 'svg',
-      theme: isDark ? 'dark' : undefined,
+  // Detect dark mode and listen for changes
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          checkDarkMode();
+        }
+      });
     });
+
+    observer.observe(document.documentElement, { attributes: true });
+
+    return () => observer.disconnect();
   }, []);
 
-  const doRender = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const spec = JSON.parse(content);
-      
-      if (containerRef.current) {
-        await renderChart(containerRef.current, spec);
-        setIsLoading(false);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to render chart');
+  // Update error state based on parse result
+  useEffect(() => {
+    if (parseError) {
+      setError(parseError);
       setIsLoading(false);
+    } else {
+      setError(null);
     }
-  }, [content, renderChart]);
+  }, [parseError]);
 
-  useEffect(() => {
-    let mounted = true;
+  // Handle view creation - store reference for export
+  const handleNewView = useCallback((view: View) => {
+    viewRef.current = view;
+    setIsLoading(false);
+    setError(null);
+  }, []);
 
-    const render = async () => {
-      if (mounted) {
-        await doRender();
-      }
-    };
+  const handleFullscreenNewView = useCallback((view: View) => {
+    fullscreenViewRef.current = view;
+  }, []);
 
-    render();
-
-    return () => {
-      mounted = false;
-    };
-  }, [doRender]);
-
-  useEffect(() => {
-    if (isFullscreen && fullscreenRef.current) {
-      try {
-        const spec = JSON.parse(content);
-        renderChart(fullscreenRef.current, spec);
-      } catch {
-        // Error already handled in main render
-      }
-    }
-  }, [isFullscreen, content, renderChart]);
+  // Handle Vega errors
+  const handleError = useCallback((err: unknown) => {
+    const message = err instanceof Error ? err.message : 'Failed to render chart';
+    setError(message);
+    setIsLoading(false);
+  }, []);
 
   const handleCopy = useCallback(async () => {
-    // Format JSON for better readability
     try {
-      const spec = JSON.parse(content);
-      await copy(JSON.stringify(spec, null, 2));
+      const formatted = JSON.stringify(JSON.parse(content), null, 2);
+      await copy(formatted);
     } catch {
       await copy(content);
     }
   }, [copy, content]);
 
-  const handleExport = useCallback(async (format: 'png' | 'svg') => {
-    const element = isFullscreen ? fullscreenRef.current : containerRef.current;
-    if (!element) return;
+  // Native Vega export using view.toImageURL()
+  const handleExport = useCallback(
+    async (format: 'png' | 'svg') => {
+      const view = isFullscreen ? fullscreenViewRef.current : viewRef.current;
+      if (!view) {
+        toast.error(tToasts('exportFailed', { error: 'Chart not ready' }));
+        return;
+      }
 
-    setIsExporting(true);
-    try {
-      const filename = generateDiagramFilename(content, 'vegalite');
-      const isDark = document.documentElement.classList.contains('dark');
-      await exportDiagram(element, filename, {
-        format,
-        scale: 2,
-        backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
-        padding: 20,
-      });
-      toast.success(tToasts('exported', { format: format.toUpperCase() }));
-    } catch (err) {
-      toast.error(tToasts('exportFailed', { error: err instanceof Error ? err.message : 'Unknown error' }));
-    } finally {
-      setIsExporting(false);
-    }
-  }, [content, isFullscreen, tToasts]);
+      setIsExporting(true);
+      try {
+        const filename = generateDiagramFilename(content, 'vegalite');
+        const scaleFactor = format === 'png' ? 2 : 1;
+
+        // Use Vega's native export API
+        const url = await view.toImageURL(format, scaleFactor);
+
+        // Download the file
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${filename}.${format}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success(tToasts('exported', { format: format.toUpperCase() }));
+      } catch (err) {
+        toast.error(
+          tToasts('exportFailed', {
+            error: err instanceof Error ? err.message : 'Unknown error',
+          })
+        );
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [content, isFullscreen, tToasts]
+  );
 
   const handleRetry = useCallback(() => {
-    doRender();
-  }, [doRender]);
+    setIsLoading(true);
+    setError(null);
+    // Force re-render by toggling a key (handled via error state reset)
+  }, []);
 
   // Format content for display
   const formattedContent = (() => {
@@ -323,11 +351,21 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
           </pre>
         )}
 
-        {/* Rendered chart */}
-        <div
-          ref={containerRef}
-          className="flex items-center justify-center overflow-auto p-4"
-        />
+        {/* Rendered chart using react-vega */}
+        <div className="flex items-center justify-center overflow-auto p-4">
+          {spec && (
+            <VegaEmbed
+              spec={spec}
+              options={{
+                actions: false,
+                renderer: 'svg',
+                theme: isDark ? 'dark' : undefined,
+              }}
+              onEmbed={(result) => handleNewView(result.view)}
+              onError={handleError}
+            />
+          )}
+        </div>
       </div>
 
       {/* Fullscreen dialog */}
@@ -370,14 +408,23 @@ export function VegaLiteBlock({ content, className }: VegaLiteBlockProps) {
               </div>
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
-            {/* Large chart */}
-            <div
-              ref={fullscreenRef}
-              className="flex items-center justify-center p-4"
-            />
-            
+            {/* Large chart in fullscreen */}
+            <div className="flex items-center justify-center p-4">
+              {spec && (
+                <VegaEmbed
+                  spec={spec}
+                  options={{
+                    actions: false,
+                    renderer: 'svg',
+                    theme: isDark ? 'dark' : undefined,
+                  }}
+                  onEmbed={(result) => handleFullscreenNewView(result.view)}
+                />
+              )}
+            </div>
+
             {/* Spec JSON */}
             <details className="group">
               <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">

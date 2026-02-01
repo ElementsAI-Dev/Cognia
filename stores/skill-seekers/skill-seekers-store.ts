@@ -23,6 +23,9 @@ import skillSeekersApi, {
   type EnhanceProvider,
   type PageEstimation,
 } from '@/lib/native/skill-seekers';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 // ========== Types ==========
 
@@ -253,7 +256,7 @@ export const useSkillSeekersStore = create<SkillSeekersStore>()(
           const jobs = await skillSeekersApi.listJobs();
           get().setJobs(jobs);
         } catch (err) {
-          console.error('Failed to refresh jobs:', err);
+          log.error('Failed to refresh jobs', err as Error);
         }
       },
 
@@ -262,7 +265,7 @@ export const useSkillSeekersStore = create<SkillSeekersStore>()(
           const presets = await skillSeekersApi.listPresets();
           set({ presets });
         } catch (err) {
-          console.error('Failed to refresh presets:', err);
+          log.error('Failed to refresh presets', err as Error);
         }
       },
 
@@ -271,7 +274,7 @@ export const useSkillSeekersStore = create<SkillSeekersStore>()(
           const skills = await skillSeekersApi.listGenerated();
           get().setGeneratedSkills(skills);
         } catch (err) {
-          console.error('Failed to refresh generated skills:', err);
+          log.error('Failed to refresh generated skills', err as Error);
         }
       },
 
@@ -289,7 +292,7 @@ export const useSkillSeekersStore = create<SkillSeekersStore>()(
             },
           });
         } catch (err) {
-          console.error('Failed to refresh config:', err);
+          log.error('Failed to refresh config', err as Error);
         }
       },
 
@@ -451,7 +454,7 @@ export const useSkillSeekersStore = create<SkillSeekersStore>()(
           await get().refreshJobs();
           return removed;
         } catch (err) {
-          console.error('Failed to cleanup jobs:', err);
+          log.error('Failed to cleanup jobs', err as Error);
           return 0;
         }
       },

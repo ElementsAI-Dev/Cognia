@@ -4,6 +4,9 @@
 
 import type { WhisperTranscriptionResponse, SpeechLanguageCode } from '@/types/media/speech';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 // Whisper API endpoint
 const WHISPER_API_URL = 'https://api.openai.com/v1/audio/transcriptions';
@@ -115,7 +118,7 @@ export async function transcribeAudio(
       duration: result.duration,
     };
   } catch (error) {
-    console.error('Whisper API error:', error);
+    log.error('Whisper API error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to transcribe audio',
@@ -172,7 +175,7 @@ export async function transcribeViaApi(
       duration: result.duration,
     };
   } catch (error) {
-    console.error('Speech API error:', error);
+    log.error('Speech API error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to transcribe audio',

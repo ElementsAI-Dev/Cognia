@@ -11,6 +11,9 @@ import type {
   SearchRecency,
 } from '@/types/search';
 import { bingFetch } from '../proxy-search-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 const BING_WEB_SEARCH_URL = 'https://api.bing.microsoft.com/v7.0/search';
 const BING_NEWS_SEARCH_URL = 'https://api.bing.microsoft.com/v7.0/news/search';
@@ -198,7 +201,7 @@ export async function searchWithBing(
       totalResults: data.webPages?.totalEstimatedMatches,
     };
   } catch (error) {
-    console.error('Bing search error:', error);
+    log.error('Bing search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Bing search failed: ${error.message}`
@@ -281,7 +284,7 @@ export async function searchNewsWithBing(
       totalResults: data.totalEstimatedMatches,
     };
   } catch (error) {
-    console.error('Bing News search error:', error);
+    log.error('Bing News search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Bing News search failed: ${error.message}`
@@ -357,7 +360,7 @@ export async function searchImagesWithBing(
       totalResults: data.totalEstimatedMatches,
     };
   } catch (error) {
-    console.error('Bing Image search error:', error);
+    log.error('Bing Image search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Bing Image search failed: ${error.message}`

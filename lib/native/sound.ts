@@ -2,6 +2,10 @@
  * Sound Effects - Audio feedback for desktop chat assistant
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ui;
+
 // Sound types
 export type SoundType = 'message' | 'notification' | 'success' | 'error';
 
@@ -18,7 +22,7 @@ function getAudioContext(): AudioContext | null {
     try {
       audioContext = new (window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
     } catch {
-      console.warn('Web Audio API not supported');
+      log.warn('Web Audio API not supported');
       return null;
     }
   }

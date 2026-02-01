@@ -4,6 +4,9 @@
  */
 
 import type { TTSPlaybackState } from '@/types/media/tts';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface StreamingPlaybackOptions {
   onStateChange?: (state: TTSPlaybackState) => void;
@@ -109,7 +112,7 @@ export class StreamingAudioPlayer {
         this.setState('playing');
       }
     } catch (error) {
-      console.error('Failed to decode audio chunk:', error);
+      log.error('Failed to decode audio chunk', error as Error);
     }
   }
 
@@ -313,7 +316,7 @@ export class BufferedStreamingPlayer {
           this.processPendingChunks();
         }, { once: true });
       } catch (error) {
-        console.error('Failed to append buffer:', error);
+        log.error('Failed to append buffer', error as Error);
       }
     }
   }
@@ -360,7 +363,7 @@ export class BufferedStreamingPlayer {
    * Start playback
    */
   play(): void {
-    this.audioElement?.play().catch(console.error);
+    this.audioElement?.play().catch((e) => log.error('Audio play failed', e as Error));
   }
 
   /**

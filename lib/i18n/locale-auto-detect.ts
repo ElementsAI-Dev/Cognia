@@ -5,6 +5,9 @@
 
 import { localeDetector } from '@/lib/geolocation/locale-detector';
 import { locales, type Locale } from './config';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 export interface AutoDetectResult {
   locale: Locale;
@@ -63,7 +66,7 @@ export async function autoDetectLocale(): Promise<AutoDetectResult> {
       timezone: localeInfo.country?.timezone,
     };
   } catch (error) {
-    console.warn('Failed to auto-detect locale:', error);
+    log.warn('Failed to auto-detect locale', { error });
     
     const browserLocale = typeof navigator !== 'undefined' 
       ? navigator.language 

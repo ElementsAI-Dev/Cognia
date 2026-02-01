@@ -13,6 +13,9 @@ import type {
   GitHubSyncConfig,
 } from '@/types/sync';
 import { BaseSyncProvider } from './sync-provider';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 // GitHub API response types
 interface GitHubUser {
@@ -87,7 +90,7 @@ class GitHubClient {
 
       if (!response.ok) {
         const error = await response.text();
-        console.error(`GitHub API error: ${response.status}`, error);
+        log.error(`GitHub API error: ${response.status}`, new Error(error));
         return null;
       }
 
@@ -97,7 +100,7 @@ class GitHubClient {
 
       return await response.json();
     } catch (error) {
-      console.error('GitHub request failed:', error);
+      log.error('GitHub request failed', error as Error);
       return null;
     }
   }
@@ -410,7 +413,7 @@ export class GitHubProvider extends BaseSyncProvider {
         return await this.downloadFromRepo(client, onProgress);
       }
     } catch (error) {
-      console.error('GitHub download error:', error);
+      log.error('GitHub download error', error as Error);
       return null;
     }
   }

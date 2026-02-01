@@ -53,6 +53,7 @@ import { toast } from 'sonner';
 import { useSettingsStore } from '@/stores';
 import { LoadingAnimation } from './loading-animation';
 import { MERMAID_TEMPLATES, type MermaidTemplate } from './mermaid-templates';
+import { createEditorOptions, getMonacoTheme, registerMermaidLanguage, MERMAID_LANGUAGE_ID } from '@/lib/monaco';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
@@ -216,14 +217,6 @@ export const MermaidEditor = memo(function MermaidEditor({
     }
   }, []);
 
-  const getEditorTheme = () => {
-    if (theme === 'dark') return 'vs-dark';
-    if (theme === 'light') return 'light';
-    if (typeof window !== 'undefined') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'vs-dark' : 'light';
-    }
-    return 'light';
-  };
 
   // Re-render when initialCode changes externally
   useEffect(() => {
@@ -331,26 +324,19 @@ export const MermaidEditor = memo(function MermaidEditor({
     <div className={cn('flex-1 overflow-hidden', viewMode === 'code' && 'border-r-0')}>
       <MonacoEditor
         height="100%"
-        language="markdown"
-        theme={getEditorTheme()}
+        language={MERMAID_LANGUAGE_ID}
+        theme={getMonacoTheme(theme)}
         value={code}
         onChange={handleCodeChange}
-        options={{
+        beforeMount={(monaco) => registerMermaidLanguage(monaco)}
+        options={createEditorOptions('code', {
           minimap: { enabled: false },
           fontSize: 13,
-          lineNumbers: 'on',
-          scrollBeyondLastLine: false,
-          wordWrap: 'on',
-          automaticLayout: true,
-          tabSize: 2,
           readOnly,
           padding: { top: 12, bottom: 12 },
-          renderLineHighlight: 'line',
-          scrollbar: {
-            vertical: 'auto',
-            horizontal: 'auto',
-          },
-        }}
+          stickyScroll: { enabled: false },
+          bracketPairColorization: { enabled: true },
+        })}
       />
     </div>
   );

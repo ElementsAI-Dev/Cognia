@@ -14,6 +14,9 @@ import {
   getVisualBounds,
 } from '@/lib/designer/elements';
 import type { DesignerElement } from '@/types/designer';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 // Drag data types
 export type DragItemType = 'component' | 'element';
@@ -285,7 +288,7 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
               moveElement(data.elementId, newParentId, index);
             }
           } catch (err) {
-            console.error('Failed to parse drag data:', err);
+            log.error('Failed to parse drag data', err as Error);
           }
 
           resetDragState();
@@ -323,7 +326,7 @@ export function useDesignerDragDrop(): UseDesignerDragDropReturn {
             moveElement(data.elementId, null);
           }
         } catch (err) {
-          console.error('Failed to parse drag data:', err);
+          log.error('Failed to parse drag data', err as Error);
         }
 
         resetDragState();

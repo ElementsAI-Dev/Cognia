@@ -18,6 +18,9 @@ import type {
   BackupInfo,
 } from '@/types/sync';
 import { DEFAULT_WEBDAV_CONFIG, DEFAULT_GITHUB_CONFIG } from '@/types/sync';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 // Re-export defaults for convenience
 export { DEFAULT_WEBDAV_CONFIG, DEFAULT_GITHUB_CONFIG };
@@ -243,7 +246,7 @@ export const useSyncStore = create<SyncStore>()(
           const manager = getSyncManager();
           return await manager.listBackups();
         } catch (error) {
-          console.error('Failed to list backups:', error);
+          log.error('Failed to list backups', error as Error);
           return [];
         }
       },
@@ -254,7 +257,7 @@ export const useSyncStore = create<SyncStore>()(
           const manager = getSyncManager();
           return await manager.restoreBackup(backupId);
         } catch (error) {
-          console.error('Failed to restore backup:', error);
+          log.error('Failed to restore backup', error as Error);
           return false;
         }
       },
@@ -265,7 +268,7 @@ export const useSyncStore = create<SyncStore>()(
           const manager = getSyncManager();
           return await manager.deleteBackup(backupId);
         } catch (error) {
-          console.error('Failed to delete backup:', error);
+          log.error('Failed to delete backup', error as Error);
           return false;
         }
       },

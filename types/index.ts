@@ -72,3 +72,6 @@ export * from './arena';
 
 // Sync types (WebDAV & GitHub)
 export * from './sync';
+
+// Scheduler types
+export * from './scheduler';

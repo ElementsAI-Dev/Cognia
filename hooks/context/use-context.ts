@@ -10,6 +10,9 @@ import { isTauri } from '@/lib/native/utils';
 import * as contextApi from '@/lib/native/context';
 import type { FullContext } from '@/lib/native/context';
 import { useContextStore } from '@/stores/context';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 // Re-export types for backward compatibility
 export type {
@@ -62,7 +65,7 @@ export function useContext() {
     try {
       return await contextApi.getWindowInfo();
     } catch (err) {
-      console.error('Failed to get window info:', err);
+      log.error('Failed to get window info', err as Error);
       return null;
     }
   }, []);
@@ -73,7 +76,7 @@ export function useContext() {
     try {
       return await contextApi.getAppContext();
     } catch (err) {
-      console.error('Failed to get app context:', err);
+      log.error('Failed to get app context', err as Error);
       return null;
     }
   }, []);
@@ -84,7 +87,7 @@ export function useContext() {
     try {
       return await contextApi.getFileContext();
     } catch (err) {
-      console.error('Failed to get file context:', err);
+      log.error('Failed to get file context', err as Error);
       return null;
     }
   }, []);
@@ -95,7 +98,7 @@ export function useContext() {
     try {
       return await contextApi.getBrowserContext();
     } catch (err) {
-      console.error('Failed to get browser context:', err);
+      log.error('Failed to get browser context', err as Error);
       return null;
     }
   }, []);
@@ -106,7 +109,7 @@ export function useContext() {
     try {
       return await contextApi.getEditorContext();
     } catch (err) {
-      console.error('Failed to get editor context:', err);
+      log.error('Failed to get editor context', err as Error);
       return null;
     }
   }, []);
@@ -117,7 +120,7 @@ export function useContext() {
     try {
       return await contextApi.getAllWindows();
     } catch (err) {
-      console.error('Failed to get all windows:', err);
+      log.error('Failed to get all windows', err as Error);
       return [];
     }
   }, []);
@@ -128,7 +131,7 @@ export function useContext() {
     try {
       return await contextApi.findWindowsByTitle(pattern);
     } catch (err) {
-      console.error('Failed to find windows by title:', err);
+      log.error('Failed to find windows by title', err as Error);
       return [];
     }
   }, []);
@@ -139,7 +142,7 @@ export function useContext() {
     try {
       return await contextApi.findWindowsByProcess(processName);
     } catch (err) {
-      console.error('Failed to find windows by process:', err);
+      log.error('Failed to find windows by process', err as Error);
       return [];
     }
   }, []);
@@ -151,7 +154,7 @@ export function useContext() {
       await contextApi.clearCache();
       store.clearContext();
     } catch (err) {
-      console.error('Failed to clear cache:', err);
+      log.error('Failed to clear cache', err as Error);
     }
   }, [store]);
 
@@ -162,7 +165,7 @@ export function useContext() {
       await contextApi.setCacheDuration(ms);
       store.setCacheDurationMs(ms);
     } catch (err) {
-      console.error('Failed to set cache duration:', err);
+      log.error('Failed to set cache duration', err as Error);
     }
   }, [store]);
 
@@ -172,7 +175,7 @@ export function useContext() {
     try {
       return await contextApi.getCacheDuration();
     } catch (err) {
-      console.error('Failed to get cache duration:', err);
+      log.error('Failed to get cache duration', err as Error);
       return 500;
     }
   }, []);
@@ -185,7 +188,7 @@ export function useContext() {
       store.setUiElements(elements);
       return elements;
     } catch (err) {
-      console.error('Failed to analyze UI:', err);
+      log.error('Failed to analyze UI', err as Error);
       return [];
     }
   }, [store]);
@@ -196,7 +199,7 @@ export function useContext() {
     try {
       return await contextApi.getTextAt(x, y);
     } catch (err) {
-      console.error('Failed to get text at position:', err);
+      log.error('Failed to get text at position', err as Error);
       return null;
     }
   }, []);
@@ -207,7 +210,7 @@ export function useContext() {
     try {
       return await contextApi.getElementAt(x, y);
     } catch (err) {
-      console.error('Failed to get element at position:', err);
+      log.error('Failed to get element at position', err as Error);
       return null;
     }
   }, []);

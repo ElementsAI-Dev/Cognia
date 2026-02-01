@@ -9,6 +9,9 @@ import type {
   RoutingStats,
   TaskCategory,
 } from '@/types/provider/auto-router';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 // Simple hash function for cache keys
 function hashString(str: string): string {
@@ -991,7 +994,7 @@ class RoutingObservability {
       try {
         listener(event);
       } catch (error) {
-        console.error('[RoutingObservability] Listener error:', error);
+        log.error('RoutingObservability listener error', error as Error);
       }
     });
   }

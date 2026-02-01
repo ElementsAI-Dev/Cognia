@@ -9,6 +9,9 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from './utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 import type {
   DetectedProxy,
   ProxyTestResult,
@@ -59,7 +62,7 @@ export async function detectAllProxies(): Promise<DetectedProxy[]> {
   try {
     return await invoke<DetectedProxy[]>('proxy_detect_all');
   } catch (error) {
-    console.error('Failed to detect proxies:', error);
+    log.error('Failed to detect proxies', error as Error);
     return [];
   }
 }
@@ -98,7 +101,7 @@ export async function getSystemProxy(): Promise<SystemProxySettings | null> {
   try {
     return await invoke<SystemProxySettings>('proxy_get_system');
   } catch (error) {
-    console.error('Failed to get system proxy:', error);
+    log.error('Failed to get system proxy', error as Error);
     return null;
   }
 }

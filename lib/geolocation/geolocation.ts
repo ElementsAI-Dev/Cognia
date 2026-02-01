@@ -11,6 +11,9 @@ import {
   GeolocationPermissionStatus,
   PermissionState,
 } from '@/types/system/geolocation';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 const isTauri = (): boolean => {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -52,7 +55,7 @@ export class GeolocationService {
         coarseLocation: result.coarseLocation as PermissionState,
       };
     } catch (error) {
-      console.warn('Failed to check Tauri geolocation permissions:', error);
+      log.warn('Failed to check Tauri geolocation permissions', { error });
       return {
         location: 'prompt',
         coarseLocation: 'prompt',
@@ -99,7 +102,7 @@ export class GeolocationService {
         coarseLocation: result.coarseLocation as PermissionState,
       };
     } catch (error) {
-      console.warn('Failed to request Tauri geolocation permissions:', error);
+      log.warn('Failed to request Tauri geolocation permissions', { error });
       return {
         location: 'denied',
         coarseLocation: 'denied',
@@ -320,7 +323,7 @@ export class GeolocationService {
         await clearWatch(this.tauriWatchId);
         this.tauriWatchId = null;
       } catch (error) {
-        console.warn('Failed to clear Tauri watch:', error);
+        log.warn('Failed to clear Tauri watch', { error });
       }
     }
 

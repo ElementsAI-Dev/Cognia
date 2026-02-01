@@ -292,6 +292,143 @@ describe('useDesignerStore', () => {
     });
   });
 
+  describe('expanded style categories', () => {
+    it('should have default expanded categories', () => {
+      const state = useDesignerStore.getState();
+      expect(state.expandedStyleCategories).toEqual(['layout']);
+    });
+
+    it('should set expanded style categories', () => {
+      act(() => {
+        useDesignerStore.getState().setExpandedStyleCategories(['layout', 'typography', 'spacing']);
+      });
+
+      expect(useDesignerStore.getState().expandedStyleCategories).toEqual([
+        'layout',
+        'typography',
+        'spacing',
+      ]);
+    });
+
+    it('should toggle style category - add', () => {
+      act(() => {
+        useDesignerStore.getState().toggleStyleCategory('typography');
+      });
+
+      expect(useDesignerStore.getState().expandedStyleCategories).toContain('typography');
+    });
+
+    it('should toggle style category - remove', () => {
+      act(() => {
+        useDesignerStore.getState().setExpandedStyleCategories(['layout', 'typography']);
+        useDesignerStore.getState().toggleStyleCategory('typography');
+      });
+
+      expect(useDesignerStore.getState().expandedStyleCategories).not.toContain('typography');
+      expect(useDesignerStore.getState().expandedStyleCategories).toContain('layout');
+    });
+  });
+
+  describe('panel layout', () => {
+    it('should have default panel layout', () => {
+      const state = useDesignerStore.getState();
+      expect(state.panelLayout).toEqual({
+        elementTreeSize: 20,
+        previewSize: 55,
+        stylePanelSize: 25,
+        historyPanelSize: 20,
+      });
+    });
+
+    it('should update panel layout partially', () => {
+      act(() => {
+        useDesignerStore.getState().setPanelLayout({ elementTreeSize: 25 });
+      });
+
+      const state = useDesignerStore.getState();
+      expect(state.panelLayout.elementTreeSize).toBe(25);
+      expect(state.panelLayout.previewSize).toBe(55); // unchanged
+    });
+
+    it('should reset panel layout to defaults', () => {
+      act(() => {
+        useDesignerStore.getState().setPanelLayout({ elementTreeSize: 30, previewSize: 40 });
+        useDesignerStore.getState().resetPanelLayout();
+      });
+
+      const state = useDesignerStore.getState();
+      expect(state.panelLayout).toEqual({
+        elementTreeSize: 20,
+        previewSize: 55,
+        stylePanelSize: 25,
+        historyPanelSize: 20,
+      });
+    });
+  });
+
+  describe('mobile layout', () => {
+    it('should have default mobile layout state', () => {
+      const state = useDesignerStore.getState();
+      expect(state.isMobileLayout).toBe(false);
+      expect(state.mobileActiveTab).toBe('preview');
+    });
+
+    it('should set mobile layout', () => {
+      act(() => {
+        useDesignerStore.getState().setMobileLayout(true);
+      });
+
+      expect(useDesignerStore.getState().isMobileLayout).toBe(true);
+    });
+
+    it('should set mobile active tab', () => {
+      act(() => {
+        useDesignerStore.getState().setMobileActiveTab('code');
+      });
+
+      expect(useDesignerStore.getState().mobileActiveTab).toBe('code');
+    });
+
+    it('should set mobile active tab to elements', () => {
+      act(() => {
+        useDesignerStore.getState().setMobileActiveTab('elements');
+      });
+
+      expect(useDesignerStore.getState().mobileActiveTab).toBe('elements');
+    });
+
+    it('should set mobile active tab to styles', () => {
+      act(() => {
+        useDesignerStore.getState().setMobileActiveTab('styles');
+      });
+
+      expect(useDesignerStore.getState().mobileActiveTab).toBe('styles');
+    });
+  });
+
+  describe('AI panel', () => {
+    it('should have default AI panel state', () => {
+      const state = useDesignerStore.getState();
+      expect(state.showAIPanel).toBe(false);
+    });
+
+    it('should toggle AI panel', () => {
+      expect(useDesignerStore.getState().showAIPanel).toBe(false);
+
+      act(() => {
+        useDesignerStore.getState().toggleAIPanel();
+      });
+
+      expect(useDesignerStore.getState().showAIPanel).toBe(true);
+
+      act(() => {
+        useDesignerStore.getState().toggleAIPanel();
+      });
+
+      expect(useDesignerStore.getState().showAIPanel).toBe(false);
+    });
+  });
+
   describe('parseCodeToElements', () => {
     it('should generate deterministic element IDs (el-0, el-1, etc.)', () => {
       act(() => {

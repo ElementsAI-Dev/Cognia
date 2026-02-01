@@ -8,6 +8,10 @@
  * - Thread-safe operations
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
+
 export interface ToolCacheEntry {
   toolName: string;
   args: Record<string, unknown>;
@@ -148,7 +152,7 @@ export class ToolCache {
 
     // Debug: log the update
     if (process.env.DEBUG_LRU) {
-      console.log(`[LRU Get] Updated ${key}: order ${oldOrder} -> ${entry.accessOrder}, time ${oldLastAccessed.toISOString()} -> ${entry.lastAccessed.toISOString()}`);
+      log.debug(`LRU Get updated ${key}: order ${oldOrder} -> ${entry.accessOrder}, time ${oldLastAccessed.toISOString()} -> ${entry.lastAccessed.toISOString()}`);
     }
 
     return entry.result;

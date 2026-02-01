@@ -17,6 +17,9 @@ import { GitHubProvider } from './providers/github-provider';
 import { createFullBackup } from '@/lib/storage/data-export';
 import { importFullBackup } from '@/lib/storage/data-import';
 import { generateChecksum } from '@/lib/storage/data-import';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 /**
  * Sync Manager class - singleton
@@ -388,7 +391,7 @@ class SyncManager {
   async restoreBackup(backupId: string): Promise<boolean> {
     // This would need to download the specific backup file
     // For now, return false as it requires more implementation
-    console.log('Restore backup:', backupId);
+    log.debug(`Restore backup: ${backupId}`);
     return false;
   }
 

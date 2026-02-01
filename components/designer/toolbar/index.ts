@@ -6,3 +6,4 @@
 export { DesignerToolbar } from './designer-toolbar';
 export { InlineTextEditor, useInlineTextEditor } from './inline-text-editor';
 export { KeyboardShortcuts, useDesignerShortcuts } from './keyboard-shortcuts';
+export { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog';

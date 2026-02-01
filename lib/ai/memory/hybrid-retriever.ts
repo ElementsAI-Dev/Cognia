@@ -15,6 +15,9 @@
 
 import type { Memory, MemoryType, MemoryScope } from '@/types';
 import { generateEmbedding, cosineSimilarity, type EmbeddingConfig } from '../embedding';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface ScoredMemory {
   memory: Memory;
@@ -229,7 +232,7 @@ export class HybridRetriever {
         }
       }
     } catch (error) {
-      console.warn('Vector search failed:', error);
+      log.warn('Vector search failed', { error: String(error) });
     }
 
     return results.sort((a, b) => b.score - a.score);

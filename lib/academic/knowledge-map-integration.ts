@@ -11,6 +11,9 @@ import type {
   MindMapData,
   PDFConversionOptions,
 } from '@/types/learning/knowledge-map';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 // ============================================================================
 // Knowledge Map Generation from Different Sources
@@ -33,7 +36,7 @@ export async function generateKnowledgeMapFromSelection(
     );
     return knowledgeMap;
   } catch (error) {
-    console.error('Failed to generate knowledge map from selection:', error);
+    log.error('Failed to generate knowledge map from selection', error as Error);
     return null;
   }
 }
@@ -99,7 +102,7 @@ export async function generateKnowledgeMapWithAI(
     const knowledgeMap = await store.createKnowledgeMap(request);
     return knowledgeMap;
   } catch (error) {
-    console.error('Failed to generate AI-assisted knowledge map:', error);
+    log.error('Failed to generate AI-assisted knowledge map', error as Error);
     return null;
   }
 }
@@ -125,7 +128,7 @@ export async function generateMindMapFromKnowledgeMap(
     });
     return mindMap;
   } catch (error) {
-    console.error('Failed to generate mind map:', error);
+    log.error('Failed to generate mind map', error as Error);
     return null;
   }
 }
@@ -148,7 +151,7 @@ export async function generateMindMapFromContent(
     });
     return mindMap;
   } catch (error) {
-    console.error('Failed to generate mind map from content:', error);
+    log.error('Failed to generate mind map from content', error as Error);
     return null;
   }
 }
@@ -222,7 +225,7 @@ export async function importKnowledgeMapFromJSON(jsonString: string): Promise<Kn
     const maps = Object.values(store.knowledgeMaps);
     return maps[maps.length - 1] || null;
   } catch (error) {
-    console.error('Failed to import knowledge map:', error);
+    log.error('Failed to import knowledge map', error as Error);
     return null;
   }
 }

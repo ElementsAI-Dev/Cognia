@@ -5,6 +5,9 @@
 
 import { db } from '@/lib/db';
 import { StorageManager } from './storage-manager';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 import type {
   StorageCategory,
   CleanupOptions,
@@ -423,7 +426,7 @@ export class StorageCleanupService {
         cleaned += orphanedFiles.length;
       }
     } catch (error) {
-      console.error('Failed to cleanup orphaned data:', error);
+      log.error('Failed to cleanup orphaned data', error as Error);
     }
 
     return cleaned;

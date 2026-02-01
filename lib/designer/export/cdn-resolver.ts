@@ -4,6 +4,9 @@
  */
 
 import { proxyFetch } from '@/lib/network/proxy-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 export type CDNProvider = 'esm.sh' | 'skypack' | 'unpkg' | 'jsdelivr';
 
@@ -492,7 +495,7 @@ export async function getAvailableCDN(
   }
 
   // Return first URL as fallback even if health check failed
-  console.warn(`[CDN] All CDNs for ${library} failed health check, using primary`);
+  log.warn(`CDN: All CDNs for ${library} failed health check, using primary`);
   return urls[0];
 }
 

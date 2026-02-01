@@ -8,6 +8,9 @@
 import { Client, Stronghold } from '@tauri-apps/plugin-stronghold';
 import { appDataDir } from '@tauri-apps/api/path';
 import { isTauri } from './utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 // Store name for the Stronghold vault
 const VAULT_FILE = 'vault.hold';
@@ -32,7 +35,7 @@ let clientInstance: Client | null = null;
  */
 export async function initStronghold(password: string): Promise<boolean> {
   if (!isTauri()) {
-    console.warn('Stronghold is only available in Tauri environment');
+    log.warn('Stronghold is only available in Tauri environment');
     return false;
   }
 
@@ -47,10 +50,10 @@ export async function initStronghold(password: string): Promise<boolean> {
       clientInstance = await strongholdInstance.createClient(CLIENT_NAME);
     }
 
-    console.log('Stronghold initialized successfully');
+    log.info('Stronghold initialized successfully');
     return true;
   } catch (error) {
-    console.error('Failed to initialize Stronghold:', error);
+    log.error('Failed to initialize Stronghold', error as Error);
     strongholdInstance = null;
     clientInstance = null;
     return false;
@@ -69,7 +72,7 @@ export function isStrongholdReady(): boolean {
  */
 export async function saveStronghold(): Promise<boolean> {
   if (!strongholdInstance) {
-    console.warn('Stronghold not initialized');
+    log.warn('Stronghold not initialized');
     return false;
   }
 
@@ -77,7 +80,7 @@ export async function saveStronghold(): Promise<boolean> {
     await strongholdInstance.save();
     return true;
   } catch (error) {
-    console.error('Failed to save Stronghold:', error);
+    log.error('Failed to save Stronghold', error as Error);
     return false;
   }
 }
@@ -90,7 +93,7 @@ export async function closeStronghold(): Promise<void> {
     try {
       await strongholdInstance.save();
     } catch (error) {
-      console.warn('Failed to save before closing:', error);
+      log.warn('Failed to save before closing', { error: String(error) });
     }
   }
   strongholdInstance = null;
@@ -102,7 +105,7 @@ export async function closeStronghold(): Promise<void> {
  */
 export async function storeSecret(key: string, value: string): Promise<boolean> {
   if (!clientInstance) {
-    console.warn('Stronghold client not initialized');
+    log.warn('Stronghold client not initialized');
     return false;
   }
 
@@ -113,7 +116,7 @@ export async function storeSecret(key: string, value: string): Promise<boolean> 
     await saveStronghold();
     return true;
   } catch (error) {
-    console.error(`Failed to store secret for key ${key}:`, error);
+    log.error(`Failed to store secret for key ${key}`, error as Error);
     return false;
   }
 }
@@ -123,7 +126,7 @@ export async function storeSecret(key: string, value: string): Promise<boolean> 
  */
 export async function getSecret(key: string): Promise<string | null> {
   if (!clientInstance) {
-    console.warn('Stronghold client not initialized');
+    log.warn('Stronghold client not initialized');
     return null;
   }
 
@@ -145,7 +148,7 @@ export async function getSecret(key: string): Promise<string | null> {
  */
 export async function removeSecret(key: string): Promise<boolean> {
   if (!clientInstance) {
-    console.warn('Stronghold client not initialized');
+    log.warn('Stronghold client not initialized');
     return false;
   }
 
@@ -155,7 +158,7 @@ export async function removeSecret(key: string): Promise<boolean> {
     await saveStronghold();
     return true;
   } catch (error) {
-    console.error(`Failed to remove secret for key ${key}:`, error);
+    log.error(`Failed to remove secret for key ${key}`, error as Error);
     return false;
   }
 }

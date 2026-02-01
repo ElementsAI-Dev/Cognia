@@ -12,6 +12,9 @@ import type {
   WebDAVConfig,
 } from '@/types/sync';
 import { BaseSyncProvider } from './sync-provider';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 // WebDAV response types
 interface WebDAVFileInfo {
@@ -312,7 +315,7 @@ export class WebDAVProvider extends BaseSyncProvider {
 
       return data;
     } catch (error) {
-      console.error('WebDAV download error:', error);
+      log.error('WebDAV download error', error as Error);
       return null;
     }
   }

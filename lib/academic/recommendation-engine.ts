@@ -4,6 +4,9 @@
  */
 
 import type { Paper, LibraryPaper, AcademicProviderType } from '@/types/learning/academic';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 export interface RecommendationReason {
   type: 'author' | 'topic' | 'citation' | 'trending' | 'field' | 'similarity' | 'co-citation';
@@ -365,7 +368,7 @@ export async function getRecommendations(
       const results = await searchFunction(query);
       allCandidates.push(...results);
     } catch (error) {
-      console.error(`Failed to search for "${query}":`, error);
+      log.error(`Failed to search for "${query}"`, error as Error);
     }
   }
   

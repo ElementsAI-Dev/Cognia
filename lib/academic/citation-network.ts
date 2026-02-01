@@ -4,6 +4,9 @@
  */
 
 import type { Paper, AcademicProviderType } from '@/types/learning/academic';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 export interface CitationNode {
   paperId: string;
@@ -96,7 +99,7 @@ export async function fetchCitationsFromSemanticScholar(
       total: data.total || citations.length,
     };
   } catch (error) {
-    console.error('Error fetching citations:', error);
+    log.error('Error fetching citations', error as Error);
     return { citations: [], total: 0 };
   }
 }
@@ -152,7 +155,7 @@ export async function fetchReferencesFromSemanticScholar(
       total: data.total || references.length,
     };
   } catch (error) {
-    console.error('Error fetching references:', error);
+    log.error('Error fetching references', error as Error);
     return { references: [], total: 0 };
   }
 }

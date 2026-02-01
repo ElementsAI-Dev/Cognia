@@ -48,9 +48,9 @@ import { Palette } from 'lucide-react';
 import type { BundledLanguage } from 'shiki';
 import type { Artifact as ArtifactType } from '@/types';
 import { ArtifactPreview } from './artifact-preview';
+import { createEditorOptions, getMonacoTheme, getMonacoLanguage } from '@/lib/monaco';
 import {
   getShikiLanguage as getShikiLang,
-  getMonacoLanguage,
   getArtifactExtension,
   canPreview,
   canDesign,
@@ -128,21 +128,6 @@ export function ArtifactPanel() {
     setHasChanges(value !== activeArtifact?.content);
   }, [activeArtifact?.content]);
 
-  const getEditorTheme = () => {
-    if (theme === 'dark') return 'vs-dark';
-    if (theme === 'light') return 'light';
-    if (typeof window !== 'undefined') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'vs-dark'
-        : 'light';
-    }
-    return 'light';
-  };
-
-  const getEditorLanguage = () => {
-    if (!activeArtifact) return 'plaintext';
-    return getMonacoLanguage(activeArtifact.language);
-  };
 
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen(prev => !prev);
@@ -300,20 +285,21 @@ export function ArtifactPanel() {
               {viewMode === 'edit' ? (
                 <MonacoEditor
                   height="100%"
-                  language={getEditorLanguage()}
-                  theme={getEditorTheme()}
+                  language={getMonacoLanguage(activeArtifact.language || 'plaintext')}
+                  theme={getMonacoTheme(theme)}
                   value={editContent}
                   onChange={handleEditorChange}
-                  options={{
+                  options={createEditorOptions('code', {
                     minimap: { enabled: isFullscreen },
-                    fontSize: 14,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
                     wordWrap: 'on',
-                    automaticLayout: true,
-                    tabSize: 2,
-                    padding: { top: 16, bottom: 16 },
-                  }}
+                    readOnly: false,
+                    stickyScroll: { enabled: isFullscreen },
+                    bracketPairColorization: { enabled: true },
+                    guides: {
+                      indentation: true,
+                      bracketPairs: true,
+                    },
+                  })}
                 />
               ) : viewMode === 'code' || !isPreviewable ? (
                 <ScrollArea className="h-full">

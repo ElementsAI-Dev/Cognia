@@ -12,6 +12,9 @@ import type {
   SearchRecency,
 } from '@/types/search';
 import { braveFetch } from '../proxy-search-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 const BRAVE_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search';
 const BRAVE_NEWS_URL = 'https://api.search.brave.com/res/v1/news/search';
@@ -324,7 +327,7 @@ export async function searchWithBrave(
       responseTime: Date.now() - startTime,
     };
   } catch (error) {
-    console.error('Brave search error:', error);
+    log.error('Brave search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Brave search failed: ${error.message}`
@@ -410,7 +413,7 @@ export async function searchNewsWithBrave(
       responseTime: Date.now() - startTime,
     };
   } catch (error) {
-    console.error('Brave News search error:', error);
+    log.error('Brave News search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Brave News search failed: ${error.message}`
@@ -483,7 +486,7 @@ export async function searchImagesWithBrave(
       responseTime: Date.now() - startTime,
     };
   } catch (error) {
-    console.error('Brave Images search error:', error);
+    log.error('Brave Images search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Brave Images search failed: ${error.message}`
@@ -562,7 +565,7 @@ export async function searchVideosWithBrave(
       responseTime: Date.now() - startTime,
     };
   } catch (error) {
-    console.error('Brave Videos search error:', error);
+    log.error('Brave Videos search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Brave Videos search failed: ${error.message}`

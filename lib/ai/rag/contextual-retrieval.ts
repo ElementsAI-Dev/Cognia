@@ -9,6 +9,9 @@
 
 import type { LanguageModel } from 'ai';
 import type { DocumentChunk } from '../embedding/chunking';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface ContextualChunk extends DocumentChunk {
   contextPrefix: string;
@@ -189,7 +192,7 @@ export async function generateChunkContext(
 
     return result.text.trim();
   } catch (error) {
-    console.warn('Failed to generate context for chunk:', chunk.id, error);
+    log.warn('Failed to generate context for chunk', { chunkId: chunk.id, error: String(error) });
     return '';
   }
 }
@@ -231,7 +234,7 @@ Summary:`;
 
     return result.text.trim();
   } catch (error) {
-    console.warn('Failed to generate document summary:', error);
+    log.warn('Failed to generate document summary', { error: String(error) });
     return '';
   }
 }

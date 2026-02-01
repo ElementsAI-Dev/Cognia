@@ -12,6 +12,9 @@ import type {
 } from '@/types/agent/background-agent';
 import type { SubAgent, SubAgentResult } from '@/types/agent/sub-agent';
 import type { ToolCall } from './agent-executor';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.agent;
 
 /**
  * Event types for background agent system
@@ -202,7 +205,7 @@ export class BackgroundAgentEventEmitter {
         try {
           listener(payload);
         } catch (error) {
-          console.error(`Error in event listener for ${event}:`, error);
+          log.error(`Error in event listener for ${event}`, error as Error, { event });
         }
       });
     }
@@ -212,7 +215,7 @@ export class BackgroundAgentEventEmitter {
       try {
         listener(event, payload);
       } catch (error) {
-        console.error(`Error in wildcard event listener for ${event}:`, error);
+        log.error(`Error in wildcard event listener for ${event}`, error as Error, { event });
       }
     });
   }

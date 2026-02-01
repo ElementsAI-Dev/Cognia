@@ -6,6 +6,9 @@
 import type { TTSResponse, OpenAITTSVoice, OpenAITTSModel } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
 
@@ -86,7 +89,7 @@ export async function generateOpenAITTS(
       mimeType,
     };
   } catch (error) {
-    console.error('OpenAI TTS error:', error);
+    log.error('OpenAI TTS error', error as Error);
     return {
       success: false,
       error: getTTSError('network-error', error instanceof Error ? error.message : 'Unknown error').message,
@@ -140,7 +143,7 @@ export async function generateOpenAITTSViaApi(
       mimeType,
     };
   } catch (error) {
-    console.error('OpenAI TTS API error:', error);
+    log.error('OpenAI TTS API error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to generate speech',
@@ -227,7 +230,7 @@ export async function streamOpenAITTS(
       mimeType: 'audio/mpeg',
     };
   } catch (error) {
-    console.error('OpenAI TTS streaming error:', error);
+    log.error('OpenAI TTS streaming error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Streaming failed',

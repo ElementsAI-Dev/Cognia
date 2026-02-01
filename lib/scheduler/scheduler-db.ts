@@ -1,0 +1,384 @@
+/**
+ * Scheduler Database
+ * Dexie-based persistence for scheduled tasks and executions
+ */
+
+import Dexie, { type EntityTable } from 'dexie';
+import type {
+  ScheduledTask,
+  TaskExecution,
+  ScheduledTaskStatus,
+  TaskFilter,
+  TaskStatistics,
+} from '@/types/scheduler';
+
+// Database entity types (stored format)
+interface DBScheduledTask {
+  id: string;
+  name: string;
+  description?: string;
+  type: string;
+  trigger: string; // JSON serialized TaskTrigger
+  payload: string; // JSON serialized Record<string, unknown>
+  config: string; // JSON serialized TaskExecutionConfig
+  notification: string; // JSON serialized TaskNotificationConfig
+  status: string;
+  tags?: string; // JSON serialized string[]
+  lastRunAt?: string; // ISO date string
+  nextRunAt?: string; // ISO date string
+  runCount: number;
+  successCount: number;
+  failureCount: number;
+  lastError?: string;
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
+}
+
+interface DBTaskExecution {
+  id: string;
+  taskId: string;
+  taskName: string;
+  taskType: string;
+  status: string;
+  input?: string; // JSON serialized
+  output?: string; // JSON serialized
+  error?: string;
+  retryAttempt: number;
+  duration?: number;
+  startedAt: string; // ISO date string
+  completedAt?: string; // ISO date string
+  logs: string; // JSON serialized TaskExecutionLog[]
+}
+
+// Database class
+class SchedulerDatabase extends Dexie {
+  tasks!: EntityTable<DBScheduledTask, 'id'>;
+  executions!: EntityTable<DBTaskExecution, 'id'>;
+
+  constructor() {
+    super('CogniaSchedulerDB');
+
+    this.version(1).stores({
+      tasks: 'id, name, type, status, nextRunAt, createdAt, [status+nextRunAt]',
+      executions: 'id, taskId, status, startedAt, [taskId+startedAt]',
+    });
+  }
+
+  // ========== Task Operations ==========
+
+  /**
+   * Create a new task
+   */
+  async createTask(task: ScheduledTask): Promise<void> {
+    await this.tasks.add(serializeTask(task));
+  }
+
+  /**
+   * Update an existing task
+   */
+  async updateTask(task: ScheduledTask): Promise<void> {
+    await this.tasks.put(serializeTask(task));
+  }
+
+  /**
+   * Delete a task and its executions
+   */
+  async deleteTask(taskId: string): Promise<boolean> {
+    const task = await this.tasks.get(taskId);
+    if (!task) return false;
+
+    await this.transaction('rw', [this.tasks, this.executions], async () => {
+      await this.executions.where('taskId').equals(taskId).delete();
+      await this.tasks.delete(taskId);
+    });
+
+    return true;
+  }
+
+  /**
+   * Get a task by ID
+   */
+  async getTask(taskId: string): Promise<ScheduledTask | null> {
+    const dbTask = await this.tasks.get(taskId);
+    return dbTask ? deserializeTask(dbTask) : null;
+  }
+
+  /**
+   * Get all tasks
+   */
+  async getAllTasks(): Promise<ScheduledTask[]> {
+    const dbTasks = await this.tasks.toArray();
+    return dbTasks.map(deserializeTask);
+  }
+
+  /**
+   * Get tasks by status
+   */
+  async getTasksByStatus(status: ScheduledTaskStatus): Promise<ScheduledTask[]> {
+    const dbTasks = await this.tasks.where('status').equals(status).toArray();
+    return dbTasks.map(deserializeTask);
+  }
+
+  /**
+   * Get tasks with filters
+   */
+  async getFilteredTasks(filter: TaskFilter): Promise<ScheduledTask[]> {
+    let collection = this.tasks.toCollection();
+
+    // Apply filters
+    if (filter.statuses && filter.statuses.length > 0) {
+      collection = this.tasks.where('status').anyOf(filter.statuses);
+    }
+
+    const dbTasks = await collection.toArray();
+    let tasks = dbTasks.map(deserializeTask);
+
+    // Filter by types
+    if (filter.types && filter.types.length > 0) {
+      tasks = tasks.filter((t) => filter.types!.includes(t.type));
+    }
+
+    // Filter by tags
+    if (filter.tags && filter.tags.length > 0) {
+      tasks = tasks.filter((t) => t.tags && filter.tags!.some((tag) => t.tags!.includes(tag)));
+    }
+
+    // Filter by search
+    if (filter.search) {
+      const searchLower = filter.search.toLowerCase();
+      tasks = tasks.filter(
+        (t) =>
+          t.name.toLowerCase().includes(searchLower) ||
+          t.description?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    return tasks;
+  }
+
+  /**
+   * Get upcoming tasks
+   */
+  async getUpcomingTasks(limit: number = 10): Promise<ScheduledTask[]> {
+    const now = new Date().toISOString();
+    const dbTasks = await this.tasks
+      .where('status')
+      .equals('active')
+      .filter((t) => t.nextRunAt !== undefined && t.nextRunAt > now)
+      .sortBy('nextRunAt');
+
+    return dbTasks.slice(0, limit).map(deserializeTask);
+  }
+
+  // ========== Execution Operations ==========
+
+  /**
+   * Create an execution record
+   */
+  async createExecution(execution: TaskExecution): Promise<void> {
+    await this.executions.add(serializeExecution(execution));
+  }
+
+  /**
+   * Update an execution record
+   */
+  async updateExecution(execution: TaskExecution): Promise<void> {
+    await this.executions.put(serializeExecution(execution));
+  }
+
+  /**
+   * Get executions for a task
+   */
+  async getTaskExecutions(taskId: string, limit: number = 50): Promise<TaskExecution[]> {
+    const dbExecutions = await this.executions
+      .where('taskId')
+      .equals(taskId)
+      .reverse()
+      .sortBy('startedAt');
+
+    return dbExecutions.slice(0, limit).map(deserializeExecution);
+  }
+
+  /**
+   * Get recent executions across all tasks
+   */
+  async getRecentExecutions(limit: number = 50): Promise<TaskExecution[]> {
+    const dbExecutions = await this.executions.orderBy('startedAt').reverse().limit(limit).toArray();
+
+    return dbExecutions.map(deserializeExecution);
+  }
+
+  /**
+   * Get execution by ID
+   */
+  async getExecution(executionId: string): Promise<TaskExecution | null> {
+    const dbExecution = await this.executions.get(executionId);
+    return dbExecution ? deserializeExecution(dbExecution) : null;
+  }
+
+  /**
+   * Delete old executions
+   */
+  async cleanupOldExecutions(maxAgeDays: number): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - maxAgeDays);
+    const cutoffStr = cutoffDate.toISOString();
+
+    const oldExecutions = await this.executions.filter((e) => e.startedAt < cutoffStr).toArray();
+
+    await this.executions.bulkDelete(oldExecutions.map((e) => e.id));
+
+    return oldExecutions.length;
+  }
+
+  // ========== Statistics ==========
+
+  /**
+   * Get task statistics
+   */
+  async getStatistics(): Promise<TaskStatistics> {
+    const allTasks = await this.tasks.toArray();
+    const allExecutions = await this.executions.toArray();
+    const now = new Date().toISOString();
+
+    const activeTasks = allTasks.filter((t) => t.status === 'active');
+    const pausedTasks = allTasks.filter((t) => t.status === 'paused');
+    const successfulExecutions = allExecutions.filter((e) => e.status === 'completed');
+    const failedExecutions = allExecutions.filter((e) => e.status === 'failed');
+    const upcomingExecutions = activeTasks.filter(
+      (t) => t.nextRunAt !== undefined && t.nextRunAt > now
+    );
+
+    // Calculate average duration
+    const completedWithDuration = allExecutions.filter((e) => e.duration !== undefined);
+    const totalDuration = completedWithDuration.reduce((sum, e) => sum + (e.duration || 0), 0);
+    const averageDuration =
+      completedWithDuration.length > 0 ? totalDuration / completedWithDuration.length : 0;
+
+    return {
+      totalTasks: allTasks.length,
+      activeTasks: activeTasks.length,
+      pausedTasks: pausedTasks.length,
+      totalExecutions: allExecutions.length,
+      successfulExecutions: successfulExecutions.length,
+      failedExecutions: failedExecutions.length,
+      averageDuration: Math.round(averageDuration),
+      upcomingExecutions: upcomingExecutions.length,
+    };
+  }
+
+  /**
+   * Clear all data (for testing/reset)
+   */
+  async clearAll(): Promise<void> {
+    await this.transaction('rw', [this.tasks, this.executions], async () => {
+      await this.tasks.clear();
+      await this.executions.clear();
+    });
+  }
+}
+
+// ========== Serialization Helpers ==========
+
+function serializeTask(task: ScheduledTask): DBScheduledTask {
+  return {
+    id: task.id,
+    name: task.name,
+    description: task.description,
+    type: task.type,
+    trigger: JSON.stringify({
+      ...task.trigger,
+      runAt: task.trigger.runAt?.toISOString(),
+    }),
+    payload: JSON.stringify(task.payload),
+    config: JSON.stringify(task.config),
+    notification: JSON.stringify(task.notification),
+    status: task.status,
+    tags: task.tags ? JSON.stringify(task.tags) : undefined,
+    lastRunAt: task.lastRunAt?.toISOString(),
+    nextRunAt: task.nextRunAt?.toISOString(),
+    runCount: task.runCount,
+    successCount: task.successCount,
+    failureCount: task.failureCount,
+    lastError: task.lastError,
+    createdAt: task.createdAt.toISOString(),
+    updatedAt: task.updatedAt.toISOString(),
+  };
+}
+
+function deserializeTask(dbTask: DBScheduledTask): ScheduledTask {
+  const trigger = JSON.parse(dbTask.trigger);
+  return {
+    id: dbTask.id,
+    name: dbTask.name,
+    description: dbTask.description,
+    type: dbTask.type as ScheduledTask['type'],
+    trigger: {
+      ...trigger,
+      runAt: trigger.runAt ? new Date(trigger.runAt) : undefined,
+    },
+    payload: JSON.parse(dbTask.payload),
+    config: JSON.parse(dbTask.config),
+    notification: JSON.parse(dbTask.notification),
+    status: dbTask.status as ScheduledTask['status'],
+    tags: dbTask.tags ? JSON.parse(dbTask.tags) : undefined,
+    lastRunAt: dbTask.lastRunAt ? new Date(dbTask.lastRunAt) : undefined,
+    nextRunAt: dbTask.nextRunAt ? new Date(dbTask.nextRunAt) : undefined,
+    runCount: dbTask.runCount,
+    successCount: dbTask.successCount,
+    failureCount: dbTask.failureCount,
+    lastError: dbTask.lastError,
+    createdAt: new Date(dbTask.createdAt),
+    updatedAt: new Date(dbTask.updatedAt),
+  };
+}
+
+function serializeExecution(execution: TaskExecution): DBTaskExecution {
+  return {
+    id: execution.id,
+    taskId: execution.taskId,
+    taskName: execution.taskName,
+    taskType: execution.taskType,
+    status: execution.status,
+    input: execution.input ? JSON.stringify(execution.input) : undefined,
+    output: execution.output ? JSON.stringify(execution.output) : undefined,
+    error: execution.error,
+    retryAttempt: execution.retryAttempt,
+    duration: execution.duration,
+    startedAt: execution.startedAt.toISOString(),
+    completedAt: execution.completedAt?.toISOString(),
+    logs: JSON.stringify(
+      execution.logs.map((log) => ({
+        ...log,
+        timestamp: log.timestamp.toISOString(),
+      }))
+    ),
+  };
+}
+
+function deserializeExecution(dbExecution: DBTaskExecution): TaskExecution {
+  const logs = JSON.parse(dbExecution.logs);
+  return {
+    id: dbExecution.id,
+    taskId: dbExecution.taskId,
+    taskName: dbExecution.taskName,
+    taskType: dbExecution.taskType as TaskExecution['taskType'],
+    status: dbExecution.status as TaskExecution['status'],
+    input: dbExecution.input ? JSON.parse(dbExecution.input) : undefined,
+    output: dbExecution.output ? JSON.parse(dbExecution.output) : undefined,
+    error: dbExecution.error,
+    retryAttempt: dbExecution.retryAttempt,
+    duration: dbExecution.duration,
+    startedAt: new Date(dbExecution.startedAt),
+    completedAt: dbExecution.completedAt ? new Date(dbExecution.completedAt) : undefined,
+    logs: logs.map((log: Record<string, unknown>) => ({
+      ...log,
+      timestamp: new Date(log.timestamp as string),
+    })),
+  };
+}
+
+// Export singleton instance
+export const schedulerDb = new SchedulerDatabase();
+
+export { SchedulerDatabase };

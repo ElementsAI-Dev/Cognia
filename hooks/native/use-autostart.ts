@@ -4,6 +4,9 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 // Check if we're in a Tauri environment
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -47,7 +50,7 @@ export function useAutostart(): UseAutostartReturn {
         error: null,
       });
     } catch (err) {
-      console.error('Failed to check autostart status:', err);
+      log.error('Failed to check autostart status', err as Error);
       setState({
         isEnabled: false,
         isLoading: false,
@@ -58,7 +61,7 @@ export function useAutostart(): UseAutostartReturn {
 
   const enable = useCallback(async () => {
     if (!isTauri) {
-      console.warn('Autostart is only available in Tauri environment');
+      log.warn('Autostart is only available in Tauri environment');
       return;
     }
 
@@ -73,7 +76,7 @@ export function useAutostart(): UseAutostartReturn {
         error: null,
       });
     } catch (err) {
-      console.error('Failed to enable autostart:', err);
+      log.error('Failed to enable autostart', err as Error);
       setState((prev) => ({
         ...prev,
         isLoading: false,
@@ -84,7 +87,7 @@ export function useAutostart(): UseAutostartReturn {
 
   const disable = useCallback(async () => {
     if (!isTauri) {
-      console.warn('Autostart is only available in Tauri environment');
+      log.warn('Autostart is only available in Tauri environment');
       return;
     }
 
@@ -99,7 +102,7 @@ export function useAutostart(): UseAutostartReturn {
         error: null,
       });
     } catch (err) {
-      console.error('Failed to disable autostart:', err);
+      log.error('Failed to disable autostart', err as Error);
       setState((prev) => ({
         ...prev,
         isLoading: false,

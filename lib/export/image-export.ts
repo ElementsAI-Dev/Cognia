@@ -5,6 +5,9 @@
  */
 
 import type { UIMessage, Session } from '@/types';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 export interface ImageExportOptions {
   format: 'png' | 'jpg' | 'webp';
@@ -395,7 +398,7 @@ export async function copyImageToClipboard(
     await navigator.clipboard.write([clipboardItem]);
     return true;
   } catch (error) {
-    console.error('Failed to copy image to clipboard:', error);
+    log.error('Failed to copy image to clipboard', error as Error);
     return false;
   }
 }

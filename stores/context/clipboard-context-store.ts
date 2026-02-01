@@ -11,6 +11,9 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { isTauri } from '@/lib/native/utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 /** Content category detected from clipboard */
 export type ContentCategory =
@@ -356,7 +359,7 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
         const entities = await invoke<ExtractedEntity[]>('clipboard_extract_entities', { content });
         return entities;
       } catch (error) {
-        console.error('Failed to extract entities:', error);
+        log.error('Failed to extract entities', error as Error);
         return [];
       }
     },
@@ -370,7 +373,7 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
         });
         return actions;
       } catch (error) {
-        console.error('Failed to get suggested actions:', error);
+        log.error('Failed to get suggested actions', error as Error);
         return [];
       }
     },
@@ -385,7 +388,7 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
         );
         return { category: result[0], secondary: result[1], confidence: result[2] };
       } catch (error) {
-        console.error('Failed to detect category:', error);
+        log.error('Failed to detect category', error as Error);
         return null;
       }
     },
@@ -399,7 +402,7 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
         });
         return language;
       } catch (error) {
-        console.error('Failed to detect language:', error);
+        log.error('Failed to detect language', error as Error);
         return null;
       }
     },
@@ -410,7 +413,7 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
       try {
         return await invoke<boolean>('clipboard_check_sensitive', { content });
       } catch (error) {
-        console.error('Failed to check sensitive:', error);
+        log.error('Failed to check sensitive', error as Error);
         return false;
       }
     },
@@ -421,7 +424,7 @@ export const useClipboardContextStore = create<ClipboardContextStore>()(
       try {
         return await invoke<ContentStats>('clipboard_get_stats', { content });
       } catch (error) {
-        console.error('Failed to get stats:', error);
+        log.error('Failed to get stats', error as Error);
         return null;
       }
     },

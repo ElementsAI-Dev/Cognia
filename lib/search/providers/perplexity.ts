@@ -9,6 +9,9 @@ import type {
   SearchResult,
   SearchRecency,
 } from '@/types/search';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 const PERPLEXITY_API_URL = 'https://api.perplexity.ai/search';
 
@@ -123,7 +126,7 @@ export async function searchWithPerplexity(
       totalResults: results.length,
     };
   } catch (error) {
-    console.error('Perplexity search error:', error);
+    log.error('Perplexity search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Perplexity search failed: ${error.message}`

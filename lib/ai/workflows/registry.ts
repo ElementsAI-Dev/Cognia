@@ -10,6 +10,9 @@ import type {
   WorkflowStepDefinition,
   WorkflowTemplate,
 } from '@/types/workflow';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface WorkflowRegistry {
   workflows: Map<string, WorkflowDefinition>;
@@ -166,7 +169,7 @@ export function createWorkflowRegistry(): WorkflowRegistry {
     register(workflow: WorkflowDefinition) {
       const validation = validateWorkflow(workflow);
       if (!validation.valid) {
-        console.warn(`Workflow "${workflow.id}" validation failed:`, validation.errors);
+        log.warn(`Workflow "${workflow.id}" validation failed`, { errors: validation.errors });
       }
       workflows.set(workflow.id, {
         ...workflow,

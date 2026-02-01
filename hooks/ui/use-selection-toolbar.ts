@@ -17,6 +17,9 @@ import { detectLanguage } from '@/lib/ai/generation/translate';
 import type { ProviderName } from '@/lib/ai/core/client';
 import type { SelectionConfig as NativeSelectionConfig } from '@/lib/native/selection';
 import { isTauri } from '@/lib/native/utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 const initialState: ToolbarState = {
   isVisible: false,
@@ -176,7 +179,7 @@ export function useSelectionToolbar() {
           await stopSelectionService();
         }
       } catch (error) {
-        console.error('Failed to sync selection config', error);
+        log.error('Failed to sync selection config', error as Error);
       }
     };
 
@@ -211,8 +214,8 @@ export function useSelectionToolbar() {
         // This prevents the "flash" issue where toolbar hides then immediately re-shows
         const timeSinceHide = Date.now() - lastHideTimeRef.current;
         if (timeSinceHide < HIDE_COOLDOWN_MS) {
-          console.debug(
-            `[SelectionToolbar] Ignoring show event during cooldown (${timeSinceHide}ms since hide)`
+          log.debug(
+            `SelectionToolbar: Ignoring show event during cooldown (${timeSinceHide}ms since hide)`
           );
           return;
         }
@@ -380,7 +383,7 @@ export function useSelectionToolbar() {
       try {
         await invoke('selection_hide_toolbar');
       } catch (e) {
-        console.error('Failed to hide toolbar:', e);
+        log.error('Failed to hide toolbar', e as Error);
       }
     }
   }, [stop]);
@@ -407,7 +410,7 @@ export function useSelectionToolbar() {
         try {
           await invoke('selection_show_toolbar', { x, y, text });
         } catch (e) {
-          console.error('Failed to show toolbar:', e);
+          log.error('Failed to show toolbar', e as Error);
         }
       }
     },
@@ -469,7 +472,7 @@ export function useSelectionToolbar() {
 
         return result?.code || null;
       } catch (error) {
-        console.error('Failed to detect language:', error);
+        log.error('Failed to detect language', error as Error);
         return null;
       }
     },

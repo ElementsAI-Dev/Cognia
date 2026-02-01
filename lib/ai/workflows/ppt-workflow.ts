@@ -24,6 +24,9 @@ import type {
   PPTImageStyle,
 } from '@/types/workflow';
 import { getGlobalWorkflowRegistry } from './registry';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 /**
  * PPT Generation Workflow Definition
@@ -397,7 +400,7 @@ export function parseOutlineResponse(response: string): PPTOutlineItem[] {
       }));
     }
   } catch (error) {
-    console.error('Failed to parse outline response:', error);
+    log.error('Failed to parse outline response', error as Error);
   }
   return [];
 }
@@ -425,7 +428,7 @@ export function parseSlidesResponse(response: string): PPTSlide[] {
       }));
     }
   } catch (error) {
-    console.error('Failed to parse slides response:', error);
+    log.error('Failed to parse slides response', error as Error);
   }
   return [];
 }
@@ -984,7 +987,7 @@ export function parseEnhancedOutlineResponse(response: string): PPTEnhancedOutli
       }));
     }
   } catch (error) {
-    console.error('Failed to parse enhanced outline response:', error);
+    log.error('Failed to parse enhanced outline response', error as Error);
   }
   return [];
 }
@@ -1016,7 +1019,7 @@ export function parseEnhancedSlidesResponse(response: string): PPTEnhancedSlide[
       }));
     }
   } catch (error) {
-    console.error('Failed to parse enhanced slides response:', error);
+    log.error('Failed to parse enhanced slides response', error as Error);
   }
   return [];
 }

@@ -1,10 +1,25 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { VegaLiteBlock } from './vegalite-block';
 
-// Mock vega-embed - dynamic import pattern
-jest.mock('vega-embed', () => ({
-  __esModule: true,
-  default: jest.fn().mockResolvedValue({ view: {} }),
+// Mock react-vega VegaEmbed component
+jest.mock('react-vega', () => ({
+  VegaEmbed: jest.fn(({ onEmbed, onError, spec }) => {
+    // Simulate async embedding
+    setTimeout(() => {
+      try {
+        if (spec && typeof spec === 'object') {
+          onEmbed?.({
+            view: {
+              toImageURL: jest.fn().mockResolvedValue('data:image/png;base64,test'),
+            },
+          });
+        }
+      } catch (err) {
+        onError?.(err);
+      }
+    }, 0);
+    return <div data-testid="vega-embed">VegaEmbed Mock</div>;
+  }),
 }));
 
 // Mock diagram export utilities

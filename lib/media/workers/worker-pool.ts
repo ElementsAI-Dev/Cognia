@@ -10,6 +10,9 @@
  */
 
 import { nanoid } from 'nanoid';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 import type {
   VideoWorkerMessage,
   VideoWorkerResponse,
@@ -94,7 +97,7 @@ export class VideoWorkerPool {
     };
 
     worker.onerror = (error) => {
-      console.error(`Worker ${id} error:`, error);
+      log.error(`Worker ${id} error: ${error.message}`);
       this.handleWorkerError(id, error);
     };
 

@@ -21,6 +21,9 @@ import type {
   A2UIDataModelChange,
   A2UISurfaceType,
 } from '@/types/artifact/a2ui';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 /**
  * App author information
@@ -174,7 +177,7 @@ function loadAppInstances(): Map<string, A2UIAppInstance> {
       return new Map(parsed.map((app) => [app.id, app]));
     }
   } catch (error) {
-    console.error('[A2UI AppBuilder] Failed to load app instances:', error);
+    log.error('A2UI AppBuilder: Failed to load app instances', error as Error);
   }
   return new Map();
 }
@@ -189,7 +192,7 @@ function saveAppInstances(instances: Map<string, A2UIAppInstance>): void {
     const data = Array.from(instances.values());
     localStorage.setItem(APP_INSTANCES_KEY, JSON.stringify(data));
   } catch (error) {
-    console.error('[A2UI AppBuilder] Failed to save app instances:', error);
+    log.error('A2UI AppBuilder: Failed to save app instances', error as Error);
   }
 }
 
@@ -218,7 +221,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
     (templateId: string, customName?: string): string | null => {
       const template = getTemplateById(templateId);
       if (!template) {
-        console.error(`[A2UI AppBuilder] Template not found: ${templateId}`);
+        log.error(`A2UI AppBuilder: Template not found: ${templateId}`);
         return null;
       }
 
@@ -284,7 +287,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
       const instance = getAppInstancesCache().get(appId);
 
       if (!surface) {
-        console.error(`[A2UI AppBuilder] App not found: ${appId}`);
+        log.error(`A2UI AppBuilder: App not found: ${appId}`);
         return null;
       }
 
@@ -957,7 +960,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
 
         case 'refresh':
         case 'refresh_data': {
-          console.log('[A2UI AppBuilder] Refreshing data for:', surfaceId);
+          log.debug(`A2UI AppBuilder: Refreshing data for: ${surfaceId}`);
           break;
         }
 
@@ -997,7 +1000,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
       const instance = getAppInstancesCache().get(appId);
 
       if (!surface || !instance) {
-        console.error(`[A2UI AppBuilder] Cannot export - app not found: ${appId}`);
+        log.error(`A2UI AppBuilder: Cannot export - app not found: ${appId}`);
         return null;
       }
 
@@ -1057,7 +1060,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
 
         // Validate structure
         if (!parsed.app || !parsed.app.components || !Array.isArray(parsed.app.components)) {
-          console.error('[A2UI AppBuilder] Invalid import format: missing app or components');
+          log.error('A2UI AppBuilder: Invalid import format: missing app or components');
           return null;
         }
 
@@ -1087,7 +1090,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
         onAppCreated?.(newId, 'imported');
         return newId;
       } catch (error) {
-        console.error('[A2UI AppBuilder] Import failed:', error);
+        log.error('A2UI AppBuilder: Import failed', error as Error);
         return null;
       }
     },
@@ -1111,7 +1114,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
           }
         };
         reader.onerror = () => {
-          console.error('[A2UI AppBuilder] File read error');
+          log.error('A2UI AppBuilder: File read error');
           resolve(null);
         };
         reader.readAsText(file);
@@ -1159,7 +1162,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
         const parsed = JSON.parse(jsonData);
 
         if (!parsed.apps || !Array.isArray(parsed.apps)) {
-          console.error('[A2UI AppBuilder] Invalid backup format');
+          log.error('A2UI AppBuilder: Invalid backup format');
           return 0;
         }
 
@@ -1173,7 +1176,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
 
         return importedCount;
       } catch (error) {
-        console.error('[A2UI AppBuilder] Backup import failed:', error);
+        log.error('A2UI AppBuilder: Backup import failed', error as Error);
         return 0;
       }
     },
@@ -1197,7 +1200,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
         const base64 = btoa(encodeURIComponent(compressed));
         return base64;
       } catch (error) {
-        console.error('[A2UI AppBuilder] Share code generation failed:', error);
+        log.error('A2UI AppBuilder: Share code generation failed', error as Error);
         return null;
       }
     },
@@ -1214,7 +1217,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
         const decoded = decodeURIComponent(atob(shareCode));
         return importApp(decoded);
       } catch (error) {
-        console.error('[A2UI AppBuilder] Share code import failed:', error);
+        log.error('A2UI AppBuilder: Share code import failed', error as Error);
         return null;
       }
     },
@@ -1260,7 +1263,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
         await navigator.clipboard.writeText(content);
         return true;
       } catch (error) {
-        console.error('[A2UI AppBuilder] Clipboard write failed:', error);
+        log.error('A2UI AppBuilder: Clipboard write failed', error as Error);
         return false;
       }
     },
@@ -1303,7 +1306,7 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
         } catch (error) {
           // User cancelled or share failed
           if ((error as Error).name !== 'AbortError') {
-            console.error('[A2UI AppBuilder] Native share failed:', error);
+            log.error('A2UI AppBuilder: Native share failed', error as Error);
           }
           return false;
         }

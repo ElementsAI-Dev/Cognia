@@ -12,7 +12,10 @@ import type {
   TokenCountMessage,
   TokenCountOptions,
 } from '@/types/system/tokenizer';
+import { loggers } from '@/lib/logger';
 // Note: Uses internal estimation method optimized for Chinese
+
+const log = loggers.ai;
 
 const DEFAULT_GLM_API_URL = 'https://api.z.ai/api/paas/v4';
 const DEFAULT_TIMEOUT = 5000;
@@ -88,7 +91,7 @@ export class GLMTokenizer implements Tokenizer {
         videoTokens: response.usage.video_tokens,
       };
     } catch (error) {
-      console.warn('GLM tokenizer API failed:', error);
+      log.warn('GLM tokenizer API failed', { error });
       return {
         tokens: this.estimateGLMTokens(content),
         isExact: false,
@@ -142,7 +145,7 @@ export class GLMTokenizer implements Tokenizer {
         videoTokens: response.usage.video_tokens,
       };
     } catch (error) {
-      console.warn('GLM tokenizer API failed for messages:', error);
+      log.warn('GLM tokenizer API failed for messages', { error });
       let totalTokens = 0;
       for (const msg of messages) {
         totalTokens += this.estimateGLMTokens(msg.content) + 4;

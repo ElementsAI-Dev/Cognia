@@ -18,6 +18,9 @@ import { useCallback, useRef } from 'react';
 import { generateText, streamText, type CoreMessage, type ImagePart, type TextPart } from 'ai';
 import { type ProviderName } from '../core/client';
 import { getProxyProviderModel } from '../core/proxy-client';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 import { useSettingsStore, useMemoryStore, useUsageStore, useSessionStore } from '@/stores';
 import { getNextApiKey } from '../infrastructure/api-key-rotation';
 import {
@@ -387,7 +390,7 @@ export function useAIChat({
 
       // Log compression activity if messages were filtered
       if (filteredUIMessages.length < messages.length) {
-        console.log(`[Compression] Filtered ${messages.length - filteredUIMessages.length} messages (${messages.length} → ${filteredUIMessages.length})`);
+        log.debug(`Compression filtered ${messages.length - filteredUIMessages.length} messages (${messages.length} → ${filteredUIMessages.length})`);
       }
 
       // Map back to original messages (preserve multimodal content)

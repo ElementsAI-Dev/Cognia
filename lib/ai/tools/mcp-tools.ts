@@ -8,6 +8,7 @@
 
 import { z } from 'zod';
 import type { AgentTool } from '../agent/agent-executor';
+import { loggers } from '@/lib/logger';
 import type {
   McpTool,
   McpServerState,
@@ -345,7 +346,7 @@ export async function createMcpToolsFromBackend(
       tools[agentTool.name] = agentTool;
     }
   } catch (error) {
-    console.error('Failed to get MCP tools from backend:', error);
+    loggers.ai.error('Failed to get MCP tools from backend', error as Error);
   }
   
   return tools;

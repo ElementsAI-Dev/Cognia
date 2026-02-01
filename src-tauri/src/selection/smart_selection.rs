@@ -5,9 +5,7 @@
 //! - Context-aware selection
 //! - Application-specific optimizations
 
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 /// Smart selection mode
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

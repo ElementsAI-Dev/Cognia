@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { NodeConfigProps, CodeNodeData } from './types';
+import { createEditorOptions, getMonacoLanguage } from '@/lib/monaco';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
@@ -53,18 +54,16 @@ export function CodeNodeConfig({ data, onUpdate }: NodeConfigProps<CodeNodeData>
         <div className="border rounded-md overflow-hidden">
           <MonacoEditor
             height="200px"
-            language={data.language}
+            language={getMonacoLanguage(data.language)}
             theme="vs-dark"
             value={data.code}
             onChange={(value) => onUpdate({ code: value || '' })}
-            options={{
+            options={createEditorOptions('code', {
               minimap: { enabled: false },
               fontSize: 12,
-              lineNumbers: 'on',
-              scrollBeyondLastLine: false,
-              wordWrap: 'on',
-              tabSize: 2,
-            }}
+              stickyScroll: { enabled: false },
+              padding: { top: 8, bottom: 8 },
+            })}
           />
         </div>
       </div>

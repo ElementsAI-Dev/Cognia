@@ -7,6 +7,7 @@
  * - Graph memory for richer entity relationships
  */
 
+import { loggers } from '@/lib/logger';
 import type {
   Memory,
   CreateMemoryInput,
@@ -20,7 +21,10 @@ import type {
   Mem0Entity,
 } from '@/types';
 import { mem0ToLocalMemory } from '@/types/provider/memory-provider';
+
 import type { ToolCallResult } from '@/types/mcp';
+
+const log = loggers.ai;
 
 /**
  * Mem0 API response types
@@ -384,7 +388,7 @@ export class Mem0Provider implements IMemoryProvider {
         const memory = await this.addMemory(input);
         results.push(memory);
       } catch (error) {
-        console.error('Failed to add memory:', error);
+        log.error('Failed to add memory', error as Error);
       }
     }
 

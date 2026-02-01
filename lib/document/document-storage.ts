@@ -6,6 +6,9 @@
 import { documentRepository, type CreateDocumentInput, type UpdateDocumentInput } from '@/lib/db/repositories/document-repository';
 import { processDocument, processDocumentAsync, type ProcessedDocument, type ProcessingOptions } from './document-processor';
 import type { StoredDocument, DocumentFilter, DocumentType } from '@/types/document';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 export interface StoreDocumentOptions extends ProcessingOptions {
   projectId?: string;
@@ -79,7 +82,7 @@ export async function storeDocument(
       createInput.embedding = embedding;
       embeddingGenerated = true;
     } catch (error) {
-      console.warn('Failed to generate embedding:', error);
+      log.warn('Failed to generate embedding', { error });
     }
   }
 
@@ -135,7 +138,7 @@ export async function storeDocumentAsync(
       createInput.embedding = embedding;
       embeddingGenerated = true;
     } catch (error) {
-      console.warn('Failed to generate embedding:', error);
+      log.warn('Failed to generate embedding', { error });
     }
   }
 
@@ -175,7 +178,7 @@ export async function storeDocuments(
       results.push(result);
       progress.succeeded++;
     } catch (error) {
-      console.error(`Failed to store ${file.filename}:`, error);
+      log.error(`Failed to store ${file.filename}`, error as Error);
       progress.failed++;
       if (!continueOnError) {
         break;
@@ -228,7 +231,7 @@ export async function updateStoredDocument(
       updates.embedding = embedding;
       updates.isIndexed = true;
     } catch (error) {
-      console.warn('Failed to generate embedding:', error);
+      log.warn('Failed to generate embedding', { error });
     }
   }
 
@@ -345,7 +348,7 @@ export async function indexUnindexedDocuments(
         await documentRepository.updateEmbedding(doc.id, embedding);
         indexed++;
       } catch (error) {
-        console.warn(`Failed to index document ${doc.id}:`, error);
+        log.warn(`Failed to index document ${doc.id}`, { error });
       }
     }
 

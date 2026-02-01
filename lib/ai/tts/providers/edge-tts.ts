@@ -5,6 +5,9 @@
 
 import type { TTSResponse, EdgeTTSVoice } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS, EDGE_TTS_VOICES } from '@/types/media/tts';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface EdgeTTSOptions {
   voice?: EdgeTTSVoice;
@@ -68,7 +71,7 @@ export async function generateEdgeTTS(
       mimeType: 'audio/mpeg',
     };
   } catch (error) {
-    console.error('Edge TTS API error:', error);
+    log.error('Edge TTS API error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to generate speech',

@@ -12,6 +12,9 @@ import type {
   SearchRecency,
 } from '@/types/search';
 import { googleFetch } from '../proxy-search-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 const GOOGLE_SEARCH_URL = 'https://www.googleapis.com/customsearch/v1';
 
@@ -251,7 +254,7 @@ export async function searchWithGoogle(
       totalResults: parseInt(data.searchInformation.totalResults, 10),
     };
   } catch (error) {
-    console.error('Google search error:', error);
+    log.error('Google search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Google search failed: ${error.message}`

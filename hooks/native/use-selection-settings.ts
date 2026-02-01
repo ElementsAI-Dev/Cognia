@@ -10,6 +10,9 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { useSelectionStore } from '@/stores/context/selection-store';
 import { isTauri } from '@/lib/native/utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface UseSelectionSettingsReturn {
   /** Whether the selection toolbar is enabled */
@@ -61,7 +64,7 @@ export function useSelectionSettings(): UseSelectionSettingsReturn {
 
       setIsLoading(false);
     } catch (err) {
-      console.error('[useSelectionSettings] Failed to load config from backend:', err);
+      log.error('Failed to load selection settings from backend', err as Error);
       setError(err instanceof Error ? err.message : 'Failed to load settings');
       setIsLoading(false);
     }
@@ -103,9 +106,9 @@ export function useSelectionSettings(): UseSelectionSettingsReturn {
         // 4. Update the local store (for UI reactivity)
         store.setEnabled(enabled);
 
-        console.log(`[useSelectionSettings] Selection toolbar ${enabled ? 'enabled' : 'disabled'}`);
+        log.info(`Selection toolbar ${enabled ? 'enabled' : 'disabled'}`);
       } catch (err) {
-        console.error('[useSelectionSettings] Failed to set enabled state:', err);
+        log.error('Failed to set selection enabled state', err as Error);
         setError(err instanceof Error ? err.message : 'Failed to update settings');
         // Revert local store on error
         store.setEnabled(!enabled);

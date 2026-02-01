@@ -6,6 +6,9 @@
  */
 
 import type { VideoExportOptions, VideoMetadata, ProgressCallback } from '../workers/worker-types';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 /**
  * FFmpeg instance type (dynamic import)
@@ -92,7 +95,7 @@ export class FFmpegWasm {
         this.loadState = 'loaded';
       } catch (error) {
         this.loadState = 'error';
-        console.error('Failed to load FFmpeg WASM:', error);
+        log.error('Failed to load FFmpeg WASM', error as Error);
         throw error;
       }
     })();

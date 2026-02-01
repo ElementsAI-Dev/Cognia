@@ -10,6 +10,9 @@
 import { useState, useCallback } from 'react';
 import { gitService } from '@/lib/native/git';
 import type { GitOperationRecord, GitReflogEntry, GitOperationResult } from '@/types/system/git';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface UseGitHistoryOptions {
   repoPath: string;
@@ -53,7 +56,7 @@ export function useGitHistory(options: UseGitHistoryOptions): UseGitHistoryRetur
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
-        console.error('Failed to load git history:', message);
+        log.error(`Failed to load git history: ${message}`);
       } finally {
         setIsLoading(false);
       }
@@ -78,7 +81,7 @@ export function useGitHistory(options: UseGitHistoryOptions): UseGitHistoryRetur
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
-        console.error('Failed to load git reflog:', message);
+        log.error(`Failed to load git reflog: ${message}`);
       } finally {
         setIsLoading(false);
       }
@@ -104,7 +107,7 @@ export function useGitHistory(options: UseGitHistoryOptions): UseGitHistoryRetur
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
-      console.error('Failed to undo last operation:', message);
+      log.error(`Failed to undo last operation: ${message}`);
       return null;
     } finally {
       setIsLoading(false);
@@ -123,7 +126,7 @@ export function useGitHistory(options: UseGitHistoryOptions): UseGitHistoryRetur
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
-      console.error('Failed to clear git history:', message);
+      log.error(`Failed to clear git history: ${message}`);
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +151,7 @@ export function useGitHistory(options: UseGitHistoryOptions): UseGitHistoryRetur
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
-        console.error('Failed to recover to reflog entry:', message);
+        log.error(`Failed to recover to reflog entry: ${message}`);
         return null;
       } finally {
         setIsLoading(false);

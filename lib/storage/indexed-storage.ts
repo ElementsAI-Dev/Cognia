@@ -4,6 +4,9 @@
  */
 
 import { StateStorage } from 'zustand/middleware';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 const DB_NAME = 'cognia-zustand-storage';
 const STORE_NAME = 'zustand-state';
@@ -23,7 +26,7 @@ async function getDB(): Promise<IDBDatabase> {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onerror = () => {
-        console.error('[IndexedStorage] Failed to open database:', request.error);
+        log.error('Failed to open database', request.error as Error);
         reject(request.error);
       };
 
@@ -38,7 +41,7 @@ async function getDB(): Promise<IDBDatabase> {
 
         // Handle connection errors
         dbInstance.onerror = (event) => {
-          console.error('[IndexedStorage] Database error:', event);
+          log.error('Database error', new Error(String(event)));
         };
 
         resolve(dbInstance);
@@ -69,7 +72,7 @@ export const indexedStorage: StateStorage = {
         const request = store.get(name);
 
         request.onerror = () => {
-          console.error('[IndexedStorage] Error reading:', request.error);
+          log.error('Error reading from IndexedDB', request.error as Error);
           reject(request.error);
         };
 
@@ -78,7 +81,7 @@ export const indexedStorage: StateStorage = {
         };
       });
     } catch (error) {
-      console.error('[IndexedStorage] getItem error:', error);
+      log.error('getItem error', error as Error);
       return null;
     }
   },
@@ -92,7 +95,7 @@ export const indexedStorage: StateStorage = {
         const request = store.put(value, name);
 
         request.onerror = () => {
-          console.error('[IndexedStorage] Error writing:', request.error);
+          log.error('Error writing to IndexedDB', request.error as Error);
           reject(request.error);
         };
 
@@ -101,7 +104,7 @@ export const indexedStorage: StateStorage = {
         };
       });
     } catch (error) {
-      console.error('[IndexedStorage] setItem error:', error);
+      log.error('setItem error', error as Error);
     }
   },
 
@@ -114,7 +117,7 @@ export const indexedStorage: StateStorage = {
         const request = store.delete(name);
 
         request.onerror = () => {
-          console.error('[IndexedStorage] Error removing:', request.error);
+          log.error('Error removing from IndexedDB', request.error as Error);
           reject(request.error);
         };
 
@@ -123,7 +126,7 @@ export const indexedStorage: StateStorage = {
         };
       });
     } catch (error) {
-      console.error('[IndexedStorage] removeItem error:', error);
+      log.error('removeItem error', error as Error);
     }
   },
 };
@@ -227,7 +230,7 @@ export async function clearIndexedStorage(): Promise<void> {
       request.onsuccess = () => resolve();
     });
   } catch (error) {
-    console.error('[IndexedStorage] clearIndexedStorage error:', error);
+    log.error('clearIndexedStorage error', error as Error);
   }
 }
 
@@ -245,7 +248,7 @@ export async function getIndexedStorageKeys(): Promise<string[]> {
       request.onsuccess = () => resolve(request.result as string[]);
     });
   } catch (error) {
-    console.error('[IndexedStorage] getIndexedStorageKeys error:', error);
+    log.error('getIndexedStorageKeys error', error as Error);
     return [];
   }
 }
@@ -268,7 +271,7 @@ export async function getIndexedStorageSize(): Promise<number> {
       };
     });
   } catch (error) {
-    console.error('[IndexedStorage] getIndexedStorageSize error:', error);
+    log.error('getIndexedStorageSize error', error as Error);
     return 0;
   }
 }

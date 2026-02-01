@@ -22,6 +22,9 @@ import {
   type HybridSearchConfig,
   type SearchDocument,
 } from './hybrid-search';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 import {
   rerank,
   rerankWithHeuristics,
@@ -502,7 +505,7 @@ export class RAGPipeline {
 
       return result;
     } catch (error) {
-      console.error('Enhanced RAG retrieval error:', error);
+      log.error('Enhanced RAG retrieval error', error as Error);
       return this.emptyContext(query, searchMetadata);
     }
   }

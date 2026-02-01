@@ -6,6 +6,9 @@
  */
 
 import { proxyFetch, isProxyEnabled, getCurrentProxyUrl } from '@/lib/network/proxy-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 /**
  * Search-specific fetch with proxy support
@@ -18,7 +21,7 @@ export async function searchFetch(
   // Log proxy usage in development
   if (process.env.NODE_ENV === 'development' && isProxyEnabled()) {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    console.log(`[Search] Request via proxy: ${url} -> ${getCurrentProxyUrl()}`);
+    log.debug(`Search request via proxy: ${url} -> ${getCurrentProxyUrl()}`);
   }
 
   return proxyFetch(input, init);
@@ -38,13 +41,13 @@ export function createSearchProviderFetch(providerName: string) {
       const duration = Date.now() - startTime;
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[${providerName}] ${response.status} ${url} (${duration}ms)`);
+        log.debug(`${providerName} ${response.status} ${url} (${duration}ms)`);
       }
 
       return response;
     } catch (error) {
       const duration = Date.now() - startTime;
-      console.error(`[${providerName}] Failed ${url} (${duration}ms):`, error);
+      log.error(`${providerName} failed ${url} (${duration}ms)`, error as Error);
       throw error;
     }
   };

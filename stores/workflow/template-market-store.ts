@@ -11,6 +11,9 @@ import type {
   TemplateCategory,
   TemplateFilters,
 } from '@/types/workflow/template';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 interface TemplateMarketState {
   // Templates
@@ -336,7 +339,7 @@ export const useTemplateMarketStore = create<TemplateMarketState>()(
           get().addTemplate(template);
           return template;
         } catch (error) {
-          console.error('Failed to import template:', error);
+          log.error('Failed to import template', error as Error);
           return null;
         }
       },
@@ -354,7 +357,7 @@ export const useTemplateMarketStore = create<TemplateMarketState>()(
             throw new Error('YAML format not yet supported');
           }
         } catch (error) {
-          console.error('Failed to export template:', error);
+          log.error('Failed to export template', error as Error);
           return null;
         }
       },

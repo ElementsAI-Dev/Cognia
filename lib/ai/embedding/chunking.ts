@@ -10,6 +10,9 @@
  */
 
 import type { LanguageModel } from 'ai';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export type ChunkingStrategy =
   | 'fixed'
@@ -513,7 +516,7 @@ export async function chunkDocumentAsync(
         return semanticResult;
       }
     } catch (error) {
-      console.warn('Semantic chunking failed, falling back to heading strategy:', error);
+      log.warn('Semantic chunking failed, falling back to heading strategy', { error });
     }
 
     // Fallback to deterministic heading-based chunking when AI path fails.
@@ -701,7 +704,7 @@ ${cleanedText.slice(0, 8000)}${cleanedText.length > 8000 ? '\n...[truncated]' : 
     };
   } catch (error) {
     // If AI fails, fall back to heading chunking
-    console.warn('Semantic chunking failed, falling back to heading strategy:', error);
+    log.warn('Semantic chunking failed, falling back to heading strategy', { error });
     return chunkDocument(cleanedText, { strategy: 'heading', chunkSize: targetChunkSize, chunkOverlap: 100 }, documentId);
   }
 }

@@ -12,6 +12,9 @@ import {
   type AudioContent,
   type VideoContent,
 } from './media-utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 /**
  * Convert a File or Blob to base64 data URL
@@ -231,7 +234,7 @@ export async function buildMultimodalContent(
           });
         }
       } catch (error) {
-        console.error(`Error processing ${attachment.mimeType} attachment:`, error);
+        log.error(`Error processing ${attachment.mimeType} attachment`, error as Error);
       }
     }
   }

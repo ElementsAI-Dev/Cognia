@@ -13,6 +13,9 @@ import type {
   TokenCountOptions,
 } from '@/types/system/tokenizer';
 import { estimateTokensFast } from './base-tokenizer';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 const DEFAULT_GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta';
 const DEFAULT_TIMEOUT = 5000;
@@ -74,7 +77,7 @@ export class GeminiTokenizer implements Tokenizer {
         cachedTokens: response.cachedContentTokenCount,
       };
     } catch (error) {
-      console.warn('Gemini countTokens API failed:', error);
+      log.warn('Gemini countTokens API failed', { error });
       return {
         tokens: estimateTokensFast(content),
         isExact: false,
@@ -133,7 +136,7 @@ export class GeminiTokenizer implements Tokenizer {
         cachedTokens: response.cachedContentTokenCount,
       };
     } catch (error) {
-      console.warn('Gemini countTokens API failed for messages:', error);
+      log.warn('Gemini countTokens API failed for messages', { error });
       let totalTokens = 0;
       for (const msg of messages) {
         totalTokens += estimateTokensFast(msg.content) + 4;

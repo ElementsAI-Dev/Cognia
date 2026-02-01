@@ -2,9 +2,8 @@
 //!
 //! Generates context-aware suggestions based on user activity and system state.
 
-#![allow(dead_code)]
-
 use super::{ActivityType, SystemState, UserActivity};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 /// A suggestion for the user
@@ -53,8 +52,8 @@ pub enum SuggestionType {
 pub struct SmartSuggestions {
     /// Suggestion rules
     rules: Vec<SuggestionRule>,
-    /// Dismissed suggestions (by action)
-    dismissed: std::collections::HashSet<String>,
+    /// Dismissed suggestions (by action) - uses RwLock for interior mutability
+    dismissed: RwLock<std::collections::HashSet<String>>,
 }
 
 /// Type alias for suggestion condition function
@@ -64,6 +63,7 @@ type SuggestionConditionFn =
 
 /// A rule for generating suggestions
 struct SuggestionRule {
+    #[allow(dead_code)]
     name: String,
     condition: SuggestionConditionFn,
 }
@@ -73,7 +73,7 @@ impl SmartSuggestions {
         log::debug!("Creating new SmartSuggestions engine");
         let mut engine = Self {
             rules: Vec::new(),
-            dismissed: std::collections::HashSet::new(),
+            dismissed: RwLock::new(std::collections::HashSet::new()),
         };
         engine.register_default_rules();
         log::debug!("Registered {} suggestion rules", engine.rules.len());
@@ -359,7 +359,7 @@ impl SmartSuggestions {
         for rule in &self.rules {
             if let Some(suggestion) = (rule.condition)(system, activities) {
                 // Skip dismissed suggestions
-                if !self.dismissed.contains(&suggestion.action) {
+                if !self.dismissed.read().contains(&suggestion.action) {
                     suggestions.push(suggestion);
                 }
             }
@@ -379,21 +379,27 @@ impl SmartSuggestions {
     }
 
     /// Dismiss a suggestion
-    pub fn dismiss(&mut self, action: &str) {
+    pub fn dismiss(&self, action: &str) {
         log::debug!("Dismissing suggestion: {}", action);
-        self.dismissed.insert(action.to_string());
+        self.dismissed.write().insert(action.to_string());
     }
 
     /// Clear dismissed suggestions
-    pub fn clear_dismissed(&mut self) {
-        let count = self.dismissed.len();
-        self.dismissed.clear();
+    pub fn clear_dismissed(&self) {
+        let mut dismissed = self.dismissed.write();
+        let count = dismissed.len();
+        dismissed.clear();
         log::info!("Cleared {} dismissed suggestions", count);
     }
 
     /// Check if a suggestion is dismissed
     pub fn is_dismissed(&self, action: &str) -> bool {
-        self.dismissed.contains(action)
+        self.dismissed.read().contains(action)
+    }
+
+    /// Get list of dismissed suggestion actions
+    pub fn get_dismissed(&self) -> Vec<String> {
+        self.dismissed.read().iter().cloned().collect()
     }
 }
 

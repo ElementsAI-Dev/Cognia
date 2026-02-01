@@ -37,10 +37,15 @@ import {
   clearClipboardAll,
   smartExpand,
   autoExpand,
+  getTimeSinceLastDetection,
+  getLastText,
+  clearLastText,
+  getLastSelection,
   type SelectionPayload,
   type SelectionConfig,
   type SelectionHistoryEntry,
   type ClipboardEntry,
+  type Selection,
 } from './selection';
 
 const mockInvoke = invoke as jest.MockedFunction<typeof invoke>;
@@ -373,6 +378,90 @@ describe('Selection - Smart Expansion', () => {
         language: undefined,
       });
       expect(result.mode).toBe('word');
+    });
+  });
+});
+
+describe('Selection - Detection State', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getTimeSinceLastDetection', () => {
+    it('should return time in milliseconds', async () => {
+      mockInvoke.mockResolvedValue(1500);
+      const result = await getTimeSinceLastDetection();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_time_since_last_detection');
+      expect(result).toBe(1500);
+    });
+
+    it('should return null when no detection has occurred', async () => {
+      mockInvoke.mockResolvedValue(null);
+      const result = await getTimeSinceLastDetection();
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getLastText', () => {
+    it('should return last detected text', async () => {
+      mockInvoke.mockResolvedValue('last selected text');
+      const result = await getLastText();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_get_last_text');
+      expect(result).toBe('last selected text');
+    });
+
+    it('should return null when no text has been detected', async () => {
+      mockInvoke.mockResolvedValue(null);
+      const result = await getLastText();
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('clearLastText', () => {
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await clearLastText();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_clear_last_text');
+    });
+  });
+
+  describe('getLastSelection', () => {
+    it('should return full selection context', async () => {
+      const mockSelection: Selection = {
+        text: 'selected code',
+        text_before: 'const x = ',
+        text_after: '; return x;',
+        is_code: true,
+        language: 'typescript',
+        is_url: false,
+        is_email: false,
+        has_numbers: false,
+        word_count: 2,
+        char_count: 13,
+        line_count: 1,
+        text_type: 'code',
+        source_app: {
+          name: 'VSCode',
+          process: 'code.exe',
+          window_title: 'selection.ts - Cognia',
+          app_type: 'editor',
+        },
+      };
+      mockInvoke.mockResolvedValue(mockSelection);
+
+      const result = await getLastSelection();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_get_last_selection');
+      expect(result).not.toBeNull();
+      expect(result?.text).toBe('selected code');
+      expect(result?.is_code).toBe(true);
+      expect(result?.language).toBe('typescript');
+      expect(result?.source_app?.name).toBe('VSCode');
+    });
+
+    it('should return null when no selection has been analyzed', async () => {
+      mockInvoke.mockResolvedValue(null);
+      const result = await getLastSelection();
+      expect(result).toBeNull();
     });
   });
 });

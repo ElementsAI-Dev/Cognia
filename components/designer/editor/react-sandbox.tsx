@@ -5,7 +5,7 @@
  * Provides isolated React runtime for code execution
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   SandpackProvider,
   SandpackLayout,
@@ -72,7 +72,7 @@ function SandboxSync() {
   }, [sandpack.files, setCode]);
 
   // Listen for file changes
-  useMemo(() => {
+  useEffect(() => {
     handleChange();
   }, [handleChange]);
 

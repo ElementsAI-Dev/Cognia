@@ -17,6 +17,9 @@ import type {
 } from '@tauri-apps/api/window';
 import { LogicalSize, LogicalPosition } from '@tauri-apps/api/dpi';
 import { useWindowStore, type UserAttentionType } from '@/stores';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export type Platform = 'windows' | 'macos' | 'linux' | 'unknown';
 
@@ -155,7 +158,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         });
         unlistenersRef.current.push(unlistenScale);
       } catch (error) {
-        console.error('Failed to initialize window state:', error);
+        log.error('Failed to initialize window state', error as Error);
       }
     };
 
@@ -185,7 +188,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       await appWindow.setFullscreen(!current);
       setIsFullscreen(!current);
     } catch (error) {
-      console.error('Failed to toggle fullscreen:', error);
+      log.error('Failed to toggle fullscreen', error as Error);
     }
   }, [isTauri, setIsFullscreen]);
 
@@ -213,7 +216,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       await appWindow.minimize();
       setIsMinimized(true);
     } catch (error) {
-      console.error('Failed to minimize window:', error);
+      log.error('Failed to minimize window', error as Error);
     }
   }, [isTauri, setIsMinimized]);
 
@@ -224,7 +227,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       await appWindow.maximize();
       setIsMaximized(true);
     } catch (error) {
-      console.error('Failed to maximize window:', error);
+      log.error('Failed to maximize window', error as Error);
     }
   }, [isTauri, setIsMaximized]);
 
@@ -235,7 +238,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       await appWindow.unmaximize();
       setIsMaximized(false);
     } catch (error) {
-      console.error('Failed to unmaximize window:', error);
+      log.error('Failed to unmaximize window', error as Error);
     }
   }, [isTauri, setIsMaximized]);
 
@@ -247,7 +250,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       const maximized = await appWindow.isMaximized();
       setIsMaximized(maximized);
     } catch (error) {
-      console.error('Failed to toggle maximize:', error);
+      log.error('Failed to toggle maximize', error as Error);
     }
   }, [isTauri, setIsMaximized]);
 
@@ -257,7 +260,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       const appWindow = getCurrentWindow();
       await appWindow.close();
     } catch (error) {
-      console.error('Failed to close window:', error);
+      log.error('Failed to close window', error as Error);
     }
   }, [isTauri]);
 
@@ -268,7 +271,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       await appWindow.hide();
       setIsVisible(false);
     } catch (error) {
-      console.error('Failed to hide window:', error);
+      log.error('Failed to hide window', error as Error);
     }
   }, [isTauri, setIsVisible]);
 
@@ -279,7 +282,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       await appWindow.show();
       setIsVisible(true);
     } catch (error) {
-      console.error('Failed to show window:', error);
+      log.error('Failed to show window', error as Error);
     }
   }, [isTauri, setIsVisible]);
 
@@ -291,7 +294,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         await appWindow.setFullscreen(fullscreen);
         setIsFullscreen(fullscreen);
       } catch (error) {
-        console.error('Failed to set fullscreen:', error);
+        log.error('Failed to set fullscreen', error as Error);
       }
     },
     [isTauri, setIsFullscreen]
@@ -308,7 +311,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         await appWindow.setAlwaysOnTop(alwaysOnTop);
         setIsAlwaysOnTop(alwaysOnTop);
       } catch (error) {
-        console.error('Failed to set always on top:', error);
+        log.error('Failed to set always on top', error as Error);
       }
     },
     [isTauri, setIsAlwaysOnTop]
@@ -322,7 +325,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       await appWindow.setAlwaysOnTop(newValue);
       setIsAlwaysOnTop(newValue);
     } catch (error) {
-      console.error('Failed to toggle always on top:', error);
+      log.error('Failed to toggle always on top', error as Error);
     }
   }, [isTauri, isAlwaysOnTop, setIsAlwaysOnTop]);
 
@@ -332,7 +335,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       const appWindow = getCurrentWindow();
       await appWindow.center();
     } catch (error) {
-      console.error('Failed to center window:', error);
+      log.error('Failed to center window', error as Error);
     }
   }, [isTauri]);
 
@@ -343,7 +346,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       await appWindow.setFocus();
       setIsFocused(true);
     } catch (error) {
-      console.error('Failed to set focus:', error);
+      log.error('Failed to set focus', error as Error);
     }
   }, [isTauri, setIsFocused]);
 
@@ -354,7 +357,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setTitle(title);
       } catch (error) {
-        console.error('Failed to set title:', error);
+        log.error('Failed to set title', error as Error);
       }
     },
     [isTauri]
@@ -369,7 +372,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         await appWindow.setSize(new LogicalSize(width, height));
         setSize({ width, height });
       } catch (error) {
-        console.error('Failed to set size:', error);
+        log.error('Failed to set size', error as Error);
       }
     },
     [isTauri, setSize]
@@ -383,7 +386,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         await appWindow.setPosition({ type: 'Physical', x, y } as PhysicalPosition);
         setPosition({ x, y });
       } catch (error) {
-        console.error('Failed to set position:', error);
+        log.error('Failed to set position', error as Error);
       }
     },
     [isTauri, setPosition]
@@ -397,7 +400,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         // Use LogicalSize for consistency - all size values are in logical pixels
         await appWindow.setMinSize(new LogicalSize(width, height));
       } catch (error) {
-        console.error('Failed to set min size:', error);
+        log.error('Failed to set min size', error as Error);
       }
     },
     [isTauri]
@@ -411,7 +414,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         // Use LogicalSize for consistency - all size values are in logical pixels
         await appWindow.setMaxSize(new LogicalSize(width, height));
       } catch (error) {
-        console.error('Failed to set max size:', error);
+        log.error('Failed to set max size', error as Error);
       }
     },
     [isTauri]
@@ -424,7 +427,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setResizable(resizable);
       } catch (error) {
-        console.error('Failed to set resizable:', error);
+        log.error('Failed to set resizable', error as Error);
       }
     },
     [isTauri]
@@ -437,7 +440,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setDecorations(decorations);
       } catch (error) {
-        console.error('Failed to set decorations:', error);
+        log.error('Failed to set decorations', error as Error);
       }
     },
     [isTauri]
@@ -450,7 +453,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setShadow(shadow);
       } catch (error) {
-        console.error('Failed to set shadow:', error);
+        log.error('Failed to set shadow', error as Error);
       }
     },
     [isTauri]
@@ -463,7 +466,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setSkipTaskbar(skip);
       } catch (error) {
-        console.error('Failed to set skip taskbar:', error);
+        log.error('Failed to set skip taskbar', error as Error);
       }
     },
     [isTauri]
@@ -476,7 +479,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setContentProtected(protect);
       } catch (error) {
-        console.error('Failed to set content protected:', error);
+        log.error('Failed to set content protected', error as Error);
       }
     },
     [isTauri]
@@ -489,7 +492,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setCursorGrab(grab);
       } catch (error) {
-        console.error('Failed to set cursor grab:', error);
+        log.error('Failed to set cursor grab', error as Error);
       }
     },
     [isTauri]
@@ -502,7 +505,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setCursorVisible(visible);
       } catch (error) {
-        console.error('Failed to set cursor visible:', error);
+        log.error('Failed to set cursor visible', error as Error);
       }
     },
     [isTauri]
@@ -515,7 +518,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setCursorIcon(icon);
       } catch (error) {
-        console.error('Failed to set cursor icon:', error);
+        log.error('Failed to set cursor icon', error as Error);
       }
     },
     [isTauri]
@@ -528,7 +531,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setCursorPosition({ type: 'Physical', x, y } as PhysicalPosition);
       } catch (error) {
-        console.error('Failed to set cursor position:', error);
+        log.error('Failed to set cursor position', error as Error);
       }
     },
     [isTauri]
@@ -541,7 +544,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setIgnoreCursorEvents(ignore);
       } catch (error) {
-        console.error('Failed to set ignore cursor events:', error);
+        log.error('Failed to set ignore cursor events', error as Error);
       }
     },
     [isTauri]
@@ -555,7 +558,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const attentionType = type === 'critical' ? 1 : type === 'informational' ? 2 : null;
         await appWindow.requestUserAttention(attentionType);
       } catch (error) {
-        console.error('Failed to request user attention:', error);
+        log.error('Failed to request user attention', error as Error);
       }
     },
     [isTauri]
@@ -572,7 +575,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
           await appWindow.setProgressBar({ progress: Math.max(0, Math.min(100, progress)) / 100 });
         }
       } catch (error) {
-        console.error('Failed to set progress bar:', error);
+        log.error('Failed to set progress bar', error as Error);
       }
     },
     [isTauri]
@@ -585,7 +588,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         const appWindow = getCurrentWindow();
         await appWindow.setVisibleOnAllWorkspaces(visible);
       } catch (error) {
-        console.error('Failed to set visible on all workspaces:', error);
+        log.error('Failed to set visible on all workspaces', error as Error);
       }
     },
     [isTauri]
@@ -597,7 +600,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
       const appWindow = getCurrentWindow();
       await appWindow.startDragging();
     } catch (error) {
-      console.error('Failed to start dragging:', error);
+      log.error('Failed to start dragging', error as Error);
     }
   }, [isTauri]);
 
@@ -684,7 +687,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         theme,
       };
     } catch (error) {
-      console.error('Failed to get window info:', error);
+      log.error('Failed to get window info', error as Error);
       return null;
     }
   }, [isTauri]);
@@ -705,7 +708,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         available,
       };
     } catch (error) {
-      console.error('Failed to get monitors:', error);
+      log.error('Failed to get monitors', error as Error);
       return null;
     }
   }, [isTauri]);
@@ -771,7 +774,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         name: targetMonitor.name,
       };
     } catch (error) {
-      console.error('Failed to get screen info:', error);
+      log.error('Failed to get screen info', error as Error);
       return null;
     }
   }, [isTauri]);
@@ -831,7 +834,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         setSize({ width: optimalSize.width, height: optimalSize.height });
       }
     } catch (error) {
-      console.error('Failed to auto-fit window:', error);
+      log.error('Failed to auto-fit window', error as Error);
     }
   }, [isTauri, calculateOptimalSize, setSize]);
 
@@ -877,7 +880,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         await appWindow.center();
         setSize({ width: preset.width, height: preset.height });
       } catch (error) {
-        console.error('Failed to apply size preset:', error);
+        log.error('Failed to apply size preset', error as Error);
       }
     },
     [isTauri, setSize]
@@ -933,7 +936,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         setSize({ width, height });
         setPosition({ x, y });
       } catch (error) {
-        console.error('Failed to snap to edge:', error);
+        log.error('Failed to snap to edge', error as Error);
       }
     },
     [isTauri, getScreenInfo, setSize, setPosition]
@@ -981,7 +984,7 @@ export function useWindowControls(options: UseWindowControlsOptions = {}) {
         setSize({ width, height });
         setPosition({ x, y });
       } catch (error) {
-        console.error('Failed to snap to corner:', error);
+        log.error('Failed to snap to corner', error as Error);
       }
     },
     [isTauri, getScreenInfo, setSize, setPosition]

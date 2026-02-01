@@ -18,6 +18,9 @@ import type {
   SessionCompressionOverrides,
 } from '@/types/system/compression';
 import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/system/compression';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 import { calculateTokenBreakdown, countTokens } from '@/hooks/chat/use-token-count';
 import { nanoid } from 'nanoid';
 
@@ -368,7 +371,7 @@ export async function compressMessages(
           try {
             summaryText = await summaryGenerator(olderMessages);
           } catch (error) {
-            console.warn('AI summarization failed, using simple summary:', error);
+            log.warn('AI summarization failed, using simple summary', { error });
             summaryText = generateSimpleSummary(olderMessages);
           }
         } else {
@@ -395,7 +398,7 @@ export async function compressMessages(
             try {
               summaryText = await summaryGenerator(result.messagesToSummarize);
             } catch (error) {
-              console.warn('AI summarization failed, using simple summary:', error);
+              log.warn('AI summarization failed, using simple summary', { error });
               summaryText = generateSimpleSummary(result.messagesToSummarize);
             }
           } else {

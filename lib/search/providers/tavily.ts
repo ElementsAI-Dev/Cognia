@@ -9,6 +9,9 @@ import type {
   SearchResponse,
   SearchResult,
 } from '@/types/search';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 export interface TavilySearchOptions extends Omit<SearchOptions, 'includeRawContent'> {
   includeRawContent?: false | 'text' | 'markdown';
@@ -64,7 +67,7 @@ export async function searchWithTavily(
       responseTime: Date.now() - startTime,
     };
   } catch (error) {
-    console.error('Tavily search error:', error);
+    log.error('Tavily search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Tavily search failed: ${error.message}`
@@ -106,7 +109,7 @@ export async function extractContentWithTavily(
     const response = await client.extract([url]);
     return response.results[0]?.rawContent || '';
   } catch (error) {
-    console.error('Tavily extract error:', error);
+    log.error('Tavily extract error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Tavily extract failed: ${error.message}`

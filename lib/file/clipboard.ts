@@ -3,6 +3,9 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface ClipboardContent {
   content_type: 'image' | 'text' | 'empty';
@@ -53,7 +56,7 @@ export async function readClipboardImage(): Promise<ClipboardContent> {
     }
     return { content_type: 'empty' };
   } catch (error) {
-    console.error('Clipboard read error:', error);
+    log.error('Clipboard read error', error as Error);
     return { content_type: 'empty' };
   }
 }

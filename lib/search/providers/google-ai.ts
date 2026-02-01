@@ -10,6 +10,9 @@ import type {
   SearchResult,
 } from '@/types/search';
 import { googleAIFetch } from '../proxy-search-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -297,7 +300,7 @@ export async function searchWithGoogleAI(
       totalResults: results.length,
     };
   } catch (error) {
-    console.error('Google AI search error:', error);
+    log.error('Google AI search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Google AI search failed: ${error.message}`

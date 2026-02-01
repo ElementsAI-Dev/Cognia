@@ -3,6 +3,10 @@
  * Integrates with the main plugin system at lib/plugin
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.plugin;
+
 export interface CanvasPlugin {
   id: string;
   name: string;
@@ -152,7 +156,7 @@ export class CanvasPluginManager {
       try {
         plugin.onMount(this.context);
       } catch (error) {
-        console.error(`Failed to mount plugin ${pluginId}:`, error);
+        log.error(`Failed to mount plugin ${pluginId}`, error as Error);
       }
     }
     
@@ -170,7 +174,7 @@ export class CanvasPluginManager {
       try {
         plugin.onUnmount();
       } catch (error) {
-        console.error(`Failed to unmount plugin ${pluginId}:`, error);
+        log.error(`Failed to unmount plugin ${pluginId}`, error as Error);
       }
     }
     
@@ -203,7 +207,7 @@ export class CanvasPluginManager {
         try {
           plugin.onMount(this.context);
         } catch (error) {
-          console.error(`Failed to mount plugin ${pluginId}:`, error);
+          log.error(`Failed to mount plugin ${pluginId}`, error as Error);
         }
       }
     }
@@ -216,7 +220,7 @@ export class CanvasPluginManager {
         try {
           plugin.onUnmount();
         } catch (error) {
-          console.error(`Failed to unmount plugin ${pluginId}:`, error);
+          log.error(`Failed to unmount plugin ${pluginId}`, error as Error);
         }
       }
     }
@@ -235,7 +239,7 @@ export class CanvasPluginManager {
         try {
           (hook as (...args: unknown[]) => void).apply(plugin, args);
         } catch (error) {
-          console.error(`Error executing hook ${String(hookName)} in plugin ${pluginId}:`, error);
+          log.error(`Error executing hook ${String(hookName)} in plugin ${pluginId}`, error as Error);
         }
       }
     }
@@ -251,7 +255,7 @@ export class CanvasPluginManager {
           const pluginItems = await plugin.provideCompletionItems(context);
           items.push(...pluginItems);
         } catch (error) {
-          console.error(`Error getting completions from plugin ${pluginId}:`, error);
+          log.error(`Error getting completions from plugin ${pluginId}`, error as Error);
         }
       }
     }
@@ -269,7 +273,7 @@ export class CanvasPluginManager {
           const pluginDiagnostics = await plugin.provideDiagnostics(content, language);
           diagnostics.push(...pluginDiagnostics);
         } catch (error) {
-          console.error(`Error getting diagnostics from plugin ${pluginId}:`, error);
+          log.error(`Error getting diagnostics from plugin ${pluginId}`, error as Error);
         }
       }
     }
@@ -287,7 +291,7 @@ export class CanvasPluginManager {
           const pluginActions = plugin.provideActions(content, selection);
           actions.push(...pluginActions);
         } catch (error) {
-          console.error(`Error getting actions from plugin ${pluginId}:`, error);
+          log.error(`Error getting actions from plugin ${pluginId}`, error as Error);
         }
       }
     }
@@ -305,7 +309,7 @@ export class CanvasPluginManager {
       try {
         command.handler();
       } catch (error) {
-        console.error(`Error executing command ${commandId}:`, error);
+        log.error(`Error executing command ${commandId}`, error as Error);
       }
     }
   }

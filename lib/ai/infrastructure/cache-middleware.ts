@@ -12,6 +12,9 @@ import {
   simulateReadableStream,
   type LanguageModelMiddleware,
 } from 'ai';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 /**
  * Cache store interface
@@ -134,7 +137,7 @@ export function createIndexedDBCacheStore(options?: {
             // Check expiry
             if (entry.expiry && Date.now() > entry.expiry) {
               // Delete expired entry
-              this.delete(key).catch(console.error);
+              this.delete(key).catch((e) => log.error('Failed to delete expired cache entry', e as Error));
               resolve(null);
               return;
             }
@@ -166,7 +169,7 @@ export function createIndexedDBCacheStore(options?: {
           request.onsuccess = () => resolve();
         });
       } catch (error) {
-        console.error('Failed to cache response:', error);
+        log.error('Failed to cache response', error as Error);
       }
     },
 
@@ -309,7 +312,7 @@ export function createCacheMiddleware(options: CacheMiddlewareOptions): Language
         },
         flush() {
           // Cache the full response after streaming completes
-          store.set(cacheKey, fullResponse, ttlSeconds).catch(console.error);
+          store.set(cacheKey, fullResponse, ttlSeconds).catch((e) => log.error('Failed to cache streaming response', e as Error));
         },
       });
 

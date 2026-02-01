@@ -4,6 +4,9 @@
  */
 
 import type { CheerioAPI } from 'cheerio';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 interface CheerioElement {
   tagName: string;
@@ -176,7 +179,7 @@ function extractLinks($: CheerioAPI, baseUrl?: string): HTMLLink[] {
       try {
         href = new URL(href, baseUrl).href;
       } catch (error) {
-        console.warn('Failed to resolve relative URL:', href, error);
+        log.warn(`Failed to resolve relative URL: ${href}`, { error });
         // Keep original href if URL parsing fails
       }
     }
@@ -221,7 +224,7 @@ function extractImages($: CheerioAPI, baseUrl?: string): HTMLImage[] {
       try {
         src = new URL(src, baseUrl).href;
       } catch (error) {
-        console.warn('Failed to resolve relative image URL:', src, error);
+        log.warn(`Failed to resolve relative image URL: ${src}`, { error });
         // Keep original src if URL parsing fails
       }
     }

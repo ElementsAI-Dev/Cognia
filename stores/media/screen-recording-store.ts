@@ -7,6 +7,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 import type {
   RecordingStatus,
   RecordingConfig,
@@ -265,7 +268,7 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
           // Listen for countdown events
           const unlistenCountdown = await listen<number>('recording-countdown', (event) => {
             // Countdown tick - can be used for UI feedback
-            console.log('[Recording] Countdown:', event.payload);
+            log.debug(`Recording: Countdown: ${event.payload}`);
           });
           listeners.push(unlistenCountdown);
 
@@ -273,7 +276,7 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
           const unlistenCompleted = await listen<RecordingMetadata>(
             'recording-completed',
             (event) => {
-              console.log('[Recording] Completed:', event.payload.id);
+              log.debug(`Recording: Completed: ${event.payload.id}`);
               set({
                 status: 'Idle',
                 recordingId: null,
@@ -310,7 +313,7 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
 
           set({ _eventListeners: listeners });
         } catch (error) {
-          console.error('[Recording] Failed to setup event listeners:', error);
+          log.error('Recording: Failed to setup event listeners', error as Error);
         }
       },
 

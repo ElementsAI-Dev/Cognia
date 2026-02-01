@@ -6,6 +6,9 @@
 import { useState, useCallback } from 'react';
 import { useMcpStore } from '@/stores/mcp';
 import type { McpServerState } from '@/types/mcp';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 export interface UseMcpServerActionsReturn {
   actionLoading: string | null;
@@ -30,7 +33,7 @@ export function useMcpServerActions(): UseMcpServerActionsReturn {
       try {
         await connectServer(id);
       } catch (err) {
-        console.error('Failed to connect:', err);
+        log.error('Failed to connect', err as Error);
       } finally {
         setActionLoading(null);
       }
@@ -44,7 +47,7 @@ export function useMcpServerActions(): UseMcpServerActionsReturn {
       try {
         await disconnectServer(id);
       } catch (err) {
-        console.error('Failed to disconnect:', err);
+        log.error('Failed to disconnect', err as Error);
       } finally {
         setActionLoading(null);
       }
@@ -61,7 +64,7 @@ export function useMcpServerActions(): UseMcpServerActionsReturn {
       try {
         await removeServer(removeConfirmId);
       } catch (err) {
-        console.error('Failed to remove:', err);
+        log.error('Failed to remove', err as Error);
       }
     }
     setRemoveConfirmId(null);
@@ -79,7 +82,7 @@ export function useMcpServerActions(): UseMcpServerActionsReturn {
           enabled: !server.config.enabled,
         });
       } catch (err) {
-        console.error('Failed to toggle enabled:', err);
+        log.error('Failed to toggle enabled', err as Error);
       }
     },
     [updateServer]

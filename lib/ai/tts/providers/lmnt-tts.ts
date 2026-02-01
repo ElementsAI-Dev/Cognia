@@ -5,6 +5,9 @@
 
 import type { TTSResponse, LMNTTTSVoice } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface LMNTTTSOptions {
   apiKey: string;
@@ -75,7 +78,7 @@ export async function generateLMNTTTS(
       mimeType: 'audio/mpeg',
     };
   } catch (error) {
-    console.error('LMNT TTS error:', error);
+    log.error('LMNT TTS error', error as Error);
     return {
       success: false,
       error: getTTSError('api-error', error instanceof Error ? error.message : 'Unknown error').message,
@@ -124,7 +127,7 @@ export async function generateLMNTTTSViaApi(
       mimeType: 'audio/mpeg',
     };
   } catch (error) {
-    console.error('LMNT TTS API error:', error);
+    log.error('LMNT TTS API error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to generate speech',
@@ -209,7 +212,7 @@ export async function streamLMNTTTS(
       mimeType: 'audio/mpeg',
     };
   } catch (error) {
-    console.error('LMNT TTS streaming error:', error);
+    log.error('LMNT TTS streaming error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Streaming failed',

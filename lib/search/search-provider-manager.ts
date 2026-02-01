@@ -16,6 +16,9 @@ import type {
   SearchResponse,
 } from '@/types/search';
 import { getEnabledProviders, SEARCH_PROVIDERS } from '@/types/search';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 import {
   circuitBreakerRegistry,
   type CircuitBreakerConfig,
@@ -285,9 +288,8 @@ export class SearchProviderManager {
         // Record failure
         this.recordFailure(provider.providerId, latencyMs, lastError);
 
-        console.warn(
-          `[SearchProviderManager] Provider ${provider.providerId} failed (attempt ${attempts}):`,
-          lastError.message
+        log.warn(
+          `SearchProviderManager: Provider ${provider.providerId} failed (attempt ${attempts}): ${lastError.message}`
         );
 
         if (!this.config.enableFailover) {

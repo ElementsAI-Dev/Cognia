@@ -31,13 +31,14 @@
       {
         "label": "splashscreen",
         "url": "splashscreen",
-        "width": 400,
-        "height": 300,
+        "width": 520,
+        "height": 420,
         "resizable": false,
         "decorations": false,
         "center": true,
         "alwaysOnTop": true,
-        "skipTaskbar": true
+        "skipTaskbar": true,
+        "transparent": true
       },
       {
         "label": "selection-toolbar",

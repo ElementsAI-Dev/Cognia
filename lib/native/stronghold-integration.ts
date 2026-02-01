@@ -22,6 +22,9 @@ import {
   migrateApiKeyToStronghold,
 } from './stronghold';
 import { isTauri } from './utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 // Track initialization state
 let initializationPromise: Promise<boolean> | null = null;
@@ -33,7 +36,7 @@ let isInitialized = false;
  */
 export async function initializeStronghold(password: string): Promise<boolean> {
   if (!isTauri()) {
-    console.log('Stronghold not available outside Tauri environment');
+    log.info('Stronghold not available outside Tauri environment');
     return false;
   }
 
@@ -81,7 +84,7 @@ export async function secureStoreProviderApiKey(
   apiKey: string
 ): Promise<boolean> {
   if (!isStrongholdAvailable()) {
-    console.warn('Stronghold not available, API key not stored securely');
+    log.warn('Stronghold not available, API key not stored securely');
     return false;
   }
   return storeProviderApiKey(providerId, apiKey);
@@ -216,7 +219,7 @@ export async function migrateApiKeysToStronghold(settings: {
   const failed: string[] = [];
 
   if (!isStrongholdAvailable()) {
-    console.warn('Stronghold not available, migration skipped');
+    log.warn('Stronghold not available, migration skipped');
     return { migrated, failed };
   }
 
@@ -276,7 +279,7 @@ export async function migrateApiKeysToStronghold(settings: {
     }
   }
 
-  console.log(`API key migration complete: ${migrated.length} migrated, ${failed.length} failed`);
+  log.info('API key migration complete', { migratedCount: migrated.length, failedCount: failed.length });
   return { migrated, failed };
 }
 

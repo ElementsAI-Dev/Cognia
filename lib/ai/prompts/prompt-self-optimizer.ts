@@ -13,6 +13,7 @@
 
 import { generateText } from 'ai';
 import { getProviderModel, type ProviderName } from '../core/client';
+import { loggers } from '@/lib/logger';
 import type { 
   PromptTemplate, 
   PromptFeedback, 
@@ -303,7 +304,7 @@ export async function analyzeUserFeedback(
     const parsed = parseJSONResponse(result.text) as { suggestions?: OptimizationSuggestion[] } | null;
     return parsed?.suggestions || [];
   } catch (error) {
-    console.error('Failed to analyze feedback:', error);
+    loggers.ai.error('Failed to analyze feedback', error as Error);
     return [];
   }
 }

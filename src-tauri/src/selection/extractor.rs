@@ -3,7 +3,9 @@
 //! Platform-specific text extraction using UI Automation (Windows) and clipboard fallback.
 
 use parking_lot::RwLock;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
+#[cfg(not(target_os = "windows"))]
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 #[cfg(target_os = "windows")]
@@ -18,13 +20,16 @@ use windows::{
     },
 };
 
-/// Maximum retries for clipboard fallback
+/// Maximum retries for clipboard fallback (used on non-Windows platforms)
+#[cfg(not(target_os = "windows"))]
 const MAX_CLIPBOARD_RETRIES: u32 = 2;
 
-/// Delay between clipboard retries in milliseconds
+/// Delay between clipboard retries in milliseconds (used on non-Windows platforms)
+#[cfg(not(target_os = "windows"))]
 const CLIPBOARD_RETRY_DELAY_MS: u64 = 50;
 
 /// Minimum interval between clipboard copy simulations (debounce) in milliseconds
+#[cfg(not(target_os = "windows"))]
 const CLIPBOARD_DEBOUNCE_MS: u64 = 500;
 
 /// Text extractor for retrieving selected text from applications
@@ -37,7 +42,8 @@ pub struct TextExtractor {
     detection_attempts: Arc<AtomicU32>,
     /// Successful detection counter
     successful_detections: Arc<AtomicU32>,
-    /// Last clipboard copy simulation timestamp (for debouncing)
+    /// Last clipboard copy simulation timestamp (for debouncing, non-Windows only)
+    #[cfg(not(target_os = "windows"))]
     last_clipboard_copy_time: Arc<AtomicU64>,
     /// Whether COM is initialized (Windows only)
     #[cfg(target_os = "windows")]
@@ -52,6 +58,7 @@ impl TextExtractor {
             last_detection_time: Arc::new(RwLock::new(None)),
             detection_attempts: Arc::new(AtomicU32::new(0)),
             successful_detections: Arc::new(AtomicU32::new(0)),
+            #[cfg(not(target_os = "windows"))]
             last_clipboard_copy_time: Arc::new(AtomicU64::new(0)),
             #[cfg(target_os = "windows")]
             com_initialized: Arc::new(RwLock::new(false)),
@@ -230,7 +237,8 @@ impl TextExtractor {
         }
     }
 
-    /// Clipboard fallback with retry logic
+    /// Clipboard fallback with retry logic (non-Windows only)
+    #[cfg(not(target_os = "windows"))]
     fn get_text_via_clipboard_with_retry(&self) -> Result<Option<String>, String> {
         log::trace!(
             "[TextExtractor] get_text_via_clipboard_with_retry: starting (max {} attempts)",
@@ -295,7 +303,8 @@ impl TextExtractor {
         ))
     }
 
-    /// Fallback method: simulate Ctrl+C and read from clipboard
+    /// Fallback method: simulate Ctrl+C and read from clipboard (non-Windows only)
+    #[cfg(not(target_os = "windows"))]
     fn get_text_via_clipboard(&self) -> Result<Option<String>, String> {
         use arboard::Clipboard;
         log::trace!("[TextExtractor] get_text_via_clipboard: starting");

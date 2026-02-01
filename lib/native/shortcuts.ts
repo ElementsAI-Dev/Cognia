@@ -10,6 +10,9 @@ import type {
   ShortcutRegistrationResult,
   ShortcutValidationResult,
 } from '@/types/shortcut';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export type ShortcutHandler = () => void;
 
@@ -25,7 +28,7 @@ export async function registerShortcut(
   handler: ShortcutHandler
 ): Promise<boolean> {
   if (!isTauri()) {
-    console.warn('Global shortcuts are only available in Tauri');
+    log.warn('Global shortcuts are only available in Tauri');
     return false;
   }
 
@@ -53,7 +56,7 @@ export async function registerShortcut(
     
     return true;
   } catch (error) {
-    console.error(`Failed to register shortcut ${normalized}:`, error);
+    log.error(`Failed to register shortcut ${normalized}`, error as Error);
     return false;
   }
 }
@@ -74,7 +77,7 @@ export async function unregisterShortcut(shortcut: string): Promise<boolean> {
     shortcutMetadata.delete(normalized);
     return true;
   } catch (error) {
-    console.error(`Failed to unregister shortcut ${normalized}:`, error);
+    log.error(`Failed to unregister shortcut ${normalized}`, error as Error);
     return false;
   }
 }
@@ -93,7 +96,7 @@ export async function unregisterAllShortcuts(): Promise<boolean> {
     shortcutMetadata.clear();
     return true;
   } catch (error) {
-    console.error('Failed to unregister all shortcuts:', error);
+    log.error('Failed to unregister all shortcuts', error as Error);
     return false;
   }
 }
@@ -310,7 +313,7 @@ export async function registerShortcutWithConflictCheck(
     
     return { success: true };
   } catch (error) {
-    console.error(`Failed to register shortcut ${normalized}:`, error);
+    log.error(`Failed to register shortcut ${normalized}`, error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

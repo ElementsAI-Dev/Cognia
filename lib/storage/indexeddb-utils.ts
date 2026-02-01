@@ -4,6 +4,9 @@
  */
 
 import { db } from '@/lib/db';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 /**
  * IndexedDB table statistics
@@ -185,7 +188,7 @@ export async function cleanupIndexedDB(
     result.freedSpace += orphanedResult * 1024;
 
   } catch (error) {
-    console.error('IndexedDB cleanup failed:', error);
+    log.error('IndexedDB cleanup failed', error as Error);
   }
 
   return result;
@@ -235,7 +238,7 @@ export async function cleanupOrphanedRecords(dryRun = false): Promise<number> {
     }
 
   } catch (error) {
-    console.error('Failed to cleanup orphaned records:', error);
+    log.error('Failed to cleanup orphaned records', error as Error);
   }
 
   return cleaned;

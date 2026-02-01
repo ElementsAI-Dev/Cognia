@@ -4,6 +4,9 @@
  */
 
 import { VERTEX_SHADER, getFragmentShader, type ShaderType } from './gl-shaders';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface GLProcessorOptions {
   canvas?: HTMLCanvasElement;
@@ -149,7 +152,7 @@ export class GLProcessor {
     gl.linkProgram(program);
 
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error('Program link error:', gl.getProgramInfoLog(program));
+      log.error(`Program link error: ${gl.getProgramInfoLog(program)}`);
       gl.deleteProgram(program);
       return null;
     }
@@ -175,7 +178,7 @@ export class GLProcessor {
     gl.compileShader(shader);
 
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+      log.error(`Shader compile error: ${gl.getShaderInfoLog(shader)}`);
       gl.deleteShader(shader);
       return null;
     }

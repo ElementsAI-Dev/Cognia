@@ -5,6 +5,9 @@
 
 import type { TTSResponse, ElevenLabsTTSVoice, ElevenLabsTTSModel } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface ElevenLabsTTSOptions {
   apiKey: string;
@@ -83,7 +86,7 @@ export async function generateElevenLabsTTS(
       mimeType: 'audio/mpeg',
     };
   } catch (error) {
-    console.error('ElevenLabs TTS error:', error);
+    log.error('ElevenLabs TTS error', error as Error);
     return {
       success: false,
       error: getTTSError('api-error', error instanceof Error ? error.message : 'Unknown error').message,
@@ -136,7 +139,7 @@ export async function generateElevenLabsTTSViaApi(
       mimeType: 'audio/mpeg',
     };
   } catch (error) {
-    console.error('ElevenLabs TTS API error:', error);
+    log.error('ElevenLabs TTS API error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to generate speech',
@@ -226,7 +229,7 @@ export async function streamElevenLabsTTS(
       mimeType: 'audio/mpeg',
     };
   } catch (error) {
-    console.error('ElevenLabs TTS streaming error:', error);
+    log.error('ElevenLabs TTS streaming error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Streaming failed',

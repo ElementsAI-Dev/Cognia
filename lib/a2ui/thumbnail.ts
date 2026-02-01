@@ -4,6 +4,9 @@
  */
 
 import html2canvas from 'html2canvas';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ui;
 
 // ============== Types ==============
 
@@ -123,7 +126,7 @@ export async function generateThumbnail(
       generatedAt: Date.now(),
     };
   } catch (error) {
-    console.error('[A2UI Thumbnail] Generation failed:', error);
+    log.error('A2UI Thumbnail generation failed', error as Error);
     throw error;
   }
 }
@@ -141,14 +144,14 @@ export async function captureSurfaceThumbnail(
   ) as HTMLElement;
 
   if (!surfaceElement) {
-    console.warn(`[A2UI Thumbnail] Surface element not found: ${surfaceId}`);
+    log.warn(`A2UI Thumbnail: Surface element not found: ${surfaceId}`);
     return null;
   }
 
   try {
     return await generateThumbnail(surfaceElement, options);
   } catch (error) {
-    console.error(`[A2UI Thumbnail] Failed to capture surface ${surfaceId}:`, error);
+    log.error(`A2UI Thumbnail: Failed to capture surface ${surfaceId}`, error as Error);
     return null;
   }
 }
@@ -230,7 +233,7 @@ function loadThumbnailCache(): ThumbnailCache {
       return JSON.parse(stored) as ThumbnailCache;
     }
   } catch (error) {
-    console.error('[A2UI Thumbnail] Failed to load cache:', error);
+    log.error('A2UI Thumbnail: Failed to load cache', error as Error);
   }
   return {};
 }
@@ -244,7 +247,7 @@ function saveThumbnailCache(cache: ThumbnailCache): void {
   try {
     localStorage.setItem(THUMBNAIL_STORAGE_KEY, JSON.stringify(cache));
   } catch (error) {
-    console.error('[A2UI Thumbnail] Failed to save cache:', error);
+    log.error('A2UI Thumbnail: Failed to save cache', error as Error);
     // If storage is full, try to clean up old thumbnails
     cleanupOldThumbnails(cache);
   }

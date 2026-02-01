@@ -18,6 +18,9 @@
 import { z } from 'zod';
 import { createTool, combineTools } from '@/lib/ai/tools/tool-utils';
 import type { RAGPipeline } from './rag-pipeline';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface RAGToolsConfig {
   /** The RAG pipeline instance to use */
@@ -102,7 +105,7 @@ Always use this tool before answering questions that might require specific know
           return `[Source ${i + 1}]${source} (Relevance: ${(doc.rerankScore * 100).toFixed(0)}%)${title}\n${doc.content}`;
         }).join('\n\n---\n\n');
       } catch (error) {
-        console.error('RAG getInformation error:', error);
+        log.error('RAG getInformation error', error as Error);
         return 'Error retrieving information from knowledge base.';
       }
     },
@@ -134,7 +137,7 @@ Always use this tool before answering questions that might require specific know
             ? `Successfully added content (${result.chunksCreated} chunks created).`
             : `Failed to add content: ${result.error}`;
         } catch (error) {
-          console.error('RAG addResource error:', error);
+          log.error('RAG addResource error', error as Error);
           return 'Error adding content to knowledge base.';
         }
       },
@@ -170,7 +173,7 @@ Always use this tool before answering questions that might require specific know
             `[Result ${i + 1}] (Score: ${(doc.rerankScore * 100).toFixed(0)}%)\n${doc.content}`
           ).join('\n\n---\n\n');
         } catch (error) {
-          console.error('RAG searchWithFilters error:', error);
+          log.error('RAG searchWithFilters error', error as Error);
           return 'Error performing filtered search.';
         }
       },
@@ -203,7 +206,7 @@ export function createSimpleRetrievalTool(
           return `[${i + 1}]${source} (${(r.similarity * 100).toFixed(0)}% match): ${r.content}`;
         }).join('\n\n');
       } catch (error) {
-        console.error('Retrieval tool error:', error);
+        log.error('Retrieval tool error', error as Error);
         return 'Error searching knowledge base.';
       }
     },
@@ -225,7 +228,7 @@ export function createKnowledgeBaseManagementTools(
         const stats = pipeline.getCollectionStats(collectionName);
         return `Knowledge base "${collectionName}": ${stats.documentCount} documents indexed, exists: ${stats.exists}`;
       } catch (error) {
-        console.error('Stats error:', error);
+        log.error('Stats error', error as Error);
         return 'Error getting knowledge base stats.';
       }
     },
@@ -242,7 +245,7 @@ export function createKnowledgeBaseManagementTools(
         pipeline.clearCollection(collectionName);
         return `Knowledge base "${collectionName}" has been cleared.`;
       } catch (error) {
-        console.error('Clear error:', error);
+        log.error('Clear error', error as Error);
         return 'Error clearing knowledge base.';
       }
     },

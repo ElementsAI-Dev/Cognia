@@ -27,6 +27,9 @@ import type {
   SubAgentOrchestrationResult,
   SubAgentExecutionMode,
 } from '@/types/agent/sub-agent';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.agent;
 
 /**
  * Orchestrator configuration
@@ -414,10 +417,11 @@ export class AgentOrchestrator {
         .replace('{{totalBudget}}', maxBudget.toString());
       
       if (this.config.enableTokenWarnings) {
-        console.log(
-          `[Orchestrator] Token budget: ${maxBudget} tokens, ` +
-          `max ${maxSubAgents} sub-agents at ~${tokensPerAgent} tokens each`
-        );
+        log.info('Token budget configured', {
+          maxBudget,
+          maxSubAgents,
+          tokensPerAgent,
+        });
       }
     }
     
@@ -443,10 +447,10 @@ export class AgentOrchestrator {
     
     if (subAgents.length > maxAllowed) {
       if (this.config.enableTokenWarnings) {
-        console.warn(
-          `[Orchestrator] Plan has ${subAgents.length} sub-agents, ` +
-          `limiting to ${maxAllowed} for token budget`
-        );
+        log.warn('Plan exceeds sub-agent limit, truncating', {
+          requested: subAgents.length,
+          allowed: maxAllowed,
+        });
       }
       // Keep highest priority agents
       subAgents = subAgents
@@ -652,15 +656,10 @@ export class AgentOrchestrator {
         routingResult = await this.analyzeForSmartRouting(task);
         useMultiAgent = routingResult.useMultiAgent;
         
-        if (!useMultiAgent) {
-          console.log(
-            `[Orchestrator] Smart routing: Using single agent. Reason: ${routingResult.reason}`
-          );
-        } else {
-          console.log(
-            `[Orchestrator] Smart routing: Using multi-agent. Reason: ${routingResult.reason}`
-          );
-        }
+        log.info('Smart routing decision', {
+          useMultiAgent,
+          reason: routingResult.reason,
+        });
       }
 
       // Phase 1: Planning

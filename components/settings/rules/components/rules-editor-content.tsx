@@ -8,6 +8,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { EditorTheme } from '@/types/settings/rules';
 import { RulesEditorPreview } from './rules-editor-preview';
+import { createEditorOptions } from '@/lib/monaco';
 
 interface RulesEditorContentProps {
   // Content
@@ -46,22 +47,12 @@ export function RulesEditorContent({
               theme={theme}
               value={activeContent}
               onChange={onContentChange}
-              options={{
-                minimap: { enabled: false },
+              options={createEditorOptions('markdown', {
                 fontSize: 13,
-                fontFamily: 'var(--font-mono)',
-                lineNumbers: 'on',
-                padding: { top: 16 },
-                scrollBeyondLastLine: false,
                 wordWrap: wordWrap ? 'on' : 'off',
-                automaticLayout: true,
-                scrollbar: {
-                  vertical: 'auto',
-                  horizontal: 'auto',
-                },
                 lineDecorationsWidth: 0,
                 lineNumbersMinChars: 3,
-              }}
+              })}
             />
             <div className="absolute bottom-4 right-6 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
               <TooltipProvider>

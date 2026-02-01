@@ -19,6 +19,9 @@ import {
 } from '@/lib/native/tray';
 import { isTauri } from '@/lib/native/utils';
 import type { TrayConfig, TrayDisplayMode, TrayState } from '@/types/system/tray';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface UseTrayReturn {
   /** Whether in Tauri desktop environment */
@@ -103,7 +106,7 @@ export function useTray(): UseTrayReturn {
               }
               markSynced();
             })
-            .catch(console.error);
+            .catch((e) => log.error('Failed to sync tray config', e as Error));
         });
 
         // Listen for state changes
@@ -111,7 +114,7 @@ export function useTray(): UseTrayReturn {
           storeSetTrayState(state);
         });
       } catch (err) {
-        console.error('Failed to setup tray listeners:', err);
+        log.error('Failed to setup tray listeners', err as Error);
         setError(err instanceof Error ? err.message : 'Failed to setup tray');
       }
     };
@@ -245,7 +248,7 @@ export function useTray(): UseTrayReturn {
   const resetConfig = useCallback(() => {
     storeResetConfig();
     if (isDesktop) {
-      syncConfig().catch(console.error);
+      syncConfig().catch((e) => log.error('Failed to reset tray config', e as Error));
     }
   }, [isDesktop, storeResetConfig, syncConfig]);
 

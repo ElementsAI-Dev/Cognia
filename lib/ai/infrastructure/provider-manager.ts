@@ -10,10 +10,12 @@
  * - API Key Rotation for key management
  */
 
+import { loggers } from '@/lib/logger';
 import {
   circuitBreakerRegistry,
   type CircuitBreakerConfig,
 } from './circuit-breaker';
+
 import {
   ProviderLoadBalancer,
   type LoadBalancerConfig,
@@ -43,6 +45,8 @@ import {
   recordApiKeyError,
 } from './api-key-rotation';
 import type { ApiKeyRotationStrategy, ApiKeyUsageStats } from '@/types/provider';
+
+const log = loggers.ai;
 
 export interface ProviderManagerConfig {
   /** Circuit breaker configuration */
@@ -481,10 +485,7 @@ export class ProviderManager {
           });
         }
 
-        console.warn(
-          `[ProviderManager] Provider ${selection.providerId} failed (attempt ${attempt}):`,
-          lastError.message
-        );
+        log.warn(`ProviderManager provider ${selection.providerId} failed`, { providerId: selection.providerId, attempt, error: lastError.message });
       }
     }
 

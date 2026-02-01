@@ -3,6 +3,10 @@
  * Compression and decompression for large storage data
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
+
 /**
  * Compression options
  */
@@ -73,7 +77,7 @@ export async function compressString(data: string): Promise<{
 
     return { compressed: false, data };
   } catch (error) {
-    console.warn('Compression failed, storing uncompressed:', error);
+    log.warn('Compression failed, storing uncompressed', { error: String(error) });
     return { compressed: false, data };
   }
 }
@@ -121,7 +125,7 @@ export async function decompressString(compressedData: string): Promise<string> 
     const decoder = new TextDecoder();
     return decoder.decode(decompressedData);
   } catch (error) {
-    console.error('Decompression failed:', error);
+    log.error('Decompression failed', error as Error);
     throw error;
   }
 }
@@ -172,7 +176,7 @@ export class CompressedStorage {
 
       return data;
     } catch (error) {
-      console.error('Failed to retrieve compressed item:', error);
+      log.error('Failed to retrieve compressed item', error as Error);
       return null;
     }
   }

@@ -18,6 +18,9 @@ import {
   type AutoSyncResult,
 } from '@/lib/context';
 import type { Skill } from '@/types/system/skill';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface UseAutoSyncOptions {
   /** Enable MCP tools sync (default: true) */
@@ -115,7 +118,7 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
         skills: syncSkillsEnabled ? activeSkills : undefined,
       });
       setLastResult(result);
-      console.log('[AutoSync] Sync completed:', {
+      log.info('AutoSync completed', {
         mcpServers: result.mcp.size,
         skills: result.skills.synced,
         duration: result.durationMs,
@@ -123,7 +126,7 @@ export function useAutoSync(options: UseAutoSyncOptions = {}): UseAutoSyncReturn
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Sync failed';
       setError(message);
-      console.error('[AutoSync] Sync failed:', err);
+      log.error('AutoSync failed', err as Error);
     } finally {
       setIsSyncing(false);
     }

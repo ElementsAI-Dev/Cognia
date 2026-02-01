@@ -7,6 +7,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/lib/native/utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface SelectionHistoryEntry {
   text: string;
@@ -76,7 +79,7 @@ export function useSelectionHistory() {
       const result = await invoke<SelectionHistoryStats>('selection_get_history_stats');
       setStats(result);
     } catch (err) {
-      console.error('Failed to fetch selection stats:', err);
+      log.error('Failed to fetch selection stats', err as Error);
     }
   }, []);
 
@@ -86,7 +89,7 @@ export function useSelectionHistory() {
     try {
       return await invoke<SelectionHistoryEntry[]>('selection_search_history', { query });
     } catch (err) {
-      console.error('Failed to search history:', err);
+      log.error('Failed to search history', err as Error);
       return [];
     }
   }, []);
@@ -97,7 +100,7 @@ export function useSelectionHistory() {
     try {
       return await invoke<SelectionHistoryEntry[]>('selection_search_history_by_app', { appName });
     } catch (err) {
-      console.error('Failed to search by app:', err);
+      log.error('Failed to search by app', err as Error);
       return [];
     }
   }, []);
@@ -110,7 +113,7 @@ export function useSelectionHistory() {
         textType,
       });
     } catch (err) {
-      console.error('Failed to search by type:', err);
+      log.error('Failed to search by type', err as Error);
       return [];
     }
   }, []);
@@ -123,7 +126,7 @@ export function useSelectionHistory() {
       setHistory([]);
       setStats(null);
     } catch (err) {
-      console.error('Failed to clear history:', err);
+      log.error('Failed to clear history', err as Error);
     }
   }, []);
 
@@ -133,7 +136,7 @@ export function useSelectionHistory() {
     try {
       return await invoke<string>('selection_export_history');
     } catch (err) {
-      console.error('Failed to export history:', err);
+      log.error('Failed to export history', err as Error);
       return '';
     }
   }, []);
@@ -147,7 +150,7 @@ export function useSelectionHistory() {
         await fetchHistory();
         return count;
       } catch (err) {
-        console.error('Failed to import history:', err);
+        log.error('Failed to import history', err as Error);
         return 0;
       }
     },
@@ -188,7 +191,7 @@ export function useClipboardHistory() {
       const result = await invoke<ClipboardEntry[]>('clipboard_get_history', { count });
       setHistory(result);
     } catch (err) {
-      console.error('Failed to fetch clipboard history:', err);
+      log.error('Failed to fetch clipboard history', err as Error);
     } finally {
       setIsLoading(false);
     }
@@ -201,7 +204,7 @@ export function useClipboardHistory() {
       const result = await invoke<ClipboardEntry[]>('clipboard_get_pinned');
       setPinnedItems(result);
     } catch (err) {
-      console.error('Failed to fetch pinned items:', err);
+      log.error('Failed to fetch pinned items', err as Error);
     }
   }, []);
 
@@ -211,7 +214,7 @@ export function useClipboardHistory() {
     try {
       return await invoke<ClipboardEntry[]>('clipboard_search_history', { query });
     } catch (err) {
-      console.error('Failed to search clipboard:', err);
+      log.error('Failed to search clipboard', err as Error);
       return [];
     }
   }, []);
@@ -228,7 +231,7 @@ export function useClipboardHistory() {
         }
         return result;
       } catch (err) {
-        console.error('Failed to pin entry:', err);
+        log.error('Failed to pin entry', err as Error);
         return false;
       }
     },
@@ -247,7 +250,7 @@ export function useClipboardHistory() {
         }
         return result;
       } catch (err) {
-        console.error('Failed to unpin entry:', err);
+        log.error('Failed to unpin entry', err as Error);
         return false;
       }
     },
@@ -266,7 +269,7 @@ export function useClipboardHistory() {
         }
         return result;
       } catch (err) {
-        console.error('Failed to delete entry:', err);
+        log.error('Failed to delete entry', err as Error);
         return false;
       }
     },
@@ -279,7 +282,7 @@ export function useClipboardHistory() {
     try {
       await invoke('clipboard_copy_entry', { id });
     } catch (err) {
-      console.error('Failed to copy entry:', err);
+      log.error('Failed to copy entry', err as Error);
     }
   }, []);
 
@@ -290,7 +293,7 @@ export function useClipboardHistory() {
       await invoke('clipboard_clear_unpinned');
       await fetchHistory();
     } catch (err) {
-      console.error('Failed to clear unpinned:', err);
+      log.error('Failed to clear unpinned', err as Error);
     }
   }, [fetchHistory]);
 
@@ -302,7 +305,7 @@ export function useClipboardHistory() {
       setHistory([]);
       setPinnedItems([]);
     } catch (err) {
-      console.error('Failed to clear all:', err);
+      log.error('Failed to clear all', err as Error);
     }
   }, []);
 
@@ -316,7 +319,7 @@ export function useClipboardHistory() {
       }
       return updated;
     } catch (err) {
-      console.error('Failed to check clipboard:', err);
+      log.error('Failed to check clipboard', err as Error);
       return false;
     }
   }, [fetchHistory]);

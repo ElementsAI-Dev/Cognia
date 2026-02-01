@@ -24,6 +24,8 @@ export { DesignerPanel } from './core';
 export { V0Designer } from './core';
 export { DesignerCard } from './core';
 export { DesignerBrowser } from './core';
+export { FloatingPromptBar } from './core';
+export { MobileDesignerLayout } from './core';
 
 // AI components
 export { AIChatPanel } from './ai';
@@ -56,6 +58,7 @@ export { BreadcrumbNav } from './preview';
 export { DesignerToolbar } from './toolbar';
 export { InlineTextEditor, useInlineTextEditor } from './toolbar';
 export { KeyboardShortcuts, useDesignerShortcuts } from './toolbar';
+export { KeyboardShortcutsDialog } from './toolbar';
 
 // DnD exports
 export { DesignerDndProvider, useDesignerDnd, useDesignerDndStrict } from './dnd';

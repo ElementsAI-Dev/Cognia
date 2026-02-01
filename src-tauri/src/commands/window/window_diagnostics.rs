@@ -222,3 +222,22 @@ pub async fn window_recreate_destroyed(
     }
     Ok(recreated)
 }
+
+/// Close the splash screen and show the main window
+/// This command is called when the user wants to skip the splash screen loading
+#[tauri::command]
+pub async fn close_splashscreen(app: tauri::AppHandle) -> Result<(), String> {
+    log::info!("[WindowDiagnostics] Manually closing splashscreen");
+
+    // Close splash screen
+    if let Some(splash) = app.get_webview_window("splashscreen") {
+        let _ = splash.close();
+    }
+
+    // Show main window
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+    }
+
+    Ok(())
+}

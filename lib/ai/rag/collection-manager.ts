@@ -13,6 +13,9 @@
  */
 
 import { PersistentRAGStorage, createPersistentStorage, type StoredCollection as _StoredCollection } from './persistent-storage';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface CollectionConfig {
   name: string;
@@ -129,7 +132,7 @@ export class RAGCollectionManager {
   private startAutoSave(): void {
     this.saveTimer = setInterval(() => {
       if (this.pendingSave) {
-        this.saveToStorage().catch(console.warn);
+        this.saveToStorage().catch((e) => log.warn('Failed to save to storage', { error: String(e) }));
         this.pendingSave = false;
       }
     }, this.config.saveInterval);

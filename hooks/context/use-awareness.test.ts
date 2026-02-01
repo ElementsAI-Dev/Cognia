@@ -224,6 +224,197 @@ describe('useAwareness', () => {
       expect(mockInvoke).toHaveBeenCalledWith('awareness_clear_history');
     });
   });
+
+  // ============== Extended Activity Tracker Methods ==============
+
+  describe('getActivitiesByType', () => {
+    it('should call invoke with activity type', async () => {
+      const mockActivities = [{ id: '1', activity_type: 'TextSelection', timestamp: Date.now(), metadata: {} }];
+      mockInvoke.mockResolvedValue(mockActivities);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        const activities = await result.current.getActivitiesByType('TextSelection');
+        expect(activities).toEqual(mockActivities);
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_activities_by_type', {
+        activityType: 'TextSelection',
+      });
+    });
+  });
+
+  describe('getActivitiesInRange', () => {
+    it('should call invoke with time range', async () => {
+      mockInvoke.mockResolvedValue([]);
+
+      const { result } = renderHook(() => useAwareness());
+      const startMs = Date.now() - 3600000;
+      const endMs = Date.now();
+
+      await act(async () => {
+        await result.current.getActivitiesInRange(startMs, endMs);
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_activities_in_range', {
+        startMs,
+        endMs,
+      });
+    });
+  });
+
+  describe('getActivitiesByApplication', () => {
+    it('should call invoke with app name', async () => {
+      mockInvoke.mockResolvedValue([]);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        await result.current.getActivitiesByApplication('VSCode');
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_activities_by_application', {
+        appName: 'VSCode',
+      });
+    });
+  });
+
+  describe('getActivityStats', () => {
+    it('should return activity statistics', async () => {
+      const mockStats = {
+        total_activities: 100,
+        activities_last_hour: 10,
+        activities_last_day: 50,
+        most_common_type: 'TextSelection',
+        most_used_application: 'VSCode',
+        activity_counts: {},
+      };
+      mockInvoke.mockResolvedValue(mockStats);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        const stats = await result.current.getActivityStats();
+        expect(stats).toEqual(mockStats);
+      });
+    });
+  });
+
+  describe('setActivityTrackingEnabled', () => {
+    it('should call invoke with enabled parameter', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        await result.current.setActivityTrackingEnabled(false);
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_set_activity_tracking_enabled', {
+        enabled: false,
+      });
+    });
+  });
+
+  describe('isActivityTrackingEnabled', () => {
+    it('should return enabled status', async () => {
+      mockInvoke.mockResolvedValue(true);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        const enabled = await result.current.isActivityTrackingEnabled();
+        expect(enabled).toBe(true);
+      });
+    });
+  });
+
+  describe('exportActivityHistory', () => {
+    it('should return exported JSON', async () => {
+      const mockJson = '{"activities":[]}';
+      mockInvoke.mockResolvedValue(mockJson);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        const json = await result.current.exportActivityHistory();
+        expect(json).toBe(mockJson);
+      });
+    });
+  });
+
+  describe('importActivityHistory', () => {
+    it('should import and return count', async () => {
+      mockInvoke.mockResolvedValue(5);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        const count = await result.current.importActivityHistory('{"activities":[]}');
+        expect(count).toBe(5);
+      });
+    });
+  });
+
+  // ============== Extended Suggestion Methods ==============
+
+  describe('dismissSuggestion', () => {
+    it('should dismiss suggestion and refresh', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        await result.current.dismissSuggestion('take_break');
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_dismiss_suggestion', {
+        action: 'take_break',
+      });
+    });
+  });
+
+  describe('clearDismissedSuggestions', () => {
+    it('should clear dismissed suggestions', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        await result.current.clearDismissedSuggestions();
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_clear_dismissed_suggestions');
+    });
+  });
+
+  describe('isSuggestionDismissed', () => {
+    it('should return dismissed status', async () => {
+      mockInvoke.mockResolvedValue(true);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        const dismissed = await result.current.isSuggestionDismissed('take_break');
+        expect(dismissed).toBe(true);
+      });
+    });
+  });
+
+  describe('getDismissedSuggestions', () => {
+    it('should return list of dismissed actions', async () => {
+      const mockDismissed = ['take_break', 'low_battery'];
+      mockInvoke.mockResolvedValue(mockDismissed);
+
+      const { result } = renderHook(() => useAwareness());
+
+      await act(async () => {
+        const dismissed = await result.current.getDismissedSuggestions();
+        expect(dismissed).toEqual(mockDismissed);
+      });
+    });
+  });
 });
 
 describe('useFocusTracking', () => {
@@ -441,6 +632,58 @@ describe('useFocusTracking', () => {
       });
 
       expect(mockInvoke).toHaveBeenCalledWith('awareness_clear_focus_history');
+    });
+  });
+
+  // ============== Extended Focus Tracking Methods ==============
+
+  describe('fetchAllSessions', () => {
+    it('should return all focus sessions', async () => {
+      const mockSessions = [
+        {
+          app_name: 'VSCode',
+          process_name: 'code.exe',
+          window_title: 'main.ts',
+          start_time: Date.now() - 3600000,
+          end_time: Date.now() - 1800000,
+          duration_ms: 1800000,
+          is_active: false,
+        },
+        {
+          app_name: 'Chrome',
+          process_name: 'chrome.exe',
+          window_title: 'Google',
+          start_time: Date.now() - 1800000,
+          duration_ms: 1800000,
+          is_active: true,
+        },
+      ];
+      mockInvoke.mockResolvedValue(mockSessions);
+
+      const { result } = renderHook(() => useFocusTracking());
+
+      await act(async () => {
+        const sessions = await result.current.fetchAllSessions();
+        expect(sessions).toEqual(mockSessions);
+        expect(sessions).toHaveLength(2);
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_all_focus_sessions');
+    });
+  });
+
+  describe('getSessionCount', () => {
+    it('should return session count', async () => {
+      mockInvoke.mockResolvedValue(42);
+
+      const { result } = renderHook(() => useFocusTracking());
+
+      await act(async () => {
+        const count = await result.current.getSessionCount();
+        expect(count).toBe(42);
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_focus_session_count');
     });
   });
 });

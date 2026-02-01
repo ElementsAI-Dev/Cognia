@@ -5,6 +5,9 @@
 
 import { StateCreator } from 'zustand';
 import { persist, createJSONStorage, PersistOptions } from 'zustand/middleware';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 /**
  * Migration function type
@@ -36,9 +39,9 @@ export function createMigrator<T>(config: MigrationConfig<T>): MigrationFn<T> {
       if (migration) {
         try {
           state = migration(state);
-          console.log(`[Migration] Migrated from v${v - 1} to v${v}`);
+          log.info(`Migrated from v${v - 1} to v${v}`);
         } catch (error) {
-          console.error(`[Migration] Failed to migrate to v${v}:`, error);
+          log.error(`Failed to migrate to v${v}`, error as Error);
           throw error;
         }
       }

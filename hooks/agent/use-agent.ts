@@ -28,6 +28,9 @@ import {
   type ContextAwareAgentConfig,
   type ContextAwareAgentResult,
 } from '@/lib/ai/agent';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.agent;
 import type { McpToolSelectionConfig, ToolUsageRecord } from '@/types/mcp';
 import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
 import { 
@@ -439,7 +442,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
             injectContextTools: enableCtxTools,
             maxInlineOutputSize: options.maxInlineOutputSize ?? 4000,
             onToolOutputPersisted: (ref) => {
-              console.log('[Context] Tool output persisted:', ref.path, ref.sizeSummary);
+              log.debug('Tool output persisted', { path: ref.path, sizeSummary: ref.sizeSummary });
             },
           } as ContextAwareAgentConfig);
 
@@ -448,9 +451,10 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
           // Log context stats if available
           const ctxTypedResult = ctxResult as ContextAwareAgentResult;
           if (ctxTypedResult.persistedOutputs && ctxTypedResult.persistedOutputs.length > 0) {
-            console.log(
-              `[Context] Persisted ${ctxTypedResult.persistedOutputs.length} outputs, saved ~${ctxTypedResult.tokensSaved || 0} tokens`
-            );
+            log.info('Context outputs persisted', {
+              count: ctxTypedResult.persistedOutputs.length,
+              tokensSaved: ctxTypedResult.tokensSaved || 0,
+            });
           }
         } else {
           agentResult = await executeAgent(prompt, {

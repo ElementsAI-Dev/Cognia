@@ -380,3 +380,20 @@ export {
   DEFAULT_WEBDAV_CONFIG,
   DEFAULT_GITHUB_CONFIG,
 } from './sync';
+
+// Scheduler stores
+export {
+  useSchedulerStore,
+  selectTasks,
+  selectExecutions,
+  selectStatistics,
+  selectSelectedTaskId,
+  selectFilter,
+  selectIsLoading as selectSchedulerIsLoading,
+  selectError as selectSchedulerError,
+  selectIsInitialized as selectSchedulerIsInitialized,
+  selectSelectedTask,
+  selectActiveTasks,
+  selectPausedTasks,
+  selectUpcomingTasks,
+} from './scheduler';

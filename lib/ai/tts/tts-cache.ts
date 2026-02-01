@@ -4,6 +4,9 @@
  */
 
 import type { TTSProvider, TTSSettings } from '@/types/media/tts';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 const DB_NAME = 'cognia-tts-cache';
 const DB_VERSION = 1;
@@ -144,7 +147,7 @@ class TTSCacheManager {
         
         // Check if expired
         if (entry && entry.expiresAt < Date.now()) {
-          this.delete(key).catch(console.error);
+          this.delete(key).catch((e) => log.error('Failed to delete expired cache entry', e as Error));
           resolve(null);
         } else {
           resolve(entry || null);
@@ -186,7 +189,7 @@ class TTSCacheManager {
       request.onerror = () => reject(new Error('Failed to cache audio'));
       request.onsuccess = () => {
         // Check cache size after adding
-        this.cleanupIfNeeded().catch(console.error);
+        this.cleanupIfNeeded().catch((e) => log.error('Failed to cleanup cache', e as Error));
         resolve();
       };
     });
@@ -372,7 +375,7 @@ export async function getCachedOrGenerate(
         };
       }
     } catch (error) {
-      console.warn('Failed to get cached audio:', error);
+      log.warn('Failed to get cached audio', { error: String(error) });
     }
   }
 
@@ -388,7 +391,7 @@ export async function getCachedOrGenerate(
         : new Blob([result.audioData], { type: result.mimeType });
       await ttsCache.set(key, blob, result.mimeType, provider, text);
     } catch (error) {
-      console.warn('Failed to cache audio:', error);
+      log.warn('Failed to cache audio', { error: String(error) });
     }
   }
 

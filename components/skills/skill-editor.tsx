@@ -98,6 +98,7 @@ import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-prev
 import { SkillResourceManager } from './skill-resource-manager';
 import { SkillAIAssistant } from './skill-ai-assistant';
 import type { Skill, SkillResource } from '@/types/system/skill';
+import { createEditorOptions } from '@/lib/monaco';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
@@ -982,7 +983,7 @@ Expected output here
                   value={content}
                   onChange={handleEditorChange}
                   onMount={handleEditorMount}
-                  options={{
+                  options={createEditorOptions('markdown', {
                     readOnly,
                     wordWrap,
                     minimap: { 
@@ -993,27 +994,13 @@ Expected output here
                       renderCharacters: true,
                       scale: 1,
                     },
-                    lineNumbers: 'on',
                     fontSize: 13,
-                    fontFamily: 'JetBrains Mono, Fira Code, Consolas, monospace',
-                    tabSize: 2,
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                    bracketPairColorization: { enabled: true },
-                    renderLineHighlight: 'line',
-                    smoothScrolling: true,
-                    cursorBlinking: 'smooth',
-                    cursorSmoothCaretAnimation: 'on',
-                    padding: { top: 12, bottom: 12 },
-                    folding: true,
-                    foldingStrategy: 'auto',
+                    stickyScroll: { enabled: true, maxLineCount: 3 },
                     showFoldingControls: 'always',
-                    foldingHighlight: true,
-                    unfoldOnClickAfterEndOfLine: true,
                     glyphMargin: true,
                     suggest: { showWords: true, showSnippets: true },
                     scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
-                  }}
+                  })}
                 />
                 
                 {/* Modern AI Command Palette Popup */}

@@ -81,7 +81,8 @@
     "noIconsFound": "No icons found",
     "uploadImage": "Upload Image",
     "latex": "LaTeX",
-    "observability": "Observability"
+    "observability": "Observability",
+    "scheduler": "Scheduler"
   },
   "mobileNav": {
     "home": "Home",

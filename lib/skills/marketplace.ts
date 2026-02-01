@@ -10,6 +10,9 @@ import type {
   SkillsMarketplaceDetail,
   SkillsMarketplaceSortOption,
 } from '@/types/skill/skill-marketplace';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 /** API Base URL */
 const API_BASE_URL = 'https://skillsmp.com/api/v1';
@@ -338,7 +341,7 @@ export async function fetchSkillDetail(
       readmeContent,
     };
   } catch (error) {
-    console.error('Failed to fetch skill detail:', error);
+    log.error('Failed to fetch skill detail', error as Error);
     return null;
   }
 }
@@ -376,7 +379,7 @@ export async function downloadSkillContent(
       resources: [],
     };
   } catch (error) {
-    console.error('Failed to download skill content:', error);
+    log.error('Failed to download skill content', error as Error);
     return null;
   }
 }

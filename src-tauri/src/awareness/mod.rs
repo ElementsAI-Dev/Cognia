@@ -7,18 +7,14 @@
 //! - Smart suggestions
 //! - Focus tracking
 
-#![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-
-mod activity_tracker;
+pub mod activity_tracker;
 mod focus_tracker;
 mod smart_suggestions;
 mod system_monitor;
 
 pub use activity_tracker::{ActivityTracker, ActivityType, UserActivity};
 pub use focus_tracker::{AppUsageStats, DailyUsageSummary, FocusSession, FocusTracker};
-pub use smart_suggestions::{SmartSuggestions, Suggestion, SuggestionType};
+pub use smart_suggestions::{SmartSuggestions, Suggestion};
 pub use system_monitor::{SystemMonitor, SystemState};
 
 use parking_lot::RwLock;
@@ -110,7 +106,7 @@ impl AwarenessManager {
         self.is_running.store(true, Ordering::SeqCst);
 
         let is_running = self.is_running.clone();
-        let activity_tracker = self.activity_tracker.clone();
+        let _activity_tracker = self.activity_tracker.clone();
 
         // Spawn background monitoring task
         tauri::async_runtime::spawn(async move {
@@ -118,7 +114,7 @@ impl AwarenessManager {
 
             while is_running.load(Ordering::SeqCst) {
                 // Periodic activity recording could happen here
-                // For now, just sleep
+                // The _activity_tracker is available for future use
                 tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
             }
 
@@ -204,6 +200,82 @@ impl AwarenessManager {
     /// Check if focus tracking is enabled
     pub fn is_focus_tracking(&self) -> bool {
         self.focus_tracker.is_tracking()
+    }
+
+    // ============== Activity Tracker Extended Methods ==============
+
+    /// Get activities by type
+    pub fn get_activities_by_type(&self, activity_type: &ActivityType) -> Vec<UserActivity> {
+        self.activity_tracker.read().get_by_type(activity_type)
+    }
+
+    /// Get activities within time range
+    pub fn get_activities_in_range(&self, start_ms: i64, end_ms: i64) -> Vec<UserActivity> {
+        self.activity_tracker.read().get_in_range(start_ms, end_ms)
+    }
+
+    /// Get activities for a specific application
+    pub fn get_activities_by_application(&self, app_name: &str) -> Vec<UserActivity> {
+        self.activity_tracker.read().get_by_application(app_name)
+    }
+
+    /// Get activity statistics
+    pub fn get_activity_stats(&self) -> activity_tracker::ActivityStats {
+        self.activity_tracker.read().get_stats()
+    }
+
+    /// Enable/disable activity tracking
+    pub fn set_activity_tracking_enabled(&self, enabled: bool) {
+        self.activity_tracker.write().set_enabled(enabled);
+    }
+
+    /// Check if activity tracking is enabled
+    pub fn is_activity_tracking_enabled(&self) -> bool {
+        self.activity_tracker.read().is_enabled()
+    }
+
+    /// Export activity history as JSON
+    pub fn export_activity_history(&self) -> String {
+        self.activity_tracker.read().export()
+    }
+
+    /// Import activity history from JSON
+    pub fn import_activity_history(&self, json: &str) -> Result<usize, String> {
+        self.activity_tracker.write().import(json)
+    }
+
+    // ============== Smart Suggestions Extended Methods ==============
+
+    /// Dismiss a suggestion
+    pub fn dismiss_suggestion(&self, action: &str) {
+        self.smart_suggestions.dismiss(action);
+    }
+
+    /// Clear all dismissed suggestions
+    pub fn clear_dismissed_suggestions(&self) {
+        self.smart_suggestions.clear_dismissed();
+    }
+
+    /// Check if a suggestion is dismissed
+    pub fn is_suggestion_dismissed(&self, action: &str) -> bool {
+        self.smart_suggestions.is_dismissed(action)
+    }
+
+    /// Get list of dismissed suggestions
+    pub fn get_dismissed_suggestions(&self) -> Vec<String> {
+        self.smart_suggestions.get_dismissed()
+    }
+
+    // ============== Focus Tracker Extended Methods ==============
+
+    /// Get all focus sessions
+    pub fn get_all_focus_sessions(&self) -> Vec<FocusSession> {
+        self.focus_tracker.get_all_sessions()
+    }
+
+    /// Get focus session count
+    pub fn get_focus_session_count(&self) -> usize {
+        self.focus_tracker.session_count()
     }
 }
 
@@ -753,5 +825,200 @@ mod tests {
         let manager = AwarenessManager::new();
         let stats = manager.get_app_usage_stats("NonExistentApp");
         assert!(stats.is_none());
+    }
+
+    // ============== Extended Methods Tests ==============
+
+    #[test]
+    fn test_get_activities_by_type() {
+        let manager = AwarenessManager::new();
+
+        // Add activities of different types
+        manager.record_activity(UserActivity {
+            activity_type: ActivityType::TextSelection,
+            description: "Selection 1".to_string(),
+            application: None,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: std::collections::HashMap::new(),
+        });
+        manager.record_activity(UserActivity {
+            activity_type: ActivityType::Screenshot,
+            description: "Screenshot 1".to_string(),
+            application: None,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: std::collections::HashMap::new(),
+        });
+        manager.record_activity(UserActivity {
+            activity_type: ActivityType::TextSelection,
+            description: "Selection 2".to_string(),
+            application: None,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: std::collections::HashMap::new(),
+        });
+
+        let selections = manager.get_activities_by_type(&ActivityType::TextSelection);
+        assert_eq!(selections.len(), 2);
+
+        let screenshots = manager.get_activities_by_type(&ActivityType::Screenshot);
+        assert_eq!(screenshots.len(), 1);
+    }
+
+    #[test]
+    fn test_get_activities_in_range() {
+        let manager = AwarenessManager::new();
+        let now = chrono::Utc::now().timestamp_millis();
+
+        for i in 0..5 {
+            manager.record_activity(UserActivity {
+                activity_type: ActivityType::TextSelection,
+                description: format!("Activity {}", i),
+                application: None,
+                target: None,
+                timestamp: now + (i * 1000) as i64,
+                duration_ms: None,
+                metadata: std::collections::HashMap::new(),
+            });
+        }
+
+        let in_range = manager.get_activities_in_range(now + 1000, now + 3000);
+        assert_eq!(in_range.len(), 3);
+    }
+
+    #[test]
+    fn test_get_activities_by_application() {
+        let manager = AwarenessManager::new();
+
+        manager.record_activity(UserActivity {
+            activity_type: ActivityType::TextSelection,
+            description: "VSCode activity".to_string(),
+            application: Some("VSCode".to_string()),
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: std::collections::HashMap::new(),
+        });
+        manager.record_activity(UserActivity {
+            activity_type: ActivityType::TextSelection,
+            description: "Chrome activity".to_string(),
+            application: Some("Chrome".to_string()),
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: std::collections::HashMap::new(),
+        });
+
+        let vscode_activities = manager.get_activities_by_application("vscode");
+        assert_eq!(vscode_activities.len(), 1);
+    }
+
+    #[test]
+    fn test_get_activity_stats() {
+        let manager = AwarenessManager::new();
+
+        for _ in 0..5 {
+            manager.record_activity(UserActivity {
+                activity_type: ActivityType::TextSelection,
+                description: "Activity".to_string(),
+                application: Some("TestApp".to_string()),
+                target: None,
+                timestamp: chrono::Utc::now().timestamp_millis(),
+                duration_ms: None,
+                metadata: std::collections::HashMap::new(),
+            });
+        }
+
+        let stats = manager.get_activity_stats();
+        assert_eq!(stats.total_activities, 5);
+    }
+
+    #[test]
+    fn test_activity_tracking_enabled() {
+        let manager = AwarenessManager::new();
+
+        assert!(manager.is_activity_tracking_enabled());
+
+        manager.set_activity_tracking_enabled(false);
+        assert!(!manager.is_activity_tracking_enabled());
+
+        manager.set_activity_tracking_enabled(true);
+        assert!(manager.is_activity_tracking_enabled());
+    }
+
+    #[test]
+    fn test_export_import_activity_history() {
+        let manager = AwarenessManager::new();
+
+        manager.record_activity(UserActivity {
+            activity_type: ActivityType::TextSelection,
+            description: "Export test".to_string(),
+            application: None,
+            target: None,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration_ms: None,
+            metadata: std::collections::HashMap::new(),
+        });
+
+        let exported = manager.export_activity_history();
+        assert!(!exported.is_empty());
+
+        manager.clear_history();
+        assert!(manager.get_recent_activities(10).is_empty());
+
+        let imported = manager.import_activity_history(&exported);
+        assert!(imported.is_ok());
+        assert_eq!(imported.unwrap(), 1);
+    }
+
+    #[test]
+    fn test_dismiss_suggestion() {
+        let manager = AwarenessManager::new();
+
+        assert!(!manager.is_suggestion_dismissed("test_action"));
+
+        manager.dismiss_suggestion("test_action");
+        assert!(manager.is_suggestion_dismissed("test_action"));
+
+        let dismissed = manager.get_dismissed_suggestions();
+        assert!(dismissed.contains(&"test_action".to_string()));
+
+        manager.clear_dismissed_suggestions();
+        assert!(!manager.is_suggestion_dismissed("test_action"));
+    }
+
+    #[test]
+    fn test_get_all_focus_sessions() {
+        let manager = AwarenessManager::new();
+        manager.start_focus_tracking();
+
+        manager.record_focus_change("App1", "app1.exe", "Window 1");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        manager.record_focus_change("App2", "app2.exe", "Window 2");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        manager.stop_focus_tracking();
+
+        let all_sessions = manager.get_all_focus_sessions();
+        assert_eq!(all_sessions.len(), 2);
+    }
+
+    #[test]
+    fn test_get_focus_session_count() {
+        let manager = AwarenessManager::new();
+        manager.start_focus_tracking();
+
+        assert_eq!(manager.get_focus_session_count(), 0);
+
+        manager.record_focus_change("App1", "app1.exe", "Window 1");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        manager.record_focus_change("App2", "app2.exe", "Window 2");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        manager.stop_focus_tracking();
+
+        assert_eq!(manager.get_focus_session_count(), 2);
     }
 }

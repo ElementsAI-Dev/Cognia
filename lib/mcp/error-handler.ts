@@ -5,6 +5,10 @@
  * user-friendly error messages with recovery suggestions.
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.mcp;
+
 /**
  * MCP error types for classification
  */
@@ -228,9 +232,9 @@ export class McpErrorHandler {
     const classified = createClassifiedError(error);
 
     if (context) {
-      console.error(`MCP Error [${context}]:`, classified.message);
+      log.error(`MCP Error [${context}]: ${classified.message}`);
     } else {
-      console.error('MCP Error:', classified.message);
+      log.error(`MCP Error: ${classified.message}`);
     }
 
     if (this.onError) {

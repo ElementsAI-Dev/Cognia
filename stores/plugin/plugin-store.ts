@@ -19,6 +19,9 @@ import type {
 } from '@/types/plugin';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { validatePluginManifest } from '@/lib/plugin/validation';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.plugin;
 
 // =============================================================================
 // Store State Interface
@@ -658,7 +661,7 @@ export const usePluginStore = create<PluginState>()(
             };
           });
         } catch (error) {
-          console.error('Failed to scan plugins:', error);
+          log.error('Failed to scan plugins', error as Error);
         }
       },
 

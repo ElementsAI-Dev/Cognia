@@ -6,6 +6,9 @@
 import { db } from '@/lib/db';
 import type { ExportData } from './data-import';
 import { generateChecksum } from './data-import';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 /**
  * Export options
@@ -56,7 +59,7 @@ export async function createFullBackup(
       const { useSessionStore } = await import('@/stores');
       exportData.sessions = useSessionStore.getState().sessions;
     } catch (error) {
-      console.error('Failed to export sessions:', error);
+      log.error('Failed to export sessions', error as Error);
     }
   }
 
@@ -72,7 +75,7 @@ export async function createFullBackup(
         language: state.language,
       };
     } catch (error) {
-      console.error('Failed to export settings:', error);
+      log.error('Failed to export settings', error as Error);
     }
   }
 
@@ -84,7 +87,7 @@ export async function createFullBackup(
       exportData.artifacts = state.artifacts;
       exportData.canvasDocuments = state.canvasDocuments;
     } catch (error) {
-      console.error('Failed to export artifacts:', error);
+      log.error('Failed to export artifacts', error as Error);
     }
   }
 
@@ -120,7 +123,7 @@ export async function createFullBackup(
         (exportData.indexedDB as Record<string, unknown>).knowledgeFiles = knowledgeFiles;
       }
     } catch (error) {
-      console.error('Failed to export IndexedDB:', error);
+      log.error('Failed to export IndexedDB', error as Error);
     }
   }
 
@@ -215,7 +218,7 @@ export async function getExportSizeEstimate(): Promise<{
       counts[2] * 4096 + // documents
       counts[3] * 1024; // projects
   } catch (error) {
-    console.error('Failed to estimate export size:', error);
+    log.error('Failed to estimate export size', error as Error);
   }
 
   return {

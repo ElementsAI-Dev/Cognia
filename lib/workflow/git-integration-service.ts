@@ -5,6 +5,7 @@
  */
 
 import type { GitRepository, GitIntegrationConfig } from '@/types/workflow/template';
+import { loggers } from '@/lib/logger';
 import {
   cloneRepo,
   pull,
@@ -27,6 +28,8 @@ import type {
   GitBranchInfo,
   GitDiffInfo,
 } from '@/types/system/git';
+
+const log = loggers.app;
 
 /**
  * Git integration service
@@ -354,7 +357,7 @@ export class GitIntegrationService {
 
       return hasUpdates;
     } catch (error) {
-      console.error('Failed to check for updates:', error);
+      log.error('Failed to check for updates', error as Error);
       return false;
     }
   }
@@ -421,7 +424,7 @@ export class GitIntegrationService {
       try {
         await this.pullChanges(repo.url);
       } catch (error) {
-        console.error(`Failed to sync repository ${repo.url}:`, error);
+        log.error(`Failed to sync repository ${repo.url}`, error as Error);
       }
     }
   }

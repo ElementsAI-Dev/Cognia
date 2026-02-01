@@ -21,6 +21,9 @@ import type {
 } from '@/types/mcp';
 import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
 import { getToolCacheManager } from '@/lib/mcp/tool-cache';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 /**
  * Active tool call tracking for parallel execution
@@ -146,7 +149,7 @@ export const useMcpStore = create<McpState>((set, get) => ({
       });
 
       unlistenNotification = await listen<McpNotificationEvent>('mcp:notification', (event) => {
-        console.log('MCP notification:', event.payload);
+        log.debug(`MCP notification: ${JSON.stringify(event.payload)}`);
       });
 
       unlistenToolProgress = await listen<ToolCallProgress>('mcp:tool-call-progress', (event) => {
@@ -185,7 +188,7 @@ export const useMcpStore = create<McpState>((set, get) => ({
 
       set({ isInitialized: true });
     } catch (error) {
-      console.error('Failed to initialize MCP store:', error);
+      log.error('Failed to initialize MCP store', error as Error);
       // Set isInitialized to true even on error to prevent infinite retry loop in browser environment
       set({ error: String(error), isInitialized: true });
     }

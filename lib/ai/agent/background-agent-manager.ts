@@ -46,6 +46,9 @@ import {
   type AgentCheckpoint,
   type HealthWarning,
 } from './background-agent-events';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.agent;
 
 /**
  * Background Agent Manager class
@@ -1169,7 +1172,7 @@ export class BackgroundAgentManager {
         localStorage.setItem(this.persistenceKey, JSON.stringify(agents));
       }
     } catch (error) {
-      console.error('Failed to persist background agent state:', error);
+      log.error('Failed to persist background agent state', error as Error);
     }
   }
 
@@ -1199,7 +1202,7 @@ export class BackgroundAgentManager {
         }
       });
     } catch (error) {
-      console.error('Failed to restore background agent state:', error);
+      log.error('Failed to restore background agent state', error as Error);
     }
   }
 
@@ -1318,7 +1321,7 @@ export class BackgroundAgentManager {
           this.createCheckpoint(agent);
           savedCheckpoints.push(agent.id);
         } catch (error) {
-          console.warn(`Failed to create checkpoint for agent ${agent.id}:`, error);
+          log.warn(`Failed to create checkpoint for agent ${agent.id}`, { agentId: agent.id, error: String(error) });
         }
       }
     }

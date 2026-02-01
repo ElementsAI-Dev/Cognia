@@ -12,6 +12,9 @@ import type {
   LLMRouteResult,
 } from '@/types/routing/feature-router';
 import { FEATURE_ROUTES, getEnabledFeatureRoutes } from './feature-routes-config';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 /**
  * Calculate pattern match score for a feature
@@ -264,7 +267,7 @@ export async function detectFeatureIntentWithLLM(
     const result = JSON.parse(jsonMatch[0]) as LLMRouteResult;
     return result;
   } catch (error) {
-    console.warn('LLM feature routing failed:', error);
+    log.warn('LLM feature routing failed', { error });
     // Fallback to default
     return {
       featureId: 'chat',
@@ -321,7 +324,7 @@ export async function detectFeatureIntentHybrid(
         }
       }
     } catch (error) {
-      console.warn('Hybrid routing LLM fallback failed:', error);
+      log.warn('Hybrid routing LLM fallback failed', { error });
     }
   }
   

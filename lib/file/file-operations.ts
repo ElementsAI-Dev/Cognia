@@ -3,6 +3,10 @@
  * Provides read, write, list, and other file operations
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
+
 // Check if running in Tauri environment
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
@@ -1069,7 +1073,7 @@ export async function watchPath(
   options?: WatchOptions
 ): Promise<(() => Promise<void>) | null> {
   if (!isTauri) {
-    console.warn('File watching requires Tauri desktop environment');
+    log.warn('File watching requires Tauri desktop environment');
     return null;
   }
 
@@ -1093,7 +1097,7 @@ export async function watchPath(
     );
     return unwatch;
   } catch (error) {
-    console.error('Failed to watch path:', error);
+    log.error('Failed to watch path', error as Error);
     return null;
   }
 }
@@ -1112,7 +1116,7 @@ export async function watchPathImmediate(
   options?: WatchOptions
 ): Promise<(() => Promise<void>) | null> {
   if (!isTauri) {
-    console.warn('File watching requires Tauri desktop environment');
+    log.warn('File watching requires Tauri desktop environment');
     return null;
   }
 
@@ -1135,7 +1139,7 @@ export async function watchPathImmediate(
     );
     return unwatch;
   } catch (error) {
-    console.error('Failed to watch path:', error);
+    log.error('Failed to watch path', error as Error);
     return null;
   }
 }

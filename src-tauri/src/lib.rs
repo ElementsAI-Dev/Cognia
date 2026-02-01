@@ -563,11 +563,50 @@ pub fn run() {
                 }
             });
 
-            // Setup splash screen and main window
+            // Setup splash screen and main window with real progress events
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                // Simulate setup tasks
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                // Helper to emit progress to splash screen
+                let emit_progress = |stage: &str, progress: u8, message: &str| {
+                    if let Some(splash) = app_handle.get_webview_window("splashscreen") {
+                        let _ = splash.emit(
+                            "init-progress",
+                            serde_json::json!({
+                                "stage": stage,
+                                "progress": progress,
+                                "message": message
+                            }),
+                        );
+                    }
+                };
+
+                // Stage 1: Initializing
+                emit_progress("init", 0, "Initializing...");
+                tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+
+                // Stage 2: Loading core modules
+                emit_progress("core", 15, "Loading core modules...");
+                tokio::time::sleep(tokio::time::Duration::from_millis(400)).await;
+
+                // Stage 3: Initializing providers
+                emit_progress("providers", 35, "Initializing providers...");
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+                // Stage 4: Loading themes
+                emit_progress("themes", 55, "Loading themes...");
+                tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+
+                // Stage 5: Preparing workspace
+                emit_progress("workspace", 75, "Preparing workspace...");
+                tokio::time::sleep(tokio::time::Duration::from_millis(400)).await;
+
+                // Stage 6: Almost ready
+                emit_progress("almost", 90, "Almost ready...");
+                tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+
+                // Stage 7: Ready
+                emit_progress("ready", 100, "Ready!");
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
                 // Close splash screen and show main window
                 if let Some(splash) = app_handle.get_webview_window("splashscreen") {
@@ -738,6 +777,10 @@ pub fn run() {
             commands::window::selection::selection_get_toolbar_config,
             commands::window::selection::selection_set_theme,
             commands::window::selection::selection_get_stats_summary,
+            commands::window::selection::selection_time_since_last_detection,
+            commands::window::selection::selection_get_last_text,
+            commands::window::selection::selection_clear_last_text,
+            commands::window::selection::selection_get_last_selection,
             // Screenshot commands
             commands::media::screenshot::screenshot_capture_fullscreen,
             commands::media::screenshot::screenshot_capture_window,
@@ -841,6 +884,23 @@ pub fn run() {
             commands::context::awareness::awareness_get_today_usage_summary,
             commands::context::awareness::awareness_get_daily_usage_summary,
             commands::context::awareness::awareness_clear_focus_history,
+            // Activity tracker extended commands
+            commands::context::awareness::awareness_get_activities_by_type,
+            commands::context::awareness::awareness_get_activities_in_range,
+            commands::context::awareness::awareness_get_activities_by_application,
+            commands::context::awareness::awareness_get_activity_stats,
+            commands::context::awareness::awareness_set_activity_tracking_enabled,
+            commands::context::awareness::awareness_is_activity_tracking_enabled,
+            commands::context::awareness::awareness_export_activity_history,
+            commands::context::awareness::awareness_import_activity_history,
+            // Smart suggestions extended commands
+            commands::context::awareness::awareness_dismiss_suggestion,
+            commands::context::awareness::awareness_clear_dismissed_suggestions,
+            commands::context::awareness::awareness_is_suggestion_dismissed,
+            commands::context::awareness::awareness_get_dismissed_suggestions,
+            // Focus tracker extended commands
+            commands::context::awareness::awareness_get_all_focus_sessions,
+            commands::context::awareness::awareness_get_focus_session_count,
             // Sandbox commands
             commands::devtools::sandbox::sandbox_execute,
             commands::devtools::sandbox::sandbox_get_status,
@@ -1089,6 +1149,7 @@ pub fn run() {
             commands::window::window_diagnostics::window_sync_all_states,
             commands::window::window_diagnostics::window_save_all_configs,
             commands::window::window_diagnostics::window_recreate_destroyed,
+            commands::window::window_diagnostics::close_splashscreen,
             // Git commands
             commands::devtools::git::git_get_platform,
             commands::devtools::git::git_check_installed,

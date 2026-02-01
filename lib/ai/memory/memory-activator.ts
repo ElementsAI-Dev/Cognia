@@ -16,6 +16,9 @@
 
 import type { Memory, MemoryType } from '@/types';
 import { generateEmbedding, cosineSimilarity, type EmbeddingConfig } from '../embedding';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export type ActivationReasonType =
   | 'semantic_match'
@@ -252,7 +255,7 @@ export class MemoryActivator {
           }
         }
       } catch (error) {
-        console.warn('Semantic scoring failed:', error);
+        log.warn('Semantic scoring failed', { error: String(error) });
       }
     }
 
@@ -368,7 +371,7 @@ export class MemoryActivator {
     const { limit = 10, threshold = 0.3 } = options;
 
     if (!this.config.embeddingConfig) {
-      console.warn('Semantic activation requires embedding config');
+      log.warn('Semantic activation requires embedding config');
       return [];
     }
 
@@ -390,7 +393,7 @@ export class MemoryActivator {
           });
         }
       } catch (error) {
-        console.warn('Failed to compute semantic similarity:', error);
+        log.warn('Failed to compute semantic similarity', { error: String(error) });
       }
     }
 

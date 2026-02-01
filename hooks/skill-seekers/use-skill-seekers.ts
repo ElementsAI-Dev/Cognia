@@ -26,6 +26,9 @@ import skillSeekersApi, {
   type GeneratedSkill,
   type PageEstimation,
 } from '@/lib/native/skill-seekers';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface UseSkillSeekersState {
   isInstalled: boolean;
@@ -127,7 +130,7 @@ export function useSkillSeekers(): UseSkillSeekersReturn {
       const activeJob = jobs.find(j => j.status === 'running' || j.status === 'queued') || null;
       safeSetState({ jobs, activeJob });
     } catch (err) {
-      console.error('Failed to refresh jobs:', err);
+      log.error('Failed to refresh jobs', err as Error);
     }
   }, [safeSetState]);
 
@@ -136,7 +139,7 @@ export function useSkillSeekers(): UseSkillSeekersReturn {
       const presets = await skillSeekersApi.listPresets();
       safeSetState({ presets });
     } catch (err) {
-      console.error('Failed to refresh presets:', err);
+      log.error('Failed to refresh presets', err as Error);
     }
   }, [safeSetState]);
 
@@ -145,7 +148,7 @@ export function useSkillSeekers(): UseSkillSeekersReturn {
       const generatedSkills = await skillSeekersApi.listGenerated();
       safeSetState({ generatedSkills });
     } catch (err) {
-      console.error('Failed to refresh generated skills:', err);
+      log.error('Failed to refresh generated skills', err as Error);
     }
   }, [safeSetState]);
 
@@ -329,7 +332,7 @@ export function useSkillSeekers(): UseSkillSeekersReturn {
 
         unlistenersRef.current = [unlistenProgress, unlistenCompleted, unlistenLog];
       } catch (err) {
-        console.error('Failed to setup event listeners:', err);
+        log.error('Failed to setup event listeners', err as Error);
       }
     };
 

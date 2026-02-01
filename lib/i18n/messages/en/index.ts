@@ -40,6 +40,7 @@ import latex from './latex.json';
 import observability from './observability.json';
 import arena from './arena.json';
 import syncSettings from './syncSettings.json';
+import scheduler from './scheduler.json';
 
 const messages = {
   ...common,
@@ -81,7 +82,8 @@ const messages = {
   latex,
   ...observability,
   arena,
-  syncSettings
+  syncSettings,
+  scheduler
 };
 
 export default messages;

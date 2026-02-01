@@ -921,6 +921,44 @@ pub async fn selection_get_stats_summary(
     }))
 }
 
+// ============== Detection State Commands ==============
+
+/// Get time since last successful detection in milliseconds
+#[tauri::command]
+pub async fn selection_time_since_last_detection(
+    manager: State<'_, SelectionManager>,
+) -> Result<Option<u64>, String> {
+    Ok(manager
+        .detector
+        .time_since_last_detection()
+        .map(|d| d.as_millis() as u64))
+}
+
+/// Get the last detected text
+#[tauri::command]
+pub async fn selection_get_last_text(
+    manager: State<'_, SelectionManager>,
+) -> Result<Option<String>, String> {
+    Ok(manager.detector.get_last_text())
+}
+
+/// Clear the last detected text
+#[tauri::command]
+pub async fn selection_clear_last_text(
+    manager: State<'_, SelectionManager>,
+) -> Result<(), String> {
+    manager.detector.clear_last_text();
+    Ok(())
+}
+
+/// Get last analyzed selection with full context
+#[tauri::command]
+pub async fn selection_get_last_selection(
+    manager: State<'_, SelectionManager>,
+) -> Result<Option<Selection>, String> {
+    Ok(manager.detector.get_last_selection())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1165,5 +1203,59 @@ mod tests {
         assert_eq!(expansion.expanded_end, 11);
         assert_eq!(expansion.expanded_text, "Hello World");
         assert_eq!(expansion.confidence, 0.95);
+    }
+
+    #[test]
+    fn test_selection_struct() {
+        let selection = Selection {
+            text: "test code".to_string(),
+            text_before: Some("const x = ".to_string()),
+            text_after: Some(";".to_string()),
+            is_code: true,
+            language: Some("rust".to_string()),
+            is_url: false,
+            is_email: false,
+            has_numbers: false,
+            word_count: 2,
+            char_count: 9,
+            line_count: 1,
+            text_type: crate::selection::TextType::Code,
+            source_app: Some(SourceAppInfo {
+                name: "VSCode".to_string(),
+                process: "code.exe".to_string(),
+                window_title: "main.rs".to_string(),
+                app_type: "editor".to_string(),
+            }),
+        };
+
+        assert_eq!(selection.text, "test code");
+        assert!(selection.is_code);
+        assert_eq!(selection.language, Some("rust".to_string()));
+        assert_eq!(selection.word_count, 2);
+        assert!(selection.source_app.is_some());
+    }
+
+    #[test]
+    fn test_selection_struct_serialization() {
+        let selection = Selection {
+            text: "hello".to_string(),
+            text_before: None,
+            text_after: None,
+            is_code: false,
+            language: None,
+            is_url: false,
+            is_email: false,
+            has_numbers: false,
+            word_count: 1,
+            char_count: 5,
+            line_count: 1,
+            text_type: crate::selection::TextType::PlainText,
+            source_app: None,
+        };
+
+        let serialized = serde_json::to_string(&selection).unwrap();
+        assert!(serialized.contains("\"text\":\"hello\""));
+        assert!(serialized.contains("\"word_count\":1"));
+        assert!(serialized.contains("\"is_code\":false"));
     }
 }

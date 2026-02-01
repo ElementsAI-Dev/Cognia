@@ -9,6 +9,9 @@ import type {
   CollaborationEventType 
 } from '@/types/canvas/collaboration';
 import { CanvasCRDTStore, type CRDTOperation } from './crdt-store';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 export interface WebSocketMessage {
   type: 'operation' | 'cursor' | 'selection' | 'presence' | 'sync' | 'error';
@@ -231,7 +234,7 @@ export class CanvasWebSocketProvider {
           break;
       }
     } catch (error) {
-      console.error('Failed to parse WebSocket message:', error);
+      log.error('Failed to parse WebSocket message', error as Error);
     }
   }
 

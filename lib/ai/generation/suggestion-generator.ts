@@ -8,6 +8,9 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getProviderModel, type ProviderName } from '../core/client';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface SuggestionGeneratorOptions {
   provider: ProviderName;
@@ -100,7 +103,7 @@ export async function generateSuggestions(
     };
   } catch (error) {
     // Fallback to default suggestions on error
-    console.warn('Suggestion generation failed:', error);
+    log.warn('Suggestion generation failed', { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to generate suggestions',

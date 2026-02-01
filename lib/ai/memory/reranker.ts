@@ -15,6 +15,9 @@
 
 import type { Memory } from '@/types';
 import type { ScoredMemory } from './hybrid-retriever';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface RelevanceCriteria {
   name: string;
@@ -143,7 +146,7 @@ export class MemoryReranker {
 
   private async rerankWithLLM(query: string, memories: ScoredMemory[]): Promise<RerankedMemory[]> {
     if (!this.config.llmScorer) {
-      console.warn('LLM scorer not configured, falling back to rule-based');
+      log.warn('LLM scorer not configured, falling back to rule-based');
       return this.rerankWithRules(query, memories);
     }
 
@@ -157,7 +160,7 @@ export class MemoryReranker {
         rerankScore: scores[index] ?? mem.score,
       }));
     } catch (error) {
-      console.warn('LLM reranking failed, falling back to rule-based:', error);
+      log.warn('LLM reranking failed, falling back to rule-based', { error: String(error) });
       return this.rerankWithRules(query, memories);
     }
   }
@@ -177,7 +180,7 @@ export class MemoryReranker {
           rerankScore: result.rerankScore * 0.5 + (llmScores[index] ?? 0) * 0.5,
         }));
       } catch (error) {
-        console.warn('LLM scoring failed in hybrid mode:', error);
+        log.warn('LLM scoring failed in hybrid mode', { error: String(error) });
       }
     }
 

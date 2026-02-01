@@ -4,6 +4,9 @@
  */
 
 import type { Paper, PaperAuthor } from '@/types/learning/academic';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 // ============================================================================
 // Types
@@ -588,7 +591,7 @@ export class ZoteroSyncService {
 
     this.syncInterval = setInterval(
       () => {
-        this.incrementalSync().catch(console.error);
+        this.incrementalSync().catch((err) => log.error('Incremental sync failed', err as Error));
       },
       intervalMinutes * 60 * 1000
     );

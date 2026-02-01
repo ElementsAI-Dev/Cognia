@@ -12,7 +12,10 @@ import type {
   TokenCountMessage,
   TokenCountOptions,
 } from '@/types/system/tokenizer';
+import { loggers } from '@/lib/logger';
 // Note: Uses internal estimation method instead of base-tokenizer
+
+const log = loggers.ai;
 
 const DEFAULT_CLAUDE_API_URL = 'https://api.anthropic.com/v1';
 const DEFAULT_TIMEOUT = 5000;
@@ -79,7 +82,7 @@ export class ClaudeTokenizer implements Tokenizer {
         model,
       };
     } catch (error) {
-      console.warn('Claude countTokens API failed:', error);
+      log.warn('Claude countTokens API failed', { error });
       return {
         tokens: this.estimateClaudeTokens(content),
         isExact: false,
@@ -143,7 +146,7 @@ export class ClaudeTokenizer implements Tokenizer {
         model,
       };
     } catch (error) {
-      console.warn('Claude countTokens API failed for messages:', error);
+      log.warn('Claude countTokens API failed for messages', { error });
       let totalTokens = 0;
       for (const msg of messages) {
         totalTokens += this.estimateClaudeTokens(msg.content) + 4;

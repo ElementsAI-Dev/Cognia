@@ -123,3 +123,7 @@ export {
   GitHubConfigForm,
   SyncHistoryDialog,
 } from './sync';
+
+// Logging settings
+export { LogViewer } from './log-viewer';
+export { LoggingSettings } from './logging-settings';

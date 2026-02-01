@@ -3,6 +3,9 @@
  */
 
 import type { SyncDirection } from '@/types/sync';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 type SyncCallback = (success: boolean, error?: string) => void;
 
@@ -87,7 +90,7 @@ class SyncSchedulerImpl {
       this.runSync(config.syncDirection);
     }, intervalMs);
 
-    console.log(`[SyncScheduler] Auto-sync scheduled every ${config.syncInterval} minutes`);
+    log.info(`SyncScheduler: Auto-sync scheduled every ${config.syncInterval} minutes`);
   }
 
   /**

@@ -29,6 +29,23 @@ import {
   getTodayUsageSummary,
   getDailyUsageSummary,
   clearFocusHistory,
+  // Extended Activity Tracker Functions
+  getActivitiesByType,
+  getActivitiesInRange,
+  getActivitiesByApplication,
+  getActivityStats,
+  setActivityTrackingEnabled,
+  isActivityTrackingEnabled,
+  exportActivityHistory,
+  importActivityHistory,
+  // Extended Suggestion Functions
+  dismissSuggestion,
+  clearDismissedSuggestions,
+  isSuggestionDismissed,
+  getDismissedSuggestions,
+  // Extended Focus Tracker Functions
+  getAllFocusSessions,
+  getFocusSessionCount,
   type AwarenessState,
   type SystemState,
   type Suggestion,
@@ -36,6 +53,7 @@ import {
   type FocusSession,
   type AppUsageStats,
   type DailyUsageSummary,
+  type ActivityStats,
 } from './awareness';
 
 const mockInvoke = invoke as jest.MockedFunction<typeof invoke>;
@@ -354,6 +372,226 @@ describe('Awareness - Focus Tracking Functions', () => {
   });
 });
 
+describe('Awareness - Extended Activity Tracker Functions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getActivitiesByType', () => {
+    it('should call invoke with activity type parameter', async () => {
+      const mockActivities: UserActivity[] = [
+        { id: 'act-1', activity_type: 'TextSelection', timestamp: Date.now(), metadata: {} },
+      ];
+      mockInvoke.mockResolvedValue(mockActivities);
+
+      const result = await getActivitiesByType('TextSelection');
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_activities_by_type', {
+        activityType: 'TextSelection',
+      });
+      expect(result).toEqual(mockActivities);
+    });
+  });
+
+  describe('getActivitiesInRange', () => {
+    it('should call invoke with time range parameters', async () => {
+      const startMs = Date.now() - 3600000;
+      const endMs = Date.now();
+      mockInvoke.mockResolvedValue([]);
+
+      await getActivitiesInRange(startMs, endMs);
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_activities_in_range', {
+        startMs,
+        endMs,
+      });
+    });
+  });
+
+  describe('getActivitiesByApplication', () => {
+    it('should call invoke with app name parameter', async () => {
+      mockInvoke.mockResolvedValue([]);
+
+      await getActivitiesByApplication('VSCode');
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_activities_by_application', {
+        appName: 'VSCode',
+      });
+    });
+  });
+
+  describe('getActivityStats', () => {
+    it('should return activity statistics', async () => {
+      const mockStats: ActivityStats = {
+        total_activities: 100,
+        activities_last_hour: 10,
+        activities_last_day: 50,
+        most_common_type: 'TextSelection',
+        most_used_application: 'VSCode',
+        activity_counts: { TextSelection: 30, Screenshot: 20 },
+      };
+      mockInvoke.mockResolvedValue(mockStats);
+
+      const result = await getActivityStats();
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_activity_stats');
+      expect(result).toEqual(mockStats);
+    });
+  });
+
+  describe('setActivityTrackingEnabled', () => {
+    it('should call invoke with enabled parameter', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await setActivityTrackingEnabled(true);
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_set_activity_tracking_enabled', {
+        enabled: true,
+      });
+    });
+
+    it('should disable tracking when false', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await setActivityTrackingEnabled(false);
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_set_activity_tracking_enabled', {
+        enabled: false,
+      });
+    });
+  });
+
+  describe('isActivityTrackingEnabled', () => {
+    it('should return tracking enabled status', async () => {
+      mockInvoke.mockResolvedValue(true);
+
+      const result = await isActivityTrackingEnabled();
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_is_activity_tracking_enabled');
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('exportActivityHistory', () => {
+    it('should return exported JSON string', async () => {
+      const mockJson = '{"activities":[]}';
+      mockInvoke.mockResolvedValue(mockJson);
+
+      const result = await exportActivityHistory();
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_export_activity_history');
+      expect(result).toBe(mockJson);
+    });
+  });
+
+  describe('importActivityHistory', () => {
+    it('should call invoke with JSON parameter and return count', async () => {
+      const jsonData = '{"activities":[{"id":"1"}]}';
+      mockInvoke.mockResolvedValue(5);
+
+      const result = await importActivityHistory(jsonData);
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_import_activity_history', {
+        json: jsonData,
+      });
+      expect(result).toBe(5);
+    });
+  });
+});
+
+describe('Awareness - Extended Suggestion Functions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('dismissSuggestion', () => {
+    it('should call invoke with action parameter', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await dismissSuggestion('take_break');
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_dismiss_suggestion', {
+        action: 'take_break',
+      });
+    });
+  });
+
+  describe('clearDismissedSuggestions', () => {
+    it('should call invoke with correct command', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await clearDismissedSuggestions();
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_clear_dismissed_suggestions');
+    });
+  });
+
+  describe('isSuggestionDismissed', () => {
+    it('should return dismissed status', async () => {
+      mockInvoke.mockResolvedValue(true);
+
+      const result = await isSuggestionDismissed('take_break');
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_is_suggestion_dismissed', {
+        action: 'take_break',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should return false for non-dismissed suggestion', async () => {
+      mockInvoke.mockResolvedValue(false);
+
+      const result = await isSuggestionDismissed('new_action');
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('getDismissedSuggestions', () => {
+    it('should return list of dismissed actions', async () => {
+      const mockDismissed = ['take_break', 'low_battery'];
+      mockInvoke.mockResolvedValue(mockDismissed);
+
+      const result = await getDismissedSuggestions();
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_dismissed_suggestions');
+      expect(result).toEqual(mockDismissed);
+    });
+  });
+});
+
+describe('Awareness - Extended Focus Tracker Functions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getAllFocusSessions', () => {
+    it('should return all focus sessions', async () => {
+      const mockSessions: FocusSession[] = [
+        {
+          app_name: 'VSCode',
+          process_name: 'code.exe',
+          window_title: 'main.ts',
+          start_time: Date.now() - 3600000,
+          end_time: Date.now() - 1800000,
+          duration_ms: 1800000,
+          is_active: false,
+        },
+        {
+          app_name: 'Chrome',
+          process_name: 'chrome.exe',
+          window_title: 'Google',
+          start_time: Date.now() - 1800000,
+          duration_ms: 1800000,
+          is_active: true,
+        },
+      ];
+      mockInvoke.mockResolvedValue(mockSessions);
+
+      const result = await getAllFocusSessions();
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_all_focus_sessions');
+      expect(result).toEqual(mockSessions);
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('getFocusSessionCount', () => {
+    it('should return session count', async () => {
+      mockInvoke.mockResolvedValue(42);
+
+      const result = await getFocusSessionCount();
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_get_focus_session_count');
+      expect(result).toBe(42);
+    });
+  });
+});
+
 describe('Awareness Types', () => {
   it('should have correct SystemState structure', () => {
     const state: SystemState = {
@@ -389,5 +627,19 @@ describe('Awareness Types', () => {
 
     expect(suggestion.suggestion_type).toBe('Reminder');
     expect(suggestion.action).toBe('open_calendar');
+  });
+
+  it('should have correct ActivityStats structure', () => {
+    const stats: ActivityStats = {
+      total_activities: 100,
+      activities_last_hour: 10,
+      activities_last_day: 50,
+      most_common_type: 'TextSelection',
+      most_used_application: 'VSCode',
+      activity_counts: { TextSelection: 30, Screenshot: 20 },
+    };
+
+    expect(stats.total_activities).toBe(100);
+    expect(stats.activity_counts['TextSelection']).toBe(30);
   });
 });

@@ -8,6 +8,10 @@
  * - HALF_OPEN: Testing if provider has recovered
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
+
 export type CircuitState = 'closed' | 'open' | 'half_open';
 
 export interface CircuitBreakerConfig {
@@ -222,7 +226,7 @@ export class CircuitBreaker {
 
     // Log the failure for debugging
     if (error) {
-      console.warn(`[CircuitBreaker:${this.providerId}] Failure recorded:`, error.message);
+      log.warn(`CircuitBreaker ${this.providerId} failure recorded`, { providerId: this.providerId, error: error.message });
     }
   }
 
@@ -269,9 +273,7 @@ export class CircuitBreaker {
    */
   private transitionTo(newState: CircuitState): void {
     if (this.state !== newState) {
-      console.log(
-        `[CircuitBreaker:${this.providerId}] State transition: ${this.state} -> ${newState}`
-      );
+      log.info(`CircuitBreaker ${this.providerId} state transition`, { providerId: this.providerId, from: this.state, to: newState });
       this.state = newState;
       this.lastStateChange = Date.now();
       this.stats.lastStateChange = this.lastStateChange;

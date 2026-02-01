@@ -4,29 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Particles, { initParticlesEngine } from '@tsparticles/react';
 import { loadSlim } from '@tsparticles/slim';
 import type { Container, ISourceOptions } from '@tsparticles/engine';
-import * as React from 'react';
-
-// Safe theme hook that doesn't throw when used outside provider
-function useSafeTheme() {
-  const [resolvedTheme, setResolvedTheme] = React.useState<'dark' | 'light'>('dark');
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isDark = document.documentElement.classList.contains('dark') ||
-        window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setResolvedTheme(isDark ? 'dark' : 'light');
-
-      const observer = new MutationObserver(() => {
-        const isDark = document.documentElement.classList.contains('dark');
-        setResolvedTheme(isDark ? 'dark' : 'light');
-      });
-      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-      return () => observer.disconnect();
-    }
-  }, []);
-
-  return { resolvedTheme };
-}
+import { useSafeTheme } from '@/hooks/ui/use-safe-theme';
+import {
+  getThemeColors,
+  SPLASH_ANIMATION_CONFIG,
+} from '@/lib/constants/splash-theme';
 
 interface NeuralParticlesProps {
   className?: string;
@@ -44,18 +26,17 @@ interface NeuralParticlesProps {
   onLoaded?: (container: Container) => void;
 }
 
-// Theme-aware color defaults
-const LIGHT_THEME_COLORS = {
-  primary: '#3b82f6',    // Blue
-  secondary: '#8b5cf6',  // Purple
-  accent: '#06b6d4',     // Cyan
-};
-
-const DARK_THEME_COLORS = {
-  primary: '#60a5fa',    // Lighter blue for dark mode
-  secondary: '#a78bfa',  // Lighter purple for dark mode
-  accent: '#22d3ee',     // Lighter cyan for dark mode
-};
+/**
+ * Calculate particle count based on device capability
+ */
+function calcParticleCount(count: number): number {
+  if (typeof navigator === 'undefined') return count;
+  const cores = navigator.hardwareConcurrency || 4;
+  if (cores <= SPLASH_ANIMATION_CONFIG.performanceThreshold) {
+    return Math.min(count, SPLASH_ANIMATION_CONFIG.particleCountLow);
+  }
+  return Math.min(count, SPLASH_ANIMATION_CONFIG.particleCountHigh);
+}
 
 /**
  * Neural Network Particles Background
@@ -76,10 +57,16 @@ export function NeuralParticles({
   const { resolvedTheme } = useSafeTheme();
 
   // Use theme-aware colors with optional overrides
-  const themeColors = resolvedTheme === 'dark' ? DARK_THEME_COLORS : LIGHT_THEME_COLORS;
+  const themeColors = getThemeColors(resolvedTheme);
   const effectivePrimaryColor = primaryColor ?? themeColors.primary;
   const effectiveSecondaryColor = secondaryColor ?? themeColors.secondary;
   const effectiveAccentColor = themeColors.accent;
+
+  // Calculate effective particle count based on device capability
+  const effectiveParticleCount = useMemo(
+    () => calcParticleCount(particleCount),
+    [particleCount]
+  );
 
   useEffect(() => {
     initParticlesEngine(async (engine) => {
@@ -104,7 +91,7 @@ export function NeuralParticles({
       fpsLimit: 60,
       particles: {
         number: {
-          value: particleCount,
+          value: effectiveParticleCount,
           density: {
             enable: true,
             width: 800,
@@ -210,7 +197,7 @@ export function NeuralParticles({
       detectRetina: true,
       smooth: true,
     }),
-    [effectivePrimaryColor, effectiveSecondaryColor, effectiveAccentColor, particleCount, interactive, speed]
+    [effectivePrimaryColor, effectiveSecondaryColor, effectiveAccentColor, effectiveParticleCount, interactive, speed]
   );
 
   if (!init) {

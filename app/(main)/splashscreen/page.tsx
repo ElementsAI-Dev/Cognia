@@ -1,52 +1,24 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
+import { AlertCircle, SkipForward } from 'lucide-react';
 import { NeuralParticles } from '@/components/ui/neural-particles';
 import { AILogoAnimation } from '@/components/ui/ai-logo-animation';
-// Safe theme hook that doesn't throw when used outside provider
-function useSafeTheme() {
-  const [resolvedTheme, setResolvedTheme] = React.useState<'dark' | 'light'>('dark');
+import { useSafeTheme } from '@/hooks/ui/use-safe-theme';
+import {
+  getThemeColors,
+  SPLASH_ANIMATION_CONFIG,
+} from '@/lib/constants/splash-theme';
+import { isTauri } from '@/lib/utils';
 
-  React.useEffect(() => {
-    // Check if we're in a browser and detect theme
-    if (typeof window !== 'undefined') {
-      const isDark = document.documentElement.classList.contains('dark') ||
-        window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setResolvedTheme(isDark ? 'dark' : 'light');
-
-      // Listen for theme changes
-      const observer = new MutationObserver(() => {
-        const isDark = document.documentElement.classList.contains('dark');
-        setResolvedTheme(isDark ? 'dark' : 'light');
-      });
-      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-      return () => observer.disconnect();
-    }
-  }, []);
-
-  return { resolvedTheme };
+/** Progress event payload from Tauri backend */
+interface InitProgress {
+  stage: string;
+  progress: number;
+  message: string;
 }
-
-import * as React from 'react';
-
-// Theme-aware color defaults
-const LIGHT_THEME_COLORS = {
-  primary: '#3b82f6',
-  secondary: '#8b5cf6',
-  accent: '#06b6d4',
-  background: '#ffffff',
-  foreground: '#09090b',
-};
-
-const DARK_THEME_COLORS = {
-  primary: '#60a5fa',
-  secondary: '#a78bfa',
-  accent: '#22d3ee',
-  background: '#09090b',
-  foreground: '#fafafa',
-};
 
 /**
  * Splash Screen Page
@@ -63,45 +35,104 @@ export default function SplashScreenPage() {
   const [progress, setProgress] = useState(0);
   const [loadingText, setLoadingText] = useState('');
   const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [canSkip, setCanSkip] = useState(false);
   const { resolvedTheme } = useSafeTheme();
+  const prefersReducedMotion = useReducedMotion();
 
   // Theme-aware colors
-  const colors = useMemo(
-    () => resolvedTheme === 'dark' ? DARK_THEME_COLORS : LIGHT_THEME_COLORS,
-    [resolvedTheme]
-  );
+  const colors = useMemo(() => getThemeColors(resolvedTheme), [resolvedTheme]);
 
-  // Simulate loading progress with realistic stages
+  // Handle skip action
+  const handleSkip = useCallback(async () => {
+    if (!isTauri()) return;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('close_splashscreen');
+    } catch (err) {
+      console.error('Failed to skip splash:', err);
+    }
+  }, []);
+
+  // Listen for real progress events from Tauri backend
   useEffect(() => {
-    const stages = [
-      { progress: 0, text: t('initializing') },
-      { progress: 15, text: t('loadingCore') },
-      { progress: 35, text: t('initializingProviders') },
-      { progress: 55, text: t('loadingThemes') },
-      { progress: 75, text: t('preparingWorkspace') },
-      { progress: 90, text: t('almostReady') },
-      { progress: 100, text: t('ready') },
-    ];
+    let unlisten: (() => void) | undefined;
+    let fallbackInterval: ReturnType<typeof setInterval> | undefined;
 
-    setLoadingText(stages[0].text);
+    const setupListener = async () => {
+      if (isTauri()) {
+        try {
+          const { listen } = await import('@tauri-apps/api/event');
+          unlisten = await listen<InitProgress>('init-progress', (event) => {
+            const { progress: p, message } = event.payload;
+            setProgress(p);
+            setLoadingText(message);
+            if (p === 100) {
+              setIsReady(true);
+            }
+          });
 
-    let currentStage = 0;
-    const interval = setInterval(() => {
-      if (currentStage < stages.length) {
-        setProgress(stages[currentStage].progress);
-        setLoadingText(stages[currentStage].text);
-        if (stages[currentStage].progress === 100) {
-          setIsReady(true);
+          // Also listen for errors
+          const unlistenError = await listen<string>('init-error', (event) => {
+            setError(event.payload);
+          });
+
+          return () => {
+            unlisten?.();
+            unlistenError();
+          };
+        } catch (err) {
+          console.error('Failed to setup Tauri listener:', err);
         }
-        currentStage++;
-      } else {
-        clearInterval(interval);
       }
-    }, 400);
 
-    return () => clearInterval(interval);
+      // Fallback: simulate progress in web mode
+      const stages = [
+        { progress: 0, text: t('initializing') },
+        { progress: 15, text: t('loadingCore') },
+        { progress: 35, text: t('initializingProviders') },
+        { progress: 55, text: t('loadingThemes') },
+        { progress: 75, text: t('preparingWorkspace') },
+        { progress: 90, text: t('almostReady') },
+        { progress: 100, text: t('ready') },
+      ];
+
+      setLoadingText(stages[0].text);
+      let currentStage = 0;
+
+      fallbackInterval = setInterval(() => {
+        if (currentStage < stages.length) {
+          setProgress(stages[currentStage].progress);
+          setLoadingText(stages[currentStage].text);
+          if (stages[currentStage].progress === 100) {
+            setIsReady(true);
+          }
+          currentStage++;
+        } else {
+          clearInterval(fallbackInterval);
+        }
+      }, 400);
+    };
+
+    setupListener();
+
+    return () => {
+      unlisten?.();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Enable skip button after delay and minimum progress
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (progress >= SPLASH_ANIMATION_CONFIG.skipMinProgress) {
+        setCanSkip(true);
+      }
+    }, SPLASH_ANIMATION_CONFIG.skipButtonDelay);
+
+    return () => clearTimeout(timer);
+  }, [progress]);
 
   return (
     <div 
@@ -130,29 +161,33 @@ export default function SplashScreenPage() {
         />
       </div>
 
-      {/* Neural network particles background */}
-      <div className="absolute inset-0">
-        <NeuralParticles
-          className="w-full h-full"
-          primaryColor={colors.primary}
-          secondaryColor={colors.secondary}
-          particleCount={60}
-          interactive={false}
-          speed={0.8}
-        />
-      </div>
+      {/* Neural network particles background - disabled for reduced motion */}
+      {!prefersReducedMotion && (
+        <div className="absolute inset-0">
+          <NeuralParticles
+            className="w-full h-full"
+            primaryColor={colors.primary}
+            secondaryColor={colors.secondary}
+            particleCount={50}
+            interactive={false}
+            speed={0.8}
+          />
+        </div>
+      )}
 
-      {/* Scan line effect */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(transparent 50%, rgba(59, 130, 246, 0.03) 50%)',
-          backgroundSize: '100% 4px',
-        }}
-        animate={{ opacity: [0.3, 0.5, 0.3] }}
-        transition={{ duration: 2, repeat: Infinity }}
-      />
+      {/* Scan line effect - disabled for reduced motion */}
+      {!prefersReducedMotion && (
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(transparent 50%, rgba(59, 130, 246, 0.03) 50%)',
+            backgroundSize: '100% 4px',
+          }}
+          animate={{ opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        />
+      )}
 
       {/* Main content */}
       <motion.div
@@ -281,54 +316,126 @@ export default function SplashScreenPage() {
           </div>
         </motion.div>
 
+        {/* Error display */}
+        {error && (
+          <motion.div
+            className="flex items-center gap-2 px-4 py-2 rounded-lg"
+            style={{
+              backgroundColor: `${colors.foreground}10`,
+              color: '#ef4444',
+            }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <AlertCircle className="w-4 h-4" />
+            <span className="text-xs">{error}</span>
+          </motion.div>
+        )}
+
         {/* Version info with pulse on ready */}
         <motion.p
           className="text-xs mt-4"
           style={{ color: `${colors.foreground}40` }}
-          animate={isReady ? { opacity: [0.25, 0.6, 0.25] } : {}}
+          animate={isReady && !prefersReducedMotion ? { opacity: [0.25, 0.6, 0.25] } : {}}
           transition={isReady ? { duration: 1.5, repeat: Infinity } : {}}
         >
           Version 0.1.0
         </motion.p>
+
+        {/* Skip button */}
+        <AnimatePresence>
+          {canSkip && !isReady && !error && (
+            <motion.button
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+              style={{
+                backgroundColor: `${colors.foreground}10`,
+                color: `${colors.foreground}60`,
+              }}
+              onClick={handleSkip}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              whileHover={{ backgroundColor: `${colors.foreground}20` }}
+            >
+              <SkipForward className="w-3 h-3" />
+              {t('skipLoading')}
+            </motion.button>
+          )}
+        </AnimatePresence>
       </motion.div>
 
-      {/* Corner decorations */}
-      <motion.div
-        className="absolute top-4 left-4 w-8 h-8"
-        style={{
-          borderLeft: `2px solid ${colors.primary}40`,
-          borderTop: `2px solid ${colors.primary}40`,
-        }}
-        animate={{ opacity: [0.4, 0.8, 0.4] }}
-        transition={{ duration: 2, repeat: Infinity }}
-      />
-      <motion.div
-        className="absolute top-4 right-4 w-8 h-8"
-        style={{
-          borderRight: `2px solid ${colors.secondary}40`,
-          borderTop: `2px solid ${colors.secondary}40`,
-        }}
-        animate={{ opacity: [0.4, 0.8, 0.4] }}
-        transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-      />
-      <motion.div
-        className="absolute bottom-4 left-4 w-8 h-8"
-        style={{
-          borderLeft: `2px solid ${colors.secondary}40`,
-          borderBottom: `2px solid ${colors.secondary}40`,
-        }}
-        animate={{ opacity: [0.4, 0.8, 0.4] }}
-        transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-      />
-      <motion.div
-        className="absolute bottom-4 right-4 w-8 h-8"
-        style={{
-          borderRight: `2px solid ${colors.primary}40`,
-          borderBottom: `2px solid ${colors.primary}40`,
-        }}
-        animate={{ opacity: [0.4, 0.8, 0.4] }}
-        transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
-      />
+      {/* Corner decorations - simplified for reduced motion */}
+      {!prefersReducedMotion ? (
+        <>
+          <motion.div
+            className="absolute top-4 left-4 w-8 h-8"
+            style={{
+              borderLeft: `2px solid ${colors.primary}40`,
+              borderTop: `2px solid ${colors.primary}40`,
+            }}
+            animate={{ opacity: [0.4, 0.8, 0.4] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+          <motion.div
+            className="absolute top-4 right-4 w-8 h-8"
+            style={{
+              borderRight: `2px solid ${colors.secondary}40`,
+              borderTop: `2px solid ${colors.secondary}40`,
+            }}
+            animate={{ opacity: [0.4, 0.8, 0.4] }}
+            transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+          />
+          <motion.div
+            className="absolute bottom-4 left-4 w-8 h-8"
+            style={{
+              borderLeft: `2px solid ${colors.secondary}40`,
+              borderBottom: `2px solid ${colors.secondary}40`,
+            }}
+            animate={{ opacity: [0.4, 0.8, 0.4] }}
+            transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+          />
+          <motion.div
+            className="absolute bottom-4 right-4 w-8 h-8"
+            style={{
+              borderRight: `2px solid ${colors.primary}40`,
+              borderBottom: `2px solid ${colors.primary}40`,
+            }}
+            animate={{ opacity: [0.4, 0.8, 0.4] }}
+            transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
+          />
+        </>
+      ) : (
+        <>
+          <div
+            className="absolute top-4 left-4 w-8 h-8 opacity-60"
+            style={{
+              borderLeft: `2px solid ${colors.primary}40`,
+              borderTop: `2px solid ${colors.primary}40`,
+            }}
+          />
+          <div
+            className="absolute top-4 right-4 w-8 h-8 opacity-60"
+            style={{
+              borderRight: `2px solid ${colors.secondary}40`,
+              borderTop: `2px solid ${colors.secondary}40`,
+            }}
+          />
+          <div
+            className="absolute bottom-4 left-4 w-8 h-8 opacity-60"
+            style={{
+              borderLeft: `2px solid ${colors.secondary}40`,
+              borderBottom: `2px solid ${colors.secondary}40`,
+            }}
+          />
+          <div
+            className="absolute bottom-4 right-4 w-8 h-8 opacity-60"
+            style={{
+              borderRight: `2px solid ${colors.primary}40`,
+              borderBottom: `2px solid ${colors.primary}40`,
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

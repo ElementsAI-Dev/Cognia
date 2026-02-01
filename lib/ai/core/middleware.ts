@@ -20,6 +20,7 @@ import {
   type LanguageModel,
   type LanguageModelMiddleware,
 } from 'ai';
+import { loggers } from '@/lib/logger';
 
 // Re-export built-in middlewares for convenience
 export {
@@ -343,7 +344,7 @@ export function createLoggingMiddleware(options?: {
   const {
     logParams = true,
     logResult = true,
-    logger = console.log,
+    logger = (msg: string) => loggers.ai.debug(msg),
   } = options || {};
 
   return {
@@ -826,7 +827,7 @@ export async function checkSafetyWithExternalAPI(
     }
 
     // Allow mode - log warning but don't block
-    console.warn(`[Safety Mode] External review API failed, allowing content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    loggers.ai.warn(`External review API failed, allowing content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return { blocked: false, severity: 'low' };
   }
 }

@@ -10,6 +10,7 @@ import { useSearchParams } from 'next/navigation';
 import { useSettingsStore, useArtifactStore } from '@/stores';
 import { useDesignerStore } from '@/stores/designer';
 import { useDebouncedCallback } from '@/hooks/utils/use-debounce';
+import { useMediaQuery } from '@/hooks/ui/use-media-query';
 import {
   ReactSandbox,
   ElementTree,
@@ -17,6 +18,8 @@ import {
   VersionHistoryPanel,
   DesignerDndProvider,
   DesignerCard,
+  FloatingPromptBar,
+  MobileDesignerLayout,
 } from '@/components/designer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -105,6 +108,9 @@ export default function DesignerPage() {
   const [templateSearch, setTemplateSearch] = useState('');
   const [templateViewMode, setTemplateViewMode] = useState<'grid' | 'list'>('grid');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  
+  // Mobile responsive detection
+  const isMobile = useMediaQuery('(max-width: 768px)');
   
   // Panel visibility states - use store for persistence
   const showElementTree = useDesignerStore((state) => state.showElementTree);
@@ -578,88 +584,134 @@ export default function DesignerPage() {
       {/* Main content */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <DesignerDndProvider>
-          <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
-            {/* Element Tree Panel */}
-            {showElementTree && (
-              <>
-                <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
-                  <div className="flex flex-col h-full border-r bg-background">
-                    <div className="border-b px-3 py-2 flex items-center justify-between">
-                      <h3 className="text-sm font-medium">Elements</h3>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={toggleElementTree}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
+          {isMobile ? (
+            /* Mobile: Tab-based layout */
+            <MobileDesignerLayout
+              previewContent={
+                <ReactSandbox
+                  code={code}
+                  onCodeChange={handleCodeChange}
+                  showFileExplorer={false}
+                  showConsole={false}
+                  framework={framework}
+                  onAIEdit={() => setShowAIPanel(true)}
+                />
+              }
+              codeContent={
+                <ReactSandbox
+                  code={code}
+                  onCodeChange={handleCodeChange}
+                  showFileExplorer={false}
+                  showConsole={true}
+                  framework={framework}
+                  showPreview={false}
+                />
+              }
+              elementsContent={<ElementTree className="h-full overflow-auto" />}
+              stylesContent={<StylePanel className="h-full overflow-auto" />}
+            />
+          ) : (
+            /* Desktop: Resizable panel layout */
+            <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
+              {/* Element Tree Panel */}
+              {showElementTree && (
+                <>
+                  <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
+                    <div className="flex flex-col h-full border-r bg-background">
+                      <div className="border-b px-3 py-2 flex items-center justify-between">
+                        <h3 className="text-sm font-medium">Elements</h3>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={toggleElementTree}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <ElementTree className="flex-1 overflow-auto" />
                     </div>
-                    <ElementTree className="flex-1 overflow-auto" />
-                  </div>
-                </ResizablePanel>
-                <ResizableHandle withHandle />
-              </>
-            )}
+                  </ResizablePanel>
+                  <ResizableHandle withHandle />
+                </>
+              )}
 
-            {/* Main Preview/Editor Panel */}
-            <ResizablePanel defaultSize={showElementTree || showStylePanel || showHistoryPanel ? 64 : 100} data-tour="designer-canvas">
-              <ReactSandbox
-                code={code}
-                onCodeChange={handleCodeChange}
-                showFileExplorer={false}
-                showConsole={false}
-                framework={framework}
-                onAIEdit={() => setShowAIPanel(true)}
-              />
-            </ResizablePanel>
-
-            {/* Style Panel */}
-            {showStylePanel && (
-              <>
-                <ResizableHandle withHandle />
-                <ResizablePanel defaultSize={22} minSize={18} maxSize={30}>
-                  <div className="flex flex-col h-full border-l bg-background">
-                    <div className="border-b px-3 py-2 flex items-center justify-between">
-                      <h3 className="text-sm font-medium">Styles</h3>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={toggleStylePanel}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
+              {/* Main Preview/Editor Panel */}
+              <ResizablePanel defaultSize={showElementTree || showStylePanel || showHistoryPanel ? 64 : 100} data-tour="designer-canvas">
+                <div className="flex flex-col h-full">
+                  <ReactSandbox
+                    code={code}
+                    onCodeChange={handleCodeChange}
+                    showFileExplorer={false}
+                    showConsole={false}
+                    framework={framework}
+                    onAIEdit={() => setShowAIPanel(true)}
+                  />
+                  {/* Floating AI Prompt Bar */}
+                  {showAIPanel && (
+                    <div className="p-3 border-t bg-background/95 backdrop-blur-sm">
+                      <FloatingPromptBar
+                        onSubmit={async (prompt) => {
+                          setAIPrompt(prompt);
+                          await handleAIEdit();
+                        }}
+                        isProcessing={isAIProcessing}
+                        error={aiError}
+                        onClearError={() => setAIError(null)}
+                        placeholder="Describe what you want to change..."
+                      />
                     </div>
-                    <StylePanel className="flex-1 overflow-auto" />
-                  </div>
-                </ResizablePanel>
-              </>
-            )}
+                  )}
+                </div>
+              </ResizablePanel>
 
-            {/* Version History Panel */}
-            {showHistoryPanel && (
-              <>
-                <ResizableHandle withHandle />
-                <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
-                  <div className="flex flex-col h-full border-l bg-background">
-                    <div className="border-b px-3 py-2 flex items-center justify-between">
-                      <h3 className="text-sm font-medium">History</h3>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={toggleHistoryPanel}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
+              {/* Style Panel */}
+              {showStylePanel && (
+                <>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel defaultSize={22} minSize={18} maxSize={30}>
+                    <div className="flex flex-col h-full border-l bg-background">
+                      <div className="border-b px-3 py-2 flex items-center justify-between">
+                        <h3 className="text-sm font-medium">Styles</h3>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={toggleStylePanel}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <StylePanel className="flex-1 overflow-auto" />
                     </div>
-                    <VersionHistoryPanel className="flex-1 overflow-auto" />
-                  </div>
-                </ResizablePanel>
-              </>
-            )}
-          </ResizablePanelGroup>
+                  </ResizablePanel>
+                </>
+              )}
+
+              {/* Version History Panel */}
+              {showHistoryPanel && (
+                <>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel defaultSize={18} minSize={15} maxSize={25}>
+                    <div className="flex flex-col h-full border-l bg-background">
+                      <div className="border-b px-3 py-2 flex items-center justify-between">
+                        <h3 className="text-sm font-medium">History</h3>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={toggleHistoryPanel}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <VersionHistoryPanel className="flex-1 overflow-auto" />
+                    </div>
+                  </ResizablePanel>
+                </>
+              )}
+            </ResizablePanelGroup>
+          )}
         </DesignerDndProvider>
       </div>
 

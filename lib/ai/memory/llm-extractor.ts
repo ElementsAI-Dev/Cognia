@@ -14,6 +14,9 @@
 
 import type { MemoryType } from '@/types';
 import type { ConversationMessage } from './memory-pipeline';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface ExtractedMemoryCandidate {
   content: string;
@@ -101,7 +104,7 @@ export class LLMMemoryExtractor {
     try {
       return await this.extractWithLLM(messages);
     } catch (error) {
-      console.warn('LLM extraction failed, falling back to patterns:', error);
+      log.warn('LLM extraction failed, falling back to patterns', { error: String(error) });
       return this.extractWithPatterns(messages);
     }
   }
@@ -144,7 +147,7 @@ export class LLMMemoryExtractor {
           reasoning: item.reasoning,
         }));
     } catch {
-      console.warn('Failed to parse LLM extraction response');
+      log.warn('Failed to parse LLM extraction response');
       return this.extractWithPatterns(messages);
     }
   }

@@ -3,6 +3,10 @@
  * This module only works in Node.js/Tauri runtime
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
+
 export const DataType = {
   None: 0,
   Bool: 1,
@@ -25,7 +29,7 @@ export const DataType = {
 
 export class MilvusClient {
   constructor(_config: unknown) {
-    console.warn('MilvusClient is not available in browser environment');
+    log.warn('MilvusClient is not available in browser environment');
   }
 
   async hasCollection(_params: unknown) {

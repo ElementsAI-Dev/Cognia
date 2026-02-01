@@ -22,7 +22,8 @@
     "clear": "清除",
     "dismiss": "关闭",
     "configured": "已配置",
-    "create": "创建"
+    "create": "创建",
+    "viewAll": "查看全部"
   },
   "toasts": {
     "copied": "已复制到剪贴板",
@@ -182,7 +183,10 @@
     "almostReady": "即将完成...",
     "ready": "就绪！",
     "appName": "Cognia",
-    "appDescription": "AI 聊天助手"
+    "appDescription": "AI 聊天助手",
+    "skipLoading": "跳过",
+    "errorInit": "初始化失败",
+    "retry": "重试"
   },
   "debug": {
     "tools": "调试工具",

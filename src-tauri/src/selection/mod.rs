@@ -2,9 +2,12 @@
 //!
 //! This module provides functionality for detecting text selection in other applications
 //! and displaying a floating toolbar with AI-powered actions.
-
-#![allow(dead_code)]
-#![allow(unused_imports)]
+//!
+//! # Public API
+//!
+//! This module exports several types for external use. Some types are used internally
+//! by `SelectionManager` and composed into higher-level abstractions, while others
+//! are exposed for direct use by consumers of this API.
 
 mod analyzer;
 mod clipboard_context;
@@ -18,20 +21,40 @@ mod smart_selection;
 mod toolbar_window;
 mod types;
 
+// Re-export internal components for potential external use
+// These are used internally by SelectionDetector but exposed for direct access if needed
+#[allow(unused_imports)]
 pub use analyzer::TextAnalyzer;
+#[allow(unused_imports)]
+pub use expander::SelectionExpander;
+#[allow(unused_imports)]
+pub use extractor::TextExtractor;
+
+// Clipboard context analysis types - actively used in Tauri commands
 pub use clipboard_context::{
     ClipboardAnalysis, ClipboardContextAnalyzer, ContentCategory, ContentStats, DetectedLanguage,
-    ExtractedEntity, FormattingHints, SuggestedAction,
+    ExtractedEntity, SuggestedAction,
 };
-pub use clipboard_history::{ClipboardContentType, ClipboardEntry, ClipboardHistory};
+// FormattingHints is part of ClipboardAnalysis but not directly referenced
+#[allow(unused_imports)]
+pub use clipboard_context::FormattingHints;
+
+// Clipboard history types - actively used in Tauri commands
+pub use clipboard_history::{ClipboardEntry, ClipboardHistory};
+// ClipboardContentType is part of ClipboardEntry but not directly referenced in commands
+#[allow(unused_imports)]
+pub use clipboard_history::ClipboardContentType;
+
+// Core types - actively used
 pub use detector::SelectionDetector;
-pub use expander::SelectionExpander;
-pub use extractor::TextExtractor;
 pub use history::{SelectionHistory, SelectionHistoryEntry, SelectionHistoryStats};
 pub use mouse_hook::{MouseEvent, MouseHook};
 pub use smart_selection::{SelectionContext, SelectionExpansion, SelectionMode, SmartSelection};
 pub use toolbar_window::ToolbarWindow;
-pub use types::{Selection, SourceAppInfo, TextType};
+pub use types::{Selection, SourceAppInfo};
+// TextType is used in Selection struct but not directly referenced in commands
+#[allow(unused_imports)]
+pub use types::TextType;
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};

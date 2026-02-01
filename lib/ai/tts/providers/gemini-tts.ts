@@ -6,6 +6,9 @@
 import type { TTSResponse, GeminiTTSVoice } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 const GEMINI_TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -107,7 +110,7 @@ export async function generateGeminiTTS(
       mimeType: 'audio/wav', // Gemini returns PCM at 24kHz, single channel
     };
   } catch (error) {
-    console.error('Gemini TTS error:', error);
+    log.error('Gemini TTS error', error as Error);
     return {
       success: false,
       error: getTTSError('network-error', error instanceof Error ? error.message : 'Unknown error').message,
@@ -152,7 +155,7 @@ export async function generateGeminiTTSViaApi(
       mimeType: 'audio/wav',
     };
   } catch (error) {
-    console.error('Gemini TTS API error:', error);
+    log.error('Gemini TTS API error', error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to generate speech',

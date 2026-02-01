@@ -5,6 +5,9 @@
 
 import { geolocationService } from './geolocation';
 import { CountryInfo, LocaleInfo, GeolocationPosition } from '@/types/system/geolocation';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 const COUNTRY_DATA: Record<string, CountryInfo> = {
   CN: {
@@ -469,7 +472,7 @@ export class LocaleDetector {
         }
       }
     } catch (error) {
-      console.warn('Geolocation detection failed:', error);
+      log.warn('Geolocation detection failed', { error });
     }
 
     const detectedLocale = systemLocale || browserLocale;

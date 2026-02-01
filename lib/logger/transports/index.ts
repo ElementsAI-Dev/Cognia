@@ -12,3 +12,15 @@ export {
   logglyTransform,
   type RemoteTransportOptions 
 } from './remote-transport';
+export {
+  OtelTransport,
+  createOtelTransport,
+  getOtelContext,
+  withOtelSpan,
+  type OtelTransportOptions,
+} from './otel-transport';
+export {
+  LangfuseTransport,
+  createLangfuseTransport,
+  type LangfuseTransportOptions,
+} from './langfuse-transport';

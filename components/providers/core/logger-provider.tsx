@@ -1,16 +1,26 @@
 'use client';
 
 /**
- * LoggerProvider - Centralized logging system with multiple log levels and outputs
- * Provides structured logging capabilities to the entire application
+ * LoggerProvider - React Context wrapper for the unified logging system
  * 
  * This provider integrates with the unified logger system at @/lib/logger
- * for consistent logging across the application.
+ * and provides React hooks for easy access to logging functions.
+ * 
+ * @deprecated For new code, prefer importing directly from @/lib/logger
  */
 
-import { createContext, useContext, useCallback, ReactNode, useState, useMemo } from 'react';
+import { createContext, useContext, useCallback, ReactNode, useState, useMemo, useEffect } from 'react';
 import type { AppLogLevel, LogEntry, LoggerConfig, LogTransport } from '@/types';
 import { LOG_LEVEL_PRIORITY } from '@/types';
+import {
+  loggers,
+  IndexedDBTransport,
+  updateLoggerConfig,
+  addTransport as addUnifiedTransport,
+  removeTransport as removeUnifiedTransport,
+  type StructuredLogEntry,
+  type LogLevel as UnifiedLogLevel,
+} from '@/lib/logger';
 
 // Re-export types for backward compatibility
 export type { AppLogLevel, LogEntry, LoggerConfig, LogTransport } from '@/types';
@@ -28,9 +38,9 @@ interface LoggerContextValue {
   fatal: (message: string, error?: Error | unknown, context?: Record<string, unknown>) => void;
 
   // Log management
-  getLogs: (filter?: { level?: LogLevel; since?: Date; limit?: number }) => LogEntry[];
-  clearLogs: () => void;
-  exportLogs: (format?: 'json' | 'text') => string;
+  getLogs: (filter?: { level?: LogLevel; since?: Date; limit?: number }) => Promise<LogEntry[]>;
+  clearLogs: () => Promise<void>;
+  exportLogs: (format?: 'json' | 'text') => Promise<string>;
 
   // Configuration
   config: LoggerConfig;
@@ -45,8 +55,6 @@ interface LoggerContextValue {
 // Create context
 const LoggerContext = createContext<LoggerContextValue | undefined>(undefined);
 
-// Log level priority uses imported constant from @/types
-
 // Default configuration
 const DEFAULT_CONFIG: LoggerConfig = {
   minLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
@@ -57,85 +65,18 @@ const DEFAULT_CONFIG: LoggerConfig = {
   includeStackTrace: process.env.NODE_ENV === 'development',
 };
 
-// Console transport (colors)
-const consoleTransport: LogTransport = {
-  name: 'console',
-  log: (entry) => {
-    const consoleMethod = {
-      debug: console.debug,
-      info: console.info,
-      warn: console.warn,
-      error: console.error,
-      fatal: console.error,
-    }[entry.level];
-
-    const timestamp = entry.timestamp.toISOString();
-    const prefix = `[${timestamp}] [${entry.level.toUpperCase()}]`;
-
-    if (entry.data) {
-      consoleMethod(prefix, entry.message, entry.data);
-    } else {
-      consoleMethod(prefix, entry.message);
-    }
-
-    if (entry.stack) {
-      console.debug(entry.stack);
-    }
-  },
-};
-
-// Local storage transport
-class StorageTransport implements LogTransport {
-  name = 'storage';
-  private storageKey = 'app-logs';
-  private maxEntries: number;
-
-  constructor(maxEntries: number = 1000) {
-    this.maxEntries = maxEntries;
-  }
-
-  log(entry: LogEntry): void {
-    try {
-      const stored = localStorage.getItem(this.storageKey);
-      const logs: LogEntry[] = stored ? JSON.parse(stored) : [];
-
-      // Add new entry
-      logs.push(entry);
-
-      // Trim if exceeds max entries
-      if (logs.length > this.maxEntries) {
-        logs.splice(0, logs.length - this.maxEntries);
-      }
-
-      localStorage.setItem(this.storageKey, JSON.stringify(logs));
-    } catch (error) {
-      console.error('Failed to store log:', error);
-    }
-  }
-
-  getLogs(): LogEntry[] {
-    try {
-      const stored = localStorage.getItem(this.storageKey);
-      if (!stored) return [];
-      const logs = JSON.parse(stored);
-      // Convert timestamp strings back to Date objects
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return logs.map((log: any) => ({
-        ...log,
-        timestamp: new Date(log.timestamp),
-      }));
-    } catch {
-      return [];
-    }
-  }
-
-  clearLogs(): void {
-    localStorage.removeItem(this.storageKey);
-  }
-
-  setMaxEntries(maxEntries: number): void {
-    this.maxEntries = maxEntries;
-  }
+// Convert StructuredLogEntry to legacy LogEntry format
+function convertToLegacyEntry(entry: StructuredLogEntry): LogEntry {
+  return {
+    id: entry.id,
+    timestamp: new Date(entry.timestamp),
+    level: entry.level as AppLogLevel,
+    message: entry.message,
+    data: entry.data,
+    context: entry.data as Record<string, unknown> | undefined,
+    stack: entry.stack,
+    sessionId: entry.sessionId,
+  };
 }
 
 interface LoggerProviderProps {
@@ -150,82 +91,66 @@ interface LoggerProviderProps {
 
 /**
  * Logger Provider Component
+ * Now delegates to unified logger system while maintaining backward compatibility
  */
 export function LoggerProvider({
   children,
   config: userConfig = {},
-  transports: userTransports = [],
-  sessionId,
+  transports: _userTransports = [],
+  sessionId: _sessionId,
 }: LoggerProviderProps) {
   const [config, setConfig] = useState<LoggerConfig>({ ...DEFAULT_CONFIG, ...userConfig });
-
-  // Initialize storage transport once using useState initializer (safe pattern)
-  const [storageTransport] = useState(() => new StorageTransport(config.maxStorageEntries));
-
-  // Track custom transports added via addTransport
-  const [customTransports, setCustomTransports] = useState<LogTransport[]>([]);
-
-  // Compute all transports based on config
-  const transports = useMemo(() => {
-    const result: LogTransport[] = [consoleTransport, ...userTransports, ...customTransports];
-    if (config.enableStorage) {
-      storageTransport.setMaxEntries(config.maxStorageEntries);
-      if (!result.find((t) => t.name === 'storage')) {
-        result.push(storageTransport);
-      }
-    }
-    // Filter out duplicates by name
-    const seen = new Set<string>();
-    return result.filter((t) => {
-      if (seen.has(t.name)) return false;
-      seen.add(t.name);
-      return true;
-    });
-  }, [
-    config.enableStorage,
-    config.maxStorageEntries,
-    storageTransport,
-    userTransports,
-    customTransports,
-  ]);
-
   const [stats, setStats] = useState({ total: 0, byLevel: {} as Record<LogLevel, number> });
+  
+  // Initialize IndexedDB transport for log retrieval
+  const [indexedDBTransport] = useState(() => new IndexedDBTransport());
 
-  // Core logging function
+  // Session ID is passed to log entries directly via the unified logger context
+  // The unified logger uses its own session management
+
+  // Sync config with unified logger
+  useEffect(() => {
+    updateLoggerConfig({
+      minLevel: config.minLevel as UnifiedLogLevel,
+      includeStackTrace: config.includeStackTrace,
+      includeSource: process.env.NODE_ENV === 'development',
+    });
+  }, [config]);
+
+  // Core logging function using unified logger
   const log = useCallback(
     (level: LogLevel, message: string, data?: unknown, context?: Record<string, unknown>) => {
       // Check if we should log this level
       if (LOG_LEVEL_PRIORITY[level] < LOG_LEVEL_PRIORITY[config.minLevel]) {
         return;
       }
-
-      const entry: LogEntry = {
-        id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date(),
-        level,
-        message,
-        data,
-        context,
-        sessionId,
+      
+      const combinedData = { 
+        ...context, 
+        ...(typeof data === 'object' && data !== null && !(data instanceof Error) 
+          ? data as Record<string, unknown> 
+          : data !== undefined && !(data instanceof Error) 
+            ? { value: data } 
+            : {}) 
       };
-
-      // Add stack trace for errors if enabled
-      if (
-        config.includeStackTrace &&
-        (level === 'error' || level === 'fatal') &&
-        data instanceof Error
-      ) {
-        entry.stack = data.stack;
+      
+      switch (level) {
+        case 'debug':
+          loggers.app.debug(message, combinedData);
+          break;
+        case 'info':
+          loggers.app.info(message, combinedData);
+          break;
+        case 'warn':
+          loggers.app.warn(message, combinedData);
+          break;
+        case 'error':
+          loggers.app.error(message, data instanceof Error ? data : undefined, combinedData);
+          break;
+        case 'fatal':
+          loggers.app.fatal(message, data instanceof Error ? data : undefined, combinedData);
+          break;
       }
-
-      // Send to all transports
-      transports.forEach((transport) => {
-        try {
-          transport.log(entry);
-        } catch (error) {
-          console.error(`Transport ${transport.name} failed:`, error);
-        }
-      });
 
       // Update stats
       setStats((prev) => ({
@@ -236,7 +161,7 @@ export function LoggerProvider({
         },
       }));
     },
-    [config, transports, sessionId]
+    [config.minLevel]
   );
 
   // Convenience methods
@@ -275,36 +200,33 @@ export function LoggerProvider({
     [log]
   );
 
-  // Log management
+  // Log management - now using IndexedDB transport from unified logger
   const getLogs = useCallback(
-    (filter?: { level?: LogLevel; since?: Date; limit?: number }): LogEntry[] => {
-      let logs = storageTransport.getLogs();
-
-      if (filter?.level) {
-        logs = logs.filter((l) => l.level === filter.level);
-      }
+    async (filter?: { level?: LogLevel; since?: Date; limit?: number }): Promise<LogEntry[]> => {
+      const structuredLogs = await indexedDBTransport.getLogs({
+        level: filter?.level as UnifiedLogLevel,
+        limit: filter?.limit,
+      });
+      
+      let logs = structuredLogs.map(convertToLegacyEntry);
 
       if (filter?.since) {
         logs = logs.filter((l) => l.timestamp >= filter.since!);
       }
 
-      if (filter?.limit) {
-        logs = logs.slice(-filter.limit);
-      }
-
       return logs;
     },
-    [storageTransport]
+    [indexedDBTransport]
   );
 
-  const clearLogs = useCallback(() => {
-    storageTransport.clearLogs();
+  const clearLogs = useCallback(async () => {
+    await indexedDBTransport.clear();
     setStats({ total: 0, byLevel: {} as Record<LogLevel, number> });
-  }, [storageTransport]);
+  }, [indexedDBTransport]);
 
   const exportLogs = useCallback(
-    (format: 'json' | 'text' = 'json'): string => {
-      const logs = getLogs();
+    async (format: 'json' | 'text' = 'json'): Promise<string> => {
+      const logs = await getLogs();
 
       if (format === 'json') {
         return JSON.stringify(logs, null, 2);
@@ -328,16 +250,17 @@ export function LoggerProvider({
   }, []);
 
   const addTransport = useCallback((transport: LogTransport) => {
-    setCustomTransports((prev) => {
-      if (prev.find((t) => t.name === transport.name)) {
-        return prev;
-      }
-      return [...prev, transport];
+    // Wrap legacy transport for unified logger
+    addUnifiedTransport({
+      name: transport.name,
+      log: (entry) => {
+        transport.log(convertToLegacyEntry(entry));
+      },
     });
   }, []);
 
   const removeTransport = useCallback((name: string) => {
-    setCustomTransports((prev) => prev.filter((t) => t.name !== name));
+    removeUnifiedTransport(name);
   }, []);
 
   const getStats = useCallback(() => {

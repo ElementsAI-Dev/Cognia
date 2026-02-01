@@ -23,6 +23,9 @@ import {
   type ChromaConfig,
   type SearchResult,
 } from '@/lib/vector/chroma-client';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface RAGDocument {
   id: string;
@@ -292,7 +295,7 @@ export async function retrieveContext(
       totalTokensEstimate,
     };
   } catch (error) {
-    console.error('RAG retrieval error:', error);
+    log.error('RAG retrieval error', error as Error);
     return {
       documents: [],
       query,

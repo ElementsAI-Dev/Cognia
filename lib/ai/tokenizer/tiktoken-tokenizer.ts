@@ -13,6 +13,9 @@ import type {
   TiktokenEncoding,
 } from '@/types/system/tokenizer';
 import { estimateTokensFast, getEncodingForModel } from './base-tokenizer';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 // Encoder cache for different encodings
 const encoderCache: Map<TiktokenEncoding, Tiktoken> = new Map();
@@ -28,7 +31,7 @@ function getTiktokenEncoder(encoding: TiktokenEncoding = 'o200k_base'): Tiktoken
     }
     return encoderCache.get(encoding) || null;
   } catch (error) {
-    console.warn(`Failed to get tiktoken encoder for ${encoding}:`, error);
+    log.warn(`Failed to get tiktoken encoder for ${encoding}`, { error });
     return null;
   }
 }
@@ -81,7 +84,7 @@ export class TiktokenTokenizer implements Tokenizer {
         model: options?.model,
       };
     } catch (error) {
-      console.warn('Tiktoken encoding failed, falling back to estimation:', error);
+      log.warn('Tiktoken encoding failed, falling back to estimation', { error });
       return {
         tokens: estimateTokensFast(content),
         isExact: false,
@@ -138,7 +141,7 @@ export class TiktokenTokenizer implements Tokenizer {
         model: options?.model,
       };
     } catch (error) {
-      console.warn('Tiktoken message counting failed:', error);
+      log.warn('Tiktoken message counting failed', { error });
       let totalTokens = 0;
       for (const msg of messages) {
         totalTokens += estimateTokensFast(msg.content) + 4;

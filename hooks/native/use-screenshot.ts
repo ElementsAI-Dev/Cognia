@@ -13,6 +13,9 @@ import {
 } from '@/lib/native/screenshot';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/lib/native/utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface ScreenshotMetadata {
   width: number;
@@ -125,7 +128,7 @@ export function useScreenshot() {
         annotations,
       });
     } catch (err) {
-      console.error('Failed to apply annotations:', err);
+      log.error('Failed to apply annotations', err as Error);
       return null;
     }
   }, []);
@@ -142,7 +145,7 @@ export function useScreenshot() {
           currentY,
         });
       } catch (err) {
-        console.error('Failed to validate selection:', err);
+        log.error('Failed to validate selection', err as Error);
         return null;
       }
     },
@@ -208,7 +211,7 @@ export function useScreenshot() {
     try {
       return await invoke<string>('screenshot_ocr', { imageBase64 });
     } catch (err) {
-      console.error('OCR failed:', err);
+      log.error('OCR failed', err as Error);
       return '';
     }
   }, []);
@@ -219,7 +222,7 @@ export function useScreenshot() {
     try {
       return await invoke<WinOcrResult>('screenshot_ocr_windows', { imageBase64 });
     } catch (err) {
-      console.error('Windows OCR failed:', err);
+      log.error('Windows OCR failed', err as Error);
       return null;
     }
   }, []);
@@ -230,7 +233,7 @@ export function useScreenshot() {
     try {
       return await invoke<MonitorInfo[]>('screenshot_get_monitors');
     } catch (err) {
-      console.error('Failed to get monitors:', err);
+      log.error('Failed to get monitors', err as Error);
       return [];
     }
   }, []);
@@ -241,7 +244,7 @@ export function useScreenshot() {
     try {
       return await invoke<string>('screenshot_save', { imageBase64, path });
     } catch (err) {
-      console.error('Failed to save screenshot:', err);
+      log.error('Failed to save screenshot', err as Error);
       return '';
     }
   }, []);
@@ -252,7 +255,7 @@ export function useScreenshot() {
     try {
       return await invoke<WindowInfo[]>('screenshot_get_windows');
     } catch (err) {
-      console.error('Failed to get windows:', err);
+      log.error('Failed to get windows', err as Error);
       return [];
     }
   }, []);
@@ -265,7 +268,7 @@ export function useScreenshot() {
         thumbnailSize,
       });
     } catch (err) {
-      console.error('Failed to get windows with thumbnails:', err);
+      log.error('Failed to get windows with thumbnails', err as Error);
       return [];
     }
   }, []);
@@ -309,7 +312,7 @@ export function useScreenshot() {
           windowHeight,
         });
       } catch (err) {
-        console.error('Failed to calculate snap:', err);
+        log.error('Failed to calculate snap', err as Error);
         return null;
       }
     },
@@ -322,7 +325,7 @@ export function useScreenshot() {
     try {
       return await invoke<SnapConfig>('screenshot_get_snap_config');
     } catch (err) {
-      console.error('Failed to get snap config:', err);
+      log.error('Failed to get snap config', err as Error);
       return null;
     }
   }, []);
@@ -333,7 +336,7 @@ export function useScreenshot() {
       await invoke('screenshot_set_snap_config', { config });
       return true;
     } catch (err) {
-      console.error('Failed to set snap config:', err);
+      log.error('Failed to set snap config', err as Error);
       return false;
     }
   }, []);
@@ -344,7 +347,7 @@ export function useScreenshot() {
       await invoke('screenshot_set_ocr_language', { language });
       return true;
     } catch (err) {
-      console.error('Failed to set OCR language:', err);
+      log.error('Failed to set OCR language', err as Error);
       return false;
     }
   }, []);
@@ -386,7 +389,7 @@ export function useScreenshotHistory() {
       const result = await invoke<ScreenshotHistoryEntry[]>('screenshot_get_history', { count });
       setHistory(result);
     } catch (err) {
-      console.error('Failed to fetch screenshot history:', err);
+      log.error('Failed to fetch screenshot history', err as Error);
     } finally {
       setIsLoading(false);
     }
@@ -397,7 +400,7 @@ export function useScreenshotHistory() {
     try {
       return await invoke<ScreenshotHistoryEntry[]>('screenshot_get_all_history');
     } catch (err) {
-      console.error('Failed to fetch all history:', err);
+      log.error('Failed to fetch all history', err as Error);
       return [];
     }
   }, []);
@@ -407,7 +410,7 @@ export function useScreenshotHistory() {
     try {
       return await invoke<ScreenshotHistoryEntry[]>('screenshot_get_pinned_history');
     } catch (err) {
-      console.error('Failed to fetch pinned history:', err);
+      log.error('Failed to fetch pinned history', err as Error);
       return [];
     }
   }, []);
@@ -418,7 +421,7 @@ export function useScreenshotHistory() {
     try {
       return await invoke<ScreenshotHistoryEntry[]>('screenshot_search_history', { query });
     } catch (err) {
-      console.error('Failed to search screenshot history:', err);
+      log.error('Failed to search screenshot history', err as Error);
       return [];
     }
   }, []);
@@ -429,7 +432,7 @@ export function useScreenshotHistory() {
     try {
       return await invoke<ScreenshotHistoryEntry | null>('screenshot_get_by_id', { id });
     } catch (err) {
-      console.error('Failed to get screenshot:', err);
+      log.error('Failed to get screenshot', err as Error);
       return null;
     }
   }, []);
@@ -443,7 +446,7 @@ export function useScreenshotHistory() {
         if (result) await fetchHistory();
         return result;
       } catch (err) {
-        console.error('Failed to pin screenshot:', err);
+        log.error('Failed to pin screenshot', err as Error);
         return false;
       }
     },
@@ -457,7 +460,7 @@ export function useScreenshotHistory() {
         label,
       });
     } catch (err) {
-      console.error('Failed to search history by label:', err);
+      log.error('Failed to search history by label', err as Error);
       return [];
     }
   }, []);
@@ -471,7 +474,7 @@ export function useScreenshotHistory() {
         if (result) await fetchHistory();
         return result;
       } catch (err) {
-        console.error('Failed to unpin screenshot:', err);
+        log.error('Failed to unpin screenshot', err as Error);
         return false;
       }
     },
@@ -487,7 +490,7 @@ export function useScreenshotHistory() {
         if (result) await fetchHistory();
         return result;
       } catch (err) {
-        console.error('Failed to delete screenshot:', err);
+        log.error('Failed to delete screenshot', err as Error);
         return false;
       }
     },
@@ -501,7 +504,7 @@ export function useScreenshotHistory() {
       await invoke('screenshot_clear_history');
       setHistory([]);
     } catch (err) {
-      console.error('Failed to clear history:', err);
+      log.error('Failed to clear history', err as Error);
     }
   }, []);
 
@@ -511,7 +514,7 @@ export function useScreenshotHistory() {
       await invoke('screenshot_clear_all_history');
       setHistory([]);
     } catch (err) {
-      console.error('Failed to clear all history:', err);
+      log.error('Failed to clear all history', err as Error);
     }
   }, []);
 
@@ -520,7 +523,7 @@ export function useScreenshotHistory() {
     try {
       return await invoke<[number, boolean]>('screenshot_get_history_stats');
     } catch (err) {
-      console.error('Failed to get history stats:', err);
+      log.error('Failed to get history stats', err as Error);
       return null;
     }
   }, []);

@@ -18,6 +18,9 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 import { useSettingsStore } from '@/stores';
 import type { ProviderName } from '@/types/provider';
 import { getModelConfig } from '@/types/provider';
@@ -567,7 +570,7 @@ export async function classifyTaskWithLLM(
     // Record failure
     routerHealthManager.recordFailure(routerModel.provider, routerModel.model);
     
-    console.warn('LLM routing failed, falling back to rule-based:', error);
+    log.warn('LLM routing failed, falling back to rule-based', { error });
     // Fallback to rule-based
     const classification = classifyTaskRuleBased(input);
     const tier = classification.complexity === 'simple' ? 'fast' :

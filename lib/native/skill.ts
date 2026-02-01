@@ -11,6 +11,9 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/lib/native/utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 // ========== Types ==========
 
@@ -425,7 +428,7 @@ export async function safeSkillInvoke<T>(
   try {
     return await operation();
   } catch (error) {
-    console.error('Skill operation failed:', error);
+    log.error('Skill operation failed', error as Error);
     return fallback;
   }
 }

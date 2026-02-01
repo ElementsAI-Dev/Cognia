@@ -3,6 +3,9 @@
  */
 
 import { isTauri } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.auth;
 
 // Storage keys
 const WEBDAV_PASSWORD_KEY = 'sync:webdav:password';
@@ -30,7 +33,7 @@ export async function storeWebDAVPassword(password: string): Promise<boolean> {
     });
     return true;
   } catch (error) {
-    console.error('Failed to store WebDAV password:', error);
+    log.error('Failed to store WebDAV password', error as Error);
     // Fallback to localStorage
     try {
       localStorage.setItem(WEBDAV_PASSWORD_KEY, btoa(password));
@@ -61,7 +64,7 @@ export async function getWebDAVPassword(): Promise<string | null> {
     });
     return password;
   } catch (error) {
-    console.error('Failed to get WebDAV password:', error);
+    log.error('Failed to get WebDAV password', error as Error);
     // Fallback to localStorage
     try {
       const stored = localStorage.getItem(WEBDAV_PASSWORD_KEY);
@@ -93,7 +96,7 @@ export async function removeWebDAVPassword(): Promise<boolean> {
     localStorage.removeItem(WEBDAV_PASSWORD_KEY);
     return true;
   } catch (error) {
-    console.error('Failed to remove WebDAV password:', error);
+    log.error('Failed to remove WebDAV password', error as Error);
     localStorage.removeItem(WEBDAV_PASSWORD_KEY);
     return true;
   }
@@ -120,7 +123,7 @@ export async function storeGitHubToken(token: string): Promise<boolean> {
     });
     return true;
   } catch (error) {
-    console.error('Failed to store GitHub token:', error);
+    log.error('Failed to store GitHub token', error as Error);
     try {
       localStorage.setItem(GITHUB_TOKEN_KEY, btoa(token));
       return true;
@@ -150,7 +153,7 @@ export async function getGitHubToken(): Promise<string | null> {
     });
     return token;
   } catch (error) {
-    console.error('Failed to get GitHub token:', error);
+    log.error('Failed to get GitHub token', error as Error);
     try {
       const stored = localStorage.getItem(GITHUB_TOKEN_KEY);
       return stored ? atob(stored) : null;
@@ -181,7 +184,7 @@ export async function removeGitHubToken(): Promise<boolean> {
     localStorage.removeItem(GITHUB_TOKEN_KEY);
     return true;
   } catch (error) {
-    console.error('Failed to remove GitHub token:', error);
+    log.error('Failed to remove GitHub token', error as Error);
     localStorage.removeItem(GITHUB_TOKEN_KEY);
     return true;
   }

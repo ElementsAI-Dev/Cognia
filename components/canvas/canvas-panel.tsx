@@ -67,6 +67,7 @@ import { useKeybindingStore } from '@/stores/canvas/keybinding-store';
 import { useChunkedDocumentStore } from '@/stores/canvas/chunked-document-store';
 import { isLargeDocument } from '@/lib/canvas/utils';
 import { themeRegistry } from '@/lib/canvas/themes/theme-registry';
+import { createEditorOptions } from '@/lib/monaco';
 import { CanvasErrorBoundary } from './canvas-error-boundary';
 import {
   executeCanvasAction,
@@ -851,16 +852,15 @@ function CanvasPanelContent() {
                 theme={getEditorTheme()}
                 value={localContent}
                 onChange={handleEditorChange}
-                options={{
+                options={createEditorOptions('code', {
                   minimap: { enabled: editorSettings.minimap, scale: 1 },
-                  fontSize: 14,
                   lineNumbers: editorSettings.lineNumbers ? 'on' : 'off',
-                  scrollBeyondLastLine: false,
                   wordWrap: editorSettings.wordWrap ? 'on' : 'off',
-                  automaticLayout: true,
-                  tabSize: 2,
-                  padding: { top: 16, bottom: 16 },
-                }}
+                  stickyScroll: { enabled: true, maxLineCount: 5 },
+                  bracketPairColorization: { enabled: true },
+                  guides: { indentation: true, bracketPairs: true },
+                  inlineSuggest: { enabled: true },
+                })}
                 onMount={(editor) => {
                   // Track selection changes
                   editor.onDidChangeCursorSelection((e) => {

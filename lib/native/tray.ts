@@ -7,6 +7,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauri } from './utils';
 import type { TrayConfig, TrayDisplayMode, TrayState } from '@/types/system/tray';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 /**
  * Backend tray config structure (snake_case)
@@ -84,7 +87,7 @@ export async function getTrayState(): Promise<TrayState> {
     const state = await invoke<BackendTrayState>('tray_get_state');
     return toFrontendState(state);
   } catch (error) {
-    console.error('Failed to get tray state:', error);
+    log.error('Failed to get tray state', error as Error);
     throw error;
   }
 }
@@ -101,7 +104,7 @@ export async function getTrayConfig(): Promise<TrayConfig> {
     const config = await invoke<BackendTrayConfig>('tray_get_config');
     return toFrontendConfig(config);
   } catch (error) {
-    console.error('Failed to get tray config:', error);
+    log.error('Failed to get tray config', error as Error);
     throw error;
   }
 }
@@ -117,7 +120,7 @@ export async function setTrayConfig(config: TrayConfig): Promise<void> {
   try {
     await invoke('tray_set_config', { config: toBackendConfig(config) });
   } catch (error) {
-    console.error('Failed to set tray config:', error);
+    log.error('Failed to set tray config', error as Error);
     throw error;
   }
 }
@@ -133,7 +136,7 @@ export async function setTrayDisplayMode(mode: TrayDisplayMode): Promise<void> {
   try {
     await invoke('tray_set_display_mode', { mode });
   } catch (error) {
-    console.error('Failed to set tray display mode:', error);
+    log.error('Failed to set tray display mode', error as Error);
     throw error;
   }
 }
@@ -149,7 +152,7 @@ export async function toggleTrayDisplayMode(): Promise<TrayDisplayMode> {
   try {
     return await invoke<TrayDisplayMode>('tray_toggle_display_mode');
   } catch (error) {
-    console.error('Failed to toggle tray display mode:', error);
+    log.error('Failed to toggle tray display mode', error as Error);
     throw error;
   }
 }
@@ -168,7 +171,7 @@ export async function setTrayItemVisibility(
   try {
     await invoke('tray_set_item_visibility', { itemId, visible });
   } catch (error) {
-    console.error('Failed to set tray item visibility:', error);
+    log.error('Failed to set tray item visibility', error as Error);
     throw error;
   }
 }
@@ -184,7 +187,7 @@ export async function setTrayCompactItems(items: string[]): Promise<void> {
   try {
     await invoke('tray_set_compact_items', { items });
   } catch (error) {
-    console.error('Failed to set compact items:', error);
+    log.error('Failed to set compact items', error as Error);
     throw error;
   }
 }
@@ -200,7 +203,7 @@ export async function updateTrayTooltip(message: string): Promise<void> {
   try {
     await invoke('tray_update_tooltip', { message });
   } catch (error) {
-    console.error('Failed to update tray tooltip:', error);
+    log.error('Failed to update tray tooltip', error as Error);
     throw error;
   }
 }
@@ -219,7 +222,7 @@ export async function setTrayBusy(
   try {
     await invoke('tray_set_busy', { busy, message: message ?? null });
   } catch (error) {
-    console.error('Failed to set tray busy state:', error);
+    log.error('Failed to set tray busy state', error as Error);
     throw error;
   }
 }
@@ -235,7 +238,7 @@ export async function refreshTrayMenu(): Promise<void> {
   try {
     await invoke('tray_refresh_menu');
   } catch (error) {
-    console.error('Failed to refresh tray menu:', error);
+    log.error('Failed to refresh tray menu', error as Error);
     throw error;
   }
 }
@@ -257,7 +260,7 @@ export async function getDefaultCompactItems(): Promise<string[]> {
   try {
     return await invoke<string[]>('tray_get_default_compact_items');
   } catch (error) {
-    console.error('Failed to get default compact items:', error);
+    log.error('Failed to get default compact items', error as Error);
     throw error;
   }
 }
@@ -273,7 +276,7 @@ export async function getAllTrayItemIds(): Promise<string[]> {
   try {
     return await invoke<string[]>('tray_get_all_item_ids');
   } catch (error) {
-    console.error('Failed to get all tray item IDs:', error);
+    log.error('Failed to get all tray item IDs', error as Error);
     throw error;
   }
 }

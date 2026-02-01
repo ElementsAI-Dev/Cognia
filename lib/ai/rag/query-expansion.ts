@@ -9,6 +9,9 @@
  */
 
 import type { LanguageModel } from 'ai';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface QueryExpansionConfig {
   model?: LanguageModel;
@@ -67,7 +70,7 @@ Return ONLY a JSON array of strings with the alternative queries. Example: ["que
     }
     return [];
   } catch (error) {
-    console.warn('Failed to generate query variants:', error);
+    log.warn('Failed to generate query variants', { error: String(error) });
     return [];
   }
 }
@@ -104,7 +107,7 @@ Write the hypothetical passage that answers this question:`;
 
     return result.text.trim().slice(0, maxLength);
   } catch (error) {
-    console.warn('Failed to generate hypothetical answer:', error);
+    log.warn('Failed to generate hypothetical answer', { error: String(error) });
     return '';
   }
 }
@@ -148,7 +151,7 @@ Rewritten query (output ONLY the rewritten query, nothing else):`;
 
     return result.text.trim().replace(/^["']|["']$/g, '');
   } catch (error) {
-    console.warn('Failed to rewrite query:', error);
+    log.warn('Failed to rewrite query', { error: String(error) });
     return query;
   }
 }
@@ -339,7 +342,7 @@ Return ONLY a JSON array of questions. Example: ["sub-question 1", "sub-question
     }
     return [query];
   } catch (error) {
-    console.warn('Failed to decompose query:', error);
+    log.warn('Failed to decompose query', { error: String(error) });
     return [query];
   }
 }
@@ -370,7 +373,7 @@ Step-back question (output ONLY the question):`;
 
     return result.text.trim().replace(/^["']|["']$/g, '');
   } catch (error) {
-    console.warn('Failed to generate step-back query:', error);
+    log.warn('Failed to generate step-back query', { error: String(error) });
     return query;
   }
 }

@@ -9,6 +9,9 @@ import type {
   SearchResult,
 } from '@/types/search';
 import { exaFetch } from '../proxy-search-fetch';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 const EXA_API_URL = 'https://api.exa.ai/search';
 
@@ -154,7 +157,7 @@ export async function searchWithExa(
       totalResults: results.length,
     };
   } catch (error) {
-    console.error('Exa search error:', error);
+    log.error('Exa search error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Exa search failed: ${error.message}`
@@ -228,7 +231,7 @@ export async function findSimilarWithExa(
       responseTime: Date.now() - startTime,
     };
   } catch (error) {
-    console.error('Exa findSimilar error:', error);
+    log.error('Exa findSimilar error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Exa findSimilar failed: ${error.message}`
@@ -286,7 +289,7 @@ export async function getContentsWithExa(
       publishedDate: result.publishedDate,
     }));
   } catch (error) {
-    console.error('Exa getContents error:', error);
+    log.error('Exa getContents error', error as Error);
     throw new Error(
       error instanceof Error
         ? `Exa getContents failed: ${error.message}`

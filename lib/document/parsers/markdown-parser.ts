@@ -2,6 +2,10 @@
  * Markdown Parser - Extract content and structure from Markdown files
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
+
 export interface MarkdownSection {
   level: number;
   title: string;
@@ -32,7 +36,7 @@ function tryParseYaml(frontmatterStr: string): Record<string, unknown> | null {
         | ((source: string) => unknown)
         | null;
     } catch (error) {
-      console.warn('Failed to load YAML parser, falling back to lightweight parser:', error);
+      log.warn('Failed to load YAML parser, falling back to lightweight parser', { error });
       cachedYamlParser = null;
     }
   }
@@ -44,7 +48,7 @@ function tryParseYaml(frontmatterStr: string): Record<string, unknown> | null {
         return parsed as Record<string, unknown>;
       }
     } catch (error) {
-      console.warn('YAML parsing failed, falling back to lightweight parser:', error);
+      log.warn('YAML parsing failed, falling back to lightweight parser', { error });
       // Fall through to the lightweight parser
     }
   }
@@ -86,7 +90,7 @@ function parseFrontmatter(content: string): {
         try {
           return JSON.parse(value);
         } catch (error) {
-          console.warn('JSON parsing failed for frontmatter value:', error);
+          log.warn('JSON parsing failed for frontmatter value', { error });
           return value;
         }
       }
@@ -134,7 +138,7 @@ function parseFrontmatter(content: string): {
       body: content.slice(match[0].length),
     };
   } catch (error) {
-    console.warn('Frontmatter extraction failed:', error);
+    log.warn('Frontmatter extraction failed', { error });
     return { body: content };
   }
 }

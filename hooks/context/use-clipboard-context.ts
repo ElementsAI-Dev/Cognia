@@ -17,6 +17,9 @@ import {
   type TransformAction,
   type ClipboardTemplate,
 } from '@/stores/context';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ui;
 
 export type {
   ClipboardAnalysis,
@@ -365,7 +368,7 @@ export function useClipboardContext(options: UseClipboardContextOptions = {}) {
           }
           break;
         default:
-          console.log('Action not implemented:', actionId);
+          log.debug('Action not implemented', { actionId });
       }
     },
     [store, quickTransform]

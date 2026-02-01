@@ -29,6 +29,8 @@ export type SettingsSection =
   | 'safety'
   | 'observability'
   | 'tray'
-  | 'agent-optimization';
+  | 'agent-optimization'
+  | 'logs'
+  | 'logging-config';
 
 export type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';

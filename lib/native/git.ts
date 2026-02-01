@@ -11,6 +11,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauri } from './utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 import type {
   GitStatus,
   GitRepoInfo,
@@ -899,7 +902,7 @@ export async function listCredentials(): Promise<GitCredential[]> {
   try {
     return await invoke<GitCredential[]>('git_list_credentials');
   } catch (error) {
-    console.error('Failed to list Git credentials:', error);
+    log.error('Failed to list Git credentials', error as Error);
     return [];
   }
 }
@@ -933,7 +936,7 @@ export async function detectSshKeys(): Promise<SshKeyInfo[]> {
   try {
     return await invoke<SshKeyInfo[]>('git_detect_ssh_keys');
   } catch (error) {
-    console.error('Failed to detect SSH keys:', error);
+    log.error('Failed to detect SSH keys', error as Error);
     return [];
   }
 }

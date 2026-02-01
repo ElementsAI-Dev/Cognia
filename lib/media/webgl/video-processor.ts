@@ -6,6 +6,9 @@
  */
 
 import { VERTEX_SHADER, getFragmentShader, type ShaderType } from './video-shaders';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 /**
  * Shader program with uniform locations
@@ -71,7 +74,7 @@ export class WebGLVideoProcessor {
       }) as WebGLRenderingContext | null;
 
       if (!this.gl) {
-        console.error('WebGL not supported');
+        log.error('WebGL not supported');
         return false;
       }
 
@@ -84,7 +87,7 @@ export class WebGLVideoProcessor {
       this.isInitialized = true;
       return true;
     } catch (error) {
-      console.error('Failed to initialize WebGL:', error);
+      log.error('Failed to initialize WebGL', error as Error);
       return false;
     }
   }
@@ -170,7 +173,7 @@ export class WebGLVideoProcessor {
     this.gl.compileShader(vertexShader);
 
     if (!this.gl.getShaderParameter(vertexShader, this.gl.COMPILE_STATUS)) {
-      console.error('Vertex shader compilation failed:', this.gl.getShaderInfoLog(vertexShader));
+      log.error(`Vertex shader compilation failed: ${this.gl.getShaderInfoLog(vertexShader)}`);
       return null;
     }
 
@@ -181,7 +184,7 @@ export class WebGLVideoProcessor {
     this.gl.compileShader(fragmentShader);
 
     if (!this.gl.getShaderParameter(fragmentShader, this.gl.COMPILE_STATUS)) {
-      console.error('Fragment shader compilation failed:', this.gl.getShaderInfoLog(fragmentShader));
+      log.error(`Fragment shader compilation failed: ${this.gl.getShaderInfoLog(fragmentShader)}`);
       return null;
     }
 
@@ -193,7 +196,7 @@ export class WebGLVideoProcessor {
     this.gl.linkProgram(program);
 
     if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
-      console.error('Program linking failed:', this.gl.getProgramInfoLog(program));
+      log.error(`Program linking failed: ${this.gl.getProgramInfoLog(program)}`);
       return null;
     }
 

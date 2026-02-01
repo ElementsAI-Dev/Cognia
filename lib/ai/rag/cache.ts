@@ -13,6 +13,9 @@
  */
 
 import type { RAGPipelineContext } from './rag-pipeline';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface RAGCacheConfig {
   maxSize: number;
@@ -263,7 +266,7 @@ export class RAGQueryCache {
         this.db = await this.openDatabase();
         await this.loadFromIndexedDB();
       } catch (error) {
-        console.warn('Failed to initialize IndexedDB for RAG cache:', error);
+        log.warn('Failed to initialize IndexedDB for RAG cache', { error: String(error) });
       }
     }
 
@@ -359,7 +362,7 @@ export class RAGQueryCache {
 
     // Persist to IndexedDB in background
     if (this.config.persistToIndexedDB && this.db) {
-      this.saveToIndexedDB().catch(console.warn);
+      this.saveToIndexedDB().catch((e) => log.warn('Failed to save to IndexedDB', { error: String(e) }));
     }
   }
 
@@ -370,7 +373,7 @@ export class RAGQueryCache {
     const count = this.cache.invalidateCollection(collectionName);
 
     if (this.config.persistToIndexedDB && this.db && count > 0) {
-      this.saveToIndexedDB().catch(console.warn);
+      this.saveToIndexedDB().catch((e) => log.warn('Failed to save to IndexedDB', { error: e }));
     }
 
     return count;
@@ -384,7 +387,7 @@ export class RAGQueryCache {
     const deleted = this.cache.delete(key);
 
     if (this.config.persistToIndexedDB && this.db && deleted) {
-      this.saveToIndexedDB().catch(console.warn);
+      this.saveToIndexedDB().catch((e) => log.warn('Failed to save to IndexedDB', { error: e }));
     }
 
     return deleted;
@@ -406,7 +409,7 @@ export class RAGQueryCache {
           transaction.onerror = () => reject(transaction.error);
         });
       } catch (error) {
-        console.warn('Failed to clear IndexedDB cache:', error);
+        log.warn('Failed to clear IndexedDB cache', { error: String(error) });
       }
     }
   }
@@ -446,7 +449,7 @@ export class RAGQueryCache {
     const count = this.cache.clearExpired();
 
     if (this.config.persistToIndexedDB && this.db && count > 0) {
-      this.saveToIndexedDB().catch(console.warn);
+      this.saveToIndexedDB().catch((e) => log.warn('Failed to save to IndexedDB', { error: e }));
     }
 
     return count;

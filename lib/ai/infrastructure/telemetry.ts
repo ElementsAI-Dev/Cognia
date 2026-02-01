@@ -8,6 +8,10 @@
  * https://ai-sdk.dev/docs/ai-sdk-core/telemetry
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
+
 /**
  * Telemetry configuration for AI SDK functions
  */
@@ -192,7 +196,7 @@ export function createConsoleTelemetryCollector(options?: {
   logLevel?: 'debug' | 'info' | 'warn';
 }): TelemetryCollector {
   const { prefix = '[AI Telemetry]', logLevel = 'info' } = options || {};
-  const logger = logLevel === 'debug' ? console.debug : logLevel === 'warn' ? console.warn : console.log;
+  const logger = logLevel === 'debug' ? log.debug.bind(log) : logLevel === 'warn' ? log.warn.bind(log) : log.info.bind(log);
   const spans: TelemetrySpanData[] = [];
 
   return {
@@ -230,7 +234,7 @@ export function createConsoleTelemetryCollector(options?: {
           spanData.duration = spanData.endTime - spanData.startTime;
           spanData.status = 'error';
           spanData.error = error;
-          console.error(`${prefix} Error: ${operationId} (${spanData.duration}ms)`, error);
+          log.error(`${prefix} Error: ${operationId} (${spanData.duration}ms)`, error as Error);
         },
       };
     },

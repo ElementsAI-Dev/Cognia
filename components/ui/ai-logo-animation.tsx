@@ -2,29 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import * as React from 'react';
-
-// Safe theme hook that doesn't throw when used outside provider
-function useSafeTheme() {
-  const [resolvedTheme, setResolvedTheme] = React.useState<'dark' | 'light'>('dark');
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isDark = document.documentElement.classList.contains('dark') ||
-        window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setResolvedTheme(isDark ? 'dark' : 'light');
-
-      const observer = new MutationObserver(() => {
-        const isDark = document.documentElement.classList.contains('dark');
-        setResolvedTheme(isDark ? 'dark' : 'light');
-      });
-      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-      return () => observer.disconnect();
-    }
-  }, []);
-
-  return { resolvedTheme };
-}
+import { useSafeTheme } from '@/hooks/ui/use-safe-theme';
+import { getThemeColors } from '@/lib/constants/splash-theme';
 
 interface AILogoAnimationProps {
   className?: string;
@@ -37,17 +16,6 @@ interface AILogoAnimationProps {
   /** Whether the animation is playing */
   isAnimating?: boolean;
 }
-
-// Theme-aware color defaults
-const LIGHT_THEME_COLORS = {
-  primary: '#3b82f6',    // Blue
-  secondary: '#8b5cf6',  // Purple
-};
-
-const DARK_THEME_COLORS = {
-  primary: '#60a5fa',    // Lighter blue for dark mode
-  secondary: '#a78bfa',  // Lighter purple for dark mode
-};
 
 /**
  * Animated AI Logo Component
@@ -68,7 +36,7 @@ export function AILogoAnimation({
   const { resolvedTheme } = useSafeTheme();
 
   // Use theme-aware colors with optional overrides
-  const themeColors = resolvedTheme === 'dark' ? DARK_THEME_COLORS : LIGHT_THEME_COLORS;
+  const themeColors = getThemeColors(resolvedTheme);
   const effectivePrimaryColor = primaryColor ?? themeColors.primary;
   const effectiveSecondaryColor = secondaryColor ?? themeColors.secondary;
   const nodePositions = [

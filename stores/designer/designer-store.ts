@@ -1,8 +1,10 @@
 /**
  * Designer Store - manages V0-style web page designer state
+ * Enhanced with persistence for user preferences
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type {
   DesignerElement,
@@ -10,6 +12,21 @@ import type {
   DesignerMode,
   DesignerHistoryEntry,
 } from '@/types/designer';
+
+// Panel layout configuration
+export interface PanelLayout {
+  elementTreeSize: number;
+  previewSize: number;
+  stylePanelSize: number;
+  historyPanelSize: number;
+}
+
+export const DEFAULT_PANEL_LAYOUT: PanelLayout = {
+  elementTreeSize: 20,
+  previewSize: 55,
+  stylePanelSize: 25,
+  historyPanelSize: 20,
+};
 
 interface DesignerState {
   // Mode
@@ -43,7 +60,18 @@ interface DesignerState {
   showElementTree: boolean;
   showStylePanel: boolean;
   showHistoryPanel: boolean;
+  showAIPanel: boolean;
   activeStyleCategory: string;
+  
+  // Style panel expanded categories (persisted)
+  expandedStyleCategories: string[];
+  
+  // Panel layout sizes (persisted)
+  panelLayout: PanelLayout;
+  
+  // Mobile layout mode
+  isMobileLayout: boolean;
+  mobileActiveTab: 'preview' | 'code' | 'elements' | 'styles';
 }
 
 interface DesignerActions {
@@ -89,7 +117,20 @@ interface DesignerActions {
   toggleElementTree: () => void;
   toggleStylePanel: () => void;
   toggleHistoryPanel: () => void;
+  toggleAIPanel: () => void;
   setActiveStyleCategory: (category: string) => void;
+  
+  // Style panel expanded categories
+  setExpandedStyleCategories: (categories: string[]) => void;
+  toggleStyleCategory: (category: string) => void;
+  
+  // Panel layout
+  setPanelLayout: (layout: Partial<PanelLayout>) => void;
+  resetPanelLayout: () => void;
+  
+  // Mobile layout
+  setMobileLayout: (isMobile: boolean) => void;
+  setMobileActiveTab: (tab: 'preview' | 'code' | 'elements' | 'styles') => void;
 
   // Reset
   reset: () => void;
@@ -112,7 +153,12 @@ const initialState: DesignerState = {
   showElementTree: true,
   showStylePanel: true,
   showHistoryPanel: false,
+  showAIPanel: false,
   activeStyleCategory: 'layout',
+  expandedStyleCategories: ['layout'],
+  panelLayout: DEFAULT_PANEL_LAYOUT,
+  isMobileLayout: false,
+  mobileActiveTab: 'preview',
 };
 
 // Helper to build element map from tree
@@ -245,7 +291,9 @@ function cloneElementWithNewIds(
   };
 }
 
-export const useDesignerStore = create<DesignerState & DesignerActions>()((set, get) => ({
+export const useDesignerStore = create<DesignerState & DesignerActions>()(
+  persist(
+    (set, get) => ({
   ...initialState,
 
   // Mode
@@ -520,11 +568,50 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()((set, 
   toggleElementTree: () => set((state) => ({ showElementTree: !state.showElementTree })),
   toggleStylePanel: () => set((state) => ({ showStylePanel: !state.showStylePanel })),
   toggleHistoryPanel: () => set((state) => ({ showHistoryPanel: !state.showHistoryPanel })),
+  toggleAIPanel: () => set((state) => ({ showAIPanel: !state.showAIPanel })),
   setActiveStyleCategory: (category) => set({ activeStyleCategory: category }),
+  
+  // Style panel expanded categories
+  setExpandedStyleCategories: (categories) => set({ expandedStyleCategories: categories }),
+  toggleStyleCategory: (category) =>
+    set((state) => ({
+      expandedStyleCategories: state.expandedStyleCategories.includes(category)
+        ? state.expandedStyleCategories.filter((c) => c !== category)
+        : [...state.expandedStyleCategories, category],
+    })),
+  
+  // Panel layout
+  setPanelLayout: (layout) =>
+    set((state) => ({
+      panelLayout: { ...state.panelLayout, ...layout },
+    })),
+  resetPanelLayout: () => set({ panelLayout: DEFAULT_PANEL_LAYOUT }),
+  
+  // Mobile layout
+  setMobileLayout: (isMobile) => set({ isMobileLayout: isMobile }),
+  setMobileActiveTab: (tab) => set({ mobileActiveTab: tab }),
 
   // Reset
   reset: () => set(initialState),
-}));
+    }),
+    {
+      name: 'cognia-designer',
+      partialize: (state) => ({
+        // Only persist user preferences, not transient state
+        mode: state.mode,
+        viewport: state.viewport,
+        zoom: state.zoom,
+        showElementTree: state.showElementTree,
+        showStylePanel: state.showStylePanel,
+        showHistoryPanel: state.showHistoryPanel,
+        showAIPanel: state.showAIPanel,
+        activeStyleCategory: state.activeStyleCategory,
+        expandedStyleCategories: state.expandedStyleCategories,
+        panelLayout: state.panelLayout,
+      }),
+    }
+  )
+);
 
 // Convert element tree back to React/HTML code
 function elementTreeToCode(element: DesignerElement, originalCode: string): string {

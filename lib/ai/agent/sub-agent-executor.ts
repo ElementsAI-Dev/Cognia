@@ -26,6 +26,9 @@ import {
   type CancellationToken,
   type SubAgentTokenUsage,
 } from '@/types/agent/sub-agent';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.agent;
 
 /**
  * Execution metrics collector for analytics
@@ -115,7 +118,7 @@ function evaluateCondition(
   }
 
   // Default to true for unrecognized conditions (safe fallback)
-  console.warn(`Unrecognized condition format: ${condition}, defaulting to true`);
+  log.warn('Unrecognized condition format, defaulting to true', { condition });
   return true;
 }
 
@@ -326,7 +329,7 @@ export async function summarizeSubAgentResult(
     return summaryResult.text || originalResponse.slice(0, maxTokens * 4);
   } catch (error) {
     // Fallback to simple truncation if summarization fails
-    console.warn('[SubAgent] Result summarization failed, using truncation:', error);
+    log.warn('Result summarization failed, using truncation', { error: String(error) });
     return originalResponse.slice(0, maxTokens * 4) + '\n\n[Result truncated for context efficiency]';
   }
 }

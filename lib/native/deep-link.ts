@@ -4,6 +4,9 @@
  */
 
 import { isTauri } from './utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface DeepLinkResult {
   success: boolean;
@@ -64,7 +67,7 @@ export async function onDeepLinkOpen(
     });
     return unlisten;
   } catch (error) {
-    console.error('Failed to register deep link listener:', error);
+    log.error('Failed to register deep link listener', error as Error);
     return null;
   }
 }
@@ -192,7 +195,7 @@ export function unregisterHandler(action: string): void {
 export async function handleDeepLink(url: string): Promise<boolean> {
   const parsed = parseDeepLink(url);
   if (!parsed) {
-    console.warn('Invalid deep link URL:', url);
+    log.warn('Invalid deep link URL', { url });
     return false;
   }
 
@@ -202,7 +205,7 @@ export async function handleDeepLink(url: string): Promise<boolean> {
     return true;
   }
 
-  console.warn('No handler registered for deep link action:', parsed.action);
+  log.warn('No handler registered for deep link action', { action: parsed.action });
   return false;
 }
 

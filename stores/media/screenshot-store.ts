@@ -8,6 +8,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/lib/native/utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 // ============== Types ==============
 
@@ -441,7 +444,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 
           set({ history: transformedHistory, pinnedCount });
         } catch (error) {
-          console.error('Failed to refresh history:', error);
+          log.error('Failed to refresh history', error as Error);
         }
       },
 
@@ -468,7 +471,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 
           return results.map(transformHistoryEntry);
         } catch (error) {
-          console.error('Failed to search history:', error);
+          log.error('Failed to search history', error as Error);
           return [];
         }
       },
@@ -556,7 +559,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         try {
           return await invoke<string>('screenshot_ocr', { imageBase64 });
         } catch (error) {
-          console.error('OCR failed:', error);
+          log.error('OCR failed', error as Error);
           return '';
         }
       },
@@ -579,7 +582,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
               },
             });
           } catch (error) {
-            console.error('Failed to update config:', error);
+            log.error('Failed to update config', error as Error);
           }
         }
       },
@@ -607,7 +610,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 
           set({ monitors: monitors.map(transformMonitorInfo) });
         } catch (error) {
-          console.error('Failed to refresh monitors:', error);
+          log.error('Failed to refresh monitors', error as Error);
         }
       },
 

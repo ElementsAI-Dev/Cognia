@@ -10,6 +10,9 @@
 
 import { testProviderConnection } from './api-test';
 import { circuitBreakerRegistry, type CircuitState } from './circuit-breaker';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export type AvailabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unknown';
 
@@ -394,7 +397,7 @@ export class AvailabilityMonitor {
       try {
         listener(event);
       } catch (error) {
-        console.error('[AvailabilityMonitor] Event listener error:', error);
+        log.error('AvailabilityMonitor event listener error', error as Error);
       }
     });
   }

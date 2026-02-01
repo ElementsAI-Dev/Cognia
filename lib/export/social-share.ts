@@ -5,6 +5,9 @@
  */
 
 import type { UIMessage, Session } from '@/types';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 export type SocialPlatform = 
   | 'twitter' 
@@ -266,7 +269,7 @@ export async function copyToClipboard(
     }
     return true;
   } catch (error) {
-    console.error('Failed to copy to clipboard:', error);
+    log.error('Failed to copy to clipboard', error as Error);
     
     // Fallback for older browsers
     try {
@@ -298,7 +301,7 @@ export async function copyImageToClipboard(blob: Blob): Promise<boolean> {
     await navigator.clipboard.write([clipboardItem]);
     return true;
   } catch (error) {
-    console.error('Failed to copy image to clipboard:', error);
+    log.error('Failed to copy image to clipboard', error as Error);
     return false;
   }
 }
@@ -324,7 +327,7 @@ export async function generateWeChatQRCode(
     });
     return dataUrl;
   } catch (error) {
-    console.error('Failed to generate QR code:', error);
+    log.error('Failed to generate QR code', error as Error);
     throw error;
   }
 }
@@ -423,7 +426,7 @@ export async function nativeShare(options: {
     return true;
   } catch (error) {
     if ((error as Error).name !== 'AbortError') {
-      console.error('Share failed:', error);
+      log.error('Share failed', error as Error);
     }
     return false;
   }

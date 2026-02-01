@@ -22,7 +22,8 @@
     "clear": "Clear",
     "dismiss": "Dismiss",
     "configured": "Configured",
-    "create": "Create"
+    "create": "Create",
+    "viewAll": "View All"
   },
   "platformWarning": {
     "notSupported": "{feature} is only available on {platforms}",
@@ -187,7 +188,10 @@
     "almostReady": "Almost ready...",
     "ready": "Ready!",
     "appName": "Cognia",
-    "appDescription": "AI Chat Assistant"
+    "appDescription": "AI Chat Assistant",
+    "skipLoading": "Skip",
+    "errorInit": "Initialization failed",
+    "retry": "Retry"
   },
   "debug": {
     "tools": "Debug Tools",

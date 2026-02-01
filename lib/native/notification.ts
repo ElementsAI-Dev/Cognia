@@ -3,6 +3,9 @@
  */
 
 import { isTauri } from './utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface NotificationOptions {
   title: string;
@@ -85,7 +88,7 @@ export async function sendNotification(options: NotificationOptions): Promise<bo
     await tauriNotify(notifOptions);
     return true;
   } catch (error) {
-    console.error('Failed to send notification:', error);
+    log.error('Failed to send notification', error as Error);
     return false;
   }
 }

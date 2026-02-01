@@ -417,27 +417,28 @@ export function LogViewer({
   return (
     <Card className={cn('flex flex-col', className)}>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <CardTitle className="text-lg font-semibold">Application Logs</CardTitle>
+            <CardTitle className="text-base sm:text-lg font-semibold">Application Logs</CardTitle>
             {stats && (
-              <Badge variant="secondary" className="font-mono">
-                {stats.total.toLocaleString()} entries
+              <Badge variant="secondary" className="font-mono text-xs">
+                {stats.total.toLocaleString()}
               </Badge>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 mr-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mr-1 sm:mr-2">
                     <Switch
                       id="auto-refresh"
                       checked={autoRefresh}
                       onCheckedChange={setAutoRefresh}
+                      className="scale-90 sm:scale-100"
                     />
-                    <Label htmlFor="auto-refresh" className="text-xs text-muted-foreground cursor-pointer">
+                    <Label htmlFor="auto-refresh" className="text-xs text-muted-foreground cursor-pointer hidden sm:block">
                       {autoRefresh ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
                     </Label>
                   </div>
@@ -448,7 +449,7 @@ export function LogViewer({
               </Tooltip>
             </TooltipProvider>
 
-            <Separator orientation="vertical" className="h-6" />
+            <Separator orientation="vertical" className="h-4 sm:h-6 hidden sm:block" />
 
             <TooltipProvider>
               <Tooltip>
@@ -504,8 +505,9 @@ export function LogViewer({
 
       <CardContent className="pt-0 space-y-4">
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
+          {/* Search - full width on mobile */}
+          <div className="relative w-full sm:flex-1 sm:min-w-[180px] sm:max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search logs..."
@@ -525,10 +527,12 @@ export function LogViewer({
             )}
           </div>
 
-          <Select value={levelFilter} onValueChange={(v) => setLevelFilter(v as LogLevel | 'all')}>
-            <SelectTrigger className="w-[130px] h-9">
-              <SelectValue placeholder="Level" />
-            </SelectTrigger>
+          {/* Filter row - horizontal scroll on mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0">
+            <Select value={levelFilter} onValueChange={(v) => setLevelFilter(v as LogLevel | 'all')}>
+              <SelectTrigger className="w-[110px] sm:w-[130px] h-9 shrink-0">
+                <SelectValue placeholder="Level" />
+              </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Levels</SelectItem>
               {Object.entries(LEVEL_CONFIG).map(([level, config]) => {
@@ -545,44 +549,46 @@ export function LogViewer({
             </SelectContent>
           </Select>
 
-          <Select value={moduleFilter} onValueChange={setModuleFilter}>
-            <SelectTrigger className="w-[150px] h-9">
-              <SelectValue placeholder="Module" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Modules</SelectItem>
-              {modules.map((mod) => (
-                <SelectItem key={mod} value={mod}>
-                  {mod}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={moduleFilter} onValueChange={setModuleFilter}>
+              <SelectTrigger className="w-[120px] sm:w-[150px] h-9 shrink-0">
+                <SelectValue placeholder="Module" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Modules</SelectItem>
+                {modules.map((mod) => (
+                  <SelectItem key={mod} value={mod}>
+                    {mod}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select
-            value={String(filter.limit)}
-            onValueChange={(v) => setFilter((f) => ({ ...f, limit: parseInt(v) }))}
-          >
-            <SelectTrigger className="w-[100px] h-9">
-              <SelectValue placeholder="Limit" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
-              <SelectItem value="500">500</SelectItem>
-              <SelectItem value="1000">1000</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select
+              value={String(filter.limit)}
+              onValueChange={(v) => setFilter((f) => ({ ...f, limit: parseInt(v) }))}
+            >
+              <SelectTrigger className="w-[80px] sm:w-[100px] h-9 shrink-0">
+                <SelectValue placeholder="Limit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="500">500</SelectItem>
+                <SelectItem value="1000">1000</SelectItem>
+              </SelectContent>
+            </Select>
 
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs">
-              <X className="h-3 w-3 mr-1" />
-              Clear
-            </Button>
-          )}
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs shrink-0">
+                <X className="h-3 w-3 mr-1" />
+                <span className="hidden sm:inline">Clear</span>
+              </Button>
+            )}
+          </div>
 
-          <div className="flex items-center gap-2 ml-auto">
-            <Switch id="auto-scroll" checked={autoScroll} onCheckedChange={setAutoScroll} />
+          {/* Auto-scroll toggle */}
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <Switch id="auto-scroll" checked={autoScroll} onCheckedChange={setAutoScroll} className="scale-90 sm:scale-100" />
             <Label htmlFor="auto-scroll" className="text-xs text-muted-foreground">
               Auto-scroll
             </Label>

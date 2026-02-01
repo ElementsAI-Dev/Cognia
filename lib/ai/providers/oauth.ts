@@ -4,6 +4,9 @@
  */
 
 import { nanoid } from 'nanoid';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 // PKCE Challenge Generation
 export function generateCodeVerifier(): string {
@@ -162,7 +165,7 @@ export async function exchangeCodeForApiKey(
       expiresAt: data.expiresAt,
     };
   } catch (error) {
-    console.error('OAuth exchange failed:', error);
+    log.error('OAuth exchange failed', error as Error);
     return null;
   }
 }

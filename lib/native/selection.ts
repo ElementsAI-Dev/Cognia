@@ -392,3 +392,54 @@ export async function autoExpand(
 export async function getSelectionModes(): Promise<string[]> {
   return invoke("selection_get_modes");
 }
+
+// ============== Detection State Functions ==============
+
+/**
+ * Get time since last successful detection in milliseconds
+ */
+export async function getTimeSinceLastDetection(): Promise<number | null> {
+  return invoke("selection_time_since_last_detection");
+}
+
+/**
+ * Get the last detected text
+ */
+export async function getLastText(): Promise<string | null> {
+  return invoke("selection_get_last_text");
+}
+
+/**
+ * Clear the last detected text
+ */
+export async function clearLastText(): Promise<void> {
+  return invoke("selection_clear_last_text");
+}
+
+export interface Selection {
+  text: string;
+  text_before?: string;
+  text_after?: string;
+  is_code: boolean;
+  language?: string;
+  is_url: boolean;
+  is_email: boolean;
+  has_numbers: boolean;
+  word_count: number;
+  char_count: number;
+  line_count: number;
+  text_type: string;
+  source_app?: {
+    name: string;
+    process: string;
+    window_title: string;
+    app_type: string;
+  };
+}
+
+/**
+ * Get last analyzed selection with full context
+ */
+export async function getLastSelection(): Promise<Selection | null> {
+  return invoke("selection_get_last_selection");
+}

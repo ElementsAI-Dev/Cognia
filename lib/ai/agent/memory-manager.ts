@@ -10,6 +10,9 @@
  */
 
 import { nanoid } from 'nanoid';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 export interface MemoryEntry {
   id: string;
@@ -130,7 +133,7 @@ export class MemoryManager {
       const data = JSON.stringify(entries);
       localStorage.setItem(this.config.persistenceKey, data);
     } catch (error) {
-      console.warn('Failed to save memory to persistence:', error);
+      log.warn('Failed to save memory to persistence', { error });
     }
   }
 
@@ -159,7 +162,7 @@ export class MemoryManager {
         );
       }
     } catch (error) {
-      console.warn('Failed to load memory from persistence:', error);
+      log.warn('Failed to load memory from persistence', { error });
     }
   }
 

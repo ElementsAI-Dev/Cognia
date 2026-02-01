@@ -2,6 +2,10 @@
  * Database Utilities
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
+
 const MAX_RETRIES = 5;
 const BASE_DELAY = 100; // ms
 
@@ -43,7 +47,7 @@ export async function withRetry<T>(
         2000 // Max delay of 2s
       );
 
-      console.warn(
+      log.warn(
         `${operationName} failed (attempt ${attempt + 1}/${MAX_RETRIES}): ${errorMessage}. Retrying in ${delay.toFixed(0)}ms...`
       );
 

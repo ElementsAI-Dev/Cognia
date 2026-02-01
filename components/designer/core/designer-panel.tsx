@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/dialog';
 import { DesignerDndProvider, SelectionOverlay } from '../dnd';
 import { AIChatPanel } from '../ai/ai-chat-panel';
+import { createEditorOptions, getMonacoTheme } from '@/lib/monaco';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -79,6 +80,7 @@ export function DesignerPanel({
   // Settings for built-in AI
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultProvider = useSettingsStore((state) => state.defaultProvider);
+  const theme = useSettingsStore((state) => state.theme);
 
   // Canvas integration
   const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
@@ -289,19 +291,18 @@ export function DesignerPanel({
               <MonacoEditor
                 height="100%"
                 language="typescript"
-                theme="vs-dark"
+                theme={getMonacoTheme(theme)}
                 value={code}
                 onChange={handleCodeChange}
-                options={{
+                options={createEditorOptions('code', {
                   minimap: { enabled: false },
-                  fontSize: 13,
-                  lineNumbers: 'on',
-                  scrollBeyondLastLine: false,
-                  wordWrap: 'on',
-                  automaticLayout: true,
-                  tabSize: 2,
-                  padding: { top: 16, bottom: 16 },
-                }}
+                  stickyScroll: { enabled: true, maxLineCount: 5 },
+                  bracketPairColorization: { enabled: true },
+                  guides: { indentation: true, bracketPairs: true },
+                  inlineSuggest: { enabled: true },
+                  formatOnPaste: true,
+                  formatOnType: true,
+                })}
               />
             ) : (
               // Design/Preview view with panels

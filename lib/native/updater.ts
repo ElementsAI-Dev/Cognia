@@ -3,6 +3,9 @@
  */
 
 import { isTauri } from './utils';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export interface UpdateInfo {
   available: boolean;
@@ -52,7 +55,7 @@ export async function checkForUpdates(): Promise<UpdateInfo> {
       return { available: false };
     }
 
-    console.error('Failed to check for updates:', error);
+    log.error('Failed to check for updates', error as Error);
     return { available: false };
   }
 }
@@ -71,7 +74,7 @@ export async function downloadAndInstallUpdate(
     
     const update = await check();
     if (!update) {
-      console.log('No update available');
+      log.info('No update available');
       return false;
     }
 
@@ -109,7 +112,7 @@ export async function downloadAndInstallUpdate(
     await relaunch();
     return true;
   } catch (error) {
-    console.error('Failed to download and install update:', error);
+    log.error('Failed to download and install update', error as Error);
     return false;
   }
 }

@@ -3,8 +3,8 @@
 //! Commands for system awareness and smart suggestions.
 
 use crate::awareness::{
-    ActivityType, AppUsageStats, AwarenessManager, AwarenessState, DailyUsageSummary, FocusSession,
-    Suggestion, SystemState, UserActivity,
+    activity_tracker::ActivityStats, ActivityType, AppUsageStats, AwarenessManager, AwarenessState,
+    DailyUsageSummary, FocusSession, Suggestion, SystemState, UserActivity,
 };
 use tauri::State;
 
@@ -207,6 +207,136 @@ pub async fn awareness_clear_focus_history(
     Ok(())
 }
 
+// ============== Activity Tracker Extended Commands ==============
+
+/// Get activities by type
+#[tauri::command]
+pub async fn awareness_get_activities_by_type(
+    manager: State<'_, AwarenessManager>,
+    activity_type: String,
+) -> Result<Vec<UserActivity>, String> {
+    let parsed_type = parse_activity_type(&activity_type);
+    Ok(manager.get_activities_by_type(&parsed_type))
+}
+
+/// Get activities in time range
+#[tauri::command]
+pub async fn awareness_get_activities_in_range(
+    manager: State<'_, AwarenessManager>,
+    start_ms: i64,
+    end_ms: i64,
+) -> Result<Vec<UserActivity>, String> {
+    Ok(manager.get_activities_in_range(start_ms, end_ms))
+}
+
+/// Get activities by application
+#[tauri::command]
+pub async fn awareness_get_activities_by_application(
+    manager: State<'_, AwarenessManager>,
+    app_name: String,
+) -> Result<Vec<UserActivity>, String> {
+    Ok(manager.get_activities_by_application(&app_name))
+}
+
+/// Get activity statistics
+#[tauri::command]
+pub async fn awareness_get_activity_stats(
+    manager: State<'_, AwarenessManager>,
+) -> Result<ActivityStats, String> {
+    Ok(manager.get_activity_stats())
+}
+
+/// Set activity tracking enabled/disabled
+#[tauri::command]
+pub async fn awareness_set_activity_tracking_enabled(
+    manager: State<'_, AwarenessManager>,
+    enabled: bool,
+) -> Result<(), String> {
+    manager.set_activity_tracking_enabled(enabled);
+    Ok(())
+}
+
+/// Check if activity tracking is enabled
+#[tauri::command]
+pub async fn awareness_is_activity_tracking_enabled(
+    manager: State<'_, AwarenessManager>,
+) -> Result<bool, String> {
+    Ok(manager.is_activity_tracking_enabled())
+}
+
+/// Export activity history as JSON
+#[tauri::command]
+pub async fn awareness_export_activity_history(
+    manager: State<'_, AwarenessManager>,
+) -> Result<String, String> {
+    Ok(manager.export_activity_history())
+}
+
+/// Import activity history from JSON
+#[tauri::command]
+pub async fn awareness_import_activity_history(
+    manager: State<'_, AwarenessManager>,
+    json: String,
+) -> Result<usize, String> {
+    manager.import_activity_history(&json)
+}
+
+// ============== Smart Suggestions Extended Commands ==============
+
+/// Dismiss a suggestion
+#[tauri::command]
+pub async fn awareness_dismiss_suggestion(
+    manager: State<'_, AwarenessManager>,
+    action: String,
+) -> Result<(), String> {
+    manager.dismiss_suggestion(&action);
+    Ok(())
+}
+
+/// Clear all dismissed suggestions
+#[tauri::command]
+pub async fn awareness_clear_dismissed_suggestions(
+    manager: State<'_, AwarenessManager>,
+) -> Result<(), String> {
+    manager.clear_dismissed_suggestions();
+    Ok(())
+}
+
+/// Check if a suggestion is dismissed
+#[tauri::command]
+pub async fn awareness_is_suggestion_dismissed(
+    manager: State<'_, AwarenessManager>,
+    action: String,
+) -> Result<bool, String> {
+    Ok(manager.is_suggestion_dismissed(&action))
+}
+
+/// Get list of dismissed suggestions
+#[tauri::command]
+pub async fn awareness_get_dismissed_suggestions(
+    manager: State<'_, AwarenessManager>,
+) -> Result<Vec<String>, String> {
+    Ok(manager.get_dismissed_suggestions())
+}
+
+// ============== Focus Tracker Extended Commands ==============
+
+/// Get all focus sessions
+#[tauri::command]
+pub async fn awareness_get_all_focus_sessions(
+    manager: State<'_, AwarenessManager>,
+) -> Result<Vec<FocusSession>, String> {
+    Ok(manager.get_all_focus_sessions())
+}
+
+/// Get focus session count
+#[tauri::command]
+pub async fn awareness_get_focus_session_count(
+    manager: State<'_, AwarenessManager>,
+) -> Result<usize, String> {
+    Ok(manager.get_focus_session_count())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -362,5 +492,43 @@ mod tests {
             parse_activity_type("SEARCH"),
             ActivityType::Search
         ));
+    }
+
+    // ============== Extended Command Tests ==============
+
+    #[test]
+    fn test_parse_activity_type_all_variants() {
+        // Test all activity types
+        let types = vec![
+            ("text_selection", true),
+            ("screenshot", true),
+            ("app_switch", true),
+            ("file_open", true),
+            ("file_save", true),
+            ("url_visit", true),
+            ("search", true),
+            ("copy", true),
+            ("paste", true),
+            ("ai_query", true),
+            ("translation", true),
+            ("code_action", true),
+            ("document_action", true),
+        ];
+
+        for (input, _) in types {
+            let result = parse_activity_type(input);
+            // Verify it doesn't return Custom for known types
+            assert!(
+                !matches!(result, ActivityType::Custom(_)),
+                "Expected known type for {}",
+                input
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_activity_type_custom_fallback() {
+        let result = parse_activity_type("unknown_type_xyz");
+        assert!(matches!(result, ActivityType::Custom(s) if s == "unknown_type_xyz"));
     }
 }

@@ -4,6 +4,9 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 export interface UsePersistentStorageReturn {
   /** Whether persistent storage is granted */
@@ -45,7 +48,7 @@ export function usePersistentStorage(): UsePersistentStorageReturn {
       const persisted = await navigator.storage.persisted();
       setIsPersistent(persisted);
     } catch (error) {
-      console.warn('Failed to check persistent storage:', error);
+      log.warn('Failed to check persistent storage', { error });
     } finally {
       setIsChecking(false);
     }
@@ -64,14 +67,14 @@ export function usePersistentStorage(): UsePersistentStorageReturn {
       setIsPersistent(granted);
       
       if (granted) {
-        console.log('[Storage] Persistent storage granted');
+        log.info('Storage: Persistent storage granted');
       } else {
-        console.log('[Storage] Persistent storage denied');
+        log.info('Storage: Persistent storage denied');
       }
       
       return granted;
     } catch (error) {
-      console.error('Failed to request persistent storage:', error);
+      log.error('Failed to request persistent storage', error as Error);
       return false;
     }
   }, []);
@@ -95,7 +98,7 @@ export function usePersistentStorage(): UsePersistentStorageReturn {
         usagePercent: quota > 0 ? (usage / quota) * 100 : 0,
       });
     } catch (error) {
-      console.warn('Failed to get storage estimate:', error);
+      log.warn('Failed to get storage estimate', { error });
     }
   }, []);
 
@@ -138,11 +141,11 @@ export async function requestPersistentStorage(): Promise<boolean> {
 
     const granted = await navigator.storage.persist();
     if (granted) {
-      console.log('[Storage] Persistent storage granted');
+      log.info('Storage: Persistent storage granted');
     }
     return granted;
   } catch (error) {
-    console.error('Failed to request persistent storage:', error);
+    log.error('Failed to request persistent storage', error as Error);
     return false;
   }
 }

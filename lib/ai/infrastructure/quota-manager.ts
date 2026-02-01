@@ -8,6 +8,10 @@
  * - Usage history and reporting
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
+
 export interface QuotaLimits {
   /** Maximum requests per day */
   maxRequestsPerDay?: number;
@@ -503,7 +507,7 @@ export class QuotaManager {
         });
       }
     } catch (error) {
-      console.warn('[QuotaManager] Failed to load from storage:', error);
+      log.warn('QuotaManager failed to load from storage', { error: String(error) });
     }
   }
 
@@ -525,7 +529,7 @@ export class QuotaManager {
       });
       localStorage.setItem(`${this.config.storageKeyPrefix}limits`, JSON.stringify(limitsObj));
     } catch (error) {
-      console.warn('[QuotaManager] Failed to save to storage:', error);
+      log.warn('QuotaManager failed to save to storage', { error: String(error) });
     }
   }
 }

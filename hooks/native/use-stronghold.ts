@@ -4,6 +4,9 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 // Check if we're in a Tauri environment (evaluated at runtime)
 const checkIsTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -59,7 +62,7 @@ export function useStronghold(): UseStrongholdReturn {
 
   const initialize = useCallback(async (password: string): Promise<boolean> => {
     if (!checkIsTauri()) {
-      console.warn('Stronghold is only available in Tauri environment');
+      log.warn('Stronghold is only available in Tauri environment');
       return false;
     }
 
@@ -80,7 +83,7 @@ export function useStronghold(): UseStrongholdReturn {
 
       return success;
     } catch (err) {
-      console.error('Failed to initialize Stronghold:', err);
+      log.error('Failed to initialize Stronghold', err as Error);
       setState({
         isInitialized: false,
         isLoading: false,
@@ -103,7 +106,7 @@ export function useStronghold(): UseStrongholdReturn {
         isLocked: true,
       });
     } catch (err) {
-      console.error('Failed to lock Stronghold:', err);
+      log.error('Failed to lock Stronghold', err as Error);
     }
   }, []);
 
@@ -111,14 +114,14 @@ export function useStronghold(): UseStrongholdReturn {
   const storeApiKey = useCallback(
     async (providerId: string, apiKey: string): Promise<boolean> => {
       if (!strongholdRef.current || !state.isInitialized) {
-        console.warn('Stronghold not initialized');
+        log.warn('Stronghold not initialized');
         return false;
       }
 
       try {
         return await strongholdRef.current.storeProviderApiKey(providerId, apiKey);
       } catch (err) {
-        console.error('Failed to store API key:', err);
+        log.error('Failed to store API key', err as Error);
         return false;
       }
     },
@@ -134,7 +137,7 @@ export function useStronghold(): UseStrongholdReturn {
       try {
         return await strongholdRef.current.getProviderApiKey(providerId);
       } catch (err) {
-        console.error('Failed to get API key:', err);
+        log.error('Failed to get API key', err as Error);
         return null;
       }
     },
@@ -150,7 +153,7 @@ export function useStronghold(): UseStrongholdReturn {
       try {
         return await strongholdRef.current.removeProviderApiKey(providerId);
       } catch (err) {
-        console.error('Failed to remove API key:', err);
+        log.error('Failed to remove API key', err as Error);
         return false;
       }
     },
@@ -166,7 +169,7 @@ export function useStronghold(): UseStrongholdReturn {
       try {
         return await strongholdRef.current.hasProviderApiKey(providerId);
       } catch (err) {
-        console.error('Failed to check API key:', err);
+        log.error('Failed to check API key', err as Error);
         return false;
       }
     },
@@ -183,7 +186,7 @@ export function useStronghold(): UseStrongholdReturn {
       try {
         return await strongholdRef.current.storeSearchApiKey(providerId, apiKey);
       } catch (err) {
-        console.error('Failed to store search API key:', err);
+        log.error('Failed to store search API key', err as Error);
         return false;
       }
     },
@@ -199,7 +202,7 @@ export function useStronghold(): UseStrongholdReturn {
       try {
         return await strongholdRef.current.getSearchApiKey(providerId);
       } catch (err) {
-        console.error('Failed to get search API key:', err);
+        log.error('Failed to get search API key', err as Error);
         return null;
       }
     },
@@ -215,7 +218,7 @@ export function useStronghold(): UseStrongholdReturn {
       try {
         return await strongholdRef.current.removeSearchApiKey(providerId);
       } catch (err) {
-        console.error('Failed to remove search API key:', err);
+        log.error('Failed to remove search API key', err as Error);
         return false;
       }
     },
@@ -232,7 +235,7 @@ export function useStronghold(): UseStrongholdReturn {
       try {
         return await strongholdRef.current.storeCustomProviderApiKey(providerId, apiKey);
       } catch (err) {
-        console.error('Failed to store custom API key:', err);
+        log.error('Failed to store custom API key', err as Error);
         return false;
       }
     },
@@ -248,7 +251,7 @@ export function useStronghold(): UseStrongholdReturn {
       try {
         return await strongholdRef.current.getCustomProviderApiKey(providerId);
       } catch (err) {
-        console.error('Failed to get custom API key:', err);
+        log.error('Failed to get custom API key', err as Error);
         return null;
       }
     },
@@ -264,7 +267,7 @@ export function useStronghold(): UseStrongholdReturn {
       try {
         return await strongholdRef.current.removeCustomProviderApiKey(providerId);
       } catch (err) {
-        console.error('Failed to remove custom API key:', err);
+        log.error('Failed to remove custom API key', err as Error);
         return false;
       }
     },

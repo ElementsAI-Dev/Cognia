@@ -8,6 +8,9 @@ import type { KnowledgeFile, Project } from '@/types';
 import type { RAGDocument } from '@/lib/ai/rag';
 import { chunkDocument, type ChunkingOptions, type DocumentChunk } from '@/lib/ai/embedding/chunking';
 import { projectRepository } from '@/lib/db/repositories/project-repository';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ai;
 
 /**
  * Convert a KnowledgeFile to RAGDocument format
@@ -535,7 +538,7 @@ export async function searchKnowledgeBaseVector(
     return resultFiles;
   } catch (error) {
     // Fall back to keyword search
-    console.warn('Vector search failed, falling back to keyword search:', error);
+    log.warn('Vector search failed, falling back to keyword search', { error });
     return getRelevantKnowledge(files, query, topK);
   }
 }

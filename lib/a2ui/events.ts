@@ -9,6 +9,9 @@ import type {
   A2UIClientMessage,
   A2UIComponent,
 } from '@/types/artifact/a2ui';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ui;
 
 /**
  * Event handler type for user actions
@@ -60,14 +63,14 @@ export class A2UIEventEmitter {
       try {
         handler(action);
       } catch (error) {
-        console.error('[A2UI] Error in action handler:', error);
+        log.error('A2UI: Error in action handler', error as Error);
       }
     }
     for (const handler of this.allHandlers) {
       try {
         handler(action);
       } catch (error) {
-        console.error('[A2UI] Error in event handler:', error);
+        log.error('A2UI: Error in event handler', error as Error);
       }
     }
   }
@@ -80,14 +83,14 @@ export class A2UIEventEmitter {
       try {
         handler(change);
       } catch (error) {
-        console.error('[A2UI] Error in data change handler:', error);
+        log.error('A2UI: Error in data change handler', error as Error);
       }
     }
     for (const handler of this.allHandlers) {
       try {
         handler(change);
       } catch (error) {
-        console.error('[A2UI] Error in event handler:', error);
+        log.error('A2UI: Error in event handler', error as Error);
       }
     }
   }

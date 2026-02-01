@@ -2,8 +2,6 @@
 //!
 //! Tracks application focus changes and usage statistics.
 
-#![allow(dead_code)]
-
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

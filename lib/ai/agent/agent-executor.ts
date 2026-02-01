@@ -47,6 +47,9 @@ import {
   createAgentObservabilityManager,
   type AgentObservabilityManager,
 } from '../observability/agent-observability';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.agent;
 import {
   createToolCallManager,
   type ToolCallManager,
@@ -473,7 +476,7 @@ function createSDKTool(
           await getPluginLifecycleHooks().dispatchOnAgentToolCall(agentId, name, args as Record<string, unknown>);
         } catch (hookError) {
           // If hook throws, log but don't block execution
-          console.warn('Agent tool call hook error:', hookError);
+          log.error('Agent tool call hook error', hookError as Error);
         }
       }
 
@@ -855,10 +858,9 @@ export async function executeAgent(
   // Warn if tool count exceeds recommended threshold (Claude best practice)
   const toolCount = Object.keys(tools).length;
   if (toolCount > 20) {
-    console.warn(
-      `[Agent] Tool count (${toolCount}) exceeds recommended limit of 20. ` +
-      `Consider using sub-agents with specialized tool sets to improve tool selection accuracy. ` +
-      `See: https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them`
+    log.warn(
+      `Tool count (${toolCount}) exceeds recommended limit of 20. Consider using sub-agents with specialized tool sets.`,
+      { toolCount, recommendation: 'https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them' }
     );
   }
 
@@ -1067,7 +1069,7 @@ export async function executeAgent(
       
       // Log flush results for debugging
       if (flushResult.failed.length > 0) {
-        console.warn(`[Agent] ${flushResult.failed.length} tool calls failed during flush`);
+        log.warn(`${flushResult.failed.length} tool calls failed during flush`, { failedCount: flushResult.failed.length });
       }
     } else if (!collectPendingToolResults) {
       // Collect pending calls without waiting

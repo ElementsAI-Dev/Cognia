@@ -11,6 +11,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { transcribeAudio, type TranscribeOptions } from '@/lib/ai/media/speech-api';
 import { parseSubtitle, cuesToPlainText } from './subtitle-parser';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 import type {
   VideoSubtitleInfo,
   SubtitleExtractionOptions,
@@ -53,7 +56,7 @@ export async function getVideoSubtitleInfo(videoPath: string): Promise<VideoSubt
       externalFiles: [],
     };
   } catch (error) {
-    console.warn('Failed to get subtitle info via Tauri, using fallback:', error);
+    log.warn('Failed to get subtitle info via Tauri, using fallback', { error });
     return {
       hasEmbeddedSubtitles: false,
       embeddedTracks: [],

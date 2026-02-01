@@ -176,9 +176,7 @@ impl SystemMonitor {
     #[cfg(target_os = "windows")]
     fn get_disk_info(&self) -> Vec<DiskInfo> {
         use windows::core::PCWSTR;
-        use windows::Win32::Storage::FileSystem::{
-            GetDiskFreeSpaceExW, GetLogicalDrives, GetVolumeInformationW,
-        };
+        use windows::Win32::Storage::FileSystem::{GetDiskFreeSpaceExW, GetLogicalDrives};
 
         let mut disks = Vec::new();
 

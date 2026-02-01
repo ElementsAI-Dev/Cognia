@@ -12,6 +12,9 @@
  */
 
 import type { DesignerElement } from '@/types/designer';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 // ============================================================================
 // Types
@@ -440,7 +443,7 @@ export async function parseCodeToAst(code: string): Promise<AstNode | null> {
 
     return ast.program as unknown as AstNode;
   } catch (error) {
-    console.warn('[ElementLocator] AST parsing failed:', error);
+    log.warn('ElementLocator: AST parsing failed', { error });
     return null;
   }
 }

@@ -11,6 +11,9 @@ import type {
   SearchResult,
 } from '@/types/search';
 import { getEnabledProviders } from '@/types/search';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.network;
 
 import { searchWithTavily, testTavilyConnection } from './providers/tavily';
 import { searchWithPerplexity, testPerplexityConnection } from './providers/perplexity';
@@ -115,7 +118,7 @@ export async function search(
       );
       return result;
     } catch (error) {
-      console.warn(`Search with ${providerConfig.providerId} failed:`, error);
+      log.warn(`Search with ${providerConfig.providerId} failed`, { error });
       lastError = error instanceof Error ? error : new Error(String(error));
       
       if (!fallbackEnabled) {
@@ -211,7 +214,7 @@ export async function aggregateSearch(
       provider.apiKey,
       { ...options, ...provider.defaultOptions }
     ).catch((error) => {
-      console.warn(`Aggregate search with ${provider.providerId} failed:`, error);
+      log.warn(`Aggregate search with ${provider.providerId} failed`, { error });
       return null;
     })
   );

@@ -4,6 +4,9 @@
  */
 
 import { db } from '@/lib/db';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 import type {
   StorageType,
   StorageStats,
@@ -205,7 +208,7 @@ class StorageManagerImpl {
         totalUsed += ragDbInfo.size;
       }
     } catch (error) {
-      console.warn('Failed to get IndexedDB stats:', error);
+      log.warn('Failed to get IndexedDB stats', { error: String(error) });
     }
 
     return {
@@ -525,7 +528,7 @@ class StorageManagerImpl {
       }
       return false;
     } catch (error) {
-      console.error('Failed to delete key:', error);
+      log.error('Failed to delete key', error as Error);
       return false;
     }
   }
@@ -575,7 +578,7 @@ class StorageManagerImpl {
       await db.documents.clear();
       indexedDBCleared = true;
     } catch (error) {
-      console.error('Failed to clear IndexedDB:', error);
+      log.error('Failed to clear IndexedDB', error as Error);
     }
 
     this.emitEvent('clear', 'localStorage', undefined, {
@@ -631,7 +634,7 @@ class StorageManagerImpl {
       try {
         listener(event);
       } catch (error) {
-        console.error('Storage event listener error:', error);
+        log.error('Storage event listener error', error as Error);
       }
     });
   }

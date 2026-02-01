@@ -10,6 +10,9 @@ import { db, type DBSummary } from '@/lib/db/schema';
 import { messageRepository } from '@/lib/db/repositories/message-repository';
 import type { UIMessage } from '@/types/core/message';
 import type { Session } from '@/types/core/session';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.chat;
 import type {
   ChatHistoryContextSettings,
   SessionContextSummary,
@@ -104,7 +107,7 @@ export async function getRecentSessions(
       updatedAt: new Date(s.updatedAt),
     })) as Session[];
   } catch (error) {
-    console.error('Failed to get recent sessions:', error);
+    log.error('Failed to get recent sessions', error as Error);
     return [];
   }
 }
@@ -397,7 +400,7 @@ export async function buildHistoryContext(
       summaries,
     };
   } catch (error) {
-    console.error('Failed to build history context:', error);
+    log.error('Failed to build history context', error as Error);
     return {
       success: false,
       contextText: '',

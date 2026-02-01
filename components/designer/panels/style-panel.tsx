@@ -83,6 +83,8 @@ export function StylePanel({ className }: StylePanelProps) {
   const updateElementStyle = useDesignerStore((state) => state.updateElementStyle);
   const updateElement = useDesignerStore((state) => state.updateElement);
   const syncCodeFromElements = useDesignerStore((state) => state.syncCodeFromElements);
+  const expandedStyleCategories = useDesignerStore((state) => state.expandedStyleCategories);
+  const setExpandedStyleCategories = useDesignerStore((state) => state.setExpandedStyleCategories);
 
   const selectedElement = selectedElementId ? elementMap[selectedElementId] : null;
 
@@ -229,8 +231,13 @@ export function StylePanel({ className }: StylePanelProps) {
 
           <Separator />
 
-          {/* Style properties accordion - only expand layout by default for cleaner UI */}
-          <Accordion type="multiple" defaultValue={['layout']} className="w-full">
+          {/* Style properties accordion - persisted expanded categories */}
+          <Accordion
+            type="multiple"
+            value={expandedStyleCategories}
+            onValueChange={setExpandedStyleCategories}
+            className="w-full"
+          >
             {/* Layout */}
             <AccordionItem value="layout">
               <AccordionTrigger className="text-xs py-2">
