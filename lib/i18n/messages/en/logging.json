@@ -17,6 +17,8 @@
       "enableAutoRefresh": "Enable auto-refresh",
       "refresh": "Refresh logs",
       "export": "Export logs",
+      "exportAs": "Export as...",
+      "exportText": "Plain Text",
       "clear": "Clear logs",
       "copyEntry": "Copy log entry",
       "copied": "Copied!",
@@ -29,7 +31,17 @@
       "logs": "logs",
       "error": "Error",
       "warning": "Warning",
-      "groupByTrace": "Group by Trace"
+      "groupByTrace": "Group by Trace",
+      "timeRangeAll": "All Time",
+      "timeRange15m": "Last 15m",
+      "timeRange1h": "Last 1h",
+      "timeRange6h": "Last 6h",
+      "timeRange24h": "Last 24h",
+      "timeRange7d": "Last 7d",
+      "scrollToTop": "Scroll to top",
+      "scrollToBottom": "Scroll to bottom",
+      "pauseAutoScroll": "Pause auto-scroll",
+      "resumeAutoScroll": "Resume auto-scroll"
     },
     
     "settings": {

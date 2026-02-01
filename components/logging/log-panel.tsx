@@ -7,7 +7,7 @@
  * (frontend, Tauri, MCP, plugins) with filtering, grouping, and export capabilities.
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Search,
@@ -25,6 +25,14 @@ import {
   Clock,
   Copy,
   Check,
+  ChevronsUp,
+  ChevronsDown,
+  Pause,
+  Play,
+  Calendar,
+  FileJson,
+  FileText,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -48,8 +56,29 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 import { useLogStream, useLogModules } from '@/hooks/logging';
 import type { StructuredLogEntry, LogLevel } from '@/lib/logger';
+
+// Time range options in milliseconds
+const TIME_RANGES = {
+  '15m': 15 * 60 * 1000,
+  '1h': 60 * 60 * 1000,
+  '6h': 6 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000,
+  'all': 0,
+} as const;
+
+type TimeRange = keyof typeof TIME_RANGES;
+type ExportFormat = 'json' | 'csv' | 'text';
 
 export interface LogPanelProps {
   /** CSS class name */
@@ -274,9 +303,18 @@ export function LogPanel({
   const [moduleFilter, setModuleFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [timeRange, setTimeRange] = useState<TimeRange>('all');
+  const [autoScroll, setAutoScroll] = useState(true);
   
   const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const modules = useLogModules();
+
+  // Get time range cutoff (calculated during filter, not in useMemo to avoid impure function issue)
+  const getTimeRangeCutoff = useCallback(() => {
+    if (timeRange === 'all') return 0;
+    return Date.now() - TIME_RANGES[timeRange];
+  }, [timeRange]);
 
   const {
     logs,
@@ -309,18 +347,88 @@ export function LogPanel({
     });
   }, []);
 
-  const handleExport = useCallback(() => {
-    const content = exportLogs('json');
-    const blob = new Blob([content], { type: 'application/json' });
+  // Download helper
+  const downloadBlob = useCallback((blob: Blob, extension: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cognia-logs-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `cognia-logs-${new Date().toISOString().split('T')[0]}.${extension}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [exportLogs]);
+  }, []);
+
+  // Export logs in different formats
+  const handleExport = useCallback((format: ExportFormat = 'json') => {
+    const content = exportLogs(format === 'csv' ? 'text' : format);
+    let mimeType = 'application/json';
+    let extension = 'json';
+    
+    if (format === 'csv') {
+      // Convert to CSV format
+      const csvContent = logs.map(log => {
+        const timestamp = new Date(log.timestamp).toISOString();
+        const message = log.message.replace(/"/g, '""');
+        return `"${timestamp}","${log.level}","${log.module}","${message}"`;
+      }).join('\n');
+      const csvHeader = '"Timestamp","Level","Module","Message"\n';
+      mimeType = 'text/csv';
+      extension = 'csv';
+      const blob = new Blob([csvHeader + csvContent], { type: mimeType });
+      downloadBlob(blob, extension);
+      return;
+    } else if (format === 'text') {
+      mimeType = 'text/plain';
+      extension = 'txt';
+    }
+    
+    const blob = new Blob([content], { type: mimeType });
+    downloadBlob(blob, extension);
+  }, [exportLogs, logs, downloadBlob]);
+
+  // Scroll controls
+  const scrollToTop = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, []);
+
+  // Filter logs by time range
+  const filteredLogs = useMemo(() => {
+    if (timeRange === 'all') return logs;
+    const cutoff = getTimeRangeCutoff();
+    return logs.filter(log => new Date(log.timestamp).getTime() >= cutoff);
+  }, [logs, timeRange, getTimeRangeCutoff]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if not in input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        refresh();
+      } else if (e.key === 'Escape') {
+        setSearchQuery('');
+      }
+    };
+
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('keydown', handleKeyDown);
+      return () => container.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [refresh]);
 
   // Auto-scroll to bottom on new logs
   useEffect(() => {
@@ -374,6 +482,21 @@ export function LogPanel({
               ))}
             </SelectContent>
           </Select>
+
+          <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
+            <SelectTrigger className="w-[90px] sm:w-[100px] h-8 shrink-0">
+              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              <SelectValue placeholder="Time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('panel.timeRangeAll')}</SelectItem>
+              <SelectItem value="15m">{t('panel.timeRange15m')}</SelectItem>
+              <SelectItem value="1h">{t('panel.timeRange1h')}</SelectItem>
+              <SelectItem value="6h">{t('panel.timeRange6h')}</SelectItem>
+              <SelectItem value="24h">{t('panel.timeRange24h')}</SelectItem>
+              <SelectItem value="7d">{t('panel.timeRange7d')}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Action buttons */}
@@ -402,14 +525,30 @@ export function LogPanel({
             <TooltipContent>{t('panel.refresh')}</TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="sm" onClick={handleExport}>
+          {/* Export dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
                 <Download className="h-4 w-4" />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('panel.export')}</TooltipContent>
-          </Tooltip>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>{t('panel.exportAs')}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExport('json')}>
+                <FileJson className="h-4 w-4 mr-2" />
+                JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('text')}>
+                <FileText className="h-4 w-4 mr-2" />
+                {t('panel.exportText')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -419,6 +558,40 @@ export function LogPanel({
             </TooltipTrigger>
             <TooltipContent>{t('panel.clear')}</TooltipContent>
           </Tooltip>
+
+          {/* Scroll controls */}
+          <div className="flex items-center border-l pl-1 ml-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" onClick={scrollToTop}>
+                  <ChevronsUp className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('panel.scrollToTop')}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant={autoScroll ? 'default' : 'ghost'} 
+                  size="sm" 
+                  onClick={() => setAutoScroll(!autoScroll)}
+                >
+                  {autoScroll ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {autoScroll ? t('panel.pauseAutoScroll') : t('panel.resumeAutoScroll')}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" onClick={scrollToBottom}>
+                  <ChevronsDown className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('panel.scrollToBottom')}</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
@@ -426,7 +599,10 @@ export function LogPanel({
       {showStats && (
         <div className="flex items-center gap-4 px-3 py-2 border-b bg-muted/20 text-xs">
           <span className="text-muted-foreground">
-            {t('panel.total')}: <span className="font-medium text-foreground">{stats.total}</span>
+            {t('panel.total')}: <span className="font-medium text-foreground">{filteredLogs.length}</span>
+            {filteredLogs.length !== stats.total && (
+              <span className="text-muted-foreground/70"> / {stats.total}</span>
+            )}
           </span>
           {Object.entries(stats.byLevel).map(([level, count]) => {
             if (count === 0) return null;
@@ -446,7 +622,7 @@ export function LogPanel({
         className="flex-1"
         style={{ maxHeight }}
       >
-        {isLoading && logs.length === 0 ? (
+        {isLoading && filteredLogs.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
             <RefreshCw className="h-5 w-5 animate-spin mr-2" />
             {t('panel.loadingLogs')}
@@ -456,7 +632,7 @@ export function LogPanel({
             <AlertCircle className="h-5 w-5 mr-2" />
             {t('panel.errorLoading')}
           </div>
-        ) : logs.length === 0 ? (
+        ) : filteredLogs.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
             {t('panel.noLogs')}
           </div>
@@ -474,8 +650,8 @@ export function LogPanel({
             ))}
           </div>
         ) : (
-          <div>
-            {logs.map((log) => (
+          <div ref={containerRef} tabIndex={0} className="outline-none">
+            {filteredLogs.map((log) => (
               <LogEntry
                 key={log.id}
                 log={log}
