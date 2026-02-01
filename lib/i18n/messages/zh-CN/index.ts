@@ -39,6 +39,7 @@ import latex from './latex.json';
 import observability from './observability.json';
 import arena from './arena.json';
 import syncSettings from './syncSettings.json';
+import logging from './logging.json';
 
 const messages = {
   ...common,
@@ -78,7 +79,8 @@ const messages = {
   latex,
   ...observability,
   arena,
-  syncSettings
+  syncSettings,
+  ...logging,
 };
 
 export default messages;

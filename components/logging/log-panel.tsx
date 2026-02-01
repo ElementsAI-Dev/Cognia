@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * UnifiedLogPanel
+ * LogPanel
  * 
  * A comprehensive log viewing component that aggregates logs from multiple sources
  * (frontend, Tauri, MCP, plugins) with filtering, grouping, and export capabilities.
@@ -51,7 +51,7 @@ import {
 import { useLogStream, useLogModules } from '@/hooks/logging';
 import type { StructuredLogEntry, LogLevel } from '@/lib/logger';
 
-interface UnifiedLogPanelProps {
+export interface LogPanelProps {
   /** CSS class name */
   className?: string;
   /** Maximum height of the panel */
@@ -82,11 +82,13 @@ const ALL_LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error', 'fata
 function LogEntry({ 
   log, 
   isExpanded, 
-  onToggle 
+  onToggle,
+  t,
 }: { 
   log: StructuredLogEntry; 
   isExpanded: boolean; 
   onToggle: () => void;
+  t: ReturnType<typeof useTranslations>;
 }) {
   const [copied, setCopied] = useState(false);
   const config = LEVEL_CONFIG[log.level];
@@ -144,7 +146,7 @@ function LogEntry({
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Trace ID: {log.traceId}</p>
+              <p>{t('panel.traceId')}: {log.traceId}</p>
             </TooltipContent>
           </Tooltip>
         )}
@@ -171,7 +173,7 @@ function LogEntry({
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Copy log entry</TooltipContent>
+          <TooltipContent>{t('panel.copyEntry')}</TooltipContent>
         </Tooltip>
       </div>
 
@@ -179,7 +181,7 @@ function LogEntry({
         <div className="px-3 pb-3 pl-12 space-y-2">
           {log.data && (
             <div className="rounded bg-muted p-2">
-              <div className="text-xs text-muted-foreground mb-1">Data:</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('panel.data')}:</div>
               <pre className="text-xs font-mono overflow-x-auto">
                 {JSON.stringify(log.data, null, 2)}
               </pre>
@@ -188,7 +190,7 @@ function LogEntry({
           
           {log.stack && (
             <div className="rounded bg-red-50 dark:bg-red-900/20 p-2">
-              <div className="text-xs text-muted-foreground mb-1">Stack Trace:</div>
+              <div className="text-xs text-muted-foreground mb-1">{t('panel.stackTrace')}:</div>
               <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap text-red-600 dark:text-red-400">
                 {log.stack}
               </pre>
@@ -197,7 +199,7 @@ function LogEntry({
           
           {log.source && (
             <div className="text-xs text-muted-foreground">
-              Source: {log.source.file}:{log.source.line}
+              {t('panel.source')}: {log.source.file}:{log.source.line}
               {log.source.function && ` (${log.source.function})`}
             </div>
           )}
@@ -212,11 +214,13 @@ function TraceGroup({
   logs,
   expandedIds,
   toggleExpanded,
+  t,
 }: {
   traceId: string;
   logs: StructuredLogEntry[];
   expandedIds: Set<string>;
   toggleExpanded: (id: string) => void;
+  t: ReturnType<typeof useTranslations>;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const hasErrors = logs.some(l => l.level === 'error' || l.level === 'fatal');
@@ -232,13 +236,13 @@ function TraceGroup({
         )}
         <Clock className="h-4 w-4 text-muted-foreground" />
         <span className="font-mono text-sm">
-          {traceId === 'no-trace' ? 'No Trace ID' : traceId}
+          {traceId === 'no-trace' ? t('panel.noTraceId') : traceId}
         </span>
         <Badge variant="outline" className="ml-auto">
-          {logs.length} logs
+          {logs.length} {t('panel.logs')}
         </Badge>
-        {hasErrors && <Badge variant="destructive">Error</Badge>}
-        {hasWarnings && !hasErrors && <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Warning</Badge>}
+        {hasErrors && <Badge variant="destructive">{t('panel.error')}</Badge>}
+        {hasWarnings && !hasErrors && <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">{t('panel.warning')}</Badge>}
       </CollapsibleTrigger>
       <CollapsibleContent>
         {logs.map((log) => (
@@ -247,6 +251,7 @@ function TraceGroup({
             log={log}
             isExpanded={expandedIds.has(log.id)}
             onToggle={() => toggleExpanded(log.id)}
+            t={t}
           />
         ))}
       </CollapsibleContent>
@@ -254,15 +259,15 @@ function TraceGroup({
   );
 }
 
-export function UnifiedLogPanel({
+export function LogPanel({
   className,
   maxHeight = '600px',
   defaultAutoRefresh = false,
   refreshInterval = 2000,
   groupByTraceId = false,
   showStats = true,
-}: UnifiedLogPanelProps) {
-  const t = useTranslations('tools');
+}: LogPanelProps) {
+  const t = useTranslations('logging');
   
   const [autoRefresh, setAutoRefresh] = useState(defaultAutoRefresh);
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all');
@@ -332,7 +337,7 @@ export function UnifiedLogPanel({
         <div className="relative w-full sm:flex-1 sm:min-w-[160px] sm:max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={t('searchLogs') || 'Search logs...'}
+            placeholder={t('panel.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 h-8"
@@ -347,10 +352,10 @@ export function UnifiedLogPanel({
               <SelectValue placeholder="Level" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Levels</SelectItem>
+              <SelectItem value="all">{t('panel.allLevels')}</SelectItem>
               {ALL_LEVELS.map((level) => (
                 <SelectItem key={level} value={level}>
-                  {level.charAt(0).toUpperCase() + level.slice(1)}
+                  {t(`levels.${level}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -361,7 +366,7 @@ export function UnifiedLogPanel({
               <SelectValue placeholder="Module" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Modules</SelectItem>
+              <SelectItem value="all">{t('panel.allModules')}</SelectItem>
               {modules.map((mod) => (
                 <SelectItem key={mod} value={mod}>
                   {mod}
@@ -384,7 +389,7 @@ export function UnifiedLogPanel({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {autoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'}
+              {autoRefresh ? t('panel.disableAutoRefresh') : t('panel.enableAutoRefresh')}
             </TooltipContent>
           </Tooltip>
 
@@ -394,7 +399,7 @@ export function UnifiedLogPanel({
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Refresh logs</TooltipContent>
+            <TooltipContent>{t('panel.refresh')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -403,7 +408,7 @@ export function UnifiedLogPanel({
                 <Download className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Export logs</TooltipContent>
+            <TooltipContent>{t('panel.export')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -412,7 +417,7 @@ export function UnifiedLogPanel({
                 <Trash2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Clear logs</TooltipContent>
+            <TooltipContent>{t('panel.clear')}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -421,14 +426,14 @@ export function UnifiedLogPanel({
       {showStats && (
         <div className="flex items-center gap-4 px-3 py-2 border-b bg-muted/20 text-xs">
           <span className="text-muted-foreground">
-            Total: <span className="font-medium text-foreground">{stats.total}</span>
+            {t('panel.total')}: <span className="font-medium text-foreground">{stats.total}</span>
           </span>
           {Object.entries(stats.byLevel).map(([level, count]) => {
             if (count === 0) return null;
             const config = LEVEL_CONFIG[level as LogLevel];
             return (
               <span key={level} className={cn('flex items-center gap-1', config.color)}>
-                {level}: <span className="font-medium">{count}</span>
+                {t(`levels.${level}`)}: <span className="font-medium">{count}</span>
               </span>
             );
           })}
@@ -444,16 +449,16 @@ export function UnifiedLogPanel({
         {isLoading && logs.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
             <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-            Loading logs...
+            {t('panel.loadingLogs')}
           </div>
         ) : error ? (
           <div className="flex items-center justify-center py-8 text-red-500">
             <AlertCircle className="h-5 w-5 mr-2" />
-            {error.message}
+            {t('panel.errorLoading')}
           </div>
         ) : logs.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
-            {t('noLogs') || 'No logs yet'}
+            {t('panel.noLogs')}
           </div>
         ) : groupByTraceId ? (
           <div className="p-2">
@@ -464,6 +469,7 @@ export function UnifiedLogPanel({
                 logs={traceLogs}
                 expandedIds={expandedIds}
                 toggleExpanded={toggleExpanded}
+                t={t}
               />
             ))}
           </div>
@@ -475,6 +481,7 @@ export function UnifiedLogPanel({
                 log={log}
                 isExpanded={expandedIds.has(log.id)}
                 onToggle={() => toggleExpanded(log.id)}
+                t={t}
               />
             ))}
           </div>
@@ -484,4 +491,4 @@ export function UnifiedLogPanel({
   );
 }
 
-export default UnifiedLogPanel;
+export default LogPanel;

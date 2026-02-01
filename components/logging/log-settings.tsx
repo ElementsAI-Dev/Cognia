@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * LoggingSettings - Configuration UI for the unified logging system
+ * LogSettings - Configuration UI for the unified logging system
  * 
  * Allows users to configure log levels, transports, and retention policies.
  */
@@ -49,23 +49,14 @@ import {
   type UnifiedLoggerConfig,
 } from '@/lib/logger';
 
-interface LoggingSettingsProps {
+export interface LogSettingsProps {
   className?: string;
 }
 
 const LOG_LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
 
-const LEVEL_DESCRIPTIONS: Record<LogLevel, string> = {
-  trace: 'Most verbose, includes all details',
-  debug: 'Development debugging information',
-  info: 'General operational information',
-  warn: 'Warning conditions that may need attention',
-  error: 'Error conditions that need attention',
-  fatal: 'Critical errors that may cause system failure',
-};
-
-export function LoggingSettings({ className }: LoggingSettingsProps) {
-  const t = useTranslations('settings');
+export function LogSettings({ className }: LogSettingsProps) {
+  const t = useTranslations('logging');
   
   // Initialize config from current logger settings
   const [config, setConfig] = useState<Partial<UnifiedLoggerConfig>>(() => {
@@ -175,14 +166,25 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
     setHasChanges(true);
   };
 
+  const getSaveButtonText = () => {
+    switch (saveStatus) {
+      case 'saving':
+        return t('settings.saving');
+      case 'saved':
+        return t('settings.saved');
+      default:
+        return t('settings.save');
+    }
+  };
+
   return (
     <div className={cn('space-y-4 sm:space-y-6', className)}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-base sm:text-lg font-semibold">{t('tabLoggingConfig') || 'Logging Configuration'}</h2>
+          <h2 className="text-base sm:text-lg font-semibold">{t('settingsTitle')}</h2>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            {t('descLoggingConfig') || 'Configure log levels, transports, and retention policies'}
+            {t('settingsDescription')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -194,7 +196,7 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
             className="flex-1 sm:flex-none"
           >
             <RotateCcw className="h-4 w-4 mr-1" />
-            <span className="sm:inline">Reset</span>
+            <span className="sm:inline">{t('settings.reset')}</span>
           </Button>
           <Button
             size="sm"
@@ -203,7 +205,7 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
             className="flex-1 sm:flex-none"
           >
             <Save className="h-4 w-4 mr-1" />
-            {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save'}
+            {getSaveButtonText()}
           </Button>
         </div>
       </div>
@@ -213,15 +215,15 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
-            Log Level
+            {t('settings.logLevel.title')}
           </CardTitle>
           <CardDescription>
-            Set the minimum log level. Logs below this level will be ignored.
+            {t('settings.logLevel.description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-            <Label className="sm:w-32 text-sm">Minimum Level</Label>
+            <Label className="sm:w-32 text-sm">{t('settings.logLevel.minLevel')}</Label>
             <Select
               value={config.minLevel}
               onValueChange={(value) => handleConfigChange('minLevel', value as LogLevel)}
@@ -233,9 +235,9 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
                 {LOG_LEVELS.map((level) => (
                   <SelectItem key={level} value={level}>
                     <div className="flex flex-col">
-                      <span className="capitalize">{level}</span>
+                      <span className="capitalize">{t(`settings.logLevel.${level}`)}</span>
                       <span className="text-xs text-muted-foreground">
-                        {LEVEL_DESCRIPTIONS[level]}
+                        {t(`settings.logLevel.${level}Desc`)}
                       </span>
                     </div>
                   </SelectItem>
@@ -249,9 +251,9 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
           <div className="space-y-3">
             <div className="flex items-start sm:items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <Label className="text-sm">Include Stack Traces</Label>
+                <Label className="text-sm">{t('settings.options.includeStackTrace')}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Include stack traces for error and fatal logs
+                  {t('settings.options.includeStackTraceDesc')}
                 </p>
               </div>
               <Switch
@@ -263,9 +265,9 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
 
             <div className="flex items-start sm:items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <Label className="text-sm">Include Source Location</Label>
+                <Label className="text-sm">{t('settings.options.includeSource')}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Include file name and line number (development only)
+                  {t('settings.options.includeSourceDesc')}
                 </p>
               </div>
               <Switch
@@ -283,10 +285,10 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Database className="h-4 w-4" />
-            Log Transports
+            {t('settings.transports.title')}
           </CardTitle>
           <CardDescription>
-            Configure where logs are sent and stored.
+            {t('settings.transports.description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -295,9 +297,9 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
               <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0">
                 <Monitor className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5 sm:mt-0" />
                 <div className="min-w-0">
-                  <Label className="text-sm">Console Output</Label>
+                  <Label className="text-sm">{t('settings.transports.console')}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Output logs to browser console
+                    {t('settings.transports.consoleDesc')}
                   </p>
                 </div>
               </div>
@@ -312,9 +314,9 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
               <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0">
                 <Database className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5 sm:mt-0" />
                 <div className="min-w-0">
-                  <Label className="text-sm">IndexedDB Storage</Label>
+                  <Label className="text-sm">{t('settings.transports.indexedDB')}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Persist logs locally for viewing in Log Viewer
+                    {t('settings.transports.indexedDBDesc')}
                   </p>
                 </div>
               </div>
@@ -331,9 +333,9 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
               <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0">
                 <Cloud className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5 sm:mt-0" />
                 <div className="min-w-0">
-                  <Label className="text-sm">Langfuse Integration</Label>
+                  <Label className="text-sm">{t('settings.transports.langfuse')}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Send logs to Langfuse for AI observability
+                    {t('settings.transports.langfuseDesc')}
                   </p>
                 </div>
               </div>
@@ -348,9 +350,9 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
               <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0">
                 <Cloud className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5 sm:mt-0" />
                 <div className="min-w-0">
-                  <Label className="text-sm">OpenTelemetry</Label>
+                  <Label className="text-sm">{t('settings.transports.opentelemetry')}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Integrate logs with OpenTelemetry tracing
+                    {t('settings.transports.opentelemetryDesc')}
                   </p>
                 </div>
               </div>
@@ -369,16 +371,16 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Database className="h-4 w-4" />
-            Log Retention
+            {t('settings.retention.title')}
           </CardTitle>
           <CardDescription>
-            Configure how long logs are kept and storage limits.
+            {t('settings.retention.description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 sm:space-y-6">
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <Label className="text-sm">Maximum Entries</Label>
+              <Label className="text-sm">{t('settings.retention.maxEntries')}</Label>
               <span className="text-xs sm:text-sm font-mono shrink-0">{retention.maxEntries.toLocaleString()}</span>
             </div>
             <Slider
@@ -390,7 +392,7 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
               className="touch-none"
             />
             <p className="text-xs text-muted-foreground">
-              Older logs will be automatically removed when limit is reached
+              {t('settings.retention.maxEntriesDesc')}
             </p>
           </div>
 
@@ -398,8 +400,8 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <Label className="text-sm">Maximum Age (Days)</Label>
-              <span className="text-xs sm:text-sm font-mono shrink-0">{retention.maxAgeDays} days</span>
+              <Label className="text-sm">{t('settings.retention.maxAgeDays')}</Label>
+              <span className="text-xs sm:text-sm font-mono shrink-0">{retention.maxAgeDays} {t('settings.retention.days')}</span>
             </div>
             <Slider
               value={[retention.maxAgeDays]}
@@ -410,7 +412,7 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
               className="touch-none"
             />
             <p className="text-xs text-muted-foreground">
-              Logs older than this will be automatically cleaned up
+              {t('settings.retention.maxAgeDaysDesc')}
             </p>
           </div>
         </CardContent>
@@ -419,14 +421,13 @@ export function LoggingSettings({ className }: LoggingSettingsProps) {
       {/* Performance Note */}
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>Performance Note</AlertTitle>
+        <AlertTitle>{t('settings.performanceNote.title')}</AlertTitle>
         <AlertDescription>
-          Enabling stack traces and source location may impact performance in production.
-          Log sampling is recommended for high-traffic applications.
+          {t('settings.performanceNote.description')}
         </AlertDescription>
       </Alert>
     </div>
   );
 }
 
-export default LoggingSettings;
+export default LogSettings;

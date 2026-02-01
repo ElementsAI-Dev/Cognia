@@ -12,7 +12,7 @@ export { CostAnalysis } from './cost-analysis';
 export { ObservabilitySettings } from './observability-settings';
 export { ObservabilityButton } from './observability-button';
 export { ObservabilityInitializer } from './observability-initializer';
-export { UnifiedLogPanel } from './unified-log-panel';
+export { LogPanel as UnifiedLogPanel } from '@/components/logging';
 
 // New components
 export { StatCard } from './stat-card';

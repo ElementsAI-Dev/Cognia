@@ -1,0 +1,105 @@
+{
+  "logging": {
+    "title": "Application Logs",
+    "description": "View, search, and export application logs",
+    "settingsTitle": "Logging Configuration",
+    "settingsDescription": "Configure log levels, transports, and retention policies",
+    
+    "panel": {
+      "searchPlaceholder": "Search logs...",
+      "noLogs": "No logs yet",
+      "loadingLogs": "Loading logs...",
+      "errorLoading": "Failed to load logs",
+      "allLevels": "All Levels",
+      "allModules": "All Modules",
+      "autoRefresh": "Auto-refresh",
+      "disableAutoRefresh": "Disable auto-refresh",
+      "enableAutoRefresh": "Enable auto-refresh",
+      "refresh": "Refresh logs",
+      "export": "Export logs",
+      "clear": "Clear logs",
+      "copyEntry": "Copy log entry",
+      "copied": "Copied!",
+      "data": "Data",
+      "stackTrace": "Stack Trace",
+      "source": "Source",
+      "total": "Total",
+      "traceId": "Trace ID",
+      "noTraceId": "No Trace ID",
+      "logs": "logs",
+      "error": "Error",
+      "warning": "Warning",
+      "groupByTrace": "Group by Trace"
+    },
+    
+    "settings": {
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Saved!",
+      "reset": "Reset",
+      "saveError": "Failed to save settings",
+      
+      "logLevel": {
+        "title": "Log Level",
+        "description": "Set the minimum log level. Logs below this level will be ignored.",
+        "minLevel": "Minimum Level",
+        "trace": "Trace",
+        "traceDesc": "Most verbose, includes all details",
+        "debug": "Debug",
+        "debugDesc": "Development debugging information",
+        "info": "Info",
+        "infoDesc": "General operational information",
+        "warn": "Warning",
+        "warnDesc": "Warning conditions that may need attention",
+        "error": "Error",
+        "errorDesc": "Error conditions that need attention",
+        "fatal": "Fatal",
+        "fatalDesc": "Critical errors that may cause system failure"
+      },
+      
+      "options": {
+        "includeStackTrace": "Include Stack Traces",
+        "includeStackTraceDesc": "Include stack traces for error and fatal logs",
+        "includeSource": "Include Source Location",
+        "includeSourceDesc": "Include file name and line number (development only)"
+      },
+      
+      "transports": {
+        "title": "Log Transports",
+        "description": "Configure where logs are sent and stored.",
+        "console": "Console Output",
+        "consoleDesc": "Output logs to browser console",
+        "indexedDB": "IndexedDB Storage",
+        "indexedDBDesc": "Persist logs locally for viewing in Log Viewer",
+        "langfuse": "Langfuse Integration",
+        "langfuseDesc": "Send logs to Langfuse for AI observability",
+        "opentelemetry": "OpenTelemetry",
+        "opentelemetryDesc": "Integrate logs with OpenTelemetry tracing"
+      },
+      
+      "retention": {
+        "title": "Log Retention",
+        "description": "Configure how long logs are kept and storage limits.",
+        "maxEntries": "Maximum Entries",
+        "maxEntriesDesc": "Older logs will be automatically removed when limit is reached",
+        "maxAgeDays": "Maximum Age (Days)",
+        "maxAgeDaysDesc": "Logs older than this will be automatically cleaned up",
+        "days": "days"
+      },
+      
+      "performanceNote": {
+        "title": "Performance Note",
+        "description": "Enabling stack traces and source location may impact performance in production. Log sampling is recommended for high-traffic applications."
+      }
+    },
+    
+    "levels": {
+      "trace": "Trace",
+      "debug": "Debug", 
+      "info": "Info",
+      "warn": "Warning",
+      "error": "Error",
+      "fatal": "Fatal"
+    }
+  }
+}

@@ -41,6 +41,7 @@ import observability from './observability.json';
 import arena from './arena.json';
 import syncSettings from './syncSettings.json';
 import scheduler from './scheduler.json';
+import logging from './logging.json';
 
 const messages = {
   ...common,
@@ -83,7 +84,8 @@ const messages = {
   ...observability,
   arena,
   syncSettings,
-  scheduler
+  scheduler,
+  ...logging,
 };
 
 export default messages;

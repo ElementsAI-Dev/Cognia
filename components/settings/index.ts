@@ -124,6 +124,5 @@ export {
   SyncHistoryDialog,
 } from './sync';
 
-// Logging settings
-export { LogViewer } from './log-viewer';
-export { LoggingSettings } from './logging-settings';
+// Logging settings (re-exported from components/logging)
+export { LogPanel as LogViewer, LogSettings as LoggingSettings } from '@/components/logging';

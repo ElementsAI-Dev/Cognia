@@ -1,0 +1,105 @@
+{
+  "logging": {
+    "title": "应用程序日志",
+    "description": "查看、搜索和导出应用程序日志",
+    "settingsTitle": "日志配置",
+    "settingsDescription": "配置日志级别、传输方式和保留策略",
+    
+    "panel": {
+      "searchPlaceholder": "搜索日志...",
+      "noLogs": "暂无日志",
+      "loadingLogs": "加载日志中...",
+      "errorLoading": "加载日志失败",
+      "allLevels": "所有级别",
+      "allModules": "所有模块",
+      "autoRefresh": "自动刷新",
+      "disableAutoRefresh": "禁用自动刷新",
+      "enableAutoRefresh": "启用自动刷新",
+      "refresh": "刷新日志",
+      "export": "导出日志",
+      "clear": "清除日志",
+      "copyEntry": "复制日志条目",
+      "copied": "已复制！",
+      "data": "数据",
+      "stackTrace": "堆栈跟踪",
+      "source": "来源",
+      "total": "总计",
+      "traceId": "追踪 ID",
+      "noTraceId": "无追踪 ID",
+      "logs": "条日志",
+      "error": "错误",
+      "warning": "警告",
+      "groupByTrace": "按追踪分组"
+    },
+    
+    "settings": {
+      "save": "保存",
+      "saving": "保存中...",
+      "saved": "已保存！",
+      "reset": "重置",
+      "saveError": "保存设置失败",
+      
+      "logLevel": {
+        "title": "日志级别",
+        "description": "设置最低日志级别。低于此级别的日志将被忽略。",
+        "minLevel": "最低级别",
+        "trace": "追踪",
+        "traceDesc": "最详细，包含所有细节",
+        "debug": "调试",
+        "debugDesc": "开发调试信息",
+        "info": "信息",
+        "infoDesc": "一般操作信息",
+        "warn": "警告",
+        "warnDesc": "需要关注的警告条件",
+        "error": "错误",
+        "errorDesc": "需要关注的错误条件",
+        "fatal": "致命",
+        "fatalDesc": "可能导致系统故障的严重错误"
+      },
+      
+      "options": {
+        "includeStackTrace": "包含堆栈跟踪",
+        "includeStackTraceDesc": "为错误和致命日志包含堆栈跟踪",
+        "includeSource": "包含源位置",
+        "includeSourceDesc": "包含文件名和行号（仅限开发环境）"
+      },
+      
+      "transports": {
+        "title": "日志传输",
+        "description": "配置日志的发送和存储位置。",
+        "console": "控制台输出",
+        "consoleDesc": "将日志输出到浏览器控制台",
+        "indexedDB": "IndexedDB 存储",
+        "indexedDBDesc": "本地持久化日志以便在日志查看器中查看",
+        "langfuse": "Langfuse 集成",
+        "langfuseDesc": "将日志发送到 Langfuse 进行 AI 可观测性分析",
+        "opentelemetry": "OpenTelemetry",
+        "opentelemetryDesc": "将日志与 OpenTelemetry 追踪集成"
+      },
+      
+      "retention": {
+        "title": "日志保留",
+        "description": "配置日志保留时长和存储限制。",
+        "maxEntries": "最大条目数",
+        "maxEntriesDesc": "达到限制时将自动删除较旧的日志",
+        "maxAgeDays": "最大保留天数",
+        "maxAgeDaysDesc": "超过此天数的日志将被自动清理",
+        "days": "天"
+      },
+      
+      "performanceNote": {
+        "title": "性能提示",
+        "description": "启用堆栈跟踪和源位置可能会影响生产环境的性能。建议在高流量应用中使用日志采样。"
+      }
+    },
+    
+    "levels": {
+      "trace": "追踪",
+      "debug": "调试",
+      "info": "信息",
+      "warn": "警告",
+      "error": "错误",
+      "fatal": "致命"
+    }
+  }
+}
