@@ -17,4 +17,7 @@ export {
   selectActiveTasks,
   selectPausedTasks,
   selectUpcomingTasks,
+  selectRecentExecutions,
+  selectSchedulerStatus,
+  type SchedulerStatus,
 } from './scheduler-store';

@@ -417,6 +417,7 @@ describe('GitIntegrationPanel', () => {
 describe('RepositoryCard', () => {
   const _mockRepo: GitRepository = {
     url: 'https://github.com/test/repo.git',
+    localPath: '/tmp/workflows/repo',
     branch: 'main',
     commit: 'abc123def456',
     hasUpdates: false,

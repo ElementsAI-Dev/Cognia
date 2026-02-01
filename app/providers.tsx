@@ -51,6 +51,7 @@ import {
 } from '@/components/providers';
 import { ObservabilityInitializer } from '@/components/observability';
 import { LocaleInitializer } from '@/components/providers/initializers';
+import { SchedulerInitializer } from '@/components/scheduler';
 import { useChatWidgetStore } from '@/stores/chat';
 import { getWindowLabel, isTauri as detectTauri, WINDOW_LABELS } from '@/lib/native/utils';
 
@@ -887,6 +888,7 @@ export function Providers({ children }: ProvidersProps) {
                       <NativeProvider checkUpdatesOnMount={true}>
                         <StoreInitializer />
                         <ObservabilityInitializer />
+                        <SchedulerInitializer />
                         <SelectionNativeSync />
                         <OnboardingProvider>{children}</OnboardingProvider>
                       </NativeProvider>

@@ -129,6 +129,21 @@ export function useScheduler() {
     store.setError(null);
   }, [store]);
 
+  const loadRecentExecutions = useCallback(
+    (limit?: number) => store.loadRecentExecutions(limit),
+    [store]
+  );
+
+  const loadUpcomingTasks = useCallback(
+    (limit?: number) => store.loadUpcomingTasks(limit),
+    [store]
+  );
+
+  const cleanupOldExecutions = useCallback(
+    (maxAgeDays?: number) => store.cleanupOldExecutions(maxAgeDays),
+    [store]
+  );
+
   return {
     // State
     tasks,
@@ -154,6 +169,9 @@ export function useScheduler() {
     clearFilter,
     refresh,
     clearError,
+    loadRecentExecutions,
+    loadUpcomingTasks,
+    cleanupOldExecutions,
   };
 }
 

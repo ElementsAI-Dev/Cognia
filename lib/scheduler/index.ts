@@ -37,6 +37,15 @@ export {
   unregisterCustomTaskHandler,
 } from './executors';
 
+// Event Integration
+export {
+  emitSchedulerEvent,
+  createEventData,
+  isValidEventType,
+  type SchedulerEventType,
+  type SchedulerEventData,
+} from './event-integration';
+
 /**
  * Initialize the complete scheduler system
  * Should be called on application startup

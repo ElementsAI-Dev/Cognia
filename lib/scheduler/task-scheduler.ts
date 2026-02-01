@@ -54,6 +54,7 @@ class TaskSchedulerImpl {
   private runningExecutions: Map<string, TaskExecution> = new Map();
   private isInitialized = false;
   private checkInterval: ReturnType<typeof setInterval> | null = null;
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Initialize the scheduler
@@ -75,6 +76,9 @@ class TaskSchedulerImpl {
       // Start periodic check for missed tasks
       this.startPeriodicCheck();
 
+      // Start auto-cleanup for old executions (runs every 24 hours)
+      this.startAutoCleanup();
+
       this.isInitialized = true;
       log.info('Task scheduler initialized successfully');
     } catch (error) {
@@ -93,6 +97,41 @@ class TaskSchedulerImpl {
         log.error('Error checking missed tasks:', err);
       });
     }, 60000);
+  }
+
+  /**
+   * Start auto-cleanup for old execution records
+   * Runs every 24 hours to clean up executions older than 30 days
+   */
+  private startAutoCleanup(): void {
+    const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+    const MAX_AGE_DAYS = 30;
+
+    // Run initial cleanup
+    this.cleanupOldExecutions(MAX_AGE_DAYS).catch((err) => {
+      log.error('Error in initial cleanup:', err);
+    });
+
+    // Schedule periodic cleanup
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupOldExecutions(MAX_AGE_DAYS).catch((err) => {
+        log.error('Error in auto-cleanup:', err);
+      });
+    }, CLEANUP_INTERVAL);
+  }
+
+  /**
+   * Clean up old execution records
+   */
+  private async cleanupOldExecutions(maxAgeDays: number): Promise<void> {
+    try {
+      const deleted = await schedulerDb.cleanupOldExecutions(maxAgeDays);
+      if (deleted > 0) {
+        log.info(`Auto-cleanup: Removed ${deleted} old execution records`);
+      }
+    } catch (error) {
+      log.error('Failed to cleanup old executions:', error);
+    }
   }
 
   /**
@@ -136,6 +175,12 @@ class TaskSchedulerImpl {
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
       this.checkInterval = null;
+    }
+
+    // Clear auto-cleanup
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
 
     this.isInitialized = false;

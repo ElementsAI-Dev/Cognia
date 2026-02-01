@@ -165,7 +165,7 @@ export function ModeSelectorDialog({
   // Get knowledge point count estimate
   const getKnowledgePointEstimate = (mode: SpeedLearningMode) => {
     if (!textbook) return null;
-    const totalKPs = textbook.stats?.knowledgePointCount || 0;
+    const totalKPs = textbook.totalKnowledgePoints || 0;
     const coverage = MODE_OPTIONS.find((m) => m.mode === mode)?.coveragePercent || 100;
     return Math.round((totalKPs * coverage) / 100);
   };

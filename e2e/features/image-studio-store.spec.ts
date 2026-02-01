@@ -1063,7 +1063,7 @@ test.describe('Image Studio Store - Crop Operations', () => {
 
       // Test operations
       setCropRegion({ x: 0, y: 0, width: 800, height: 600 });
-      const initialRegion = cropRegion ? { ...cropRegion } : null;
+      const initialRegion: CropRegion | null = cropRegion;
 
       _setAspectRatioLock('1:1');
       const constrained1to1 = constrainToAspectRatio(

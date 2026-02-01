@@ -20,10 +20,15 @@ import { loggers } from '@/lib/logger';
 
 const log = loggers.store;
 
+// Scheduler system status
+export type SchedulerStatus = 'idle' | 'running' | 'stopped';
+
 interface SchedulerState {
   // Data
   tasks: ScheduledTask[];
   executions: TaskExecution[];
+  recentExecutions: TaskExecution[];
+  upcomingTasks: ScheduledTask[];
   statistics: TaskStatistics | null;
   
   // UI State
@@ -31,6 +36,9 @@ interface SchedulerState {
   filter: TaskFilter;
   isLoading: boolean;
   error: string | null;
+  
+  // System State
+  schedulerStatus: SchedulerStatus;
   
   // Settings
   isInitialized: boolean;
@@ -52,7 +60,15 @@ interface SchedulerActions {
   loadTasks: () => Promise<void>;
   loadTaskExecutions: (taskId: string) => Promise<void>;
   loadStatistics: () => Promise<void>;
+  loadRecentExecutions: (limit?: number) => Promise<void>;
+  loadUpcomingTasks: (limit?: number) => Promise<void>;
   refreshAll: () => Promise<void>;
+  
+  // Maintenance
+  cleanupOldExecutions: (maxAgeDays?: number) => Promise<number>;
+  
+  // System Status
+  setSchedulerStatus: (status: SchedulerStatus) => void;
   
   // UI Actions
   selectTask: (taskId: string | null) => void;
@@ -75,11 +91,14 @@ type SchedulerStore = SchedulerState & SchedulerActions;
 const initialState: SchedulerState = {
   tasks: [],
   executions: [],
+  recentExecutions: [],
+  upcomingTasks: [],
   statistics: null,
   selectedTaskId: null,
   filter: {},
   isLoading: false,
   error: null,
+  schedulerStatus: 'idle',
   isInitialized: false,
   autoRefreshInterval: 60,
 };
@@ -273,6 +292,24 @@ export const useSchedulerStore = create<SchedulerStore>()(
         }
       },
 
+      loadRecentExecutions: async (limit = 50) => {
+        try {
+          const recentExecutions = await schedulerDb.getRecentExecutions(limit);
+          set({ recentExecutions });
+        } catch (error) {
+          log.error('SchedulerStore: Load recent executions failed', error as Error);
+        }
+      },
+
+      loadUpcomingTasks: async (limit = 10) => {
+        try {
+          const upcomingTasks = await schedulerDb.getUpcomingTasks(limit);
+          set({ upcomingTasks });
+        } catch (error) {
+          log.error('SchedulerStore: Load upcoming tasks failed', error as Error);
+        }
+      },
+
       refreshAll: async () => {
         set({ isLoading: true });
         try {
@@ -325,6 +362,29 @@ export const useSchedulerStore = create<SchedulerStore>()(
 
       clearError: () => {
         set({ error: null });
+      },
+
+      // ========== Maintenance ==========
+
+      cleanupOldExecutions: async (maxAgeDays = 30) => {
+        try {
+          const deleted = await schedulerDb.cleanupOldExecutions(maxAgeDays);
+          if (deleted > 0) {
+            log.info(`SchedulerStore: Cleaned up ${deleted} old executions`);
+            // Refresh recent executions after cleanup
+            await get().loadRecentExecutions();
+          }
+          return deleted;
+        } catch (error) {
+          log.error('SchedulerStore: Cleanup old executions failed', error as Error);
+          return 0;
+        }
+      },
+
+      // ========== System Status ==========
+
+      setSchedulerStatus: (status) => {
+        set({ schedulerStatus: status });
       },
 
       // ========== Initialization ==========
@@ -393,5 +453,11 @@ export const selectUpcomingTasks = (state: SchedulerStore): ScheduledTask[] => {
     .sort((a, b) => (a.nextRunAt?.getTime() || 0) - (b.nextRunAt?.getTime() || 0))
     .slice(0, 5);
 };
+
+export const selectRecentExecutions = (state: SchedulerStore): TaskExecution[] =>
+  state.recentExecutions;
+
+export const selectSchedulerStatus = (state: SchedulerStore): SchedulerStatus =>
+  state.schedulerStatus;
 
 export default useSchedulerStore;

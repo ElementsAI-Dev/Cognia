@@ -408,7 +408,7 @@ export function AnalyticsDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium">
-                        {formatShortDuration(session.totalTimeSpentMs || 0)}
+                        {formatShortDuration(session.timeSpentMs || 0)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {session.sectionsCompleted.length} 节完成

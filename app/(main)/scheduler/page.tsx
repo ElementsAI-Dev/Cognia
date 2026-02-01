@@ -51,6 +51,7 @@ export default function SchedulerPage() {
     isLoading,
     isInitialized,
     createTask,
+    updateTask,
     deleteTask,
     pauseTask,
     resumeTask,
@@ -80,16 +81,25 @@ export default function SchedulerPage() {
   );
 
   const handleEditTask = useCallback(
-    async (_input: CreateScheduledTaskInput) => {
+    async (input: CreateScheduledTaskInput) => {
+      if (!selectedTask) return;
       setIsSubmitting(true);
       try {
-        // For editing, we'd use updateTask - for now, close the sheet
+        await updateTask(selectedTask.id, {
+          name: input.name,
+          description: input.description,
+          trigger: input.trigger,
+          payload: input.payload,
+          notification: input.notification,
+          config: input.config,
+          tags: input.tags,
+        });
         setShowEditSheet(false);
       } finally {
         setIsSubmitting(false);
       }
     },
-    []
+    [selectedTask, updateTask]
   );
 
   const handleDeleteConfirm = useCallback(async () => {

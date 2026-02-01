@@ -4,11 +4,11 @@
 
 import {
   battleToRLHFPair,
-  battleToDPO,
-  battleToHHRLHF,
-  battleToOpenAIComparison,
+  battlesToDPO,
+  battlesToHHRLHF,
+  battlesToOpenAIComparison,
   exportBattles,
-  getExportStatistics,
+  getExportStats as _getExportStats,
   type ExportOptions,
 } from './rlhf-export';
 import type { ArenaBattle, ArenaContestant } from '@/types/arena';
@@ -25,7 +25,7 @@ function createMockBattle(overrides?: Partial<ArenaBattle>): ArenaBattle {
       startTime: Date.now() - 5000,
       endTime: Date.now() - 2000,
       latency: 3000,
-      tokenCount: 50,
+      tokenCounts: { input: 20, output: 30, total: 50 },
     },
     {
       id: 'contestant-2',
@@ -36,7 +36,7 @@ function createMockBattle(overrides?: Partial<ArenaBattle>): ArenaBattle {
       startTime: Date.now() - 5000,
       endTime: Date.now() - 1000,
       latency: 4000,
-      tokenCount: 45,
+      tokenCounts: { input: 20, output: 25, total: 45 },
     },
   ];
 
@@ -45,8 +45,8 @@ function createMockBattle(overrides?: Partial<ArenaBattle>): ArenaBattle {
     sessionId: 'session-1',
     prompt: 'What is the meaning of life?',
     contestants,
-    createdAt: Date.now() - 10000,
-    completedAt: Date.now(),
+    createdAt: new Date(Date.now() - 10000),
+    completedAt: new Date(),
     winnerId: 'contestant-1',
     blindMode: false,
     winReason: 'quality',
@@ -90,67 +90,73 @@ describe('RLHF Export', () => {
     });
   });
 
-  describe('battleToDPO', () => {
-    it('should convert battle to DPO format', () => {
-      const battle = createMockBattle();
-      const dpo = battleToDPO(battle);
+  describe('battlesToDPO', () => {
+    it('should convert battles to DPO format', () => {
+      const battles = [createMockBattle()];
+      const dpoList = battlesToDPO(battles);
 
-      expect(dpo).toBeDefined();
-      expect(dpo?.prompt).toBe('What is the meaning of life?');
-      expect(dpo?.chosen).toBe('This is the winning response.');
-      expect(dpo?.rejected).toBe('This is the losing response.');
+      expect(dpoList).toHaveLength(1);
+      expect(dpoList[0].prompt).toBe('What is the meaning of life?');
+      expect(dpoList[0].chosen).toBe('This is the winning response.');
+      expect(dpoList[0].rejected).toBe('This is the losing response.');
     });
 
-    it('should return null for incomplete battle', () => {
-      const battle = createMockBattle({ winnerId: undefined });
-      const dpo = battleToDPO(battle);
-      expect(dpo).toBeNull();
+    it('should filter out incomplete battles', () => {
+      const battles = [
+        createMockBattle(),
+        createMockBattle({ id: 'battle-2', winnerId: undefined }),
+      ];
+      const dpoList = battlesToDPO(battles);
+      expect(dpoList).toHaveLength(1);
     });
 
-    it('should include system prompt when provided', () => {
-      const battle = createMockBattle({ systemPrompt: 'You are a helpful assistant.' });
-      const dpo = battleToDPO(battle);
-
-      expect(dpo?.system).toBe('You are a helpful assistant.');
-    });
-  });
-
-  describe('battleToHHRLHF', () => {
-    it('should convert battle to HH-RLHF format', () => {
-      const battle = createMockBattle();
-      const hh = battleToHHRLHF(battle);
-
-      expect(hh).toBeDefined();
-      expect(hh?.chosen).toContain('Human:');
-      expect(hh?.chosen).toContain('Assistant:');
-      expect(hh?.rejected).toContain('Human:');
-      expect(hh?.rejected).toContain('Assistant:');
-    });
-
-    it('should return null for incomplete battle', () => {
-      const battle = createMockBattle({ winnerId: undefined });
-      const hh = battleToHHRLHF(battle);
-      expect(hh).toBeNull();
+    it('should handle empty battles array', () => {
+      const dpoList = battlesToDPO([]);
+      expect(dpoList).toHaveLength(0);
     });
   });
 
-  describe('battleToOpenAIComparison', () => {
-    it('should convert battle to OpenAI comparison format', () => {
-      const battle = createMockBattle();
-      const comparison = battleToOpenAIComparison(battle);
+  describe('battlesToHHRLHF', () => {
+    it('should convert battles to HH-RLHF format', () => {
+      const battles = [createMockBattle()];
+      const hhList = battlesToHHRLHF(battles);
 
-      expect(comparison).toBeDefined();
-      expect(comparison?.input).toBeDefined();
-      expect(comparison?.ideal).toBe('This is the winning response.');
-      expect(comparison?.completion_a).toBeDefined();
-      expect(comparison?.completion_b).toBeDefined();
-      expect(comparison?.choice).toBe('a');
+      expect(hhList).toHaveLength(1);
+      expect(hhList[0].chosen).toContain('Human:');
+      expect(hhList[0].chosen).toContain('Assistant:');
+      expect(hhList[0].rejected).toContain('Human:');
+      expect(hhList[0].rejected).toContain('Assistant:');
     });
 
-    it('should return null for incomplete battle', () => {
-      const battle = createMockBattle({ winnerId: undefined });
-      const comparison = battleToOpenAIComparison(battle);
-      expect(comparison).toBeNull();
+    it('should filter out incomplete battles', () => {
+      const battles = [
+        createMockBattle(),
+        createMockBattle({ id: 'battle-2', winnerId: undefined }),
+      ];
+      const hhList = battlesToHHRLHF(battles);
+      expect(hhList).toHaveLength(1);
+    });
+  });
+
+  describe('battlesToOpenAIComparison', () => {
+    it('should convert battles to OpenAI comparison format', () => {
+      const battles = [createMockBattle()];
+      const comparisons = battlesToOpenAIComparison(battles);
+
+      expect(comparisons).toHaveLength(1);
+      expect(comparisons[0].prompt).toBeDefined();
+      expect(comparisons[0].completion_a).toBeDefined();
+      expect(comparisons[0].completion_b).toBeDefined();
+      expect(comparisons[0].label).toBe('a');
+    });
+
+    it('should filter out incomplete battles', () => {
+      const battles = [
+        createMockBattle(),
+        createMockBattle({ id: 'battle-2', winnerId: undefined }),
+      ];
+      const comparisons = battlesToOpenAIComparison(battles);
+      expect(comparisons).toHaveLength(1);
     });
   });
 

@@ -109,21 +109,16 @@ export const ChatColumn = memo(function ChatColumn({
           {/* Current streaming response */}
           {currentState && currentState.status !== 'pending' && (
             <div className="space-y-3">
-              {/* Show current user message if we're streaming */}
+              {/* Show current response while streaming */}
               {currentState.status === 'streaming' && (
-                <div
-                  className={cn(
-                    'rounded-lg p-3',
-                    currentState.status === 'error'
-                      ? 'bg-destructive/10 border border-destructive/20'
-                      : 'bg-background border'
-                  )}
-                >
-                  {currentState.status === 'error' ? (
-                    <p className="text-sm text-destructive">{currentState.error}</p>
-                  ) : (
-                    <MarkdownRenderer content={currentState.content || '...'} />
-                  )}
+                <div className={cn('rounded-lg p-3', 'bg-background border')}>
+                  <MarkdownRenderer content={currentState.content || '...'} />
+                </div>
+              )}
+              {/* Show error state */}
+              {currentState.status === 'error' && (
+                <div className={cn('rounded-lg p-3', 'bg-destructive/10 border border-destructive/20')}>
+                  <p className="text-sm text-destructive">{currentState.error}</p>
                 </div>
               )}
             </div>

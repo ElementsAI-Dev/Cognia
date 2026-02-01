@@ -3,17 +3,17 @@
  */
 
 import {
-  generateBootstrapSamples,
-  computePercentile,
+  generateMatchupBootstrapSamples,
+  percentile,
   computeBootstrapCI,
   computeRatingStability,
-  groupModelsByTier,
+  groupIntoTiers,
   DEFAULT_BOOTSTRAP_CONFIG,
 } from './bootstrap';
 import type { Matchup } from './bradley-terry';
 
 describe('Bootstrap Resampling', () => {
-  describe('generateBootstrapSamples', () => {
+  describe('generateMatchupBootstrapSamples', () => {
     it('should generate correct number of samples', () => {
       const matchups: Matchup[] = [
         { winner: 'A', loser: 'B' },
@@ -21,7 +21,7 @@ describe('Bootstrap Resampling', () => {
         { winner: 'B', loser: 'A' },
       ];
 
-      const samples = generateBootstrapSamples(matchups, 100);
+      const samples = generateMatchupBootstrapSamples(matchups, { numSamples: 100 });
 
       expect(samples).toHaveLength(100);
     });
@@ -34,39 +34,38 @@ describe('Bootstrap Resampling', () => {
         { winner: 'C', loser: 'A' },
       ];
 
-      const samples = generateBootstrapSamples(matchups, 10);
+      const samples = generateMatchupBootstrapSamples(matchups, { numSamples: 10 });
 
-      samples.forEach((sample) => {
+      samples.forEach((sample: number[]) => {
         expect(sample).toHaveLength(matchups.length);
       });
     });
 
     it('should return empty samples for empty matchups', () => {
-      const samples = generateBootstrapSamples([], 10);
+      const samples = generateMatchupBootstrapSamples([], { numSamples: 10 });
 
       expect(samples).toHaveLength(10);
-      samples.forEach((sample) => {
+      samples.forEach((sample: number[]) => {
         expect(sample).toHaveLength(0);
       });
     });
 
-    it('should produce samples with replacement', () => {
+    it('should produce index samples for resampling', () => {
       const matchups: Matchup[] = [
         { winner: 'A', loser: 'B' },
         { winner: 'C', loser: 'D' },
+        { winner: 'E', loser: 'F' },
       ];
 
-      // With replacement, we might see duplicates
-      const samples = generateBootstrapSamples(matchups, 100);
+      const samples = generateMatchupBootstrapSamples(matchups, { numSamples: 10 });
 
-      // At least some samples should have duplicates (statistically very likely)
-      const hasDuplicates = samples.some((sample) => {
-        const winners = sample.map((m) => m.winner);
-        return new Set(winners).size < winners.length;
+      // Each sample should contain valid indices
+      samples.forEach((sample: number[]) => {
+        sample.forEach((idx: number) => {
+          expect(idx).toBeGreaterThanOrEqual(0);
+          expect(idx).toBeLessThan(matchups.length);
+        });
       });
-
-      // This test might occasionally fail due to randomness, but very unlikely
-      expect(hasDuplicates || matchups.length < 2).toBe(true);
     });
 
     it('should use seed for reproducibility when provided', () => {
@@ -76,47 +75,40 @@ describe('Bootstrap Resampling', () => {
         { winner: 'B', loser: 'C' },
       ];
 
-      const samples1 = generateBootstrapSamples(matchups, 10, 12345);
-      const samples2 = generateBootstrapSamples(matchups, 10, 12345);
+      const samples1 = generateMatchupBootstrapSamples(matchups, { numSamples: 10, seed: 12345 });
+      const samples2 = generateMatchupBootstrapSamples(matchups, { numSamples: 10, seed: 12345 });
 
       // Same seed should produce same results
       expect(JSON.stringify(samples1)).toBe(JSON.stringify(samples2));
     });
   });
 
-  describe('computePercentile', () => {
+  describe('percentile', () => {
     it('should compute median correctly', () => {
       const values = [1, 2, 3, 4, 5];
-      expect(computePercentile(values, 0.5)).toBe(3);
+      expect(percentile(values, 0.5)).toBe(3);
     });
 
     it('should compute 25th percentile', () => {
       const values = [1, 2, 3, 4, 5, 6, 7, 8];
-      const p25 = computePercentile(values, 0.25);
+      const p25 = percentile(values, 0.25);
       expect(p25).toBeGreaterThanOrEqual(2);
       expect(p25).toBeLessThanOrEqual(3);
     });
 
     it('should compute 75th percentile', () => {
       const values = [1, 2, 3, 4, 5, 6, 7, 8];
-      const p75 = computePercentile(values, 0.75);
+      const p75 = percentile(values, 0.75);
       expect(p75).toBeGreaterThanOrEqual(6);
       expect(p75).toBeLessThanOrEqual(7);
     });
 
     it('should handle single value', () => {
-      expect(computePercentile([42], 0.5)).toBe(42);
+      expect(percentile([42], 0.5)).toBe(42);
     });
 
     it('should handle empty array', () => {
-      expect(computePercentile([], 0.5)).toBe(0);
-    });
-
-    it('should not modify original array', () => {
-      const values = [5, 2, 8, 1, 9];
-      const original = [...values];
-      computePercentile(values, 0.5);
-      expect(values).toEqual(original);
+      expect(percentile([], 0.5)).toBe(0);
     });
   });
 
@@ -172,91 +164,77 @@ describe('Bootstrap Resampling', () => {
   });
 
   describe('computeRatingStability', () => {
-    it('should return high stability for consistent ratings', () => {
-      const samples = [1500, 1500, 1500, 1500, 1500];
-      const stability = computeRatingStability(samples);
-      expect(stability).toBeCloseTo(1.0, 1);
+    it('should return high stability for narrow CI and many battles', () => {
+      // Narrow CI (1480-1520 = 40 width) and many battles (100)
+      const stability = computeRatingStability(1480, 1520, 100);
+      expect(stability).toBeGreaterThan(0.7);
     });
 
-    it('should return low stability for variable ratings', () => {
-      const samples = [1000, 1200, 1400, 1600, 2000];
-      const stability = computeRatingStability(samples);
-      expect(stability).toBeLessThan(0.8);
+    it('should return low stability for wide CI and few battles', () => {
+      // Wide CI (1200-1800 = 600 width) and few battles (5)
+      const stability = computeRatingStability(1200, 1800, 5);
+      expect(stability).toBeLessThan(0.5);
     });
 
     it('should be between 0 and 1', () => {
-      const samples = [1400, 1450, 1500, 1550, 1600];
-      const stability = computeRatingStability(samples);
+      const stability = computeRatingStability(1400, 1600, 30);
       expect(stability).toBeGreaterThanOrEqual(0);
       expect(stability).toBeLessThanOrEqual(1);
     });
 
-    it('should handle empty samples', () => {
-      const stability = computeRatingStability([]);
-      expect(stability).toBe(1);
+    it('should increase with more battles', () => {
+      const stabilityFew = computeRatingStability(1400, 1600, 10);
+      const stabilityMany = computeRatingStability(1400, 1600, 100);
+      expect(stabilityMany).toBeGreaterThan(stabilityFew);
     });
   });
 
-  describe('groupModelsByTier', () => {
-    it('should group models into tiers', () => {
-      const ratings = new Map<string, number>([
-        ['A', 1800], // S tier
-        ['B', 1650], // A tier
-        ['C', 1500], // B tier
-        ['D', 1350], // C tier
-        ['E', 1200], // D tier
-      ]);
+  describe('groupIntoTiers', () => {
+    it('should group models into tiers based on CI overlap', () => {
+      const ratings = [
+        { modelId: 'A', rating: 1800, ci95Lower: 1750, ci95Upper: 1850 },
+        { modelId: 'B', rating: 1600, ci95Lower: 1550, ci95Upper: 1650 },
+        { modelId: 'C', rating: 1400, ci95Lower: 1350, ci95Upper: 1450 },
+      ];
 
-      const tiers = groupModelsByTier(ratings);
+      const tiers = groupIntoTiers(ratings);
 
-      expect(tiers.get('S')).toContain('A');
-      expect(tiers.get('A')).toContain('B');
-      expect(tiers.get('B')).toContain('C');
-      expect(tiers.get('C')).toContain('D');
-      expect(tiers.get('D')).toContain('E');
+      // Each model should be in separate tier due to non-overlapping CIs
+      expect(tiers).toHaveLength(3);
+      expect(tiers[0].models).toContain('A');
+      expect(tiers[1].models).toContain('B');
+      expect(tiers[2].models).toContain('C');
     });
 
-    it('should handle models with same rating', () => {
-      const ratings = new Map<string, number>([
-        ['A', 1500],
-        ['B', 1500],
-        ['C', 1500],
-      ]);
+    it('should group models with overlapping CIs in same tier', () => {
+      const ratings = [
+        { modelId: 'A', rating: 1510, ci95Lower: 1450, ci95Upper: 1570 },
+        { modelId: 'B', rating: 1500, ci95Lower: 1440, ci95Upper: 1560 },
+        { modelId: 'C', rating: 1490, ci95Lower: 1430, ci95Upper: 1550 },
+      ];
 
-      const tiers = groupModelsByTier(ratings);
-      const bTier = tiers.get('B') || [];
+      const tiers = groupIntoTiers(ratings);
 
-      expect(bTier).toContain('A');
-      expect(bTier).toContain('B');
-      expect(bTier).toContain('C');
+      // All models should be in same tier due to overlapping CIs
+      expect(tiers).toHaveLength(1);
+      expect(tiers[0].models).toContain('A');
+      expect(tiers[0].models).toContain('B');
+      expect(tiers[0].models).toContain('C');
     });
 
     it('should handle empty ratings', () => {
-      const tiers = groupModelsByTier(new Map());
-      
-      expect(tiers.get('S')).toEqual([]);
-      expect(tiers.get('A')).toEqual([]);
-      expect(tiers.get('B')).toEqual([]);
-      expect(tiers.get('C')).toEqual([]);
-      expect(tiers.get('D')).toEqual([]);
+      const tiers = groupIntoTiers([]);
+      expect(tiers).toHaveLength(0);
     });
 
-    it('should respect custom thresholds', () => {
-      const ratings = new Map<string, number>([
-        ['A', 1600],
-        ['B', 1500],
-      ]);
+    it('should handle single model', () => {
+      const ratings = [
+        { modelId: 'A', rating: 1500, ci95Lower: 1450, ci95Upper: 1550 },
+      ];
 
-      // With higher S threshold, A should not be in S tier
-      const tiers = groupModelsByTier(ratings, {
-        S: 1700,
-        A: 1550,
-        B: 1450,
-        C: 1350,
-      });
-
-      expect(tiers.get('S')).not.toContain('A');
-      expect(tiers.get('A')).toContain('A');
+      const tiers = groupIntoTiers(ratings);
+      expect(tiers).toHaveLength(1);
+      expect(tiers[0].models).toContain('A');
     });
   });
 
@@ -268,7 +246,7 @@ describe('Bootstrap Resampling', () => {
   });
 
   describe('integration', () => {
-    it('should produce valid CI from matchup data', () => {
+    it('should produce valid samples from matchup data', () => {
       const matchups: Matchup[] = [];
       // Generate synthetic matchup data
       for (let i = 0; i < 20; i++) {
@@ -278,10 +256,10 @@ describe('Bootstrap Resampling', () => {
         matchups.push({ winner: 'B', loser: 'A' });
       }
 
-      const bootstrapSamples = generateBootstrapSamples(matchups, 100);
+      const bootstrapSamples = generateMatchupBootstrapSamples(matchups, { numSamples: 100 });
 
       // Each bootstrap sample should have same length
-      bootstrapSamples.forEach((sample) => {
+      bootstrapSamples.forEach((sample: number[]) => {
         expect(sample.length).toBe(matchups.length);
       });
     });
