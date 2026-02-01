@@ -1,0 +1,94 @@
+{
+  "id": "cognia-git-tools",
+  "name": "Git Tools",
+  "version": "1.0.0",
+  "description": "Git version control operations for AI agents - status, diff, commit, branch management",
+  "author": {
+    "name": "Cognia Team",
+    "email": "team@cognia.dev"
+  },
+  "license": "MIT",
+  "type": "frontend",
+  "main": "dist/index.js",
+  "icon": "git-branch",
+  "keywords": [
+    "git",
+    "version-control",
+    "commit",
+    "branch",
+    "diff"
+  ],
+  "capabilities": [
+    "tools"
+  ],
+  "permissions": [
+    "shell:execute",
+    "filesystem:read"
+  ],
+  "activationEvents": [
+    "onAgentTool:git_status",
+    "onAgentTool:git_diff",
+    "onAgentTool:git_log",
+    "onAgentTool:git_branch",
+    "onAgentTool:git_commit",
+    "onAgentTool:git_stash",
+    "onAgentTool:git_blame"
+  ],
+  "tools": [
+    {
+      "name": "git_status",
+      "description": "Get repository status (staged, modified, untracked files)"
+    },
+    {
+      "name": "git_diff",
+      "description": "Show changes between commits, working tree, etc."
+    },
+    {
+      "name": "git_log",
+      "description": "View commit history"
+    },
+    {
+      "name": "git_branch",
+      "description": "List, create, or switch branches"
+    },
+    {
+      "name": "git_commit",
+      "description": "Create a new commit",
+      "requiresApproval": true
+    },
+    {
+      "name": "git_stash",
+      "description": "Stash or restore changes"
+    },
+    {
+      "name": "git_blame",
+      "description": "Show line-by-line authorship"
+    }
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "maxLogEntries": {
+        "type": "number",
+        "title": "Max Log Entries",
+        "description": "Maximum number of log entries to return",
+        "default": 50,
+        "minimum": 10,
+        "maximum": 500
+      },
+      "maxDiffSize": {
+        "type": "number",
+        "title": "Max Diff Size",
+        "description": "Maximum diff size in bytes",
+        "default": 102400,
+        "minimum": 1024,
+        "maximum": 1048576
+      }
+    }
+  },
+  "defaultConfig": {
+    "maxLogEntries": 50,
+    "maxDiffSize": 102400
+  },
+  "minAppVersion": "2.0.0"
+}

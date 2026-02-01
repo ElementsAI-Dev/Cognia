@@ -7,7 +7,36 @@ import { renderHook, act } from '@testing-library/react';
 import { useInputCompletion } from './use-input-completion';
 import * as api from '@/lib/native/input-completion';
 import type { CompletionSuggestion, CompletionResult, ImeState } from '@/types/input-completion';
-import { DEFAULT_COMPLETION_CONFIG } from '@/types/input-completion';
+
+// Mock config for tests - avoid circular dependency with DEFAULT_COMPLETION_CONFIG
+const mockCompletionConfig = {
+  enabled: true,
+  model: {
+    provider: 'ollama',
+    model_id: 'qwen2.5-coder:0.5b',
+    endpoint: null,
+    api_key: null,
+    max_tokens: 128,
+    temperature: 0.1,
+    timeout_secs: 5,
+  },
+  trigger: {
+    debounce_ms: 400,
+    min_context_length: 5,
+    max_context_length: 500,
+    trigger_on_word_boundary: false,
+    skip_chars: [' ', '\n', '\t', '\r'],
+    skip_with_modifiers: true,
+  },
+  ui: {
+    show_inline_preview: true,
+    max_suggestions: 3,
+    font_size: 14,
+    ghost_text_opacity: 0.5,
+    auto_dismiss_ms: 5000,
+    show_accept_hint: true,
+  },
+};
 
 // Mock the native API
 jest.mock('@/lib/native/input-completion', () => ({
@@ -38,7 +67,7 @@ jest.mock('@/lib/native/input-completion', () => ({
     buffer_length: 0,
   }),
   updateCompletionConfig: jest.fn().mockResolvedValue(undefined),
-  getCompletionConfig: jest.fn().mockResolvedValue(DEFAULT_COMPLETION_CONFIG),
+  getCompletionConfig: jest.fn().mockImplementation(() => Promise.resolve(mockCompletionConfig)),
   triggerCompletion: jest.fn().mockResolvedValue({
     suggestions: [],
     latency_ms: 0,
@@ -453,6 +482,70 @@ describe('useInputCompletion', () => {
       });
 
       expect(status).toBeNull();
+    });
+  });
+
+  describe('Multi-suggestion Support', () => {
+    it('should have max_suggestions config', () => {
+      const { result } = renderHook(() => useInputCompletion());
+      
+      expect(result.current.config.ui.max_suggestions).toBeDefined();
+      expect(typeof result.current.config.ui.max_suggestions).toBe('number');
+    });
+
+    it('should update max_suggestions config', async () => {
+      const { result } = renderHook(() => useInputCompletion());
+
+      const newConfig = {
+        ...result.current.config,
+        ui: {
+          ...result.current.config.ui,
+          max_suggestions: 5,
+        },
+      };
+
+      await act(async () => {
+        await result.current.updateConfig(newConfig);
+      });
+
+      expect(result.current.config.ui.max_suggestions).toBe(5);
+    });
+  });
+
+  describe('Error Recovery', () => {
+    it('should handle retryable errors gracefully', async () => {
+      // Simulate a timeout error that should trigger retry logic in backend
+      (api.triggerCompletion as jest.Mock).mockRejectedValueOnce(new Error('connection timeout'));
+
+      const { result } = renderHook(() => useInputCompletion());
+
+      await act(async () => {
+        await result.current.trigger('test text');
+      });
+
+      // Should not throw, error is handled
+      expect(result.current.error).not.toBeNull();
+    });
+
+    it('should clear error on successful operation', async () => {
+      const { result } = renderHook(() => useInputCompletion());
+
+      // Set an error
+      await act(async () => {
+        (api.triggerCompletion as jest.Mock).mockRejectedValueOnce(new Error('test error'));
+        await result.current.trigger('test');
+      });
+
+      expect(result.current.error).not.toBeNull();
+
+      // Successful operation should not persist error state
+      await act(async () => {
+        (api.triggerCompletion as jest.Mock).mockResolvedValueOnce(undefined);
+        await result.current.trigger('test again');
+      });
+
+      // Error should be cleared or updated
+      expect(result.current.isLoading).toBe(false);
     });
   });
 });

@@ -485,7 +485,7 @@ mod tests {
 
     #[test]
     fn test_dismiss_suggestion() {
-        let mut engine = SmartSuggestions::new();
+        let engine = SmartSuggestions::new();
 
         engine.dismiss("test_action");
         assert!(engine.is_dismissed("test_action"));
@@ -764,7 +764,7 @@ mod tests {
 
     #[test]
     fn test_dismissed_suggestions_not_returned() {
-        let mut engine = SmartSuggestions::new();
+        let engine = SmartSuggestions::new();
         let mut system = create_test_system_state();
         system.memory_percent = 95.0; // High memory to trigger warning
 
@@ -792,7 +792,7 @@ mod tests {
 
     #[test]
     fn test_clear_dismissed_restores_suggestions() {
-        let mut engine = SmartSuggestions::new();
+        let engine = SmartSuggestions::new();
 
         engine.dismiss("test_action");
         assert!(engine.is_dismissed("test_action"));
@@ -871,7 +871,7 @@ mod tests {
 
     #[test]
     fn test_multiple_dismissals() {
-        let mut engine = SmartSuggestions::new();
+        let engine = SmartSuggestions::new();
 
         engine.dismiss("action1");
         engine.dismiss("action2");
@@ -885,7 +885,7 @@ mod tests {
 
     #[test]
     fn test_no_duplicate_dismissals() {
-        let mut engine = SmartSuggestions::new();
+        let engine = SmartSuggestions::new();
 
         engine.dismiss("same_action");
         engine.dismiss("same_action");

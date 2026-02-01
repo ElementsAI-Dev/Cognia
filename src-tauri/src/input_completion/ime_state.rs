@@ -207,10 +207,231 @@ impl ImeMonitor {
         }
     }
 
-    #[cfg(not(windows))]
+    /// Poll IME state on macOS using Carbon API
+    #[cfg(target_os = "macos")]
     fn poll_ime_state() -> ImeState {
-        // On non-Windows platforms, return default state
-        // TODO: Implement macOS/Linux IME detection
+        use std::process::Command;
+        
+        // Use macOS command to detect current input source
+        // This approach is more reliable than trying to link against Carbon framework
+        let output = Command::new("defaults")
+            .args(["read", "com.apple.HIToolbox", "AppleCurrentKeyboardLayoutInputSourceID"])
+            .output();
+        
+        match output {
+            Ok(result) => {
+                let input_source = String::from_utf8_lossy(&result.stdout).trim().to_string();
+                
+                // Detect input mode based on input source ID
+                let (is_active, input_mode, ime_name) = if input_source.contains("Pinyin") 
+                    || input_source.contains("Chinese") 
+                    || input_source.contains("Simplified")
+                    || input_source.contains("Traditional")
+                    || input_source.contains("Wubi")
+                {
+                    (true, InputMode::Chinese, Some("macOS Chinese".to_string()))
+                } else if input_source.contains("Japanese") 
+                    || input_source.contains("Hiragana")
+                    || input_source.contains("Katakana")
+                    || input_source.contains("Romaji")
+                {
+                    (true, InputMode::Japanese, Some("macOS Japanese".to_string()))
+                } else if input_source.contains("Korean") 
+                    || input_source.contains("Hangul")
+                {
+                    (true, InputMode::Korean, Some("macOS Korean".to_string()))
+                } else if input_source.contains("ABC") 
+                    || input_source.contains("US") 
+                    || input_source.contains("British")
+                    || input_source.contains("Australian")
+                {
+                    (false, InputMode::English, None)
+                } else {
+                    // Unknown input source, assume not CJK
+                    (false, InputMode::Other(input_source.clone()), Some(input_source))
+                };
+                
+                ImeState {
+                    is_active,
+                    is_composing: false, // macOS doesn't expose composition state easily
+                    input_mode,
+                    ime_name,
+                    composition_string: None,
+                    candidates: Vec::new(),
+                }
+            }
+            Err(e) => {
+                log::trace!("Failed to detect macOS input source: {}", e);
+                ImeState::default()
+            }
+        }
+    }
+
+    /// Poll IME state on Linux using IBus/Fcitx D-Bus interface
+    #[cfg(target_os = "linux")]
+    fn poll_ime_state() -> ImeState {
+        use std::process::Command;
+        
+        // Try IBus first (most common on GNOME/Ubuntu)
+        if let Some(state) = Self::poll_ibus_state() {
+            return state;
+        }
+        
+        // Try Fcitx (common on KDE and Chinese distributions)
+        if let Some(state) = Self::poll_fcitx_state() {
+            return state;
+        }
+        
+        // Fallback: check environment variables for IME hints
+        Self::poll_linux_env_ime()
+    }
+    
+    #[cfg(target_os = "linux")]
+    fn poll_ibus_state() -> Option<ImeState> {
+        use std::process::Command;
+        
+        // Query IBus for current input method using ibus command with timeout
+        let output = Command::new("timeout")
+            .args(["0.5", "ibus", "read-config", "general/preload_engines"])
+            .output()
+            .ok()?;
+        
+        // Also try to get the current engine with timeout
+        let engine_output = Command::new("timeout")
+            .args(["0.5", "ibus", "engine"])
+            .output()
+            .ok();
+        
+        let current_engine = engine_output
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_default();
+        
+        if current_engine.is_empty() {
+            return None;
+        }
+        
+        let (is_active, input_mode, ime_name) = if current_engine.contains("pinyin") 
+            || current_engine.contains("chinese")
+            || current_engine.contains("rime")
+            || current_engine.contains("wubi")
+            || current_engine.contains("libpinyin")
+        {
+            (true, InputMode::Chinese, Some(current_engine.clone()))
+        } else if current_engine.contains("anthy") 
+            || current_engine.contains("mozc")
+            || current_engine.contains("kkc")
+        {
+            (true, InputMode::Japanese, Some(current_engine.clone()))
+        } else if current_engine.contains("hangul") 
+            || current_engine.contains("korean")
+        {
+            (true, InputMode::Korean, Some(current_engine.clone()))
+        } else if current_engine.contains("xkb") 
+            || current_engine.contains("us")
+            || current_engine.contains("en")
+        {
+            (false, InputMode::English, None)
+        } else {
+            (false, InputMode::Other(current_engine.clone()), Some(current_engine))
+        };
+        
+        Some(ImeState {
+            is_active,
+            is_composing: false, // IBus doesn't expose this via CLI easily
+            input_mode,
+            ime_name,
+            composition_string: None,
+            candidates: Vec::new(),
+        })
+    }
+    
+    #[cfg(target_os = "linux")]
+    fn poll_fcitx_state() -> Option<ImeState> {
+        use std::process::Command;
+        
+        // Try fcitx5-remote first (Fcitx5) with timeout
+        let output = Command::new("timeout")
+            .args(["0.5", "fcitx5-remote", "-n"]) // Get current input method name
+            .output();
+        
+        let current_im = match output {
+            Ok(o) if o.status.success() => {
+                String::from_utf8_lossy(&o.stdout).trim().to_string()
+            }
+            _ => {
+                // Fallback to fcitx-remote (Fcitx4) with timeout
+                let output4 = Command::new("timeout")
+                    .args(["0.5", "fcitx-remote", "-n"])
+                    .output()
+                    .ok()?;
+                    
+                if !output4.status.success() {
+                    return None;
+                }
+                String::from_utf8_lossy(&output4.stdout).trim().to_string()
+            }
+        };
+        
+        if current_im.is_empty() {
+            return None;
+        }
+        
+        let (is_active, input_mode, ime_name) = if current_im.contains("pinyin") 
+            || current_im.contains("rime")
+            || current_im.contains("chinese")
+            || current_im.contains("wubi")
+            || current_im.contains("shuangpin")
+        {
+            (true, InputMode::Chinese, Some(current_im.clone()))
+        } else if current_im.contains("anthy") 
+            || current_im.contains("mozc")
+            || current_im.contains("kkc")
+        {
+            (true, InputMode::Japanese, Some(current_im.clone()))
+        } else if current_im.contains("hangul") {
+            (true, InputMode::Korean, Some(current_im.clone()))
+        } else if current_im.contains("keyboard") 
+            || current_im.contains("us")
+        {
+            (false, InputMode::English, None)
+        } else {
+            (false, InputMode::Other(current_im.clone()), Some(current_im))
+        };
+        
+        Some(ImeState {
+            is_active,
+            is_composing: false,
+            input_mode,
+            ime_name,
+            composition_string: None,
+            candidates: Vec::new(),
+        })
+    }
+    
+    #[cfg(target_os = "linux")]
+    fn poll_linux_env_ime() -> ImeState {
+        // Check environment variables for IME configuration
+        let gtk_im = std::env::var("GTK_IM_MODULE").unwrap_or_default();
+        let qt_im = std::env::var("QT_IM_MODULE").unwrap_or_default();
+        let xmodifiers = std::env::var("XMODIFIERS").unwrap_or_default();
+        
+        // Detect if an IME framework is configured
+        let has_ime = !gtk_im.is_empty() 
+            && (gtk_im.contains("ibus") || gtk_im.contains("fcitx") || gtk_im.contains("scim"));
+        
+        if has_ime {
+            log::trace!("Detected IME framework: GTK={}, QT={}, XMODIFIERS={}", gtk_im, qt_im, xmodifiers);
+        }
+        
+        // Without being able to query the actual state, return conservative default
+        ImeState::default()
+    }
+
+    /// Fallback for other Unix-like systems (FreeBSD, etc.)
+    #[cfg(all(unix, not(target_os = "macos"), not(target_os = "linux")))]
+    fn poll_ime_state() -> ImeState {
+        // For other Unix systems, return default state
+        log::trace!("IME detection not implemented for this Unix variant");
         ImeState::default()
     }
 }

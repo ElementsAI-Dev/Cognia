@@ -9,6 +9,7 @@ pub mod extensions;
 pub mod input_completion;
 pub mod media;
 pub mod providers;
+pub mod scheduler;
 pub mod storage;
 pub mod system;
 pub mod window;

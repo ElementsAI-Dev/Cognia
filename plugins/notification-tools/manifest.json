@@ -1,0 +1,29 @@
+{
+  "id": "cognia-notification-tools",
+  "name": "Notification Tools",
+  "version": "1.0.0",
+  "description": "Notifications and reminders for AI agents",
+  "author": { "name": "Cognia Team", "email": "team@cognia.dev" },
+  "license": "MIT",
+  "type": "frontend",
+  "main": "dist/index.js",
+  "icon": "bell",
+  "keywords": ["notification", "reminder", "alert"],
+  "capabilities": ["tools"],
+  "permissions": [],
+  "activationEvents": [
+    "onAgentTool:notify",
+    "onAgentTool:remind"
+  ],
+  "tools": [
+    { "name": "notify", "description": "Send a notification to the user" },
+    { "name": "remind", "description": "Set a reminder for later" }
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "maxReminders": { "type": "number", "default": 100 }
+    }
+  },
+  "defaultConfig": { "maxReminders": 100 }
+}

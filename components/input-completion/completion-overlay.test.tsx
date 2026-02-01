@@ -24,7 +24,7 @@ const mockDismiss = jest.fn();
 const mockConfig = {
   ui: {
     show_inline_preview: true,
-    max_suggestions: 1,
+    max_suggestions: 3,
     font_size: 14,
     ghost_text_opacity: 0.5,
     auto_dismiss_ms: 5000,
@@ -362,7 +362,7 @@ describe('CompletionOverlay', () => {
       expect(suggestionText?.textContent).toBe('');
     });
 
-    it('handles multiline suggestion text', () => {
+    it('handles multiline suggestion text with line break indicators', () => {
       const multilineSuggestion: CompletionSuggestion = {
         id: 'multiline',
         text: 'line1\nline2\nline3',
@@ -375,7 +375,10 @@ describe('CompletionOverlay', () => {
 
       const { container } = render(<CompletionOverlay {...defaultProps} />);
       const suggestionText = container.querySelector('.font-mono') as HTMLElement;
-      expect(suggestionText.textContent).toBe('line1\nline2\nline3');
+      // Multi-line text now includes line break indicators (↵)
+      expect(suggestionText.textContent).toContain('line1');
+      expect(suggestionText.textContent).toContain('line2');
+      expect(suggestionText.textContent).toContain('line3');
     });
 
     it('handles very long suggestion text', () => {
@@ -408,6 +411,118 @@ describe('CompletionOverlay', () => {
 
       render(<CompletionOverlay {...defaultProps} />);
       expect(screen.getByText(/<script>/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Multi-Suggestion Navigation', () => {
+    const multipleSuggestions: CompletionSuggestion[] = [
+      {
+        id: 'suggestion-1',
+        text: 'console.log("First");',
+        display_text: 'console.log("First");',
+        confidence: 0.95,
+        completion_type: 'Line',
+      },
+      {
+        id: 'suggestion-2',
+        text: 'console.log("Second");',
+        display_text: 'console.log("Second");',
+        confidence: 0.85,
+        completion_type: 'Line',
+      },
+      {
+        id: 'suggestion-3',
+        text: 'console.log("Third");',
+        display_text: 'console.log("Third");',
+        confidence: 0.75,
+        completion_type: 'Line',
+      },
+    ];
+
+    it('renders with multiple suggestions', () => {
+      render(
+        <CompletionOverlay
+          {...defaultProps}
+          suggestions={multipleSuggestions}
+        />
+      );
+      
+      // Should show first suggestion by default
+      expect(screen.getByText(/First/)).toBeInTheDocument();
+    });
+
+    it('shows navigation indicator for multiple suggestions', () => {
+      render(
+        <CompletionOverlay
+          {...defaultProps}
+          suggestions={multipleSuggestions}
+        />
+      );
+      
+      // Should show 1/3 indicator
+      expect(screen.getByText('1/3')).toBeInTheDocument();
+    });
+
+    it('navigates to next suggestion with Alt+]', () => {
+      const onIndexChange = jest.fn();
+      render(
+        <CompletionOverlay
+          {...defaultProps}
+          suggestions={multipleSuggestions}
+          onIndexChange={onIndexChange}
+        />
+      );
+      
+      fireEvent.keyDown(window, { key: ']', altKey: true });
+      
+      expect(onIndexChange).toHaveBeenCalledWith(1);
+    });
+
+    it('navigates to previous suggestion with Alt+[', () => {
+      const onIndexChange = jest.fn();
+      render(
+        <CompletionOverlay
+          {...defaultProps}
+          suggestions={multipleSuggestions}
+          onIndexChange={onIndexChange}
+        />
+      );
+      
+      // First go to second suggestion
+      fireEvent.keyDown(window, { key: ']', altKey: true });
+      // Then go back to first
+      fireEvent.keyDown(window, { key: '[', altKey: true });
+      
+      expect(onIndexChange).toHaveBeenLastCalledWith(0);
+    });
+
+    it('wraps around when navigating past last suggestion', () => {
+      const onIndexChange = jest.fn();
+      render(
+        <CompletionOverlay
+          {...defaultProps}
+          suggestions={multipleSuggestions}
+          onIndexChange={onIndexChange}
+        />
+      );
+      
+      // Navigate through all suggestions
+      fireEvent.keyDown(window, { key: ']', altKey: true }); // 0 -> 1
+      fireEvent.keyDown(window, { key: ']', altKey: true }); // 1 -> 2
+      fireEvent.keyDown(window, { key: ']', altKey: true }); // 2 -> 0 (wrap)
+      
+      expect(onIndexChange).toHaveBeenLastCalledWith(0);
+    });
+
+    it('does not show navigation indicator for single suggestion', () => {
+      render(
+        <CompletionOverlay
+          {...defaultProps}
+          suggestions={[multipleSuggestions[0]]}
+        />
+      );
+      
+      expect(screen.queryByText('1/1')).not.toBeInTheDocument();
     });
   });
 

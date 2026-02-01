@@ -32,6 +32,7 @@ export * as vcs from './vcs';
 export * as skill from './skill';
 export * as modelDownloadHelpers from './model-download-helpers';
 export * as tray from './tray';
+export * as systemScheduler from './system-scheduler';
 
 // Logging integration
 export * from './tauri-log-bridge';

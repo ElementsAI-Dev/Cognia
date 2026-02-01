@@ -7,9 +7,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
+import React from 'react';
+import { render } from 'ink';
+import { InitWizard, type InitWizardData } from '../wizards/index.js';
 
-interface InitOptions {
+export interface InitOptions {
   force: boolean;
+  interactive?: boolean;
 }
 
 interface PluginManifest {
@@ -28,15 +32,22 @@ export async function initCommand(options: InitOptions): Promise<void> {
   const cwd = process.cwd();
   const manifestPath = path.join(cwd, 'plugin.json');
 
-  console.log('\n🔧 Initializing Cognia Plugin SDK\n');
-
   // Check if already initialized
   if (fs.existsSync(manifestPath) && !options.force) {
     console.error('❌ plugin.json already exists. Use --force to overwrite.');
     process.exit(1);
   }
 
-  // Interactive prompts
+  // Determine if we should run interactive mode
+  const isInteractive = options.interactive ?? process.stdout.isTTY;
+
+  if (isInteractive) {
+    return runInteractiveInit(cwd, manifestPath);
+  }
+
+  // Non-interactive mode using readline
+  console.log('\n🔧 Initializing Cognia Plugin SDK\n');
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -144,6 +155,96 @@ export async function initCommand(options: InitOptions): Promise<void> {
     console.error('❌ Initialization failed:', error);
     process.exit(1);
   }
+}
+
+/**
+ * Run interactive init wizard
+ */
+async function runInteractiveInit(cwd: string, manifestPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Read package.json if exists
+    const packageJsonPath = path.join(cwd, 'package.json');
+    let packageJson: { name?: string; version?: string; description?: string; author?: string } | undefined;
+
+    if (fs.existsSync(packageJsonPath)) {
+      try {
+        packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    const handleComplete = async (data: InitWizardData) => {
+      try {
+        // Create manifest
+        const manifest: PluginManifest = {
+          id: data.id,
+          name: data.name,
+          version: data.version,
+          description: data.description,
+          author: data.author,
+          main: 'dist/index.js',
+          type: 'frontend',
+          capabilities: data.capabilities,
+          permissions: data.permissions,
+        };
+
+        // Write plugin.json
+        fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+        // Update package.json if exists
+        if (fs.existsSync(packageJsonPath)) {
+          const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+
+          // Add scripts
+          pkg.scripts = pkg.scripts || {};
+          pkg.scripts.dev = pkg.scripts.dev || 'cognia-plugin dev';
+          pkg.scripts.build = pkg.scripts.build || 'cognia-plugin build';
+          pkg.scripts.validate = pkg.scripts.validate || 'cognia-plugin validate';
+
+          // Add dev dependencies
+          pkg.devDependencies = pkg.devDependencies || {};
+          if (!pkg.devDependencies['@cognia/plugin-sdk']) {
+            pkg.devDependencies['@cognia/plugin-sdk'] = '^2.0.0';
+          }
+
+          fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2));
+        }
+
+        // Create index.ts if doesn't exist
+        const indexPath = path.join(cwd, 'index.ts');
+        if (!fs.existsSync(indexPath) && !fs.existsSync(path.join(cwd, 'src', 'index.ts'))) {
+          fs.writeFileSync(indexPath, getIndexTemplate(data.id, data.name));
+        }
+
+        console.log('\n🎉 Plugin initialized successfully!\n');
+        console.log('Next steps:');
+        console.log('  npm install');
+        console.log('  npm run dev');
+        console.log('');
+
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    const handleCancel = () => {
+      console.log('\n👋 Initialization cancelled.\n');
+      resolve();
+    };
+
+    const { waitUntilExit } = render(
+      React.createElement(InitWizard, {
+        cwd,
+        packageJson,
+        onComplete: handleComplete,
+        onCancel: handleCancel,
+      })
+    );
+
+    waitUntilExit().then(resolve).catch(reject);
+  });
 }
 
 function getIndexTemplate(id: string, name: string): string {

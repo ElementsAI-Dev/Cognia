@@ -19,6 +19,7 @@ import type {
   PluginWindowAPI,
   PluginSecretsAPI,
   PluginBrowserAPI,
+  PluginSchedulerAPI,
 } from '../api';
 
 /**
@@ -239,4 +240,7 @@ export interface PluginContext {
 
   /** Browser Automation API (optional) */
   browser?: PluginBrowserAPI;
+
+  /** Scheduler API for scheduled tasks */
+  scheduler: PluginSchedulerAPI;
 }

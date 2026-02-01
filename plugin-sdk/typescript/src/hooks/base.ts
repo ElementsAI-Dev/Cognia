@@ -108,6 +108,18 @@ export interface PluginHooks {
   // Command hooks
   /** Called when a command is executed (return true to handle) */
   onCommand?: (command: string, args: string[]) => boolean | Promise<boolean>;
+
+  // Scheduler hooks
+  /** Called when a scheduled task starts execution */
+  onScheduledTaskStart?: (taskId: string, executionId: string) => void;
+  /** Called when a scheduled task completes successfully */
+  onScheduledTaskComplete?: (
+    taskId: string,
+    executionId: string,
+    result: { success: boolean; output?: Record<string, unknown>; error?: string }
+  ) => void;
+  /** Called when a scheduled task fails */
+  onScheduledTaskError?: (taskId: string, executionId: string, error: Error) => void;
 }
 
 /**

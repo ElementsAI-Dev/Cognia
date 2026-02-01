@@ -7,13 +7,17 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
+import React from 'react';
+import { render } from 'ink';
+import { CreateWizard, type CreateWizardData } from '../wizards/index.js';
 
-interface CreateOptions {
+export interface CreateOptions {
   template: 'basic' | 'tool' | 'command' | 'full';
   directory: string;
   typescript: boolean;
   git: boolean;
   install: boolean;
+  interactive?: boolean;
 }
 
 const TEMPLATES = {
@@ -35,7 +39,22 @@ const TEMPLATES = {
   },
 };
 
-export async function createCommand(name: string, options: CreateOptions): Promise<void> {
+export async function createCommand(name: string | undefined, options: CreateOptions): Promise<void> {
+  // Determine if we should run interactive mode
+  const isInteractive = options.interactive ?? (process.stdout.isTTY && !name);
+
+  if (isInteractive) {
+    return runInteractiveCreate(name, options);
+  }
+
+  // Non-interactive mode requires name
+  if (!name) {
+    console.error('❌ Plugin name is required in non-interactive mode');
+    console.log('   Usage: cognia-plugin create <name>');
+    console.log('   Or run without name for interactive mode');
+    process.exit(1);
+  }
+
   const targetDir = path.resolve(options.directory, name);
 
   console.log(`\n🚀 Creating new Cognia plugin: ${name}\n`);
@@ -85,6 +104,199 @@ export async function createCommand(name: string, options: CreateOptions): Promi
   }
   console.log('  npx cognia-plugin dev');
   console.log('');
+}
+
+/**
+ * Run interactive create wizard
+ */
+async function runInteractiveCreate(initialName: string | undefined, options: CreateOptions): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const handleComplete = async (data: CreateWizardData) => {
+      try {
+        const targetDir = path.resolve(options.directory, data.name);
+
+        // Check if directory exists
+        if (fs.existsSync(targetDir)) {
+          throw new Error(`Directory already exists: ${targetDir}`);
+        }
+
+        // Create directory
+        fs.mkdirSync(targetDir, { recursive: true });
+
+        // Generate files
+        await generateTemplateFilesFromWizard(data.name, targetDir, data);
+
+        // Initialize git
+        if (data.git) {
+          try {
+            execSync('git init', { cwd: targetDir, stdio: 'pipe' });
+            fs.writeFileSync(path.join(targetDir, '.gitignore'), getGitignore());
+          } catch {
+            console.warn('⚠️  Failed to initialize git repository');
+          }
+        }
+
+        // Install dependencies
+        if (data.install) {
+          console.log('\n📦 Installing dependencies...');
+          try {
+            execSync('npm install', { cwd: targetDir, stdio: 'inherit' });
+          } catch {
+            console.warn('⚠️  Failed to install dependencies. Run npm install manually.');
+          }
+        }
+
+        console.log(`\n✅ Plugin created successfully!\n`);
+        console.log('Next steps:');
+        console.log(`  cd ${data.name}`);
+        if (!data.install) {
+          console.log('  npm install');
+        }
+        console.log('  npx cognia-plugin dev');
+        console.log('');
+
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    const handleCancel = () => {
+      console.log('\n👋 Plugin creation cancelled.\n');
+      resolve();
+    };
+
+    const { waitUntilExit } = render(
+      React.createElement(CreateWizard, {
+        initialName: initialName || '',
+        onComplete: handleComplete,
+        onCancel: handleCancel,
+      })
+    );
+
+    waitUntilExit().then(resolve).catch(reject);
+  });
+}
+
+/**
+ * Generate files from wizard data (supports custom capabilities)
+ */
+async function generateTemplateFilesFromWizard(
+  name: string,
+  targetDir: string,
+  data: CreateWizardData
+): Promise<void> {
+  const ext = data.typescript ? 'ts' : 'js';
+
+  // Generate package.json
+  fs.writeFileSync(
+    path.join(targetDir, 'package.json'),
+    JSON.stringify(getPackageJson(name, data.typescript), null, 2)
+  );
+
+  // Generate plugin.json with custom capabilities/permissions
+  fs.writeFileSync(
+    path.join(targetDir, 'plugin.json'),
+    JSON.stringify({
+      id: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      name: name,
+      version: '1.0.0',
+      description: `Cognia plugin: ${name}`,
+      author: 'Your Name',
+      main: 'dist/index.js',
+      type: 'frontend',
+      capabilities: data.capabilities,
+      permissions: data.permissions,
+    }, null, 2)
+  );
+
+  // Generate tsconfig.json if TypeScript
+  if (data.typescript) {
+    fs.writeFileSync(
+      path.join(targetDir, 'tsconfig.json'),
+      JSON.stringify(getTsConfig(), null, 2)
+    );
+  }
+
+  // Generate main entry file
+  fs.writeFileSync(
+    path.join(targetDir, `index.${ext}`),
+    getMainFileFromWizard(name, data)
+  );
+
+  // Generate additional files based on capabilities
+  if (data.capabilities.includes('tools')) {
+    fs.mkdirSync(path.join(targetDir, 'tools'), { recursive: true });
+    fs.writeFileSync(
+      path.join(targetDir, 'tools', `index.${ext}`),
+      getToolsFile(data.typescript)
+    );
+  }
+
+  if (data.capabilities.includes('commands')) {
+    fs.mkdirSync(path.join(targetDir, 'commands'), { recursive: true });
+    fs.writeFileSync(
+      path.join(targetDir, 'commands', `index.${ext}`),
+      getCommandsFile(data.typescript)
+    );
+  }
+
+  if (data.capabilities.includes('hooks')) {
+    fs.mkdirSync(path.join(targetDir, 'hooks'), { recursive: true });
+    fs.writeFileSync(
+      path.join(targetDir, 'hooks', `index.${ext}`),
+      getHooksFile(data.typescript)
+    );
+  }
+
+  if (data.capabilities.includes('components')) {
+    fs.mkdirSync(path.join(targetDir, 'components'), { recursive: true });
+    fs.writeFileSync(
+      path.join(targetDir, 'components', 'Panel.tsx'),
+      getPanelComponent()
+    );
+  }
+
+  // Generate README
+  fs.writeFileSync(
+    path.join(targetDir, 'README.md'),
+    getReadme(name, data.template)
+  );
+}
+
+function getMainFileFromWizard(name: string, data: CreateWizardData): string {
+  const typescript = data.typescript;
+  const typeAnnotation = typescript ? ': PluginHooks' : '';
+  const importType = typescript ? "import type { PluginHooks } from '@cognia/plugin-sdk';\n" : '';
+
+  const hasTools = data.capabilities.includes('tools');
+  const hasCommands = data.capabilities.includes('commands');
+  const hasHooks = data.capabilities.includes('hooks');
+
+  return `${importType}import { definePlugin } from '@cognia/plugin-sdk';
+${hasTools ? "import { tools } from './tools';\n" : ''}${hasCommands ? "import { commands } from './commands';\n" : ''}${hasHooks ? "import { hooks } from './hooks';\n" : ''}
+export default definePlugin({
+  id: '${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}',
+  name: '${name}',
+  version: '1.0.0',
+${hasTools ? '  tools,\n' : ''}${hasCommands ? '  commands,\n' : ''}${hasHooks ? '  hooks,\n' : ''}
+  activate(context) {
+    context.logger.info('Plugin activated: ${name}');
+    return {
+      onEnable: async () => {
+        context.logger.info('Plugin enabled');
+      },
+      onDisable: async () => {
+        context.logger.info('Plugin disabled');
+      },
+    }${typeAnnotation};
+  },
+
+  deactivate() {
+    // Cleanup
+  },
+});
+`;
 }
 
 async function generateTemplateFiles(name: string, targetDir: string, options: CreateOptions): Promise<void> {

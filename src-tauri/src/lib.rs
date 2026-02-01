@@ -15,6 +15,7 @@ mod plugin;
 mod port_utils;
 mod process;
 mod sandbox;
+mod scheduler;
 mod screen_recording;
 mod screenshot;
 mod selection;
@@ -31,6 +32,7 @@ use context::ContextManager;
 use mcp::McpManager;
 use process::ProcessManager;
 use sandbox::SandboxState;
+use scheduler::SchedulerState;
 use screen_recording::ScreenRecordingManager;
 use screenshot::ScreenshotManager;
 use selection::SelectionManager;
@@ -562,6 +564,11 @@ pub fn run() {
                     }
                 }
             });
+
+            // Initialize System Scheduler State
+            let scheduler_state = SchedulerState::new();
+            app.manage(scheduler_state);
+            log::info!("System scheduler state initialized");
 
             // Setup splash screen and main window with real progress events
             let app_handle = app.handle().clone();
@@ -1384,6 +1391,22 @@ pub fn run() {
             commands::input_completion::input_completion_reset_stats,
             commands::input_completion::input_completion_clear_cache,
             commands::input_completion::input_completion_test_connection,
+            // System scheduler commands
+            commands::scheduler::scheduler_get_capabilities,
+            commands::scheduler::scheduler_is_available,
+            commands::scheduler::scheduler_is_elevated,
+            commands::scheduler::scheduler_create_task,
+            commands::scheduler::scheduler_update_task,
+            commands::scheduler::scheduler_delete_task,
+            commands::scheduler::scheduler_get_task,
+            commands::scheduler::scheduler_list_tasks,
+            commands::scheduler::scheduler_enable_task,
+            commands::scheduler::scheduler_disable_task,
+            commands::scheduler::scheduler_run_task_now,
+            commands::scheduler::scheduler_cancel_confirmation,
+            commands::scheduler::scheduler_get_pending_confirmations,
+            commands::scheduler::scheduler_request_elevation,
+            commands::scheduler::scheduler_validate_task,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

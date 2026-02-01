@@ -7,6 +7,7 @@ import type { ScheduledTask, TaskExecution } from '@/types/scheduler';
 import type { ProviderName } from '@/types/provider';
 import { registerTaskExecutor } from '../task-scheduler';
 import { loggers } from '@/lib/logger';
+import { executePluginTask } from './plugin-executor';
 
 // Logger
 const log = loggers.app;
@@ -312,6 +313,7 @@ export function registerBuiltinExecutors(): void {
   registerTaskExecutor('sync', executeSyncTask);
   registerTaskExecutor('backup', executeBackupTask);
   registerTaskExecutor('custom', executeCustomTask);
+  registerTaskExecutor('plugin', executePluginTask);
   
   log.info('Registered all built-in task executors');
 }
@@ -322,4 +324,5 @@ export {
   executeSyncTask,
   executeBackupTask,
   executeCustomTask,
+  executePluginTask,
 };

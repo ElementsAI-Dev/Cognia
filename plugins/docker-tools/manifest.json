@@ -1,0 +1,33 @@
+{
+  "id": "cognia-docker-tools",
+  "name": "Docker Tools",
+  "version": "1.0.0",
+  "description": "Docker container management for AI agents",
+  "author": { "name": "Cognia Team", "email": "team@cognia.dev" },
+  "license": "MIT",
+  "type": "frontend",
+  "main": "dist/index.js",
+  "icon": "container",
+  "keywords": ["docker", "container", "devops"],
+  "capabilities": ["tools"],
+  "permissions": ["shell:execute"],
+  "activationEvents": [
+    "onAgentTool:docker_ps",
+    "onAgentTool:docker_images",
+    "onAgentTool:docker_logs",
+    "onAgentTool:docker_exec"
+  ],
+  "tools": [
+    { "name": "docker_ps", "description": "List running containers" },
+    { "name": "docker_images", "description": "List Docker images" },
+    { "name": "docker_logs", "description": "View container logs" },
+    { "name": "docker_exec", "description": "Execute command in container", "requiresApproval": true }
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "maxLogLines": { "type": "number", "default": 100 }
+    }
+  },
+  "defaultConfig": { "maxLogLines": 100 }
+}

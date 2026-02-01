@@ -26,6 +26,7 @@ Next.js App Router - main application routes, layouts, and pages. This module de
   - `workflows/` — Workflow management
   - `designer/` — Visual designer
   - `projects/` — Project management
+  - `scheduler/` — Task scheduler
 
 ### Standalone Windows
 

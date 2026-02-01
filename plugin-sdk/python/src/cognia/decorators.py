@@ -112,6 +112,16 @@ class HookType(Enum):
     ON_PANEL_CLOSE = "on_panel_close"
     ON_SHORTCUT = "on_shortcut"
     ON_CONTEXT_MENU_SHOW = "on_context_menu_show"
+    
+    # Scheduler Hooks
+    ON_SCHEDULED_TASK_START = "on_scheduled_task_start"
+    ON_SCHEDULED_TASK_COMPLETE = "on_scheduled_task_complete"
+    ON_SCHEDULED_TASK_ERROR = "on_scheduled_task_error"
+    ON_SCHEDULED_TASK_CREATE = "on_scheduled_task_create"
+    ON_SCHEDULED_TASK_UPDATE = "on_scheduled_task_update"
+    ON_SCHEDULED_TASK_DELETE = "on_scheduled_task_delete"
+    ON_SCHEDULED_TASK_PAUSE = "on_scheduled_task_pause"
+    ON_SCHEDULED_TASK_RESUME = "on_scheduled_task_resume"
 
 
 # List of all valid hook names for validation
@@ -426,3 +436,118 @@ def _param_to_dict(param: ToolParameter) -> Dict[str, Any]:
     if param.enum:
         result["enum"] = param.enum
     return result
+
+
+def scheduled(
+    cron: Optional[str] = None,
+    interval: Optional[int] = None,
+    once_at: Optional[str] = None,
+    name: Optional[str] = None,
+    description: str = "",
+    enabled: bool = True,
+    retry_attempts: int = 0,
+    retry_delay: int = 60,
+    timeout: int = 300,
+    tags: Optional[List[str]] = None,
+) -> Callable[[F], F]:
+    """
+    Decorator to mark a method as a scheduled task.
+    
+    A scheduled task is automatically registered and executed based on the
+    specified trigger (cron expression, interval, or one-time execution).
+    
+    Args:
+        cron: Cron expression for scheduling (e.g., "0 9 * * *" for daily at 9am)
+        interval: Interval in seconds between executions
+        once_at: ISO 8601 datetime string for one-time execution
+        name: Task name (defaults to function name)
+        description: Description of the task
+        enabled: Whether the task is enabled on creation (default True)
+        retry_attempts: Number of retry attempts on failure (default 0)
+        retry_delay: Delay between retries in seconds (default 60)
+        timeout: Task timeout in seconds (default 300)
+        tags: Optional list of tags for organization
+    
+    Trigger Types:
+        - cron: Cron-based scheduling (e.g., "0 9 * * *" for daily at 9am)
+        - interval: Fixed interval in seconds
+        - once_at: One-time execution at a specific datetime
+    
+    Example:
+        @scheduled(cron="0 9 * * *", description="Daily report generation")
+        async def daily_report(self, context):
+            self.logger.info("Generating daily report...")
+            report = await self.generate_report()
+            return {"success": True, "output": {"report_id": report.id}}
+        
+        @scheduled(interval=3600, description="Hourly health check")
+        async def health_check(self, context):
+            status = await self.check_health()
+            return {"success": status.ok, "output": status.details}
+        
+        @scheduled(once_at="2024-12-31T23:59:59Z", description="New year task")
+        async def new_year_task(self, context):
+            return {"success": True, "output": {"message": "Happy New Year!"}}
+    
+    Task Context:
+        The context parameter provides:
+        - task_id: Unique task identifier
+        - execution_id: Current execution identifier
+        - plugin_id: Plugin that owns this task
+        - task_name: Human-readable task name
+        - scheduled_at: When the task was scheduled to run
+        - started_at: When the task actually started
+        - attempt_number: Current attempt number (1-based)
+        - report_progress(progress, message): Report progress (0-100)
+        - log(level, message, data): Log a message
+    
+    Return Value:
+        Task handlers should return a dict with:
+        - success: bool - Whether the task succeeded
+        - output: dict (optional) - Output data
+        - error: str (optional) - Error message if failed
+        - metrics: dict (optional) - Execution metrics
+    """
+    def decorator(func: F) -> F:
+        is_async = inspect.iscoroutinefunction(func)
+        task_name = name or func.__name__
+        
+        # Validate that exactly one trigger is specified
+        triggers = [cron, interval, once_at]
+        trigger_count = sum(1 for t in triggers if t is not None)
+        if trigger_count != 1:
+            raise ValueError(
+                f"Exactly one trigger (cron, interval, or once_at) must be specified for @scheduled. "
+                f"Got {trigger_count} triggers."
+            )
+        
+        # Determine trigger type and configuration
+        if cron is not None:
+            trigger = {"type": "cron", "expression": cron}
+        elif interval is not None:
+            trigger = {"type": "interval", "seconds": interval}
+        else:  # once_at
+            trigger = {"type": "once", "run_at": once_at}
+        
+        func._scheduled_metadata = {
+            "name": task_name,
+            "description": description or func.__doc__ or "",
+            "trigger": trigger,
+            "enabled": enabled,
+            "is_async": is_async,
+            "retry": {
+                "max_attempts": retry_attempts,
+                "delay_seconds": retry_delay,
+            } if retry_attempts > 0 else None,
+            "timeout": timeout,
+            "tags": tags,
+        }
+        
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        
+        wrapper._scheduled_metadata = func._scheduled_metadata
+        return wrapper
+    
+    return decorator

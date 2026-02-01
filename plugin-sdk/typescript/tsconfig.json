@@ -3,13 +3,17 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
+    "moduleResolution": "bundler",
     "lib": ["ES2020", "DOM"],
     "declaration": true,
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "types": ["node", "jest"],
-    "typeRoots": ["./node_modules/@types"]
+    "typeRoots": ["./node_modules/@types"],
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "cli/**/*"],
   "exclude": ["node_modules", "dist", "coverage"]
 }

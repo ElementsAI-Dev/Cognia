@@ -1,0 +1,122 @@
+{
+  "id": "cognia-shell-tools",
+  "name": "Shell Tools",
+  "version": "1.0.0",
+  "description": "Secure shell command execution, process management, and environment utilities for AI agents",
+  "author": {
+    "name": "Cognia Team",
+    "email": "team@cognia.dev"
+  },
+  "license": "MIT",
+  "type": "frontend",
+  "main": "dist/index.js",
+  "icon": "terminal",
+  "keywords": [
+    "shell",
+    "terminal",
+    "command",
+    "process",
+    "environment"
+  ],
+  "capabilities": [
+    "tools"
+  ],
+  "permissions": [
+    "shell:execute",
+    "process:spawn"
+  ],
+  "activationEvents": [
+    "onAgentTool:shell_exec",
+    "onAgentTool:shell_script",
+    "onAgentTool:env_get",
+    "onAgentTool:env_list",
+    "onAgentTool:which"
+  ],
+  "tools": [
+    {
+      "name": "shell_exec",
+      "description": "Execute a shell command with security validation",
+      "requiresApproval": true
+    },
+    {
+      "name": "shell_script",
+      "description": "Execute a script file (bash, powershell, python, etc.)",
+      "requiresApproval": true
+    },
+    {
+      "name": "env_get",
+      "description": "Get the value of an environment variable"
+    },
+    {
+      "name": "env_list",
+      "description": "List environment variables (filtered for safety)"
+    },
+    {
+      "name": "which",
+      "description": "Find the path of an executable command"
+    }
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "defaultShell": {
+        "type": "string",
+        "title": "Default Shell",
+        "description": "Default shell to use (auto-detected if empty)",
+        "default": ""
+      },
+      "timeout": {
+        "type": "number",
+        "title": "Command Timeout",
+        "description": "Default command timeout in milliseconds",
+        "default": 30000,
+        "minimum": 1000,
+        "maximum": 300000
+      },
+      "maxOutputSize": {
+        "type": "number",
+        "title": "Max Output Size",
+        "description": "Maximum output size in bytes",
+        "default": 1048576,
+        "minimum": 1024,
+        "maximum": 10485760
+      },
+      "blockedCommands": {
+        "type": "array",
+        "title": "Blocked Commands",
+        "description": "Commands that are not allowed to execute",
+        "default": ["rm -rf /", "format", "mkfs", "dd if=/dev/zero"],
+        "items": {
+          "type": "string"
+        }
+      },
+      "allowedDirectories": {
+        "type": "array",
+        "title": "Allowed Directories",
+        "description": "Directories where commands can be executed (empty = all)",
+        "default": [],
+        "items": {
+          "type": "string"
+        }
+      },
+      "hiddenEnvVars": {
+        "type": "array",
+        "title": "Hidden Environment Variables",
+        "description": "Environment variables to hide from listing",
+        "default": ["API_KEY", "SECRET", "PASSWORD", "TOKEN", "CREDENTIAL"],
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "defaultConfig": {
+    "defaultShell": "",
+    "timeout": 30000,
+    "maxOutputSize": 1048576,
+    "blockedCommands": ["rm -rf /", "format", "mkfs", "dd if=/dev/zero"],
+    "allowedDirectories": [],
+    "hiddenEnvVars": ["API_KEY", "SECRET", "PASSWORD", "TOKEN", "CREDENTIAL"]
+  },
+  "minAppVersion": "2.0.0"
+}

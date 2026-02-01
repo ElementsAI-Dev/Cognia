@@ -14,7 +14,7 @@ Features:
 """
 
 from .plugin import Plugin, create_plugin
-from .decorators import tool, hook, command, HookType, VALID_HOOKS
+from .decorators import tool, hook, command, scheduled, HookType, VALID_HOOKS
 
 # Schema helpers
 from .schema import Schema, parameters, string, number, integer, boolean, array, object, optional, nullable
@@ -242,6 +242,7 @@ __all__ = [
     "tool",
     "hook",
     "command",
+    "scheduled",
     "HookType",
     "VALID_HOOKS",
     

@@ -201,10 +201,32 @@ export const DEFAULT_COMPLETION_CONFIG: CompletionConfig = {
   },
   ui: {
     show_inline_preview: true,
-    max_suggestions: 1,
+    max_suggestions: 3,
     font_size: 14,
     ghost_text_opacity: 0.5,
     auto_dismiss_ms: 5000,
     show_accept_hint: true,
   },
 };
+
+/** Multi-suggestion navigation state */
+export interface SuggestionNavigationState {
+  /** All available suggestions */
+  suggestions: CompletionSuggestion[];
+  /** Currently selected index */
+  selectedIndex: number;
+  /** Total count */
+  totalCount: number;
+}
+
+/** Keyboard shortcuts for suggestion navigation */
+export const SUGGESTION_SHORTCUTS = {
+  /** Accept current suggestion */
+  accept: 'Tab',
+  /** Dismiss all suggestions */
+  dismiss: 'Escape',
+  /** Navigate to next suggestion */
+  next: 'Alt+]',
+  /** Navigate to previous suggestion */
+  prev: 'Alt+[',
+} as const;

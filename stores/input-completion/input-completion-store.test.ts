@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { useInputCompletionStore } from './input-completion-store';
-import { DEFAULT_COMPLETION_CONFIG } from '@/types/input-completion';
+import { DEFAULT_COMPLETION_CONFIG, SUGGESTION_SHORTCUTS, SuggestionNavigationState } from '@/types/input-completion';
 
 describe('useInputCompletionStore', () => {
   beforeEach(() => {
@@ -194,6 +194,59 @@ describe('useInputCompletionStore', () => {
       expect(state.isRunning).toBe(false);
       expect(state.error).toBeNull();
       expect(state.stats.acceptedSuggestions).toBe(0);
+    });
+  });
+
+  describe('multi-suggestion navigation types', () => {
+    it('should verify SuggestionNavigationState structure', () => {
+      const navState: SuggestionNavigationState = {
+        suggestions: [
+          {
+            text: 'suggestion 1',
+            display_text: 'suggestion 1',
+            confidence: 0.9,
+            completion_type: 'Line',
+            id: 'id-1',
+          },
+          {
+            text: 'suggestion 2',
+            display_text: 'suggestion 2',
+            confidence: 0.8,
+            completion_type: 'Line',
+            id: 'id-2',
+          },
+        ],
+        selectedIndex: 0,
+        totalCount: 2,
+      };
+
+      expect(navState.suggestions).toHaveLength(2);
+      expect(navState.selectedIndex).toBe(0);
+      expect(navState.totalCount).toBe(2);
+    });
+
+    it('should verify SUGGESTION_SHORTCUTS values', () => {
+      expect(SUGGESTION_SHORTCUTS.accept).toBe('Tab');
+      expect(SUGGESTION_SHORTCUTS.dismiss).toBe('Escape');
+      expect(SUGGESTION_SHORTCUTS.next).toBe('Alt+]');
+      expect(SUGGESTION_SHORTCUTS.prev).toBe('Alt+[');
+    });
+  });
+
+  describe('config with max_suggestions', () => {
+    it('should have default max_suggestions of 3', () => {
+      const state = useInputCompletionStore.getState();
+      expect(state.config.ui.max_suggestions).toBe(3);
+    });
+
+    it('should update max_suggestions config', () => {
+      useInputCompletionStore.getState().updateConfig({
+        ui: {
+          ...DEFAULT_COMPLETION_CONFIG.ui,
+          max_suggestions: 5,
+        },
+      });
+      expect(useInputCompletionStore.getState().config.ui.max_suggestions).toBe(5);
     });
   });
 });

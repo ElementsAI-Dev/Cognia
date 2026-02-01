@@ -14,6 +14,7 @@ import type {
 } from '../artifact/a2ui';
 import type { AgentModeConfig } from '../agent/agent-mode';
 import type { Skill as _Skill } from '../system/skill';
+import type { PluginSchedulerAPI } from './plugin-scheduler';
 
 // =============================================================================
 // Core Plugin Types
@@ -43,7 +44,8 @@ export type PluginCapability =
   | 'exporters' // Provides export formats
   | 'importers' // Provides import handlers
   | 'a2ui' // A2UI integration
-  | 'python'; // Python runtime capability
+  | 'python' // Python runtime capability
+  | 'scheduler'; // Provides scheduled tasks
 
 /**
  * Plugin status in the lifecycle
@@ -202,7 +204,52 @@ export interface PluginManifest {
 
   /** Whether plugin should be loaded at startup */
   activateOnStartup?: boolean;
+
+  // Scheduled Tasks
+  /** Scheduled tasks provided by this plugin */
+  scheduledTasks?: PluginScheduledTaskDef[];
 }
+
+/**
+ * Scheduled task definition in plugin manifest
+ */
+export interface PluginScheduledTaskDef {
+  /** Task name */
+  name: string;
+
+  /** Task description */
+  description?: string;
+
+  /** Handler function name */
+  handler: string;
+
+  /** Trigger configuration */
+  trigger: PluginManifestTaskTrigger;
+
+  /** Whether task is enabled by default */
+  defaultEnabled?: boolean;
+
+  /** Retry configuration */
+  retry?: {
+    maxAttempts: number;
+    delaySeconds: number;
+  };
+
+  /** Timeout in seconds */
+  timeout?: number;
+
+  /** Tags for organization */
+  tags?: string[];
+}
+
+/**
+ * Task trigger configuration in manifest
+ */
+export type PluginManifestTaskTrigger =
+  | { type: 'cron'; expression: string; timezone?: string }
+  | { type: 'interval'; seconds: number }
+  | { type: 'once'; runAt: string }
+  | { type: 'event'; eventType: string; eventSource?: string };
 
 /**
  * Configuration schema definition
@@ -616,6 +663,9 @@ export interface PluginContext {
 
   /** Secrets API for secure storage */
   secrets: PluginSecretsAPI;
+
+  /** Scheduler API for scheduled tasks */
+  scheduler: PluginSchedulerAPI;
 }
 
 export interface PluginLogger {

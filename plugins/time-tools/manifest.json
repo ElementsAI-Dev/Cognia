@@ -1,0 +1,76 @@
+{
+  "id": "cognia-time-tools",
+  "name": "Time Tools",
+  "version": "1.0.0",
+  "description": "Time and timezone utilities for AI agents - get current time, convert timezones, parse dates, calculate differences",
+  "author": {
+    "name": "Cognia Team",
+    "email": "team@cognia.dev"
+  },
+  "license": "MIT",
+  "type": "frontend",
+  "main": "dist/index.js",
+  "icon": "clock",
+  "keywords": [
+    "time",
+    "timezone",
+    "date",
+    "calendar",
+    "utility"
+  ],
+  "capabilities": [
+    "tools"
+  ],
+  "permissions": [],
+  "activationEvents": [
+    "onAgentTool:time_now",
+    "onAgentTool:time_convert",
+    "onAgentTool:time_parse",
+    "onAgentTool:time_diff",
+    "onAgentTool:time_format"
+  ],
+  "tools": [
+    {
+      "name": "time_now",
+      "description": "Get the current date and time in a specified timezone"
+    },
+    {
+      "name": "time_convert",
+      "description": "Convert a timestamp between timezones"
+    },
+    {
+      "name": "time_parse",
+      "description": "Parse a date string into a structured format"
+    },
+    {
+      "name": "time_diff",
+      "description": "Calculate the difference between two dates/times"
+    },
+    {
+      "name": "time_format",
+      "description": "Format a timestamp according to a pattern"
+    }
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "defaultTimezone": {
+        "type": "string",
+        "title": "Default Timezone",
+        "description": "Default timezone for time operations (e.g., 'Asia/Shanghai', 'America/New_York')",
+        "default": "UTC"
+      },
+      "defaultFormat": {
+        "type": "string",
+        "title": "Default Date Format",
+        "description": "Default format for date output (ISO, locale, custom pattern)",
+        "default": "ISO"
+      }
+    }
+  },
+  "defaultConfig": {
+    "defaultTimezone": "UTC",
+    "defaultFormat": "ISO"
+  },
+  "minAppVersion": "2.0.0"
+}

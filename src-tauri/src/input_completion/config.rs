@@ -65,6 +65,35 @@ pub struct CompletionTriggerConfig {
     pub skip_chars: Vec<char>,
     /// Whether to skip when modifier keys are held
     pub skip_with_modifiers: bool,
+    /// Adaptive debounce settings
+    pub adaptive_debounce: AdaptiveDebounceConfig,
+}
+
+/// Adaptive debounce configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdaptiveDebounceConfig {
+    /// Enable adaptive debounce based on typing speed
+    pub enabled: bool,
+    /// Minimum debounce (ms) when typing fast
+    pub min_debounce_ms: u64,
+    /// Maximum debounce (ms) when typing slow
+    pub max_debounce_ms: u64,
+    /// Typing speed threshold (chars/sec) for fast typing
+    pub fast_typing_threshold: f64,
+    /// Typing speed threshold (chars/sec) for slow typing
+    pub slow_typing_threshold: f64,
+}
+
+impl Default for AdaptiveDebounceConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            min_debounce_ms: 200,
+            max_debounce_ms: 800,
+            fast_typing_threshold: 5.0,  // 5 chars/sec = fast
+            slow_typing_threshold: 1.0,  // 1 char/sec = slow
+        }
+    }
 }
 
 /// UI configuration
@@ -118,6 +147,7 @@ impl Default for CompletionTriggerConfig {
             trigger_on_word_boundary: false,
             skip_chars: vec![' ', '\n', '\t', '\r'],
             skip_with_modifiers: true,
+            adaptive_debounce: AdaptiveDebounceConfig::default(),
         }
     }
 }
@@ -238,6 +268,7 @@ mod tests {
             trigger_on_word_boundary: true,
             skip_chars: vec!['!', '@', '#'],
             skip_with_modifiers: false,
+            adaptive_debounce: AdaptiveDebounceConfig::default(),
         };
         
         assert_eq!(trigger.debounce_ms, 200);
@@ -293,6 +324,7 @@ mod tests {
                 trigger_on_word_boundary: true,
                 skip_chars: vec![' ', '\n', '\t'],
                 skip_with_modifiers: true,
+                adaptive_debounce: AdaptiveDebounceConfig::default(),
             },
             ui: CompletionUiConfig {
                 show_inline_preview: true,

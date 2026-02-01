@@ -21,14 +21,15 @@ program
 
 // Create new plugin
 program
-  .command('create <name>')
-  .description('Create a new plugin project')
+  .command('create [name]')
+  .description('Create a new plugin project (interactive wizard if name omitted)')
   .option('-t, --template <template>', 'Template to use (basic, tool, command, full)', 'basic')
   .option('-d, --directory <dir>', 'Directory to create the plugin in', '.')
   .option('--typescript', 'Use TypeScript (default)', true)
   .option('--no-typescript', 'Use JavaScript instead of TypeScript')
   .option('--no-git', 'Skip git initialization')
   .option('--no-install', 'Skip npm install')
+  .option('-i, --interactive', 'Force interactive mode')
   .action(createCommand);
 
 // Initialize existing project
@@ -36,6 +37,8 @@ program
   .command('init')
   .description('Initialize plugin SDK in an existing project')
   .option('-f, --force', 'Overwrite existing configuration')
+  .option('-i, --interactive', 'Force interactive mode')
+  .option('--no-interactive', 'Force non-interactive mode (for CI)')
   .action(initCommand);
 
 // Development server

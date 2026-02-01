@@ -21,6 +21,7 @@ Zustand state management stores with localStorage persistence. Stores are organi
 - `mcp/` — MCP servers, marketplace (mcp-store, mcp-marketplace-store)
 - `media/` — Media, screen recording (media-store, image-studio-store, screen-recording-store)
 - `project/` — Projects, activities (project-store, project-activity-store)
+- `scheduler/` — Task automation (scheduler-store)
 - `settings/` — User preferences, presets (settings-store, preset-store, custom-theme-store, settings-profiles-store)
 - `system/` — Native state, proxy, usage (native-store, proxy-store, usage-store, window-store, environment-store, virtual-env-store, ui-store)
 - `tools/` — Skills, tools (skill-store, template-store, ppt-editor-store, jupyter-store)

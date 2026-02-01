@@ -176,8 +176,46 @@ impl KeyboardMonitor {
     pub fn stop(&self) {
         log::info!("Stopping KeyboardMonitor");
         self.stop_requested.store(true, Ordering::SeqCst);
-        // Note: rdev::listen cannot be gracefully stopped, so we just mark it as stopped
+        // Note: rdev::listen cannot be gracefully stopped from another thread
         // The callback will check stop_requested and ignore events
+        // Mark as not running to allow restart
+        self.is_running.store(false, Ordering::SeqCst);
+    }
+
+    /// Stop the keyboard monitor with timeout
+    /// Returns true if stopped successfully, false if timed out
+    #[allow(dead_code)]
+    pub fn stop_with_timeout(&self, timeout_ms: u64) -> bool {
+        log::info!("Stopping KeyboardMonitor with {}ms timeout", timeout_ms);
+        self.stop_requested.store(true, Ordering::SeqCst);
+        
+        let start = std::time::Instant::now();
+        while self.is_running.load(Ordering::SeqCst) {
+            if start.elapsed().as_millis() as u64 > timeout_ms {
+                log::warn!("KeyboardMonitor stop timed out");
+                // Force mark as stopped
+                self.is_running.store(false, Ordering::SeqCst);
+                return false;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        true
+    }
+
+    /// Check if stop was requested (for use in callbacks)
+    #[allow(dead_code)]
+    pub fn is_stop_requested(&self) -> bool {
+        self.stop_requested.load(Ordering::SeqCst)
+    }
+
+    /// Reset the monitor state for restart
+    #[allow(dead_code)]
+    pub fn reset(&self) {
+        self.stop_requested.store(false, Ordering::SeqCst);
+        self.is_running.store(false, Ordering::SeqCst);
+        self.ctrl_down.store(false, Ordering::SeqCst);
+        self.shift_down.store(false, Ordering::SeqCst);
+        self.alt_down.store(false, Ordering::SeqCst);
     }
 
     /// Check if monitor is running

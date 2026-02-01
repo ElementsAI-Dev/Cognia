@@ -103,6 +103,21 @@ pub enum InputCompletionEvent {
     Started,
     /// System stopped
     Stopped,
+    /// Streaming chunk received (for progressive rendering)
+    StreamingChunk(StreamingChunk),
+    /// Streaming completed
+    StreamingComplete(CompletionSuggestion),
+}
+
+/// A chunk of streaming completion data
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamingChunk {
+    /// Partial text received so far
+    pub text: String,
+    /// Whether this is the final chunk
+    pub is_final: bool,
+    /// Suggestion ID for correlation
+    pub suggestion_id: String,
 }
 
 /// Statistics for the completion system
@@ -122,6 +137,62 @@ pub struct CompletionStats {
     pub avg_latency_ms: f64,
     /// Cache hit rate (0.0 - 1.0)
     pub cache_hit_rate: f64,
+    /// Quality feedback stats
+    pub feedback_stats: FeedbackStats,
+}
+
+/// Feedback statistics for completion quality tracking
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FeedbackStats {
+    /// Positive feedback count (thumbs up, full accept)
+    pub positive_count: u64,
+    /// Negative feedback count (thumbs down, immediate dismiss)
+    pub negative_count: u64,
+    /// Partial accept count (user edited the suggestion)
+    pub partial_accept_count: u64,
+    /// Average acceptance ratio (accepted chars / suggested chars)
+    pub avg_acceptance_ratio: f64,
+    /// Average time to accept (ms) - shorter is better
+    pub avg_time_to_accept_ms: f64,
+    /// Average time to dismiss (ms) - shorter often means low quality
+    pub avg_time_to_dismiss_ms: f64,
+}
+
+/// Quality feedback type for a completion
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CompletionFeedback {
+    /// User accepted the full suggestion
+    FullAccept {
+        suggestion_id: String,
+        time_to_accept_ms: u64,
+    },
+    /// User partially accepted (edited after accept)
+    PartialAccept {
+        suggestion_id: String,
+        original_length: usize,
+        accepted_length: usize,
+    },
+    /// User dismissed quickly (likely low quality)
+    QuickDismiss {
+        suggestion_id: String,
+        time_to_dismiss_ms: u64,
+    },
+    /// User explicitly rated the suggestion
+    ExplicitRating {
+        suggestion_id: String,
+        rating: FeedbackRating,
+    },
+}
+
+/// Explicit feedback rating
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FeedbackRating {
+    /// Good suggestion
+    Positive,
+    /// Bad suggestion
+    Negative,
+    /// Not relevant
+    Irrelevant,
 }
 
 impl Default for CompletionContext {
@@ -334,6 +405,7 @@ mod tests {
             dismissed_suggestions: 30,
             avg_latency_ms: 150.5,
             cache_hit_rate: 0.3,
+            feedback_stats: FeedbackStats::default(),
         };
         
         assert_eq!(stats.total_requests, 100);

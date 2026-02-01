@@ -151,6 +151,29 @@ export interface PluginHooksAll extends PluginHooks {
   onShortcut?: (shortcut: string) => boolean | void;
   /** Called when a context menu is about to be shown */
   onContextMenuShow?: (context: { type: string; target?: unknown }) => { items?: unknown[] } | void;
+
+  // Scheduler hooks (extended)
+  /** Called when a scheduled task is created */
+  onScheduledTaskCreate?: (task: {
+    id: string;
+    pluginId: string;
+    name: string;
+    trigger: unknown;
+    handler: string;
+  }) => void;
+  /** Called when a scheduled task is updated */
+  onScheduledTaskUpdate?: (
+    task: { id: string; pluginId: string; name: string },
+    changes: Record<string, unknown>
+  ) => void;
+  /** Called when a scheduled task is deleted */
+  onScheduledTaskDelete?: (taskId: string) => void;
+  /** Called when a scheduled task is paused */
+  onScheduledTaskPause?: (taskId: string) => void;
+  /** Called when a scheduled task is resumed */
+  onScheduledTaskResume?: (taskId: string) => void;
+  /** Called before a scheduled task runs (return false to cancel) */
+  onScheduledTaskBeforeRun?: (taskId: string, executionId: string) => boolean | Promise<boolean>;
 }
 
 // =============================================================================

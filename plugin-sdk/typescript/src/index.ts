@@ -285,6 +285,27 @@ export type {
   PluginSecretsAPI,
 } from './api/ui';
 
+// Scheduler API
+export type {
+  PluginSchedulerAPI,
+  PluginScheduledTask,
+  PluginTaskExecution,
+  PluginTaskTrigger,
+  CronTrigger,
+  IntervalTrigger,
+  OnceTrigger,
+  EventTrigger,
+  PluginTaskStatus,
+  PluginTaskExecutionStatus,
+  PluginTaskResult,
+  PluginTaskContext,
+  PluginTaskHandler,
+  CreatePluginTaskInput,
+  UpdatePluginTaskInput,
+  PluginTaskFilter,
+  PluginSchedulerHooks,
+} from './api/scheduler';
+
 // =============================================================================
 // CONTEXT TYPES
 // =============================================================================

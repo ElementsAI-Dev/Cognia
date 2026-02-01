@@ -4,3 +4,9 @@
  */
 
 export { useScheduler, default } from './use-scheduler';
+export { useSystemScheduler } from './use-system-scheduler';
+export type {
+  UseSystemSchedulerState,
+  UseSystemSchedulerActions,
+  UseSystemSchedulerReturn,
+} from './use-system-scheduler';

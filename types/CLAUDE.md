@@ -22,6 +22,7 @@ TypeScript type definitions organized by domain. This module provides type safet
 - `designer/` — Designer types (designer, designer-dnd)
 - `media/` — Media types (audio, video, speech, tts, subtitle, image-studio)
 - `project/` — Project types (project, project-activity, project-template)
+- `scheduler/` — Task automation types (scheduled-task, task-execution, task-trigger, task-notification)
 - `search/` — Search types (search, research)
 - `content/` — Content types (prompt, prompt-template, preset, structured-output, template, prompt-marketplace)
 - `learning/` — Learning types (learning, academic, knowledge-map, summary)
@@ -115,6 +116,14 @@ TypeScript type definitions organized by domain. This module provides type safet
 - `Academic` — Academic mode types
 - `KnowledgeMap` — Knowledge map types
 - `Summary` — Summary types
+
+### Scheduler Types
+
+- `ScheduledTask` — Task definition with triggers
+- `TaskExecution` — Execution record
+- `TaskTrigger` — Trigger configuration (cron, interval, once, event)
+- `TaskNotificationConfig` — Notification settings
+- `TaskFilter` — Filter options
 
 ### System Types
 

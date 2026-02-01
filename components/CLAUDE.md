@@ -26,6 +26,7 @@ Feature-based React components for the Cognia application. Components are organi
 - `artifacts/` — Artifact rendering and creation
 - `canvas/` — Canvas components
 - `projects/` — Project management UI
+- `scheduler/` — Task scheduler UI (task-list, task-form, task-details, workflow-schedule-dialog, backup-schedule-dialog)
 - `settings/` — Settings pages
 - `sidebar/` — Sidebar components
 - `presets/` — Preset management

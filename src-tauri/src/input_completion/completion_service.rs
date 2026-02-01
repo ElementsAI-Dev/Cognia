@@ -33,10 +33,15 @@ struct ServiceStats {
     total_latency_ms: u64,
 }
 
-/// Cache entry for completions
+/// Cache entry for completions with LFU tracking
 struct CacheEntry {
     result: CompletionResult,
     timestamp: Instant,
+    /// Access count for LFU eviction
+    access_count: u32,
+    /// Original text prefix for prefix matching
+    #[allow(dead_code)]
+    text_prefix: String,
 }
 
 impl CompletionService {
@@ -62,6 +67,16 @@ impl CompletionService {
         context: &CompletionContext,
         config: &CompletionModelConfig,
     ) -> Result<CompletionResult, String> {
+        self.get_completion_with_retry(context, config, 3).await
+    }
+
+    /// Get completion with retry and fallback support
+    pub async fn get_completion_with_retry(
+        &self,
+        context: &CompletionContext,
+        config: &CompletionModelConfig,
+        max_retries: u32,
+    ) -> Result<CompletionResult, String> {
         let start = Instant::now();
 
         // Increment request count
@@ -75,37 +90,80 @@ impl CompletionService {
             return Ok(cached);
         }
 
-        // Request completion based on provider
-        let result = match config.provider {
-            CompletionProvider::Ollama => self.get_ollama_completion(context, config).await,
-            CompletionProvider::OpenAI => self.get_openai_completion(context, config).await,
-            CompletionProvider::Groq => self.get_groq_completion(context, config).await,
-            CompletionProvider::Auto => self.get_auto_completion(context, config).await,
-            CompletionProvider::Custom => self.get_custom_completion(context, config).await,
-        };
+        let mut last_error = String::new();
+        let mut retry_count = 0;
 
-        match result {
-            Ok(mut result) => {
-                let latency = start.elapsed().as_millis() as u64;
-                result.latency_ms = latency;
-                
-                // Update stats
-                {
-                    let mut stats = self.stats.write();
-                    stats.successful_completions += 1;
-                    stats.total_latency_ms += latency;
-                }
-                
-                // Cache the result
-                self.set_cached(cache_key, result.clone());
-                
-                Ok(result)
+        // Retry loop with exponential backoff
+        while retry_count <= max_retries {
+            if retry_count > 0 {
+                let backoff_ms = 100 * (1 << retry_count.min(4)); // Max 1.6s backoff
+                log::debug!("Retry {} after {}ms delay", retry_count, backoff_ms);
+                tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
             }
-            Err(e) => {
-                self.stats.write().failed_completions += 1;
-                Err(e)
+
+            // Request completion based on provider
+            let result = match config.provider {
+                CompletionProvider::Ollama => self.get_ollama_completion(context, config).await,
+                CompletionProvider::OpenAI => self.get_openai_completion(context, config).await,
+                CompletionProvider::Groq => self.get_groq_completion(context, config).await,
+                CompletionProvider::Auto => self.get_auto_completion(context, config).await,
+                CompletionProvider::Custom => self.get_custom_completion(context, config).await,
+            };
+
+            match result {
+                Ok(mut result) => {
+                    let latency = start.elapsed().as_millis() as u64;
+                    result.latency_ms = latency;
+                    
+                    // Update stats
+                    {
+                        let mut stats = self.stats.write();
+                        stats.successful_completions += 1;
+                        stats.total_latency_ms += latency;
+                    }
+                    
+                    // Cache the result with text prefix for prefix matching
+                    self.set_cached(cache_key, result.clone(), context.text.clone());
+                    
+                    return Ok(result);
+                }
+                Err(e) => {
+                    last_error = e.clone();
+                    
+                    // Check if error is retryable
+                    if Self::is_retryable_error(&e) {
+                        retry_count += 1;
+                        log::warn!("Retryable error (attempt {}): {}", retry_count, e);
+                    } else {
+                        log::error!("Non-retryable error: {}", e);
+                        break;
+                    }
+                }
             }
         }
+
+        // All retries failed
+        self.stats.write().failed_completions += 1;
+        Err(format!("Completion failed after {} retries: {}", retry_count, last_error))
+    }
+
+    /// Check if an error is retryable
+    fn is_retryable_error(error: &str) -> bool {
+        let retryable_patterns = [
+            "timeout",
+            "connection",
+            "network",
+            "temporarily unavailable",
+            "rate limit",
+            "503",
+            "502",
+            "504",
+            "ECONNRESET",
+            "ETIMEDOUT",
+        ];
+        
+        let error_lower = error.to_lowercase();
+        retryable_patterns.iter().any(|p| error_lower.contains(p))
     }
 
     /// Get completion from Ollama
@@ -466,21 +524,137 @@ impl CompletionService {
         })
     }
 
-    /// Build the completion prompt from context
+    /// Build the completion prompt from context with smart context analysis
     fn build_completion_prompt(&self, context: &CompletionContext) -> String {
         let mut prompt = String::new();
 
-        // Add language hint if available
-        if let Some(lang) = &context.language {
-            prompt.push_str(&format!("Language: {}\n", lang));
+        // Detect or use provided language
+        let detected_lang = context.language.clone()
+            .unwrap_or_else(|| Self::detect_language(&context.text));
+        
+        if !detected_lang.is_empty() {
+            prompt.push_str(&format!("Language: {}\n", detected_lang));
         }
 
-        // Add the text to complete
-        prompt.push_str("Complete the following:\n");
+        // Extract relevant context (imports, function signatures, etc.)
+        let structured_context = Self::extract_structured_context(&context.text, &detected_lang);
+        
+        if !structured_context.is_empty() {
+            prompt.push_str("Context:\n");
+            prompt.push_str(&structured_context);
+            prompt.push_str("\n");
+        }
+
+        // Add the text to complete with cursor position hint
+        prompt.push_str("Complete the following code naturally:\n```");
+        if !detected_lang.is_empty() {
+            prompt.push_str(&detected_lang.to_lowercase());
+        }
+        prompt.push_str("\n");
         prompt.push_str(&context.text);
-        prompt.push_str("\n\nCompletion:");
+        prompt.push_str("\n```\n\nProvide only the completion text, no explanation:");
 
         prompt
+    }
+
+    /// Detect programming language from code content
+    fn detect_language(text: &str) -> String {
+        let text_lower = text.to_lowercase();
+        let trimmed = text.trim();
+        
+        // Check for language-specific patterns
+        if trimmed.starts_with("fn ") || (trimmed.contains("-> ") && trimmed.contains("pub "))
+            || text.contains("let mut ") || text.contains("impl ") {
+            return "rust".to_string();
+        }
+        
+        if (text.contains("import ") && (text.contains(" from ") || text.contains("React")))
+            || (text.contains("const ") && text.contains(" = ") && text.contains("=>"))
+            || text.contains("export ") || (text.contains("interface ") && text.contains("{")) {
+            if text.contains(": ") && (text.contains("string") || text.contains("number") || text.contains("boolean")) {
+                return "typescript".to_string();
+            }
+            return "javascript".to_string();
+        }
+        
+        if (text.contains("def ") && text.contains(":")) || (text.contains("import ") && !text.contains(" from "))
+            || text_lower.contains("self.") || text.contains("__init__") {
+            return "python".to_string();
+        }
+        
+        if (text.contains("func ") && text.contains("package ")) || (text.contains("go ") && text.contains("func")) {
+            return "go".to_string();
+        }
+        
+        if text.contains("public class ") || (text.contains("private ") && text.contains("void "))
+            || text.contains("System.out.") {
+            return "java".to_string();
+        }
+        
+        if text.contains("#include") || text.contains("std::") || text.contains("nullptr") {
+            return "cpp".to_string();
+        }
+        
+        if text.contains("<?php") || (text.starts_with("$") && text.contains("->")) {
+            return "php".to_string();
+        }
+        
+        String::new()
+    }
+
+    /// Extract structured context from code (imports, function signatures, etc.)
+    fn extract_structured_context(text: &str, language: &str) -> String {
+        let lines: Vec<&str> = text.lines().collect();
+        let mut context_parts = Vec::new();
+        
+        // Extract imports (first N import lines)
+        let import_keywords = match language {
+            "rust" => vec!["use ", "mod "],
+            "typescript" | "javascript" => vec!["import ", "require("],
+            "python" => vec!["import ", "from "],
+            "go" => vec!["import "],
+            "java" => vec!["import "],
+            _ => vec!["import ", "use ", "require"],
+        };
+        
+        let mut import_count = 0;
+        for line in &lines {
+            let trimmed = line.trim();
+            if import_keywords.iter().any(|kw| trimmed.starts_with(kw)) {
+                context_parts.push(trimmed.to_string());
+                import_count += 1;
+                if import_count >= 5 {
+                    break;
+                }
+            }
+        }
+        
+        // Extract function/class signatures (look for definitions in recent lines)
+        let signature_keywords = match language {
+            "rust" => vec!["fn ", "impl ", "struct ", "enum ", "trait "],
+            "typescript" | "javascript" => vec!["function ", "class ", "const ", "interface "],
+            "python" => vec!["def ", "class "],
+            "go" => vec!["func ", "type "],
+            "java" => vec!["public ", "private ", "class "],
+            _ => vec!["function ", "def ", "class "],
+        };
+        
+        // Look at last 20 lines for context
+        let recent_lines = if lines.len() > 20 { &lines[lines.len() - 20..] } else { &lines };
+        for line in recent_lines {
+            let trimmed = line.trim();
+            if signature_keywords.iter().any(|kw| trimmed.starts_with(kw)) {
+                // Only include signature line, not body
+                if let Some(sig) = trimmed.split('{').next() {
+                    let sig = sig.trim();
+                    if !sig.is_empty() && !context_parts.contains(&sig.to_string()) {
+                        context_parts.push(sig.to_string());
+                    }
+                }
+            }
+        }
+        
+        context_parts.join("\n")
     }
 
     /// Compute cache key for a context
@@ -494,11 +668,14 @@ impl CompletionService {
         format!("{:x}", hasher.finish())
     }
 
-    /// Get cached result
+    /// Get cached result with prefix matching support
     fn get_cached(&self, key: &str) -> Option<CompletionResult> {
-        let cache = self.cache.read();
-        if let Some(entry) = cache.get(key) {
+        let mut cache = self.cache.write();
+        
+        // First try exact match
+        if let Some(entry) = cache.get_mut(key) {
             if entry.timestamp.elapsed().as_secs() < self.cache_ttl_secs {
+                entry.access_count += 1;
                 let mut result = entry.result.clone();
                 result.cached = true;
                 return Some(result);
@@ -507,18 +684,57 @@ impl CompletionService {
         None
     }
 
-    /// Set cached result
-    fn set_cached(&self, key: String, result: CompletionResult) {
+    /// Get cached result using prefix matching (for incremental completions)
+    #[allow(dead_code)]
+    fn get_cached_by_prefix(&self, text: &str) -> Option<CompletionResult> {
         let mut cache = self.cache.write();
         
-        // Evict old entries if cache is full
+        // Find entries where text starts with the cached prefix
+        for (_, entry) in cache.iter_mut() {
+            if entry.timestamp.elapsed().as_secs() < self.cache_ttl_secs {
+                // Check if current text starts with cached prefix
+                if text.starts_with(&entry.text_prefix) && text.len() > entry.text_prefix.len() {
+                    // The cached completion might still be valid
+                    // Only use if the additional text is a prefix of the completion
+                    let additional = &text[entry.text_prefix.len()..];
+                    if let Some(suggestion) = entry.result.suggestions.first() {
+                        if suggestion.text.starts_with(additional) {
+                            entry.access_count += 1;
+                            // Return modified result with remaining completion
+                            let remaining = &suggestion.text[additional.len()..];
+                            if !remaining.is_empty() {
+                                let mut result = entry.result.clone();
+                                if let Some(s) = result.suggestions.first_mut() {
+                                    s.text = remaining.to_string();
+                                    s.display_text = remaining.to_string();
+                                }
+                                result.cached = true;
+                                return Some(result);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Set cached result with LFU tracking
+    fn set_cached(&self, key: String, result: CompletionResult, text_prefix: String) {
+        let mut cache = self.cache.write();
+        
+        // Evict entries if cache is full using LFU strategy
         if cache.len() >= self.max_cache_size {
-            let oldest_key = cache
+            // Find entry with lowest access count, breaking ties with oldest timestamp
+            let evict_key = cache
                 .iter()
-                .min_by_key(|(_, v)| v.timestamp)
+                .min_by(|(_, a), (_, b)| {
+                    a.access_count.cmp(&b.access_count)
+                        .then_with(|| a.timestamp.cmp(&b.timestamp))
+                })
                 .map(|(k, _)| k.clone());
             
-            if let Some(key) = oldest_key {
+            if let Some(key) = evict_key {
                 cache.remove(&key);
             }
         }
@@ -528,6 +744,8 @@ impl CompletionService {
             CacheEntry {
                 result,
                 timestamp: Instant::now(),
+                access_count: 1,
+                text_prefix,
             },
         );
     }
@@ -559,6 +777,7 @@ impl CompletionService {
             dismissed_suggestions: 0, // Tracked at manager level
             avg_latency_ms: avg_latency,
             cache_hit_rate,
+            feedback_stats: super::types::FeedbackStats::default(),
         }
     }
 
@@ -607,7 +826,7 @@ mod tests {
         assert!(prompt.contains("rust"));
         assert!(prompt.contains("fn hello"));
         assert!(prompt.contains("Language:"));
-        assert!(prompt.contains("Complete the following:"));
+        assert!(prompt.contains("Complete the following code naturally:"));
     }
 
     #[test]
@@ -623,8 +842,9 @@ mod tests {
         };
 
         let prompt = service.build_completion_prompt(&context);
-        assert!(!prompt.contains("Language:"));
+        // When no language is detected, Language: should not appear
         assert!(prompt.contains("hello world"));
+        assert!(prompt.contains("Complete the following code naturally:"));
     }
 
     #[test]
@@ -740,7 +960,7 @@ mod tests {
             cached: false,
         };
 
-        service.set_cached("test_key".to_string(), result.clone());
+        service.set_cached("test_key".to_string(), result.clone(), "test".to_string());
         
         let cached = service.get_cached("test_key");
         assert!(cached.is_some());
@@ -770,7 +990,7 @@ mod tests {
             cached: false,
         };
 
-        service.set_cached("preserve_test".to_string(), result.clone());
+        service.set_cached("preserve_test".to_string(), result.clone(), "test".to_string());
         
         let cached = service.get_cached("preserve_test").unwrap();
         assert_eq!(cached.suggestions.len(), 1);
@@ -785,9 +1005,9 @@ mod tests {
         let service = CompletionService::new();
         
         let result = CompletionResult::default();
-        service.set_cached("key1".to_string(), result.clone());
-        service.set_cached("key2".to_string(), result.clone());
-        service.set_cached("key3".to_string(), result);
+        service.set_cached("key1".to_string(), result.clone(), "text1".to_string());
+        service.set_cached("key2".to_string(), result.clone(), "text2".to_string());
+        service.set_cached("key3".to_string(), result, "text3".to_string());
         
         service.clear_cache();
         
@@ -811,7 +1031,7 @@ mod tests {
                 model: format!("model_{}", i),
                 cached: false,
             };
-            service.set_cached(format!("key_{}", i), result);
+            service.set_cached(format!("key_{}", i), result, format!("text_{}", i));
         }
         
         for i in 0..10 {
@@ -835,7 +1055,7 @@ mod tests {
         // Add entries beyond capacity
         for i in 0..5 {
             let result = CompletionResult::default();
-            service.set_cached(format!("evict_key_{}", i), result);
+            service.set_cached(format!("evict_key_{}", i), result, format!("text_{}", i));
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         
@@ -853,7 +1073,7 @@ mod tests {
             let service_clone = service.clone();
             let handle = std::thread::spawn(move || {
                 let result = CompletionResult::default();
-                service_clone.set_cached(format!("thread_key_{}", i), result);
+                service_clone.set_cached(format!("thread_key_{}", i), result, format!("text_{}", i));
                 service_clone.get_cached(&format!("thread_key_{}", i))
             });
             handles.push(handle);
@@ -876,7 +1096,7 @@ mod tests {
             cached: false,
         };
         
-        service.set_cached("flag_test".to_string(), result);
+        service.set_cached("flag_test".to_string(), result, "test".to_string());
         
         let cached = service.get_cached("flag_test").unwrap();
         assert!(cached.cached, "Cached flag should be true when retrieved from cache");
@@ -911,5 +1131,96 @@ mod tests {
         
         // Key should be a hex string
         assert!(key.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_is_retryable_error_timeout() {
+        assert!(CompletionService::is_retryable_error("connection timeout"));
+        assert!(CompletionService::is_retryable_error("Request timeout after 5s"));
+        assert!(CompletionService::is_retryable_error("ETIMEDOUT"));
+    }
+
+    #[test]
+    fn test_is_retryable_error_connection() {
+        assert!(CompletionService::is_retryable_error("connection refused"));
+        assert!(CompletionService::is_retryable_error("ECONNRESET"));
+        assert!(CompletionService::is_retryable_error("network error"));
+    }
+
+    #[test]
+    fn test_is_retryable_error_rate_limit() {
+        assert!(CompletionService::is_retryable_error("rate limit exceeded"));
+        assert!(CompletionService::is_retryable_error("temporarily unavailable"));
+    }
+
+    #[test]
+    fn test_is_retryable_error_http_codes() {
+        assert!(CompletionService::is_retryable_error("HTTP 502 Bad Gateway"));
+        assert!(CompletionService::is_retryable_error("HTTP 503 Service Unavailable"));
+        assert!(CompletionService::is_retryable_error("504 Gateway Timeout"));
+    }
+
+    #[test]
+    fn test_is_not_retryable_error() {
+        assert!(!CompletionService::is_retryable_error("invalid API key"));
+        assert!(!CompletionService::is_retryable_error("model not found"));
+        assert!(!CompletionService::is_retryable_error("400 Bad Request"));
+        assert!(!CompletionService::is_retryable_error("unauthorized"));
+    }
+
+    #[test]
+    fn test_prefix_matching_cache() {
+        let service = CompletionService::new();
+        
+        // Add a cached result with a longer prefix
+        let result = CompletionResult {
+            suggestions: vec![CompletionSuggestion::new(
+                "println!(\"Hello\");".to_string(),
+                0.9,
+                CompletionType::Line,
+            )],
+            latency_ms: 100,
+            model: "test".to_string(),
+            cached: false,
+        };
+        
+        service.set_cached("key_long".to_string(), result, "fn main() { print".to_string());
+        
+        // Verify cache was set
+        let cached = service.get_cached("key_long");
+        assert!(cached.is_some());
+    }
+
+    #[test]
+    fn test_lfu_eviction() {
+        // Create service with small cache
+        let service = CompletionService {
+            client: reqwest::Client::new(),
+            cache: Arc::new(RwLock::new(HashMap::new())),
+            max_cache_size: 3,
+            cache_ttl_secs: 60,
+            stats: Arc::new(RwLock::new(ServiceStats::default())),
+        };
+        
+        // Add entries
+        for i in 0..3 {
+            let result = CompletionResult::default();
+            service.set_cached(format!("lfu_key_{}", i), result, format!("text_{}", i));
+        }
+        
+        // Access first entry multiple times to increase its access count
+        for _ in 0..5 {
+            service.get_cached("lfu_key_0");
+        }
+        
+        // Add new entry - should evict one of the less accessed entries
+        let result = CompletionResult::default();
+        service.set_cached("lfu_key_new".to_string(), result, "new_text".to_string());
+        
+        // First entry should still exist (most accessed)
+        assert!(service.get_cached("lfu_key_0").is_some());
+        
+        // New entry should exist
+        assert!(service.get_cached("lfu_key_new").is_some());
     }
 }

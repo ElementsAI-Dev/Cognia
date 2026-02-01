@@ -120,6 +120,7 @@ export function createPluginContext(
     contextMenu: createContextMenuAPI(pluginId),
     window: createWindowAPI(pluginId),
     secrets: createSecretsAPI(pluginId),
+    scheduler: createSchedulerAPI(pluginId),
   };
 
   // If debug mode is enabled, wrap the context with debug instrumentation
@@ -960,5 +961,355 @@ function createSecretsAPI(pluginId: string): PluginSecretsAPI {
 
     has: (key: string) =>
       invoke<boolean>('plugin_secrets_has', { pluginId, key }),
+  };
+}
+
+// =============================================================================
+// Scheduler API
+// =============================================================================
+
+import type {
+  PluginSchedulerAPI,
+  PluginTaskHandler,
+  CreatePluginTaskInput,
+  UpdatePluginTaskInput,
+  PluginTaskFilter,
+  PluginScheduledTask,
+  PluginTaskExecution,
+  PluginTaskTrigger,
+  PluginTaskExecutionStatus,
+} from '@/types/plugin/plugin-scheduler';
+import {
+  registerPluginTaskHandler,
+  unregisterPluginTaskHandler,
+  getPluginTaskHandler,
+} from './scheduler-plugin-executor';
+import { schedulerDb } from '@/lib/scheduler/scheduler-db';
+import type { ScheduledTask, TaskExecution } from '@/types/scheduler';
+import { nanoid } from 'nanoid';
+
+function createSchedulerAPI(pluginId: string): PluginSchedulerAPI {
+  // Local handler registry for this plugin
+  const handlers = new Map<string, PluginTaskHandler>();
+
+  return {
+    // Task Management
+    createTask: async (input: CreatePluginTaskInput): Promise<PluginScheduledTask> => {
+      const taskId = nanoid();
+      const now = new Date();
+
+      const task: ScheduledTask = {
+        id: taskId,
+        name: input.name,
+        description: input.description,
+        type: 'plugin',
+        trigger: {
+          type: input.trigger.type,
+          cronExpression: input.trigger.type === 'cron' ? input.trigger.expression : undefined,
+          intervalMs: input.trigger.type === 'interval' ? input.trigger.seconds * 1000 : undefined,
+          runAt: input.trigger.type === 'once' ? new Date(input.trigger.runAt) : undefined,
+          eventType: input.trigger.type === 'event' ? input.trigger.eventType : undefined,
+          eventSource: input.trigger.type === 'event' ? input.trigger.eventSource : undefined,
+          timezone: input.trigger.type === 'cron' ? input.trigger.timezone : undefined,
+        },
+        payload: {
+          pluginId,
+          handler: input.handler,
+          args: input.handlerArgs || {},
+        },
+        config: {
+          timeout: (input.timeout || 300) * 1000,
+          maxRetries: input.retry?.maxAttempts || 0,
+          retryDelay: (input.retry?.delaySeconds || 60) * 1000,
+          runMissedOnStartup: false,
+          maxMissedRuns: 0,
+          allowConcurrent: false,
+        },
+        notification: {
+          onStart: false,
+          onComplete: false,
+          onError: true,
+          onProgress: false,
+          channels: ['toast'],
+        },
+        status: input.enabled !== false ? 'active' : 'paused',
+        tags: input.tags,
+        runCount: 0,
+        successCount: 0,
+        failureCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await schedulerDb.createTask(task);
+      return mapToPluginTask(task, pluginId);
+    },
+
+    updateTask: async (taskId: string, input: UpdatePluginTaskInput): Promise<PluginScheduledTask | null> => {
+      const existingTask = await schedulerDb.getTask(taskId);
+      if (!existingTask || (existingTask.payload as Record<string, unknown>)?.pluginId !== pluginId) {
+        return null;
+      }
+
+      const updatedTask: ScheduledTask = { ...existingTask, updatedAt: new Date() };
+
+      if (input.name !== undefined) updatedTask.name = input.name;
+      if (input.description !== undefined) updatedTask.description = input.description;
+      if (input.trigger !== undefined) {
+        updatedTask.trigger = {
+          type: input.trigger.type,
+          cronExpression: input.trigger.type === 'cron' ? input.trigger.expression : undefined,
+          intervalMs: input.trigger.type === 'interval' ? input.trigger.seconds * 1000 : undefined,
+          runAt: input.trigger.type === 'once' ? new Date(input.trigger.runAt) : undefined,
+          eventType: input.trigger.type === 'event' ? input.trigger.eventType : undefined,
+          eventSource: input.trigger.type === 'event' ? input.trigger.eventSource : undefined,
+          timezone: input.trigger.type === 'cron' ? input.trigger.timezone : undefined,
+        };
+      }
+      if (input.handler !== undefined) {
+        updatedTask.payload = { ...(existingTask.payload as Record<string, unknown>), handler: input.handler };
+      }
+      if (input.handlerArgs !== undefined) {
+        updatedTask.payload = { ...(existingTask.payload as Record<string, unknown>), args: input.handlerArgs };
+      }
+      if (input.tags !== undefined) updatedTask.tags = input.tags;
+
+      await schedulerDb.updateTask(updatedTask);
+      return mapToPluginTask(updatedTask, pluginId);
+    },
+
+    deleteTask: async (taskId: string): Promise<boolean> => {
+      const existingTask = await schedulerDb.getTask(taskId);
+      if (!existingTask || (existingTask.payload as Record<string, unknown>)?.pluginId !== pluginId) {
+        return false;
+      }
+      return schedulerDb.deleteTask(taskId);
+    },
+
+    getTask: async (taskId: string): Promise<PluginScheduledTask | null> => {
+      const task = await schedulerDb.getTask(taskId);
+      if (!task || (task.payload as Record<string, unknown>)?.pluginId !== pluginId) {
+        return null;
+      }
+      return mapToPluginTask(task, pluginId);
+    },
+
+    listTasks: async (filter?: PluginTaskFilter): Promise<PluginScheduledTask[]> => {
+      const allTasks = await schedulerDb.getFilteredTasks({
+        types: ['plugin'],
+        statuses: filter?.status
+          ? Array.isArray(filter.status)
+            ? filter.status
+            : [filter.status]
+          : undefined,
+        tags: filter?.tags,
+        search: filter?.name,
+      });
+
+      // Filter to only this plugin's tasks
+      const pluginTasks = allTasks.filter((t) => (t.payload as Record<string, unknown>)?.pluginId === pluginId);
+
+      // Apply additional filters
+      let filtered = pluginTasks;
+      if (filter?.handler) {
+        filtered = filtered.filter((t) => (t.payload as Record<string, unknown>)?.handler === filter.handler);
+      }
+
+      // Apply limit and offset
+      if (filter?.offset) {
+        filtered = filtered.slice(filter.offset);
+      }
+      if (filter?.limit) {
+        filtered = filtered.slice(0, filter.limit);
+      }
+
+      return filtered.map((t) => mapToPluginTask(t, pluginId));
+    },
+
+    // Task Control
+    pauseTask: async (taskId: string): Promise<boolean> => {
+      const existingTask = await schedulerDb.getTask(taskId);
+      if (!existingTask || (existingTask.payload as Record<string, unknown>)?.pluginId !== pluginId) {
+        return false;
+      }
+      const updatedTask = { ...existingTask, status: 'paused' as const, updatedAt: new Date() };
+      await schedulerDb.updateTask(updatedTask);
+      return true;
+    },
+
+    resumeTask: async (taskId: string): Promise<boolean> => {
+      const existingTask = await schedulerDb.getTask(taskId);
+      if (!existingTask || (existingTask.payload as Record<string, unknown>)?.pluginId !== pluginId) {
+        return false;
+      }
+      const updatedTask = { ...existingTask, status: 'active' as const, updatedAt: new Date() };
+      await schedulerDb.updateTask(updatedTask);
+      return true;
+    },
+
+    runTaskNow: async (taskId: string, _args?: Record<string, unknown>): Promise<string> => {
+      const existingTask = await schedulerDb.getTask(taskId);
+      if (!existingTask || (existingTask.payload as Record<string, unknown>)?.pluginId !== pluginId) {
+        throw new Error(`Task not found: ${taskId}`);
+      }
+
+      // Create a manual execution record
+      const executionId = nanoid();
+      const execution: TaskExecution = {
+        id: executionId,
+        taskId,
+        taskName: existingTask.name,
+        taskType: 'plugin',
+        status: 'pending',
+        retryAttempt: 0,
+        startedAt: new Date(),
+        logs: [],
+      };
+
+      await schedulerDb.createExecution(execution);
+
+      // Execute the task asynchronously
+      import('@/lib/scheduler/task-scheduler')
+        .then((scheduler) => {
+          scheduler.executeTask(taskId).catch((e: Error) => loggers.manager.error('Failed to execute task:', e));
+        })
+        .catch((e: Error) => loggers.manager.error('Failed to load task-scheduler module:', e));
+
+      return executionId;
+    },
+
+    cancelExecution: async (executionId: string): Promise<boolean> => {
+      const execution = await schedulerDb.getExecution(executionId);
+      if (!execution) return false;
+
+      const task = await schedulerDb.getTask(execution.taskId);
+      if (!task || (task.payload as Record<string, unknown>)?.pluginId !== pluginId) {
+        return false;
+      }
+
+      if (execution.status !== 'running' && execution.status !== 'pending') {
+        return false;
+      }
+
+      const updatedExecution = { ...execution, status: 'cancelled' as const, completedAt: new Date() };
+      await schedulerDb.updateExecution(updatedExecution);
+      return true;
+    },
+
+    // Execution History
+    getExecutions: async (taskId: string, limit: number = 50): Promise<PluginTaskExecution[]> => {
+      const task = await schedulerDb.getTask(taskId);
+      if (!task || (task.payload as Record<string, unknown>)?.pluginId !== pluginId) {
+        return [];
+      }
+
+      const executions = await schedulerDb.getTaskExecutions(taskId, limit);
+      return executions.map((e) => mapToPluginExecution(e, pluginId));
+    },
+
+    getExecution: async (executionId: string): Promise<PluginTaskExecution | null> => {
+      const execution = await schedulerDb.getExecution(executionId);
+      if (!execution) return null;
+
+      const task = await schedulerDb.getTask(execution.taskId);
+      if (!task || (task.payload as Record<string, unknown>)?.pluginId !== pluginId) {
+        return null;
+      }
+
+      return mapToPluginExecution(execution, pluginId);
+    },
+
+    getLatestExecution: async (taskId: string): Promise<PluginTaskExecution | null> => {
+      const task = await schedulerDb.getTask(taskId);
+      if (!task || (task.payload as Record<string, unknown>)?.pluginId !== pluginId) {
+        return null;
+      }
+
+      const executions = await schedulerDb.getTaskExecutions(taskId, 1);
+      return executions.length > 0 ? mapToPluginExecution(executions[0], pluginId) : null;
+    },
+
+    // Handler Registration
+    registerHandler: (name: string, handler: PluginTaskHandler): (() => void) => {
+      const fullName = `${pluginId}:${name}`;
+      handlers.set(name, handler);
+      registerPluginTaskHandler(fullName, handler);
+
+      return () => {
+        handlers.delete(name);
+        unregisterPluginTaskHandler(fullName);
+      };
+    },
+
+    unregisterHandler: (name: string): void => {
+      const fullName = `${pluginId}:${name}`;
+      handlers.delete(name);
+      unregisterPluginTaskHandler(fullName);
+    },
+
+    hasHandler: (name: string): boolean => {
+      const fullName = `${pluginId}:${name}`;
+      return handlers.has(name) || !!getPluginTaskHandler(fullName);
+    },
+
+    getHandlers: (): string[] => Array.from(handlers.keys()),
+  };
+}
+
+// Helper functions for mapping scheduler types to plugin types
+function mapToPluginTask(task: ScheduledTask, pluginId: string): PluginScheduledTask {
+  const trigger = task.trigger;
+  let pluginTrigger: PluginTaskTrigger;
+
+  if (trigger.type === 'cron' && trigger.cronExpression) {
+    pluginTrigger = { type: 'cron', expression: trigger.cronExpression, timezone: trigger.timezone };
+  } else if (trigger.type === 'interval' && trigger.intervalMs) {
+    pluginTrigger = { type: 'interval', seconds: trigger.intervalMs / 1000 };
+  } else if (trigger.type === 'once' && trigger.runAt) {
+    pluginTrigger = { type: 'once', runAt: trigger.runAt };
+  } else if (trigger.type === 'event' && trigger.eventType) {
+    pluginTrigger = { type: 'event', eventType: trigger.eventType, eventSource: trigger.eventSource };
+  } else {
+    pluginTrigger = { type: 'interval', seconds: 3600 }; // Default fallback
+  }
+
+  const payload = task.payload as Record<string, unknown> | undefined;
+
+  return {
+    id: task.id,
+    pluginId,
+    name: task.name,
+    description: task.description,
+    trigger: pluginTrigger,
+    handler: (payload?.handler as string) || '',
+    handlerArgs: payload?.args as Record<string, unknown> | undefined,
+    status: task.status as 'active' | 'paused' | 'disabled' | 'completed' | 'error',
+    lastRunAt: task.lastRunAt,
+    nextRunAt: task.nextRunAt,
+    runCount: task.runCount,
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+    retry: task.config ? {
+      maxAttempts: task.config.maxRetries,
+      delaySeconds: task.config.retryDelay / 1000,
+    } : undefined,
+    timeout: task.config?.timeout ? task.config.timeout / 1000 : undefined,
+    tags: task.tags,
+  };
+}
+
+function mapToPluginExecution(execution: TaskExecution, pluginId: string = ''): PluginTaskExecution {
+  return {
+    id: execution.id,
+    taskId: execution.taskId,
+    pluginId,
+    status: execution.status as PluginTaskExecutionStatus,
+    scheduledAt: execution.startedAt,
+    startedAt: execution.startedAt,
+    completedAt: execution.completedAt,
+    duration: execution.duration,
+    attemptNumber: execution.retryAttempt + 1,
+    error: execution.error ? { message: execution.error } : undefined,
+    logs: execution.logs,
   };
 }

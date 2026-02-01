@@ -92,6 +92,8 @@ export interface CompletionProviderConfig {
   priority: number;
   enabled: boolean;
   debounceMs?: number;
+  /** Minimum context length to trigger AI completion */
+  minContextLength?: number;
 }
 
 /** Command parameter definition */

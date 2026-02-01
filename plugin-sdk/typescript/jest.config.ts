@@ -13,6 +13,16 @@ const config: Config = {
   // Module file extensions
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 
+  // Module name mapper for ESM-style .js imports
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
+
+  // Transform ESM-only modules
+  transformIgnorePatterns: [
+    'node_modules/(?!(ink|ink-spinner|ink-text-input|ink-select-input|ink-multi-select|figures|chalk)/)',
+  ],
+
   // Coverage configuration
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/**/index.ts'],
 

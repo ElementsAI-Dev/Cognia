@@ -7,7 +7,7 @@
 export type TaskTriggerType = 'cron' | 'interval' | 'once' | 'event';
 
 // Task types that can be scheduled
-export type ScheduledTaskType = 'workflow' | 'agent' | 'sync' | 'backup' | 'custom';
+export type ScheduledTaskType = 'workflow' | 'agent' | 'sync' | 'backup' | 'custom' | 'plugin';
 
 // Task execution status
 export type TaskExecutionStatus =
@@ -456,3 +456,6 @@ export function deserializeExecution(data: Record<string, unknown>): TaskExecuti
     })),
   };
 }
+
+// Re-export system scheduler types
+export * from './system-scheduler';

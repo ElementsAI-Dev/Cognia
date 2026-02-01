@@ -20,6 +20,7 @@ Custom React hooks organized by domain. These hooks provide reusable stateful lo
 - `network/` — Network hooks (use-proxy, use-network-status, use-geolocation)
 - `rag/` — RAG hooks (use-rag, use-memory, use-vector-db, use-enhanced-rag)
 - `sandbox/` — Sandbox hooks (use-environment, use-jupyter-kernel, use-session-env, use-virtual-env)
+- `scheduler/` — Scheduler hooks (use-scheduler)
 - `ui/` — UI hooks (use-global-shortcuts, use-learning-mode, use-learning-tools, use-mention, use-quote-shortcuts, use-selection-toolbar, use-copy, use-keyboard-shortcuts)
 - `utils/` — Utility hooks (use-debounce, use-mobile, use-resize-observer, use-element-resize)
 - `ppt/` — PPT generation hooks
@@ -104,6 +105,10 @@ Custom React hooks organized by domain. These hooks provide reusable stateful lo
 - `useJupyterKernel()` — Jupyter kernel
 - `useSessionEnv()` — Session environment
 - `useVirtualEnv()` — Virtual environment
+
+### Scheduler Hooks
+
+- `useScheduler()` — Task scheduling, CRUD operations, execution tracking
 
 ## Common Patterns
 
