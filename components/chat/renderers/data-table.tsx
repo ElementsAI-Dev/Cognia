@@ -56,7 +56,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useCopy } from '@/hooks/ui';
-import type { TableData } from '@/lib/export/excel-export';
+import type { TableData } from '@/lib/export/document/excel-export';
 
 interface DataTableProps {
   headers: string[];
@@ -185,22 +185,22 @@ export const DataTable = memo(function DataTable({
 
   // Export handlers
   const handleExportExcel = useCallback(async () => {
-    const { exportAndDownloadExcel } = await import('@/lib/export/excel-export');
+    const { exportAndDownloadExcel } = await import('@/lib/export/document/excel-export');
     await exportAndDownloadExcel(getTableData(), title || 'table-data');
   }, [getTableData, title]);
 
   const handleExportCSV = useCallback(async () => {
-    const { exportAndDownloadCSV } = await import('@/lib/export/google-sheets-export');
+    const { exportAndDownloadCSV } = await import('@/lib/export/document/google-sheets-export');
     exportAndDownloadCSV(getTableData(), title || 'table-data');
   }, [getTableData, title]);
 
   const handleOpenGoogleSheets = useCallback(async () => {
-    const { openInGoogleSheets } = await import('@/lib/export/google-sheets-export');
+    const { openInGoogleSheets } = await import('@/lib/export/document/google-sheets-export');
     openInGoogleSheets(getTableData());
   }, [getTableData]);
 
   const handleCopyForSheets = useCallback(async () => {
-    const { copyTableAsHTML } = await import('@/lib/export/google-sheets-export');
+    const { copyTableAsHTML } = await import('@/lib/export/document/google-sheets-export');
     await copyTableAsHTML(getTableData());
   }, [getTableData]);
 

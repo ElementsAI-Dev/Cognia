@@ -12,7 +12,7 @@ jest.mock('mermaid', () => ({
 }));
 
 // Mock diagram export utilities
-jest.mock('@/lib/export/diagram-export', () => ({
+jest.mock('@/lib/export/diagram/diagram-export', () => ({
   exportDiagram: jest.fn().mockResolvedValue(undefined),
   generateDiagramFilename: jest.fn(() => 'flowchart_diagram'),
 }));

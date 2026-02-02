@@ -45,8 +45,8 @@ import {
   nativeShare,
   isNativeShareAvailable,
   generateShareableMarkdown,
-} from '@/lib/export/social-share';
-import { exportToImage } from '@/lib/export/image-export';
+} from '@/lib/export/social/social-share';
+import { exportToImage } from '@/lib/export/image/image-export';
 
 interface SocialShareDialogProps {
   session: Session;

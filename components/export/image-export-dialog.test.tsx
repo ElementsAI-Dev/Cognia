@@ -29,7 +29,7 @@ jest.mock('@/lib/db', () => ({
 }));
 
 // Mock the export functions
-jest.mock('@/lib/export/image-export', () => ({
+jest.mock('@/lib/export/image/image-export', () => ({
   downloadAsImage: jest.fn().mockResolvedValue(undefined),
   generateThumbnail: jest.fn().mockResolvedValue('data:image/png;base64,test'),
   copyImageToClipboard: jest.fn().mockResolvedValue(true),
@@ -209,7 +209,7 @@ describe('ImageExportDialog', () => {
   });
 
   it('should call downloadAsImage when download button is clicked', async () => {
-    const imageExport = await import('@/lib/export/image-export');
+    const imageExport = await import('@/lib/export/image/image-export');
     
     renderWithProviders(<ImageExportDialog session={mockSession} />);
     
@@ -227,7 +227,7 @@ describe('ImageExportDialog', () => {
   });
 
   it('should call copyImageToClipboard when copy button is clicked', async () => {
-    const imageExport = await import('@/lib/export/image-export');
+    const imageExport = await import('@/lib/export/image/image-export');
     
     renderWithProviders(<ImageExportDialog session={mockSession} />);
     

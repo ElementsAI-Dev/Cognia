@@ -58,7 +58,7 @@ jest.mock('@/lib/ai/generation/summarizer', () => ({
   }),
 }));
 
-jest.mock('@/lib/export/chat-diagram', () => ({
+jest.mock('@/lib/export/diagram/chat-diagram', () => ({
   generateChatDiagram: jest.fn().mockImplementation((messages, options) => ({
     success: true,
     mermaidCode: 'flowchart TB\n  A --> B',
@@ -69,7 +69,7 @@ jest.mock('@/lib/export/chat-diagram', () => ({
   })),
 }));
 
-jest.mock('@/lib/export/agent-diagram', () => ({
+jest.mock('@/lib/export/diagram/agent-diagram', () => ({
   generateAgentDiagram: jest.fn().mockImplementation((agent, options) => ({
     success: true,
     mermaidCode: 'flowchart TB\n  Start --> End',

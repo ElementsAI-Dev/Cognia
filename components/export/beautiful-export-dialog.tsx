@@ -54,7 +54,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { messageRepository } from '@/lib/db';
 import type { Session, UIMessage } from '@/types';
-import { type SyntaxThemeName, getAvailableSyntaxThemes } from '@/lib/export/syntax-themes';
+import { type SyntaxThemeName, getAvailableSyntaxThemes } from '@/lib/export/html/syntax-themes';
 import { useCustomThemeStore } from '@/stores/settings';
 import { CustomThemeEditor } from './custom-theme-editor';
 import { SocialShareDialog } from './social-share-dialog';
@@ -190,7 +190,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
     const generatePreview = async () => {
       if (selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') {
         try {
-          const { exportToBeautifulHTML } = await import('@/lib/export/beautiful-html');
+          const { exportToBeautifulHTML } = await import('@/lib/export/html/beautiful-html');
           const html = exportToBeautifulHTML({
             session,
             messages: messages.slice(0, 3), // Preview first 3 messages
@@ -262,7 +262,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         }
 
         case 'pdf': {
-          const { exportToBeautifulPDF } = await import('@/lib/export/beautiful-pdf');
+          const { exportToBeautifulPDF } = await import('@/lib/export/document/beautiful-pdf');
           await exportToBeautifulPDF({
             session,
             messages,
@@ -295,7 +295,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         }
 
         case 'word': {
-          const { generateWordDocument, downloadWordDocument } = await import('@/lib/export/word-document-generator');
+          const { generateWordDocument, downloadWordDocument } = await import('@/lib/export/document/word-document-generator');
           const result = await generateWordDocument(session, messages, {
             includeMetadata: true,
             includeTimestamps: options.showTimestamps,
@@ -319,7 +319,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         }
 
         case 'excel': {
-          const { exportChatToExcel, downloadExcel } = await import('@/lib/export/excel-export');
+          const { exportChatToExcel, downloadExcel } = await import('@/lib/export/document/excel-export');
           const result = await exportChatToExcel(session, messages);
           if (result.success && result.blob && result.filename) {
             downloadExcel(result.blob, result.filename);
@@ -330,7 +330,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         }
 
         case 'csv': {
-          const { exportChatToCSV, downloadCSV } = await import('@/lib/export/google-sheets-export');
+          const { exportChatToCSV, downloadCSV } = await import('@/lib/export/document/google-sheets-export');
           const result = exportChatToCSV(session, messages);
           if (result.success && result.content && result.filename) {
             downloadCSV(result.content, result.filename);
@@ -480,7 +480,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                         className="w-full"
                         onClick={async () => {
                           try {
-                            const { exportChatToCSV, downloadCSV } = await import('@/lib/export/google-sheets-export');
+                            const { exportChatToCSV, downloadCSV } = await import('@/lib/export/document/google-sheets-export');
                             const result = exportChatToCSV(session, messages);
                             if (result.success && result.content && result.filename) {
                               downloadCSV(result.content, result.filename);

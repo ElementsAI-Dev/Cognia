@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { SyntaxTheme } from '@/lib/export/syntax-themes';
+import type { SyntaxTheme } from '@/lib/export/html/syntax-themes';
 
 export interface CustomSyntaxTheme extends SyntaxTheme {
   id: string;

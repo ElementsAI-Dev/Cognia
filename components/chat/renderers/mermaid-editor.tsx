@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCopy, useMermaid } from '@/hooks/ui';
-import { exportDiagram, generateDiagramFilename } from '@/lib/export/diagram-export';
+import { exportDiagram, generateDiagramFilename } from '@/lib/export/diagram/diagram-export';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/stores';
 import { LoadingAnimation } from './loading-animation';

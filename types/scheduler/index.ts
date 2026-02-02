@@ -457,5 +457,39 @@ export function deserializeExecution(data: Record<string, unknown>): TaskExecuti
   };
 }
 
-// Re-export system scheduler types
-export * from './system-scheduler';
+// Re-export system scheduler types with aliased names to avoid conflicts
+export {
+  // Types
+  type SystemTaskId,
+  type RunLevel,
+  type SystemTaskStatus,
+  type RiskLevel,
+  type TaskOperation,
+  type CronTrigger as SystemCronTrigger,
+  type IntervalTrigger as SystemIntervalTrigger,
+  type OnceTrigger as SystemOnceTrigger,
+  type OnBootTrigger,
+  type OnLogonTrigger,
+  type OnEventTrigger,
+  type SystemTaskTrigger,
+  type ExecuteScriptAction,
+  type RunCommandAction,
+  type LaunchAppAction,
+  type SystemTaskAction,
+  type TaskRunResult,
+  type SystemTask,
+  type CreateSystemTaskInput,
+  type TaskConfirmationDetails,
+  type TaskConfirmationRequest,
+  type SchedulerCapabilities,
+  type ValidationResult,
+  type TaskOperationResponse,
+  // Constants
+  DEFAULT_SCRIPT_SETTINGS,
+  SCRIPT_LANGUAGES,
+  RISK_LEVEL_INFO,
+  // Functions
+  isTaskOperationSuccess,
+  isConfirmationRequired,
+  isTaskOperationError,
+} from './system-scheduler';

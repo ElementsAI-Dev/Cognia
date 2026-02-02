@@ -1,20 +1,26 @@
 /**
  * Export utilities for chat conversations
+ *
+ * Subdirectories:
+ * - document/ - Document format exports (Word, PDF, Excel, PPTX, Google Sheets)
+ * - html/     - HTML format exports (Beautiful HTML, Animated HTML, Syntax Themes)
+ * - diagram/  - Diagram generation (Chat diagrams, Agent diagrams)
+ * - image/    - Image export utilities
+ * - agent/    - Agent-specific exports (Demo export)
+ * - social/   - Social sharing exports
+ * - text/     - Text format exports (Rich Markdown)
+ * - batch/    - Batch export utilities
  */
 
 import type { UIMessage, Session } from '@/types';
 
-// Re-export enhanced modules
-export * from './rich-markdown';
-export * from './animated-html';
-export * from './batch-export';
-export * from './excel-export';
-export * from './word-export';
-export * from './google-sheets-export';
-export * from './beautiful-html';
-export * from './beautiful-pdf';
-export * from './syntax-themes';
-export * from './social-share';
+// Re-export from subdirectories
+export * from './text';
+export * from './html';
+export * from './batch';
+export * from './document';
+export * from './social';
+export * from './diagram';
 export {
   exportToImage,
   downloadAsImage,
@@ -25,9 +31,8 @@ export {
   estimateImageSize,
   type ImageExportOptions,
   type ImageExportResult,
-} from './image-export';
-export * from './agent-demo-export';
-export * from './pptx-export';
+} from './image';
+export * from './agent';
 
 export interface ExportData {
   session: Session;

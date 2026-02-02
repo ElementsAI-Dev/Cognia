@@ -3,9 +3,9 @@
  */
 
 import type { UIMessage, Session } from '@/types';
-import { exportToRichMarkdown, exportToRichJSON } from './rich-markdown';
-import { exportToAnimatedHTML } from './animated-html';
-import { exportToHTML, exportToPlainText } from './index';
+import { exportToRichMarkdown, exportToRichJSON } from '../text/rich-markdown';
+import { exportToAnimatedHTML } from '../html/animated-html';
+import { exportToHTML, exportToPlainText } from '../index';
 import JSZip from 'jszip';
 
 export type BatchExportFormat = 'markdown' | 'json' | 'html' | 'animated-html' | 'text' | 'mixed';

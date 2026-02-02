@@ -4,13 +4,20 @@
   "description": "Secure shell command execution and process management for Cognia AI agents",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "shell-tools": "./dist/cli/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "jest",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "validate": "cognia-plugin validate --strict",
+    "prepublishOnly": "npm run build && npm run validate"
   },
-  "dependencies": {},
+  "dependencies": {
+    "commander": "^12.0.0"
+  },
   "devDependencies": {
     "@cognia/plugin-sdk": "workspace:*",
     "@types/node": "^20.0.0",

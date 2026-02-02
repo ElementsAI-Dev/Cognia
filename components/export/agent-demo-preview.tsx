@@ -52,7 +52,7 @@ import {
   exportAgentDemo,
   exportAgentAsMarkdown,
   type AgentDemoOptions,
-} from '@/lib/export/agent-demo-export';
+} from '@/lib/export/agent/agent-demo-export';
 import { downloadFile } from '@/lib/export';
 
 interface AgentDemoPreviewProps {

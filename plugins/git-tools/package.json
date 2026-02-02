@@ -6,7 +6,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "validate": "cognia-plugin validate --strict",
+    "prepublishOnly": "npm run build && npm run validate"
   },
   "devDependencies": {
     "@cognia/plugin-sdk": "workspace:*",

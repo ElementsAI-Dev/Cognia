@@ -9,7 +9,7 @@ import { AgentDemoPreview } from './agent-demo-preview';
 import type { BackgroundAgent } from '@/types/agent/background-agent';
 
 // Mock the export functions
-jest.mock('@/lib/export/agent-demo-export', () => ({
+jest.mock('@/lib/export/agent/agent-demo-export', () => ({
   exportAgentDemo: jest.fn().mockReturnValue('<!DOCTYPE html><html></html>'),
   exportAgentAsMarkdown: jest.fn().mockReturnValue('# Agent Demo'),
 }));
@@ -264,7 +264,7 @@ describe('AgentDemoPreview', () => {
   });
 
   it('should call exportAgentDemo when export button is clicked for HTML', async () => {
-    const agentExport = await import('@/lib/export/agent-demo-export');
+    const agentExport = await import('@/lib/export/agent/agent-demo-export');
     const libExport = await import('@/lib/export');
     
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);

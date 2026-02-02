@@ -6,7 +6,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { BeautifulExportDialog } from './beautiful-export-dialog';
-import { getSyntaxTheme, type SyntaxTheme } from '@/lib/export/syntax-themes';
+import { getSyntaxTheme, type SyntaxTheme } from '@/lib/export/html/syntax-themes';
 import type { Session } from '@/types';
 
 // Mock the message repository
@@ -38,11 +38,11 @@ jest.mock('@/lib/export', () => ({
   generateFilename: jest.fn().mockReturnValue('test.html'),
 }));
 
-jest.mock('@/lib/export/beautiful-html', () => ({
+jest.mock('@/lib/export/html/beautiful-html', () => ({
   exportToBeautifulHTML: jest.fn().mockReturnValue('<!DOCTYPE html>'),
 }));
 
-jest.mock('@/lib/export/beautiful-pdf', () => ({
+jest.mock('@/lib/export/document/beautiful-pdf', () => ({
   exportToBeautifulPDF: jest.fn().mockResolvedValue(undefined),
 }));
 

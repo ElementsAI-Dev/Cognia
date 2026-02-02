@@ -48,7 +48,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCopy } from '@/hooks/ui';
-import { generateDiagramFilename } from '@/lib/export/diagram-export';
+import { generateDiagramFilename } from '@/lib/export/diagram/diagram-export';
 import { toast } from 'sonner';
 import { LoadingAnimation } from './loading-animation';
 

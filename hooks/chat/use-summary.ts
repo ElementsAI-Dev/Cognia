@@ -38,8 +38,8 @@ import {
   getSummaryTemplate,
   getAvailableTemplates,
 } from '@/lib/ai/generation/summarizer';
-import { generateChatDiagram } from '@/lib/export/chat-diagram';
-import { generateAgentDiagram } from '@/lib/export/agent-diagram';
+import { generateChatDiagram } from '@/lib/export/diagram/chat-diagram';
+import { generateAgentDiagram } from '@/lib/export/diagram/agent-diagram';
 import { downloadFile, generateFilename } from '@/lib/export';
 import type { ProviderName } from '@/lib/ai/core/client';
 import { useSummaryStore } from '@/stores/chat';

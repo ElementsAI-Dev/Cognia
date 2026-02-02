@@ -3,7 +3,7 @@
  * Supports Markdown, HTML, and message content
  */
 
-import type { TableData } from '@/lib/export/excel-export';
+import type { TableData } from '@/lib/export/document/excel-export';
 
 export interface ExtractedTable {
   headers: string[];

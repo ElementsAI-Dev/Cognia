@@ -29,15 +29,15 @@ jest.mock('@/lib/db', () => ({
 }));
 
 // Mock the export functions
-jest.mock('@/lib/export/social-share', () => ({
-  ...jest.requireActual('@/lib/export/social-share'),
+jest.mock('@/lib/export/social/social-share', () => ({
+  ...jest.requireActual('@/lib/export/social/social-share'),
   copyToClipboard: jest.fn().mockResolvedValue(true),
   generateWeChatQRCode: jest.fn().mockResolvedValue('data:image/png;base64,test'),
   nativeShare: jest.fn().mockResolvedValue(true),
   isNativeShareAvailable: jest.fn().mockReturnValue(false),
 }));
 
-jest.mock('@/lib/export/image-export', () => ({
+jest.mock('@/lib/export/image/image-export', () => ({
   exportToImage: jest.fn().mockResolvedValue({
     blob: new Blob(),
     dataUrl: 'data:image/png;base64,test',
@@ -194,7 +194,7 @@ describe('SocialShareDialog', () => {
   });
 
   it('should copy text when copy button is clicked', async () => {
-    const socialShare = await import('@/lib/export/social-share');
+    const socialShare = await import('@/lib/export/social/social-share');
     
     renderWithProviders(<SocialShareDialog session={mockSession} />);
     

@@ -42,7 +42,7 @@ import {
   copyImageToClipboard,
   getImageExportFormats,
   estimateImageSize,
-} from '@/lib/export/image-export';
+} from '@/lib/export/image/image-export';
 
 interface ImageExportDialogProps {
   session: Session;

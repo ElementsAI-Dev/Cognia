@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Palette, Save, RotateCcw, Download, Upload } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { useCustomThemeStore, createDefaultThemeTemplate } from '@/stores/settings';
-import type { SyntaxTheme } from '@/lib/export/syntax-themes';
+import type { SyntaxTheme } from '@/lib/export/html/syntax-themes';
 
 interface CustomThemeEditorProps {
   open: boolean;

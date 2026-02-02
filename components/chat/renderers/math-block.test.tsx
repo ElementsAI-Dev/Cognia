@@ -33,7 +33,7 @@ jest.mock('katex', () => ({
 }));
 
 // Mock math export utilities
-jest.mock('@/lib/export/math-export', () => ({
+jest.mock('@/lib/export/image/math-export', () => ({
   exportMath: jest.fn().mockResolvedValue(undefined),
   generateMathFilename: jest.fn((content: string) => content.slice(0, 10)),
 }));

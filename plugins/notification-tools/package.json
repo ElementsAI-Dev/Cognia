@@ -4,7 +4,12 @@
   "description": "Notifications and reminders for Cognia AI agents",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "scripts": { "build": "tsc", "dev": "tsc --watch" },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "validate": "cognia-plugin validate --strict",
+    "prepublishOnly": "npm run build && npm run validate"
+  },
   "devDependencies": {
     "@cognia/plugin-sdk": "workspace:*",
     "@types/node": "^20.0.0",
