@@ -101,6 +101,8 @@ export interface WorkflowStepDefinition {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   headers?: Record<string, string>;
   body?: string;
+  retries?: number;
+  allowInternalNetwork?: boolean;
   // Delay step specific
   delayType?: 'fixed' | 'until' | 'cron';
   delayMs?: number;

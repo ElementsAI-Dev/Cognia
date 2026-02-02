@@ -1169,11 +1169,229 @@ export function validateCompleteWorkflow(
   };
 }
 
+/**
+ * Default timeout recommendations per step type (milliseconds)
+ */
+const DEFAULT_STEP_TIMEOUTS: Record<string, number> = {
+  ai: 120000,       // 2 minutes
+  webhook: 30000,   // 30 seconds
+  code: 10000,      // 10 seconds
+  tool: 60000,      // 1 minute
+  subworkflow: 300000, // 5 minutes
+  loop: 180000,     // 3 minutes
+  transform: 5000,  // 5 seconds
+};
+
+/**
+ * Validate step timeout configurations
+ * Returns warnings for missing or excessive timeouts
+ */
+export function validateStepTimeouts(
+  nodes: { id: string; type: string; data: WorkflowNodeData }[]
+): WorkflowStructureWarning[] {
+  const warnings: WorkflowStructureWarning[] = [];
+  const MAX_TIMEOUT = 600000; // 10 minutes max
+
+  for (const node of nodes) {
+    // Skip non-executable nodes
+    if (['start', 'end', 'annotation', 'group'].includes(node.type)) {
+      continue;
+    }
+
+    const data = node.data as Record<string, unknown>;
+    const timeout = data.timeout as number | undefined;
+    const defaultTimeout = DEFAULT_STEP_TIMEOUTS[node.type];
+    const label = (data.label as string) || node.id;
+
+    // Check for missing timeout on steps that typically need them
+    if (defaultTimeout && !timeout) {
+      warnings.push({
+        type: 'node',
+        nodeId: node.id,
+        message: `Node "${label}" has no timeout configured. Recommended: ${defaultTimeout / 1000}s`,
+        code: 'MISSING_TIMEOUT',
+      });
+    }
+
+    // Check for excessively long timeouts
+    if (timeout && timeout > MAX_TIMEOUT) {
+      warnings.push({
+        type: 'node',
+        nodeId: node.id,
+        message: `Node "${label}" has a very long timeout (${timeout / 1000}s). Consider breaking into smaller steps.`,
+        code: 'EXCESSIVE_TIMEOUT',
+      });
+    }
+
+    // Check for very short timeouts on complex operations
+    if (timeout && timeout < 1000 && ['ai', 'webhook', 'subworkflow'].includes(node.type)) {
+      warnings.push({
+        type: 'node',
+        nodeId: node.id,
+        message: `Node "${label}" has a very short timeout (${timeout}ms) for ${node.type} step. This may cause premature failures.`,
+        code: 'SHORT_TIMEOUT',
+      });
+    }
+  }
+
+  return warnings;
+}
+
+/**
+ * Validate resource limits and parallelism configuration
+ * Returns warnings for potential resource issues
+ */
+export function validateResourceLimits(
+  nodes: { id: string; type: string; data: WorkflowNodeData }[],
+  edges: { id: string; source: string; target: string }[]
+): WorkflowStructureWarning[] {
+  const warnings: WorkflowStructureWarning[] = [];
+  const MAX_PARALLEL_BRANCHES = 10;
+  const MAX_LOOP_ITERATIONS = 1000;
+  const MAX_WORKFLOW_DEPTH = 5;
+
+  // Build adjacency list for parallelism analysis
+  const outgoingEdges = new Map<string, string[]>();
+  for (const edge of edges) {
+    const existing = outgoingEdges.get(edge.source) || [];
+    existing.push(edge.target);
+    outgoingEdges.set(edge.source, existing);
+  }
+
+  for (const node of nodes) {
+    const data = node.data as Record<string, unknown>;
+    const label = (data.label as string) || node.id;
+
+    // Check parallel branches
+    if (node.type === 'parallel') {
+      const branches = outgoingEdges.get(node.id) || [];
+      if (branches.length > MAX_PARALLEL_BRANCHES) {
+        warnings.push({
+          type: 'node',
+          nodeId: node.id,
+          message: `Parallel node "${label}" has ${branches.length} branches. Consider limiting to ${MAX_PARALLEL_BRANCHES} for better resource management.`,
+          code: 'HIGH_PARALLELISM',
+        });
+      }
+    }
+
+    // Check loop iteration limits
+    if (node.type === 'loop') {
+      const maxIterations = data.maxIterations as number | undefined;
+      if (!maxIterations) {
+        warnings.push({
+          type: 'node',
+          nodeId: node.id,
+          message: `Loop node "${label}" has no iteration limit. Consider setting maxIterations to prevent infinite loops.`,
+          code: 'MISSING_LOOP_LIMIT',
+        });
+      } else if (maxIterations > MAX_LOOP_ITERATIONS) {
+        warnings.push({
+          type: 'node',
+          nodeId: node.id,
+          message: `Loop node "${label}" has a high iteration limit (${maxIterations}). This may cause performance issues.`,
+          code: 'HIGH_LOOP_ITERATIONS',
+        });
+      }
+    }
+
+    // Check subworkflow nesting depth
+    if (node.type === 'subworkflow') {
+      const nestedWorkflowId = data.workflowId as string | undefined;
+      if (nestedWorkflowId) {
+        // Note: Full depth analysis would require loading the nested workflow
+        // Here we just warn about subworkflow usage
+        warnings.push({
+          type: 'node',
+          nodeId: node.id,
+          message: `Subworkflow node "${label}" calls nested workflow. Ensure nesting depth doesn't exceed ${MAX_WORKFLOW_DEPTH} levels.`,
+          code: 'SUBWORKFLOW_DEPTH_CHECK',
+        });
+      }
+    }
+
+    // Check for potential memory-intensive operations
+    if (node.type === 'transform') {
+      const transformType = data.transformType as string | undefined;
+      if (transformType === 'reduce' || transformType === 'sort') {
+        warnings.push({
+          type: 'node',
+          nodeId: node.id,
+          message: `Transform node "${label}" uses ${transformType} operation. Ensure input data size is reasonable to avoid memory issues.`,
+          code: 'MEMORY_INTENSIVE_OPERATION',
+        });
+      }
+    }
+  }
+
+  // Check total workflow complexity
+  const executableNodes = nodes.filter(n => !['start', 'end', 'annotation', 'group'].includes(n.type));
+  if (executableNodes.length > 50) {
+    warnings.push({
+      type: 'structure',
+      message: `Workflow has ${executableNodes.length} executable steps. Consider breaking into smaller subworkflows for maintainability.`,
+      code: 'HIGH_COMPLEXITY',
+    });
+  }
+
+  return warnings;
+}
+
+/**
+ * Validate complete workflow with all available validation rules
+ * Enhanced version that includes timeout and resource validation
+ */
+export function validateWorkflowComprehensive(
+  nodes: { id: string; type: string; data: WorkflowNodeData }[],
+  edges: { id: string; source: string; target: string }[]
+): {
+  isValid: boolean;
+  structureValidation: WorkflowValidationResult;
+  ioValidation: IOCompatibilityResult;
+  timeoutWarnings: WorkflowStructureWarning[];
+  resourceWarnings: WorkflowStructureWarning[];
+  summary: string;
+} {
+  const structureValidation = validateWorkflowStructure(nodes, edges);
+  const ioValidation = validateIOCompatibility(nodes, edges);
+  const timeoutWarnings = validateStepTimeouts(nodes);
+  const resourceWarnings = validateResourceLimits(nodes, edges);
+
+  const isValid = structureValidation.isValid && ioValidation.isCompatible;
+
+  const totalErrors = structureValidation.errors.length + ioValidation.errors.length;
+  const totalWarnings = structureValidation.warnings.length + 
+    ioValidation.warnings.length + 
+    timeoutWarnings.length + 
+    resourceWarnings.length;
+
+  let summary: string;
+  if (isValid && totalWarnings === 0) {
+    summary = 'Workflow is valid and ready to execute';
+  } else if (isValid) {
+    summary = `Workflow is valid with ${totalWarnings} warning(s)`;
+  } else {
+    summary = `Workflow has ${totalErrors} error(s) and ${totalWarnings} warning(s)`;
+  }
+
+  return {
+    isValid,
+    structureValidation,
+    ioValidation,
+    timeoutWarnings,
+    resourceWarnings,
+    summary,
+  };
+}
+
 export const validationUtils = {
   validateNode,
   validateWorkflowStructure,
   validateIOCompatibility,
   validateCompleteWorkflow,
+  validateWorkflowComprehensive,
+  validateStepTimeouts,
+  validateResourceLimits,
   getFieldError,
   getFieldWarning,
   hasFieldError,

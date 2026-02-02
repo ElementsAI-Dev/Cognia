@@ -302,3 +302,27 @@ export const CONTRAST_LEVEL_LABELS: Record<ContrastLevel, string> = {
   'AA': 'AA Normal Text',
   'AAA': 'AAA (Best)',
 };
+
+/**
+ * Background settings slider limits
+ * Centralized constants to avoid magic numbers in components
+ */
+export const BACKGROUND_LIMITS = {
+  blur: { min: 0, max: 20, step: 1 },
+  opacity: { min: 10, max: 100, step: 5 },
+  overlayOpacity: { min: 0, max: 80, step: 5 },
+  brightness: { min: 50, max: 150, step: 5 },
+  saturation: { min: 0, max: 200, step: 10 },
+  contrast: { min: 50, max: 150, step: 5 },
+  grayscale: { min: 0, max: 100, step: 5 },
+  animationSpeed: { min: 1, max: 10, step: 1 },
+  slideshowInterval: { min: 1, max: 300, step: 1 }, // seconds
+  slideshowTransition: { min: 100, max: 3000, step: 100 }, // ms
+  urlValidationTimeout: 10000, // ms - timeout for validating image URLs
+  imageCompressionThreshold: 1024 * 1024, // 1MB - compress images above this size
+  imageCompressionQuality: 0.85, // JPEG quality for compressed images
+  maxImageWidth: 3840, // 4K max width
+  maxImageHeight: 2160, // 4K max height
+} as const;
+
+export type BackgroundLimits = typeof BACKGROUND_LIMITS;

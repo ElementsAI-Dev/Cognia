@@ -36,6 +36,24 @@ jest.mock('nanoid', () => ({
   nanoid: () => 'test-id-123',
 }));
 
+jest.mock('@/lib/db/repositories/workflow-repository', () => ({
+  workflowRepository: {
+    createExecution: jest.fn().mockResolvedValue({ id: 'exec-123' }),
+    updateExecution: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    ai: {
+      warn: jest.fn(),
+      info: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+    },
+  },
+}));
+
 const mockedGenerateText = generateText as jest.MockedFunction<typeof generateText>;
 const mockedGetWorkflowRegistry = getGlobalWorkflowRegistry as jest.MockedFunction<typeof getGlobalWorkflowRegistry>;
 const mockedGetToolRegistry = getGlobalToolRegistry as jest.MockedFunction<typeof getGlobalToolRegistry>;
@@ -723,6 +741,66 @@ describe('executor', () => {
       // The fail-step should have failed status
       const failStep = result.execution.steps.find(s => s.stepId === 'fail-step');
       expect(failStep?.status).toBe('failed');
+    });
+  });
+
+  describe('Execution State Persistence', () => {
+    const defaultConfig = {
+      provider: 'openai' as const,
+      model: 'gpt-4',
+      apiKey: 'test-key',
+    };
+
+    const mockWorkflowRepository = jest.requireMock('@/lib/db/repositories/workflow-repository').workflowRepository;
+
+    beforeEach(() => {
+      mockWorkflowRepository.createExecution.mockClear();
+      mockWorkflowRepository.updateExecution.mockClear();
+    });
+
+    it('should create execution record on workflow start', async () => {
+      const workflow = createMockWorkflow([]);
+      mockedGetWorkflowRegistry.mockReturnValue({ get: () => workflow } as never);
+
+      await executeWorkflow('test-workflow', 'session-1', { input: 'data' }, defaultConfig);
+
+      expect(mockWorkflowRepository.createExecution).toHaveBeenCalledWith(
+        'test-workflow',
+        { input: 'data' }
+      );
+    });
+
+    it('should persist state on workflow completion', async () => {
+      const workflow = createMockWorkflow([
+        { id: 'step1', type: 'transform' },
+      ]);
+      mockedGetWorkflowRegistry.mockReturnValue({ get: () => workflow } as never);
+
+      await executeWorkflow('test-workflow', 'session-1', {}, defaultConfig);
+
+      expect(mockWorkflowRepository.updateExecution).toHaveBeenCalled();
+    });
+
+    it('should persist state on workflow failure', async () => {
+      const workflow = createMockWorkflow([
+        { id: 'fail-step', type: 'code', code: 'throw new Error("fail")' },
+      ]);
+      mockedGetWorkflowRegistry.mockReturnValue({ get: () => workflow } as never);
+
+      await executeWorkflow('test-workflow', 'session-1', {}, defaultConfig);
+
+      expect(mockWorkflowRepository.updateExecution).toHaveBeenCalled();
+    });
+
+    it('should continue execution even if persistence fails', async () => {
+      mockWorkflowRepository.createExecution.mockRejectedValueOnce(new Error('DB error'));
+      
+      const workflow = createMockWorkflow([]);
+      mockedGetWorkflowRegistry.mockReturnValue({ get: () => workflow } as never);
+
+      const result = await executeWorkflow('test-workflow', 'session-1', {}, defaultConfig);
+
+      expect(result.success).toBe(true);
     });
   });
 });

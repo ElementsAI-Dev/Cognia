@@ -5,6 +5,9 @@
 import {
   validateNode,
   validateWorkflowStructure,
+  validateStepTimeouts,
+  validateResourceLimits,
+  validateWorkflowComprehensive,
   getFieldError,
   getFieldWarning,
   hasFieldError,
@@ -961,5 +964,229 @@ describe('getValidationSummary', () => {
     };
 
     expect(getValidationSummary(result)).toBe('1 error(s), 2 warning(s)');
+  });
+});
+
+describe('validateStepTimeouts', () => {
+
+  const createNode = (id: string, type: string, data: Record<string, unknown> = {}) => ({
+    id,
+    type,
+    data: {
+      label: `Test ${type}`,
+      ...data,
+    },
+  });
+
+  it('should warn when AI node has no timeout', () => {
+    const nodes = [createNode('ai-1', 'ai')];
+    const warnings = validateStepTimeouts(nodes);
+
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'MISSING_TIMEOUT',
+        nodeId: 'ai-1',
+      })
+    );
+  });
+
+  it('should warn when webhook node has no timeout', () => {
+    const nodes = [createNode('webhook-1', 'webhook')];
+    const warnings = validateStepTimeouts(nodes);
+
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'MISSING_TIMEOUT',
+        nodeId: 'webhook-1',
+      })
+    );
+  });
+
+  it('should warn when timeout is excessively long', () => {
+    const nodes = [createNode('ai-1', 'ai', { timeout: 700000 })]; // > 10 min
+    const warnings = validateStepTimeouts(nodes);
+
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'EXCESSIVE_TIMEOUT',
+        nodeId: 'ai-1',
+      })
+    );
+  });
+
+  it('should warn when timeout is too short for complex operations', () => {
+    const nodes = [createNode('ai-1', 'ai', { timeout: 500 })]; // < 1 sec
+    const warnings = validateStepTimeouts(nodes);
+
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'SHORT_TIMEOUT',
+        nodeId: 'ai-1',
+      })
+    );
+  });
+
+  it('should skip non-executable nodes', () => {
+    const nodes = [
+      createNode('start-1', 'start'),
+      createNode('end-1', 'end'),
+      createNode('annotation-1', 'annotation'),
+    ];
+    const warnings = validateStepTimeouts(nodes);
+
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('should not warn when timeout is properly configured', () => {
+    const nodes = [createNode('ai-1', 'ai', { timeout: 60000 })]; // 1 min
+    const warnings = validateStepTimeouts(nodes);
+
+    const timeoutWarnings = warnings.filter(
+      (w: { code: string }) => w.code === 'MISSING_TIMEOUT' || w.code === 'EXCESSIVE_TIMEOUT'
+    );
+    expect(timeoutWarnings).toHaveLength(0);
+  });
+});
+
+describe('validateResourceLimits', () => {
+
+  const createNode = (id: string, type: string, data: Record<string, unknown> = {}) => ({
+    id,
+    type,
+    data: {
+      label: `Test ${type}`,
+      ...data,
+    },
+  });
+
+  it('should warn when parallel node has too many branches', () => {
+    const nodes = [createNode('parallel-1', 'parallel')];
+    // Create 15 outgoing edges (> 10 limit)
+    const edges = Array.from({ length: 15 }, (_, i) => ({
+      id: `e${i}`,
+      source: 'parallel-1',
+      target: `target-${i}`,
+    }));
+
+    const warnings = validateResourceLimits(nodes, edges);
+
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'HIGH_PARALLELISM',
+        nodeId: 'parallel-1',
+      })
+    );
+  });
+
+  it('should warn when loop node has no iteration limit', () => {
+    const nodes = [createNode('loop-1', 'loop')];
+    const warnings = validateResourceLimits(nodes, []);
+
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'MISSING_LOOP_LIMIT',
+        nodeId: 'loop-1',
+      })
+    );
+  });
+
+  it('should warn when loop iteration limit is too high', () => {
+    const nodes = [createNode('loop-1', 'loop', { maxIterations: 5000 })];
+    const warnings = validateResourceLimits(nodes, []);
+
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'HIGH_LOOP_ITERATIONS',
+        nodeId: 'loop-1',
+      })
+    );
+  });
+
+  it('should warn about subworkflow nesting', () => {
+    const nodes = [createNode('sub-1', 'subworkflow', { workflowId: 'nested-workflow' })];
+    const warnings = validateResourceLimits(nodes, []);
+
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'SUBWORKFLOW_DEPTH_CHECK',
+        nodeId: 'sub-1',
+      })
+    );
+  });
+
+  it('should warn about memory-intensive transform operations', () => {
+    const nodes = [createNode('transform-1', 'transform', { transformType: 'reduce' })];
+    const warnings = validateResourceLimits(nodes, []);
+
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'MEMORY_INTENSIVE_OPERATION',
+        nodeId: 'transform-1',
+      })
+    );
+  });
+
+  it('should warn when workflow has too many steps', () => {
+    // Create 55 AI nodes (> 50 limit)
+    const nodes = Array.from({ length: 55 }, (_, i) =>
+      createNode(`ai-${i}`, 'ai')
+    );
+    const warnings = validateResourceLimits(nodes, []);
+
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'HIGH_COMPLEXITY',
+      })
+    );
+  });
+});
+
+describe('validateWorkflowComprehensive', () => {
+
+  const createNode = (id: string, type: string, data: Record<string, unknown> = {}) => ({
+    id,
+    type,
+    data: {
+      label: `Test ${type}`,
+      nodeType: type,
+      executionStatus: 'idle',
+      isConfigured: true,
+      hasError: false,
+      ...data,
+    },
+  });
+
+  it('should return comprehensive validation result', () => {
+    const nodes = [
+      createNode('start-1', 'start'),
+      createNode('ai-1', 'ai', { aiPrompt: 'test' }),
+      createNode('end-1', 'end'),
+    ];
+    const edges = [
+      { id: 'e1', source: 'start-1', target: 'ai-1' },
+      { id: 'e2', source: 'ai-1', target: 'end-1' },
+    ];
+
+    const result = validateWorkflowComprehensive(nodes, edges);
+
+    expect(result).toHaveProperty('isValid');
+    expect(result).toHaveProperty('structureValidation');
+    expect(result).toHaveProperty('ioValidation');
+    expect(result).toHaveProperty('timeoutWarnings');
+    expect(result).toHaveProperty('resourceWarnings');
+    expect(result).toHaveProperty('summary');
+  });
+
+  it('should combine all validation types in summary', () => {
+    const nodes = [
+      createNode('start-1', 'start'),
+      createNode('end-1', 'end'),
+    ];
+    const edges = [{ id: 'e1', source: 'start-1', target: 'end-1' }];
+
+    const result = validateWorkflowComprehensive(nodes, edges);
+
+    expect(result.summary).toBeDefined();
+    expect(typeof result.summary).toBe('string');
   });
 });

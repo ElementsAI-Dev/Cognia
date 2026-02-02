@@ -5,7 +5,9 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useTranslations } from 'next-intl';
+import { useBackgroundEditor } from '@/hooks/settings/use-background-editor';
 import {
   Image as ImageIcon,
   Upload,
@@ -59,6 +61,7 @@ import {
   BACKGROUND_PRESETS,
   BACKGROUND_FIT_OPTIONS,
   BACKGROUND_POSITION_OPTIONS,
+  BACKGROUND_LIMITS,
 } from '@/lib/themes';
 import { deleteBackgroundImageAsset, getBackgroundImageAssetBlob, saveBackgroundImageAsset } from '@/lib/themes/background-assets';
 import { cn } from '@/lib/utils';
@@ -68,91 +71,58 @@ import { BackgroundImportExport } from './background-import-export';
 export function BackgroundSettings() {
   const t = useTranslations('backgroundSettings');
   
-  const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
-  const setBackgroundSettings = useSettingsStore((state) => state.setBackgroundSettings);
-  const setBackgroundEnabled = useSettingsStore((state) => state.setBackgroundEnabled);
-  const setBackgroundPreset = useSettingsStore((state) => state.setBackgroundPreset);
-  const setBackgroundFit = useSettingsStore((state) => state.setBackgroundFit);
-  const setBackgroundPosition = useSettingsStore((state) => state.setBackgroundPosition);
-  const setBackgroundOpacity = useSettingsStore((state) => state.setBackgroundOpacity);
-  const setBackgroundBlur = useSettingsStore((state) => state.setBackgroundBlur);
-  const setBackgroundOverlay = useSettingsStore((state) => state.setBackgroundOverlay);
-  const setBackgroundBrightness = useSettingsStore((state) => state.setBackgroundBrightness);
-  const setBackgroundSaturation = useSettingsStore((state) => state.setBackgroundSaturation);
-  const setBackgroundLocalFile = useSettingsStore((state) => state.setBackgroundLocalFile);
-  const setBackgroundAttachment = useSettingsStore((state) => state.setBackgroundAttachment);
-  const setBackgroundAnimation = useSettingsStore((state) => state.setBackgroundAnimation);
-  const setBackgroundAnimationSpeed = useSettingsStore((state) => state.setBackgroundAnimationSpeed);
-  const setBackgroundContrast = useSettingsStore((state) => state.setBackgroundContrast);
-  const setBackgroundGrayscale = useSettingsStore((state) => state.setBackgroundGrayscale);
-  const clearBackground = useSettingsStore((state) => state.clearBackground);
+  // Use custom hook for editor logic - eliminates 20+ editorMode checks
+  const {
+    isSingleMode,
+    items,
+    selectedItem,
+    activeItemIndex,
+    setActiveItemIndex,
+    effectiveSettings,
+    updateSelectedItem,
+    updateFit,
+    updatePosition,
+    updateOpacity,
+    updateBlur,
+    updateBrightness,
+    updateSaturation,
+    updateContrast,
+    updateGrayscale,
+    updateAttachment,
+    updateAnimation,
+    updateAnimationSpeed,
+    updateOverlayColor,
+    updateOverlayOpacity,
+    backgroundSettings,
+    setBackgroundSettings,
+  } = useBackgroundEditor();
 
-  const [activeItemIndex, setActiveItemIndex] = useState(0);
-
-  const editorMode = backgroundSettings.mode;
-  const items = useMemo(() => {
-    if (editorMode === 'layers') return backgroundSettings.layers;
-    if (editorMode === 'slideshow') return backgroundSettings.slideshow.slides;
-    return null;
-  }, [backgroundSettings.layers, backgroundSettings.slideshow.slides, editorMode]);
-
-  const selectedItem = useMemo(() => {
-    if (!items) return null;
-    return items[Math.min(activeItemIndex, Math.max(0, items.length - 1))] ?? null;
-  }, [activeItemIndex, items]);
-
-  useEffect(() => {
-    if (!items) {
-      setActiveItemIndex(0);
-      return;
-    }
-    if (activeItemIndex > items.length - 1) {
-      setActiveItemIndex(Math.max(0, items.length - 1));
-    }
-  }, [activeItemIndex, items]);
-
-  useEffect(() => {
-    if (editorMode !== 'slideshow') return;
-    if (backgroundSettings.slideshow.slides.length > 0) return;
-    setBackgroundSettings({
-      slideshow: {
-        ...backgroundSettings.slideshow,
-        slides: [{ ...DEFAULT_BACKGROUND_SETTINGS.layers[0], id: 'slide-1' }],
-      },
-    });
-  }, [backgroundSettings.slideshow, editorMode, setBackgroundSettings]);
-
-  const effectiveSettings = useMemo(() => {
-    if (editorMode === 'single') return backgroundSettings;
-    if (!selectedItem) return backgroundSettings;
-
-    return {
-      ...backgroundSettings,
-      source: selectedItem.source,
-      imageUrl: selectedItem.imageUrl,
-      localAssetId: selectedItem.localAssetId,
-      presetId: selectedItem.presetId,
-      fit: selectedItem.fit,
-      position: selectedItem.position,
-      opacity: selectedItem.opacity,
-      blur: selectedItem.blur,
-      overlayColor: selectedItem.overlayColor,
-      overlayOpacity: selectedItem.overlayOpacity,
-      brightness: selectedItem.brightness,
-      saturation: selectedItem.saturation,
-      attachment: selectedItem.attachment,
-      animation: selectedItem.animation,
-      animationSpeed: selectedItem.animationSpeed,
-      contrast: selectedItem.contrast,
-      grayscale: selectedItem.grayscale,
-    };
-  }, [backgroundSettings, editorMode, selectedItem]);
+  // Additional store subscriptions for actions not in hook
+  const {
+    setBackgroundEnabled,
+    setBackgroundPreset,
+    setBackgroundLocalFile,
+    clearBackground,
+  } = useSettingsStore(
+    useShallow((state) => ({
+      setBackgroundEnabled: state.setBackgroundEnabled,
+      setBackgroundPreset: state.setBackgroundPreset,
+      setBackgroundLocalFile: state.setBackgroundLocalFile,
+      clearBackground: state.clearBackground,
+    }))
+  );
 
   const [urlInput, setUrlInput] = useState(effectiveSettings.imageUrl || '');
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isPreviewVisible, setIsPreviewVisible] = useState(true);
   const [presetCategory, setPresetCategory] = useState<'all' | 'gradient' | 'mesh' | 'abstract'>('all');
+  
+  // Loading and error states for file operations
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isValidatingUrl, setIsValidatingUrl] = useState(false);
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   const derivedTab = useMemo(() => {
     if (effectiveSettings.source === 'url') return 'url';
@@ -198,52 +168,81 @@ export function BackgroundSettings() {
     };
   }, [backgroundSettings.enabled, effectiveSettings.localAssetId, effectiveSettings.source]);
 
-  const updateSelectedItem = useCallback((updates: Partial<typeof DEFAULT_BACKGROUND_SETTINGS.layers[0]>) => {
-    if (editorMode === 'single') {
-      setBackgroundSettings(updates);
-      return;
-    }
-    if (!items) return;
-    const index = Math.min(activeItemIndex, items.length - 1);
-    const nextItems = items.map((item, i) => (i === index ? { ...item, ...updates } : item));
+  // Validate image URL by attempting to load it
+  const validateImageUrl = useCallback((url: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      // Skip validation for gradient strings
+      if (url.startsWith('linear-gradient') || url.startsWith('radial-gradient')) {
+        resolve(true);
+        return;
+      }
+      
+      const img = new Image();
+      const timeoutId = setTimeout(() => {
+        img.src = ''; // Cancel loading
+        resolve(false);
+      }, BACKGROUND_LIMITS.urlValidationTimeout);
+      
+      img.onload = () => {
+        clearTimeout(timeoutId);
+        resolve(true);
+      };
+      img.onerror = () => {
+        clearTimeout(timeoutId);
+        resolve(false);
+      };
+      img.src = url;
+    });
+  }, []);
 
-    if (editorMode === 'layers') {
-      setBackgroundSettings({ layers: nextItems });
-      return;
-    }
-    setBackgroundSettings({ slideshow: { ...backgroundSettings.slideshow, slides: nextItems } });
-  }, [activeItemIndex, backgroundSettings.slideshow, editorMode, items, setBackgroundSettings]);
-
-  const handleUrlSubmit = useCallback(() => {
-    if (urlInput.trim()) {
-      if (editorMode === 'single') {
+  const handleUrlSubmit = useCallback(async () => {
+    const trimmedUrl = urlInput.trim();
+    if (!trimmedUrl) return;
+    
+    setUrlError(null);
+    setIsValidatingUrl(true);
+    
+    try {
+      const isValid = await validateImageUrl(trimmedUrl);
+      
+      if (!isValid) {
+        setUrlError(t('invalidImageUrl') || 'Invalid image URL or failed to load');
+        return;
+      }
+      
+      if (isSingleMode) {
         setBackgroundSettings({
           enabled: true,
           source: 'url',
-          imageUrl: urlInput.trim(),
+          imageUrl: trimmedUrl,
           presetId: null,
           localAssetId: null,
         });
-        return;
+      } else {
+        updateSelectedItem({
+          enabled: true,
+          source: 'url',
+          imageUrl: trimmedUrl,
+          presetId: null,
+          localAssetId: null,
+        });
       }
-      updateSelectedItem({
-        enabled: true,
-        source: 'url',
-        imageUrl: urlInput.trim(),
-        presetId: null,
-        localAssetId: null,
-      });
+    } catch (error) {
+      console.error('URL validation error:', error);
+      setUrlError(t('invalidImageUrl') || 'Failed to validate URL');
+    } finally {
+      setIsValidatingUrl(false);
     }
-  }, [editorMode, setBackgroundSettings, updateSelectedItem, urlInput]);
+  }, [isSingleMode, setBackgroundSettings, t, updateSelectedItem, urlInput, validateImageUrl]);
 
   const handlePresetSelect = useCallback((presetId: string) => {
-    if (editorMode === 'single') {
+    if (isSingleMode) {
       setBackgroundPreset(presetId);
       setBackgroundSettings({ enabled: true, source: 'preset' });
       return;
     }
     updateSelectedItem({ enabled: true, source: 'preset', presetId, imageUrl: '', localAssetId: null });
-  }, [editorMode, setBackgroundPreset, setBackgroundSettings, updateSelectedItem]);
+  }, [isSingleMode, setBackgroundPreset, setBackgroundSettings, updateSelectedItem]);
 
   const handleClearBackground = useCallback(() => {
     void clearBackground();
@@ -252,6 +251,9 @@ export function BackgroundSettings() {
   }, [clearBackground]);
 
   const handleFileSelect = useCallback(async () => {
+    setUploadError(null);
+    setIsUploading(true);
+    
     // Check if we're in Tauri environment
     if (isTauri()) {
       try {
@@ -267,7 +269,7 @@ export function BackgroundSettings() {
           const { convertFileSrc } = await import('@tauri-apps/api/core');
           const assetUrl = convertFileSrc(result as string);
           setUrlInput(assetUrl);
-          if (editorMode === 'single') {
+          if (isSingleMode) {
             setBackgroundSettings({
               enabled: true,
               source: 'local',
@@ -287,6 +289,9 @@ export function BackgroundSettings() {
         }
       } catch (error) {
         console.error('Failed to open file dialog:', error);
+        setUploadError(t('uploadError') || 'Failed to open file dialog');
+      } finally {
+        setIsUploading(false);
       }
     } else {
       // Web fallback - use file input
@@ -297,40 +302,49 @@ export function BackgroundSettings() {
         const file = (e.target as HTMLInputElement).files?.[0];
         if (file) {
           void (async () => {
-            // Immediate preview
-            setLocalPreviewUrl((prev) => {
-              if (prev) URL.revokeObjectURL(prev);
-              return URL.createObjectURL(file);
-            });
+            try {
+              // Immediate preview
+              setLocalPreviewUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return URL.createObjectURL(file);
+              });
 
-            if (editorMode === 'single') {
-              await setBackgroundLocalFile(file);
-              setBackgroundSettings({
+              if (isSingleMode) {
+                await setBackgroundLocalFile(file);
+                setBackgroundSettings({
+                  enabled: true,
+                  source: 'local',
+                  presetId: null,
+                  imageUrl: '',
+                });
+                return;
+              }
+
+              const { assetId } = await saveBackgroundImageAsset(file);
+              if (selectedItem?.localAssetId && selectedItem.localAssetId !== assetId) {
+                await deleteBackgroundImageAsset(selectedItem.localAssetId);
+              }
+              updateSelectedItem({
                 enabled: true,
                 source: 'local',
                 presetId: null,
                 imageUrl: '',
+                localAssetId: assetId,
               });
-              return;
+            } catch (error) {
+              console.error('Failed to upload file:', error);
+              setUploadError(t('uploadError') || 'Failed to upload file');
+            } finally {
+              setIsUploading(false);
             }
-
-            const { assetId } = await saveBackgroundImageAsset(file);
-            if (selectedItem?.localAssetId && selectedItem.localAssetId !== assetId) {
-              await deleteBackgroundImageAsset(selectedItem.localAssetId);
-            }
-            updateSelectedItem({
-              enabled: true,
-              source: 'local',
-              presetId: null,
-              imageUrl: '',
-              localAssetId: assetId,
-            });
           })();
+        } else {
+          setIsUploading(false);
         }
       };
       input.click();
     }
-  }, [editorMode, selectedItem?.localAssetId, setBackgroundLocalFile, setBackgroundSettings, updateSelectedItem]);
+  }, [isSingleMode, selectedItem?.localAssetId, setBackgroundLocalFile, setBackgroundSettings, t, updateSelectedItem]);
 
   // Generate preview background style
   // Use only non-shorthand properties to avoid React warning about conflicting shorthand/non-shorthand properties
@@ -669,35 +683,65 @@ export function BackgroundSettings() {
               <Input
                 placeholder={t('enterImageUrl')}
                 value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                className="h-8 text-xs"
+                onChange={(e) => {
+                  setUrlInput(e.target.value);
+                  setUrlError(null);
+                }}
+                className={cn('h-8 text-xs', urlError && 'border-destructive')}
+                disabled={isValidatingUrl}
               />
               <Button
                 size="sm"
                 onClick={handleUrlSubmit}
-                disabled={!urlInput.trim()}
+                disabled={!urlInput.trim() || isValidatingUrl}
                 className="h-8"
               >
-                {t('apply')}
+                {isValidatingUrl ? (
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                ) : (
+                  t('apply')
+                )}
               </Button>
             </div>
+            {urlError && (
+              <p className="text-[10px] text-destructive">
+                {urlError}
+              </p>
+            )}
             <p className="text-[10px] text-muted-foreground">
               {t('supportedFormats')}
             </p>
           </TabsContent>
 
           {/* File Tab */}
-          <TabsContent value="file" className="mt-3">
+          <TabsContent value="file" className="mt-3 space-y-2">
             <Button
               variant="outline"
               className="w-full h-20 flex-col gap-2"
               onClick={handleFileSelect}
+              disabled={isUploading}
             >
-              <Upload className="h-5 w-5 text-muted-foreground" />
-              <span className="text-xs">
-                {t('clickToSelectFile')}
-              </span>
+              {isUploading ? (
+                <>
+                  <RefreshCw className="h-5 w-5 text-muted-foreground animate-spin" />
+                  <span className="text-xs">
+                    {t('uploading') || 'Uploading...'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs">
+                    {t('clickToSelectFile')}
+                  </span>
+                </>
+              )}
             </Button>
+            {uploadError && (
+              <p className="text-[10px] text-destructive">
+                {uploadError}
+              </p>
+            )}
           </TabsContent>
         </Tabs>
 
@@ -711,13 +755,7 @@ export function BackgroundSettings() {
                 <Label className="text-xs">{t('fit')}</Label>
                 <Select
                   value={effectiveSettings.fit}
-                  onValueChange={(v) => {
-                    if (editorMode === 'single') {
-                      setBackgroundFit(v as 'cover' | 'contain' | 'fill' | 'tile');
-                    } else {
-                      updateSelectedItem({ fit: v as 'cover' | 'contain' | 'fill' | 'tile' });
-                    }
-                  }}
+                  onValueChange={(v) => updateFit(v as 'cover' | 'contain' | 'fill' | 'tile')}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
@@ -737,13 +775,7 @@ export function BackgroundSettings() {
                 <Label className="text-xs">{t('position')}</Label>
                 <Select
                   value={effectiveSettings.position}
-                  onValueChange={(v) => {
-                    if (editorMode === 'single') {
-                      setBackgroundPosition(v as 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right');
-                    } else {
-                      updateSelectedItem({ position: v as 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' });
-                    }
-                  }}
+                  onValueChange={(v) => updatePosition(v as 'center' | 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right')}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
@@ -767,16 +799,10 @@ export function BackgroundSettings() {
               </div>
               <Slider
                 value={[effectiveSettings.opacity]}
-                onValueChange={([v]) => {
-                  if (editorMode === 'single') {
-                    setBackgroundOpacity(v);
-                  } else {
-                    updateSelectedItem({ opacity: v });
-                  }
-                }}
-                min={10}
-                max={100}
-                step={5}
+                onValueChange={([v]) => updateOpacity(v)}
+                min={BACKGROUND_LIMITS.opacity.min}
+                max={BACKGROUND_LIMITS.opacity.max}
+                step={BACKGROUND_LIMITS.opacity.step}
               />
             </div>
 
@@ -788,16 +814,10 @@ export function BackgroundSettings() {
               </div>
               <Slider
                 value={[effectiveSettings.blur]}
-                onValueChange={([v]) => {
-                  if (editorMode === 'single') {
-                    setBackgroundBlur(v);
-                  } else {
-                    updateSelectedItem({ blur: v });
-                  }
-                }}
-                min={0}
-                max={20}
-                step={1}
+                onValueChange={([v]) => updateBlur(v)}
+                min={BACKGROUND_LIMITS.blur.min}
+                max={BACKGROUND_LIMITS.blur.max}
+                step={BACKGROUND_LIMITS.blur.step}
               />
             </div>
 
@@ -821,13 +841,7 @@ export function BackgroundSettings() {
                     <input
                       type="color"
                       value={effectiveSettings.overlayColor}
-                      onChange={(e) => {
-                        if (editorMode === 'single') {
-                          setBackgroundOverlay(e.target.value, effectiveSettings.overlayOpacity);
-                        } else {
-                          updateSelectedItem({ overlayColor: e.target.value });
-                        }
-                      }}
+                      onChange={(e) => updateOverlayColor(e.target.value)}
                       className="h-8 w-12 rounded border cursor-pointer"
                       title={t('selectOverlayColor')}
                     />
@@ -838,16 +852,10 @@ export function BackgroundSettings() {
                       </div>
                       <Slider
                         value={[effectiveSettings.overlayOpacity]}
-                        onValueChange={([v]) => {
-                          if (editorMode === 'single') {
-                            setBackgroundOverlay(effectiveSettings.overlayColor, v);
-                          } else {
-                            updateSelectedItem({ overlayOpacity: v });
-                          }
-                        }}
-                        min={0}
-                        max={80}
-                        step={5}
+                        onValueChange={([v]) => updateOverlayOpacity(v)}
+                        min={BACKGROUND_LIMITS.overlayOpacity.min}
+                        max={BACKGROUND_LIMITS.overlayOpacity.max}
+                        step={BACKGROUND_LIMITS.overlayOpacity.step}
                       />
                     </div>
                   </div>
@@ -864,16 +872,10 @@ export function BackgroundSettings() {
                   </div>
                   <Slider
                     value={[effectiveSettings.brightness]}
-                    onValueChange={([v]) => {
-                      if (editorMode === 'single') {
-                        setBackgroundBrightness(v);
-                      } else {
-                        updateSelectedItem({ brightness: v });
-                      }
-                    }}
-                    min={50}
-                    max={150}
-                    step={5}
+                    onValueChange={([v]) => updateBrightness(v)}
+                    min={BACKGROUND_LIMITS.brightness.min}
+                    max={BACKGROUND_LIMITS.brightness.max}
+                    step={BACKGROUND_LIMITS.brightness.step}
                   />
                 </div>
 
@@ -888,16 +890,10 @@ export function BackgroundSettings() {
                   </div>
                   <Slider
                     value={[effectiveSettings.saturation]}
-                    onValueChange={([v]) => {
-                      if (editorMode === 'single') {
-                        setBackgroundSaturation(v);
-                      } else {
-                        updateSelectedItem({ saturation: v });
-                      }
-                    }}
-                    min={0}
-                    max={200}
-                    step={10}
+                    onValueChange={([v]) => updateSaturation(v)}
+                    min={BACKGROUND_LIMITS.saturation.min}
+                    max={BACKGROUND_LIMITS.saturation.max}
+                    step={BACKGROUND_LIMITS.saturation.step}
                   />
                 </div>
 
@@ -909,16 +905,10 @@ export function BackgroundSettings() {
                   </div>
                   <Slider
                     value={[effectiveSettings.contrast ?? 100]}
-                    onValueChange={([v]) => {
-                      if (editorMode === 'single') {
-                        setBackgroundContrast(v);
-                      } else {
-                        updateSelectedItem({ contrast: v });
-                      }
-                    }}
-                    min={50}
-                    max={150}
-                    step={5}
+                    onValueChange={([v]) => updateContrast(v)}
+                    min={BACKGROUND_LIMITS.contrast.min}
+                    max={BACKGROUND_LIMITS.contrast.max}
+                    step={BACKGROUND_LIMITS.contrast.step}
                   />
                 </div>
 
@@ -930,16 +920,10 @@ export function BackgroundSettings() {
                   </div>
                   <Slider
                     value={[effectiveSettings.grayscale ?? 0]}
-                    onValueChange={([v]) => {
-                      if (editorMode === 'single') {
-                        setBackgroundGrayscale(v);
-                      } else {
-                        updateSelectedItem({ grayscale: v });
-                      }
-                    }}
-                    min={0}
-                    max={100}
-                    step={5}
+                    onValueChange={([v]) => updateGrayscale(v)}
+                    min={BACKGROUND_LIMITS.grayscale.min}
+                    max={BACKGROUND_LIMITS.grayscale.max}
+                    step={BACKGROUND_LIMITS.grayscale.step}
                   />
                 </div>
 
@@ -948,13 +932,7 @@ export function BackgroundSettings() {
                   <Label className="text-xs">{t('attachment')}</Label>
                   <Select
                     value={effectiveSettings.attachment ?? 'fixed'}
-                    onValueChange={(v) => {
-                      if (editorMode === 'single') {
-                        setBackgroundAttachment(v as 'fixed' | 'scroll' | 'local');
-                      } else {
-                        updateSelectedItem({ attachment: v as 'fixed' | 'scroll' | 'local' });
-                      }
-                    }}
+                    onValueChange={(v) => updateAttachment(v as 'fixed' | 'scroll' | 'local')}
                   >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
@@ -978,13 +956,7 @@ export function BackgroundSettings() {
                   <Label className="text-xs">{t('animation')}</Label>
                   <Select
                     value={effectiveSettings.animation ?? 'none'}
-                    onValueChange={(v) => {
-                      if (editorMode === 'single') {
-                        setBackgroundAnimation(v as 'none' | 'kenburns' | 'parallax' | 'gradient-shift');
-                      } else {
-                        updateSelectedItem({ animation: v as 'none' | 'kenburns' | 'parallax' | 'gradient-shift' });
-                      }
-                    }}
+                    onValueChange={(v) => updateAnimation(v as 'none' | 'kenburns' | 'parallax' | 'gradient-shift')}
                   >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
@@ -1015,13 +987,7 @@ export function BackgroundSettings() {
                     </div>
                     <Slider
                       value={[effectiveSettings.animationSpeed ?? 5]}
-                      onValueChange={([v]) => {
-                        if (editorMode === 'single') {
-                          setBackgroundAnimationSpeed(v);
-                        } else {
-                          updateSelectedItem({ animationSpeed: v });
-                        }
-                      }}
+                      onValueChange={([v]) => updateAnimationSpeed(v)}
                       min={1}
                       max={10}
                       step={1}

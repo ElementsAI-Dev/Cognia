@@ -236,11 +236,21 @@ export interface TemplateSliceActions {
   ) => void;
 }
 
+export interface VersionComparisonResult {
+  nodesAdded: Array<{ id: string; type: string; label?: string }>;
+  nodesRemoved: Array<{ id: string; type: string; label?: string }>;
+  nodesModified: Array<{ id: string; type: string; label?: string; changes: string[] }>;
+  edgesAdded: Array<{ id: string; source: string; target: string }>;
+  edgesRemoved: Array<{ id: string; source: string; target: string }>;
+  summary: string;
+}
+
 export interface VersionSliceActions {
   saveVersion: (name?: string, description?: string) => WorkflowVersion | null;
   getVersions: () => WorkflowVersion[];
   restoreVersion: (versionId: string) => void;
   deleteVersion: (versionId: string) => void;
+  compareVersions: (versionId1: string, versionId2: string) => VersionComparisonResult | null;
 }
 
 export interface ImportExportSliceActions {

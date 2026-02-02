@@ -3,11 +3,14 @@
  * 
  * Handles step orchestration, dependency resolution, and state management.
  * Step-specific execution logic has been extracted to step-executors/ modules.
+ * Enhanced with execution state persistence for recovery and history.
  */
 
 import { nanoid } from 'nanoid';
 import type { ProviderName } from '../core/client';
 import { getGlobalWorkflowRegistry } from './registry';
+import { workflowRepository } from '@/lib/db/repositories/workflow-repository';
+import { loggers } from '@/lib/logger';
 import type {
   WorkflowDefinition,
   WorkflowExecution,
@@ -16,6 +19,8 @@ import type {
   WorkflowLog,
   WorkflowStepDefinition,
 } from '@/types/workflow';
+
+const log = loggers.ai;
 
 // Import step executors from extracted modules
 import {
@@ -290,6 +295,69 @@ function calculateProgress(execution: WorkflowExecution): number {
 }
 
 /**
+ * Persist execution state to database (non-blocking)
+ */
+async function persistExecutionState(execution: WorkflowExecution): Promise<void> {
+  try {
+    // Convert step execution states to node states format
+    const nodeStates: Record<string, {
+      nodeId: string;
+      status: string;
+      startedAt?: Date;
+      completedAt?: Date;
+      duration?: number;
+      input?: Record<string, unknown>;
+      output?: Record<string, unknown>;
+      error?: string;
+      logs: Array<{ timestamp: Date; level: string; message: string; data?: unknown }>;
+      retryCount: number;
+    }> = {};
+    
+    for (const step of execution.steps) {
+      nodeStates[step.stepId] = {
+        nodeId: step.stepId,
+        status: step.status,
+        startedAt: step.startedAt,
+        completedAt: step.completedAt,
+        duration: step.duration,
+        input: step.input,
+        output: step.output,
+        error: step.error,
+        logs: step.logs.map(l => ({
+          timestamp: l.timestamp,
+          level: l.level,
+          message: l.message,
+          data: l.data,
+        })),
+        retryCount: step.retryCount,
+      };
+    }
+
+    // Convert logs to execution log format
+    const executionLogs = execution.logs.map(l => ({
+      timestamp: l.timestamp,
+      level: l.level as 'debug' | 'info' | 'warn' | 'error',
+      message: l.message,
+      data: l.data,
+    }));
+
+    await workflowRepository.updateExecution(execution.id, {
+      status: execution.status as 'pending' | 'running' | 'completed' | 'failed' | 'cancelled',
+      output: execution.output,
+      nodeStates: nodeStates as Record<string, import('@/types/workflow/workflow-editor').NodeExecutionState>,
+      logs: executionLogs,
+      error: execution.error,
+      completedAt: execution.completedAt,
+    });
+  } catch (error) {
+    log.warn('[Workflow Executor] Failed to persist execution state', {
+      executionId: execution.id,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
+/**
  * Execute a complete workflow
  */
 export async function executeWorkflow(
@@ -309,6 +377,20 @@ export async function executeWorkflow(
   const execution = createWorkflowExecution(workflow, sessionId, input);
   execution.status = 'executing';
   execution.startedAt = new Date();
+
+  // Persist initial execution state to database
+  try {
+    await workflowRepository.createExecution(workflow.id, input);
+    log.info('[Workflow Executor] Execution record created', {
+      executionId: execution.id,
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+    });
+  } catch (error) {
+    log.warn('[Workflow Executor] Failed to create execution record', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
 
   addLog(execution, 'info', `Starting workflow: ${workflow.name}`, undefined, undefined, callbacks.onLog);
   callbacks.onStart?.(execution);
@@ -376,6 +458,9 @@ export async function executeWorkflow(
       // Update progress
       execution.progress = calculateProgress(execution);
       callbacks.onProgress?.(execution, execution.progress);
+
+      // Persist state periodically (checkpoint)
+      void persistExecutionState(execution);
     }
 
     // Gather final outputs
@@ -393,9 +478,14 @@ export async function executeWorkflow(
     const failedSteps = execution.steps.filter(s => s.status === 'failed');
     if (failedSteps.length > 0) {
       execution.status = 'failed';
+      execution.completedAt = new Date();
+      execution.duration = execution.completedAt.getTime() - (execution.startedAt?.getTime() || 0);
       execution.error = `${failedSteps.length} step(s) failed`;
       addLog(execution, 'error', execution.error, undefined, undefined, callbacks.onLog);
       callbacks.onError?.(execution, execution.error);
+      
+      // Persist final failed state
+      await persistExecutionState(execution);
       
       return {
         execution,
@@ -414,6 +504,9 @@ export async function executeWorkflow(
     addLog(execution, 'info', `Workflow completed: ${workflow.name}`, undefined, undefined, callbacks.onLog);
     callbacks.onComplete?.(execution);
 
+    // Persist final completed state
+    await persistExecutionState(execution);
+
     return {
       execution,
       success: true,
@@ -429,6 +522,9 @@ export async function executeWorkflow(
 
     addLog(execution, 'error', errorMessage, undefined, undefined, callbacks.onLog);
     callbacks.onError?.(execution, errorMessage);
+
+    // Persist final error state
+    await persistExecutionState(execution);
 
     return {
       execution,

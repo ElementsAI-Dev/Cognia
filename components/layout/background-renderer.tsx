@@ -49,6 +49,8 @@ export function BackgroundRenderer() {
 
   const [slideshowIndex, setSlideshowIndex] = useState(0);
 
+  // Slideshow timer with Visibility API optimization
+  // Pauses when page is hidden to save CPU resources
   useEffect(() => {
     if (rendererMode !== 'slideshow') return;
     if (!backgroundSettings.enabled) return;
@@ -57,17 +59,48 @@ export function BackgroundRenderer() {
     if (!slides || slides.length <= 1) return;
 
     const intervalMs = Math.max(1000, backgroundSettings.slideshow.intervalMs);
+    let timer: number | null = null;
 
-    const timer = window.setInterval(() => {
+    const advanceSlide = () => {
       setSlideshowIndex((prev) => {
         if (backgroundSettings.slideshow.shuffle) {
           return Math.floor(Math.random() * slides.length);
         }
         return (prev + 1) % slides.length;
       });
-    }, intervalMs);
+    };
 
-    return () => window.clearInterval(timer);
+    const startTimer = () => {
+      if (timer !== null) return;
+      timer = window.setInterval(advanceSlide, intervalMs);
+    };
+
+    const stopTimer = () => {
+      if (timer !== null) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopTimer();
+      } else {
+        startTimer();
+      }
+    };
+
+    // Start timer only if page is visible
+    if (!document.hidden) {
+      startTimer();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopTimer();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [backgroundSettings.enabled, backgroundSettings.slideshow.intervalMs, backgroundSettings.slideshow.shuffle, backgroundSettings.slideshow.slides, rendererMode]);
 
   const layersToRender = useMemo(() => {
@@ -86,6 +119,67 @@ export function BackgroundRenderer() {
 
     return [];
   }, [backgroundSettings.enabled, backgroundSettings.layers, backgroundSettings.slideshow.slides, rendererMode, slideshowIndex]);
+
+  // Preload next slideshow image to prevent white flash during transitions
+  useEffect(() => {
+    if (rendererMode !== 'slideshow') return;
+    if (!backgroundSettings.enabled) return;
+    
+    const slides = backgroundSettings.slideshow.slides;
+    if (!slides || slides.length <= 1) return;
+    
+    const nextIndex = (slideshowIndex + 1) % slides.length;
+    const nextSlide = slides[nextIndex];
+    
+    if (!nextSlide) return;
+    
+    // Preload URL-based images
+    if (nextSlide.source === 'url' && nextSlide.imageUrl) {
+      // Skip gradient strings
+      if (nextSlide.imageUrl.startsWith('linear-gradient') || nextSlide.imageUrl.startsWith('radial-gradient')) {
+        return;
+      }
+      
+      // Create a prefetch link
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.as = 'image';
+      link.href = nextSlide.imageUrl;
+      document.head.appendChild(link);
+      
+      return () => {
+        try {
+          if (link.parentNode) {
+            document.head.removeChild(link);
+          }
+        } catch {
+          // Link already removed, ignore
+        }
+      };
+    }
+    
+    // Preload preset images
+    if (nextSlide.source === 'preset' && nextSlide.presetId) {
+      const preset = BACKGROUND_PRESETS.find((p) => p.id === nextSlide.presetId);
+      if (preset && !preset.url.startsWith('linear-gradient') && !preset.url.startsWith('radial-gradient')) {
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.as = 'image';
+        link.href = preset.url;
+        document.head.appendChild(link);
+        
+        return () => {
+          try {
+            if (link.parentNode) {
+              document.head.removeChild(link);
+            }
+          } catch {
+            // Link already removed, ignore
+          }
+        };
+      }
+    }
+  }, [backgroundSettings.enabled, backgroundSettings.slideshow.slides, rendererMode, slideshowIndex]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
