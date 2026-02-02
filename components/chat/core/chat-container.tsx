@@ -156,6 +156,8 @@ import type { ModelSelection } from '@/types/provider/auto-router';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
 import type { ChatMode, UIMessage, ChatViewMode } from '@/types';
+import { getPluginEventHooks } from '@/lib/plugin';
+import { toast } from 'sonner';
 import { useSummary } from '@/hooks/chat';
 import { FlowChatCanvas } from '../flow';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
@@ -1151,8 +1153,48 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     async (content: string, attachments?: Attachment[], toolCalls?: ParsedToolCall[]) => {
       if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
+      // ========== Pre-Chat Hook: UserPromptSubmit ==========
+      // Allow plugins to modify, block, or enhance the user's prompt
+      const pluginEventHooks = getPluginEventHooks();
+      const promptResult = await pluginEventHooks.dispatchUserPromptSubmit(
+        content,
+        activeSessionId || '',
+        {
+          attachments: attachments?.map((a) => ({
+            id: a.id,
+            name: a.name,
+            type: a.type as 'image' | 'audio' | 'video' | 'file' | 'document',
+            url: a.url,
+            size: a.size,
+            mimeType: a.mimeType,
+          })),
+          mode: currentMode,
+          previousMessages: messages.map((m) => ({
+            id: m.id,
+            role: m.role as 'user' | 'assistant' | 'system',
+            content: m.content,
+          })),
+        }
+      );
+
+      // Handle hook result: block, modify, or proceed
+      if (promptResult.action === 'block') {
+        toast.error(promptResult.blockReason || 'Message blocked by plugin');
+        return;
+      }
+
+      // Use modified content if hook returned modifications
+      const effectiveContent =
+        promptResult.action === 'modify' && promptResult.modifiedPrompt
+          ? promptResult.modifiedPrompt
+          : content;
+
+      // Store additional context from hook (will be added to system prompt later)
+      const hookAdditionalContext = promptResult.additionalContext;
+      // ========== End Pre-Chat Hook ==========
+
       // Check for feature routing intent (navigate to feature pages)
-      const featureResult = await checkFeatureIntent(content);
+      const featureResult = await checkFeatureIntent(effectiveContent);
       if (featureResult.detected && featureResult.feature) {
         // If feature intent detected with high confidence, the dialog will show
         // and the message will be sent after user confirms or continues
@@ -1160,7 +1202,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       }
 
       // Check for learning/research intent (works in all modes)
-      checkIntent(content);
+      checkIntent(effectiveContent);
 
       setError(null);
       setRetryCount(0);
@@ -1199,12 +1241,12 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       }
 
       // Build message content with quotes and attachments
-      let messageContent = content;
+      let messageContent = effectiveContent;
 
       // Prepend quoted content if any
       const formattedQuotes = getFormattedQuotes();
       if (formattedQuotes) {
-        messageContent = `${formattedQuotes}\n\n${content}`;
+        messageContent = `${formattedQuotes}\n\n${effectiveContent}`;
         clearQuotes(); // Clear quotes after including them
       }
 
@@ -1458,7 +1500,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  query: content,
+                  query: effectiveContent,
                   apiKey: tavilyApiKey,
                   options: {
                     maxResults: 5,
@@ -1578,6 +1620,13 @@ Be thorough in your thinking but concise in your final answer.`;
           }
         }
 
+        // Add plugin hook additional context if provided
+        if (hookAdditionalContext) {
+          enhancedSystemPrompt = enhancedSystemPrompt
+            ? `${enhancedSystemPrompt}\n\n## Plugin Context\n${hookAdditionalContext}`
+            : `## Plugin Context\n${hookAdditionalContext}`;
+        }
+
         // Send to AI
         const response = await aiSendMessage(
           {
@@ -1619,8 +1668,25 @@ Be thorough in your thinking but concise in your final answer.`;
         }
 
         // Save the final assistant message to database
-        const finalContent = response || assistantMessage.content;
+        let finalContent = response || assistantMessage.content;
         if (finalContent) {
+          // ========== Post-Chat Hook: PostChatReceive ==========
+          // Allow plugins to process AI responses before saving
+          const postReceiveResult = await pluginEventHooks.dispatchPostChatReceive({
+            content: finalContent,
+            messageId: assistantMessage.id,
+            sessionId: currentSessionId!,
+            model: actualModel,
+            provider: actualProvider,
+          });
+
+          // Apply modified content if hook returned modifications
+          if (postReceiveResult.modifiedContent) {
+            finalContent = postReceiveResult.modifiedContent;
+            await updateMessage(assistantMessage.id, { content: finalContent });
+          }
+          // ========== End Post-Chat Hook ==========
+
           await messageRepository.create(currentSessionId!, {
             ...assistantMessage,
             content: finalContent,
@@ -1628,8 +1694,18 @@ Be thorough in your thinking but concise in your final answer.`;
             provider: actualProvider,
           });
 
+          // Add any additional messages from plugins
+          if (postReceiveResult.additionalMessages?.length) {
+            for (const msg of postReceiveResult.additionalMessages) {
+              await addMessage({
+                role: msg.role,
+                content: msg.content,
+              });
+            }
+          }
+
           // Generate suggestions after successful response
-          loadSuggestions(content, finalContent);
+          loadSuggestions(effectiveContent, finalContent);
 
           // Auto-detect and create artifacts from the response content
           try {

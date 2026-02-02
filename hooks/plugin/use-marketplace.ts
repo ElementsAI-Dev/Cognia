@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { PluginMarketplace, type PluginSearchOptions, type PluginRegistryEntry } from '@/lib/plugin/marketplace';
+import { PluginMarketplace, type PluginSearchOptions, type PluginRegistryEntry } from '@/lib/plugin';
 import type { MarketplacePlugin } from '@/components/plugin/marketplace/components/marketplace-types';
 import { MOCK_PLUGINS } from '@/components/plugin/marketplace/components/marketplace-constants';
 import { usePluginStore } from '@/stores/plugin';

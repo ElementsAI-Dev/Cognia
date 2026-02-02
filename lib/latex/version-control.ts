@@ -176,6 +176,27 @@ export class LaTeXVersionControlService {
   }
 
   /**
+   * Get all document histories (for serialization)
+   */
+  getAllHistories(): Map<string, DocumentHistory> {
+    return this.histories;
+  }
+
+  /**
+   * Get current configuration
+   */
+  getConfig(): VersionControlConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * Restore history from serialized data
+   */
+  restoreHistory(history: DocumentHistory): void {
+    this.histories.set(history.documentId, history);
+  }
+
+  /**
    * Compute diff between two contents
    */
   computeDiff(oldContent: string, newContent: string): LaTeXDiff {
@@ -550,12 +571,93 @@ export function createVersionSnapshot(
 // Export
 // ============================================================================
 
+// ============================================================================
+// Serialization Types
+// ============================================================================
+
+export interface SerializedVersionControl {
+  config: VersionControlConfig;
+  histories: Array<{
+    documentId: string;
+    versions: Array<{
+      id: string;
+      version: number;
+      content: string;
+      message?: string;
+      author?: string;
+      timestamp: string;
+      parentId?: string;
+      diff?: LaTeXDiff;
+      tags?: string[];
+    }>;
+    currentVersion: number;
+    collaborators: LaTeXCollaborator[];
+    comments: LaTeXComment[];
+  }>;
+}
+
+/**
+ * Serialize version control service for persistence
+ */
+export function serializeVersionControl(
+  service: LaTeXVersionControlService
+): SerializedVersionControl {
+  const histories: SerializedVersionControl['histories'] = [];
+  
+  // Access internal histories through a method we'll add
+  const allHistories = service.getAllHistories();
+  
+  for (const [documentId, history] of allHistories) {
+    histories.push({
+      documentId,
+      versions: history.versions.map((v: LaTeXVersionEntry) => ({
+        ...v,
+        timestamp: v.timestamp instanceof Date ? v.timestamp.toISOString() : String(v.timestamp),
+      })),
+      currentVersion: history.currentVersion,
+      collaborators: history.collaborators,
+      comments: history.comments,
+    });
+  }
+  
+  return {
+    config: service.getConfig(),
+    histories,
+  };
+}
+
+/**
+ * Deserialize version control service from persistence
+ */
+export function deserializeVersionControl(
+  data: SerializedVersionControl
+): LaTeXVersionControlService {
+  const service = new LaTeXVersionControlService(data.config);
+  
+  for (const history of data.histories) {
+    service.restoreHistory({
+      documentId: history.documentId,
+      versions: history.versions.map((v) => ({
+        ...v,
+        timestamp: new Date(v.timestamp),
+      })),
+      currentVersion: history.currentVersion,
+      collaborators: history.collaborators,
+      comments: history.comments,
+    });
+  }
+  
+  return service;
+}
+
 const versionControlApi = {
   LaTeXVersionControlService,
   DEFAULT_VERSION_CONFIG,
   generateCollaboratorColor,
   formatDiff,
   createVersionSnapshot,
+  serializeVersionControl,
+  deserializeVersionControl,
 };
 
 export default versionControlApi;

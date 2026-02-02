@@ -6,7 +6,12 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { LaTeXVersionControlService } from '@/lib/latex/version-control';
+import {
+  LaTeXVersionControlService,
+  serializeVersionControl,
+  deserializeVersionControl,
+  type SerializedVersionControl,
+} from '@/lib/latex/version-control';
 import type { LaTeXVersionEntry } from '@/types/latex';
 import {
   createCitationLibrary,
@@ -331,24 +336,36 @@ export const useLatexStore = create<LaTeXState>()(
           recentlyUsed: state.citationLibrary.recentlyUsed,
           favorites: state.citationLibrary.favorites,
         },
+        // Version control serialization
+        versionControlData: state.versionControlService
+          ? serializeVersionControl(state.versionControlService)
+          : null,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           // Restore citation library from serialized data
-          const data = (state as unknown as { citationLibraryData?: {
-            entries: Array<[string, CitationEntry]>;
-            collections: Array<[string, string[]]>;
-            recentlyUsed: string[];
-            favorites: string[];
-          } }).citationLibraryData;
-          
-          if (data) {
-            state.citationLibrary = {
-              entries: new Map(data.entries),
-              collections: new Map(data.collections),
-              recentlyUsed: data.recentlyUsed || [],
-              favorites: data.favorites || [],
+          const stateWithData = state as unknown as {
+            citationLibraryData?: {
+              entries: Array<[string, CitationEntry]>;
+              collections: Array<[string, string[]]>;
+              recentlyUsed: string[];
+              favorites: string[];
             };
+            versionControlData?: SerializedVersionControl;
+          };
+          
+          if (stateWithData.citationLibraryData) {
+            state.citationLibrary = {
+              entries: new Map(stateWithData.citationLibraryData.entries),
+              collections: new Map(stateWithData.citationLibraryData.collections),
+              recentlyUsed: stateWithData.citationLibraryData.recentlyUsed || [],
+              favorites: stateWithData.citationLibraryData.favorites || [],
+            };
+          }
+          
+          // Restore version control from serialized data
+          if (stateWithData.versionControlData) {
+            state.versionControlService = deserializeVersionControl(stateWithData.versionControlData);
           }
         }
       },

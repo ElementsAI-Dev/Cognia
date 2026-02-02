@@ -40,7 +40,7 @@ import {
   scaffoldPlugin,
   type PluginTemplate,
   type PluginScaffoldOptions,
-} from '@/lib/plugin/templates';
+} from '@/lib/plugin';
 import type { PluginType, PluginCapability } from '@/types/plugin';
 import { cn } from '@/lib/utils';
 
@@ -110,6 +110,7 @@ const CAPABILITY_INFO: Record<PluginCapability, { labelKey: string; descKey: str
   importers: { labelKey: 'capabilities.importers', descKey: 'capabilities.importersDesc' },
   a2ui: { labelKey: 'capabilities.a2ui', descKey: 'capabilities.a2uiDesc' },
   python: { labelKey: 'capabilities.pythonCap', descKey: 'capabilities.pythonCapDesc' },
+  scheduler: { labelKey: 'capabilities.scheduler', descKey: 'capabilities.schedulerDesc' },
 };
 
 // =============================================================================

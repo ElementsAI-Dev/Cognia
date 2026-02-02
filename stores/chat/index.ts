@@ -2,13 +2,7 @@
  * Chat stores index
  */
 
-export {
-  useChatStore,
-  selectMessages,
-  selectIsLoading,
-  selectIsStreaming,
-  selectError,
-} from './chat-store';
+export { useChatStore } from './chat-store';
 
 export {
   useSessionStore,

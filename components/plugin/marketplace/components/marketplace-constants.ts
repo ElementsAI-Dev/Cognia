@@ -36,6 +36,7 @@ export const CATEGORY_INFO: Record<CategoryFilter, { icon: React.ElementType; la
   importers: { icon: Code2, label: 'Importers', color: 'bg-lime-500' },
   a2ui: { icon: LayoutGrid, label: 'A2UI', color: 'bg-violet-500' },
   python: { icon: FileCode2, label: 'Python', color: 'bg-yellow-500' },
+  scheduler: { icon: Clock, label: 'Scheduler', color: 'bg-sky-500' },
 };
 
 export const QUICK_FILTERS: { id: QuickFilter; label: string; icon: React.ElementType }[] = [

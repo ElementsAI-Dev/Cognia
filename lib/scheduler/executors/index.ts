@@ -221,7 +221,7 @@ async function executeBackupTask(
     // Plugin backup
     if (backupType === 'plugins' || backupType === 'all') {
       try {
-        const { PluginBackupManager } = await import('@/lib/plugin/backup');
+        const { PluginBackupManager } = await import('@/lib/plugin');
         const backupManager = new PluginBackupManager();
         await backupManager.initialize();
         results.plugins = { backed: true };

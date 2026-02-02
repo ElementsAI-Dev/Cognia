@@ -30,6 +30,7 @@ export type SettingsSection =
   | 'observability'
   | 'tray'
   | 'agent-optimization'
+  | 'external-agents'
   | 'logs'
   | 'logging-config';
 

@@ -21,6 +21,7 @@ mod screenshot;
 mod selection;
 mod skill;
 mod skill_seekers;
+mod external_agent;
 mod tray;
 
 use awareness::AwarenessManager;
@@ -569,6 +570,16 @@ pub fn run() {
             let scheduler_state = SchedulerState::new();
             app.manage(scheduler_state);
             log::info!("System scheduler state initialized");
+
+            // Initialize External Agent State
+            let external_agent_state = external_agent::ExternalAgentState::default();
+            app.manage(external_agent_state);
+            log::info!("External agent state initialized");
+
+            // Initialize ACP Terminal State
+            let acp_terminal_state = external_agent::AcpTerminalState::default();
+            app.manage(acp_terminal_state);
+            log::info!("ACP terminal state initialized");
 
             // Setup splash screen and main window with real progress events
             let app_handle = app.handle().clone();
@@ -1407,6 +1418,30 @@ pub fn run() {
             commands::scheduler::scheduler_get_pending_confirmations,
             commands::scheduler::scheduler_request_elevation,
             commands::scheduler::scheduler_validate_task,
+            // External agent commands
+            external_agent::spawn_external_agent,
+            external_agent::send_to_external_agent,
+            external_agent::kill_external_agent,
+            external_agent::get_external_agent_status,
+            external_agent::list_external_agents,
+            external_agent::kill_all_external_agents,
+            external_agent::receive_external_agent_stderr,
+            external_agent::is_external_agent_running,
+            external_agent::get_external_agent_info,
+            external_agent::set_external_agent_running,
+            external_agent::set_external_agent_failed,
+            // ACP Terminal commands
+            external_agent::acp_terminal_create,
+            external_agent::acp_terminal_output,
+            external_agent::acp_terminal_kill,
+            external_agent::acp_terminal_release,
+            external_agent::acp_terminal_wait_for_exit,
+            external_agent::acp_terminal_write,
+            external_agent::acp_terminal_get_session_terminals,
+            external_agent::acp_terminal_kill_session_terminals,
+            external_agent::acp_terminal_is_running,
+            external_agent::acp_terminal_get_info,
+            external_agent::acp_terminal_list,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

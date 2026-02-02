@@ -108,13 +108,13 @@ jest.mock('lucide-react', () => ({
 
 const createMockContestant = (id: string, status: ArenaContestant['status'] = 'completed'): ArenaContestant => ({
   id,
-  modelId: `model-${id}`,
-  providerId: 'openai',
+  model: `gpt-4-${id}`,
+  provider: 'openai',
   displayName: `Model ${id}`,
   response: `Response from ${id}`,
   status,
   latencyMs: 1500,
-  tokenCount: { prompt: 100, completion: 200, total: 300 },
+  tokenCount: { input: 100, output: 200, total: 300 },
   estimatedCost: 0.005,
 });
 
@@ -125,10 +125,9 @@ const createMockBattle = (overrides?: Partial<ArenaBattle>): ArenaBattle => ({
     createMockContestant('a'),
     createMockContestant('b'),
   ],
-  mode: 'open',
+  mode: 'normal',
   conversationMode: 'single',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  createdAt: new Date(),
   ...overrides,
 });
 

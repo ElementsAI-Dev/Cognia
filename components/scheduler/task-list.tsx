@@ -64,6 +64,7 @@ const taskTypeIcons: Record<ScheduledTaskType, React.ReactNode> = {
   sync: <Database className="h-4 w-4" />,
   backup: <Archive className="h-4 w-4" />,
   custom: <Cog className="h-4 w-4" />,
+  plugin: <Cog className="h-4 w-4" />,
 };
 
 const statusConfig: Record<ScheduledTaskStatus, { label: string; color: string; icon: React.ReactNode }> = {

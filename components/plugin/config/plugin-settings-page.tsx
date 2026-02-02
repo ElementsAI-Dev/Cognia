@@ -65,7 +65,7 @@ import { PluginMarketplace, PluginDetailModal, type MarketplacePlugin } from '..
 import { usePluginStore } from '@/stores/plugin';
 import { usePlugins } from '@/hooks/plugin';
 import type { PluginCapability } from '@/types/plugin';
-import type { PluginScaffoldOptions } from '@/lib/plugin/templates';
+import type { PluginScaffoldOptions } from '@/lib/plugin';
 import { getPluginManager } from '@/lib/plugin';
 import { toast } from '@/components/ui/sonner';
 import { isTauri as detectTauri } from '@/lib/native/utils';

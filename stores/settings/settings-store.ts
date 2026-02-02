@@ -5,7 +5,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import { getPluginEventHooks } from '@/lib/plugin/hooks-system';
+import { getPluginEventHooks } from '@/lib/plugin';
 import {
   isStrongholdAvailable,
   secureStoreProviderApiKey,

@@ -1,7 +1,26 @@
 /**
  * Git Integration Panel Component
  * 
- * Provides UI for managing Git integration with workflow templates
+ * Provides UI for managing Git integration with workflow templates.
+ * 
+ * IMPORTANT: This component is DESKTOP-ONLY and requires Tauri environment.
+ * It uses native Git commands through lib/native/git for:
+ * - Cloning workflow template repositories
+ * - Syncing with remote repositories
+ * - Managing multiple template sources
+ * 
+ * The component checks for Tauri environment using isTauri() and shows
+ * an appropriate message for web users.
+ * 
+ * Integration points:
+ * - Can be added to TemplateBrowser for desktop users
+ * - Can be used standalone in settings for template repository management
+ * 
+ * @example
+ * ```tsx
+ * // Only render for desktop users
+ * {isTauri() && <GitIntegrationPanel />}
+ * ```
  */
 
 'use client';

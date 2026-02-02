@@ -5,6 +5,137 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ToolTimeline, ToolExecution } from './tool-timeline';
 
+// Mock lucide-react icons
+jest.mock('lucide-react', () => {
+  function makeIcon(name: string) {
+    function Icon(props: React.SVGProps<SVGSVGElement>) {
+      return <svg {...props} data-testid={`icon-${name}`} />;
+    }
+    return Icon;
+  }
+
+  return {
+    Clock: makeIcon('Clock'),
+    CheckCircle: makeIcon('CheckCircle'),
+    XCircle: makeIcon('XCircle'),
+    Loader2: makeIcon('Loader2'),
+    AlertTriangle: makeIcon('AlertTriangle'),
+    ChevronDown: makeIcon('ChevronDown'),
+    ChevronUp: makeIcon('ChevronUp'),
+    Zap: makeIcon('Zap'),
+    Bookmark: makeIcon('Bookmark'),
+    ListTodo: makeIcon('ListTodo'),
+    Eye: makeIcon('Eye'),
+    EyeOff: makeIcon('EyeOff'),
+    BarChart3: makeIcon('BarChart3'),
+  };
+});
+
+// Mock cn + duration formatting
+jest.mock('@/lib/utils', () => ({
+  cn: (...args: Array<string | false | null | undefined>) => args.filter(Boolean).join(' '),
+  formatDurationShort: (ms: number) => {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) {
+      const s = ms / 1000;
+      const out = s.toFixed(1).replace(/\.0$/, '');
+      return `${out}s`;
+    }
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+  },
+}));
+
+// Mock UI components that can be heavy in tests
+jest.mock('@/components/ui/button', () => ({
+  Button: ({ children, onClick, disabled, className, type, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string; asChild?: boolean }) => (
+    <button type={type} onClick={onClick} disabled={disabled} className={className} {...props}>
+      {children}
+    </button>
+  ),
+}));
+
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children, className }: { children: React.ReactNode; className?: string; variant?: string }) => (
+    <span data-testid="badge" className={className}>
+      {children}
+    </span>
+  ),
+}));
+
+jest.mock('@/components/chat/ui/copy-button', () => ({
+  CopyButton: ({ content }: { content: string; iconOnly?: boolean; tooltip?: string; className?: string }) => (
+    <button data-testid="copy-button" data-content={content} />
+  ),
+}));
+
+jest.mock('@/components/ui/collapsible', () => ({
+  Collapsible: ({ children }: { children: React.ReactNode; open?: boolean }) => <div data-testid="collapsible">{children}</div>,
+  CollapsibleContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="collapsible-content" className={className}>
+      {children}
+    </div>
+  ),
+}));
+
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip">{children}</div>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip-content">{children}</div>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode; asChild?: boolean; className?: string }) => (
+    <div data-testid="tooltip-trigger">{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/progress', () => ({
+  Progress: ({ value, className }: { value: number; className?: string }) => (
+    <div data-testid="progress" data-value={value} className={className} />
+  ),
+}));
+
+jest.mock('@/components/ai-elements/checkpoint', () => ({
+  Checkpoint: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="checkpoint" className={className}>
+      {children}
+    </div>
+  ),
+  CheckpointIcon: ({ children }: { children: React.ReactNode }) => <div data-testid="checkpoint-icon">{children}</div>,
+  CheckpointTrigger: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void; tooltip?: string }) => (
+    <button data-testid="checkpoint-trigger" onClick={onClick}>
+      {children}
+    </button>
+  ),
+}));
+
+jest.mock('@/components/ai-elements/queue', () => ({
+  Queue: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="queue" className={className}>
+      {children}
+    </div>
+  ),
+  QueueSection: ({ children }: { children: React.ReactNode; defaultOpen?: boolean; onOpenChange?: (open: boolean) => void }) => (
+    <div data-testid="queue-section">{children}</div>
+  ),
+  QueueSectionTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="queue-section-trigger">{children}</div>,
+  QueueSectionLabel: ({ label, count }: { label: string; count: number; icon?: React.ReactNode }) => (
+    <div data-testid="queue-section-label">{label} {count}</div>
+  ),
+  QueueSectionContent: ({ children }: { children: React.ReactNode }) => <div data-testid="queue-section-content">{children}</div>,
+  QueueList: ({ children }: { children: React.ReactNode }) => <div data-testid="queue-list">{children}</div>,
+  QueueItem: ({ children }: { children: React.ReactNode; className?: string }) => <div data-testid="queue-item">{children}</div>,
+  QueueItemIndicator: () => <div data-testid="queue-item-indicator" />,
+  QueueItemContent: ({ children }: { children: React.ReactNode }) => <div data-testid="queue-item-content">{children}</div>,
+}));
+
+jest.mock('@/components/a2ui', () => ({
+  A2UIToolOutput: () => <div data-testid="a2ui-output" />,
+  hasA2UIToolOutput: () => false,
+}));
+
+jest.mock('@/components/mcp', () => ({
+  MCPServerBadge: () => <span data-testid="mcp-server-badge" />,
+}));
+
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {

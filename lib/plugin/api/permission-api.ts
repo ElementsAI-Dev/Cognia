@@ -8,7 +8,7 @@ import type {
   PluginPermissionAPI,
   PluginAPIPermission,
 } from '@/types/plugin/plugin-extended';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 
 // Permission grants by plugin
 const grantedPermissions = new Map<string, Set<PluginAPIPermission>>();

@@ -8,6 +8,7 @@ import type { PluginHooks, PluginMessage } from './plugin';
 import type { Project, KnowledgeFile } from '../project/project';
 import type { Artifact } from '../artifact/artifact';
 import type { PluginCanvasDocument } from './plugin-extended';
+import type { ChatMode } from '../core/session';
 
 // =============================================================================
 // Project Hooks
@@ -151,8 +152,94 @@ export interface ThemeHookEvents {
 }
 
 // =============================================================================
-// AI/Chat Hooks
+// AI/Chat Hooks - Enhanced Types
 // =============================================================================
+
+// ChatMode is imported from '../core/session' to avoid duplicate export
+
+/** Attachment for prompt submission */
+export interface PromptAttachment {
+  id: string;
+  name: string;
+  type: 'image' | 'audio' | 'video' | 'file' | 'document';
+  url?: string;
+  size?: number;
+  mimeType?: string;
+}
+
+/** Context for user prompt submission */
+export interface PromptSubmitContext {
+  attachments?: PromptAttachment[];
+  mode: ChatMode;
+  previousMessages: PluginMessage[];
+}
+
+/** Result of user prompt submission hook */
+export interface PromptSubmitResult {
+  /** Action to take: proceed normally, block the message, or modify it */
+  action: 'proceed' | 'block' | 'modify';
+  /** Modified prompt content (when action is 'modify') */
+  modifiedPrompt?: string;
+  /** Additional context to inject into system prompt */
+  additionalContext?: string;
+  /** Reason for blocking (when action is 'block') */
+  blockReason?: string;
+}
+
+/** Result of pre-tool-use hook */
+export interface PreToolUseResult {
+  /** Action to take: allow, deny, or modify the tool call */
+  action: 'allow' | 'deny' | 'modify';
+  /** Modified arguments (when action is 'modify') */
+  modifiedArgs?: unknown;
+  /** Reason for denying (when action is 'deny') */
+  denyReason?: string;
+}
+
+/** Result of post-tool-use hook */
+export interface PostToolUseResult {
+  /** Modified result to use instead of original */
+  modifiedResult?: unknown;
+  /** Additional messages to inject into conversation */
+  additionalMessages?: PluginMessage[];
+}
+
+/** Context for pre-compact hook */
+export interface PreCompactContext {
+  sessionId: string;
+  messageCount: number;
+  tokenCount: number;
+  compressionRatio: number;
+}
+
+/** Result of pre-compact hook */
+export interface PreCompactResult {
+  /** Context to inject into compressed summary */
+  contextToInject?: string;
+  /** Skip compaction entirely */
+  skipCompaction?: boolean;
+  /** Custom compression strategy override */
+  customStrategy?: 'aggressive' | 'moderate' | 'minimal';
+}
+
+/** Response data for post-chat-receive hook */
+export interface ChatResponseData {
+  content: string;
+  messageId: string;
+  sessionId: string;
+  model: string;
+  provider: string;
+}
+
+/** Result of post-chat-receive hook */
+export interface PostChatReceiveResult {
+  /** Modified content to display */
+  modifiedContent?: string;
+  /** Additional messages to add after the response */
+  additionalMessages?: PluginMessage[];
+  /** Additional metadata to store */
+  metadata?: Record<string, unknown>;
+}
 
 /**
  * AI and chat-related hook events
@@ -163,6 +250,38 @@ export interface AIHookEvents {
     messages: PluginMessage[],
     model: string
   ) => PluginMessage[] | Promise<PluginMessage[]>;
+
+  /** Called when user submits a prompt (before any processing) */
+  onUserPromptSubmit?: (
+    prompt: string,
+    sessionId: string,
+    context: PromptSubmitContext
+  ) => PromptSubmitResult | Promise<PromptSubmitResult>;
+
+  /** Called before a tool is executed */
+  onPreToolUse?: (
+    toolName: string,
+    toolArgs: unknown,
+    sessionId: string
+  ) => PreToolUseResult | Promise<PreToolUseResult>;
+
+  /** Called after a tool execution completes */
+  onPostToolUse?: (
+    toolName: string,
+    toolArgs: unknown,
+    toolResult: unknown,
+    sessionId: string
+  ) => PostToolUseResult | Promise<PostToolUseResult>;
+
+  /** Called before context compression */
+  onPreCompact?: (
+    context: PreCompactContext
+  ) => PreCompactResult | Promise<PreCompactResult>;
+
+  /** Called after receiving AI response */
+  onPostChatReceive?: (
+    response: ChatResponseData
+  ) => PostChatReceiveResult | Promise<PostChatReceiveResult>;
 
   /** Called when streaming response starts */
   onStreamStart?: (sessionId: string) => void;
@@ -298,13 +417,20 @@ export interface PluginHooksAll extends PluginHooks {
   onColorPresetChange?: ThemeHookEvents['onColorPresetChange'];
   onCustomThemeActivate?: ThemeHookEvents['onCustomThemeActivate'];
 
-  // AI hooks
+  // AI hooks - Core
   onChatRequest?: AIHookEvents['onChatRequest'];
   onStreamStart?: AIHookEvents['onStreamStart'];
   onStreamChunk?: AIHookEvents['onStreamChunk'];
   onStreamEnd?: AIHookEvents['onStreamEnd'];
   onChatError?: AIHookEvents['onChatError'];
   onTokenUsage?: AIHookEvents['onTokenUsage'];
+
+  // AI hooks - Enhanced (Pre/Post operations)
+  onUserPromptSubmit?: AIHookEvents['onUserPromptSubmit'];
+  onPreToolUse?: AIHookEvents['onPreToolUse'];
+  onPostToolUse?: AIHookEvents['onPostToolUse'];
+  onPreCompact?: AIHookEvents['onPreCompact'];
+  onPostChatReceive?: AIHookEvents['onPostChatReceive'];
 
   // Vector/RAG hooks
   onDocumentsIndexed?: VectorHookEvents['onDocumentsIndexed'];
@@ -323,6 +449,15 @@ export interface PluginHooksAll extends PluginHooks {
   onPanelClose?: UIHookEvents['onPanelClose'];
   onShortcut?: UIHookEvents['onShortcut'];
   onContextMenuShow?: UIHookEvents['onContextMenuShow'];
+
+  // External Agent hooks
+  onExternalAgentConnect?: (agentId: string, agentName: string) => void;
+  onExternalAgentDisconnect?: (agentId: string) => void;
+  onExternalAgentExecutionStart?: (agentId: string, sessionId: string, prompt: string) => void;
+  onExternalAgentExecutionComplete?: (agentId: string, sessionId: string, success: boolean, response?: string) => void;
+  onExternalAgentPermissionRequest?: (agentId: string, sessionId: string, toolName: string, reason?: string) => void;
+  onExternalAgentToolCall?: (agentId: string, sessionId: string, toolName: string, args: Record<string, unknown>) => void;
+  onExternalAgentError?: (agentId: string, error: string) => void;
 }
 
 /**

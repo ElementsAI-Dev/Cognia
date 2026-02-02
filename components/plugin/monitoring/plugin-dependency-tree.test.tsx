@@ -6,7 +6,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PluginDependencyTree } from './plugin-dependency-tree';
 import { usePluginStore } from '@/stores/plugin';
-import { getDependencyResolver } from '@/lib/plugin/dependency-resolver';
+import { getDependencyResolver } from '@/lib/plugin';
 import type { Plugin, PluginManifest } from '@/types/plugin';
 
 // Mock stores
@@ -15,7 +15,7 @@ jest.mock('@/stores/plugin', () => ({
 }));
 
 // Mock dependency resolver
-jest.mock('@/lib/plugin/dependency-resolver', () => ({
+jest.mock('@/lib/plugin', () => ({
   getDependencyResolver: jest.fn(),
 }));
 

@@ -14,3 +14,8 @@ export { LatexAIContextMenu } from './latex-ai-context-menu';
 export { LatexAISidebar } from './latex-ai-sidebar';
 export { LatexAIFab } from './latex-ai-fab';
 export { LatexEquationDialog } from './latex-equation-dialog';
+export { LatexSketchDialog } from './latex-sketch-dialog';
+export { LatexVoiceDialog } from './latex-voice-dialog';
+export { LatexEquationAnalysis } from './latex-equation-analysis';
+export { TemplateSelector, TemplateDialogContent } from './template-selector';
+export { EditorTextarea, type EditorTextareaConfig } from './editor-textarea';

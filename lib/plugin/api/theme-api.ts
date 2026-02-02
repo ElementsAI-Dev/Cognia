@@ -6,7 +6,7 @@
 
 import { useSettingsStore } from '@/stores';
 import { THEME_PRESETS } from '@/lib/themes';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 import type {
   PluginThemeAPI,
   ThemeMode,

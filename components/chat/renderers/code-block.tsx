@@ -32,8 +32,11 @@ import {
   BookmarkPlus,
   ChevronDown,
   ChevronUp,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useArtifactStore } from '@/stores';
+import { ChatDesignerPanel } from '@/components/chat/core/chat-designer-panel';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -81,6 +84,7 @@ export const CodeBlock = memo(function CodeBlock({
   const [localShowLineNumbers, setLocalShowLineNumbers] = useState(showLineNumbers);
   const [showResult, setShowResult] = useState(false);
   const [savedAsSnippet, setSavedAsSnippet] = useState(false);
+  const [showInlinePreview, setShowInlinePreview] = useState(false);
   const codeRef = useRef<HTMLPreElement>(null);
   const { copy, isCopying } = useCopy({ toastMessage: tToasts('codeCopied') });
 
@@ -355,26 +359,53 @@ export const CodeBlock = memo(function CodeBlock({
             </Tooltip>
 
             {canOpenInCanvas && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={handleOpenInCanvas}
-                    aria-label="Open in Canvas"
-                  >
-                    <PanelRight className="h-3 w-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Open in Canvas</TooltipContent>
-              </Tooltip>
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setShowInlinePreview(!showInlinePreview)}
+                      aria-label={showInlinePreview ? "Hide preview" : "Show preview"}
+                    >
+                      {showInlinePreview ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{showInlinePreview ? 'Hide preview' : 'Live preview'}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={handleOpenInCanvas}
+                      aria-label="Open in Canvas"
+                    >
+                      <PanelRight className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Open in Canvas</TooltipContent>
+                </Tooltip>
+              </>
             )}
           </div>
         </div>
 
         {/* Code content */}
         {renderCode(false)}
+
+        {/* Inline Preview for web languages */}
+        {showInlinePreview && canOpenInCanvas && (
+          <div className="border-t">
+            <ChatDesignerPanel
+              code={code}
+              onClose={() => setShowInlinePreview(false)}
+              className="max-h-[300px]"
+            />
+          </div>
+        )}
 
         {/* Execution result inline */}
         {showResult && (result || execError) && (

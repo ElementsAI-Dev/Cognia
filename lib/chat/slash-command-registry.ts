@@ -452,3 +452,80 @@ export const executeCommand = (
   args: Record<string, string>,
   ctx: SlashCommandContext
 ) => slashCommandRegistry.execute(name, args, ctx);
+
+// ============================================================================
+// External Agent Command Integration
+// ============================================================================
+
+/**
+ * ACP Available Command type (inline to avoid circular imports)
+ */
+interface AcpAvailableCommandInput {
+  name: string;
+  description?: string;
+  inputHint?: string;
+}
+
+/**
+ * Register external agent slash commands from ACP available_commands_update
+ * These commands are prefixed with the agent name to avoid conflicts
+ *
+ * @param agentId Unique identifier for the agent
+ * @param agentName Display name of the agent
+ * @param commands Available commands from the agent
+ * @param onExecute Callback when command is executed
+ */
+export function registerExternalAgentCommands(
+  agentId: string,
+  agentName: string,
+  commands: AcpAvailableCommandInput[],
+  onExecute: (commandName: string, args: string) => void
+): void {
+  for (const cmd of commands) {
+    const commandId = `external-${agentId}-${cmd.name}`;
+    const commandName = cmd.name.toLowerCase();
+
+    slashCommandRegistry.register({
+      id: commandId,
+      command: commandName,
+      description: cmd.description || `${agentName} command: ${cmd.name}`,
+      longDescription: cmd.inputHint,
+      category: 'agent',
+      examples: cmd.inputHint ? [`/${commandName} ${cmd.inputHint}`] : [`/${commandName}`],
+      handler: (args) => {
+        onExecute(cmd.name, args.rawArgs || '');
+        return {
+          success: true,
+          newInput: `/${cmd.name} ${args.rawArgs || ''}`.trim(),
+          submit: true,
+        };
+      },
+    });
+  }
+}
+
+/**
+ * Unregister all commands for an external agent
+ *
+ * @param agentId Unique identifier for the agent
+ */
+export function unregisterExternalAgentCommands(agentId: string): void {
+  const prefix = `external-${agentId}-`;
+  const commandsToRemove = slashCommandRegistry
+    .getAll()
+    .filter((cmd) => cmd.id.startsWith(prefix));
+
+  for (const cmd of commandsToRemove) {
+    slashCommandRegistry.unregister(cmd.command);
+  }
+}
+
+/**
+ * Check if external agent commands are registered
+ *
+ * @param agentId Unique identifier for the agent
+ */
+export function hasExternalAgentCommands(agentId: string): boolean {
+  const prefix = `external-${agentId}-`;
+  return slashCommandRegistry.getAll().some((cmd) => cmd.id.startsWith(prefix));
+}

@@ -39,3 +39,12 @@ export {
   useProcessManager,
   type UseProcessManagerReturn,
 } from './use-process-manager';
+export {
+  useExternalAgent,
+  useExternalAgentById,
+  useConnectedExternalAgents,
+  useExternalAgentConnectionStatus,
+  type UseExternalAgentState,
+  type UseExternalAgentActions,
+  type UseExternalAgentReturn,
+} from './use-external-agent';

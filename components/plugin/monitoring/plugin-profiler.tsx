@@ -31,7 +31,7 @@ import {
   type ProfileEntry,
   type ProfileSummary,
   type Hotspot,
-} from '@/lib/plugin/profiler';
+} from '@/lib/plugin';
 import { Play, Pause, Trash2, RefreshCw, Activity, Clock, Zap, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

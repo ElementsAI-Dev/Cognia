@@ -11,7 +11,7 @@ import type {
   ProjectFileInput,
 } from '@/types/plugin/plugin-extended';
 import type { Project, KnowledgeFile } from '@/types';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 
 /**
  * Create the Project API for a plugin

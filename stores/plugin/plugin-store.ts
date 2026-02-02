@@ -18,7 +18,7 @@ import type {
   PluginSystemEvent,
 } from '@/types/plugin';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
-import { validatePluginManifest } from '@/lib/plugin/validation';
+import { validatePluginManifest } from '@/lib/plugin';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.plugin;

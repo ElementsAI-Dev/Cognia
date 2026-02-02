@@ -6,13 +6,13 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PluginUpdates } from './plugin-updates';
 import { usePluginStore } from '@/stores/plugin';
-import { getPluginUpdater } from '@/lib/plugin/updater';
+import { getPluginUpdater } from '@/lib/plugin';
 
 jest.mock('@/stores/plugin', () => ({
   usePluginStore: jest.fn(),
 }));
 
-jest.mock('@/lib/plugin/updater', () => ({
+jest.mock('@/lib/plugin', () => ({
   getPluginUpdater: jest.fn(),
 }));
 

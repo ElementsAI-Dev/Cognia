@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { z } from 'zod';
+import YAML from 'yaml';
 import type {
   WorkflowTemplate,
   TemplateCategory,
@@ -437,8 +438,8 @@ export const useTemplateMarketStore = create<TemplateMarketState>()(
           if (format === 'json') {
             rawData = JSON.parse(data);
           } else {
-            // YAML parsing would need a library like js-yaml
-            throw new Error('YAML format not yet supported');
+            // Parse YAML format
+            rawData = YAML.parse(data);
           }
 
           // Validate template structure with Zod schema
@@ -473,7 +474,8 @@ export const useTemplateMarketStore = create<TemplateMarketState>()(
           if (format === 'json') {
             return JSON.stringify(data, null, 2);
           } else {
-            throw new Error('YAML format not yet supported');
+            // Export as YAML format
+            return YAML.stringify(data, { indent: 2 });
           }
         } catch (error) {
           log.error('Failed to export template', error as Error);

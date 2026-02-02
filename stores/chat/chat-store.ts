@@ -109,9 +109,3 @@ export const useChatStore = create<ChatState>()(
       })),
   }))
 );
-
-// Selectors
-export const selectMessages = (state: ChatState) => state.messages;
-export const selectIsLoading = (state: ChatState) => state.isLoading;
-export const selectIsStreaming = (state: ChatState) => state.isStreaming;
-export const selectError = (state: ChatState) => state.error;

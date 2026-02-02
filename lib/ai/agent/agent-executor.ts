@@ -17,7 +17,7 @@ import { isMcpTool, extractMcpServerInfo } from '../tools/mcp-tools';
 import { globalToolCache, type ToolCacheConfig } from '../tools/tool-cache';
 import { globalMetricsCollector } from './performance-metrics';
 import { globalMemoryManager, type MemoryEntry } from './memory-manager';
-import { getPluginLifecycleHooks } from '@/lib/plugin/hooks-system';
+import { getPluginLifecycleHooks, getPluginEventHooks } from '@/lib/plugin';
 import { recordAgentTraceFromToolCall } from '@/lib/agent-trace';
 import { useSettingsStore } from '@/stores';
 import {
@@ -456,6 +456,28 @@ function createSDKTool(
         }
       }
 
+      // ========== Pre-Tool Hook: PreToolUse ==========
+      // Allow plugins to modify or deny tool calls
+      const preToolResult = await getPluginEventHooks().dispatchPreToolUse(
+        name,
+        args as Record<string, unknown>,
+        agentId || ''
+      );
+
+      if (preToolResult.action === 'deny') {
+        toolCall.status = 'error';
+        toolCall.error = preToolResult.denyReason || 'Tool call denied by plugin';
+        toolCall.completedAt = new Date();
+        onToolResult?.(toolCall);
+        throw new Error(toolCall.error);
+      }
+
+      // Use modified args if hook returned modifications
+      const effectiveArgs = preToolResult.action === 'modify' && preToolResult.modifiedArgs
+        ? preToolResult.modifiedArgs as Record<string, unknown>
+        : args as Record<string, unknown>;
+      // ========== End Pre-Tool Hook ==========
+
       // Check if approval is required
       if (agentTool.requiresApproval && requireApproval) {
         const approved = await requireApproval(toolCall);
@@ -487,11 +509,11 @@ function createSDKTool(
 
         for (let attempt = 0; attempt <= actualRetryConfig.maxRetries; attempt++) {
           try {
-            const result = await agentTool.execute(args as Record<string, unknown>);
+            const result = await agentTool.execute(effectiveArgs);
             
             // Cache the result if not from cache
             if (!cached && shouldUseCache) {
-              globalToolCache.set(name, args as Record<string, unknown>, result);
+              globalToolCache.set(name, effectiveArgs, result);
             }
 
             return result;
@@ -559,12 +581,28 @@ function createSDKTool(
       // Fallback to direct execution without manager
       try {
         const result = await executeWithRetry();
+        
+        // ========== Post-Tool Hook: PostToolUse ==========
+        // Allow plugins to modify tool results or add messages
+        const postToolResult = await getPluginEventHooks().dispatchPostToolUse(
+          name,
+          effectiveArgs,
+          result,
+          agentId || ''
+        );
+        
+        // Use modified result if hook returned modifications
+        const finalResult = postToolResult.modifiedResult !== undefined
+          ? postToolResult.modifiedResult
+          : result;
+        // ========== End Post-Tool Hook ==========
+        
         toolCall.status = 'completed';
-        toolCall.result = result;
+        toolCall.result = finalResult;
         toolCall.completedAt = new Date();
         toolCall.duration = toolCall.completedAt.getTime() - (toolCall.startedAt?.getTime() || 0);
         onToolResult?.(toolCall);
-        return result;
+        return finalResult;
       } catch (error) {
         const err = error instanceof Error ? error : new Error('Tool execution failed');
         toolCall.status = 'error';

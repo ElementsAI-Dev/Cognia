@@ -6,9 +6,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { ToolHistoryPanel } from './tool-history-panel';
+import React from 'react';
 
-// Mock store - defined inside factory to avoid hoisting issues
-jest.mock('@/stores', () => {
+// Create a proper Zustand-like mock with subscription support for re-renders
+const createMockStore = () => {
+  const listeners: Set<() => void> = new Set();
+  
   const mockState: {
     history: Array<Record<string, unknown>>;
     usageStats: Record<string, { totalCalls: number; lastUsedAt: Date | null; isFavorite: boolean; isPinned: boolean }>;
@@ -17,12 +20,12 @@ jest.mock('@/stores', () => {
     error: null;
     toggleFavorite: jest.Mock;
     togglePinned: jest.Mock;
-    recordToolCall: jest.Mock;
-    updateToolCallResultStatus: jest.Mock;
-    deleteRecord: jest.Mock;
-    clearHistory: jest.Mock;
-    getRecentTools: jest.Mock;
-    getFrequentTools: jest.Mock;
+    recordToolCall: (params: Record<string, unknown>) => Record<string, unknown>;
+    updateToolCallResultStatus: (id: string, result: string, output?: string, error?: string, duration?: number) => void;
+    deleteRecord: (id: string) => void;
+    clearHistory: () => void;
+    getRecentTools: (count: number) => Array<Record<string, unknown>>;
+    getFrequentTools: (count: number) => Array<Record<string, unknown>>;
   } = {
     history: [] as Array<Record<string, unknown>>,
     usageStats: {} as Record<string, { totalCalls: number; lastUsedAt: Date | null; isFavorite: boolean; isPinned: boolean }>,
@@ -39,48 +42,53 @@ jest.mock('@/stores', () => {
     error: null,
     toggleFavorite: jest.fn(),
     togglePinned: jest.fn(),
-    recordToolCall: jest.fn((params: Record<string, unknown>) => {
+    recordToolCall: (params: Record<string, unknown>) => {
       const id = `record-${Date.now()}-${Math.random()}`;
       const now = new Date();
       const record = { id, ...params, startTime: now, endTime: now, calledAt: now };
-      mockState.history.push(record);
+      mockState.history = [...mockState.history, record];
       // Also update usageStats
       const toolId = params.toolId as string;
       if (toolId) {
         if (!mockState.usageStats[toolId]) {
           mockState.usageStats[toolId] = { totalCalls: 0, lastUsedAt: null, isFavorite: false, isPinned: false };
         }
-        mockState.usageStats[toolId].totalCalls++;
-        mockState.usageStats[toolId].lastUsedAt = now;
+        mockState.usageStats = {
+          ...mockState.usageStats,
+          [toolId]: {
+            ...mockState.usageStats[toolId],
+            totalCalls: mockState.usageStats[toolId].totalCalls + 1,
+            lastUsedAt: now,
+          },
+        };
       }
+      listeners.forEach(listener => listener());
       return record;
-    }),
-    updateToolCallResultStatus: jest.fn((id: string, result: string, output?: string, error?: string, duration?: number) => {
-      const record = mockState.history.find((h) => h.id === id);
-      if (record) {
-        record.result = result;
-        record.output = output;
-        record.error = error;
-        record.duration = duration;
-      }
-    }),
-    deleteRecord: jest.fn((id: string) => {
-      const index = mockState.history.findIndex((h) => h.id === id);
-      if (index >= 0) mockState.history.splice(index, 1);
-    }),
-    clearHistory: jest.fn(() => {
-      mockState.history.length = 0;
+    },
+    updateToolCallResultStatus: (id: string, result: string, output?: string, error?: string, duration?: number) => {
+      mockState.history = mockState.history.map((h) => 
+        h.id === id ? { ...h, result, output, error, duration } : h
+      );
+      listeners.forEach(listener => listener());
+    },
+    deleteRecord: (id: string) => {
+      mockState.history = mockState.history.filter((h) => h.id !== id);
+      listeners.forEach(listener => listener());
+    },
+    clearHistory: () => {
+      mockState.history = [];
       mockState.usageStats = {};
-    }),
-    getRecentTools: jest.fn((count: number) => {
+      listeners.forEach(listener => listener());
+    },
+    getRecentTools: (count: number) => {
       return mockState.history.slice(0, count).map((h) => ({
         toolId: h.toolId,
         toolName: h.toolName,
         serverId: h.serverId,
         serverName: h.serverName,
       }));
-    }),
-    getFrequentTools: jest.fn((count: number) => {
+    },
+    getFrequentTools: (count: number) => {
       return Object.entries(mockState.usageStats)
         .sort(([, a], [, b]) => (b as { totalCalls: number }).totalCalls - (a as { totalCalls: number }).totalCalls)
         .slice(0, count)
@@ -88,26 +96,48 @@ jest.mock('@/stores', () => {
           toolId,
           totalCalls: (stats as { totalCalls: number }).totalCalls,
         }));
-    }),
+    },
   };
 
-  const store = Object.assign(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (selector: (s: typeof mockState) => any) => selector(mockState),
-    {
-      getState: () => mockState,
-      setState: (newState: Partial<typeof mockState>) => {
-        Object.assign(mockState, newState);
-      },
-      subscribe: jest.fn(() => jest.fn()),
-    }
-  );
-
-  return {
-    useToolHistoryStore: store,
-    createToolId: (provider: string, name: string, serverId: string) => `${provider}:${serverId}:${name}`,
+  // Create a hook that triggers re-renders
+  const useStore = <T,>(selector: (s: typeof mockState) => T): T => {
+    const [, forceUpdate] = React.useReducer((c) => c + 1, 0);
+    
+    React.useEffect(() => {
+      listeners.add(forceUpdate);
+      return () => { listeners.delete(forceUpdate); };
+    }, []);
+    
+    return selector(mockState);
   };
-});
+
+  const store = Object.assign(useStore, {
+    getState: () => mockState,
+    setState: (newState: Partial<typeof mockState>) => {
+      Object.assign(mockState, newState);
+      listeners.forEach(listener => listener());
+    },
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    _reset: () => {
+      mockState.history = [];
+      mockState.usageStats = {};
+      listeners.clear();
+    },
+  });
+
+  return store;
+};
+
+const mockStore = createMockStore();
+
+// Mock store
+jest.mock('@/stores', () => ({
+  useToolHistoryStore: mockStore,
+  createToolId: (provider: string, name: string, serverId: string) => `${provider}:${serverId}:${name}`,
+}));
 
 // Import after mock
 import { useToolHistoryStore } from '@/stores';
@@ -284,8 +314,7 @@ describe('ToolHistoryPanel', () => {
       expect(screen.getByText(/Analyze this data/i)).toBeInTheDocument();
     });
 
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should expand item on click', async () => {
+    it('should expand item on click', async () => {
       addMockHistory();
       const user = userEvent.setup();
 
@@ -307,8 +336,7 @@ describe('ToolHistoryPanel', () => {
       });
     });
 
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should show output in expanded view', async () => {
+    it('should show output in expanded view', async () => {
       addMockHistory();
       const user = userEvent.setup();
 
@@ -331,8 +359,7 @@ describe('ToolHistoryPanel', () => {
       });
     });
 
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should show error message in expanded view', async () => {
+    it('should show error message in expanded view', async () => {
       addMockHistory();
       const user = userEvent.setup();
 
@@ -357,8 +384,7 @@ describe('ToolHistoryPanel', () => {
   });
 
   describe('filtering', () => {
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should filter by search query', async () => {
+    it('should filter by search query', async () => {
       addMockHistory();
       const user = userEvent.setup();
 
@@ -377,8 +403,7 @@ describe('ToolHistoryPanel', () => {
       });
     });
 
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should filter by result type', async () => {
+    it('should filter by result type', async () => {
       addMockHistory();
       const user = userEvent.setup();
 
@@ -398,8 +423,7 @@ describe('ToolHistoryPanel', () => {
       });
     });
 
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should clear filters', async () => {
+    it('should clear filters', async () => {
       addMockHistory();
       const user = userEvent.setup();
 
@@ -426,8 +450,7 @@ describe('ToolHistoryPanel', () => {
   });
 
   describe('actions', () => {
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should call onSelectTool when tool is selected', async () => {
+    it('should call onSelectTool when tool is selected', async () => {
       addMockHistory();
       const onSelectTool = jest.fn();
       const user = userEvent.setup();
@@ -455,8 +478,7 @@ describe('ToolHistoryPanel', () => {
       });
     });
 
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should call onInsertPrompt when prompt is inserted', async () => {
+    it('should call onInsertPrompt when prompt is inserted', async () => {
       addMockHistory();
       const onInsertPrompt = jest.fn();
       const user = userEvent.setup();
@@ -484,8 +506,7 @@ describe('ToolHistoryPanel', () => {
       });
     });
 
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should delete a record', async () => {
+    it('should delete a record', async () => {
       addMockHistory();
       const user = userEvent.setup();
 
@@ -516,8 +537,7 @@ describe('ToolHistoryPanel', () => {
       });
     });
 
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should clear all history', async () => {
+    it('should clear all history', async () => {
       addMockHistory();
       const user = userEvent.setup();
 
@@ -572,8 +592,7 @@ describe('ToolHistoryPanel', () => {
       expect(screen.getByText('Frequent')).toBeInTheDocument();
     });
 
-    // TODO: This test requires proper Zustand mock that triggers re-renders
-    it.skip('should click on recent tool to select it', async () => {
+    it('should click on recent tool to select it', async () => {
       addMockHistory();
       const onSelectTool = jest.fn();
       const user = userEvent.setup();

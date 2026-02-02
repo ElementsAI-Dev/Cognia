@@ -35,11 +35,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
-  FileText,
   Download,
   FileCode,
   History,
@@ -57,8 +54,11 @@ import {
   LatexAISidebar,
   LatexAIFab,
   LatexEquationDialog,
+  TemplateDialogContent,
+  TemplateSelector,
   type LaTeXEditorHandle,
 } from '@/components/academic/latex-editor';
+import { LaTeXExportDialog } from '@/components/latex';
 import { useLatexAI } from '@/hooks/latex';
 import { useLatex } from '@/hooks/latex';
 import { useLatexStore } from '@/stores/latex';
@@ -71,7 +71,6 @@ export default function LaTeXPage() {
   const t = useTranslations('latex');
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<LaTeXTab>('editor');
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
   const [equationDialogOpen, setEquationDialogOpen] = useState(false);
@@ -90,8 +89,6 @@ export default function LaTeXPage() {
     templates,
     templateCategories,
     getTemplateById,
-    exportToFormat,
-    isExporting,
   } = useLatex();
 
   const {
@@ -115,22 +112,6 @@ export default function LaTeXPage() {
     saveDocument(content);
   }, [content, saveDocument]);
 
-  const handleExport = useCallback(
-    async (format: 'html' | 'markdown' | 'plaintext') => {
-      const result = await exportToFormat(content, format);
-      if (result) {
-        const blob = new Blob([result], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `document.${format === 'plaintext' ? 'txt' : format === 'markdown' ? 'md' : 'html'}`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-      setExportDialogOpen(false);
-    },
-    [content, exportToFormat]
-  );
 
   const handleTemplateSelect = useCallback(
     (templateId: string) => {
@@ -217,110 +198,24 @@ export default function LaTeXPage() {
                 </DialogDescription>
               </DialogHeader>
               <Separator />
-              <ScrollArea className="h-[500px] pr-4">
-                <div className="space-y-6">
-                  {templateCategories.map(({ category, count }) => (
-                    <div key={category}>
-                      <h3 className="font-medium mb-3 capitalize flex items-center gap-2">
-                        {category}
-                        <Badge variant="secondary" className="text-xs">
-                          {count}
-                        </Badge>
-                      </h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        {templates
-                          .filter((t) => t.category === category)
-                          .map((template) => (
-                            <button
-                              key={template.id}
-                              onClick={() => handleTemplateSelect(template.id)}
-                              className="text-left p-3 rounded-lg border hover:border-primary hover:bg-accent transition-colors"
-                            >
-                              <div className="font-medium text-sm">{template.name}</div>
-                              <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                {template.description}
-                              </div>
-                              {template.tags && (
-                                <div className="flex gap-1 mt-2 flex-wrap">
-                                  {template.tags.slice(0, 3).map((tag) => (
-                                    <Badge key={tag} variant="outline" className="text-xs">
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
+              <TemplateDialogContent
+                templates={templates}
+                templateCategories={templateCategories}
+                onSelect={handleTemplateSelect}
+              />
             </DialogContent>
           </Dialog>
 
           {/* Export Button */}
-          <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-            <DialogTrigger asChild>
+          <LaTeXExportDialog
+            content={content}
+            trigger={
               <Button variant="outline" size="sm" className="gap-2">
                 <Download className="h-4 w-4" />
                 {t('export', { defaultValue: 'Export' })}
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{t('exportDocument', { defaultValue: 'Export Document' })}</DialogTitle>
-                <DialogDescription>
-                  {t('exportDescription', { defaultValue: 'Choose export format' })}
-                </DialogDescription>
-              </DialogHeader>
-              <Separator />
-              <div className="grid gap-3 py-4">
-                <Button
-                  variant="outline"
-                  className="justify-start gap-3 h-auto py-3"
-                  onClick={() => handleExport('html')}
-                  disabled={isExporting}
-                >
-                  <FileText className="h-5 w-5" />
-                  <div className="text-left">
-                    <div className="font-medium">HTML</div>
-                    <div className="text-xs text-muted-foreground">
-                      Export as HTML with MathJax rendering
-                    </div>
-                  </div>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="justify-start gap-3 h-auto py-3"
-                  onClick={() => handleExport('markdown')}
-                  disabled={isExporting}
-                >
-                  <FileCode className="h-5 w-5" />
-                  <div className="text-left">
-                    <div className="font-medium">Markdown</div>
-                    <div className="text-xs text-muted-foreground">
-                      Export as Markdown with LaTeX math blocks
-                    </div>
-                  </div>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="justify-start gap-3 h-auto py-3"
-                  onClick={() => handleExport('plaintext')}
-                  disabled={isExporting}
-                >
-                  <FileText className="h-5 w-5" />
-                  <div className="text-left">
-                    <div className="font-medium">Plain Text</div>
-                    <div className="text-xs text-muted-foreground">
-                      Export as plain text without formatting
-                    </div>
-                  </div>
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+            }
+          />
 
           <Separator orientation="vertical" className="h-6" />
 
@@ -379,43 +274,12 @@ export default function LaTeXPage() {
             <h2 className="text-lg font-semibold mb-4">
               {t('templateLibrary', { defaultValue: 'Template Library' })}
             </h2>
-            <div className="space-y-6">
-              {templateCategories.map(({ category, count }) => (
-                <div key={category}>
-                  <h3 className="font-medium mb-3 capitalize flex items-center gap-2">
-                    {category}
-                    <Badge variant="secondary" className="text-xs">
-                      {count}
-                    </Badge>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {templates
-                      .filter((t) => t.category === category)
-                      .map((template) => (
-                        <button
-                          key={template.id}
-                          onClick={() => handleTemplateSelect(template.id)}
-                          className="text-left p-4 rounded-lg border hover:border-primary hover:bg-accent transition-colors"
-                        >
-                          <div className="font-medium">{template.name}</div>
-                          <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                            {template.description}
-                          </div>
-                          {template.tags && (
-                            <div className="flex gap-1 mt-2 flex-wrap">
-                              {template.tags.slice(0, 3).map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TemplateSelector
+              templates={templates}
+              templateCategories={templateCategories}
+              onSelect={handleTemplateSelect}
+              variant="expanded"
+            />
           </div>
         </TabsContent>
 

@@ -3,6 +3,29 @@
 /**
  * useWorkflowCommand - Hook for handling workflow commands in chat input
  * Supports /workflow, /run, /wf commands to trigger workflows
+ * 
+ * This hook provides command parsing and workflow execution from chat input:
+ * - Detects workflow commands: /workflow, /run, /wf
+ * - Parses workflow name and input from command text
+ * - Provides workflow suggestions based on query
+ * - Integrates with workflowRepository for workflow lookup
+ * 
+ * Integration with ChatInput:
+ * - Can be used alongside ChatInput's onOpenWorkflowPicker for UI-based selection
+ * - Enables text-based workflow triggering for power users
+ * 
+ * @example
+ * ```tsx
+ * const { parseCommand, handleCommand, isWorkflowCommand } = useWorkflowCommand({
+ *   onWorkflowSelect: (workflow, input) => executeWorkflow(workflow, input),
+ *   onShowPicker: () => setShowWorkflowPicker(true),
+ * });
+ * 
+ * // In submit handler:
+ * if (isWorkflowCommand(text)) {
+ *   await handleCommand(text);
+ * }
+ * ```
  */
 
 import { useState, useCallback } from 'react';

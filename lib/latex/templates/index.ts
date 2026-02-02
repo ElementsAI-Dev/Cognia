@@ -5,6 +5,9 @@
 
 import type { LaTeXTemplate, LaTeXTemplateCategory } from '@/types/latex';
 
+// Re-export types for external consumers
+export type { LaTeXTemplate, LaTeXTemplateCategory };
+
 // ============================================================================
 // Article Templates
 // ============================================================================

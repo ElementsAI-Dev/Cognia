@@ -1,6 +1,25 @@
 /**
  * useWorkflowExecution - Custom hook for workflow execution
  * Simplifies workflow execution with automatic state management
+ * 
+ * This hook provides a reactive interface for workflow execution with:
+ * - Automatic state synchronization with useWorkflowEditorStore
+ * - Lifecycle callbacks (onSuccess, onError, onPaused, onResumed, onCancelled)
+ * - Progress and log tracking with callbacks
+ * - Status helpers (canStart, canPause, canResume, canCancel)
+ * - Auto-start capability for immediate execution
+ * 
+ * Also exports:
+ * - useQuickWorkflowExecution: Simplified version with auto-start
+ * - useWorkflowExecutionWithKeyboard: Adds Space/Escape keyboard shortcuts
+ * 
+ * @example
+ * ```tsx
+ * const { start, pause, isExecuting, progress } = useWorkflowExecution({
+ *   onSuccess: (result) => toast.success(`Completed in ${result.duration}ms`),
+ *   onError: (error) => toast.error(error),
+ * });
+ * ```
  */
 
 import { useCallback, useEffect } from 'react';

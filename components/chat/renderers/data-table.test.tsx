@@ -76,6 +76,27 @@ jest.mock('@/components/ui/tooltip', () => ({
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+jest.mock('@/components/ui/table', () => ({
+  Table: ({ children, className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) => (
+    <table className={className} {...props}>{children}</table>
+  ),
+  TableHeader: ({ children, className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <thead className={className} {...props}>{children}</thead>
+  ),
+  TableBody: ({ children, className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <tbody className={className} {...props}>{children}</tbody>
+  ),
+  TableRow: ({ children, className, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => (
+    <tr className={className} {...props}>{children}</tr>
+  ),
+  TableHead: ({ children, className, onClick, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+    <th className={className} onClick={onClick} {...props}>{children}</th>
+  ),
+  TableCell: ({ children, className, colSpan, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
+    <td className={className} colSpan={colSpan} {...props}>{children}</td>
+  ),
+}));
+
 describe('DataTable', () => {
   const defaultHeaders = ['Name', 'Age', 'City'];
   const defaultRows = [

@@ -10,7 +10,7 @@ import { usePluginStore } from '@/stores/plugin';
 import {
   getPluginUpdater,
   type UpdateInfo,
-} from '@/lib/plugin/updater';
+} from '@/lib/plugin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

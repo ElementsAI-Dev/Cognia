@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PresetQuickPrompts } from '@/components/presets/preset-quick-prompts';
 import { PresetQuickSwitcher } from '@/components/presets/preset-quick-switcher';
+import { TokenIndicatorInline } from '@/components/chat/utils/token-budget-indicator';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { Brain, Globe, Radio, Settings2, Presentation, Workflow, Wand2, Swords } from 'lucide-react';
@@ -16,6 +17,8 @@ interface BottomToolbarProps {
   thinkingEnabled: boolean;
   streamingEnabled?: boolean;
   contextUsagePercent: number;
+  usedTokens?: number;
+  maxTokens?: number;
   onModelClick?: () => void;
   onWebSearchChange?: (enabled: boolean) => void;
   onThinkingChange?: (enabled: boolean) => void;
@@ -66,6 +69,8 @@ export function BottomToolbar({
   thinkingEnabled,
   streamingEnabled,
   contextUsagePercent,
+  usedTokens,
+  maxTokens,
   onModelClick,
   onWebSearchChange,
   onThinkingChange,
@@ -306,24 +311,32 @@ export function BottomToolbar({
             className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs h-auto p-0 hover:bg-transparent"
             title={t('contextWindowUsage')}
           >
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <div className="w-10 sm:w-16 h-1 sm:h-1.5 bg-muted rounded-full overflow-hidden">
-                <progress
-                  max={100}
-                  value={boundedPercent}
-                  className={cn(styles.usageProgress, styles[severityClass])}
-                  aria-label={t('contextWindowUsage')}
-                />
+            {usedTokens !== undefined && maxTokens !== undefined ? (
+              <TokenIndicatorInline 
+                usedTokens={usedTokens} 
+                maxTokens={maxTokens} 
+                className="text-[10px] sm:text-xs"
+              />
+            ) : (
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <div className="w-10 sm:w-16 h-1 sm:h-1.5 bg-muted rounded-full overflow-hidden">
+                  <progress
+                    max={100}
+                    value={boundedPercent}
+                    className={cn(styles.usageProgress, styles[severityClass])}
+                    aria-label={t('contextWindowUsage')}
+                  />
+                </div>
+                <span
+                  className={cn(
+                    'tabular-nums',
+                    contextUsagePercent >= 80 && 'text-red-500 font-medium'
+                  )}
+                >
+                  {contextUsagePercent}%
+                </span>
               </div>
-              <span
-                className={cn(
-                  'tabular-nums',
-                  contextUsagePercent >= 80 && 'text-red-500 font-medium'
-                )}
-              >
-                {contextUsagePercent}%
-              </span>
-            </div>
+            )}
           </Button>
         </div>
       )}

@@ -1,6 +1,6 @@
 /**
  * Core chat components
- * Main container, header, and designer panel
+ * Main container, header, designer panel, and column views
  */
 
 export { ChatColumn } from './chat-column';

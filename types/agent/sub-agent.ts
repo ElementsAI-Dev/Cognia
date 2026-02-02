@@ -125,6 +125,16 @@ export interface SubAgentConfig {
   maxResultTokens?: number;
   /** Custom summarization prompt */
   summarizationPrompt?: string;
+  
+  // === External Agent Delegation ===
+  // Support for executing sub-agents on external agents (ACP, A2A, etc.)
+  
+  /** Execute this sub-agent on an external agent */
+  useExternalAgent?: boolean;
+  /** External agent ID to use for execution */
+  externalAgentId?: string;
+  /** Permission mode for external agent execution */
+  externalAgentPermissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
 }
 
 /**

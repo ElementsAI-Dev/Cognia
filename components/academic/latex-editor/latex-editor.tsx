@@ -25,6 +25,7 @@ import { LaTeXPreview } from './latex-preview';
 import { LaTeXToolbar } from './latex-toolbar';
 import { LaTeXAutocomplete } from './latex-autocomplete';
 import { LatexAIContextMenu } from './latex-ai-context-menu';
+import { EditorTextarea } from './editor-textarea';
 import { validate, extractMetadata } from '@/lib/latex/parser';
 import type {
   LaTeXEditorConfig,
@@ -440,7 +441,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
         {mode === 'source' && (
           <div className="h-full">
             {readOnly ? (
-              <textarea
+              <EditorTextarea
                 ref={editorRef}
                 value={content}
                 onChange={handleTextareaChange}
@@ -448,19 +449,8 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                 onSelect={handleCursorChange}
                 onClick={handleCursorChange}
                 onContextMenu={handleCursorChange}
-                className={cn(
-                  'w-full h-full p-4 resize-none focus:outline-none',
-                  'font-mono text-sm bg-muted/30',
-                  config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre overflow-x-auto'
-                )}
-                style={{
-                  fontFamily: config.fontFamily,
-                  fontSize: config.fontSize,
-                  tabSize: config.tabSize,
-                }}
-                spellCheck={config.spellCheck}
+                config={config}
                 readOnly={readOnly}
-                placeholder="Enter LaTeX code here..."
               />
             ) : (
               <LatexAIContextMenu
@@ -468,7 +458,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                 onReplaceSelection={replaceSelection}
               >
                 <div className="h-full">
-                  <textarea
+                  <EditorTextarea
                     ref={editorRef}
                     value={content}
                     onChange={handleTextareaChange}
@@ -476,19 +466,8 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                     onSelect={handleCursorChange}
                     onClick={handleCursorChange}
                     onContextMenu={handleCursorChange}
-                    className={cn(
-                      'w-full h-full p-4 resize-none focus:outline-none',
-                      'font-mono text-sm bg-muted/30',
-                      config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre overflow-x-auto'
-                    )}
-                    style={{
-                      fontFamily: config.fontFamily,
-                      fontSize: config.fontSize,
-                      tabSize: config.tabSize,
-                    }}
-                    spellCheck={config.spellCheck}
+                    config={config}
                     readOnly={readOnly}
-                    placeholder="Enter LaTeX code here..."
                   />
                 </div>
               </LatexAIContextMenu>
@@ -506,7 +485,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
           <ResizablePanelGroup direction="horizontal">
             <ResizablePanel defaultSize={50} minSize={30}>
               {readOnly ? (
-                <textarea
+                <EditorTextarea
                   ref={editorRef}
                   value={content}
                   onChange={handleTextareaChange}
@@ -514,19 +493,8 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                   onSelect={handleCursorChange}
                   onClick={handleCursorChange}
                   onContextMenu={handleCursorChange}
-                  className={cn(
-                    'w-full h-full p-4 resize-none focus:outline-none',
-                    'font-mono text-sm bg-muted/30',
-                    config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre overflow-x-auto'
-                  )}
-                  style={{
-                    fontFamily: config.fontFamily,
-                    fontSize: config.fontSize,
-                    tabSize: config.tabSize,
-                  }}
-                  spellCheck={config.spellCheck}
+                  config={config}
                   readOnly={readOnly}
-                  placeholder="Enter LaTeX code here..."
                 />
               ) : (
                 <LatexAIContextMenu
@@ -534,7 +502,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                   onReplaceSelection={replaceSelection}
                 >
                   <div className="h-full">
-                    <textarea
+                    <EditorTextarea
                       ref={editorRef}
                       value={content}
                       onChange={handleTextareaChange}
@@ -542,19 +510,8 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                       onSelect={handleCursorChange}
                       onClick={handleCursorChange}
                       onContextMenu={handleCursorChange}
-                      className={cn(
-                        'w-full h-full p-4 resize-none focus:outline-none',
-                        'font-mono text-sm bg-muted/30',
-                        config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre overflow-x-auto'
-                      )}
-                      style={{
-                        fontFamily: config.fontFamily,
-                        fontSize: config.fontSize,
-                        tabSize: config.tabSize,
-                      }}
-                      spellCheck={config.spellCheck}
+                      config={config}
                       readOnly={readOnly}
-                      placeholder="Enter LaTeX code here..."
                     />
                   </div>
                 </LatexAIContextMenu>

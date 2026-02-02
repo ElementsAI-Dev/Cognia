@@ -6,6 +6,21 @@
 export * from './symbols';
 export * from './parser';
 
+// Math vocabulary (selective exports to avoid conflicts with symbols)
+export {
+  NUMBERS,
+  OPERATORS,
+  CALCULUS,
+  SET_THEORY,
+  LOGIC,
+  FORMATTING,
+  NATURAL_LANGUAGE_TO_LATEX,
+  CHINESE_MATH_VOCABULARY,
+  getEnglishMathVocabulary,
+  getMathVocabularyByLanguage,
+  getNaturalLanguageToLatex,
+} from './math-vocabulary';
+
 // Feature modules
 export * from './voice-to-latex';
 export * from './citation-inserter';

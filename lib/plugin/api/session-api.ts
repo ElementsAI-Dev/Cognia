@@ -13,7 +13,7 @@ import type {
   SendMessageOptions,
 } from '@/types/plugin/plugin-extended';
 import type { Session, UIMessage } from '@/types';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 import { nanoid } from 'nanoid';
 
 /**

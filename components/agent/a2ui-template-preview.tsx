@@ -140,6 +140,11 @@ export function A2UITemplatePreview({
   }, [components]);
 
   if (!template) {
+    const noTemplateText = t('noA2UITemplate');
+    const noTemplateMessage = noTemplateText === 'noA2UITemplate'
+      ? 'No A2UI template configured for this mode.'
+      : noTemplateText;
+
     return (
       <Card className={className}>
         <CardHeader className="pb-3">
@@ -153,7 +158,7 @@ export function A2UITemplatePreview({
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {t('noA2UITemplate') || 'No A2UI template configured for this mode.'}
+              {noTemplateMessage}
             </AlertDescription>
           </Alert>
         </CardContent>

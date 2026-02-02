@@ -19,6 +19,7 @@ import type {
 } from '@/types/system/compression';
 import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/system/compression';
 import { loggers } from '@/lib/logger';
+import { getPluginEventHooks } from '@/lib/plugin';
 
 const log = loggers.ai;
 import { calculateTokenBreakdown, countTokens } from '@/hooks/chat/use-token-count';
@@ -453,6 +454,21 @@ export function filterMessagesForContext(
 ): UIMessage[] {
   if (!settings.enabled) return messages;
 
+  return filterMessagesForContextSync(messages, settings, maxTokens, provider, model);
+}
+
+/**
+ * Synchronous filter implementation (internal)
+ */
+function filterMessagesForContextSync(
+  messages: UIMessage[],
+  settings: CompressionSettings,
+  maxTokens?: number,
+  provider?: string,
+  model?: string
+): UIMessage[] {
+  if (!settings.enabled) return messages;
+
   // Calculate context state if max tokens provided
   if (maxTokens) {
     const contextState = calculateContextState(messages, maxTokens, provider, model);
@@ -488,6 +504,72 @@ export function filterMessagesForContext(
       return result.filteredMessages;
     }
   }
+}
+
+/**
+ * Async filter messages for context with plugin hook support
+ * This version allows plugins to customize compression behavior
+ */
+export async function filterMessagesForContextAsync(
+  messages: UIMessage[],
+  settings: CompressionSettings,
+  sessionId: string,
+  maxTokens?: number,
+  provider?: string,
+  model?: string
+): Promise<UIMessage[]> {
+  if (!settings.enabled) return messages;
+
+  // Calculate token count for hook context
+  const tokenBreakdown = calculateTokenBreakdown(messages);
+  const compressionRatio = maxTokens ? tokenBreakdown.totalTokens / maxTokens : 0;
+
+  // ========== Pre-Compact Hook: PreCompact ==========
+  // Allow plugins to customize context compression
+  const preCompactResult = await getPluginEventHooks().dispatchPreCompact({
+    sessionId,
+    messageCount: messages.length,
+    tokenCount: tokenBreakdown.totalTokens,
+    compressionRatio,
+  });
+
+  // Skip compaction if hook requests it
+  if (preCompactResult.skipCompaction) {
+    log.info('Compression skipped by plugin hook');
+    return messages;
+  }
+
+  // Apply custom strategy override if provided by hook
+  const effectiveSettings = preCompactResult.customStrategy
+    ? { ...settings, strategy: preCompactResult.customStrategy as CompressionStrategy }
+    : settings;
+  // ========== End Pre-Compact Hook ==========
+
+  // Apply the sync filter
+  const filteredMessages = filterMessagesForContextSync(
+    messages,
+    effectiveSettings,
+    maxTokens,
+    provider,
+    model
+  );
+
+  // Inject plugin-provided context if any
+  if (preCompactResult.contextToInject && filteredMessages.length > 0) {
+    // Find the first user message index to insert context before
+    const firstUserIndex = filteredMessages.findIndex(m => m.role === 'user');
+    if (firstUserIndex > 0) {
+      const contextMessage: UIMessage = {
+        id: `plugin-context-${Date.now()}`,
+        role: 'system',
+        content: `## Context Preserved by Plugin\n${preCompactResult.contextToInject}`,
+        createdAt: new Date(),
+      };
+      filteredMessages.splice(firstUserIndex, 0, contextMessage);
+    }
+  }
+
+  return filteredMessages;
 }
 
 /**

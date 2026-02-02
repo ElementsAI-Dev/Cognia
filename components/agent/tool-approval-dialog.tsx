@@ -20,12 +20,25 @@ import {
 } from '@/components/ui/dialog';
 import { CodeBlock } from '@/components/ai-elements/code-block';
 
+/**
+ * ACP Permission Option
+ * @see https://agentclientprotocol.com/protocol/tool-calls
+ */
+export interface AcpPermissionOption {
+  id: string;
+  label: string;
+  description?: string;
+  isDefault?: boolean;
+}
+
 export interface ToolApprovalRequest {
   id: string;
   toolName: string;
   toolDescription: string;
   args: Record<string, unknown>;
   riskLevel: 'low' | 'medium' | 'high';
+  /** ACP permission options (if provided by external agent) */
+  acpOptions?: AcpPermissionOption[];
 }
 
 interface ToolApprovalDialogProps {
@@ -34,6 +47,8 @@ interface ToolApprovalDialogProps {
   onOpenChange: (open: boolean) => void;
   onApprove: (id: string, alwaysAllow?: boolean) => void;
   onDeny: (id: string) => void;
+  /** Callback for ACP option selection */
+  onSelectOption?: (id: string, optionId: string) => void;
 }
 
 const riskConfig = {
@@ -63,6 +78,7 @@ export function ToolApprovalDialog({
   onOpenChange,
   onApprove,
   onDeny,
+  onSelectOption,
 }: ToolApprovalDialogProps) {
   const t = useTranslations('tools');
   const [alwaysAllow, setAlwaysAllow] = useState(false);
@@ -71,6 +87,7 @@ export function ToolApprovalDialog({
 
   const risk = riskConfig[request.riskLevel];
   const RiskIcon = risk.icon;
+  const hasAcpOptions = request.acpOptions && request.acpOptions.length > 0;
 
   const handleApprove = () => {
     onApprove(request.id, alwaysAllow);
@@ -79,6 +96,13 @@ export function ToolApprovalDialog({
 
   const handleDeny = () => {
     onDeny(request.id);
+    setAlwaysAllow(false);
+  };
+
+  const handleOptionSelect = (optionId: string) => {
+    if (onSelectOption) {
+      onSelectOption(request.id, optionId);
+    }
     setAlwaysAllow(false);
   };
 
@@ -142,15 +166,39 @@ export function ToolApprovalDialog({
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={handleDeny}>
-            <XCircle className="h-4 w-4 mr-2" />
-            {t('deny')}
-          </Button>
-          <Button onClick={handleApprove}>
-            <CheckCircle className="h-4 w-4 mr-2" />
-            {t('approve')}
-          </Button>
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">
+          {hasAcpOptions ? (
+            <>
+              {/* ACP Permission Options */}
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                {request.acpOptions!.map((option) => (
+                  <Button
+                    key={option.id}
+                    variant={option.isDefault ? 'default' : 'outline'}
+                    onClick={() => handleOptionSelect(option.id)}
+                    title={option.description}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+              <Button variant="ghost" onClick={handleDeny} className="sm:ml-auto">
+                <XCircle className="h-4 w-4 mr-2" />
+                {t('cancel')}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handleDeny}>
+                <XCircle className="h-4 w-4 mr-2" />
+                {t('deny')}
+              </Button>
+              <Button onClick={handleApprove}>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                {t('approve')}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

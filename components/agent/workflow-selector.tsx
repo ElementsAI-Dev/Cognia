@@ -30,6 +30,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useWorkflow } from '@/hooks/designer';
 import { useWorkflowStore } from '@/stores/workflow';
+import { useTemplateMarketStore } from '@/stores/workflow/template-market-store';
 import type {
   WorkflowDefinition,
   WorkflowTemplate,
@@ -125,19 +126,34 @@ export function WorkflowSelector({
   });
 
   const { openWorkflowPanel, setSelectedWorkflowType } = useWorkflowStore();
+  
+  // Get templates from template market store
+  const { getFilteredTemplates, initialize, isInitialized } = useTemplateMarketStore();
+
+  // Initialize template store on mount
+  useMemo(() => {
+    if (!isInitialized) {
+      initialize();
+    }
+  }, [isInitialized, initialize]);
 
   const workflows = useMemo(() => getWorkflows(), [getWorkflows]);
 
   const templates = useMemo(() => {
     if (!selectedWorkflow) return [];
-    const registry = getWorkflows();
-    return registry
-      .filter((w) => w.id === selectedWorkflow.id)
-      .flatMap((_w) => {
-        // Get templates from registry - simplified for now
-        return [];
-      });
-  }, [selectedWorkflow, getWorkflows]);
+    
+    // Get templates from template market store filtered by workflow type
+    const allTemplates = getFilteredTemplates();
+    return allTemplates
+      .filter((template) => template.category === selectedWorkflow.type)
+      .map((template) => ({
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        workflowId: selectedWorkflow.id,
+        presetInputs: template.workflow?.inputs || {},
+      })) as WorkflowTemplate[];
+  }, [selectedWorkflow, getFilteredTemplates]);
 
   const handleSelectWorkflow = (workflow: WorkflowDefinition) => {
     setSelectedWorkflow(workflow);

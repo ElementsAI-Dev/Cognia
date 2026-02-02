@@ -9,7 +9,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import type { PluginManager } from '../manager';
+import type { PluginManager } from '../core/manager';
 
 // =============================================================================
 // Types

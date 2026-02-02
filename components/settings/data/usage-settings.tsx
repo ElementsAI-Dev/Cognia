@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/layout/empty-state';
 import { useUsageStore } from '@/stores';
 import { formatTokens, formatCost, type UsageRecord } from '@/types/system/usage';
+import { UsageAnalyticsCard } from '@/components/chat/utils/usage-analytics-card';
 
 export function UsageSettings() {
   const t = useTranslations('usageSettings');
@@ -167,6 +168,14 @@ export function UsageSettings() {
 
   return (
     <div className="space-y-4">
+      {/* Advanced Analytics Card with trends and recommendations */}
+      <UsageAnalyticsCard 
+        period="week" 
+        showRecommendations={true} 
+        showBreakdown={true}
+        className="mb-2"
+      />
+
       {/* Top Row: Summary Cards + Provider Usage side by side */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Summary Cards - Compact */}

@@ -70,6 +70,7 @@ const capabilityIcons: Record<PluginCapability, React.ReactNode> = {
   importers: <Code className="h-3 w-3" />,
   a2ui: <LayoutGrid className="h-3 w-3" />,
   python: <FileCode2 className="h-3 w-3" />,
+  scheduler: <Code className="h-3 w-3" />,
 };
 
 export function PluginCard({

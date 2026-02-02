@@ -11,9 +11,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSettingsStore } from '@/stores/settings';
 import { useAIChat } from '@/lib/ai/generation/use-ai-chat';
 import type { ProviderName } from '@/types/provider';
-import { Sparkles, PanelRightClose, MessageSquare, Lightbulb, History, Send } from 'lucide-react';
+import { Sparkles, PanelRightClose, MessageSquare, Lightbulb, History, Send, Calculator } from 'lucide-react';
+import { LatexEquationAnalysis } from './latex-equation-analysis';
 
-type SidebarTab = 'chat' | 'suggestions' | 'history';
+type SidebarTab = 'chat' | 'suggestions' | 'analysis' | 'history';
 
 type ChatMessage = {
   id: string;
@@ -140,17 +141,21 @@ export function LatexAISidebar({ open, onClose, className }: LatexAISidebarProps
 
       <div className="px-3 py-2 border-b">
         <Tabs value={tab} onValueChange={(v) => setTab(v as SidebarTab)}>
-          <TabsList className="grid w-full grid-cols-3 h-9">
-            <TabsTrigger value="chat" className="gap-2 text-xs">
-              <MessageSquare className="h-4 w-4" />
+          <TabsList className="grid w-full grid-cols-4 h-9">
+            <TabsTrigger value="chat" className="gap-1 text-xs px-2">
+              <MessageSquare className="h-3 w-3" />
               {t('ai.chat.tabs.chat')}
             </TabsTrigger>
-            <TabsTrigger value="suggestions" className="gap-2 text-xs">
-              <Lightbulb className="h-4 w-4" />
+            <TabsTrigger value="analysis" className="gap-1 text-xs px-2">
+              <Calculator className="h-3 w-3" />
+              {t('ai.chat.tabs.analysis', { defaultValue: 'Analyze' })}
+            </TabsTrigger>
+            <TabsTrigger value="suggestions" className="gap-1 text-xs px-2">
+              <Lightbulb className="h-3 w-3" />
               {t('ai.chat.tabs.suggestions')}
             </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2 text-xs">
-              <History className="h-4 w-4" />
+            <TabsTrigger value="history" className="gap-1 text-xs px-2">
+              <History className="h-3 w-3" />
               {t('ai.chat.tabs.history')}
             </TabsTrigger>
           </TabsList>
@@ -181,6 +186,12 @@ export function LatexAISidebar({ open, onClose, className }: LatexAISidebarProps
               )}
             </div>
           </ScrollArea>
+        )}
+
+        {tab === 'analysis' && (
+          <div className="p-3">
+            <LatexEquationAnalysis />
+          </div>
         )}
 
         {tab === 'suggestions' && (

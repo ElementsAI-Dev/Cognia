@@ -27,3 +27,7 @@ export { WorkflowSelector, type WorkflowSelectorProps } from './workflow-selecto
 
 // A2UI components
 export { A2UITemplatePreview } from './a2ui-template-preview';
+
+// External agent components
+export { ExternalAgentSelector } from './external-agent-selector';
+export { ExternalAgentManager } from './external-agent-manager';

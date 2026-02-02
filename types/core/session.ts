@@ -84,6 +84,9 @@ export interface Session {
   // Agent sub-mode (when mode is 'agent')
   agentModeId?: string;
 
+  // External agent ID (when using external agent instead of built-in)
+  externalAgentId?: string;
+
   // Features
   enableTools?: boolean;
   enableResearch?: boolean;

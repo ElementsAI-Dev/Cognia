@@ -3,8 +3,8 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { getPluginIPC, type IPCMessage, type PluginIPCAPI } from '@/lib/plugin/ipc';
-import { getMessageBus, type BusEvent, type EventFilter } from '@/lib/plugin/message-bus';
+import { getPluginIPC, type IPCMessage, type PluginIPCAPI } from '@/lib/plugin';
+import { getMessageBus, type BusEvent, type EventFilter } from '@/lib/plugin';
 
 // =============================================================================
 // usePluginIPC

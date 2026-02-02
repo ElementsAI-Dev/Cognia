@@ -12,7 +12,7 @@ import {
   type VectorDocument as LibVectorDocument,
 } from '@/lib/vector';
 import { generateEmbedding, generateEmbeddings } from '@/lib/vector/embedding';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 import type {
   PluginVectorAPI,
   VectorDocument,

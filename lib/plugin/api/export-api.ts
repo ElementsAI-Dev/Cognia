@@ -15,7 +15,7 @@ import {
   exportToAnimatedHTML,
   generateFilename as generateExportFilename,
 } from '@/lib/export';
-import { createPluginSystemLogger, loggers } from '../logger';
+import { createPluginSystemLogger, loggers } from '../core/logger';
 import type {
   PluginExportAPI,
   ExportFormat,

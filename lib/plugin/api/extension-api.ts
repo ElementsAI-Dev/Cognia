@@ -13,7 +13,7 @@ import type {
 } from '@/types/plugin/plugin-extended';
 import { nanoid } from 'nanoid';
 import React from 'react';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 
 // Global extension registry
 const extensions = new Map<ExtensionPoint, ExtensionRegistration[]>();

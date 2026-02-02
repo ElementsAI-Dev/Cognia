@@ -63,6 +63,7 @@ const CAPABILITY_INFO: Record<PluginCapability, { icon: React.ElementType; label
   importers: { icon: Code2, label: 'Importers', color: 'bg-lime-500' },
   a2ui: { icon: LayoutGrid, label: 'A2UI', color: 'bg-violet-500' },
   python: { icon: FileCode2, label: 'Python', color: 'bg-yellow-500' },
+  scheduler: { icon: Code2, label: 'Scheduler', color: 'bg-sky-500' },
 };
 
 const STATUS_INFO: Record<string, { label: string; color: string }> = {

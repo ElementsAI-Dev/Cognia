@@ -8,6 +8,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorkflowEditorPanel } from '@/components/workflow/editor';
+import { TemplateBrowser } from '@/components/workflow/marketplace/template-browser';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { EmptyState } from '@/components/layout/empty-state';
@@ -49,6 +56,7 @@ import {
   LayoutTemplate,
   Clock,
   Workflow,
+  Store,
 } from 'lucide-react';
 
 type ViewMode = 'list' | 'editor';
@@ -65,6 +73,7 @@ export default function WorkflowsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<string | null>(null);
+  const [templateBrowserOpen, setTemplateBrowserOpen] = useState(false);
 
   const {
     loadWorkflow,
@@ -249,6 +258,11 @@ export default function WorkflowsPage() {
           <h1 className="text-xl font-semibold">{t('workflows') || 'Workflows'}</h1>
         </div>
         <div className="flex items-center gap-2">
+          {/* Browse Templates button */}
+          <Button variant="outline" size="sm" onClick={() => setTemplateBrowserOpen(true)} className="h-9">
+            <Store className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">{t('browseTemplates') || 'Templates'}</span>
+          </Button>
           {/* Import button - icon only on mobile */}
           <Button variant="outline" size="sm" onClick={handleImport} className="h-9">
             <Upload className="h-4 w-4 sm:mr-1" />
@@ -410,6 +424,18 @@ export default function WorkflowsPage() {
           )}
         </div>
       </ScrollArea>
+
+      {/* Template Browser dialog */}
+      <Dialog open={templateBrowserOpen} onOpenChange={setTemplateBrowserOpen}>
+        <DialogContent className="max-w-5xl h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>{t('browseTemplates') || 'Browse Templates'}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            <TemplateBrowser />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

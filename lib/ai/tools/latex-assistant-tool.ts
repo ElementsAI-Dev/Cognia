@@ -4,11 +4,25 @@
  */
 
 import { z } from 'zod';
+import { getNaturalLanguageToLatex } from '@/lib/latex/math-vocabulary';
 import type {
   LaTeXAIAction,
   LaTeXAIResult,
   LaTeXAIOptions,
 } from '@/types/latex';
+
+// AI Provider integration type
+export interface AIProviderConfig {
+  provider: string;
+  model: string;
+  apiKey?: string;
+}
+
+// Callback for AI processing
+export type AIProcessCallback = (
+  prompt: string,
+  systemPrompt: string
+) => Promise<string>;
 
 // ============================================================================
 // Schema Definitions
@@ -48,7 +62,7 @@ export type LaTeXAssistantInput = z.infer<typeof latexAssistantInputSchema>;
 // Prompt Templates
 // ============================================================================
 
-const _SYSTEM_PROMPT = `You are an expert LaTeX assistant. You help users with LaTeX code generation, correction, explanation, and optimization.
+const SYSTEM_PROMPT = `You are an expert LaTeX assistant. You help users with LaTeX code generation, correction, explanation, and optimization.
 
 Guidelines:
 1. Generate clean, well-formatted LaTeX code
@@ -168,81 +182,6 @@ LaTeX code:
 Optimized code:`,
 };
 
-// ============================================================================
-// Common LaTeX Patterns
-// ============================================================================
-
-const NATURAL_LANGUAGE_TO_LATEX: Record<string, string> = {
-  // Basic math operations
-  'square root': '\\sqrt{#}',
-  'cube root': '\\sqrt[3]{#}',
-  'nth root': '\\sqrt[n]{#}',
-  'fraction': '\\frac{#}{#}',
-  'sum': '\\sum_{#}^{#}',
-  'product': '\\prod_{#}^{#}',
-  'integral': '\\int_{#}^{#}',
-  'double integral': '\\iint_{#}',
-  'triple integral': '\\iiint_{#}',
-  'limit': '\\lim_{# \\to #}',
-  'derivative': '\\frac{d#}{d#}',
-  'partial derivative': '\\frac{\\partial #}{\\partial #}',
-  'infinity': '\\infty',
-
-  // Greek letters
-  'alpha': '\\alpha',
-  'beta': '\\beta',
-  'gamma': '\\gamma',
-  'delta': '\\delta',
-  'epsilon': '\\epsilon',
-  'theta': '\\theta',
-  'lambda': '\\lambda',
-  'mu': '\\mu',
-  'pi': '\\pi',
-  'sigma': '\\sigma',
-  'phi': '\\phi',
-  'omega': '\\omega',
-
-  // Relations
-  'less than or equal': '\\leq',
-  'greater than or equal': '\\geq',
-  'not equal': '\\neq',
-  'approximately equal': '\\approx',
-  'equivalent': '\\equiv',
-  'proportional to': '\\propto',
-
-  // Set operations
-  'element of': '\\in',
-  'not element of': '\\notin',
-  'subset': '\\subset',
-  'superset': '\\supset',
-  'union': '\\cup',
-  'intersection': '\\cap',
-  'empty set': '\\emptyset',
-
-  // Logic
-  'for all': '\\forall',
-  'there exists': '\\exists',
-  'implies': '\\implies',
-  'if and only if': '\\iff',
-  'therefore': '\\therefore',
-
-  // Arrows
-  'right arrow': '\\rightarrow',
-  'left arrow': '\\leftarrow',
-  'double right arrow': '\\Rightarrow',
-  'double left arrow': '\\Leftarrow',
-  'maps to': '\\mapsto',
-
-  // Formatting
-  'bold': '\\textbf{#}',
-  'italic': '\\textit{#}',
-  'underline': '\\underline{#}',
-  'hat': '\\hat{#}',
-  'bar': '\\bar{#}',
-  'vector': '\\vec{#}',
-  'dot': '\\dot{#}',
-  'tilde': '\\tilde{#}',
-};
 
 // ============================================================================
 // Helper Functions
@@ -269,19 +208,21 @@ function buildPrompt(
 
 /**
  * Quick pattern-based conversion for simple expressions
+ * Uses the unified math vocabulary from math-vocabulary.ts
  */
 function quickConvert(input: string): string | null {
   const lowerInput = input.toLowerCase().trim();
+  const vocabulary = getNaturalLanguageToLatex();
 
   // Check for direct pattern matches
-  for (const [pattern, latex] of Object.entries(NATURAL_LANGUAGE_TO_LATEX)) {
+  for (const [pattern, latex] of Object.entries(vocabulary)) {
     if (lowerInput === pattern) {
       return latex;
     }
   }
 
   // Check for pattern matches with placeholders
-  for (const [pattern, latex] of Object.entries(NATURAL_LANGUAGE_TO_LATEX)) {
+  for (const [pattern, latex] of Object.entries(vocabulary)) {
     if (lowerInput.startsWith(pattern + ' of ')) {
       const value = lowerInput.slice(pattern.length + 4);
       return latex.replace('#', value);
@@ -521,12 +462,24 @@ export async function executeLatexAssistant(
   }
 }
 
+// Store the AI callback for external integration
+let _aiProcessCallback: AIProcessCallback | null = null;
+
 /**
- * Process with AI model (placeholder for actual AI integration)
+ * Set the AI process callback for external integration
+ * This allows the tool to use actual AI providers
+ */
+export function setAIProcessCallback(callback: AIProcessCallback): void {
+  _aiProcessCallback = callback;
+}
+
+/**
+ * Process with AI model
+ * Uses the registered callback if available, otherwise falls back to local processing
  */
 async function processWithAI(
   action: LaTeXAIAction,
-  _prompt: string,
+  prompt: string,
   input: string,
   options?: LaTeXAIOptions
 ): Promise<{
@@ -537,11 +490,39 @@ async function processWithAI(
   suggestions?: string[];
   confidence: number;
 }> {
-  // This is a placeholder implementation
-  // In production, this would call an AI model like GPT-4 or Claude
+  // If AI callback is registered, use it for complex actions
+  if (_aiProcessCallback && ['generate', 'explain', 'simplify', 'translate', 'complete'].includes(action)) {
+    try {
+      const systemPrompt = SYSTEM_PROMPT;
+      const aiResult = await _aiProcessCallback(prompt, systemPrompt);
+      
+      return {
+        output: aiResult,
+        explanation: options?.includeExplanation
+          ? `AI-generated ${action} result.`
+          : undefined,
+        confidence: 0.9,
+      };
+    } catch (error) {
+      console.warn('AI processing failed, falling back to local:', error);
+      // Fall through to local processing
+    }
+  }
 
+  // Local processing fallback
   switch (action) {
-    case 'generate':
+    case 'generate': {
+      // First try quick convert using vocabulary
+      const quickResult = quickConvert(input);
+      if (quickResult) {
+        return {
+          output: quickResult,
+          explanation: options?.includeExplanation
+            ? 'Generated using pattern matching.'
+            : undefined,
+          confidence: 0.85,
+        };
+      }
       return {
         output: generateLatexFromDescription(input),
         explanation: options?.includeExplanation
@@ -549,6 +530,7 @@ async function processWithAI(
           : undefined,
         confidence: 0.8,
       };
+    }
 
     case 'explain':
       return {
@@ -558,12 +540,12 @@ async function processWithAI(
 
     case 'simplify':
       return {
-        output: input, // Would simplify with AI
-        explanation: 'Expression analysis completed.',
+        output: input,
+        explanation: 'Expression analysis completed. For complex simplification, configure an AI provider.',
         confidence: 0.75,
       };
 
-    case 'correct':
+    case 'correct': {
       const corrected = correctLatex(input);
       return {
         output: corrected.output,
@@ -571,6 +553,7 @@ async function processWithAI(
         suggestions: corrected.suggestions,
         confidence: 0.85,
       };
+    }
 
     case 'format':
       return {
@@ -578,17 +561,22 @@ async function processWithAI(
         confidence: 0.95,
       };
 
-    case 'verify':
+    case 'verify': {
+      const validation = validateLatex(input);
       return {
         output: input,
-        explanation: 'Mathematical verification requires advanced AI processing.',
-        confidence: 0.7,
+        explanation: validation.valid
+          ? 'LaTeX syntax is valid.'
+          : `Issues found: ${validation.errors.join('; ')}`,
+        warnings: validation.errors,
+        confidence: validation.valid ? 0.9 : 0.6,
       };
+    }
 
     default:
       return {
         output: input,
-        explanation: `Action "${action}" processed.`,
+        explanation: `Action "${action}" processed locally.`,
         confidence: 0.7,
       };
   }

@@ -42,10 +42,6 @@ export { useArtifactStore } from './artifact';
 // Chat stores
 export {
   useChatStore,
-  selectMessages,
-  selectIsLoading,
-  selectIsStreaming,
-  selectError,
   useSessionStore,
   selectSessions,
   selectActiveSessionId,
@@ -397,3 +393,20 @@ export {
   selectPausedTasks,
   selectUpcomingTasks,
 } from './scheduler';
+
+// External Agent stores (merged into agent/external-agent-store)
+export {
+  useExternalAgentStore,
+  selectAgents as selectExternalAgents,
+  selectRunningAgents,
+  selectActiveRunningAgents,
+  selectTerminals,
+  selectRunningTerminals,
+  selectSessionTerminals,
+  selectIsLoading as selectExternalAgentIsLoading,
+  selectLastError as selectExternalAgentLastError,
+  type RunningAgentInstance,
+  type TerminalInstance,
+  type ExternalAgentState,
+  type ExternalAgentStore,
+} from './agent/external-agent-store';

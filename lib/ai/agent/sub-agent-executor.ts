@@ -26,6 +26,7 @@ import {
   type CancellationToken,
   type SubAgentTokenUsage,
 } from '@/types/agent/sub-agent';
+import type { ExternalAgentExecutionOptions } from '@/types/agent/external-agent';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.agent;
@@ -335,6 +336,153 @@ export async function summarizeSubAgentResult(
 }
 
 /**
+ * Execute a sub-agent on an external agent
+ */
+async function executeSubAgentOnExternal(
+  subAgent: SubAgent,
+  executorConfig: SubAgentExecutorConfig,
+  options: SubAgentExecutionOptions = {}
+): Promise<SubAgentResult> {
+  const startTime = Date.now();
+  
+  if (!subAgent.config.externalAgentId) {
+    throw new Error('External agent ID not configured');
+  }
+
+  addLog(subAgent, 'info', `Delegating to external agent: ${subAgent.config.externalAgentId}`);
+
+  try {
+    // Dynamic import to avoid circular dependencies
+    const { getExternalAgentManager } = await import('./external/manager');
+    const manager = getExternalAgentManager();
+
+    // Check if agent is connected
+    const agent = manager.getAgent(subAgent.config.externalAgentId);
+    if (!agent) {
+      throw new Error(`External agent not found: ${subAgent.config.externalAgentId}`);
+    }
+
+    if (agent.connectionStatus !== 'connected') {
+      await manager.connect(subAgent.config.externalAgentId);
+    }
+
+    // Build context for external agent
+    const context: SubAgentContext = {
+      parentAgentId: subAgent.parentAgentId,
+      sessionId: executorConfig.parentContext?.sessionId as string || '',
+      parentContext: executorConfig.parentContext,
+      siblingResults: executorConfig.siblingResults,
+      startTime: new Date(),
+      currentStep: 0,
+    };
+    subAgent.context = context;
+
+    // Build execution options
+    const execOptions: ExternalAgentExecutionOptions = {
+      systemPrompt: buildSubAgentSystemPrompt(subAgent, context),
+      permissionMode: subAgent.config.externalAgentPermissionMode || 'default',
+      timeout: subAgent.config.timeout,
+      onProgress: (progress, message) => {
+        subAgent.progress = progress;
+        addLog(subAgent, 'debug', message || `Progress: ${progress}%`);
+        options.onProgress?.(subAgent, progress);
+      },
+    };
+
+    // Execute on external agent
+    const result = await manager.execute(
+      subAgent.config.externalAgentId,
+      subAgent.task,
+      execOptions
+    );
+
+    // Convert to SubAgentResult
+    const subAgentResult: SubAgentResult = {
+      success: result.success,
+      finalResponse: result.finalResponse,
+      steps: result.steps.map((step, idx) => ({
+        stepNumber: idx + 1,
+        response: step.content?.find(c => c.type === 'text')?.text || '',
+        toolCalls: step.toolCall ? [{
+          id: step.toolCall.id,
+          name: step.toolCall.name,
+          args: step.toolCall.input,
+          status: 'completed' as const,
+        }] : [],
+        timestamp: step.startedAt || new Date(),
+        duration: step.duration,
+      })),
+      totalSteps: result.steps.length,
+      duration: Date.now() - startTime,
+      output: result.output,
+      tokenUsage: result.tokenUsage ? {
+        promptTokens: result.tokenUsage.promptTokens,
+        completionTokens: result.tokenUsage.completionTokens,
+        totalTokens: result.tokenUsage.totalTokens,
+      } : undefined,
+      error: result.error,
+    };
+
+    // Apply context isolation if configured
+    if (subAgentResult.success && subAgent.config.summarizeResults) {
+      try {
+        const summarizedResponse = await summarizeSubAgentResult(
+          subAgentResult,
+          subAgent.config,
+          executorConfig
+        );
+        subAgentResult.finalResponse = summarizedResponse;
+        addLog(subAgent, 'debug', 'Result summarized for context isolation');
+      } catch (summarizeError) {
+        addLog(subAgent, 'warn', `Result summarization failed: ${summarizeError}`);
+      }
+    }
+
+    // Update sub-agent state
+    subAgent.result = subAgentResult;
+    subAgent.status = subAgentResult.success ? 'completed' : 'failed';
+    subAgent.completedAt = new Date();
+    subAgent.progress = 100;
+    subAgent.error = subAgentResult.error;
+
+    addLog(subAgent, subAgentResult.success ? 'info' : 'error',
+      subAgentResult.success 
+        ? 'External sub-agent completed successfully' 
+        : `External sub-agent failed: ${subAgentResult.error}`);
+
+    if (subAgentResult.success) {
+      options.onComplete?.(subAgent, subAgentResult);
+    } else {
+      options.onError?.(subAgent, subAgentResult.error || 'Unknown error');
+    }
+
+    return subAgentResult;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    addLog(subAgent, 'error', `External agent execution failed: ${errorMessage}`);
+    
+    const failedResult: SubAgentResult = {
+      success: false,
+      finalResponse: '',
+      steps: [],
+      totalSteps: 0,
+      duration: Date.now() - startTime,
+      error: `External agent execution failed: ${errorMessage}`,
+    };
+
+    subAgent.result = failedResult;
+    subAgent.status = 'failed';
+    subAgent.completedAt = new Date();
+    subAgent.progress = 100;
+    subAgent.error = failedResult.error;
+
+    options.onError?.(subAgent, failedResult.error || 'Unknown error');
+    return failedResult;
+  }
+}
+
+/**
  * Execute a single sub-agent
  */
 export async function executeSubAgent(
@@ -353,6 +501,15 @@ export async function executeSubAgent(
   // Check cancellation before starting
   if (executorConfig.cancellationToken?.isCancelled) {
     return createCancelledResult(subAgent, startTime);
+  }
+
+  // Check if this sub-agent should use an external agent
+  if (subAgent.config.useExternalAgent && subAgent.config.externalAgentId) {
+    log.info('Delegating sub-agent to external agent', {
+      subAgentId: subAgent.id,
+      externalAgentId: subAgent.config.externalAgentId,
+    });
+    return executeSubAgentOnExternal(subAgent, executorConfig, options);
   }
   
   // Update status

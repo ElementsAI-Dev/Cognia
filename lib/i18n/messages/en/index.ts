@@ -43,6 +43,7 @@ import syncSettings from './syncSettings.json';
 import scheduler from './scheduler.json';
 import logging from './logging.json';
 import importMessages from './import.json';
+import externalAgent from './externalAgent.json';
 
 const messages = {
   ...common,
@@ -88,6 +89,7 @@ const messages = {
   scheduler,
   ...logging,
   import: importMessages,
+  externalAgent,
 };
 
 export default messages;

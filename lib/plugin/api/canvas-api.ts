@@ -12,7 +12,7 @@ import type {
   CanvasSelection,
 } from '@/types/plugin/plugin-extended';
 import type { CanvasDocumentVersion } from '@/types/artifact';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 
 /**
  * Create the Canvas API for a plugin

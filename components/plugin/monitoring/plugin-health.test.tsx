@@ -6,13 +6,13 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PluginHealth } from './plugin-health';
 import { usePluginStore } from '@/stores/plugin';
-import { pluginHealthMonitor, pluginAnalyticsStore } from '@/lib/plugin/analytics';
+import { pluginHealthMonitor, pluginAnalyticsStore } from '@/lib/plugin';
 
 jest.mock('@/stores/plugin', () => ({
   usePluginStore: jest.fn(),
 }));
 
-jest.mock('@/lib/plugin/analytics', () => ({
+jest.mock('@/lib/plugin', () => ({
   pluginHealthMonitor: {
     checkAllHealth: jest.fn(),
   },

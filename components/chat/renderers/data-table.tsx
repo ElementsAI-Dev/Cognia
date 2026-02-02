@@ -33,6 +33,14 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   InputGroup as _InputGroup,
   InputGroupAddon as _InputGroupAddon,
   InputGroupInput as _InputGroupInput,
@@ -219,16 +227,16 @@ export const DataTable = memo(function DataTable({
 
   // Table content renderer
   const renderTable = (inFullscreen = false) => (
-    <div className={cn('overflow-x-auto', inFullscreen && 'max-h-[70vh]')}>
-      <table className="min-w-full border-collapse">
-        <thead className="sticky top-0 bg-muted/95 backdrop-blur-sm">
-          <tr>
+    <div className={cn(inFullscreen && 'max-h-[70vh] overflow-auto')}>
+      <Table className="min-w-full">
+        <TableHeader className="sticky top-0 bg-muted/95 backdrop-blur-sm">
+          <TableRow className="border-b">
             {headers.map((header, index) => (
-              <th
+              <TableHead
                 key={index}
                 onClick={() => handleSort(index)}
                 className={cn(
-                  'border border-border px-4 py-2 text-left font-semibold text-sm',
+                  'border-x border-border font-semibold',
                   sortable && 'cursor-pointer hover:bg-accent transition-colors select-none'
                 )}
               >
@@ -236,39 +244,36 @@ export const DataTable = memo(function DataTable({
                   <span>{header}</span>
                   {renderSortIcon(index)}
                 </div>
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {paginatedRows.length === 0 ? (
-            <tr>
-              <td
+            <TableRow>
+              <TableCell
                 colSpan={headers.length}
-                className="border border-border px-4 py-8 text-center text-muted-foreground"
+                className="border-x border-border px-4 py-8 text-center text-muted-foreground"
               >
                 {searchQuery ? t('noResults') : t('noData')}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ) : (
             paginatedRows.map((row, rowIndex) => (
-              <tr
-                key={rowIndex}
-                className="hover:bg-muted/50 transition-colors"
-              >
+              <TableRow key={rowIndex}>
                 {row.map((cell, cellIndex) => (
-                  <td
+                  <TableCell
                     key={cellIndex}
-                    className="border border-border px-4 py-2 text-sm"
+                    className="border-x border-border"
                   >
                     {formatCellValue(cell)}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 

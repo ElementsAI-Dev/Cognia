@@ -27,6 +27,11 @@ import type {
   SubAgentOrchestrationResult,
   SubAgentExecutionMode,
 } from '@/types/agent/sub-agent';
+import type {
+  ExternalAgentDelegationRule,
+  ExternalAgentDelegationResult,
+  ExternalAgentExecutionOptions,
+} from '@/types/agent/external-agent';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.agent;
@@ -70,6 +75,20 @@ export interface OrchestratorConfig {
   estimatedTokensPerSubAgent?: number;
   /** Whether to log token usage warnings */
   enableTokenWarnings?: boolean;
+  
+  // === External Agent Delegation ===
+  // Support for delegating tasks to external agents (ACP, A2A, etc.)
+  
+  /** Enable external agent delegation */
+  enableExternalAgents?: boolean;
+  /** Preferred external agent ID (always delegate to this agent if available) */
+  preferredExternalAgentId?: string;
+  /** Use external agent as fallback when local execution fails */
+  externalAgentFallback?: boolean;
+  /** Delegation rules for routing tasks to external agents */
+  delegationRules?: ExternalAgentDelegationRule[];
+  /** Callback when delegating to external agent */
+  onExternalAgentDelegation?: (agentId: string, task: string) => void;
 }
 
 /**
@@ -648,6 +667,35 @@ export class AgentOrchestrator {
     options.onStart?.();
 
     try {
+      // External Agent Delegation: Check if task should be delegated
+      if (this.config.enableExternalAgents) {
+        const delegationResult = this.checkExternalAgentDelegation(task);
+        
+        if (delegationResult.shouldDelegate && delegationResult.targetAgentId) {
+          log.info('Delegating to external agent', {
+            agentId: delegationResult.targetAgentId,
+            reason: delegationResult.reason,
+          });
+          
+          try {
+            return await this.executeOnExternalAgent(
+              delegationResult.targetAgentId,
+              task,
+              options
+            );
+          } catch (error) {
+            // Check if this is a fallback signal
+            const errorMsg = error instanceof Error ? error.message : '';
+            if (errorMsg.startsWith('EXTERNAL_AGENT_FALLBACK:')) {
+              log.info('Falling back to local execution after external agent failure');
+              // Continue with local execution below
+            } else {
+              throw error;
+            }
+          }
+        }
+      }
+
       // Smart Routing: Decide if multi-agent is beneficial (Claude Best Practice)
       let useMultiAgent = this.config.enableAutoPlanning ?? true;
       let routingResult: SmartRoutingResult | undefined;
@@ -919,6 +967,221 @@ export class AgentOrchestrator {
    */
   getIsRunning(): boolean {
     return this.isRunning;
+  }
+
+  // ============================================================================
+  // External Agent Delegation
+  // ============================================================================
+
+  /**
+   * Check if a task should be delegated to an external agent
+   */
+  checkExternalAgentDelegation(task: string): ExternalAgentDelegationResult {
+    // If external agents are not enabled, return false
+    if (!this.config.enableExternalAgents) {
+      return { shouldDelegate: false, reason: 'External agents not enabled' };
+    }
+
+    // If a preferred external agent is set, always delegate to it
+    if (this.config.preferredExternalAgentId) {
+      return {
+        shouldDelegate: true,
+        targetAgentId: this.config.preferredExternalAgentId,
+        reason: 'Preferred external agent configured',
+      };
+    }
+
+    // Check delegation rules
+    const rules = this.config.delegationRules || [];
+    for (const rule of rules.sort((a, b) => b.priority - a.priority)) {
+      if (!rule.enabled) continue;
+
+      let matched = false;
+
+      switch (rule.condition) {
+        case 'always':
+          matched = true;
+          break;
+
+        case 'keyword':
+          matched = new RegExp(rule.matcher, 'i').test(task);
+          break;
+
+        case 'task-type':
+          matched = this.matchTaskTypeForDelegation(task, rule.matcher);
+          break;
+
+        case 'capability':
+          // Capability matching requires checking external agent manager
+          // For now, just check if the rule matcher is in the task
+          matched = task.toLowerCase().includes(rule.matcher.toLowerCase());
+          break;
+
+        case 'tool-needed':
+          // Check if task mentions tools that might be on external agent
+          matched = new RegExp(rule.matcher, 'i').test(task);
+          break;
+
+        case 'custom':
+          matched = new RegExp(rule.matcher, 'i').test(task);
+          break;
+      }
+
+      if (matched) {
+        return {
+          shouldDelegate: true,
+          targetAgentId: rule.targetAgentId,
+          matchedRule: rule,
+          reason: `Matched delegation rule: ${rule.name}`,
+        };
+      }
+    }
+
+    return { shouldDelegate: false, reason: 'No matching delegation rule' };
+  }
+
+  /**
+   * Match task type for delegation
+   */
+  private matchTaskTypeForDelegation(task: string, taskType: string): boolean {
+    const taskTypePatterns: Record<string, RegExp> = {
+      coding: /\b(code|implement|fix|debug|refactor|write.*function|create.*class|build|program)\b/i,
+      analysis: /\b(analyze|review|audit|check|examine|investigate|assess)\b/i,
+      documentation: /\b(document|write.*readme|add.*comments|explain|describe)\b/i,
+      testing: /\b(test|unit test|e2e|coverage|mock|verify)\b/i,
+      deployment: /\b(deploy|release|build|publish|ci|cd|pipeline)\b/i,
+      research: /\b(research|find|search|lookup|discover|explore)\b/i,
+      design: /\b(design|architect|plan|structure|model)\b/i,
+    };
+
+    const pattern = taskTypePatterns[taskType.toLowerCase()];
+    return pattern ? pattern.test(task) : false;
+  }
+
+  /**
+   * Execute task on external agent
+   * This is called when delegation check passes
+   */
+  async executeOnExternalAgent(
+    agentId: string,
+    task: string,
+    options: OrchestratorExecutionOptions = {}
+  ): Promise<OrchestratorResult> {
+    const startTime = Date.now();
+
+    // Notify about delegation
+    this.config.onExternalAgentDelegation?.(agentId, task);
+
+    try {
+      // Dynamic import to avoid circular dependencies
+      const { getExternalAgentManager } = await import('./external/manager');
+      const manager = getExternalAgentManager();
+
+      // Check if agent is connected
+      const agent = manager.getAgent(agentId);
+      if (!agent) {
+        throw new Error(`External agent not found: ${agentId}`);
+      }
+
+      if (agent.connectionStatus !== 'connected') {
+        // Try to connect
+        await manager.connect(agentId);
+      }
+
+      // Build execution options
+      const execOptions: ExternalAgentExecutionOptions = {
+        systemPrompt: this.config.systemPrompt,
+        timeout: this.config.maxSteps ? this.config.maxSteps * 30000 : 300000,
+        onProgress: (progress, message) => {
+          options.onProgress?.({
+            phase: 'executing',
+            totalSubAgents: 1,
+            completedSubAgents: 0,
+            runningSubAgents: 1,
+            failedSubAgents: 0,
+            progress,
+            currentActivity: message || `Executing on external agent: ${agent.config.name}`,
+          });
+        },
+      };
+
+      // Execute on external agent
+      const result = await manager.execute(agentId, task, execOptions);
+
+      // Convert to OrchestratorResult
+      const externalSubAgentResult: SubAgentResult = {
+        success: result.success,
+        finalResponse: result.finalResponse,
+        output: result.output,
+        duration: result.duration,
+        steps: result.steps.map((step, idx) => ({
+          stepNumber: idx + 1,
+          response: step.content?.find(c => c.type === 'text')?.text || '',
+          toolCalls: step.toolCall ? [{
+            id: step.toolCall.id,
+            name: step.toolCall.name,
+            args: step.toolCall.input,
+            status: 'completed' as const,
+          }] : [],
+          timestamp: step.startedAt || new Date(),
+          duration: step.duration,
+        })),
+        totalSteps: result.steps.length,
+        tokenUsage: result.tokenUsage ? {
+          promptTokens: result.tokenUsage.promptTokens,
+          completionTokens: result.tokenUsage.completionTokens,
+          totalTokens: result.tokenUsage.totalTokens,
+        } : undefined,
+        error: result.error,
+      };
+
+      const orchestratorResult: OrchestratorResult = {
+        success: result.success,
+        finalResponse: result.finalResponse,
+        subAgentResults: {
+          success: result.success,
+          results: {
+            external: externalSubAgentResult,
+          },
+          totalDuration: result.duration,
+          totalTokenUsage: result.tokenUsage ? {
+            promptTokens: result.tokenUsage.promptTokens,
+            completionTokens: result.tokenUsage.completionTokens,
+            totalTokens: result.tokenUsage.totalTokens,
+          } : undefined,
+        },
+        totalDuration: Date.now() - startTime,
+        tokenUsage: result.tokenUsage,
+        error: result.error,
+      };
+
+      options.onComplete?.(orchestratorResult);
+      return orchestratorResult;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // If fallback is enabled, return null to indicate local execution should be tried
+      if (this.config.externalAgentFallback) {
+        log.warn('External agent execution failed, falling back to local', { error: errorMessage });
+        throw new Error(`EXTERNAL_AGENT_FALLBACK:${errorMessage}`);
+      }
+
+      const failedResult: OrchestratorResult = {
+        success: false,
+        finalResponse: '',
+        subAgentResults: {
+          success: false,
+          results: {},
+          totalDuration: Date.now() - startTime,
+          errors: { external: errorMessage },
+        },
+        totalDuration: Date.now() - startTime,
+        error: `External agent execution failed: ${errorMessage}`,
+      };
+
+      options.onError?.(errorMessage);
+      return failedResult;
+    }
   }
 }
 

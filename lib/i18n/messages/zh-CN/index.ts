@@ -41,6 +41,7 @@ import arena from './arena.json';
 import syncSettings from './syncSettings.json';
 import logging from './logging.json';
 import importMessages from './import.json';
+import externalAgent from './externalAgent.json';
 
 const messages = {
   ...common,
@@ -83,6 +84,7 @@ const messages = {
   syncSettings,
   ...logging,
   import: importMessages,
+  externalAgent,
 };
 
 export default messages;

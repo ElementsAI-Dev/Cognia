@@ -10,7 +10,7 @@ import type {
   Notification,
 } from '@/types/plugin/plugin-extended';
 import { nanoid } from 'nanoid';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 
 // Global notification registry
 const notifications = new Map<string, Notification>();

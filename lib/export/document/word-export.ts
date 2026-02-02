@@ -5,7 +5,7 @@
 
 import type { UIMessage, Session } from '@/types';
 import type { TableData } from './excel-export';
-import { getPluginEventHooks } from '@/lib/plugin/hooks-system';
+import { getPluginEventHooks } from '@/lib/plugin';
 
 export interface WordExportOptions {
   title?: string;

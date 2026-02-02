@@ -13,40 +13,42 @@ jest.mock('next-intl', () => ({
 
 // Mock the process manager hook
 const mockRefresh = jest.fn();
-const mockTerminateProcess = jest.fn();
-const mockSetAutoTerminate = jest.fn();
+const mockSearch = jest.fn();
+const mockGetTopMemory = jest.fn();
+const mockTerminate = jest.fn();
+const mockSetAutoRefresh = jest.fn();
 
 jest.mock('@/hooks/agent/use-process-manager', () => ({
   useProcessManager: () => ({
+    isAvailable: true,
     processes: [
       {
         pid: 1234,
         name: 'node.exe',
-        cpu: 5.5,
-        memory: 150000000,
         memoryBytes: 150000000,
-        startTime: Date.now() - 60000,
-        command: 'node server.js',
-        agentId: 'agent-1',
+        cpuPercent: 5.5,
+        status: 'running',
+        exePath: 'C:/Program Files/node/node.exe',
       },
       {
         pid: 5678,
         name: 'python.exe',
-        cpu: 2.3,
-        memory: 80000000,
         memoryBytes: 80000000,
-        startTime: Date.now() - 120000,
-        command: 'python script.py',
-        agentId: 'agent-2',
+        cpuPercent: 2.3,
+        status: 'running',
+        exePath: 'C:/Python/python.exe',
       },
     ],
     trackedPids: [1234, 5678],
     isLoading: false,
     error: null,
-    autoTerminate: true,
+    lastRefresh: null,
+    autoRefresh: true,
     refresh: mockRefresh,
-    terminateProcess: mockTerminateProcess,
-    setAutoTerminate: mockSetAutoTerminate,
+    search: mockSearch,
+    getTopMemory: mockGetTopMemory,
+    terminate: mockTerminate,
+    setAutoRefresh: mockSetAutoRefresh,
   }),
 }));
 
@@ -181,7 +183,7 @@ describe('ProcessManagerPanel', () => {
 
   it('displays CPU usage', () => {
     render(<ProcessManagerPanel {...defaultProps} />);
-    expect(screen.getByText(/5\.5/)).toBeInTheDocument();
+    expect(screen.getByText('5.5%')).toBeInTheDocument();
   });
 
   it('displays memory usage', () => {
@@ -197,7 +199,7 @@ describe('ProcessManagerPanel', () => {
     expect(stopIcons.length).toBeGreaterThan(0);
   });
 
-  it('toggles auto-terminate setting', async () => {
+  it('toggles auto-refresh setting', async () => {
     render(<ProcessManagerPanel {...defaultProps} />);
     
     const toggleButton = screen.getAllByRole('button').find(
@@ -207,7 +209,7 @@ describe('ProcessManagerPanel', () => {
     
     if (toggleButton) {
       await userEvent.click(toggleButton);
-      expect(mockSetAutoTerminate).toHaveBeenCalled();
+      expect(mockSetAutoRefresh).toHaveBeenCalledWith(false);
     }
   });
 });

@@ -6,13 +6,13 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PluginConflicts } from './plugin-conflicts';
 import { usePluginStore } from '@/stores/plugin';
-import { getConflictDetector } from '@/lib/plugin/conflict-detector';
+import { getConflictDetector } from '@/lib/plugin';
 
 jest.mock('@/stores/plugin', () => ({
   usePluginStore: jest.fn(),
 }));
 
-jest.mock('@/lib/plugin/conflict-detector', () => ({
+jest.mock('@/lib/plugin', () => ({
   getConflictDetector: jest.fn(),
 }));
 

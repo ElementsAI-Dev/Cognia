@@ -1,6 +1,24 @@
 /**
  * useWorkflowEditor Hook
  * Provides workflow editor functionality with execution integration
+ * 
+ * This hook wraps useWorkflowEditorStore and useWorkflow to provide a unified API for:
+ * - Auto-save functionality (configurable interval)
+ * - Workflow execution with step-by-step tracking and logging
+ * - Import/export utilities
+ * - Validation with error handling
+ * 
+ * Use this hook when you need a simplified interface for workflow editing with execution.
+ * For direct store access with more control, use useWorkflowEditorStore directly.
+ * 
+ * @example
+ * ```tsx
+ * const { currentWorkflow, executeWorkflow, isDirty } = useWorkflowEditor({
+ *   autoSave: true,
+ *   autoSaveInterval: 30000,
+ *   onExecutionComplete: (execution) => console.log('Done:', execution),
+ * });
+ * ```
  */
 
 import { useCallback, useEffect } from 'react';

@@ -10,6 +10,7 @@ const messages = {
   customMode: {
     a2uiSettings: 'A2UI Settings',
     a2uiSettingsDesc: 'Configure A2UI components',
+    noA2UITemplate: 'No A2UI template configured for this mode.',
   },
 };
 
@@ -96,6 +97,6 @@ describe('A2UITemplatePreview', () => {
 describe('A2UITemplatePreview without template', () => {
   it('shows no template message', () => {
     renderWithProviders(<A2UITemplatePreview />);
-    expect(screen.getByText(/No A2UI template configured/)).toBeInTheDocument();
+    expect(screen.getByText('No A2UI template configured for this mode.')).toBeInTheDocument();
   });
 });

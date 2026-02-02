@@ -11,7 +11,7 @@ import type {
   TranslationParams,
 } from '@/types/plugin/plugin-extended';
 import type { Locale as PluginLocale } from '@/types/plugin/plugin-extended';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 
 // Plugin translation registrations
 const pluginTranslations = new Map<string, Map<Locale, Record<string, string>>>();

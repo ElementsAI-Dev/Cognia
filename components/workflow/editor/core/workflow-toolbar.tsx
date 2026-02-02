@@ -51,10 +51,10 @@ import {
   Settings,
   MoreHorizontal,
 } from 'lucide-react';
-import { useShallow } from 'zustand/react/shallow';
-import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useToolbarActions } from '@/hooks/workflow';
 import { VersionHistoryPanel, ImportExportDialog } from '../panels/version-history-panel';
 import { ExecutionStatisticsPanel } from '../execution/execution-statistics-panel';
+import { WorkflowExecutionHistoryPanel } from '../execution/workflow-execution-history-panel';
 import { VariableManagerPanel } from '../panels/variable-manager-panel';
 import { KeyboardShortcutsPanel } from '../panels/keyboard-shortcuts-panel';
 import { WorkflowSettingsPanel } from '../panels/workflow-settings-panel';
@@ -86,91 +86,37 @@ export function WorkflowToolbar({
   const t = useTranslations('workflowEditor');
   const [importExportOpen, setImportExportOpen] = useState(false);
 
+  // Use shared toolbar actions hook
   const {
+    state,
     currentWorkflow,
-    isDirty,
-    isExecuting,
-    executionState,
-    selectedNodes,
-    history,
-    historyIndex,
-    validationErrors,
     showNodePalette,
     showConfigPanel,
     showMinimap,
-    saveWorkflow,
+    selectedNodes,
+    validationErrors,
+    isExecuting,
+    executionState,
+    handleSave,
+    handleRun,
+    handleDeleteSelection,
+    handleDuplicateSelection,
+    handleAlign,
     undo,
     redo,
     autoLayout,
-    alignNodes,
-    deleteNodes,
-    validate,
-    startExecution,
     pauseExecution,
     resumeExecution,
     cancelExecution,
     toggleNodePalette,
     toggleConfigPanel,
     toggleMinimap,
-  } = useWorkflowEditorStore(
-    useShallow((state) => ({
-      currentWorkflow: state.currentWorkflow,
-      isDirty: state.isDirty,
-      isExecuting: state.isExecuting,
-      executionState: state.executionState,
-      selectedNodes: state.selectedNodes,
-      history: state.history,
-      historyIndex: state.historyIndex,
-      validationErrors: state.validationErrors,
-      showNodePalette: state.showNodePalette,
-      showConfigPanel: state.showConfigPanel,
-      showMinimap: state.showMinimap,
-      saveWorkflow: state.saveWorkflow,
-      undo: state.undo,
-      redo: state.redo,
-      autoLayout: state.autoLayout,
-      alignNodes: state.alignNodes,
-      deleteNodes: state.deleteNodes,
-      validate: state.validate,
-      startExecution: state.startExecution,
-      pauseExecution: state.pauseExecution,
-      resumeExecution: state.resumeExecution,
-      cancelExecution: state.cancelExecution,
-      toggleNodePalette: state.toggleNodePalette,
-      toggleConfigPanel: state.toggleConfigPanel,
-      toggleMinimap: state.toggleMinimap,
-    }))
-  );
+  } = useToolbarActions();
 
   const isPaused = executionState?.status === 'paused';
-
-  const canUndo = historyIndex > 0;
-  const canRedo = historyIndex < history.length - 1;
-  const hasSelection = selectedNodes.length > 0;
   const hasErrors = validationErrors.some((e) => e.severity === 'error');
   const hasWarnings = validationErrors.some((e) => e.severity === 'warning');
-
-  const handleRun = () => {
-    const errors = validate();
-    if (errors.some((e) => e.severity === 'error')) {
-      return;
-    }
-    startExecution({});
-  };
-
-  const handleDeleteSelection = () => {
-    if (hasSelection) {
-      deleteNodes(selectedNodes);
-    }
-  };
-
-  const handleDuplicateSelection = () => {
-    if (hasSelection) {
-      selectedNodes.forEach((nodeId) => {
-        useWorkflowEditorStore.getState().duplicateNode(nodeId);
-      });
-    }
-  };
+  const { canUndo, canRedo, hasSelection, canSave } = state;
 
   // Mobile toolbar - simplified version
   if (isMobile) {
@@ -187,8 +133,8 @@ export function WorkflowToolbar({
             variant="ghost"
             size="icon"
             className="h-9 w-9"
-            onClick={saveWorkflow}
-            disabled={!isDirty}
+            onClick={handleSave}
+            disabled={!canSave}
           >
             <Save className="h-4 w-4" />
           </Button>
@@ -354,8 +300,8 @@ export function WorkflowToolbar({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={saveWorkflow}
-                disabled={!isDirty}
+                onClick={handleSave}
+                disabled={!canSave}
               >
                 <Save className="h-4 w-4" />
               </Button>
@@ -379,6 +325,7 @@ export function WorkflowToolbar({
 
           <VersionHistoryPanel />
           <ExecutionStatisticsPanel />
+          <WorkflowExecutionHistoryPanel />
           <WorkflowInputTestPanel />
         </div>
 
@@ -482,28 +429,28 @@ export function WorkflowToolbar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => alignNodes('left')}>
+              <DropdownMenuItem onClick={() => handleAlign('left')}>
                 <AlignLeft className="h-4 w-4 mr-2" />
                 {t('alignLeft')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alignNodes('center')}>
+              <DropdownMenuItem onClick={() => handleAlign('center')}>
                 <AlignCenter className="h-4 w-4 mr-2" />
                 {t('alignCenter')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alignNodes('right')}>
+              <DropdownMenuItem onClick={() => handleAlign('right')}>
                 <AlignRight className="h-4 w-4 mr-2" />
                 {t('alignRight')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => alignNodes('top')}>
+              <DropdownMenuItem onClick={() => handleAlign('top')}>
                 <AlignStartVertical className="h-4 w-4 mr-2" />
                 {t('alignTop')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alignNodes('middle')}>
+              <DropdownMenuItem onClick={() => handleAlign('middle')}>
                 <AlignCenterVertical className="h-4 w-4 mr-2" />
                 {t('alignMiddle')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alignNodes('bottom')}>
+              <DropdownMenuItem onClick={() => handleAlign('bottom')}>
                 <AlignEndVertical className="h-4 w-4 mr-2" />
                 {t('alignBottom')}
               </DropdownMenuItem>

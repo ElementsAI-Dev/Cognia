@@ -4,7 +4,7 @@
  */
 
 import type { UIMessage, Session } from '@/types';
-import { getPluginEventHooks } from '@/lib/plugin/hooks-system';
+import { getPluginEventHooks } from '@/lib/plugin';
 
 export interface ExcelExportOptions {
   sheetName?: string;

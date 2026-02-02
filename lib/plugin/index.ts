@@ -1,16 +1,57 @@
 /**
  * Plugin System - Main exports
+ * 
+ * Organized into subdirectories:
+ * - core/       - Core plugin infrastructure (manager, loader, registry, context, sandbox)
+ * - bridge/     - Integration bridges (A2UI, tools, agent, workflow)
+ * - devtools/   - Developer tools (dev-tools, debugger, profiler, hot-reload, dev-server)
+ * - messaging/  - Communication (hooks-system, IPC, message-bus)
+ * - security/   - Security (permission-guard, signature)
+ * - lifecycle/  - Version management (updater, backup, rollback)
+ * - package/    - Package management (marketplace, dependency-resolver, conflict-detector)
+ * - utils/      - Utilities (analytics, i18n-loader, templates)
+ * - scheduler/  - Task scheduling (scheduler-plugin-executor)
+ * - api/        - Extended APIs
  */
 
-export { PluginManager, getPluginManager, initializePluginManager } from './manager';
-export { PluginLoader } from './loader';
-export { PluginRegistry } from './registry';
-export { createPluginSystemLogger, pluginLogger, loggers, type PluginSystemLogger } from './logger';
-export { createPluginContext, createFullPluginContext, isFullPluginContext, type FullPluginContext } from './context';
-export { PluginSandbox } from './sandbox';
-export { PluginA2UIBridge } from './a2ui-bridge';
-export { PluginToolsBridge } from './tools-bridge';
-// Hooks System - Unified hook management
+// =============================================================================
+// Core - Plugin infrastructure
+// =============================================================================
+export { PluginManager, getPluginManager, initializePluginManager } from './core/manager';
+export type { PythonRuntimeInfo } from './core/manager';
+export { PluginLoader } from './core/loader';
+export { PluginRegistry } from './core/registry';
+export { createPluginSystemLogger, pluginLogger, loggers, type PluginSystemLogger } from './core/logger';
+export { createPluginContext, createFullPluginContext, isFullPluginContext, type FullPluginContext } from './core/context';
+export { PluginSandbox } from './core/sandbox';
+export { validatePluginManifest, validatePluginConfig, parseManifest } from './core/validation';
+export type { ValidationError, ValidationResult, ConfigValidationResult } from './core/validation';
+
+// =============================================================================
+// Bridge - Integration bridges
+// =============================================================================
+export { PluginA2UIBridge } from './bridge/a2ui-bridge';
+export { PluginToolsBridge } from './bridge/tools-bridge';
+export {
+  PluginAgentBridge,
+  getPluginAgentBridge,
+  usePluginAgentTools,
+  usePluginAgentModes,
+  mergeWithBuiltinTools,
+  mergeWithBuiltinModes,
+  type PluginAgentTool,
+  type PluginAgentMode,
+} from './bridge/agent-integration';
+export {
+  PluginWorkflowIntegration,
+  getPluginWorkflowIntegration,
+  resetPluginWorkflowIntegration,
+  usePluginWorkflowIntegration,
+} from './bridge/workflow-integration';
+
+// =============================================================================
+// Messaging - Communication systems
+// =============================================================================
 export {
   HookDispatcher,
   PluginLifecycleHooks,
@@ -22,23 +63,42 @@ export {
   normalizePriority,
   priorityToNumber,
   priorityToString,
-  type HookPriority,
+  HookPriority,
   type HookRegistration,
   type HookSandboxExecutionResult,
   type HookMiddleware,
   type HookExecutionConfig,
-} from './hooks-system';
-// Backward compatibility (deprecated aliases - will be removed in future version)
+} from './messaging/hooks-system';
 /** @deprecated Use PluginLifecycleHooks instead */
-export { PluginLifecycleHooks as PluginHooksManager } from './hooks-system';
-export {
-  PluginWorkflowIntegration,
-  getPluginWorkflowIntegration,
-  resetPluginWorkflowIntegration,
-  usePluginWorkflowIntegration,
-} from './workflow-integration';
+export { PluginLifecycleHooks as PluginHooksManager } from './messaging/hooks-system';
 
-// Developer Tools
+export {
+  PluginIPC,
+  getPluginIPC,
+  resetPluginIPC,
+  createIPCAPI,
+  type IPCMessage,
+  type IPCRequest,
+  type IPCResponse,
+  type ExposedMethod,
+  type PluginIPCAPI,
+} from './messaging/ipc';
+
+export {
+  MessageBus,
+  getMessageBus,
+  resetMessageBus,
+  createEventAPI,
+  SystemEvents,
+  type BusEvent,
+  type EventSource,
+  type EventFilter,
+  type PluginEventAPI,
+} from './messaging/message-bus';
+
+// =============================================================================
+// DevTools - Developer tools
+// =============================================================================
 export { 
   PluginDevTools,
   setDebugMode,
@@ -50,9 +110,117 @@ export {
   inspectAllPlugins,
   createMockPluginContext,
   validateManifestStrict,
-} from './dev-tools';
+} from './devtools/dev-tools';
 
-// Marketplace
+export {
+  PluginDebugger,
+  getPluginDebugger,
+  resetPluginDebugger,
+  type DebugSession,
+  type Breakpoint,
+  type CallFrame,
+  type WatchExpression,
+  type LogEntry,
+} from './devtools/debugger';
+
+export {
+  PluginProfiler,
+  getPluginProfiler,
+  resetPluginProfiler,
+  withProfiling,
+  type ProfileEntry,
+  type ProfileSummary,
+  type Hotspot,
+  type OperationStats,
+  type FlameNode,
+  type ResourceUsage,
+} from './devtools/profiler';
+
+export {
+  PluginHotReload,
+  getPluginHotReload,
+  resetPluginHotReload,
+  usePluginHotReload,
+  type HotReloadConfig,
+  type FileChangeEvent,
+  type ReloadResult,
+} from './devtools/hot-reload';
+
+export {
+  PluginDevServer,
+  getPluginDevServer,
+  resetPluginDevServer,
+  usePluginDevServer,
+  type DevServerConfig,
+  type DevServerStatus,
+  type DevConsoleMessage,
+  type PluginBuildResult,
+} from './devtools/dev-server';
+
+// =============================================================================
+// Security - Permission and signature verification
+// =============================================================================
+export {
+  PermissionGuard,
+  getPermissionGuard,
+  resetPermissionGuard,
+  PermissionError,
+  createGuardedAPI,
+  PERMISSION_GROUPS,
+  PERMISSION_DESCRIPTIONS,
+  DANGEROUS_PERMISSIONS,
+  type PermissionRequest,
+  type PermissionGrant,
+  type PermissionAuditEntry,
+} from './security/permission-guard';
+
+export {
+  PluginSignatureVerifier,
+  getPluginSignatureVerifier,
+  resetPluginSignatureVerifier,
+  type PluginSignature,
+  type SignatureVerificationResult,
+  type SignerInfo,
+  type TrustLevel,
+  type TrustedPublisher,
+} from './security/signature';
+
+// =============================================================================
+// Lifecycle - Version and backup management
+// =============================================================================
+export {
+  PluginUpdater,
+  getPluginUpdater,
+  resetPluginUpdater,
+  type UpdateInfo,
+  type UpdateResult,
+  type UpdateProgress,
+  type AutoUpdateConfig,
+} from './lifecycle/updater';
+
+export {
+  PluginBackupManager,
+  getPluginBackupManager,
+  resetPluginBackupManager,
+  type PluginBackup,
+  type BackupReason,
+  type BackupResult,
+  type RestoreResult,
+} from './lifecycle/backup';
+
+export {
+  PluginRollbackManager,
+  getPluginRollbackManager,
+  resetPluginRollbackManager,
+  type RollbackInfo,
+  type RollbackResult,
+  type RollbackPlan,
+  type MigrationScript,
+} from './lifecycle/rollback';
+
+// =============================================================================
+// Package - Marketplace and dependency management
+// =============================================================================
 export {
   PluginMarketplace,
   getPluginMarketplace,
@@ -66,9 +234,37 @@ export {
   type DependencyResolutionResult,
   type InstallationProgress,
   type MarketplaceConfig,
-} from './marketplace';
+} from './package/marketplace';
 
-// Analytics and Learning
+export {
+  DependencyResolver,
+  getDependencyResolver,
+  resetDependencyResolver,
+  parseVersion,
+  compareVersions,
+  parseConstraint,
+  satisfiesConstraint,
+  type Dependency,
+  type ResolvedDependency,
+  type DependencyNode,
+  type ResolutionResult,
+  type DependencyConflict,
+} from './package/dependency-resolver';
+
+export {
+  ConflictDetector,
+  getConflictDetector,
+  resetConflictDetector,
+  type PluginConflict,
+  type ConflictType,
+  type ConflictSeverity,
+  type ConflictDetectionResult,
+  type ConflictResolution,
+} from './package/conflict-detector';
+
+// =============================================================================
+// Utils - Analytics, i18n, templates
+// =============================================================================
 export {
   pluginAnalyticsStore,
   pluginLearningEngine,
@@ -83,9 +279,18 @@ export {
   type LearningInsight,
   type PluginHealthStatus,
   type PluginRecommendation,
-} from './analytics';
+} from './utils/analytics';
 
-// Templates
+export {
+  PluginI18nLoader,
+  getPluginI18nLoader,
+  resetPluginI18nLoader,
+  type PluginLocale,
+  type I18nConfig,
+  type TranslationOptions,
+  type PluginI18nAPI as PluginTranslationAPI,
+} from './utils/i18n-loader';
+
 export {
   PLUGIN_TEMPLATES,
   scaffoldPlugin,
@@ -95,190 +300,24 @@ export {
   searchTemplates,
   type PluginTemplate,
   type PluginScaffoldOptions,
-} from './templates';
+} from './utils/templates';
 
+// =============================================================================
+// Scheduler - Task scheduling
+// =============================================================================
+export {
+  registerPluginTaskHandler,
+  unregisterPluginTaskHandler,
+  getPluginTaskHandler,
+  hasPluginTaskHandler,
+  getPluginTaskHandlerNames,
+  clearPluginTaskHandlers,
+} from './scheduler/scheduler-plugin-executor';
+
+// =============================================================================
 // Extended APIs
+// =============================================================================
 export * from './api';
-
-// Hot Reload & Dev Server
-export {
-  PluginHotReload,
-  getPluginHotReload,
-  resetPluginHotReload,
-  usePluginHotReload,
-  type HotReloadConfig,
-  type FileChangeEvent,
-  type ReloadResult,
-} from './hot-reload';
-
-export {
-  PluginDevServer,
-  getPluginDevServer,
-  resetPluginDevServer,
-  usePluginDevServer,
-  type DevServerConfig,
-  type DevServerStatus,
-  type DevConsoleMessage,
-  type PluginBuildResult,
-} from './dev-server';
-
-// Plugin IPC & Message Bus
-export {
-  PluginIPC,
-  getPluginIPC,
-  resetPluginIPC,
-  createIPCAPI,
-  type IPCMessage,
-  type IPCRequest,
-  type IPCResponse,
-  type ExposedMethod,
-  type PluginIPCAPI,
-} from './ipc';
-
-export {
-  MessageBus,
-  getMessageBus,
-  resetMessageBus,
-  createEventAPI,
-  SystemEvents,
-  type BusEvent,
-  type EventSource,
-  type EventFilter,
-  type PluginEventAPI,
-} from './message-bus';
-
-// Permission Guard
-export {
-  PermissionGuard,
-  getPermissionGuard,
-  resetPermissionGuard,
-  PermissionError,
-  createGuardedAPI,
-  PERMISSION_GROUPS,
-  PERMISSION_DESCRIPTIONS,
-  DANGEROUS_PERMISSIONS,
-  type PermissionRequest,
-  type PermissionGrant,
-  type PermissionAuditEntry,
-} from './permission-guard';
-
-// Plugin Updater & Backup
-export {
-  PluginUpdater,
-  getPluginUpdater,
-  resetPluginUpdater,
-  type UpdateInfo,
-  type UpdateResult,
-  type UpdateProgress,
-  type AutoUpdateConfig,
-} from './updater';
-
-export {
-  PluginBackupManager,
-  getPluginBackupManager,
-  resetPluginBackupManager,
-  type PluginBackup,
-  type BackupReason,
-  type BackupResult,
-  type RestoreResult,
-} from './backup';
-
-export {
-  PluginRollbackManager,
-  getPluginRollbackManager,
-  resetPluginRollbackManager,
-  type RollbackInfo,
-  type RollbackResult,
-  type RollbackPlan,
-  type MigrationScript,
-} from './rollback';
-
-// Profiler
-export {
-  PluginProfiler,
-  getPluginProfiler,
-  resetPluginProfiler,
-  withProfiling,
-  type ProfileEntry,
-  type ProfileSummary,
-  type FlameNode,
-  type ResourceUsage,
-} from './profiler';
-
-// Dependency Resolver
-export {
-  DependencyResolver,
-  getDependencyResolver,
-  resetDependencyResolver,
-  parseVersion,
-  compareVersions,
-  parseConstraint,
-  satisfiesConstraint,
-  type Dependency,
-  type ResolvedDependency,
-  type DependencyNode,
-  type ResolutionResult,
-  type DependencyConflict,
-} from './dependency-resolver';
-
-// Signature Verification
-export {
-  PluginSignatureVerifier,
-  getPluginSignatureVerifier,
-  resetPluginSignatureVerifier,
-  type PluginSignature,
-  type SignatureVerificationResult,
-  type SignerInfo,
-  type TrustLevel,
-  type TrustedPublisher,
-} from './signature';
-
-// i18n Loader
-export {
-  PluginI18nLoader,
-  getPluginI18nLoader,
-  resetPluginI18nLoader,
-  type PluginLocale,
-  type I18nConfig,
-  type TranslationOptions,
-  type PluginI18nAPI as PluginTranslationAPI,
-} from './i18n-loader';
-
-// Debugger
-export {
-  PluginDebugger,
-  getPluginDebugger,
-  resetPluginDebugger,
-  type DebugSession,
-  type Breakpoint,
-  type CallFrame,
-  type WatchExpression,
-  type LogEntry,
-} from './debugger';
-
-// Conflict Detector
-export {
-  ConflictDetector,
-  getConflictDetector,
-  resetConflictDetector,
-  type PluginConflict,
-  type ConflictType,
-  type ConflictSeverity,
-  type ConflictDetectionResult,
-  type ConflictResolution,
-} from './conflict-detector';
-
-// Agent Integration
-export {
-  PluginAgentBridge,
-  getPluginAgentBridge,
-  usePluginAgentTools,
-  usePluginAgentModes,
-  mergeWithBuiltinTools,
-  mergeWithBuiltinModes,
-  type PluginAgentTool,
-  type PluginAgentMode,
-} from './agent-integration';
 
 // Re-export types
 export type {

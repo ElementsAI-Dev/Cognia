@@ -28,11 +28,11 @@ jest.mock('recharts', () => ({
 }));
 
 const mockTimeSeriesData: TimeSeriesDataPoint[] = [
-  { date: '2024-01-01', tokens: 10000, cost: 0.5, requests: 50 },
-  { date: '2024-01-02', tokens: 15000, cost: 0.75, requests: 75 },
-  { date: '2024-01-03', tokens: 12000, cost: 0.6, requests: 60 },
-  { date: '2024-01-04', tokens: 20000, cost: 1.0, requests: 100 },
-  { date: '2024-01-05', tokens: 18000, cost: 0.9, requests: 90 },
+  { timestamp: 1704067200000, date: '2024-01-01', tokens: 10000, cost: 0.5, requests: 50 },
+  { timestamp: 1704153600000, date: '2024-01-02', tokens: 15000, cost: 0.75, requests: 75 },
+  { timestamp: 1704240000000, date: '2024-01-03', tokens: 12000, cost: 0.6, requests: 60 },
+  { timestamp: 1704326400000, date: '2024-01-04', tokens: 20000, cost: 1.0, requests: 100 },
+  { timestamp: 1704412800000, date: '2024-01-05', tokens: 18000, cost: 0.9, requests: 90 },
 ];
 
 describe('RequestsTimelineChart', () => {

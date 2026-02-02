@@ -83,7 +83,7 @@ import {
 import { BranchSelector, SessionEnvSelector, ProjectSelector } from '../selectors';
 import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components/presets';
 import { ActiveSkillsIndicator } from '@/components/skills';
-import { BackgroundAgentIndicator, AgentModeSelector } from '@/components/agent';
+import { BackgroundAgentIndicator, AgentModeSelector, ExternalAgentSelector } from '@/components/agent';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { ChatMode, Preset, ChatViewMode, CreateGoalInput } from '@/types';
@@ -271,6 +271,15 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
     }
   };
 
+  // Handle external agent change
+  const handleExternalAgentChange = (agentId: string | null) => {
+    if (session) {
+      updateSession(session.id, {
+        externalAgentId: agentId,
+      } as Parameters<typeof updateSession>[1]);
+    }
+  };
+
   const handlePresetSelect = (preset: Preset) => {
     if (session) {
       updateSession(session.id, {
@@ -444,6 +453,12 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                 selectedModeId={agentModeId}
                 onModeChange={handleAgentModeChange}
                 className="h-8"
+              />
+              {/* External agent selector */}
+              <ExternalAgentSelector
+                selectedAgentId={session?.externalAgentId || null}
+                onAgentChange={handleExternalAgentChange}
+                onOpenSettings={() => window.location.href = '/settings#external-agents'}
               />
             </div>
           )}

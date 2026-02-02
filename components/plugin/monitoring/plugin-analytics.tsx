@@ -32,7 +32,7 @@ import {
   getPluginHealth,
   type LearningInsight,
   type PluginHealthStatus,
-} from '@/lib/plugin/analytics';
+} from '@/lib/plugin';
 import { usePluginStore } from '@/stores/plugin';
 import { cn } from '@/lib/utils';
 

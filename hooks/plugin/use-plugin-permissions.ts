@@ -7,7 +7,7 @@ import {
   getPermissionGuard,
   type PermissionGrant,
   type PermissionAuditEntry,
-} from '@/lib/plugin/permission-guard';
+} from '@/lib/plugin';
 import type { PluginPermission } from '@/types/plugin';
 
 // =============================================================================

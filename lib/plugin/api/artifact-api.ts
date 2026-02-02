@@ -12,7 +12,7 @@ import type {
   ArtifactRenderer,
 } from '@/types/plugin/plugin-extended';
 import type { Artifact } from '@/types/artifact';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 
 // Registry for custom artifact renderers
 const artifactRenderers = new Map<string, ArtifactRenderer>();

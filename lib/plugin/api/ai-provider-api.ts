@@ -13,7 +13,7 @@ import type {
   AIChatOptions,
   AIChatChunk,
 } from '@/types/plugin/plugin-extended';
-import { createPluginSystemLogger } from '../logger';
+import { createPluginSystemLogger } from '../core/logger';
 
 // Registry for custom AI providers
 const customProviders = new Map<string, AIProviderDefinition>();
