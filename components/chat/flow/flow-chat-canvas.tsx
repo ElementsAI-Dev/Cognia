@@ -15,11 +15,14 @@ import {
   useNodesState,
   useEdgesState,
   useReactFlow,
+  getNodesBounds,
+  getViewportForBounds,
   type NodeChange,
   type EdgeChange,
   type Connection,
   type Node,
 } from '@xyflow/react';
+import { toPng, toSvg } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useTranslations } from 'next-intl';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -32,6 +35,8 @@ import { FlowParallelGeneration } from './flow-parallel-generation';
 import { FlowSearchPanel } from './flow-search-panel';
 import { FlowComparisonView } from './flow-comparison-view';
 import { FlowKeyboardShortcuts } from './flow-keyboard-shortcuts';
+import { FlowNodeGroup } from './flow-node-group';
+import { createReferenceEdge } from './flow-node-reference';
 import { messagesToFlowNodes, autoLayoutNodes, getNodePositions } from '@/lib/chat/flow-layout';
 import type {
   FlowChatCanvasProps,
@@ -50,6 +55,22 @@ const nodeTypes: any = {
   user: FlowChatNode,
   assistant: FlowChatNode,
   system: FlowChatNode,
+  group: FlowNodeGroup,
+};
+
+// MiniMap node color based on role
+const getMinimapNodeColor = (node: Node): string => {
+  const role = node.data?.role;
+  switch (role) {
+    case 'user':
+      return '#3b82f6'; // blue-500
+    case 'assistant':
+      return '#22c55e'; // green-500
+    case 'system':
+      return '#f59e0b'; // amber-500
+    default:
+      return '#6b7280'; // gray-500
+  }
 };
 
 // Edge types for ReactFlow
@@ -225,9 +246,20 @@ function FlowChatCanvasInner({
           }
           break;
         }
+        case 'reference': {
+          // Create a reference edge from selected node to this node
+          const selectedNodes = canvasState.selectedNodeIds.filter((id) => id !== nodeId);
+          if (selectedNodes.length > 0) {
+            const sourceNodeId = selectedNodes[0];
+            const referenceEdge = createReferenceEdge(sourceNodeId, nodeId);
+            // Add the reference edge to edges
+            onEdgesChange([{ type: 'add', item: referenceEdge as FlowChatEdgeType }]);
+          }
+          break;
+        }
       }
     },
-    [onNodeAction, onFollowUp, onRegenerate, onCreateBranch, onDeleteNode, onCanvasStateChange, canvasState.collapsedNodeIds, canvasState.bookmarkedNodeIds, messages, nodes, showComparison]
+    [onNodeAction, onFollowUp, onRegenerate, onCreateBranch, onDeleteNode, onCanvasStateChange, onEdgesChange, canvasState.collapsedNodeIds, canvasState.bookmarkedNodeIds, canvasState.selectedNodeIds, messages, nodes, showComparison]
   );
 
   // Handle node changes (position, selection)
@@ -379,8 +411,50 @@ function FlowChatCanvasInner({
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       } else {
-        // For PNG/SVG, use html2canvas or similar (simplified for now)
-        console.log(`Export as ${format} not yet implemented`);
+        // Export as PNG or SVG using ReactFlow's built-in export
+        try {
+          const nodesBounds = getNodesBounds(nodes);
+          const imageWidth = nodesBounds.width + 100;
+          const imageHeight = nodesBounds.height + 100;
+          const viewport = getViewportForBounds(
+            nodesBounds,
+            imageWidth,
+            imageHeight,
+            0.5,
+            2,
+            0.1
+          );
+
+          const exportOptions = {
+            width: imageWidth,
+            height: imageHeight,
+            viewport,
+            style: {
+              backgroundColor: 'hsl(var(--background))',
+            },
+          };
+
+          let dataUrl: string;
+          let filename: string;
+
+          if (format === 'png') {
+            dataUrl = await toPng(containerRef.current!, exportOptions);
+            filename = `chat-flow-${sessionId}.png`;
+          } else {
+            dataUrl = await toSvg(containerRef.current!, exportOptions);
+            filename = `chat-flow-${sessionId}.svg`;
+          }
+
+          // Download the file
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } catch (error) {
+          console.error(`Failed to export as ${format}:`, error);
+        }
       }
     },
     [messages, branches, canvasState, nodes, edges, sessionId]
@@ -435,12 +509,13 @@ function FlowChatCanvasInner({
             />
           )}
 
-          {/* Minimap */}
+          {/* Minimap with role-based node colors */}
           {canvasState.showMinimap && (
             <MiniMap
               nodeStrokeWidth={3}
               zoomable
               pannable
+              nodeColor={getMinimapNodeColor}
               className="!bg-background/80 !border-border"
             />
           )}

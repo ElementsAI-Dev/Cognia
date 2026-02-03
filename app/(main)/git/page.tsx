@@ -4,7 +4,7 @@
  * Git Page - Main Git management page
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { GitBranch, FolderOpen, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -26,6 +26,12 @@ export default function GitPage() {
   const tc = useTranslations('common');
   const [repoPath, setRepoPath] = useState('');
   const [activeRepo, setActiveRepo] = useState<string | null>(null);
+  const gitPanelRef = useRef<{ 
+    stageAll?: () => Promise<void>;
+    commit?: () => void;
+    push?: () => Promise<void>;
+    pull?: () => Promise<void>;
+  }>(null);
 
   const handleOpenRepo = () => {
     if (repoPath.trim()) {
@@ -47,6 +53,41 @@ export default function GitPage() {
       // User cancelled or error - silently ignore
     }
   }, [t]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle shortcuts when a repo is active
+      if (!activeRepo) return;
+
+      // Ctrl+S - Stage all changes
+      if (e.ctrlKey && e.key === 's' && !e.shiftKey) {
+        e.preventDefault();
+        gitPanelRef.current?.stageAll?.();
+      }
+
+      // Ctrl+Enter - Quick commit
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        gitPanelRef.current?.commit?.();
+      }
+
+      // Ctrl+Shift+P - Push
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        gitPanelRef.current?.push?.();
+      }
+
+      // Ctrl+Shift+L - Pull
+      if (e.ctrlKey && e.shiftKey && e.key === 'L') {
+        e.preventDefault();
+        gitPanelRef.current?.pull?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeRepo]);
 
   return (
     <div className="flex h-screen bg-background">
@@ -169,50 +210,65 @@ export default function GitPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold">{t('repositoryOverview')}</h2>
-              <p className="text-muted-foreground">
-                {t('useSidebarHint')}
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">{t('repositoryOverview')}</h2>
+                <p className="text-muted-foreground">
+                  {activeRepo.split(/[/\\]/).pop()}
+                </p>
+              </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Keyboard Shortcuts - More prominent */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">{t('quickTips')}</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    ⌨️ {t('keyboardShortcuts')}
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="text-sm text-muted-foreground space-y-2">
+                <CardContent className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Ctrl+S</kbd>
+                    <span className="text-muted-foreground">{t('shortcutStageAll')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Ctrl+Enter</kbd>
+                    <span className="text-muted-foreground">{t('shortcutQuickCommit')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Ctrl+Shift+P</kbd>
+                    <span className="text-muted-foreground">{t('shortcutPush')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">Ctrl+Shift+L</kbd>
+                    <span className="text-muted-foreground">{t('shortcutPull')}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Tips - Collapsible style */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    💡 {t('quickTips')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground space-y-1.5">
                   <p>• {t('tipChangesTab')}</p>
                   <p>• {t('tipBranchesTab')}</p>
                   <p>• {t('tipHistoryTab')}</p>
                   <p>• {t('tipPushPull')}</p>
                 </CardContent>
               </Card>
+            </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">{t('keyboardShortcuts')}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground space-y-2">
-                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+S</kbd> {t('shortcutStageAll')}</p>
-                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+Enter</kbd> {t('shortcutQuickCommit')}</p>
-                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+Shift+P</kbd> {t('shortcutPush')}</p>
-                  <p><kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+Shift+L</kbd> {t('shortcutPull')}</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">{tc('settings')}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p>{t('settingsHint')}</p>
-                  <Link href="/settings" className="text-primary hover:underline">
-                    {t('settingsLink')}
-                  </Link>
-                  <p className="mt-2">{t('section')}</p>
-                </CardContent>
-              </Card>
+            {/* Settings Link - Smaller footer */}
+            <div className="text-sm text-muted-foreground">
+              {t('settingsHint')}{' '}
+              <Link href="/settings" className="text-primary hover:underline">
+                {t('settingsLink')}
+              </Link>
             </div>
           </div>
         )}

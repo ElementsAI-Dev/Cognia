@@ -20,6 +20,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TOOLTIP_STYLE, PERCENTILE_COLORS } from './chart-config';
 
 interface LatencyPercentilesData {
   p50: number;
@@ -34,12 +35,6 @@ interface LatencyDistributionChartProps {
   showAverage?: boolean;
   averageLatency?: number;
 }
-
-const PERCENTILE_COLORS = {
-  p50: '#22c55e', // green
-  p90: '#eab308', // yellow
-  p99: '#ef4444', // red
-};
 
 export function LatencyDistributionChart({
   data,
@@ -88,11 +83,7 @@ export function LatencyDistributionChart({
                 tickFormatter={(value) => `${value}ms`}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                }}
+                contentStyle={TOOLTIP_STYLE.contentStyle}
                 formatter={(value) => [`${Number(value ?? 0).toFixed(0)}ms`, 'Latency']}
               />
               {showAverage && averageLatency && (

@@ -17,10 +17,25 @@ jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+// Mock useLinkMetadata hook
+const mockUseLinkMetadata = jest.fn();
+jest.mock('@/hooks/ui', () => ({
+  useLinkMetadata: (...args: unknown[]) => mockUseLinkMetadata(...args),
+}));
+
 describe('LinkCard', () => {
   const defaultProps = {
     href: 'https://example.com',
   };
+
+  beforeEach(() => {
+    mockUseLinkMetadata.mockReturnValue({
+      metadata: null,
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+  });
 
   describe('Inline variant', () => {
     it('renders link with href', () => {
@@ -225,5 +240,118 @@ describe('LinkGroup', () => {
       </LinkGroup>
     );
     expect(container.querySelector('.flex')).toBeInTheDocument();
+  });
+});
+
+describe('LinkCard auto-fetch', () => {
+  beforeEach(() => {
+    mockUseLinkMetadata.mockClear();
+  });
+
+  it('auto-fetches metadata for card variant by default', () => {
+    mockUseLinkMetadata.mockReturnValue({
+      metadata: { url: 'https://example.com', title: 'Fetched Title' },
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    customRender(
+      <LinkCard href="https://example.com" variant="card">
+        Link
+      </LinkCard>
+    );
+
+    expect(mockUseLinkMetadata).toHaveBeenCalledWith(
+      'https://example.com',
+      expect.objectContaining({ enabled: true })
+    );
+    expect(screen.getByText('Fetched Title')).toBeInTheDocument();
+  });
+
+  it('does not auto-fetch for inline variant by default', () => {
+    mockUseLinkMetadata.mockReturnValue({
+      metadata: null,
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    customRender(
+      <LinkCard href="https://example.com" variant="inline">
+        Link
+      </LinkCard>
+    );
+
+    expect(mockUseLinkMetadata).toHaveBeenCalledWith(
+      'https://example.com',
+      expect.objectContaining({ enabled: false })
+    );
+  });
+
+  it('respects autoFetch prop override', () => {
+    mockUseLinkMetadata.mockReturnValue({
+      metadata: null,
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    customRender(
+      <LinkCard href="https://example.com" variant="inline" autoFetch>
+        Link
+      </LinkCard>
+    );
+
+    expect(mockUseLinkMetadata).toHaveBeenCalledWith(
+      'https://example.com',
+      expect.objectContaining({ enabled: true })
+    );
+  });
+
+  it('skips fetch when metadata is provided', () => {
+    const providedMetadata = {
+      url: 'https://example.com',
+      title: 'Provided Title',
+    };
+
+    mockUseLinkMetadata.mockReturnValue({
+      metadata: providedMetadata,
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    customRender(
+      <LinkCard href="https://example.com" variant="card" metadata={providedMetadata}>
+        Link
+      </LinkCard>
+    );
+
+    expect(mockUseLinkMetadata).toHaveBeenCalledWith(
+      'https://example.com',
+      expect.objectContaining({
+        enabled: false,
+        initialMetadata: providedMetadata,
+      })
+    );
+  });
+
+  it('shows skeleton while loading for card variant', () => {
+    mockUseLinkMetadata.mockReturnValue({
+      metadata: null,
+      isLoading: true,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    const { container } = customRender(
+      <LinkCard href="https://example.com" variant="card">
+        Link
+      </LinkCard>
+    );
+
+    // Should show skeleton (which has rounded-lg class)
+    expect(container.querySelector('.rounded-lg')).toBeInTheDocument();
   });
 });

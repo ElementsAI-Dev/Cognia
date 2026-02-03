@@ -202,19 +202,26 @@ export function filterRecordsByPeriod(
   });
 }
 
+/** Time series granularity options */
+export type TimeSeriesGranularity = 'minute' | 'hour' | 'day';
+
 /**
  * Generate time series data for usage trends
  */
 export function generateUsageTimeSeries(
   records: UsageRecord[],
   period: AnalyticsPeriod = 'week',
-  granularity: 'hour' | 'day' = 'day'
+  granularity: TimeSeriesGranularity = 'day'
 ): TimeSeriesDataPoint[] {
   const filteredRecords = filterRecordsByPeriod(records, period);
   const dataMap = new Map<string, TimeSeriesDataPoint>();
 
   const getDateKey = (timestamp: number): string => {
     const date = new Date(timestamp);
+    if (granularity === 'minute') {
+      // Format: YYYY-MM-DDTHH:MM
+      return date.toISOString().slice(0, 16);
+    }
     if (granularity === 'hour') {
       return date.toISOString().slice(0, 13) + ':00';
     }

@@ -12,11 +12,30 @@ jest.mock('@/stores/settings', () => ({
   useSettingsStore: jest.fn(),
 }));
 
+// Mock AI SDK generateText
+jest.mock('ai', () => ({
+  generateText: jest.fn().mockResolvedValue({ text: 'Mock AI response' }),
+}));
+
+// Mock AI registry
+jest.mock('@/lib/ai/core/ai-registry', () => ({
+  createAIRegistry: jest.fn().mockReturnValue({
+    languageModel: jest.fn().mockReturnValue({}),
+  }),
+}));
+
 // Mock translations
 const messages = {
   flowChat: {
     parallelGenerate: 'Parallel Generate',
     parallelModels: 'Generate with Multiple Models',
+    cancel: 'Cancel',
+    generate: 'Generate',
+    generating: 'Generating responses...',
+    results: 'Results',
+    waiting: 'Waiting...',
+    generatingResponse: 'Generating response...',
+    stopGeneration: 'Stop Generation',
   },
 };
 
@@ -193,7 +212,68 @@ describe('FlowParallelGeneration', () => {
     fireEvent.click(screen.getByText('GPT-4o'));
     fireEvent.click(screen.getByRole('button', { name: /generate \(1\)/i }));
 
-    expect(screen.getByText('Generating...')).toBeInTheDocument();
+    // Should show generating state with progress
+    await waitFor(() => {
+      expect(screen.getByText('Generating responses...')).toBeInTheDocument();
+    });
+  });
+
+  it('shows progress bar during generation', async () => {
+    render(
+      <FlowParallelGeneration
+        prompt="Test"
+        open={true}
+        onOpenChange={jest.fn()}
+      />,
+      { wrapper }
+    );
+
+    fireEvent.click(screen.getByText('GPT-4o'));
+    fireEvent.click(screen.getByRole('button', { name: /generate \(1\)/i }));
+
+    // Should show progress indicator
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    });
+  });
+
+  it('shows stop generation button during generation', async () => {
+    render(
+      <FlowParallelGeneration
+        prompt="Test"
+        open={true}
+        onOpenChange={jest.fn()}
+      />,
+      { wrapper }
+    );
+
+    fireEvent.click(screen.getByText('GPT-4o'));
+    fireEvent.click(screen.getByRole('button', { name: /generate \(1\)/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Stop Generation')).toBeInTheDocument();
+    });
+  });
+
+  it('displays results after generation completes', async () => {
+    const onGenerationComplete = jest.fn();
+
+    render(
+      <FlowParallelGeneration
+        prompt="Test"
+        open={true}
+        onOpenChange={jest.fn()}
+        onGenerationComplete={onGenerationComplete}
+      />,
+      { wrapper }
+    );
+
+    fireEvent.click(screen.getByText('GPT-4o'));
+    fireEvent.click(screen.getByRole('button', { name: /generate \(1\)/i }));
+
+    await waitFor(() => {
+      expect(onGenerationComplete).toHaveBeenCalled();
+    });
   });
 
   it('clears selection when Clear All is clicked', () => {

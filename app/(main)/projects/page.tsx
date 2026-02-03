@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -14,6 +15,7 @@ import { useProjectStore, useSessionStore } from '@/stores';
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const t = useTranslations('projects');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const setActiveProject = useProjectStore((state) => state.setActiveProject);
@@ -38,7 +40,7 @@ export default function ProjectsPage() {
 
     // Create a new session with project defaults
     const session = createSession({
-      title: 'New Chat',
+      title: t('newChat'),
       provider: project.defaultProvider as 'openai' | 'anthropic' | 'google' | 'deepseek' | 'groq' | 'mistral' | 'ollama' | undefined,
       model: project.defaultModel,
       mode: project.defaultMode,
@@ -67,7 +69,7 @@ export default function ProjectsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <h1 className="text-lg font-semibold">Projects</h1>
+        <h1 className="text-lg font-semibold">{t('title')}</h1>
       </header>
 
       {/* Content */}

@@ -179,4 +179,108 @@ describe('LaTeXPreview', () => {
       expect(container.innerHTML).toContain('Term');
     });
   });
+
+  describe('math environments', () => {
+    it('renders align environment preserving alignment markers', () => {
+      const content = '\\begin{align}a &= b + c\\\\d &= e + f\\end{align}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      // Should render without error and contain katex output
+      expect(container.innerHTML).toContain('katex');
+    });
+
+    it('renders align* environment', () => {
+      const content = '\\begin{align*}x &= 1\\end{align*}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('katex');
+    });
+
+    it('renders gather environment', () => {
+      const content = '\\begin{gather}a = b\\\\c = d\\end{gather}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('katex');
+    });
+
+    it('renders gather* environment', () => {
+      const content = '\\begin{gather*}x = 1\\end{gather*}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('katex');
+    });
+
+    it('renders multline environment', () => {
+      const content = '\\begin{multline}a + b + c\\\\+ d + e\\end{multline}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('katex');
+    });
+
+    it('renders cases environment', () => {
+      const content = '\\begin{cases}x & \\text{if } x > 0\\\\-x & \\text{otherwise}\\end{cases}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('katex');
+    });
+  });
+
+  describe('table environments', () => {
+    it('renders tabular environment', () => {
+      const content = '\\begin{tabular}{|c|c|}a & b\\\\c & d\\end{tabular}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<table');
+      expect(container.innerHTML).toContain('<td');
+    });
+
+    it('renders tabular with different alignments', () => {
+      const content = '\\begin{tabular}{lcr}left & center & right\\end{tabular}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('text-left');
+      expect(container.innerHTML).toContain('text-center');
+      expect(container.innerHTML).toContain('text-right');
+    });
+
+    it('renders table environment with caption', () => {
+      const content = '\\begin{table}\\caption{My Table}\\begin{tabular}{c}data\\end{tabular}\\end{table}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('My Table');
+      expect(container.innerHTML).toContain('<figure');
+    });
+  });
+
+  describe('figure environments', () => {
+    it('renders figure environment', () => {
+      const content = '\\begin{figure}\\includegraphics{test.png}\\end{figure}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<figure');
+    });
+
+    it('renders figure with caption', () => {
+      const content = '\\begin{figure}\\includegraphics{test.png}\\caption{My Figure}\\end{figure}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('My Figure');
+      expect(container.innerHTML).toContain('<figcaption');
+    });
+
+    it('renders includegraphics placeholder in figure', () => {
+      // Local paths should render as placeholders
+      const content = '\\begin{figure}\\includegraphics{myimage.png}\\end{figure}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<figure');
+      expect(container.innerHTML).toContain('[Image: myimage.png]');
+    });
+
+    it('renders includegraphics with local path as placeholder', () => {
+      const content = '\\includegraphics{images/test.png}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('[Image: images/test.png]');
+    });
+
+    it('renders includegraphics with width option in figure', () => {
+      const content = '\\begin{figure}\\includegraphics[width=50%]{https://example.com/image.png}\\end{figure}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<figure');
+    });
+
+    it('renders includegraphics with scale option in figure', () => {
+      const content = '\\begin{figure}\\includegraphics[scale=0.5]{test.png}\\end{figure}';
+      const { container } = render(<LaTeXPreview content={content} />);
+      expect(container.innerHTML).toContain('<figure');
+    });
+  });
 });

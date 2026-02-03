@@ -258,7 +258,13 @@
     "splitView": "Split view",
     "compactView": "Compact view",
     "editDiagram": "Edit diagram",
-    "editMermaidDiagram": "Edit Mermaid Diagram"
+    "editMermaidDiagram": "Edit Mermaid Diagram",
+    "syntaxHighlighting": "Syntax highlighting",
+    "loadingHighlight": "Loading syntax highlighting...",
+    "fetchingMetadata": "Fetching link preview...",
+    "metadataFailed": "Could not load link preview",
+    "rendererError": "Render Error",
+    "retryRender": "Retry"
   },
   "mermaidEditor": {
     "split": "Split",

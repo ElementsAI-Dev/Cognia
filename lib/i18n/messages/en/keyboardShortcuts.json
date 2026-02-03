@@ -1,0 +1,12 @@
+{
+  "keyboardShortcuts": {
+    "title": "Keyboard Shortcuts",
+    "description": "Quick reference for available keyboard shortcuts",
+    "navigation": "Navigation",
+    "chat": "Chat",
+    "editing": "Editing",
+    "system": "System",
+    "tip": "Tip:",
+    "commandPaletteHint": "to open the command palette"
+  }
+}

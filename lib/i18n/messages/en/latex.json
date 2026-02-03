@@ -1,12 +1,31 @@
 {
   "title": "LaTeX Editor",
   "description": "Write and preview LaTeX documents with AI assistance",
+  "preview": {
+    "mathError": "Math Error",
+    "alignError": "Align Error",
+    "gatherError": "Gather Error",
+    "multlineError": "Multline Error",
+    "casesError": "Cases Error",
+    "tableCaption": "Table",
+    "figureCaption": "Figure",
+    "imagePlaceholder": "Image"
+  },
   "templates": "Templates",
   "selectTemplate": "Select Template",
   "templateDescription": "Choose a template to start your document",
   "export": "Export",
   "exportDocument": "Export Document",
   "exportDescription": "Choose export format",
+  "exportHtmlDesc": "Export as HTML with rendered math",
+  "exportMarkdownDesc": "Export as Markdown format",
+  "plainText": "Plain Text",
+  "exportPlainTextDesc": "Export as plain text without formatting",
+  "fileName": "File Name",
+  "format": "Format",
+  "options": "Options",
+  "includeMathJax": "Include MathJax",
+  "cancel": "Cancel",
   "save": "Save",
   "tabs": {
     "editor": "Editor",
@@ -79,16 +98,43 @@
       "tabs": {
         "chat": "Chat",
         "suggestions": "Suggestions",
-        "history": "History"
+        "history": "History",
+        "analysis": "Analysis"
       },
       "inputPlaceholder": "Ask AI anything...",
-      "send": "Send"
+      "send": "Send",
+      "selectedText": "Selection available for context",
+      "insert": "Insert",
+      "thinking": "Thinking...",
+      "messages": "messages",
+      "clear": "Clear"
+    },
+    "equationAnalysis": {
+      "input": "Enter Equation",
+      "placeholder": "Enter a LaTeX equation to analyze...",
+      "analyze": "Analyze",
+      "simplify": "Simplify",
+      "expand": "Expand",
+      "emptyState": "Enter an equation above to see analysis results",
+      "analysisResults": "Analysis Results",
+      "type": "Type",
+      "complexity": "Complexity",
+      "variables": "Variables",
+      "functions": "Functions",
+      "verification": "Verification",
+      "confidence": "Confidence",
+      "issues": "Issues",
+      "suggestion": "Suggestion",
+      "suggestions": "Suggestions",
+      "simplificationResult": "Simplified Form",
+      "steps": "Steps",
+      "expandedForm": "Expanded Form"
     },
     "equationDialog": {
       "title": "Generate LaTeX Equation",
       "description": "Describe the formula you want. AI will generate LaTeX you can insert.",
       "inputPlaceholder": "e.g. quadratic formula",
-      "resultPlaceholder": "e.g. \\frac{a}{b}",
+      "resultPlaceholder": "Generated LaTeX will appear here",
       "generate": "Generate",
       "insert": "Insert",
       "cancel": "Cancel"

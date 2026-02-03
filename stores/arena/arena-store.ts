@@ -141,6 +141,7 @@ interface ArenaState {
     options?: { reason?: ArenaWinReason; notes?: string }
   ) => void;
   declareTie: (battleId: string, notes?: string) => void;
+  declareBothBad: (battleId: string, notes?: string) => void;
 
   // Rating management
   getModelRating: (provider: ProviderName, model: string, category?: TaskCategory) => number;
@@ -488,6 +489,64 @@ export const useArenaStore = create<ArenaState>()(
                       ...r,
                       totalBattles: r.totalBattles + 1,
                       ties: r.ties + 1,
+                      updatedAt: new Date(),
+                    }
+                  : r
+              ),
+            };
+          });
+        }
+      },
+
+      declareBothBad: (battleId, notes) => {
+        const battle = get().getBattle(battleId);
+        if (!battle) return;
+
+        set((state) => ({
+          battles: state.battles.map((b) =>
+            b.id === battleId
+              ? {
+                  ...b,
+                  isBothBad: true,
+                  notes,
+                  completedAt: new Date(),
+                }
+              : b
+          ),
+        }));
+
+        // Update battle counts for all contestants (no rating change for both bad)
+        for (const contestant of battle.contestants) {
+          const modelId = getModelId(contestant.provider, contestant.model);
+
+          set((state) => {
+            const existing = state.modelRatings.find((r) => r.modelId === modelId);
+            if (!existing) {
+              return {
+                modelRatings: [
+                  ...state.modelRatings,
+                  {
+                    modelId,
+                    provider: contestant.provider,
+                    model: contestant.model,
+                    rating: DEFAULT_ELO_RATING,
+                    categoryRatings: {},
+                    totalBattles: 1,
+                    wins: 0,
+                    losses: 0,
+                    ties: 0,
+                    updatedAt: new Date(),
+                  },
+                ],
+              };
+            }
+
+            return {
+              modelRatings: state.modelRatings.map((r) =>
+                r.modelId === modelId
+                  ? {
+                      ...r,
+                      totalBattles: r.totalBattles + 1,
                       updatedAt: new Date(),
                     }
                   : r

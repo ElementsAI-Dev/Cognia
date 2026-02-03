@@ -1,6 +1,6 @@
 /**
  * Tests for flow-layout.ts
- * Layout algorithm for flow chat canvas
+ * Layout algorithm for flow chat canvas using dagre
  */
 
 import {
@@ -12,6 +12,27 @@ import {
 import type { UIMessage } from '@/types/core/message';
 import type { ConversationBranch } from '@/types/core/session';
 import type { FlowChatCanvasState, FlowChatNode, FlowChatEdge } from '@/types/chat/flow-chat';
+
+// Mock dagre library
+jest.mock('@dagrejs/dagre', () => {
+  const mockGraph = {
+    setGraph: jest.fn(),
+    setDefaultEdgeLabel: jest.fn(),
+    setNode: jest.fn(),
+    setEdge: jest.fn(),
+    nodes: jest.fn().mockReturnValue(['msg1', 'msg2']),
+    node: jest.fn().mockImplementation((id: string) => ({
+      x: id === 'msg1' ? 200 : 200,
+      y: id === 'msg1' ? 75 : 275,
+    })),
+  };
+  return {
+    graphlib: {
+      Graph: jest.fn().mockReturnValue(mockGraph),
+    },
+    layout: jest.fn(),
+  };
+});
 
 // Mock messages
 const createMockMessage = (

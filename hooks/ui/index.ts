@@ -59,3 +59,9 @@ export {
 export { useMediaQuery } from './use-media-query';
 export { useMermaid, type UseMermaidOptions, type UseMermaidResult } from './use-mermaid';
 export { useSafeTheme, useSafeThemeLegacy } from './use-safe-theme';
+export {
+  useLinkMetadata,
+  clearMetadataCache,
+  getCachedMetadata,
+  type LinkMetadata,
+} from './use-link-metadata';

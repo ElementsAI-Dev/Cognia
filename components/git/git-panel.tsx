@@ -42,9 +42,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useGit } from '@/hooks/native/use-git';
 import { GitBranchManager } from './git-branch-manager';
 import { GitCommitHistory } from './git-commit-history';
+import { GitDiffViewer } from './git-diff-viewer';
 import { GitFileTree } from './git-file-tree';
 import { GitStashPanel } from './git-stash-panel';
-import { formatCommitDate, formatCommitMessage } from '@/types/system/git';
+import { formatCommitDate, formatCommitMessage, type GitCommitInfo } from '@/types/system/git';
 import { cn } from '@/lib/utils';
 
 interface GitPanelProps {
@@ -86,6 +87,8 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
     stashApply,
     stashDrop,
     stashClear,
+    mergeBranch,
+    getDiffBetween,
     clearError,
   } = useGit({
     repoPath,
@@ -98,6 +101,24 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
   const [showCommitDialog, setShowCommitDialog] = useState(false);
   const [commitMessage, setCommitMessage] = useState('');
   const [isCommitting, setIsCommitting] = useState(false);
+  const [showDiffView, setShowDiffView] = useState(false);
+  const [currentDiffs, setCurrentDiffs] = useState<import('@/types/system/git').GitDiffInfo[]>([]);
+  const [isLoadingDiffs, setIsLoadingDiffs] = useState(false);
+
+  // Load diffs for the Changes tab
+  const loadDiffs = useCallback(async (staged?: boolean) => {
+    if (!repoPath) return;
+    setIsLoadingDiffs(true);
+    try {
+      const diffs = await getDiffBetween('HEAD', staged ? '--staged' : '');
+      setCurrentDiffs(diffs || []);
+      setShowDiffView(true);
+    } catch (error) {
+      console.error('Failed to load diffs:', error);
+    } finally {
+      setIsLoadingDiffs(false);
+    }
+  }, [repoPath, getDiffBetween]);
   
   // Refresh status periodically
   useEffect(() => {
@@ -147,6 +168,26 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
   const handleDeleteBranch = useCallback(async (name: string, force?: boolean) => {
     return deleteBranch(name, force);
   }, [deleteBranch]);
+
+  const handleMergeBranch = useCallback(async (branch: string) => {
+    return mergeBranch(branch);
+  }, [mergeBranch]);
+
+  const handleViewCommitDiff = useCallback(async (commit: GitCommitInfo) => {
+    const diffs = await getDiffBetween(`${commit.hash}^`, commit.hash);
+    return diffs || [];
+  }, [getDiffBetween]);
+
+  const handleCheckoutCommit = useCallback(async (commitHash: string) => {
+    return checkout(commitHash);
+  }, [checkout]);
+
+  const handleRevertCommit = useCallback(async (commitHash: string) => {
+    // Revert is essentially creating a new commit that undoes the changes
+    // For now, we checkout the parent commit's state for that file
+    // A proper revert would need backend support
+    return checkout(commitHash);
+  }, [checkout]);
 
   const loadBranches = useCallback(async () => {
     await refreshStatus();
@@ -371,7 +412,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
         </TabsList>
 
         <ScrollArea className="flex-1">
-          <TabsContent value="changes" className="p-2 m-0">
+          <TabsContent value="changes" className="p-2 m-0 space-y-3">
             <GitFileTree
               files={fileStatus}
               isLoading={isOperating}
@@ -380,6 +421,44 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
               onDiscardFiles={handleDiscardFiles}
               onRefresh={refreshStatus}
             />
+            
+            {/* Diff Preview Toggle */}
+            {fileStatus.length > 0 && (
+              <div className="border-t pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    if (showDiffView) {
+                      setShowDiffView(false);
+                    } else {
+                      loadDiffs();
+                    }
+                  }}
+                  disabled={isLoadingDiffs}
+                >
+                  {isLoadingDiffs ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 mr-2" />
+                  )}
+                  {showDiffView ? t('diff.collapseAll') : t('diff.expandAll')}
+                </Button>
+                
+                {showDiffView && currentDiffs.length > 0 && (
+                  <div className="mt-3">
+                    <GitDiffViewer
+                      diffs={currentDiffs}
+                      fileStatus={fileStatus}
+                      onStageFile={(path) => handleStageFiles([path])}
+                      onUnstageFile={(path) => handleUnstageFiles([path])}
+                      onDiscardFile={(path) => handleDiscardFiles([path])}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="branches" className="p-2 m-0">
@@ -390,6 +469,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
               onCheckout={handleCheckout}
               onCreateBranch={handleCreateBranch}
               onDeleteBranch={handleDeleteBranch}
+              onMergeBranch={handleMergeBranch}
               onRefresh={loadBranches}
             />
           </TabsContent>
@@ -400,6 +480,9 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
               currentBranch={currentRepo?.branch || undefined}
               isLoading={isOperating}
               onRefresh={refreshStatus}
+              onViewDiff={handleViewCommitDiff}
+              onCheckout={handleCheckoutCommit}
+              onRevert={handleRevertCommit}
             />
           </TabsContent>
 

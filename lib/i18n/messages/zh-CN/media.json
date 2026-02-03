@@ -132,6 +132,17 @@
     "applyTrim": "应用裁剪"
   },
   "imageGeneration": {
+    "back": "返回",
+    "undo": "撤销",
+    "redo": "重做",
+    "favorites": "收藏",
+    "showAll": "显示全部",
+    "showFavoritesOnly": "仅显示收藏",
+    "export": "导出",
+    "exportMultiple": "导出多张图片",
+    "zoom": "缩放",
+    "hideSidebar": "隐藏侧边栏",
+    "showSidebar": "显示侧边栏",
     "title": "图片生成",
     "description": "使用 DALL-E 创建图片。描述您想看到的内容。",
     "prompt": "提示",

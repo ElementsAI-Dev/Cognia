@@ -21,6 +21,13 @@ jest.mock('@/hooks/ui/use-copy', () => ({
   }),
 }));
 
+// Mock Shiki
+jest.mock('shiki', () => ({
+  codeToHtml: jest.fn().mockImplementation((code: string, options: { theme: string }) => 
+    Promise.resolve(`<pre class="shiki ${options.theme}"><code>${code}</code></pre>`)
+  ),
+}));
+
 describe('CodeBlock', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -262,6 +269,46 @@ line3`;
       const rows = container.querySelectorAll('tr');
       expect(rows[0]).not.toHaveClass('bg-primary/10');
       expect(rows[2]).not.toHaveClass('bg-primary/10');
+    });
+  });
+
+  describe('Syntax Highlighting', () => {
+    it('calls shiki for syntax highlighting when language is provided', async () => {
+      const shiki = jest.requireMock('shiki') as { codeToHtml: jest.Mock };
+      customRender(<CodeBlock code="const x = 1;" language="javascript" />);
+      
+      // Wait for async highlighting
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      expect(shiki.codeToHtml).toHaveBeenCalled();
+    });
+
+    it('does not call shiki when no language is provided', async () => {
+      const shiki = jest.requireMock('shiki') as { codeToHtml: jest.Mock };
+      shiki.codeToHtml.mockClear();
+      
+      customRender(<CodeBlock code="plain text" />);
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      expect(shiki.codeToHtml).not.toHaveBeenCalled();
+    });
+
+    it('renders light and dark theme versions', async () => {
+      const shiki = jest.requireMock('shiki') as { codeToHtml: jest.Mock };
+      customRender(<CodeBlock code="const x = 1;" language="typescript" showLineNumbers={false} />);
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Should call for both light and dark themes
+      expect(shiki.codeToHtml).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ theme: 'one-light' })
+      );
+      expect(shiki.codeToHtml).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ theme: 'one-dark-pro' })
+      );
     });
   });
 });

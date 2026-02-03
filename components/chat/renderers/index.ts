@@ -60,3 +60,6 @@ export { EmojiBlock, shouldRenderAsEmoji } from './emoji-block';
 
 // Loading animations
 export { LoadingAnimation, SkeletonShimmer } from './loading-animation';
+
+// Error boundary
+export { RendererErrorBoundary, withRendererErrorBoundary } from './renderer-error-boundary';

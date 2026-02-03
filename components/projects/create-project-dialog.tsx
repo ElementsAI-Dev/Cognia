@@ -219,9 +219,9 @@ export function CreateProjectDialog({
                 <IconPreview className="h-8 w-8" color={color} />
               </div>
               <div>
-                <p className="font-medium">{name || 'Project Preview'}</p>
+                <p className="font-medium">{name || t('previewTitle')}</p>
                 <p className="text-sm text-muted-foreground">
-                  {description || 'Project description'}
+                  {description || t('previewDescription')}
                 </p>
               </div>
             </div>
@@ -282,12 +282,12 @@ export function CreateProjectDialog({
 
             <div className="space-y-2">
               <Label htmlFor="provider">{t('defaultProvider')}</Label>
-              <Select value={defaultProvider} onValueChange={setDefaultProvider}>
+              <Select value={defaultProvider || '__none__'} onValueChange={(v) => setDefaultProvider(v === '__none__' ? '' : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder={tPlaceholders('useGlobalDefault')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{tPlaceholders('useGlobalDefault')}</SelectItem>
+                  <SelectItem value="__none__">{tPlaceholders('useGlobalDefault')}</SelectItem>
                   {Object.entries(PROVIDERS).map(([id, provider]) => (
                     <SelectItem key={id} value={id}>
                       {provider.name}
@@ -300,12 +300,12 @@ export function CreateProjectDialog({
             {selectedProvider && (
               <div className="space-y-2">
                 <Label htmlFor="model">{t('defaultModel')}</Label>
-                <Select value={defaultModel} onValueChange={setDefaultModel}>
+                <Select value={defaultModel || '__none__'} onValueChange={(v) => setDefaultModel(v === '__none__' ? '' : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder={tPlaceholders('useProviderDefault')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">{tPlaceholders('useProviderDefault')}</SelectItem>
+                    <SelectItem value="__none__">{tPlaceholders('useProviderDefault')}</SelectItem>
                     {selectedProvider.models.map((model) => (
                       <SelectItem key={model.id} value={model.id}>
                         {model.name}
@@ -318,12 +318,12 @@ export function CreateProjectDialog({
 
             <div className="space-y-2">
               <Label htmlFor="mode">{t('defaultMode')}</Label>
-              <Select value={defaultMode} onValueChange={(v) => setDefaultMode(v as typeof defaultMode)}>
+              <Select value={defaultMode || '__none__'} onValueChange={(v) => setDefaultMode(v === '__none__' ? '' : v as typeof defaultMode)}>
                 <SelectTrigger>
                   <SelectValue placeholder={tPlaceholders('useGlobalDefault')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{tPlaceholders('useGlobalDefault')}</SelectItem>
+                  <SelectItem value="__none__">{tPlaceholders('useGlobalDefault')}</SelectItem>
                   <SelectItem value="chat">{tCommon('chat')}</SelectItem>
                   <SelectItem value="agent">{tCommon('agent')}</SelectItem>
                   <SelectItem value="research">{tCommon('research')}</SelectItem>

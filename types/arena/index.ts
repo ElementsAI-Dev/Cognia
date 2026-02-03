@@ -165,6 +165,8 @@ export interface ArenaBattle {
   taskClassification?: TaskClassification;
   /** Whether this was a tie (no clear winner) */
   isTie?: boolean;
+  /** Whether both responses were bad (neither satisfactory) */
+  isBothBad?: boolean;
   /** User notes about the battle */
   notes?: string;
   /** Battle creation time */
@@ -302,7 +304,7 @@ export const DEFAULT_ARENA_SETTINGS: ArenaSettings = {
   autoSelectModels: false,
   preferenceLearning: true,
   historyRetentionDays: 30,
-  defaultMode: 'normal',
+  defaultMode: 'blind',
   defaultConversationMode: 'single',
   defaultMaxTurns: 5,
   showCostEstimates: true,

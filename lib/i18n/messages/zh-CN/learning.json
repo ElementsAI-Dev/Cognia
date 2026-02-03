@@ -1018,6 +1018,22 @@
     "done": "完成",
     "fullscreen": "全屏",
     "exitFullscreen": "退出全屏",
-    "keyboardShortcuts": "键盘快捷键"
+    "keyboardShortcuts": "键盘快捷键",
+    "generating": "正在生成响应...",
+    "results": "结果",
+    "waiting": "等待中...",
+    "generatingResponse": "正在生成响应...",
+    "stopGeneration": "停止生成",
+    "generate": "生成",
+    "selectModels": "选择模型",
+    "noProviders": "没有已配置的提供商",
+    "configureProviders": "在设置中配置 API 密钥",
+    "modelsSelected": "已选择 {count} 个模型",
+    "clearSelection": "清除全部",
+    "exportPng": "导出为 PNG",
+    "exportSvg": "导出为 SVG",
+    "exportJson": "导出为 JSON",
+    "exportSuccess": "导出成功",
+    "exportFailed": "导出失败"
   }
 }

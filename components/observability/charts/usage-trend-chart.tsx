@@ -20,6 +20,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TimeSeriesDataPoint } from '@/lib/ai/usage-analytics';
+import { TOOLTIP_STYLE, CHART_COLORS, CHART_MARGINS } from './chart-config';
 
 interface UsageTrendChartProps {
   data: TimeSeriesDataPoint[];
@@ -41,9 +42,11 @@ export function UsageTrendChart({
   const chartData = useMemo(() => {
     return data.map((point) => ({
       ...point,
-      displayDate: new Date(point.date).toLocaleDateString('zh-CN', {
+      displayDate: new Date(point.date).toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
+        hour: point.date.includes('T') ? '2-digit' : undefined,
+        minute: point.date.includes('T') && point.date.length > 13 ? '2-digit' : undefined,
       }),
       tokens: Math.round(point.tokens / 1000), // Display in K
       cost: Number(point.cost.toFixed(4)),
@@ -71,15 +74,15 @@ export function UsageTrendChart({
       <CardContent>
         <div style={{ width: '100%', height }}>
           <ResponsiveContainer>
-            <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <AreaChart data={chartData} margin={CHART_MARGINS.default}>
               <defs>
                 <linearGradient id="colorTokens" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
+                  <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.8} />
+                  <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
+                  <stop offset="5%" stopColor={CHART_COLORS.secondary} stopOpacity={0.8} />
+                  <stop offset="95%" stopColor={CHART_COLORS.secondary} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -89,12 +92,8 @@ export function UsageTrendChart({
                 <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} className="text-xs" />
               )}
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                }}
-                labelStyle={{ fontWeight: 'bold' }}
+                contentStyle={TOOLTIP_STYLE.contentStyle}
+                labelStyle={TOOLTIP_STYLE.labelStyle}
               />
               <Legend />
               {showTokens && (
@@ -103,7 +102,7 @@ export function UsageTrendChart({
                   type="monotone"
                   dataKey="tokens"
                   name={t('tokensK')}
-                  stroke="#8884d8"
+                  stroke={CHART_COLORS.primary}
                   fillOpacity={1}
                   fill="url(#colorTokens)"
                 />
@@ -114,7 +113,7 @@ export function UsageTrendChart({
                   type="monotone"
                   dataKey="cost"
                   name={t('costUSD')}
-                  stroke="#82ca9d"
+                  stroke={CHART_COLORS.secondary}
                   fillOpacity={1}
                   fill="url(#colorCost)"
                 />

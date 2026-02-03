@@ -18,6 +18,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TOOLTIP_STYLE } from './chart-config';
 
 interface EfficiencyData {
   costEfficiency: number; // 0-100 score
@@ -107,11 +108,7 @@ export function EfficiencyRadarChart({
                 tickCount={5}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                }}
+                contentStyle={TOOLTIP_STYLE.contentStyle}
                 formatter={(value) => [`${Number(value ?? 0).toFixed(0)}%`, 'Score']}
               />
               <Radar

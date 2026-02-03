@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ModelUsageBreakdown } from '@/lib/ai/usage-analytics';
+import { TOOLTIP_STYLE, CHART_COLORS, CHART_MARGINS } from './chart-config';
 
 interface ModelChartProps {
   data: ModelUsageBreakdown[];
@@ -73,7 +74,7 @@ export function ModelChart({
             <BarChart
               data={chartData}
               layout="vertical"
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              margin={CHART_MARGINS.vertical}
             >
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis type="number" tick={{ fontSize: 11 }} />
@@ -84,11 +85,7 @@ export function ModelChart({
                 width={120}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                }}
+                contentStyle={TOOLTIP_STYLE.contentStyle}
                 formatter={(value) => {
                   const numValue = Number(value);
                   const formattedValue =
@@ -100,7 +97,7 @@ export function ModelChart({
                   return formattedValue;
                 }}
               />
-              <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="value" fill={CHART_COLORS.primary} radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

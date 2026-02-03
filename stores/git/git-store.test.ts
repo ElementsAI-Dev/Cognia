@@ -2,7 +2,7 @@
  * Git Store Tests
  */
 
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useGitStore } from './git-store';
 
 // Mock the git service
@@ -129,11 +129,47 @@ jest.mock('@/lib/native/git', () => ({
     createBranch: jest.fn().mockResolvedValue({ success: true }),
     deleteBranch: jest.fn().mockResolvedValue({ success: true }),
     checkout: jest.fn().mockResolvedValue({ success: true }),
+    merge: jest.fn().mockResolvedValue({ success: true }),
     push: jest.fn().mockResolvedValue({ success: true }),
     pull: jest.fn().mockResolvedValue({ success: true }),
     fetch: jest.fn().mockResolvedValue({ success: true }),
     discardChanges: jest.fn().mockResolvedValue({ success: true }),
     autoCommit: jest.fn().mockResolvedValue({ success: true }),
+    getDiffBetween: jest.fn().mockResolvedValue({
+      success: true,
+      data: [
+        {
+          path: 'test.txt',
+          status: 'modified',
+          additions: 5,
+          deletions: 2,
+          diff: '@@ -1,3 +1,6 @@\n line1\n+new line\n line2',
+        },
+      ],
+    }),
+    getFullStatus: jest.fn().mockResolvedValue({
+      success: true,
+      data: {
+        repoInfo: {
+          path: '/test/repo',
+          isGitRepo: true,
+          status: 'clean',
+          branch: 'main',
+          remoteName: 'origin',
+          remoteUrl: 'https://github.com/test/repo.git',
+          ahead: 0,
+          behind: 0,
+          hasUncommittedChanges: false,
+          hasUntrackedFiles: false,
+          lastCommit: null,
+        },
+        branches: [{ name: 'main', isRemote: false, isCurrent: true }],
+        commits: [],
+        fileStatus: [],
+        stashList: [],
+        remotes: [],
+      },
+    }),
   },
 }));
 
@@ -302,6 +338,71 @@ describe('useGitStore', () => {
       expect(result.current.lastError).toBeNull();
       expect(result.current.trackedRepos).toEqual([]);
       expect(result.current.autoCommitConfig.enabled).toBe(false);
+    });
+  });
+
+  describe('merge branch', () => {
+    it('should merge branch successfully', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      // Set current repo
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.mergeBranch('develop');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should return false when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      const success = await result.current.mergeBranch('develop');
+      expect(success).toBe(false);
+    });
+  });
+
+  describe('get diff between', () => {
+    it('should get diff between refs successfully', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      // Set current repo
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const diffs = await result.current.getDiffBetween('HEAD^', 'HEAD');
+        expect(diffs).toBeDefined();
+        expect(Array.isArray(diffs)).toBe(true);
+      });
+    });
+
+    it('should return null when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      const diffs = await result.current.getDiffBetween('HEAD^', 'HEAD');
+      expect(diffs).toBeNull();
+    });
+  });
+
+  describe('load full status', () => {
+    it('should load full status successfully', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      // Set current repo
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await act(async () => {
+        await result.current.loadFullStatus();
+      });
+
+      expect(result.current.currentRepoInfo).toBeDefined();
+      expect(result.current.branches).toBeDefined();
     });
   });
 });

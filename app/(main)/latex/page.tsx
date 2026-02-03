@@ -51,8 +51,6 @@ import {
 } from 'lucide-react';
 import {
   LaTeXEditor,
-  LatexAISidebar,
-  LatexAIFab,
   LatexEquationDialog,
   TemplateDialogContent,
   TemplateSelector,
@@ -72,7 +70,7 @@ export default function LaTeXPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<LaTeXTab>('editor');
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
-  const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [equationDialogOpen, setEquationDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -150,7 +148,7 @@ export default function LaTeXPage() {
     async (action: LatexAITextAction) => {
       const selection = editorRef.current?.getSelectedText()?.trim() || '';
       if (!selection) {
-        setAiSidebarOpen(true);
+        setAiPanelOpen(true);
         return;
       }
 
@@ -255,16 +253,18 @@ export default function LaTeXPage() {
           </TabsList>
         </div>
 
-        <TabsContent value="editor" className="flex-1 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+        <TabsContent value="editor" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
           <LaTeXEditor
             ref={editorRef}
             initialContent={content}
             onChange={handleContentChange}
             onSave={handleSave}
-            onOpenAIChat={() => setAiSidebarOpen(true)}
+            onOpenAIChat={() => setAiPanelOpen(true)}
             onOpenEquationDialog={() => setEquationDialogOpen(true)}
             onOpenAISettings={() => router.push('/settings')}
             onAITextAction={(action) => void handleToolbarAITextAction(action)}
+            showAIPanel={aiPanelOpen}
+            onAIPanelToggle={setAiPanelOpen}
             className="flex-1"
           />
         </TabsContent>
@@ -433,10 +433,6 @@ export default function LaTeXPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      <LatexAISidebar open={aiSidebarOpen} onClose={() => setAiSidebarOpen(false)} />
-
-      <LatexAIFab onClick={() => setAiSidebarOpen(true)} />
 
       <LatexEquationDialog
         open={equationDialogOpen}

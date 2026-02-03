@@ -11,6 +11,7 @@
  */
 
 import { useState, useCallback, useEffect, startTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -53,6 +54,8 @@ import { useJupyterKernel, useVirtualEnv } from '@/hooks/sandbox';
 import { isTauri } from '@/lib/utils';
 
 export default function NotebookPage() {
+  const t = useTranslations('notebook');
+  const tCommon = useTranslations('common');
   const searchParams = useSearchParams();
   const [notebookContent, setNotebookContent] = useState<string>('');
   const [selectedEnvPath, setSelectedEnvPath] = useState<string | null>(null);
@@ -175,14 +178,14 @@ export default function NotebookPage() {
     return (
       <div className="h-[calc(100vh-var(--titlebar-height,0px))] flex flex-col items-center justify-center bg-background p-8">
         <FileCode2 className="h-16 w-16 text-muted-foreground/30 mb-4" />
-        <h1 className="text-2xl font-semibold mb-2">Jupyter Notebook</h1>
+        <h1 className="text-2xl font-semibold mb-2">{t('title')}</h1>
         <p className="text-muted-foreground text-center max-w-md mb-6">
-          The Jupyter Notebook feature requires the desktop application to run Python kernels locally.
+          {t('desktopRequired')}
         </p>
         <Link href="/">
           <Button>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Chat
+            {t('backToChat')}
           </Button>
         </Link>
       </div>
@@ -197,14 +200,14 @@ export default function NotebookPage() {
           <Link href="/">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              {tCommon('back')}
             </Button>
           </Link>
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-md bg-orange-500 flex items-center justify-center">
               <FileCode2 className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="font-medium text-sm">Jupyter Notebook</span>
+            <span className="font-medium text-sm">{t('title')}</span>
           </div>
         </div>
 
@@ -216,7 +219,7 @@ export default function NotebookPage() {
             disabled={isCreatingSession}
           >
             <SelectTrigger className="w-[200px] h-8">
-              <SelectValue placeholder="Select environment" />
+              <SelectValue placeholder={t('selectEnvironment')} />
             </SelectTrigger>
             <SelectContent>
               {environments.map((env) => (
@@ -233,7 +236,7 @@ export default function NotebookPage() {
               ))}
               {environments.length === 0 && (
                 <SelectItem value="" disabled>
-                  No environments found
+                  {t('noEnvironments')}
                 </SelectItem>
               )}
             </SelectContent>
@@ -258,10 +261,10 @@ export default function NotebookPage() {
                       ) : (
                         <Plus className="h-4 w-4 mr-2" />
                       )}
-                      Start Kernel
+                      {t('startKernel')}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Create a new kernel session</TooltipContent>
+                  <TooltipContent>{t('createKernelTooltip')}</TooltipContent>
                 </Tooltip>
               ) : (
                 <>
@@ -277,7 +280,7 @@ export default function NotebookPage() {
                         <Square className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Interrupt execution</TooltipContent>
+                    <TooltipContent>{t('interruptTooltip')}</TooltipContent>
                   </Tooltip>
 
                   <Tooltip>
@@ -291,7 +294,7 @@ export default function NotebookPage() {
                         <RotateCcw className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Restart kernel</TooltipContent>
+                    <TooltipContent>{t('restartTooltip')}</TooltipContent>
                   </Tooltip>
 
                   <Tooltip>
@@ -305,7 +308,7 @@ export default function NotebookPage() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Stop kernel</TooltipContent>
+                    <TooltipContent>{t('stopKernelTooltip')}</TooltipContent>
                   </Tooltip>
                 </>
               )}
@@ -343,7 +346,7 @@ export default function NotebookPage() {
                   <Variable className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Toggle variables panel</TooltipContent>
+              <TooltipContent>{t('toggleVariables')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -357,7 +360,7 @@ export default function NotebookPage() {
             <AlertDescription className="flex items-center justify-between">
               <span>{error}</span>
               <Button variant="ghost" size="sm" onClick={clearError}>
-                Dismiss
+                {tCommon('dismiss')}
               </Button>
             </AlertDescription>
           </Alert>
@@ -391,7 +394,7 @@ export default function NotebookPage() {
                   <div className="border-b px-3 py-2 flex items-center justify-between bg-background">
                     <h3 className="text-sm font-medium flex items-center gap-2">
                       <Variable className="h-4 w-4" />
-                      Variables
+                      {t('variables')}
                     </h3>
                     <Button
                       variant="ghost"
@@ -407,14 +410,14 @@ export default function NotebookPage() {
                       <div className="p-3">
                         {/* Variable inspector will be shown in InteractiveNotebook */}
                         <p className="text-sm text-muted-foreground">
-                          Variables from the kernel namespace will appear here after code execution.
+                          {t('variablesHint')}
                         </p>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center h-32 text-center p-4">
                         <Variable className="h-8 w-8 text-muted-foreground/30 mb-2" />
                         <p className="text-sm text-muted-foreground">
-                          Start a kernel to inspect variables
+                          {t('startKernelHint')}
                         </p>
                       </div>
                     )}

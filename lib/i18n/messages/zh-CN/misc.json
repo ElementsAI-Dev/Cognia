@@ -258,7 +258,13 @@
     "splitView": "分屏视图",
     "compactView": "紧凑视图",
     "editDiagram": "编辑图表",
-    "editMermaidDiagram": "编辑 Mermaid 图表"
+    "editMermaidDiagram": "编辑 Mermaid 图表",
+    "syntaxHighlighting": "语法高亮",
+    "loadingHighlight": "正在加载语法高亮...",
+    "fetchingMetadata": "正在获取链接预览...",
+    "metadataFailed": "无法加载链接预览",
+    "rendererError": "渲染错误",
+    "retryRender": "重试"
   },
   "mermaidEditor": {
     "split": "分屏",

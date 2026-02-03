@@ -109,12 +109,12 @@ export function TaskDetails({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">{task.name}</h2>
+      <div className="p-3 sm:p-4 border-b">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base sm:text-lg font-semibold truncate">{task.name}</h2>
             {task.description && (
-              <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
             )}
           </div>
           <Badge
@@ -131,56 +131,62 @@ export function TaskDetails({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 mt-4">
+        <div className="flex flex-wrap gap-2 mt-3 sm:mt-4">
           <Button
             variant="outline"
             size="sm"
             onClick={onRunNow}
             disabled={isLoading}
+            className="h-8 sm:h-9"
           >
-            <Play className="h-4 w-4 mr-1" />
-            {t('runNow') || 'Run Now'}
+            <Play className="h-4 w-4" />
+            <span className="hidden xs:inline ml-1">{t('runNow') || 'Run Now'}</span>
           </Button>
           {task.status === 'active' ? (
-            <Button variant="outline" size="sm" onClick={onPause}>
-              <Pause className="h-4 w-4 mr-1" />
-              {t('pause') || 'Pause'}
+            <Button variant="outline" size="sm" onClick={onPause} className="h-8 sm:h-9">
+              <Pause className="h-4 w-4" />
+              <span className="hidden xs:inline ml-1">{t('pause') || 'Pause'}</span>
             </Button>
           ) : task.status === 'paused' ? (
-            <Button variant="outline" size="sm" onClick={onResume}>
-              <RefreshCw className="h-4 w-4 mr-1" />
-              {t('resume') || 'Resume'}
+            <Button variant="outline" size="sm" onClick={onResume} className="h-8 sm:h-9">
+              <RefreshCw className="h-4 w-4" />
+              <span className="hidden xs:inline ml-1">{t('resume') || 'Resume'}</span>
             </Button>
           ) : null}
-          <Button variant="outline" size="sm" onClick={onEdit}>
-            <Settings className="h-4 w-4 mr-1" />
-            {t('edit') || 'Edit'}
+          <Button variant="outline" size="sm" onClick={onEdit} className="h-8 sm:h-9">
+            <Settings className="h-4 w-4" />
+            <span className="hidden xs:inline ml-1">{t('edit') || 'Edit'}</span>
           </Button>
-          <Button variant="outline" size="sm" className="text-destructive" onClick={onDelete}>
-            <Trash2 className="h-4 w-4 mr-1" />
-            {t('delete') || 'Delete'}
+          <Button variant="outline" size="sm" className="h-8 sm:h-9 text-destructive" onClick={onDelete}>
+            <Trash2 className="h-4 w-4" />
+            <span className="hidden xs:inline ml-1">{t('delete') || 'Delete'}</span>
           </Button>
         </div>
       </div>
 
       {/* Content */}
       <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-4 mt-2">
-          <TabsTrigger value="overview">
-            <Calendar className="h-4 w-4 mr-1" />
-            {t('overview') || 'Overview'}
-          </TabsTrigger>
-          <TabsTrigger value="executions">
-            <History className="h-4 w-4 mr-1" />
-            {t('executions') || 'Executions'}
-          </TabsTrigger>
-          <TabsTrigger value="config">
-            <Settings className="h-4 w-4 mr-1" />
-            {t('config') || 'Config'}
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto mx-3 sm:mx-4 mt-2">
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="overview" className="gap-1 text-xs sm:text-sm">
+              <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">{t('overview') || 'Overview'}</span>
+              <span className="xs:hidden">Info</span>
+            </TabsTrigger>
+            <TabsTrigger value="executions" className="gap-1 text-xs sm:text-sm">
+              <History className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">{t('executions') || 'Executions'}</span>
+              <span className="xs:hidden">Runs</span>
+            </TabsTrigger>
+            <TabsTrigger value="config" className="gap-1 text-xs sm:text-sm">
+              <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">{t('config') || 'Config'}</span>
+              <span className="xs:hidden">Conf</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        <TabsContent value="overview" className="flex-1 p-4 space-y-4 overflow-auto">
+        <TabsContent value="overview" className="flex-1 p-3 sm:p-4 space-y-3 sm:space-y-4 overflow-auto">
           {/* Schedule Info */}
           <Card>
             <CardHeader className="pb-2">
@@ -226,18 +232,18 @@ export function TaskDetails({
               <CardTitle className="text-sm">{t('statistics') || 'Statistics'}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{task.runCount}</div>
-                  <div className="text-xs text-muted-foreground">{t('totalRuns') || 'Total Runs'}</div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="text-center p-2 sm:p-3 rounded-lg bg-muted/30">
+                  <div className="text-xl sm:text-2xl font-bold">{task.runCount}</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">{t('totalRuns') || 'Total'}</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-500">{task.successCount}</div>
-                  <div className="text-xs text-muted-foreground">{t('successful') || 'Successful'}</div>
+                <div className="text-center p-2 sm:p-3 rounded-lg bg-green-500/10">
+                  <div className="text-xl sm:text-2xl font-bold text-green-500">{task.successCount}</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">{t('successful') || 'Success'}</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-500">{task.failureCount}</div>
-                  <div className="text-xs text-muted-foreground">{t('failed') || 'Failed'}</div>
+                <div className="text-center p-2 sm:p-3 rounded-lg bg-red-500/10">
+                  <div className="text-xl sm:text-2xl font-bold text-red-500">{task.failureCount}</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">{t('failed') || 'Failed'}</div>
                 </div>
               </div>
               {successRate !== null && (
@@ -315,7 +321,7 @@ export function TaskDetails({
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="config" className="flex-1 p-4 space-y-4 overflow-auto">
+        <TabsContent value="config" className="flex-1 p-3 sm:p-4 space-y-3 sm:space-y-4 overflow-auto">
           {/* Execution Config */}
           <Card>
             <CardHeader className="pb-2">

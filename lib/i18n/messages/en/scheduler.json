@@ -19,6 +19,7 @@
   "activeTasks": "Active",
   "upcoming": "Upcoming",
   "successFailed": "Success/Failed",
+  "basicInfo": "Basic Information",
   "taskName": "Task Name",
   "taskNamePlaceholder": "Enter task name",
   "description": "Description",

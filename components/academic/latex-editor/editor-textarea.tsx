@@ -55,9 +55,10 @@ export const EditorTextarea = forwardRef<HTMLTextAreaElement, EditorTextareaProp
         onClick={onClick}
         onContextMenu={onContextMenu}
         className={cn(
-          'w-full h-full p-4 resize-none focus:outline-none',
+          'w-full h-full min-h-0 p-4 resize-none focus:outline-none',
           'font-mono text-sm bg-muted/30',
-          config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre overflow-x-auto',
+          'overflow-auto',
+          config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre',
           className
         )}
         style={{

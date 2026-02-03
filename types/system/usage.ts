@@ -19,6 +19,9 @@ export interface TokenUsage {
   outputTokens?: number;
 }
 
+/** Request status for tracking success/error states */
+export type UsageRecordStatus = 'success' | 'error' | 'timeout' | 'cancelled';
+
 export interface UsageRecord {
   id: string;
   sessionId: string;
@@ -28,6 +31,14 @@ export interface UsageRecord {
   tokens: TokenUsage;
   cost: number;
   createdAt: Date;
+  /** Response latency in milliseconds */
+  latency?: number;
+  /** Request status for error tracking */
+  status?: UsageRecordStatus;
+  /** Error message if status is 'error' */
+  errorMessage?: string;
+  /** Time to first token in milliseconds (streaming) */
+  timeToFirstToken?: number;
 }
 
 export interface DailyUsage {

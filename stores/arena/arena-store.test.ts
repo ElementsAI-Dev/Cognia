@@ -231,6 +231,23 @@ describe('useArenaStore', () => {
       expect(updatedBattle?.completedAt).toBeDefined();
     });
 
+    it('should declare both bad', () => {
+      let battleId: string = '';
+      act(() => {
+        const battle = useArenaStore.getState().createBattle('Test', mockContestants);
+        battleId = battle.id;
+      });
+
+      act(() => {
+        useArenaStore.getState().declareBothBad(battleId, 'Neither response was satisfactory');
+      });
+
+      const updatedBattle = useArenaStore.getState().getBattle(battleId);
+      expect(updatedBattle?.isBothBad).toBe(true);
+      expect(updatedBattle?.notes).toBe('Neither response was satisfactory');
+      expect(updatedBattle?.completedAt).toBeDefined();
+    });
+
     it('should create preference after winner selection', () => {
       let battleId: string = '';
       act(() => {

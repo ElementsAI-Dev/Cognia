@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TimeSeriesDataPoint } from '@/lib/ai/usage-analytics';
+import { TOOLTIP_STYLE, CHART_COLORS, CHART_MARGINS } from './chart-config';
 
 interface RequestsTimelineChartProps {
   data: TimeSeriesDataPoint[];
@@ -40,9 +41,11 @@ export function RequestsTimelineChart({
   const chartData = useMemo(() => {
     return data.map((point) => ({
       ...point,
-      displayDate: new Date(point.date).toLocaleDateString('zh-CN', {
+      displayDate: new Date(point.date).toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
+        hour: point.date.includes('T') ? '2-digit' : undefined,
+        minute: point.date.includes('T') && point.date.length > 13 ? '2-digit' : undefined,
       }),
     }));
   }, [data]);
@@ -68,11 +71,11 @@ export function RequestsTimelineChart({
       <CardContent>
         <div style={{ width: '100%', height }}>
           <ResponsiveContainer>
-            <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <ComposedChart data={chartData} margin={CHART_MARGINS.default}>
               <defs>
                 <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#8884d8" stopOpacity={0.2} />
+                  <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.8} />
+                  <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0.2} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -88,12 +91,8 @@ export function RequestsTimelineChart({
                 />
               )}
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                }}
-                labelStyle={{ fontWeight: 'bold' }}
+                contentStyle={TOOLTIP_STYLE.contentStyle}
+                labelStyle={TOOLTIP_STYLE.labelStyle}
                 formatter={(value, name) => {
                   const numValue = Number(value ?? 0);
                   if (name === 'cost') return [`$${numValue.toFixed(4)}`, t('cost') || 'Cost'];
@@ -115,7 +114,7 @@ export function RequestsTimelineChart({
                   type="monotone"
                   dataKey="cost"
                   name={t('cost') || 'Cost'}
-                  stroke="#82ca9d"
+                  stroke={CHART_COLORS.secondary}
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />

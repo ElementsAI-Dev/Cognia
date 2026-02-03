@@ -1,0 +1,16 @@
+{
+  "title": "Jupyter Notebook",
+  "desktopRequired": "The Jupyter Notebook feature requires the desktop application to run Python kernels locally.",
+  "backToChat": "Back to Chat",
+  "selectEnvironment": "Select environment",
+  "noEnvironments": "No environments found",
+  "startKernel": "Start Kernel",
+  "createKernelTooltip": "Create a new kernel session",
+  "interruptTooltip": "Interrupt execution",
+  "restartTooltip": "Restart kernel",
+  "stopKernelTooltip": "Stop kernel",
+  "toggleVariables": "Toggle variables panel",
+  "variables": "Variables",
+  "variablesHint": "Variables from the kernel namespace will appear here after code execution.",
+  "startKernelHint": "Start a kernel to inspect variables"
+}

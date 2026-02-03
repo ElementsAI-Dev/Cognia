@@ -41,6 +41,10 @@
       "traceRunning": "Running...",
       "autoRefresh": "Auto",
       "refresh": "Refresh",
+      "export": "Export",
+      "exportCSV": "Export Records (CSV)",
+      "exportJSON": "Export Records (JSON)",
+      "exportTimeSeries": "Export Time Series (CSV)",
       "tabs": {
         "overview": "Overview",
         "traces": "Traces",

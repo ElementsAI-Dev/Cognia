@@ -22,6 +22,9 @@ const mockUpdateProviderSettings = jest.fn();
 const mockState = {
   providerSettings: {
     openrouter: { apiKey: '', oauthConnected: false },
+    openrouterConnected: { apiKey: 'test-key', oauthConnected: true, oauthExpiresAt: Date.now() + 86400000 },
+    openrouterExpired: { apiKey: 'test-key', oauthConnected: true, oauthExpiresAt: Date.now() - 86400000 },
+    openrouterExpiringSoon: { apiKey: 'test-key', oauthConnected: true, oauthExpiresAt: Date.now() + 3600000 },
   },
 };
 
@@ -43,12 +46,32 @@ jest.mock('@/types/provider', () => ({
       name: 'OpenRouter',
       supportsOAuth: true,
     },
+    openrouterConnected: {
+      id: 'openrouterConnected',
+      name: 'OpenRouter',
+      supportsOAuth: true,
+    },
+    openrouterExpired: {
+      id: 'openrouterExpired',
+      name: 'OpenRouter',
+      supportsOAuth: true,
+    },
+    openrouterExpiringSoon: {
+      id: 'openrouterExpiringSoon',
+      name: 'OpenRouter',
+      supportsOAuth: true,
+    },
     openai: {
       id: 'openai',
       name: 'OpenAI',
       supportsOAuth: false,
     },
   },
+}));
+
+// Mock cn utility
+jest.mock('@/lib/utils', () => ({
+  cn: (...args: unknown[]) => args.filter(Boolean).join(' '),
 }));
 
 // Mock UI components
@@ -110,6 +133,21 @@ describe('OAuthLoginButton', () => {
 
   it('renders with custom className', () => {
     render(<OAuthLoginButton providerId="openrouter" className="custom-class" />);
+    expect(screen.getByTestId('oauth-button')).toBeInTheDocument();
+  });
+
+  it('shows connected state for OAuth-connected provider', () => {
+    render(<OAuthLoginButton providerId="openrouterConnected" />);
+    expect(screen.getByTestId('oauth-button')).toBeInTheDocument();
+  });
+
+  it('shows expired state for expired OAuth token', () => {
+    render(<OAuthLoginButton providerId="openrouterExpired" />);
+    expect(screen.getByTestId('oauth-button')).toBeInTheDocument();
+  });
+
+  it('shows warning state for soon-to-expire OAuth token', () => {
+    render(<OAuthLoginButton providerId="openrouterExpiringSoon" />);
     expect(screen.getByTestId('oauth-button')).toBeInTheDocument();
   });
 });

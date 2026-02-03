@@ -7,7 +7,7 @@
 
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Trophy, Scale } from 'lucide-react';
+import { Trophy, Scale, ThumbsDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ArenaModelConfig } from '@/types/chat/multi-model';
@@ -16,6 +16,7 @@ interface QuickVoteBarProps {
   models: ArenaModelConfig[];
   onVote: (modelId: string) => void;
   onTie: () => void;
+  onBothBad?: () => void;
   disabled?: boolean;
   className?: string;
 }
@@ -31,6 +32,7 @@ export const QuickVoteBar = memo(function QuickVoteBar({
   models,
   onVote,
   onTie,
+  onBothBad,
   disabled = false,
   className,
 }: QuickVoteBarProps) {
@@ -74,6 +76,19 @@ export const QuickVoteBar = memo(function QuickVoteBar({
         <Scale className="h-3.5 w-3.5" />
         {t('tie')}
       </Button>
+
+      {onBothBad && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground hover:text-destructive"
+          onClick={onBothBad}
+          disabled={disabled}
+        >
+          <ThumbsDown className="h-3.5 w-3.5" />
+          {t('bothBad')}
+        </Button>
+      )}
     </div>
   );
 });

@@ -817,6 +817,7 @@ export const gitService = {
   init: initRepo,
   clone: cloneRepo,
   getStatus: getRepoStatus,
+  getFullStatus,
   isRepo: isGitRepo,
   
   // Staging

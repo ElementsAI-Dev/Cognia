@@ -176,13 +176,41 @@ export function LaTeXPreview({ content, scale = 1, className, showLineNumbers: _
       }
     });
 
-    // Align environment
+    // Align environment - preserve & as alignment marker for KaTeX
     html = html.replace(/\\begin\{align\*?\}([\s\S]*?)\\end\{align\*?\}/g, (_, math) => {
       try {
-        const alignedMath = math.replace(/&/g, '\\quad').replace(/\\\\/g, '\\\\');
-        return `<div class="my-4 overflow-x-auto">${katex.renderToString(`\\begin{aligned}${alignedMath}\\end{aligned}`, { displayMode: true, throwOnError: false })}</div>`;
+        // KaTeX's aligned environment supports & as alignment markers
+        return `<div class="my-4 overflow-x-auto">${katex.renderToString(`\\begin{aligned}${math}\\end{aligned}`, { displayMode: true, throwOnError: false })}</div>`;
       } catch {
         return `<span class="text-red-500">[Align Error]</span>`;
+      }
+    });
+
+    // Gather environment - centered multi-line equations
+    html = html.replace(/\\begin\{gather\*?\}([\s\S]*?)\\end\{gather\*?\}/g, (_, math) => {
+      try {
+        return `<div class="my-4 overflow-x-auto">${katex.renderToString(`\\begin{gathered}${math}\\end{gathered}`, { displayMode: true, throwOnError: false })}</div>`;
+      } catch {
+        return `<span class="text-red-500">[Gather Error]</span>`;
+      }
+    });
+
+    // Multline environment - long equation split across lines
+    html = html.replace(/\\begin\{multline\*?\}([\s\S]*?)\\end\{multline\*?\}/g, (_, math) => {
+      try {
+        // Use gathered as KaTeX doesn't have multline, apply similar styling
+        return `<div class="my-4 overflow-x-auto">${katex.renderToString(`\\begin{gathered}${math}\\end{gathered}`, { displayMode: true, throwOnError: false })}</div>`;
+      } catch {
+        return `<span class="text-red-500">[Multline Error]</span>`;
+      }
+    });
+
+    // Cases environment - piecewise functions (KaTeX native support)
+    html = html.replace(/\\begin\{cases\}([\s\S]*?)\\end\{cases\}/g, (_, math) => {
+      try {
+        return `<div class="my-4 overflow-x-auto">${katex.renderToString(`\\begin{cases}${math}\\end{cases}`, { displayMode: true, throwOnError: false })}</div>`;
+      } catch {
+        return `<span class="text-red-500">[Cases Error]</span>`;
       }
     });
 
@@ -216,6 +244,90 @@ export function LaTeXPreview({ content, scale = 1, className, showLineNumbers: _
     html = html.replace(/\\begin\{description\}([\s\S]*?)\\end\{description\}/g, (_, items) => {
       const processed = items.replace(/\\item\[([^\]]+)\]\s*/g, '</dd><dt class="font-bold">$1</dt><dd>').slice(5);
       return `<dl class="my-2">${processed}</dd></dl>`;
+    });
+
+    // Tabular environment - basic table support
+    html = html.replace(/\\begin\{tabular\}\{([^}]+)\}([\s\S]*?)\\end\{tabular\}/g, (_, colSpec, content) => {
+      // Parse column specification to determine alignment
+      const cols = colSpec.replace(/\|/g, '').split('');
+      const alignMap: Record<string, string> = { l: 'left', c: 'center', r: 'right' };
+      
+      // Process rows
+      const rows = content.trim().split('\\\\').filter((row: string) => row.trim() && !row.trim().startsWith('\\hline'));
+      const tableRows = rows.map((row: string) => {
+        const cells = row.split('&').map((cell: string, idx: number) => {
+          const align = alignMap[cols[idx]] || 'left';
+          return `<td class="border border-border px-3 py-2 text-${align}">${cell.trim()}</td>`;
+        });
+        return `<tr>${cells.join('')}</tr>`;
+      }).join('');
+      
+      return `<div class="my-4 overflow-x-auto">
+        <table class="min-w-full border-collapse border border-border">
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>`;
+    });
+
+    // Includegraphics command - render as image (must be processed BEFORE figure/table environments)
+    html = html.replace(/\\includegraphics(?:\[([^\]]*)\])?\{([^}]+)\}/g, (_, options, src) => {
+      // Parse options for width/height
+      let style = 'max-width: 100%; height: auto;';
+      if (options) {
+        const widthMatch = options.match(/width=([^,\]]+)/);
+        const heightMatch = options.match(/height=([^,\]]+)/);
+        const scaleMatch = options.match(/scale=([^,\]]+)/);
+        
+        if (widthMatch) {
+          const width = widthMatch[1].replace('\\textwidth', '100%').replace('\\linewidth', '100%');
+          style = `width: ${width}; height: auto;`;
+        }
+        if (heightMatch) {
+          style += ` height: ${heightMatch[1]};`;
+        }
+        if (scaleMatch) {
+          const scale = parseFloat(scaleMatch[1]) * 100;
+          style = `width: ${scale}%; height: auto;`;
+        }
+      }
+      
+      // Check if src is a URL or placeholder
+      const isUrl = src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:');
+      if (isUrl) {
+        return `<img src="${src}" alt="Figure" style="${style}" class="rounded-lg" loading="lazy" />`;
+      }
+      // For non-URL paths, show placeholder
+      return `<div class="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center text-muted-foreground" style="${style}">
+        <p class="text-sm">[Image: ${src}]</p>
+      </div>`;
+    });
+
+    // Table environment with caption (processed AFTER includegraphics)
+    html = html.replace(/\\begin\{table\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{table\}/g, (_, _position, content) => {
+      // Extract caption if present
+      const captionMatch = content.match(/\\caption\{([^}]+)\}/);
+      const caption = captionMatch ? captionMatch[1] : '';
+      // Remove caption from content for further processing
+      const tableContent = content.replace(/\\caption\{[^}]+\}/g, '').replace(/\\centering/g, '').trim();
+      
+      return `<figure class="my-6">
+        <div class="overflow-x-auto">${tableContent}</div>
+        ${caption ? `<figcaption class="text-center text-sm text-muted-foreground mt-2">Table: ${caption}</figcaption>` : ''}
+      </figure>`;
+    });
+
+    // Figure environment with caption (processed AFTER includegraphics)
+    html = html.replace(/\\begin\{figure\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{figure\}/g, (_, _position, content) => {
+      // Extract caption if present
+      const captionMatch = content.match(/\\caption\{([^}]+)\}/);
+      const caption = captionMatch ? captionMatch[1] : '';
+      // Remove caption and centering from content
+      const figureContent = content.replace(/\\caption\{[^}]+\}/g, '').replace(/\\centering/g, '').trim();
+      
+      return `<figure class="my-6 text-center">
+        <div class="inline-block">${figureContent}</div>
+        ${caption ? `<figcaption class="text-center text-sm text-muted-foreground mt-2">Figure: ${caption}</figcaption>` : ''}
+      </figure>`;
     });
 
     // Footnotes (simplified)

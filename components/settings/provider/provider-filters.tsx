@@ -1,14 +1,23 @@
 'use client';
 
 import React from 'react';
-import { Search, LayoutGrid, TableIcon } from 'lucide-react';
+import { Search, LayoutGrid, TableIcon, Image, Wrench, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Toggle } from '@/components/ui/toggle';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { CATEGORY_CONFIG, PROVIDER_CATEGORIES, type ProviderCategory } from '@/lib/ai/providers/provider-helpers';
 import { PROVIDERS } from '@/types/provider';
+
+export type CapabilityFilter = 'vision' | 'tools' | 'audio';
 
 interface ProviderFiltersProps {
   categoryFilter: ProviderCategory;
@@ -17,6 +26,8 @@ interface ProviderFiltersProps {
   onSearchChange: (query: string) => void;
   viewMode: 'cards' | 'table';
   onViewModeChange: (mode: 'cards' | 'table') => void;
+  capabilityFilters?: CapabilityFilter[];
+  onCapabilityFilterChange?: (filters: CapabilityFilter[]) => void;
 }
 
 export const ProviderFilters = React.memo(function ProviderFilters({
@@ -26,9 +37,20 @@ export const ProviderFilters = React.memo(function ProviderFilters({
   onSearchChange,
   viewMode,
   onViewModeChange,
+  capabilityFilters = [],
+  onCapabilityFilterChange,
 }: ProviderFiltersProps) {
   const tPlaceholders = useTranslations('placeholders');
   const tModelPicker = useTranslations('modelPicker');
+  const tProviders = useTranslations('providers');
+
+  const toggleCapability = (cap: CapabilityFilter) => {
+    if (!onCapabilityFilterChange) return;
+    const newFilters = capabilityFilters.includes(cap)
+      ? capabilityFilters.filter((c) => c !== cap)
+      : [...capabilityFilters, cap];
+    onCapabilityFilterChange(newFilters);
+  };
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -81,6 +103,60 @@ export const ProviderFilters = React.memo(function ProviderFilters({
             data-lpignore="true"
           />
         </div>
+
+        {/* Capability Filters */}
+        {onCapabilityFilterChange && (
+          <div className="hidden sm:flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    pressed={capabilityFilters.includes('vision')}
+                    onPressedChange={() => toggleCapability('vision')}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    aria-label={tProviders('capabilityVision')}
+                  >
+                    <Image className="h-4 w-4" />
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent>{tProviders('capabilityVision')}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    pressed={capabilityFilters.includes('tools')}
+                    onPressedChange={() => toggleCapability('tools')}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    aria-label={tProviders('capabilityTools')}
+                  >
+                    <Wrench className="h-4 w-4" />
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent>{tProviders('capabilityTools')}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    pressed={capabilityFilters.includes('audio')}
+                    onPressedChange={() => toggleCapability('audio')}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    aria-label={tProviders('capabilityAudio')}
+                  >
+                    <Mic className="h-4 w-4" />
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent>{tProviders('capabilityAudio')}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
 
         {/* Hide table view toggle on mobile - cards only */}
         <div className="hidden sm:flex items-center border rounded-md">

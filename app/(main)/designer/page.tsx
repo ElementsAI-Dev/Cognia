@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useSettingsStore, useArtifactStore } from '@/stores';
 import { useDesignerStore } from '@/stores/designer';
@@ -97,6 +98,8 @@ import Link from 'next/link';
 // Types now come from store, no need to import
 
 export default function DesignerPage() {
+  const t = useTranslations('designer');
+  const tCommon = useTranslations('common');
   const searchParams = useSearchParams();
   const [code, setCode] = useState(DESIGNER_TEMPLATES[0].code);
   const [showTemplates, setShowTemplates] = useState(true);
@@ -296,14 +299,14 @@ export default function DesignerPage() {
           <Link href="/">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              {tCommon('back')}
             </Button>
           </Link>
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center">
               <Wand2 className="h-3.5 w-3.5 text-primary-foreground" />
             </div>
-            <span className="font-medium text-sm">Designer</span>
+            <span className="font-medium text-sm">{t('title')}</span>
           </div>
         </div>
 
@@ -350,7 +353,7 @@ export default function DesignerPage() {
 
           <Button variant="outline" size="sm" onClick={() => setShowTemplates(true)} data-tour="designer-templates">
             <Layers className="h-4 w-4 mr-2" />
-            Templates
+            {t('templates')}
           </Button>
           <Button 
             variant="outline" 
@@ -359,7 +362,7 @@ export default function DesignerPage() {
             title="Open in Canvas for detailed code editing with Monaco Editor"
           >
             <FileCode className="h-4 w-4 mr-2" />
-            Edit Code
+            {t('editCode')}
           </Button>
           <Button
             variant={showAIPanel ? 'default' : 'outline'}
@@ -367,7 +370,7 @@ export default function DesignerPage() {
             onClick={() => setShowAIPanel(!showAIPanel)}
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            AI Edit
+            {t('aiEdit')}
           </Button>
 
           <Separator orientation="vertical" className="h-6" />
@@ -386,7 +389,7 @@ export default function DesignerPage() {
                     <PanelLeft className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Element Tree</TooltipContent>
+                <TooltipContent>{t('elementTree')}</TooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -400,7 +403,7 @@ export default function DesignerPage() {
                     <PanelRight className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Style Panel</TooltipContent>
+                <TooltipContent>{t('stylePanel')}</TooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -414,7 +417,7 @@ export default function DesignerPage() {
                     <History className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Version History</TooltipContent>
+                <TooltipContent>{t('versionHistory')}</TooltipContent>
               </Tooltip>
             </div>
           </TooltipProvider>

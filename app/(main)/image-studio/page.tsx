@@ -648,14 +648,14 @@ export default function ImageStudioPage() {
           <Link href="/">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              {t('back')}
             </Button>
           </Link>
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-md bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
               <ImageIcon className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="font-medium text-sm">Image Studio</span>
+            <span className="font-medium text-sm">{t('title')}</span>
           </div>
         </div>
 
@@ -674,7 +674,7 @@ export default function ImageStudioPage() {
                   <Undo2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Undo</TooltipContent>
+              <TooltipContent>{t('undo')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -688,7 +688,7 @@ export default function ImageStudioPage() {
                   <Redo2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Redo</TooltipContent>
+              <TooltipContent>{t('redo')}</TooltipContent>
             </Tooltip>
           </div>
 
@@ -701,10 +701,10 @@ export default function ImageStudioPage() {
                 onClick={() => setFilterFavorites(!filterFavorites)}
               >
                 {filterFavorites ? <Star className="h-4 w-4 mr-2 fill-current" /> : <StarOff className="h-4 w-4 mr-2" />}
-                Favorites
+                {t('favorites')}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{filterFavorites ? 'Show all' : 'Show favorites only'}</TooltipContent>
+            <TooltipContent>{filterFavorites ? t('showAll') : t('showFavoritesOnly')}</TooltipContent>
           </Tooltip>
 
           {/* History */}
@@ -727,10 +727,10 @@ export default function ImageStudioPage() {
                 disabled={generatedImages.length === 0}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Export
+                {t('export')}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Export multiple images</TooltipContent>
+            <TooltipContent>{t('exportMultiple')}</TooltipContent>
           </Tooltip>
 
           {/* View mode toggle */}
@@ -756,7 +756,7 @@ export default function ImageStudioPage() {
           {/* Zoom control */}
           {viewMode === 'grid' && (
             <div className="flex items-center gap-2 border rounded-md px-2">
-              <span className="text-xs text-muted-foreground">Zoom</span>
+              <span className="text-xs text-muted-foreground">{t('zoom')}</span>
               <div className="flex items-center">
                 {ZOOM_LEVELS.map((level, idx) => (
                   <Button
@@ -785,7 +785,7 @@ export default function ImageStudioPage() {
                 {showSidebar ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{showSidebar ? 'Hide sidebar' : 'Show sidebar'}</TooltipContent>
+            <TooltipContent>{showSidebar ? t('hideSidebar') : t('showSidebar')}</TooltipContent>
           </Tooltip>
         </div>
       </header>

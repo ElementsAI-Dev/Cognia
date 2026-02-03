@@ -130,10 +130,15 @@ export function TaskList({
 
   if (tasks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Calendar className="h-12 w-12 text-muted-foreground/50 mb-4" />
-        <h3 className="text-lg font-medium">{t('noTasks') || 'No scheduled tasks'}</h3>
-        <p className="text-sm text-muted-foreground mt-1">
+      <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-2xl" />
+          <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-muted to-muted/50 mb-4">
+            <Calendar className="h-10 w-10 text-muted-foreground/70" />
+          </div>
+        </div>
+        <h3 className="text-base sm:text-lg font-medium mt-2">{t('noTasks') || 'No scheduled tasks'}</h3>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-[200px]">
           {t('noTasksDescription') || 'Create a scheduled task to automate your workflows'}
         </p>
       </div>
@@ -142,7 +147,7 @@ export function TaskList({
 
   return (
     <ScrollArea className="h-full">
-      <div className="space-y-2 p-1">
+      <div className="space-y-2 p-2 sm:p-1">
         {sortedTasks.map((task) => {
           const status = statusConfig[task.status];
           const isSelected = task.id === selectedTaskId;
@@ -151,12 +156,13 @@ export function TaskList({
             <Card
               key={task.id}
               className={cn(
-                'cursor-pointer transition-colors hover:bg-accent/50',
-                isSelected && 'ring-2 ring-primary'
+                'cursor-pointer transition-all hover:bg-accent/50 hover:shadow-md',
+                'active:scale-[0.98] touch-manipulation',
+                isSelected && 'ring-2 ring-primary bg-accent/30'
               )}
               onClick={() => onSelect(task.id)}
             >
-              <CardHeader className="p-3 pb-2">
+              <CardHeader className="p-3 sm:p-3 pb-2">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">
@@ -173,8 +179,8 @@ export function TaskList({
                     </Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                          <Cog className="h-3.5 w-3.5" />
+                        <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-6 sm:w-6 p-0 touch-manipulation">
+                          <Cog className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -230,8 +236,8 @@ export function TaskList({
                   </CardDescription>
                 )}
               </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <CardContent className="p-3 sm:p-3 pt-0">
+                <div className="flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -247,9 +253,9 @@ export function TaskList({
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-500">{task.successCount} ✓</span>
-                    <span className="text-red-500">{task.failureCount} ✗</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="text-green-500 font-medium">{task.successCount} ✓</span>
+                    <span className="text-red-500 font-medium">{task.failureCount} ✗</span>
                   </div>
                 </div>
               </CardContent>

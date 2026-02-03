@@ -83,6 +83,10 @@ export interface UseGitReturn {
   createBranch: (name: string, startPoint?: string) => Promise<boolean>;
   deleteBranch: (name: string, force?: boolean) => Promise<boolean>;
   checkout: (target: string, createBranch?: boolean) => Promise<boolean>;
+  mergeBranch: (branch: string, options?: { noFf?: boolean; squash?: boolean }) => Promise<boolean>;
+
+  // Diff actions
+  getDiffBetween: (fromRef: string, toRef: string) => Promise<import('@/types/system/git').GitDiffInfo[] | null>;
 
   // Remote actions
   push: (options?: { force?: boolean; setUpstream?: boolean }) => Promise<boolean>;
@@ -173,6 +177,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     stashApply: stashApplyAction,
     stashDrop: stashDropAction,
     stashClear: stashClearAction,
+    mergeBranch: mergeBranchAction,
+    getDiffBetween: getDiffBetweenAction,
     getProjectConfig,
     setProjectConfig,
     enableGitForProject: enableGitForProjectAction,
@@ -197,6 +203,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
       createBranch: state.createBranch,
       deleteBranch: state.deleteBranch,
       checkout: state.checkout,
+      mergeBranch: state.mergeBranch,
+      getDiffBetween: state.getDiffBetween,
       push: state.push,
       pull: state.pull,
       fetch: state.fetch,
@@ -350,6 +358,22 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     [checkoutAction]
   );
 
+  // Merge branch
+  const mergeBranch = useCallback(
+    async (branch: string, options?: { noFf?: boolean; squash?: boolean }) => {
+      return mergeBranchAction(branch, options);
+    },
+    [mergeBranchAction]
+  );
+
+  // Get diff between commits
+  const getDiffBetween = useCallback(
+    async (fromRef: string, toRef: string) => {
+      return getDiffBetweenAction(fromRef, toRef);
+    },
+    [getDiffBetweenAction]
+  );
+
   // Push
   const push = useCallback(
     async (options?: { force?: boolean; setUpstream?: boolean }) => {
@@ -497,6 +521,10 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     createBranch,
     deleteBranch,
     checkout,
+    mergeBranch,
+
+    // Diff actions
+    getDiffBetween,
 
     // Remote actions
     push,

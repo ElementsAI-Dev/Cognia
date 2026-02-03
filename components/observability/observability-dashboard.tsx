@@ -20,7 +20,14 @@ import {
   PieChart,
   LineChart,
   Clock,
+  Download,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { TraceViewer } from './trace-viewer';
 import { MetricsPanel } from './metrics-panel';
 import { CostAnalysis } from './cost-analysis';
@@ -34,10 +41,13 @@ import {
   ProviderChart,
   TokenBreakdownChart,
   LatencyDistributionChart,
+  EfficiencyRadarChart,
+  calculateEfficiencyScores,
 } from './charts';
 import { useSettingsStore, useUsageStore } from '@/stores';
 import { useObservabilityData } from '@/hooks/observability';
 import { getTopSessionsByUsage } from '@/lib/ai/usage-analytics';
+import { downloadRecordsAsCSV, downloadRecordsAsJSON, downloadTimeSeriesAsCSV } from '@/lib/ai/usage-export';
 import { cn } from '@/lib/utils';
 
 export interface TraceData {
@@ -138,14 +148,21 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
     }));
   }, [timeSeries]);
 
-  // Auto-refresh effect
+  // Refresh counter to force data recalculation (used implicitly to trigger re-renders)
+  const [_refreshCounter, setRefreshCounter] = useState(0);
+
+  // Auto-refresh effect - triggers real data refresh
   useEffect(() => {
     if (!autoRefresh) return;
 
     const interval = setInterval(() => {
       setIsRefreshing(true);
-      // Trigger a re-render by slightly changing state
-      setTimeout(() => setIsRefreshing(false), 500);
+      // Increment counter to trigger useMemo recalculations
+      setRefreshCounter((prev) => prev + 1);
+      // Force store to emit update by touching records
+      const currentRecords = useUsageStore.getState().records;
+      useUsageStore.setState({ records: [...currentRecords] });
+      setTimeout(() => setIsRefreshing(false), 300);
     }, 30000); // Refresh every 30 seconds
 
     return () => clearInterval(interval);
@@ -154,7 +171,11 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
   // Manual refresh handler
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 500);
+    setRefreshCounter((prev) => prev + 1);
+    // Force store to emit update
+    const currentRecords = useUsageStore.getState().records;
+    useUsageStore.setState({ records: [...currentRecords] });
+    setTimeout(() => setIsRefreshing(false), 300);
   }, []);
 
   // Calculate trend percentage for stat cards
@@ -248,6 +269,25 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
             <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
             <span className="hidden sm:inline">{t('refresh') || 'Refresh'}</span>
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">{t('export') || 'Export'}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => downloadRecordsAsCSV(records)}>
+                {t('exportCSV') || 'Export Records (CSV)'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadRecordsAsJSON(records)}>
+                {t('exportJSON') || 'Export Records (JSON)'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadTimeSeriesAsCSV(timeSeries)}>
+                {t('exportTimeSeries') || 'Export Time Series (CSV)'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
             <SelectTrigger className="w-28 sm:w-32">
               <SelectValue />
@@ -346,6 +386,16 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
             {/* Sidebar */}
             <div className="space-y-4">
               <RecommendationsPanel recommendations={recommendations} />
+              <EfficiencyRadarChart
+                data={calculateEfficiencyScores({
+                  costPerKToken: efficiency.costPerKToken,
+                  averageLatency: metricsData.averageLatency,
+                  errorRate: metricsData.errorRate / 100,
+                  tokensPerDollar: efficiency.tokensPerDollar,
+                  totalRequests: statistics.totalRequests,
+                })}
+                height={220}
+              />
               <EfficiencyMetricsCard metrics={efficiency} />
               {topSessions.length > 0 && (
                 <SessionAnalyticsPanel sessions={topSessions} maxSessions={5} />

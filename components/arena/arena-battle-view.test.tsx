@@ -23,14 +23,16 @@ jest.mock('@/hooks/ui', () => ({
 // Mock arena store
 const mockSelectWinner = jest.fn();
 const mockDeclareTie = jest.fn();
+const mockDeclareBothBad = jest.fn();
 let mockBattle: ArenaBattle | undefined;
 
 jest.mock('@/stores/arena', () => ({
-  useArenaStore: (selector: (state: { battles: ArenaBattle[]; selectWinner: typeof mockSelectWinner; declareTie: typeof mockDeclareTie }) => unknown) => {
+  useArenaStore: (selector: (state: { battles: ArenaBattle[]; selectWinner: typeof mockSelectWinner; declareTie: typeof mockDeclareTie; declareBothBad: typeof mockDeclareBothBad }) => unknown) => {
     const state = {
       battles: mockBattle ? [mockBattle] : [],
       selectWinner: mockSelectWinner,
       declareTie: mockDeclareTie,
+      declareBothBad: mockDeclareBothBad,
     };
     return selector(state);
   },
@@ -95,7 +97,6 @@ jest.mock('lucide-react', () => ({
   Hash: () => <span data-testid="icon-hash" />,
   Copy: () => <span data-testid="icon-copy" />,
   Check: () => <span data-testid="icon-check" />,
-  ThumbsUp: () => <span data-testid="icon-thumbsup" />,
   Scale: () => <span data-testid="icon-scale" />,
   Maximize2: () => <span data-testid="icon-maximize" />,
   Minimize2: () => <span data-testid="icon-minimize" />,
@@ -104,6 +105,24 @@ jest.mock('lucide-react', () => ({
   MessageSquare: () => <span data-testid="icon-message" />,
   Send: () => <span data-testid="icon-send" />,
   RotateCcw: () => <span data-testid="icon-rotate" />,
+  ThumbsDown: () => <span data-testid="icon-thumbsdown" />,
+}));
+
+// Mock chat utils (MarkdownRenderer)
+jest.mock('@/components/chat/utils', () => ({
+  MarkdownRenderer: ({ content }: { content: string }) => <div data-testid="markdown-renderer">{content}</div>,
+}));
+
+// Mock QuickVoteBar
+jest.mock('@/components/chat/ui/quick-vote-bar', () => ({
+  QuickVoteBar: ({ onVote, onTie, onBothBad }: { onVote: (id: string) => void; onTie: () => void; onBothBad?: () => void }) => (
+    <div data-testid="quick-vote-bar">
+      <button onClick={() => onVote('a')}>Vote A</button>
+      <button onClick={() => onVote('b')}>Vote B</button>
+      <button onClick={onTie}>Tie</button>
+      {onBothBad && <button onClick={onBothBad}>Both Bad</button>}
+    </div>
+  ),
 }));
 
 const createMockContestant = (id: string, status: ArenaContestant['status'] = 'completed'): ArenaContestant => ({

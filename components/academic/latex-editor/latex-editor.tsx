@@ -26,6 +26,7 @@ import { LaTeXToolbar } from './latex-toolbar';
 import { LaTeXAutocomplete } from './latex-autocomplete';
 import { LatexAIContextMenu } from './latex-ai-context-menu';
 import { EditorTextarea } from './editor-textarea';
+import { LatexAIPanel } from './latex-ai-panel';
 import { validate, extractMetadata } from '@/lib/latex/parser';
 import type {
   LaTeXEditorConfig,
@@ -50,6 +51,8 @@ interface LaTeXEditorProps {
   onAITextAction?: (action: import('@/hooks/latex/use-latex-ai').LatexAITextAction) => void;
   className?: string;
   readOnly?: boolean;
+  showAIPanel?: boolean;
+  onAIPanelToggle?: (open: boolean) => void;
 }
 
 export interface LaTeXEditorHandle {
@@ -76,6 +79,8 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
     onAITextAction,
     className,
     readOnly = false,
+    showAIPanel: controlledAIPanel,
+    onAIPanelToggle,
   },
   ref
 ) {
@@ -91,6 +96,15 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
   const [selectedText, setSelectedText] = useState('');
   const [undoStack, setUndoStack] = useState<string[]>([]);
   const [redoStack, setRedoStack] = useState<string[]>([]);
+  const [internalAIPanel, setInternalAIPanel] = useState(false);
+
+  // Support both controlled and uncontrolled AI panel state
+  const aiPanelOpen = controlledAIPanel ?? internalAIPanel;
+  const handleAIPanelToggle = useCallback(() => {
+    const newState = !aiPanelOpen;
+    setInternalAIPanel(newState);
+    onAIPanelToggle?.(newState);
+  }, [aiPanelOpen, onAIPanelToggle]);
 
   // Refs
   const editorRef = useRef<HTMLTextAreaElement>(null);
@@ -411,7 +425,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
     <div
       ref={containerRef}
       className={cn(
-        'flex flex-col h-full border rounded-lg bg-background',
+        'flex flex-col flex-1 min-h-0 border rounded-lg bg-background',
         isFullscreen && 'fixed inset-0 z-50',
         className
       )}
@@ -436,72 +450,15 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
         readOnly={readOnly}
       />
 
-      {/* Editor Area */}
+      {/* Editor Area with AI Panel */}
       <div className="flex-1 overflow-hidden">
-        {mode === 'source' && (
-          <div className="h-full">
-            {readOnly ? (
-              <EditorTextarea
-                ref={editorRef}
-                value={content}
-                onChange={handleTextareaChange}
-                onKeyDown={handleKeyDown}
-                onSelect={handleCursorChange}
-                onClick={handleCursorChange}
-                onContextMenu={handleCursorChange}
-                config={config}
-                readOnly={readOnly}
-              />
-            ) : (
-              <LatexAIContextMenu
-                selectedText={selectedText}
-                onReplaceSelection={replaceSelection}
-              >
-                <div className="h-full">
-                  <EditorTextarea
-                    ref={editorRef}
-                    value={content}
-                    onChange={handleTextareaChange}
-                    onKeyDown={handleKeyDown}
-                    onSelect={handleCursorChange}
-                    onClick={handleCursorChange}
-                    onContextMenu={handleCursorChange}
-                    config={config}
-                    readOnly={readOnly}
-                  />
-                </div>
-              </LatexAIContextMenu>
-            )}
-          </div>
-        )}
-
-        {mode === 'visual' && (
-          <div ref={previewRef} className="h-full overflow-auto p-4">
-            <LaTeXPreview content={content} scale={config.previewScale} />
-          </div>
-        )}
-
-        {mode === 'split' && (
-          <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={50} minSize={30}>
-              {readOnly ? (
-                <EditorTextarea
-                  ref={editorRef}
-                  value={content}
-                  onChange={handleTextareaChange}
-                  onKeyDown={handleKeyDown}
-                  onSelect={handleCursorChange}
-                  onClick={handleCursorChange}
-                  onContextMenu={handleCursorChange}
-                  config={config}
-                  readOnly={readOnly}
-                />
-              ) : (
-                <LatexAIContextMenu
-                  selectedText={selectedText}
-                  onReplaceSelection={replaceSelection}
-                >
-                  <div className="h-full">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          {/* Main Editor Panel */}
+          <ResizablePanel defaultSize={75} minSize={50}>
+            <div className="h-full overflow-hidden">
+              {mode === 'source' && (
+                <div className="h-full overflow-auto">
+                  {readOnly ? (
                     <EditorTextarea
                       ref={editorRef}
                       value={content}
@@ -513,18 +470,103 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                       config={config}
                       readOnly={readOnly}
                     />
-                  </div>
-                </LatexAIContextMenu>
+                  ) : (
+                    <LatexAIContextMenu
+                      selectedText={selectedText}
+                      onReplaceSelection={replaceSelection}
+                    >
+                      <div className="h-full">
+                        <EditorTextarea
+                          ref={editorRef}
+                          value={content}
+                          onChange={handleTextareaChange}
+                          onKeyDown={handleKeyDown}
+                          onSelect={handleCursorChange}
+                          onClick={handleCursorChange}
+                          onContextMenu={handleCursorChange}
+                          config={config}
+                          readOnly={readOnly}
+                        />
+                      </div>
+                    </LatexAIContextMenu>
+                  )}
+                </div>
               )}
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={50} minSize={30}>
-              <div ref={previewRef} className="h-full overflow-auto p-4 bg-white dark:bg-gray-900">
-                <LaTeXPreview content={content} scale={config.previewScale} />
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        )}
+
+              {mode === 'visual' && (
+                <div ref={previewRef} className="h-full overflow-auto p-4">
+                  <LaTeXPreview content={content} scale={config.previewScale} />
+                </div>
+              )}
+
+              {mode === 'split' && (
+                <ResizablePanelGroup direction="horizontal" className="h-full">
+                  <ResizablePanel defaultSize={50} minSize={30}>
+                    <div className="h-full overflow-auto">
+                      {readOnly ? (
+                        <EditorTextarea
+                          ref={editorRef}
+                          value={content}
+                          onChange={handleTextareaChange}
+                          onKeyDown={handleKeyDown}
+                          onSelect={handleCursorChange}
+                          onClick={handleCursorChange}
+                          onContextMenu={handleCursorChange}
+                          config={config}
+                          readOnly={readOnly}
+                        />
+                      ) : (
+                        <LatexAIContextMenu
+                          selectedText={selectedText}
+                          onReplaceSelection={replaceSelection}
+                        >
+                          <div className="h-full">
+                            <EditorTextarea
+                              ref={editorRef}
+                              value={content}
+                              onChange={handleTextareaChange}
+                              onKeyDown={handleKeyDown}
+                              onSelect={handleCursorChange}
+                              onClick={handleCursorChange}
+                              onContextMenu={handleCursorChange}
+                              config={config}
+                              readOnly={readOnly}
+                            />
+                          </div>
+                        </LatexAIContextMenu>
+                      )}
+                    </div>
+                  </ResizablePanel>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel defaultSize={50} minSize={30}>
+                    <div ref={previewRef} className="h-full overflow-auto p-4 bg-white dark:bg-gray-900">
+                      <LaTeXPreview content={content} scale={config.previewScale} />
+                    </div>
+                  </ResizablePanel>
+                </ResizablePanelGroup>
+              )}
+            </div>
+          </ResizablePanel>
+
+          {/* AI Sidebar Panel */}
+          {aiPanelOpen && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel
+                defaultSize={25}
+                minSize={15}
+                maxSize={40}
+              >
+                <LatexAIPanel
+                  open={aiPanelOpen}
+                  onToggle={handleAIPanelToggle}
+                  selectedText={selectedText}
+                  onInsertText={insertAtCursor}
+                />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
       </div>
 
       {/* Status Bar */}

@@ -440,18 +440,43 @@ export const selectIsInitialized = (state: SchedulerStore) => state.isInitialize
 export const selectSelectedTask = (state: SchedulerStore): ScheduledTask | undefined =>
   state.tasks.find((t) => t.id === state.selectedTaskId);
 
-export const selectActiveTasks = (state: SchedulerStore): ScheduledTask[] =>
-  state.tasks.filter((t) => t.status === 'active');
+// Memoized selectors to avoid infinite loops from getSnapshot
+// These cache results based on the source array reference
+let _activeTasksCache: { tasks: ScheduledTask[]; result: ScheduledTask[] } = { tasks: [], result: [] };
+export const selectActiveTasks = (state: SchedulerStore): ScheduledTask[] => {
+  if (_activeTasksCache.tasks !== state.tasks) {
+    _activeTasksCache = {
+      tasks: state.tasks,
+      result: state.tasks.filter((t) => t.status === 'active'),
+    };
+  }
+  return _activeTasksCache.result;
+};
 
-export const selectPausedTasks = (state: SchedulerStore): ScheduledTask[] =>
-  state.tasks.filter((t) => t.status === 'paused');
+let _pausedTasksCache: { tasks: ScheduledTask[]; result: ScheduledTask[] } = { tasks: [], result: [] };
+export const selectPausedTasks = (state: SchedulerStore): ScheduledTask[] => {
+  if (_pausedTasksCache.tasks !== state.tasks) {
+    _pausedTasksCache = {
+      tasks: state.tasks,
+      result: state.tasks.filter((t) => t.status === 'paused'),
+    };
+  }
+  return _pausedTasksCache.result;
+};
 
+let _upcomingTasksCache: { tasks: ScheduledTask[]; result: ScheduledTask[] } = { tasks: [], result: [] };
 export const selectUpcomingTasks = (state: SchedulerStore): ScheduledTask[] => {
-  const now = new Date();
-  return state.tasks
-    .filter((t) => t.status === 'active' && t.nextRunAt && t.nextRunAt > now)
-    .sort((a, b) => (a.nextRunAt?.getTime() || 0) - (b.nextRunAt?.getTime() || 0))
-    .slice(0, 5);
+  if (_upcomingTasksCache.tasks !== state.tasks) {
+    const now = new Date();
+    _upcomingTasksCache = {
+      tasks: state.tasks,
+      result: state.tasks
+        .filter((t) => t.status === 'active' && t.nextRunAt && t.nextRunAt > now)
+        .sort((a, b) => (a.nextRunAt?.getTime() || 0) - (b.nextRunAt?.getTime() || 0))
+        .slice(0, 5),
+    };
+  }
+  return _upcomingTasksCache.result;
 };
 
 export const selectRecentExecutions = (state: SchedulerStore): TaskExecution[] =>

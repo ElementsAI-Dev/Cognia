@@ -22,6 +22,8 @@ import {
   Key,
   Globe,
   Zap,
+  ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -58,7 +60,7 @@ import type {
   ProviderConfig,
   UserProviderSettings,
 } from '@/types/provider';
-import { maskApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
+import { maskApiKey, isValidApiKeyFormat } from '@/lib/ai/infrastructure/api-key-rotation';
 
 interface TestResult {
   success: boolean;
@@ -279,6 +281,40 @@ export const ProviderCard = React.memo(function ProviderCard({
                 </div>
                 {testResult && !testResult.success && (
                   <p className="text-xs text-destructive">{testResult.message}</p>
+                )}
+                {/* API Key Format Validation */}
+                {settings.apiKey && !isValidApiKeyFormat(settings.apiKey) && (
+                  <p className="text-xs text-amber-500 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {t('invalidKeyFormat') || 'API key format may be invalid'}
+                  </p>
+                )}
+                {/* Provider Links */}
+                {(provider.dashboardUrl || provider.docsUrl) && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {provider.dashboardUrl && (
+                      <a
+                        href={provider.dashboardUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {t('getDashboard') || 'Get API Key'}
+                      </a>
+                    )}
+                    {provider.docsUrl && (
+                      <a
+                        href={provider.docsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {t('viewDocs') || 'Documentation'}
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
 

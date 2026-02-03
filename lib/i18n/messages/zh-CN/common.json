@@ -1,5 +1,6 @@
 {
   "common": {
+    "all": "全部",
     "save": "保存",
     "cancel": "取消",
     "delete": "删除",
@@ -23,7 +24,10 @@
     "dismiss": "关闭",
     "configured": "已配置",
     "create": "创建",
-    "viewAll": "查看全部"
+    "viewAll": "查看全部",
+    "chat": "对话",
+    "agent": "智能体",
+    "research": "研究"
   },
   "toasts": {
     "copied": "已复制到剪贴板",

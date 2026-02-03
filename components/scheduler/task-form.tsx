@@ -20,8 +20,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -209,187 +207,241 @@ export function TaskForm({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Basic Info */}
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">{t('taskName') || 'Task Name'} *</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('taskNamePlaceholder') || 'Enter task name'}
-          />
+    <div className="space-y-4 sm:space-y-5">
+      {/* Basic Info Section */}
+      <div className="rounded-xl border bg-gradient-to-br from-card to-card/50 p-3 sm:p-4 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <Settings className="h-4 w-4 text-primary" />
+          </div>
+          <h3 className="font-semibold">{t('basicInfo') || 'Basic Information'}</h3>
         </div>
+        
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-sm font-medium">
+              {t('taskName') || 'Task Name'} <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('taskNamePlaceholder') || 'Enter task name'}
+              className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="description">{t('description') || 'Description'}</Label>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('descriptionPlaceholder') || 'Describe what this task does'}
-            rows={2}
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-sm font-medium">
+              {t('description') || 'Description'}
+            </Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t('descriptionPlaceholder') || 'Describe what this task does'}
+              rows={2}
+              className="resize-none transition-all focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label>{t('taskType') || 'Task Type'}</Label>
-          <Select value={taskType} onValueChange={(v) => setTaskType(v as ScheduledTaskType)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">{t('taskType') || 'Task Type'}</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5">
               {TASK_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => setTaskType(type.value)}
+                  className={cn(
+                    'rounded-lg border px-2 py-2 text-xs font-medium transition-all',
+                    'hover:border-primary/50 hover:bg-primary/5',
+                    taskType === type.value
+                      ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                      : 'border-border bg-background text-muted-foreground'
+                  )}
+                >
                   {type.label}
-                </SelectItem>
+                </button>
               ))}
-            </SelectContent>
-          </Select>
+            </div>
+          </div>
         </div>
       </div>
 
-      <Separator />
-
-      {/* Trigger Configuration */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium flex items-center gap-2">
-          <Clock className="h-4 w-4" />
-          {t('triggerConfig') || 'Trigger Configuration'}
-        </h3>
-
-        <div className="grid grid-cols-2 gap-2">
-          {TRIGGER_TYPES.map((type) => (
-            <Button
-              key={type.value}
-              variant={triggerType === type.value ? 'default' : 'outline'}
-              size="sm"
-              className="justify-start"
-              onClick={() => setTriggerType(type.value)}
-            >
-              {type.icon}
-              <span className="ml-2">{type.label}</span>
-            </Button>
-          ))}
+      {/* Trigger Configuration Section */}
+      <div className="rounded-xl border bg-gradient-to-br from-card to-card/50 p-3 sm:p-4 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
+            <Clock className="h-4 w-4 text-blue-500" />
+          </div>
+          <h3 className="font-semibold">{t('triggerConfig') || 'Trigger Configuration'}</h3>
         </div>
 
-        {/* Cron Configuration */}
-        {triggerType === 'cron' && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={useCustomCron}
-                onCheckedChange={setUseCustomCron}
-              />
-              <Label>{t('useCustomCron') || 'Use custom cron expression'}</Label>
-            </div>
-
-            {useCustomCron ? (
-              <div className="space-y-2">
-                <Input
-                  value={cronExpression}
-                  onChange={(e) => handleCronChange(e.target.value)}
-                  placeholder="* * * * *"
-                  className={cn('font-mono', cronError && 'border-destructive')}
-                />
-                {cronError ? (
-                  <p className="text-xs text-destructive">{cronError}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {describeCronExpression(cronExpression)}
-                  </p>
+        <div className="space-y-4">
+          {/* Trigger Type Selection */}
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
+            {TRIGGER_TYPES.map((type) => (
+              <button
+                key={type.value}
+                type="button"
+                onClick={() => setTriggerType(type.value)}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-lg border p-3 text-left transition-all',
+                  'hover:border-blue-500/50 hover:bg-blue-500/5',
+                  triggerType === type.value
+                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
+                    : 'border-border bg-background/50'
                 )}
+              >
+                <div className={cn(
+                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                  triggerType === type.value ? 'bg-blue-500 text-white' : 'bg-muted text-muted-foreground'
+                )}>
+                  {type.icon}
+                </div>
+                <div className="min-w-0">
+                  <div className={cn(
+                    'text-sm font-medium truncate',
+                    triggerType === type.value ? 'text-blue-600 dark:text-blue-400' : 'text-foreground'
+                  )}>
+                    {type.label}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Cron Configuration */}
+          {triggerType === 'cron' && (
+            <div className="space-y-4 rounded-lg border border-dashed bg-muted/30 p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">{t('useCustomCron') || 'Use custom cron expression'}</Label>
+                <Switch
+                  checked={useCustomCron}
+                  onCheckedChange={setUseCustomCron}
+                />
               </div>
-            ) : (
-              <Select value={cronPreset} onValueChange={handlePresetSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('selectSchedule') || 'Select a schedule'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {CRON_PRESETS.map((preset) => (
-                    <SelectItem key={preset.id} value={preset.id}>
-                      {preset.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
 
-            <div className="space-y-2">
-              <Label>{t('timezone') || 'Timezone'}</Label>
-              <Select value={timezone} onValueChange={setTimezone}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONE_OPTIONS.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label} ({tz.offset})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {useCustomCron ? (
+                <div className="space-y-2">
+                  <Input
+                    value={cronExpression}
+                    onChange={(e) => handleCronChange(e.target.value)}
+                    placeholder="* * * * *"
+                    className={cn(
+                      'h-10 font-mono text-sm transition-all',
+                      cronError ? 'border-destructive focus:ring-destructive/20' : 'focus:ring-2 focus:ring-primary/20'
+                    )}
+                  />
+                  {cronError ? (
+                    <p className="text-xs text-destructive">{cronError}</p>
+                  ) : (
+                    <p className="rounded-md bg-green-500/10 px-2 py-1 text-xs text-green-600 dark:text-green-400">
+                      {describeCronExpression(cronExpression)}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <Select value={cronPreset} onValueChange={handlePresetSelect}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder={t('selectSchedule') || 'Select a schedule'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CRON_PRESETS.map((preset) => (
+                      <SelectItem key={preset.id} value={preset.id}>
+                        {preset.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-sm">{t('timezone') || 'Timezone'}</Label>
+                <Select value={timezone} onValueChange={setTimezone}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMEZONE_OPTIONS.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label} ({tz.offset})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Interval Configuration */}
-        {triggerType === 'interval' && (
-          <div className="space-y-2">
-            <Label>{t('intervalMinutes') || 'Interval (minutes)'}</Label>
-            <Input
-              type="number"
-              min={1}
-              value={intervalMinutes}
-              onChange={(e) => setIntervalMinutes(parseInt(e.target.value) || 1)}
-            />
-          </div>
-        )}
-
-        {/* One-time Configuration */}
-        {triggerType === 'once' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t('date') || 'Date'}</Label>
+          {/* Interval Configuration */}
+          {triggerType === 'interval' && (
+            <div className="space-y-2 rounded-lg border border-dashed bg-muted/30 p-3">
+              <Label className="text-sm">{t('intervalMinutes') || 'Interval (minutes)'}</Label>
               <Input
-                type="date"
-                value={runAtDate}
-                onChange={(e) => setRunAtDate(e.target.value)}
+                type="number"
+                min={1}
+                value={intervalMinutes}
+                onChange={(e) => setIntervalMinutes(parseInt(e.target.value) || 1)}
+                className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
               />
             </div>
-            <div className="space-y-2">
-              <Label>{t('time') || 'Time'}</Label>
+          )}
+
+          {/* One-time Configuration */}
+          {triggerType === 'once' && (
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-dashed bg-muted/30 p-3">
+              <div className="space-y-2">
+                <Label className="text-sm">{t('date') || 'Date'}</Label>
+                <Input
+                  type="date"
+                  value={runAtDate}
+                  onChange={(e) => setRunAtDate(e.target.value)}
+                  className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('time') || 'Time'}</Label>
+                <Input
+                  type="time"
+                  value={runAtTime}
+                  onChange={(e) => setRunAtTime(e.target.value)}
+                  className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Event Configuration */}
+          {triggerType === 'event' && (
+            <div className="space-y-2 rounded-lg border border-dashed bg-muted/30 p-3">
+              <Label className="text-sm">{t('eventType') || 'Event Type'}</Label>
               <Input
-                type="time"
-                value={runAtTime}
-                onChange={(e) => setRunAtTime(e.target.value)}
+                value={eventType}
+                onChange={(e) => setEventType(e.target.value)}
+                placeholder="e.g., message.created, workflow.completed"
+                className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
               />
             </div>
-          </div>
-        )}
-
-        {/* Event Configuration */}
-        {triggerType === 'event' && (
-          <div className="space-y-2">
-            <Label>{t('eventType') || 'Event Type'}</Label>
-            <Input
-              value={eventType}
-              onChange={(e) => setEventType(e.target.value)}
-              placeholder="e.g., message.created, workflow.completed"
-            />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      <Separator />
-
-      {/* Task Payload */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium flex items-center gap-2">
-          <Settings className="h-4 w-4" />
-          {t('taskPayload') || 'Task Payload'}
-        </h3>
+      {/* Task Payload Section */}
+      <div className="rounded-xl border bg-gradient-to-br from-card to-card/50 p-3 sm:p-4 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10">
+            <Settings className="h-4 w-4 text-purple-500" />
+          </div>
+          <div>
+            <h3 className="font-semibold">{t('taskPayload') || 'Task Payload'}</h3>
+            <p className="text-xs text-muted-foreground">
+              {t('payloadHelp') || 'JSON configuration passed to the task executor'}
+            </p>
+          </div>
+        </div>
+        
         <div className="space-y-2">
           <Textarea
             value={payloadJson}
@@ -398,55 +450,67 @@ export function TaskForm({
               setPayloadError(null);
             }}
             placeholder='{"key": "value"}'
-            className={cn('font-mono text-sm', payloadError && 'border-destructive')}
+            className={cn(
+              'min-h-[100px] resize-none font-mono text-sm transition-all',
+              payloadError ? 'border-destructive focus:ring-destructive/20' : 'focus:ring-2 focus:ring-primary/20'
+            )}
             rows={4}
           />
           {payloadError && (
             <p className="text-xs text-destructive">{payloadError}</p>
           )}
-          <p className="text-xs text-muted-foreground">
-            {t('payloadHelp') || 'JSON configuration passed to the task executor'}
-          </p>
         </div>
       </div>
 
-      <Separator />
-
-      {/* Notifications */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium flex items-center gap-2">
-          <Bell className="h-4 w-4" />
-          {t('notifications') || 'Notifications'}
-        </h3>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label>{t('notifyOnStart') || 'Notify on start'}</Label>
-            <Switch checked={notifyOnStart} onCheckedChange={setNotifyOnStart} />
+      {/* Notifications Section */}
+      <div className="rounded-xl border bg-gradient-to-br from-card to-card/50 p-3 sm:p-4 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10">
+            <Bell className="h-4 w-4 text-amber-500" />
           </div>
-          <div className="flex items-center justify-between">
-            <Label>{t('notifyOnComplete') || 'Notify on complete'}</Label>
-            <Switch checked={notifyOnComplete} onCheckedChange={setNotifyOnComplete} />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>{t('notifyOnError') || 'Notify on error'}</Label>
-            <Switch checked={notifyOnError} onCheckedChange={setNotifyOnError} />
-          </div>
+          <h3 className="font-semibold">{t('notifications') || 'Notifications'}</h3>
         </div>
 
-        <div className="space-y-2">
-          <Label>{t('notificationChannels') || 'Notification Channels'}</Label>
-          <div className="flex flex-wrap gap-2">
-            {(['desktop', 'toast'] as NotificationChannel[]).map((channel) => (
-              <Badge
-                key={channel}
-                variant={notificationChannels.includes(channel) ? 'default' : 'outline'}
-                className="cursor-pointer"
-                onClick={() => toggleChannel(channel)}
+        <div className="space-y-4">
+          <div className="grid gap-2">
+            {[
+              { key: 'start', label: t('notifyOnStart') || 'Notify on start', checked: notifyOnStart, onChange: setNotifyOnStart },
+              { key: 'complete', label: t('notifyOnComplete') || 'Notify on complete', checked: notifyOnComplete, onChange: setNotifyOnComplete },
+              { key: 'error', label: t('notifyOnError') || 'Notify on error', checked: notifyOnError, onChange: setNotifyOnError },
+            ].map((item) => (
+              <div
+                key={item.key}
+                className={cn(
+                  'flex items-center justify-between rounded-lg border px-3 py-2.5 transition-all',
+                  item.checked ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-background/50'
+                )}
               >
-                {channel}
-              </Badge>
+                <Label className="cursor-pointer text-sm">{item.label}</Label>
+                <Switch checked={item.checked} onCheckedChange={item.onChange} />
+              </div>
             ))}
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">{t('notificationChannels') || 'Channels'}</Label>
+            <div className="flex gap-2">
+              {(['desktop', 'toast'] as NotificationChannel[]).map((channel) => (
+                <button
+                  key={channel}
+                  type="button"
+                  onClick={() => toggleChannel(channel)}
+                  className={cn(
+                    'flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize transition-all',
+                    'hover:border-amber-500/50 hover:bg-amber-500/5',
+                    notificationChannels.includes(channel)
+                      ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                      : 'border-border bg-background/50 text-muted-foreground'
+                  )}
+                >
+                  {channel}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -454,53 +518,73 @@ export function TaskForm({
       {/* Advanced Settings */}
       <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="w-full justify-between">
-            {t('advancedSettings') || 'Advanced Settings'}
+          <button
+            type="button"
+            className={cn(
+              'flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-all',
+              'hover:bg-muted/50',
+              showAdvanced ? 'bg-muted/30' : 'bg-background'
+            )}
+          >
+            <span className="flex items-center gap-2">
+              <Settings className="h-4 w-4 text-muted-foreground" />
+              {t('advancedSettings') || 'Advanced Settings'}
+            </span>
             {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
+          </button>
         </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-4 pt-4">
-          <div className="grid grid-cols-3 gap-4">
+        <CollapsibleContent className="mt-2 rounded-xl border bg-muted/20 p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-2">
-              <Label>{t('timeoutMs') || 'Timeout (ms)'}</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t('timeoutMs') || 'Timeout (ms)'}</Label>
               <Input
                 type="number"
                 min={1000}
                 value={timeout}
                 onChange={(e) => setTimeout(parseInt(e.target.value) || 300000)}
+                className="h-9 text-sm transition-all focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div className="space-y-2">
-              <Label>{t('maxRetries') || 'Max Retries'}</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t('maxRetries') || 'Max Retries'}</Label>
               <Input
                 type="number"
                 min={0}
                 max={10}
                 value={maxRetries}
                 onChange={(e) => setMaxRetries(parseInt(e.target.value) || 0)}
+                className="h-9 text-sm transition-all focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div className="space-y-2">
-              <Label>{t('retryDelayMs') || 'Retry Delay (ms)'}</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t('retryDelayMs') || 'Retry Delay (ms)'}</Label>
               <Input
                 type="number"
                 min={0}
                 value={retryDelay}
                 onChange={(e) => setRetryDelay(parseInt(e.target.value) || 0)}
+                className="h-9 text-sm transition-all focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
         </CollapsibleContent>
       </Collapsible>
 
-      <Separator />
-
       {/* Actions */}
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+      <div className="flex flex-col-reverse xs:flex-row gap-2 sm:gap-3 pt-2">
+        <Button 
+          variant="outline" 
+          onClick={onCancel} 
+          disabled={isSubmitting}
+          className="flex-1 h-10 sm:h-11"
+        >
           {t('cancel') || 'Cancel'}
         </Button>
-        <Button onClick={handleSubmit} disabled={isSubmitting || !name.trim()}>
+        <Button 
+          onClick={handleSubmit} 
+          disabled={isSubmitting || !name.trim()}
+          className="flex-1 h-10 sm:h-11 bg-gradient-to-r from-primary to-primary/80 shadow-md transition-all hover:shadow-lg"
+        >
           {isSubmitting ? t('saving') || 'Saving...' : t('save') || 'Save Task'}
         </Button>
       </div>

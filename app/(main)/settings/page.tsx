@@ -209,7 +209,7 @@ function SettingsSidebar({
               <Search className="h-4 w-4" />
             </InputGroupAddon>
             <InputGroupInput
-              placeholder="Search settings..."
+              placeholder={t('searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="text-sm"
@@ -401,9 +401,9 @@ export default function SettingsPage() {
       },
       {
         id: 'safety',
-        label: 'Safety Mode',
+        label: t('tabSafety'),
         icon: <Shield className="h-4 w-4" />,
-        description: 'Configure security checks and content filtering',
+        description: t('descSafety'),
         group: 'ai',
       },
       {
@@ -557,9 +557,9 @@ export default function SettingsPage() {
             },
             {
               id: 'tray' as const,
-              label: '系统托盘',
+              label: t('tabTray'),
               icon: <Monitor className="h-4 w-4" />,
-              description: '配置系统托盘菜单显示模式和内容',
+              description: t('descTray'),
               group: 'system' as const,
             },
             {

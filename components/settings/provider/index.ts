@@ -4,6 +4,7 @@
 
 export { ProviderSettings } from './provider-settings';
 export { CustomProviderDialog } from './custom-provider-dialog';
+export { QuickAddProviderDialog, QUICK_ADD_PRESETS, type QuickAddPreset } from './quick-add-provider-dialog';
 export { OAuthLoginButton } from './oauth-login-button';
 export { ProviderImportExport } from './provider-import-export';
 export { ProviderHealthStatus } from './provider-health-status';

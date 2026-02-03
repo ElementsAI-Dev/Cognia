@@ -12,6 +12,7 @@ export { SymbolPicker } from './symbol-picker';
 export { LatexAIDropdown } from './latex-ai-dropdown';
 export { LatexAIContextMenu } from './latex-ai-context-menu';
 export { LatexAISidebar } from './latex-ai-sidebar';
+export { LatexAIPanel } from './latex-ai-panel';
 export { LatexAIFab } from './latex-ai-fab';
 export { LatexEquationDialog } from './latex-equation-dialog';
 export { LatexSketchDialog } from './latex-sketch-dialog';

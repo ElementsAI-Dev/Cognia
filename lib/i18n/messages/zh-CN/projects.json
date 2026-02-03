@@ -60,7 +60,10 @@
     "daysAgo": "{days} 天前",
     "viewActiveTooltip": "查看活跃项目",
     "viewArchivedTooltip": "查看已归档项目",
-    "importExportTooltip": "导入或导出项目数据"
+    "importExportTooltip": "导入或导出项目数据",
+    "newChat": "新对话",
+    "previewTitle": "项目预览",
+    "previewDescription": "项目描述"
   },
   "importExport": {
     "title": "导入 / 导出项目",

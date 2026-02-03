@@ -1,12 +1,31 @@
 {
   "title": "LaTeX 编辑器",
   "description": "编写并预览 LaTeX 文档，支持 AI 辅助",
+  "preview": {
+    "mathError": "数学公式错误",
+    "alignError": "对齐环境错误",
+    "gatherError": "gather 环境错误",
+    "multlineError": "多行公式错误",
+    "casesError": "分段函数错误",
+    "tableCaption": "表格",
+    "figureCaption": "图",
+    "imagePlaceholder": "图片"
+  },
   "templates": "模板",
   "selectTemplate": "选择模板",
   "templateDescription": "选择一个模板来开始你的文档",
   "export": "导出",
   "exportDocument": "导出文档",
   "exportDescription": "选择导出格式",
+  "exportHtmlDesc": "导出为包含渲染公式的 HTML",
+  "exportMarkdownDesc": "导出为 Markdown 格式",
+  "plainText": "纯文本",
+  "exportPlainTextDesc": "导出为无格式的纯文本",
+  "fileName": "文件名",
+  "format": "格式",
+  "options": "选项",
+  "includeMathJax": "包含 MathJax",
+  "cancel": "取消",
   "save": "保存",
   "tabs": {
     "editor": "编辑器",
@@ -79,16 +98,43 @@
       "tabs": {
         "chat": "对话",
         "suggestions": "建议",
-        "history": "历史"
+        "history": "历史",
+        "analysis": "分析"
       },
       "inputPlaceholder": "问 AI 点什么…",
-      "send": "发送"
+      "send": "发送",
+      "selectedText": "已选中文本可作为上下文",
+      "insert": "插入",
+      "thinking": "思考中...",
+      "messages": "条消息",
+      "clear": "清空"
+    },
+    "equationAnalysis": {
+      "input": "输入公式",
+      "placeholder": "输入要分析的 LaTeX 公式...",
+      "analyze": "分析",
+      "simplify": "化简",
+      "expand": "展开",
+      "emptyState": "在上方输入公式以查看分析结果",
+      "analysisResults": "分析结果",
+      "type": "类型",
+      "complexity": "复杂度",
+      "variables": "变量",
+      "functions": "函数",
+      "verification": "验证",
+      "confidence": "置信度",
+      "issues": "问题",
+      "suggestion": "建议",
+      "suggestions": "改进建议",
+      "simplificationResult": "简化形式",
+      "steps": "步骤",
+      "expandedForm": "展开形式"
     },
     "equationDialog": {
       "title": "生成 LaTeX 公式",
       "description": "输入你想表达的公式含义，AI 将生成可插入的 LaTeX 代码",
       "inputPlaceholder": "例如：二次方程求根公式",
-      "resultPlaceholder": "例如：\\frac{a}{b}",
+      "resultPlaceholder": "生成的 LaTeX 将显示在此处",
       "generate": "生成",
       "insert": "插入",
       "cancel": "取消"

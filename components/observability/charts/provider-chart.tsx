@@ -11,8 +11,7 @@ import { useTranslations } from 'next-intl';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ProviderUsageBreakdown } from '@/lib/ai/usage-analytics';
-
-const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00C49F', '#FFBB28', '#FF8042'];
+import { TOOLTIP_STYLE, EXTENDED_COLORS } from './chart-config';
 
 interface ProviderChartProps {
   data: ProviderUsageBreakdown[];
@@ -82,15 +81,11 @@ export function ProviderChart({
                 labelLine={false}
               >
                 {chartData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${index}`} fill={EXTENDED_COLORS[index % EXTENDED_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                }}
+                contentStyle={TOOLTIP_STYLE.contentStyle}
                 formatter={(value) => {
                   const numValue = Number(value);
                   if (dataKey === 'cost') return `$${numValue.toFixed(4)}`;

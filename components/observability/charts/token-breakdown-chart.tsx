@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TOOLTIP_STYLE, TOKEN_COLORS } from './chart-config';
 
 interface TokenBreakdownData {
   inputTokens: number;
@@ -22,7 +23,7 @@ interface TokenBreakdownChartProps {
   height?: number;
 }
 
-const COLORS = ['#8884d8', '#82ca9d'];
+const COLORS = [TOKEN_COLORS.input, TOKEN_COLORS.output];
 
 export function TokenBreakdownChart({
   data,
@@ -99,11 +100,7 @@ export function TokenBreakdownChart({
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                }}
+                contentStyle={TOOLTIP_STYLE.contentStyle}
                 formatter={(value) => [formatValue(Number(value ?? 0)), 'Tokens']}
               />
               <Legend />

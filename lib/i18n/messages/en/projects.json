@@ -60,7 +60,10 @@
     "daysAgo": "{days} days ago",
     "viewActiveTooltip": "View active projects",
     "viewArchivedTooltip": "View archived projects",
-    "importExportTooltip": "Import or export project data"
+    "importExportTooltip": "Import or export project data",
+    "newChat": "New Chat",
+    "previewTitle": "Project Preview",
+    "previewDescription": "Project description"
   },
   "importExport": {
     "title": "Import / Export Projects",

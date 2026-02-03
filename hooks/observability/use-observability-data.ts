@@ -107,9 +107,10 @@ export function useObservabilityData(timeRange: TimeRange = '24h'): Observabilit
     return getProviderUsageBreakdown(filteredRecords);
   }, [filteredRecords]);
 
-  // Time series data
+  // Time series data with appropriate granularity
   const timeSeries = useMemo(() => {
-    const granularity = timeRange === '1h' ? 'hour' : 'day';
+    // Use minute granularity for 1h, hour for 24h, day for longer periods
+    const granularity = timeRange === '1h' ? 'minute' : timeRange === '24h' ? 'hour' : 'day';
     return generateUsageTimeSeries(records, period, granularity);
   }, [records, period, timeRange]);
 
@@ -150,26 +151,48 @@ export function useObservabilityData(timeRange: TimeRange = '24h'): Observabilit
       requestsByModel[m.model] = m.requests;
     }
 
-    // Calculate latency percentiles (approximation from available data)
-    const avgLatency = statistics.totalRequests > 0 ? 500 : 0; // Placeholder
+    // Calculate real latency from records with latency data
+    const recordsWithLatency = filteredRecords.filter(r => r.latency !== undefined && r.latency > 0);
+    const latencies = recordsWithLatency.map(r => r.latency!).sort((a, b) => a - b);
+    
+    const avgLatency = latencies.length > 0 
+      ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length
+      : 0;
+
+    // Calculate real latency percentiles
+    const getPercentile = (arr: number[], p: number): number => {
+      if (arr.length === 0) return 0;
+      const index = Math.ceil((p / 100) * arr.length) - 1;
+      return arr[Math.max(0, index)];
+    };
+
+    const p50 = getPercentile(latencies, 50);
+    const p90 = getPercentile(latencies, 90);
+    const p99 = getPercentile(latencies, 99);
+
+    // Calculate real error rate
+    const errorRecords = filteredRecords.filter(r => r.status === 'error' || r.status === 'timeout');
+    const errorRate = filteredRecords.length > 0 
+      ? (errorRecords.length / filteredRecords.length) * 100
+      : 0;
 
     return {
       totalRequests: statistics.totalRequests,
       totalTokens: statistics.totalTokens,
       totalCost: statistics.totalCost,
       averageLatency: avgLatency,
-      errorRate: 0, // Would need error tracking
+      errorRate,
       requestsByProvider,
       requestsByModel,
       tokensByProvider,
       costByProvider,
       latencyPercentiles: {
-        p50: avgLatency * 0.8,
-        p90: avgLatency * 1.5,
-        p99: avgLatency * 2,
+        p50,
+        p90,
+        p99,
       },
     };
-  }, [statistics, providerBreakdown, modelBreakdown]);
+  }, [statistics, providerBreakdown, modelBreakdown, filteredRecords]);
 
   return {
     statistics,

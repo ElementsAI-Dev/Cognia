@@ -41,6 +41,10 @@
       "traceRunning": "运行中...",
       "autoRefresh": "自动",
       "refresh": "刷新",
+      "export": "导出",
+      "exportCSV": "导出记录 (CSV)",
+      "exportJSON": "导出记录 (JSON)",
+      "exportTimeSeries": "导出时间序列 (CSV)",
       "tabs": {
         "overview": "概览",
         "traces": "追踪",

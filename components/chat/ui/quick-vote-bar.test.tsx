@@ -12,6 +12,7 @@ jest.mock('next-intl', () => ({
     const translations: Record<string, string> = {
       selectWinner: 'Select Winner',
       tie: 'Tie',
+      bothBad: 'Both Bad',
     };
     return translations[key] || key;
   },
@@ -21,6 +22,7 @@ jest.mock('next-intl', () => ({
 jest.mock('lucide-react', () => ({
   Trophy: () => <span data-testid="trophy-icon" />,
   Scale: () => <span data-testid="scale-icon" />,
+  ThumbsDown: () => <span data-testid="thumbsdown-icon" />,
 }));
 
 const createMockModels = (): ArenaModelConfig[] => [
@@ -100,6 +102,31 @@ describe('QuickVoteBar', () => {
       fireEvent.click(tieButton);
 
       expect(mockOnTie).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call onBothBad when clicking both bad button', () => {
+      const models = createMockModels();
+      const mockOnBothBad = jest.fn();
+      render(
+        <QuickVoteBar
+          models={models}
+          onVote={mockOnVote}
+          onTie={mockOnTie}
+          onBothBad={mockOnBothBad}
+        />
+      );
+
+      const bothBadButton = screen.getByText('Both Bad').closest('button')!;
+      fireEvent.click(bothBadButton);
+
+      expect(mockOnBothBad).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not render both bad button when onBothBad is not provided', () => {
+      const models = createMockModels();
+      render(<QuickVoteBar models={models} onVote={mockOnVote} onTie={mockOnTie} />);
+
+      expect(screen.queryByText('Both Bad')).not.toBeInTheDocument();
     });
 
     it('should disable all buttons when disabled prop is true', () => {

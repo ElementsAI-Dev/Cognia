@@ -1,0 +1,12 @@
+{
+  "keyboardShortcuts": {
+    "title": "键盘快捷键",
+    "description": "可用键盘快捷键的快速参考",
+    "navigation": "导航",
+    "chat": "聊天",
+    "editing": "编辑",
+    "system": "系统",
+    "tip": "提示：",
+    "commandPaletteHint": "打开命令面板"
+  }
+}

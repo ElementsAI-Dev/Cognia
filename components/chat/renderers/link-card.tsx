@@ -3,15 +3,16 @@
 /**
  * LinkCard - Rich link preview renderer
  * Features:
- * - Open Graph metadata display
+ * - Open Graph metadata display with auto-fetch
  * - Favicon display
  * - Hover preview
  * - External link indicator
  * - Loading states
  */
 
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
+import { useLinkMetadata, type LinkMetadata } from '@/hooks/ui';
 import {
   ExternalLink,
   Link2,
@@ -25,34 +26,43 @@ import {
 } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-interface LinkMetadata {
-  title?: string;
-  description?: string;
-  image?: string;
-  favicon?: string;
-  siteName?: string;
-  url: string;
-}
-
 interface LinkCardProps {
   href: string;
   children?: React.ReactNode;
   className?: string;
   showPreview?: boolean;
+  /** Manually provided metadata (skips auto-fetch if provided) */
   metadata?: LinkMetadata;
   variant?: 'inline' | 'card' | 'compact';
+  /** Enable auto-fetching of metadata (default: true for card variant) */
+  autoFetch?: boolean;
 }
+
+// Re-export the type for convenience
+export type { LinkMetadata };
 
 export const LinkCard = memo(function LinkCard({
   href,
   children,
   className,
   showPreview = true,
-  metadata,
+  metadata: providedMetadata,
   variant = 'inline',
+  autoFetch,
 }: LinkCardProps) {
   const _t = useTranslations('renderer');
-  const [_isHovered, setIsHovered] = useState(false);
+  
+  // Determine if we should auto-fetch (default: true for card variant, false for inline/compact)
+  const shouldAutoFetch = autoFetch ?? (variant === 'card');
+  
+  // Use the hook to fetch metadata if not provided
+  const { metadata: fetchedMetadata, isLoading } = useLinkMetadata(href, {
+    enabled: shouldAutoFetch && !providedMetadata,
+    initialMetadata: providedMetadata,
+  });
+  
+  // Use provided metadata first, then fetched metadata
+  const metadata = providedMetadata || fetchedMetadata;
 
   // Extract domain from URL
   const domain = getDomain(href);
@@ -69,8 +79,6 @@ export const LinkCard = memo(function LinkCard({
           'inline-flex items-center gap-1 text-primary hover:underline',
           className
         )}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         {children}
         {isExternal && <ExternalLink className="h-3 w-3 inline" />}
@@ -118,6 +126,11 @@ export const LinkCard = memo(function LinkCard({
   }
 
   // Card variant - full card display
+  // Show skeleton while loading
+  if (isLoading && shouldAutoFetch) {
+    return <LinkCardSkeleton variant="card" className={className} />;
+  }
+  
   return (
     <a
       href={href}

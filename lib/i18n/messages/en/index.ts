@@ -44,6 +44,7 @@ import scheduler from './scheduler.json';
 import logging from './logging.json';
 import importMessages from './import.json';
 import externalAgent from './externalAgent.json';
+import keyboardShortcuts from './keyboardShortcuts.json';
 
 const messages = {
   ...common,
@@ -90,6 +91,7 @@ const messages = {
   ...logging,
   import: importMessages,
   externalAgent,
+  ...keyboardShortcuts,
 };
 
 export default messages;

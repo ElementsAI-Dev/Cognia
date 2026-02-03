@@ -18,6 +18,7 @@ import {
 import { buildOAuthUrl, getOAuthState, clearOAuthState } from '@/lib/ai/providers/oauth';
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS } from '@/types/provider';
+import { cn } from '@/lib/utils';
 
 interface OAuthLoginButtonProps {
   providerId: string;
@@ -46,6 +47,12 @@ export function OAuthLoginButton({
   const provider = PROVIDERS[providerId];
   const settings = providerSettings[providerId];
   const isConnected = settings?.oauthConnected && settings?.apiKey;
+  
+  // Check if OAuth token is expired
+  const isExpired = settings?.oauthExpiresAt && settings.oauthExpiresAt < Date.now();
+  const isExpiringSoon = settings?.oauthExpiresAt && 
+    settings.oauthExpiresAt > Date.now() && 
+    settings.oauthExpiresAt < Date.now() + 24 * 60 * 60 * 1000; // expires within 24 hours
   
   // Check for OAuth callback parameters on mount
   useEffect(() => {
@@ -143,6 +150,31 @@ export function OAuthLoginButton({
   
   if (!provider?.supportsOAuth) return null;
   
+  // Show re-login prompt if token is expired
+  if (isConnected && isExpired) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size={size}
+              onClick={handleLogin}
+              disabled={isLoading}
+              className={cn('border-amber-500 text-amber-600 hover:bg-amber-50', className)}
+            >
+              <AlertCircle className="h-4 w-4 mr-1 text-amber-500" />
+              {t('oauthExpired') || 'Token Expired'}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t('oauthExpiredHint') || 'Your OAuth token has expired. Click to re-authenticate.'}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  
   if (isConnected) {
     return (
       <TooltipProvider>
@@ -154,13 +186,20 @@ export function OAuthLoginButton({
               onClick={handleDisconnect}
               className={className}
             >
-              <Check className="h-4 w-4 mr-1 text-green-500" />
+              {isExpiringSoon ? (
+                <AlertCircle className="h-4 w-4 mr-1 text-amber-500" />
+              ) : (
+                <Check className="h-4 w-4 mr-1 text-green-500" />
+              )}
               {t('oauthConnected')}
               <Unlink className="h-3 w-3 ml-1 opacity-50" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {t('oauthDisconnectHint')}
+            {isExpiringSoon 
+              ? (t('oauthExpiringSoonHint') || 'Token expires soon. Consider re-authenticating.')
+              : t('oauthDisconnectHint')
+            }
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

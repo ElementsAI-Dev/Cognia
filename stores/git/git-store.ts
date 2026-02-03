@@ -10,6 +10,8 @@ import type {
   GitCommitInfo,
   GitBranchInfo,
   GitFileStatus,
+  GitDiffInfo,
+  GitStashEntry,
   GitOperationProgress,
   GitConfig,
   ProjectGitConfig,
@@ -65,6 +67,7 @@ export interface GitActions {
   // Repository management
   setCurrentRepo: (path: string | null) => void;
   loadRepoStatus: (path?: string) => Promise<void>;
+  loadFullStatus: () => Promise<void>;
   initRepo: (path: string, options?: { initialBranch?: string }) => Promise<boolean>;
   cloneRepo: (
     url: string,
@@ -89,6 +92,10 @@ export interface GitActions {
   createBranch: (name: string, startPoint?: string) => Promise<boolean>;
   deleteBranch: (name: string, force?: boolean) => Promise<boolean>;
   checkout: (target: string, createBranch?: boolean) => Promise<boolean>;
+  mergeBranch: (branch: string, options?: { noFf?: boolean; squash?: boolean }) => Promise<boolean>;
+
+  // Commit diff
+  getDiffBetween: (fromRef: string, toRef: string) => Promise<GitDiffInfo[] | null>;
 
   // Remote operations
   push: (options?: { force?: boolean; setUpstream?: boolean }) => Promise<boolean>;
@@ -255,6 +262,36 @@ export const useGitStore = create<GitState & GitActions>()(
           } else {
             set({
               lastError: result.error || 'Failed to get repository status',
+              operationStatus: 'error',
+            });
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+        }
+      },
+
+      loadFullStatus: async () => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.getFullStatus(currentRepoPath);
+          if (result.success && result.data) {
+            set({
+              currentRepoInfo: result.data.repoInfo,
+              branches: result.data.branches,
+              commits: result.data.commits,
+              fileStatus: result.data.fileStatus,
+              stashList: result.data.stashList as GitStashEntry[],
+              operationStatus: 'idle',
+            });
+          } else {
+            set({
+              lastError: result.error || 'Failed to get full repository status',
               operationStatus: 'error',
             });
           }
@@ -569,6 +606,56 @@ export const useGitStore = create<GitState & GitActions>()(
             operationStatus: 'error',
           });
           return false;
+        }
+      },
+
+      mergeBranch: async (branch, options) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.merge({
+            repoPath: currentRepoPath,
+            branch,
+            noFf: options?.noFf,
+            squash: options?.squash,
+          });
+          if (result.success) {
+            await get().loadRepoStatus();
+            await get().loadBranches();
+            await get().loadCommitHistory();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to merge branch',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      getDiffBetween: async (fromRef, toRef) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return null;
+
+        try {
+          const result = await gitService.getDiffBetween(currentRepoPath, fromRef, toRef);
+          if (result.success && result.data) {
+            return result.data;
+          }
+          return null;
+        } catch (error) {
+          console.error('Failed to get diff between refs:', error);
+          return null;
         }
       },
 

@@ -899,6 +899,22 @@
     "done": "Done",
     "fullscreen": "Fullscreen",
     "exitFullscreen": "Exit Fullscreen",
-    "keyboardShortcuts": "Keyboard Shortcuts"
+    "keyboardShortcuts": "Keyboard Shortcuts",
+    "generating": "Generating responses...",
+    "results": "Results",
+    "waiting": "Waiting...",
+    "generatingResponse": "Generating response...",
+    "stopGeneration": "Stop Generation",
+    "generate": "Generate",
+    "selectModels": "Select Models",
+    "noProviders": "No configured providers available",
+    "configureProviders": "Configure API keys in settings",
+    "modelsSelected": "{count} model(s) selected",
+    "clearSelection": "Clear All",
+    "exportPng": "Export as PNG",
+    "exportSvg": "Export as SVG",
+    "exportJson": "Export as JSON",
+    "exportSuccess": "Export completed successfully",
+    "exportFailed": "Export failed"
   }
 }

@@ -69,6 +69,7 @@ import { CLIProxyAPISettings } from './cliproxyapi-settings';
 
 // Dynamic imports for heavy dialog components (code splitting)
 const CustomProviderDialog = dynamic(() => import('./custom-provider-dialog').then(mod => ({ default: mod.CustomProviderDialog })), { ssr: false });
+const QuickAddProviderDialog = dynamic(() => import('./quick-add-provider-dialog').then(mod => ({ default: mod.QuickAddProviderDialog })), { ssr: false });
 const ProviderImportExport = dynamic(() => import('./provider-import-export').then(mod => ({ default: mod.ProviderImportExport })), { ssr: false });
 const LocalProviderSettings = dynamic(() => import('./local-provider-settings').then(mod => ({ default: mod.LocalProviderSettings })), { ssr: false, loading: () => <ProviderSkeleton /> });
 import { testCustomProviderConnectionByProtocol, testProviderConnection, type ApiTestResult } from '@/lib/ai/infrastructure/api-test';
@@ -103,6 +104,7 @@ export function ProviderSettings() {
   const [testResults, setTestResults] = useState<Record<string, ApiTestResult | null>>({});
   const [testingProviders, setTestingProviders] = useState<Record<string, boolean>>({});
   const [showCustomDialog, setShowCustomDialog] = useState(false);
+  const [showQuickAddDialog, setShowQuickAddDialog] = useState(false);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [isBatchTesting, setIsBatchTesting] = useState(false);
   const [batchTestProgress, setBatchTestProgress] = useState(0);
@@ -1153,18 +1155,29 @@ export function ProviderSettings() {
                 {t('customProvidersDescription')}
               </CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              onClick={() => {
-                setEditingProviderId(null);
-                setShowCustomDialog(true);
-              }}
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              {t('addProvider')}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setShowQuickAddDialog(true)}
+              >
+                <Zap className="h-4 w-4 mr-1.5" />
+                {t('quickAdd')}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  setEditingProviderId(null);
+                  setShowCustomDialog(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                {t('addCustom')}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         {Object.keys(customProviders).length === 0 ? (
@@ -1260,6 +1273,12 @@ export function ProviderSettings() {
         open={showCustomDialog}
         onOpenChange={setShowCustomDialog}
         editingProviderId={editingProviderId}
+      />
+
+      {/* Quick Add Provider Dialog */}
+      <QuickAddProviderDialog
+        open={showQuickAddDialog}
+        onOpenChange={setShowQuickAddDialog}
       />
     </div>
   );

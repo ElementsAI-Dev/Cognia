@@ -58,6 +58,7 @@ export function useArena(options: UseArenaOptions = {}) {
   const getBattle = useArenaStore((state) => state.getBattle);
   const selectWinner = useArenaStore((state) => state.selectWinner);
   const declareTie = useArenaStore((state) => state.declareTie);
+  const declareBothBad = useArenaStore((state) => state.declareBothBad);
 
   /**
    * Execute a single contestant's generation
@@ -278,6 +279,16 @@ export function useArena(options: UseArenaOptions = {}) {
   );
 
   /**
+   * Declare both responses as bad (neither satisfactory)
+   */
+  const pickBothBad = useCallback(
+    (battleId: string, notes?: string) => {
+      declareBothBad(battleId, notes);
+    },
+    [declareBothBad]
+  );
+
+  /**
    * Get available models from configured providers
    */
   const getAvailableModels = useCallback((): ModelSelection[] => {
@@ -380,6 +391,7 @@ export function useArena(options: UseArenaOptions = {}) {
     cancelBattle,
     pickWinner,
     pickTie,
+    pickBothBad,
     getAvailableModels,
 
     // Multi-turn

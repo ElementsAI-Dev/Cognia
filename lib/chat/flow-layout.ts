@@ -3,6 +3,7 @@
  * Uses dagre for automatic graph layout
  */
 
+import dagre from '@dagrejs/dagre';
 import type { UIMessage } from '@/types/core/message';
 import type { ConversationBranch } from '@/types/core/session';
 import type {
@@ -112,95 +113,56 @@ function buildMessageHierarchy(
 }
 
 /**
- * Simple dagre-like layout calculation
- * Since we can't import dagre directly, implement a simple tree layout
+ * Calculate layout using dagre graph library
+ * Provides optimal node positioning for hierarchical graphs
  */
-function calculateTreeLayout(
+function calculateDagreLayout(
   hierarchy: Map<string, MessageHierarchy>,
   options: FlowLayoutOptions
 ): Map<string, { x: number; y: number }> {
-  const positions = new Map<string, { x: number; y: number }>();
-  const { direction, nodeWidth, nodeHeight, horizontalSpacing, verticalSpacing, branchSpacing } = options;
+  const { direction, nodeWidth, nodeHeight, horizontalSpacing, verticalSpacing } = options;
 
-  // Find root nodes (no parent)
-  const roots: string[] = [];
+  // Create a new dagre graph
+  const g = new dagre.graphlib.Graph();
+  
+  // Set graph options
+  g.setGraph({
+    rankdir: direction,
+    nodesep: horizontalSpacing,
+    ranksep: verticalSpacing,
+    marginx: 50,
+    marginy: 50,
+  });
+  
+  // Default to assigning a new object as a label for each edge
+  g.setDefaultEdgeLabel(() => ({}));
+
+  // Add nodes to the graph
+  for (const [id, _node] of hierarchy) {
+    g.setNode(id, { width: nodeWidth, height: nodeHeight });
+  }
+
+  // Add edges based on hierarchy
   for (const [id, node] of hierarchy) {
-    if (!node.parentId) {
-      roots.push(id);
+    if (node.parentId) {
+      g.setEdge(node.parentId, id);
     }
   }
 
-  // Calculate positions using BFS
-  const visited = new Set<string>();
-  const queue: Array<{ id: string; x: number; y: number; branchOffset: number }> = [];
+  // Calculate layout
+  dagre.layout(g);
 
-  // Start from roots
-  const startX = 0;
-  for (const rootId of roots) {
-    queue.push({ id: rootId, x: startX, y: 0, branchOffset: 0 });
-  }
-
-  // Track branch offsets
-  const branchOffsets = new Map<string, number>();
-  let currentBranchOffset = 0;
-
-  while (queue.length > 0) {
-    const { id, x, y, branchOffset } = queue.shift()!;
-
-    if (visited.has(id)) continue;
-    visited.add(id);
-
-    const node = hierarchy.get(id);
-    if (!node) continue;
-
-    // Calculate position based on direction
-    let posX: number;
-    let posY: number;
-
-    if (direction === 'TB' || direction === 'BT') {
-      posX = x + branchOffset;
-      posY = direction === 'TB' ? y : -y;
-    } else {
-      posX = direction === 'LR' ? y : -y;
-      posY = x + branchOffset;
-    }
-
-    positions.set(id, { x: posX, y: posY });
-
-    // Queue children
-    const children = node.children;
-    const _childBranchOffset = branchOffset;
-
-    for (let i = 0; i < children.length; i++) {
-      const childId = children[i];
-      const childNode = hierarchy.get(childId);
-
-      if (childNode) {
-        // Calculate offset for branches
-        let newBranchOffset = branchOffset;
-        if (childNode.branchId && !branchOffsets.has(childNode.branchId)) {
-          currentBranchOffset += branchSpacing;
-          branchOffsets.set(childNode.branchId, currentBranchOffset);
-          newBranchOffset = currentBranchOffset;
-        } else if (childNode.branchId) {
-          newBranchOffset = branchOffsets.get(childNode.branchId) || branchOffset;
-        }
-
-        // Calculate next position
-        const nextX = direction === 'TB' || direction === 'BT'
-          ? x
-          : x + nodeWidth + horizontalSpacing;
-        const nextY = direction === 'TB' || direction === 'BT'
-          ? y + nodeHeight + verticalSpacing
-          : y;
-
-        queue.push({
-          id: childId,
-          x: nextX,
-          y: nextY,
-          branchOffset: newBranchOffset,
-        });
-      }
+  // Extract positions
+  const positions = new Map<string, { x: number; y: number }>();
+  
+  for (const nodeId of g.nodes()) {
+    const nodeData = g.node(nodeId);
+    if (nodeData) {
+      // dagre positions are centered, adjust to top-left for ReactFlow
+      positions.set(nodeId, {
+        x: nodeData.x - nodeWidth / 2,
+        y: nodeData.y - nodeHeight / 2,
+      });
     }
   }
 
@@ -229,8 +191,8 @@ export function messagesToFlowNodes(
       positions.set(msgId, { x: pos.x, y: pos.y });
     }
   } else {
-    // Calculate automatic layout
-    positions = calculateTreeLayout(hierarchy, mergedOptions);
+    // Calculate automatic layout using dagre
+    positions = calculateDagreLayout(hierarchy, mergedOptions);
   }
 
   // Create nodes

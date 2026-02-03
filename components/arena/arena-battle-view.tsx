@@ -15,7 +15,6 @@ import {
   Hash,
   Copy,
   Check,
-  ThumbsUp,
   Scale,
   Maximize2,
   Minimize2,
@@ -51,7 +50,10 @@ import {
 import { cn } from '@/lib/utils';
 import { useCopy } from '@/hooks/ui';
 import { useArenaStore } from '@/stores/arena';
+import { MarkdownRenderer } from '@/components/chat/utils';
+import { QuickVoteBar } from '@/components/chat/ui/quick-vote-bar';
 import type { ArenaContestant, ArenaWinReason } from '@/types/arena';
+import type { ArenaModelConfig } from '@/types/chat/multi-model';
 
 interface ArenaBattleViewProps {
   battleId: string;
@@ -78,7 +80,7 @@ function ContestantCard({
   index,
   isWinner,
   blindMode,
-  onSelectWinner,
+  isRevealed,
   onCopy,
   onCancel,
   isCopying,
@@ -87,7 +89,7 @@ function ContestantCard({
   index: number;
   isWinner: boolean;
   blindMode: boolean;
-  onSelectWinner: () => void;
+  isRevealed: boolean;
   onCopy: () => void;
   onCancel?: () => void;
   isCopying: boolean;
@@ -141,21 +143,26 @@ function ContestantCard({
       {/* Card header */}
       <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b">
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs">
-            #{index + 1}
+          <Badge variant="outline" className="text-xs font-mono">
+            {String.fromCharCode(65 + index)}
           </Badge>
-          {!blindMode && (
-            <span className="text-xs text-muted-foreground">
-              {contestant.displayName}
-            </span>
-          )}
-          {blindMode && (
+          {/* Model name with reveal animation */}
+          {blindMode && !isRevealed ? (
             <span className="text-xs text-muted-foreground italic">
               {t('model')} {String.fromCharCode(65 + index)}
             </span>
+          ) : (
+            <span
+              className={cn(
+                'text-xs text-muted-foreground',
+                isRevealed && 'animate-in fade-in slide-in-from-left-2 duration-500'
+              )}
+            >
+              {contestant.displayName}
+            </span>
           )}
           {isWinner && (
-            <Badge className="text-[10px] gap-1 bg-primary">
+            <Badge className="text-[10px] gap-1 bg-primary animate-in zoom-in duration-300">
               <Trophy className="h-2.5 w-2.5" />
               {t('winner')}
             </Badge>
@@ -203,16 +210,14 @@ function ContestantCard({
       <ScrollArea className="flex-1 p-3">
         {isError ? (
           <p className="text-sm text-destructive">{contestant.error}</p>
+        ) : contestant.response ? (
+          <MarkdownRenderer content={contestant.response} />
         ) : (
-          <p className="text-sm whitespace-pre-wrap">
-            {contestant.response || (
-              <span className="text-muted-foreground italic">{t('waiting')}</span>
-            )}
-          </p>
+          <p className="text-sm text-muted-foreground italic">{t('waiting')}</p>
         )}
       </ScrollArea>
 
-      {/* Stats and actions */}
+      {/* Stats footer */}
       <div className="flex items-center justify-between px-3 py-2 border-t bg-muted/30">
         {/* Stats */}
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
@@ -236,17 +241,13 @@ function ContestantCard({
           )}
         </div>
 
-        {/* Select winner button */}
-        <Button
-          variant={isWinner ? 'secondary' : 'outline'}
-          size="sm"
-          className="h-7 gap-1"
-          onClick={onSelectWinner}
-          disabled={!isCompleted || isError}
-        >
-          <ThumbsUp className="h-3 w-3" />
-          {isWinner ? t('selected') : t('selectWinner')}
-        </Button>
+        {/* Winner indicator (voting moved to unified bar) */}
+        {isWinner && (
+          <Badge variant="secondary" className="text-[10px] gap-1">
+            <Trophy className="h-2.5 w-2.5" />
+            {t('selected')}
+          </Badge>
+        )}
       </div>
     </div>
   );
@@ -272,22 +273,33 @@ function ArenaBattleViewComponent({
   const battle = useArenaStore((state) => state.battles.find((b) => b.id === battleId));
   const selectWinner = useArenaStore((state) => state.selectWinner);
   const declareTie = useArenaStore((state) => state.declareTie);
+  const declareBothBad = useArenaStore((state) => state.declareBothBad);
+
+  // Track if reveal animation should be shown
+  const [isRevealing, setIsRevealing] = useState(false);
 
   // Check if all contestants are done
   const allDone = battle?.contestants.every(
     (c) => c.status === 'completed' || c.status === 'error' || c.status === 'cancelled'
   );
 
-  const handleSelectWinner = useCallback(
+  const handleDeclareTie = useCallback(() => {
+    setIsRevealing(true);
+    declareTie(battleId);
+  }, [battleId, declareTie]);
+
+  const handleDeclareBothBad = useCallback(() => {
+    setIsRevealing(true);
+    declareBothBad(battleId);
+  }, [battleId, declareBothBad]);
+
+  const handleVote = useCallback(
     (contestantId: string) => {
+      setIsRevealing(true);
       selectWinner(battleId, contestantId, { reason: selectedReason });
     },
     [battleId, selectWinner, selectedReason]
   );
-
-  const handleDeclareTie = useCallback(() => {
-    declareTie(battleId);
-  }, [battleId, declareTie]);
 
   const handleCopy = useCallback(
     async (content: string) => {
@@ -319,7 +331,17 @@ function ArenaBattleViewComponent({
   const isMultiTurn = battle.conversationMode === 'multi';
   const canContinueBattle = canContinue && isMultiTurn && allDone && !battle.winnerId && !battle.isTie;
 
-  const isBlindMode = battle.mode === 'blind' && !battle.winnerId;
+  const isBlindMode = battle.mode === 'blind' && !battle.winnerId && !battle.isTie && !battle.isBothBad;
+  const isBattleComplete = !!battle.winnerId || !!battle.isTie || !!battle.isBothBad;
+
+  // Convert contestants to ArenaModelConfig for QuickVoteBar (must be after isBlindMode)
+  const modelsForVoteBar: ArenaModelConfig[] = battle.contestants.map((c, index) => ({
+    id: c.id,
+    provider: c.provider,
+    model: c.model,
+    displayName: isBlindMode ? `${t('model')} ${String.fromCharCode(65 + index)}` : c.displayName,
+    columnIndex: index,
+  }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -358,6 +380,11 @@ function ArenaBattleViewComponent({
             {battle.isTie && (
               <Badge variant="outline" className="text-xs">
                 {t('tie')}
+              </Badge>
+            )}
+            {battle.isBothBad && (
+              <Badge variant="destructive" className="text-xs">
+                {t('bothBad')}
               </Badge>
             )}
           </div>
@@ -412,8 +439,8 @@ function ArenaBattleViewComponent({
                 contestant={contestant}
                 index={index}
                 isWinner={battle.winnerId === contestant.id}
-                blindMode={isBlindMode}
-                onSelectWinner={() => handleSelectWinner(contestant.id)}
+                blindMode={battle.mode === 'blind'}
+                isRevealed={isBattleComplete && isRevealing}
                 onCopy={() => handleCopy(contestant.response)}
                 onCancel={contestant.status === 'streaming' ? () => {
                   // Note: Cancel functionality requires hook integration
@@ -424,6 +451,17 @@ function ArenaBattleViewComponent({
             ))}
           </div>
         </div>
+
+        {/* Unified Vote Bar - shown when all models are done and no winner yet */}
+        {allDone && !isBattleComplete && (
+          <QuickVoteBar
+            models={modelsForVoteBar}
+            onVote={handleVote}
+            onTie={handleDeclareTie}
+            onBothBad={handleDeclareBothBad}
+            className="border-t"
+          />
+        )}
 
         {/* Footer */}
         <div className="px-4 py-3 border-t bg-muted/30 space-y-3">
@@ -485,14 +523,14 @@ function ArenaBattleViewComponent({
             </div>
 
             <div className="flex items-center gap-2">
-              {allDone && !battle.winnerId && !battle.isTie && (
-                <Button variant="outline" size="sm" onClick={handleDeclareTie}>
-                  <Ban className="h-4 w-4 mr-2" />
-                  {t('declareTie')}
-                </Button>
+              {/* Model reveal info after voting */}
+              {isBattleComplete && isRevealing && battle.mode === 'blind' && (
+                <span className="text-xs text-muted-foreground animate-in fade-in duration-500">
+                  {t('modelsRevealed')}
+                </span>
               )}
               <Button size="sm" onClick={handleClose}>
-                {battle.winnerId || battle.isTie ? t('done') : t('close')}
+                {isBattleComplete ? t('done') : t('close')}
               </Button>
             </div>
           </div>

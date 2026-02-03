@@ -47,8 +47,8 @@ export default function ArenaPage() {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Badge variant="secondary">{totalBattles} battles</Badge>
-            <Badge variant="outline">{completedBattles.length} completed</Badge>
+            <Badge variant="secondary">{t('battlesCount', { count: totalBattles })}</Badge>
+            <Badge variant="outline">{t('completedCount', { count: completedBattles.length })}</Badge>
           </div>
           <Button onClick={() => setShowArenaDialog(true)} className="gap-2">
             <Zap className="h-4 w-4" />

@@ -3,6 +3,7 @@
 /**
  * CodeBlock - Renders code blocks with syntax highlighting and line numbers
  * Features:
+ * - Shiki-powered syntax highlighting
  * - Copy to clipboard
  * - Download as file
  * - Fullscreen view
@@ -14,7 +15,8 @@
  * - Save as snippet
  */
 
-import { useState, memo, useCallback, useRef } from 'react';
+import { useState, memo, useCallback, useRef, useEffect } from 'react';
+import { codeToHtml, type BundledLanguage } from 'shiki';
 import { useTranslations } from 'next-intl';
 import { 
   Copy, 
@@ -87,6 +89,59 @@ export const CodeBlock = memo(function CodeBlock({
   const [showInlinePreview, setShowInlinePreview] = useState(false);
   const codeRef = useRef<HTMLPreElement>(null);
   const { copy, isCopying } = useCopy({ toastMessage: tToasts('codeCopied') });
+  
+  // Shiki syntax highlighting
+  const [highlightedHtml, setHighlightedHtml] = useState<string>('');
+  const [darkHighlightedHtml, setDarkHighlightedHtml] = useState<string>('');
+  const [_isHighlighting, setIsHighlighting] = useState(false);
+  
+  // Highlight code with Shiki
+  useEffect(() => {
+    if (!language || !code) {
+      setHighlightedHtml('');
+      setDarkHighlightedHtml('');
+      return;
+    }
+    
+    let cancelled = false;
+    setIsHighlighting(true);
+    
+    const highlight = async () => {
+      try {
+        const [lightHtml, darkHtml] = await Promise.all([
+          codeToHtml(code, {
+            lang: language as BundledLanguage,
+            theme: 'one-light',
+          }),
+          codeToHtml(code, {
+            lang: language as BundledLanguage,
+            theme: 'one-dark-pro',
+          }),
+        ]);
+        
+        if (!cancelled) {
+          setHighlightedHtml(lightHtml);
+          setDarkHighlightedHtml(darkHtml);
+        }
+      } catch {
+        // Language not supported by Shiki, fall back to plain text
+        if (!cancelled) {
+          setHighlightedHtml('');
+          setDarkHighlightedHtml('');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsHighlighting(false);
+        }
+      }
+    };
+    
+    highlight();
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [code, language]);
 
   // Canvas integration
   const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
@@ -161,56 +216,89 @@ export const CodeBlock = memo(function CodeBlock({
     }
   }, [language, langLower, code, filename, createSnippet]);
 
-  const isHighlighted = useCallback((lineNumber: number) => {
+  const isLineHighlighted = useCallback((lineNumber: number) => {
     return highlightLines.includes(lineNumber);
   }, [highlightLines]);
+  
+  // Check if we have syntax highlighting available
+  const hasHighlighting = highlightedHtml && darkHighlightedHtml;
 
   const isSuccess = result?.status === 'completed' && result?.exit_code === 0;
 
-  const renderCode = useCallback((inFullscreen = false) => (
-    <pre 
-      ref={inFullscreen ? undefined : codeRef}
-      className={cn(
-        'overflow-x-auto p-4 bg-muted/50 text-sm font-mono',
-        wordWrap && 'whitespace-pre-wrap wrap-break-word',
-        inFullscreen && 'max-h-[70vh]'
-      )}
-    >
-      <code 
-        className={language ? `language-${language}` : undefined}
-        role="code"
-        aria-label={`Code in ${language || 'plain text'}`}
-      >
-        {localShowLineNumbers ? (
-          <table className="border-collapse w-full" role="presentation">
-            <tbody>
-              {lines.map((line, i) => (
-                <tr 
-                  key={i} 
-                  className={cn(
-                    'leading-relaxed',
-                    isHighlighted(i + 1) && 'bg-primary/10'
-                  )}
-                >
-                  <td 
-                    className="pr-4 text-right text-muted-foreground select-none w-8 align-top border-r border-muted mr-2"
-                    aria-hidden="true"
-                  >
-                    {i + 1}
-                  </td>
-                  <td className={cn('pl-4', wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre')}>
-                    {line || ' '}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <span className={wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'}>{code}</span>
+  const renderCode = useCallback((inFullscreen = false) => {
+    // Use Shiki highlighting if available
+    if (hasHighlighting && !localShowLineNumbers) {
+      return (
+        <div
+          ref={inFullscreen ? undefined : codeRef as React.RefObject<HTMLDivElement>}
+          className={cn(
+            'overflow-x-auto text-sm',
+            '[&>pre]:m-0 [&>pre]:p-4 [&>pre]:bg-muted/50!',
+            '[&_code]:font-mono [&_code]:text-sm',
+            wordWrap && '[&>pre]:whitespace-pre-wrap',
+            inFullscreen && 'max-h-[70vh]'
+          )}
+          role="code"
+          aria-label={`Code in ${language || 'plain text'}`}
+        >
+          <div
+            className="dark:hidden"
+            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+          />
+          <div
+            className="hidden dark:block"
+            dangerouslySetInnerHTML={{ __html: darkHighlightedHtml }}
+          />
+        </div>
+      );
+    }
+    
+    // Fallback to manual rendering with line numbers
+    return (
+      <pre 
+        ref={inFullscreen ? undefined : codeRef}
+        className={cn(
+          'overflow-x-auto p-4 bg-muted/50 text-sm font-mono',
+          wordWrap && 'whitespace-pre-wrap wrap-break-word',
+          inFullscreen && 'max-h-[70vh]'
         )}
-      </code>
-    </pre>
-  ), [code, language, lines, localShowLineNumbers, wordWrap, isHighlighted]);
+      >
+        <code 
+          className={language ? `language-${language}` : undefined}
+          role="code"
+          aria-label={`Code in ${language || 'plain text'}`}
+        >
+          {localShowLineNumbers ? (
+            <table className="border-collapse w-full" role="presentation">
+              <tbody>
+                {lines.map((line, i) => (
+                  <tr 
+                    key={i} 
+                    className={cn(
+                      'leading-relaxed',
+                      isLineHighlighted(i + 1) && 'bg-primary/10'
+                    )}
+                  >
+                    <td 
+                      className="pr-4 text-right text-muted-foreground select-none w-8 align-top border-r border-muted mr-2"
+                      aria-hidden="true"
+                    >
+                      {i + 1}
+                    </td>
+                    <td className={cn('pl-4', wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre')}>
+                      {line || ' '}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <span className={wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'}>{code}</span>
+          )}
+        </code>
+      </pre>
+    );
+  }, [code, language, lines, localShowLineNumbers, wordWrap, isLineHighlighted, hasHighlighting, highlightedHtml, darkHighlightedHtml]);
 
   return (
     <>

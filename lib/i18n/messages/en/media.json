@@ -132,6 +132,17 @@
     "applyTrim": "Apply Trim"
   },
   "imageGeneration": {
+    "back": "Back",
+    "undo": "Undo",
+    "redo": "Redo",
+    "favorites": "Favorites",
+    "showAll": "Show all",
+    "showFavoritesOnly": "Show favorites only",
+    "export": "Export",
+    "exportMultiple": "Export multiple images",
+    "zoom": "Zoom",
+    "hideSidebar": "Hide sidebar",
+    "showSidebar": "Show sidebar",
     "title": "Image Generation",
     "description": "Create images using DALL-E. Describe what you want to see.",
     "prompt": "Prompt",

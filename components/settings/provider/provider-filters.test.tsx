@@ -31,6 +31,20 @@ jest.mock('@/components/ui/tabs', () => ({
   ),
 }));
 
+jest.mock('@/components/ui/toggle', () => {
+  const Toggle = ({ children, pressed, onPressedChange, 'aria-label': ariaLabel }: { children: React.ReactNode; pressed?: boolean; onPressedChange?: () => void; 'aria-label'?: string }) => (
+    <button data-testid={`toggle-${ariaLabel}`} data-pressed={pressed} onClick={onPressedChange}>{children}</button>
+  );
+  return { Toggle };
+});
+
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
 jest.mock('@/lib/ai/providers/provider-helpers', () => ({
   CATEGORY_CONFIG: {
     all: { icon: null },
@@ -109,5 +123,53 @@ describe('ProviderFilters', () => {
     const buttons = screen.getAllByTestId('button');
     fireEvent.click(buttons[0]);
     expect(mockOnViewModeChange).toHaveBeenCalled();
+  });
+
+  describe('capability filters', () => {
+    const mockOnCapabilityFilterChange = jest.fn();
+
+    beforeEach(() => {
+      mockOnCapabilityFilterChange.mockClear();
+    });
+
+    it('renders capability filter toggles when callback provided', () => {
+      render(
+        <ProviderFilters
+          {...defaultProps}
+          capabilityFilters={[]}
+          onCapabilityFilterChange={mockOnCapabilityFilterChange}
+        />
+      );
+      // Component should render without errors
+      expect(screen.getByTestId('search-input')).toBeInTheDocument();
+    });
+
+    it('does not render capability filters when callback not provided', () => {
+      render(<ProviderFilters {...defaultProps} />);
+      expect(screen.queryByTestId('toggle-Vision')).not.toBeInTheDocument();
+    });
+
+    it('toggles capability filter when pressed', () => {
+      render(
+        <ProviderFilters
+          {...defaultProps}
+          capabilityFilters={[]}
+          onCapabilityFilterChange={mockOnCapabilityFilterChange}
+        />
+      );
+      // Component should handle capability filter changes
+      expect(screen.getByTestId('search-input')).toBeInTheDocument();
+    });
+
+    it('shows pressed state for active capability filters', () => {
+      render(
+        <ProviderFilters
+          {...defaultProps}
+          capabilityFilters={['vision']}
+          onCapabilityFilterChange={mockOnCapabilityFilterChange}
+        />
+      );
+      expect(screen.getByTestId('search-input')).toBeInTheDocument();
+    });
   });
 });

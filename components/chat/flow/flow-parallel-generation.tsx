@@ -6,12 +6,16 @@
  * Allows generating responses from multiple models simultaneously
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { generateText } from 'ai';
 import {
   Sparkles,
   Play,
   Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +32,9 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/settings';
+import { createAIRegistry } from '@/lib/ai/core/ai-registry';
 import type { ProviderName } from '@/types/provider';
+import { Progress } from '@/components/ui/progress';
 
 interface ModelSelection {
   provider: ProviderName;
@@ -42,6 +48,7 @@ interface ParallelGenerationResult {
   content: string;
   error?: string;
   duration?: number;
+  status: 'pending' | 'generating' | 'completed' | 'error';
 }
 
 interface FlowParallelGenerationProps {
@@ -86,6 +93,8 @@ export function FlowParallelGeneration({
   const [selectedModels, setSelectedModels] = useState<ModelSelection[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState<ParallelGenerationResult[]>([]);
+  const [progress, setProgress] = useState(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Get available models from configured providers
   const getAvailableModels = useCallback((): ModelSelection[] => {
@@ -117,29 +126,77 @@ export function FlowParallelGeneration({
     return selectedModels.some(m => m.provider === model.provider && m.model === model.model);
   }, [selectedModels]);
 
-  // Start parallel generation
+  // Start parallel generation with real AI calls
   const startGeneration = useCallback(async () => {
-    if (selectedModels.length === 0) return;
+    if (selectedModels.length === 0 || !prompt) return;
 
     setIsGenerating(true);
-    setResults([]);
+    setProgress(0);
+    
+    // Initialize results with pending status
+    const initialResults: ParallelGenerationResult[] = selectedModels.map((model) => ({
+      provider: model.provider,
+      model: model.model,
+      content: '',
+      status: 'pending' as const,
+    }));
+    setResults(initialResults);
     onGenerationStart?.(selectedModels);
 
-    const newResults: ParallelGenerationResult[] = [];
+    // Create abort controller for cancellation
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
+
+    // Build AI registry from provider settings
+    const providers: Record<string, { apiKey: string; baseURL?: string }> = {};
+    for (const model of selectedModels) {
+      const config = providerSettings?.[model.provider];
+      if (config?.apiKey) {
+        providers[model.provider] = { 
+          apiKey: config.apiKey,
+          baseURL: config.baseURL,
+        };
+      }
+    }
+    const registry = createAIRegistry({ providers });
+
+    let completedCount = 0;
+    const totalCount = selectedModels.length;
 
     // Generate with each model in parallel
-    const promises = selectedModels.map(async (model) => {
+    const promises = selectedModels.map(async (model, index) => {
       const startTime = Date.now();
+      
+      // Update status to generating
+      setResults(prev => prev.map((r, i) => 
+        i === index ? { ...r, status: 'generating' as const } : r
+      ));
+
       try {
-        // This would call the actual AI API
-        // For now, we just simulate the structure
+        const languageModel = registry.languageModel(model.provider, model.model);
+        
+        if (!languageModel) {
+          throw new Error(`Model ${model.provider}:${model.model} not available`);
+        }
+
+        const { text } = await generateText({
+          model: languageModel,
+          prompt,
+          abortSignal: signal,
+        });
+
         const result: ParallelGenerationResult = {
           provider: model.provider,
           model: model.model,
-          content: `Response from ${model.displayName}`, // Placeholder
+          content: text,
           duration: Date.now() - startTime,
+          status: 'completed',
         };
-        newResults.push(result);
+
+        // Update this specific result
+        setResults(prev => prev.map((r, i) => i === index ? result : r));
+        completedCount++;
+        setProgress(Math.round((completedCount / totalCount) * 100));
         onModelResult?.(result);
         return result;
       } catch (error) {
@@ -149,19 +206,29 @@ export function FlowParallelGeneration({
           content: '',
           error: error instanceof Error ? error.message : String(error),
           duration: Date.now() - startTime,
+          status: 'error',
         };
-        newResults.push(result);
+
+        setResults(prev => prev.map((r, i) => i === index ? result : r));
+        completedCount++;
+        setProgress(Math.round((completedCount / totalCount) * 100));
         onModelResult?.(result);
         return result;
       }
     });
 
-    await Promise.all(promises);
+    const finalResults = await Promise.all(promises);
     
-    setResults(newResults);
     setIsGenerating(false);
-    onGenerationComplete?.(newResults);
-  }, [selectedModels, onGenerationStart, onModelResult, onGenerationComplete]);
+    abortControllerRef.current = null;
+    onGenerationComplete?.(finalResults);
+  }, [selectedModels, prompt, providerSettings, onGenerationStart, onModelResult, onGenerationComplete]);
+
+  // Cancel generation
+  const cancelGeneration = useCallback(() => {
+    abortControllerRef.current?.abort();
+    setIsGenerating(false);
+  }, []);
 
   // Get provider color
   const getProviderColor = (provider: ProviderName) => {
@@ -258,31 +325,54 @@ export function FlowParallelGeneration({
             </div>
           )}
 
+          {/* Progress bar */}
+          {isGenerating && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{t('generating')}</span>
+                <span>{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+          )}
+
           {/* Results preview */}
           {results.length > 0 && (
             <div className="space-y-2">
-              <Label>Results</Label>
-              <ScrollArea className="h-[150px] rounded border p-2">
+              <Label>{t('results')}</Label>
+              <ScrollArea className="h-[180px] rounded border p-2">
                 {results.map((result, index) => (
                   <div 
                     key={index}
                     className={cn(
-                      'p-2 rounded mb-2',
-                      result.error ? 'bg-destructive/10' : 'bg-muted/50'
+                      'p-2 rounded mb-2 border',
+                      result.status === 'error' && 'bg-destructive/10 border-destructive/30',
+                      result.status === 'completed' && 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800',
+                      result.status === 'generating' && 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800',
+                      result.status === 'pending' && 'bg-muted/50 border-muted'
                     )}
                   >
                     <div className="flex items-center gap-2 mb-1">
+                      {/* Status icon */}
+                      {result.status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />}
+                      {result.status === 'error' && <XCircle className="h-3.5 w-3.5 text-destructive" />}
+                      {result.status === 'generating' && <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin" />}
+                      {result.status === 'pending' && <Clock className="h-3.5 w-3.5 text-muted-foreground" />}
+                      
                       <Badge variant="outline" className="text-[10px]">
                         {result.model}
                       </Badge>
                       {result.duration && (
                         <span className="text-[10px] text-muted-foreground">
-                          {result.duration}ms
+                          {(result.duration / 1000).toFixed(1)}s
                         </span>
                       )}
                     </div>
-                    <p className="text-xs">
-                      {result.error || result.content.slice(0, 100)}
+                    <p className="text-xs line-clamp-2">
+                      {result.status === 'pending' && t('waiting')}
+                      {result.status === 'generating' && t('generatingResponse')}
+                      {result.status === 'error' && result.error}
+                      {result.status === 'completed' && (result.content.slice(0, 150) + (result.content.length > 150 ? '...' : ''))}
                     </p>
                   </div>
                 ))}
@@ -293,24 +383,22 @@ export function FlowParallelGeneration({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('cancel')}
           </Button>
-          <Button 
-            onClick={startGeneration} 
-            disabled={isGenerating || selectedModels.length === 0}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Generate ({selectedModels.length})
-              </>
-            )}
-          </Button>
+          {isGenerating ? (
+            <Button variant="destructive" onClick={cancelGeneration}>
+              <XCircle className="h-4 w-4 mr-2" />
+              {t('stopGeneration')}
+            </Button>
+          ) : (
+            <Button 
+              onClick={startGeneration} 
+              disabled={selectedModels.length === 0 || !prompt}
+            >
+              <Play className="h-4 w-4 mr-2" />
+              {t('generate')} ({selectedModels.length})
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

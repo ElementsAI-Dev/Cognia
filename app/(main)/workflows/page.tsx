@@ -278,10 +278,10 @@ export default function WorkflowsPage() {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem onClick={handleCreateNew}>
                 <Plus className="h-4 w-4 mr-2" />
-                Blank Workflow
+                {t('blankWorkflow')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Templates</div>
+              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{t('templates')}</div>
               {workflowEditorTemplates.slice(0, 5).map((template: WorkflowEditorTemplate) => (
                 <DropdownMenuItem
                   key={template.id}
@@ -323,11 +323,11 @@ export default function WorkflowsPage() {
           ) : filteredWorkflows.length === 0 ? (
             <EmptyState
               icon={Workflow}
-              title="No workflows yet"
-              description="Create your first workflow to get started"
+              title={t('noWorkflowsYet')}
+              description={t('createFirstHint')}
               actions={[
                 {
-                  label: 'Create Workflow',
+                  label: t('createWorkflow'),
                   onClick: handleCreateNew,
                   icon: Plus,
                 },
@@ -397,14 +397,14 @@ export default function WorkflowsPage() {
                       </DropdownMenu>
                     </div>
                     <CardDescription className="line-clamp-2">
-                      {workflow.description || 'No description'}
+                      {workflow.description || t('noDescription')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Badge variant="secondary" className="text-xs">
-                          {workflow.nodes.length} nodes
+                          {t('nodesCount', { count: workflow.nodes.length })}
                         </Badge>
                         {workflow.category && (
                           <Badge variant="outline" className="text-xs">
@@ -441,10 +441,9 @@ export default function WorkflowsPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Workflow?</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteWorkflow')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the workflow and all its
-              execution history.
+              {t('deleteWorkflowConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

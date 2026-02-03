@@ -135,13 +135,13 @@ export function LatexEquationAnalysis({
       {/* Input */}
       <div className="space-y-2">
         <Label htmlFor="equation">
-          {t('equationAnalysis.input', { defaultValue: 'LaTeX Equation' })}
+          {t('ai.equationAnalysis.input', { defaultValue: 'LaTeX Equation' })}
         </Label>
         <Textarea
           id="equation"
           value={equation}
           onChange={(e) => setEquation(e.target.value)}
-          placeholder={t('equationAnalysis.placeholder', {
+          placeholder={t('ai.equationAnalysis.placeholder', {
             defaultValue: 'Enter LaTeX equation, e.g., \\frac{a}{b} + \\frac{c}{d}',
           })}
           className="font-mono text-sm min-h-[80px]"
@@ -161,7 +161,7 @@ export function LatexEquationAnalysis({
           ) : (
             <Calculator className="h-4 w-4" />
           )}
-          {t('equationAnalysis.analyze', { defaultValue: 'Analyze' })}
+          {t('ai.equationAnalysis.analyze', { defaultValue: 'Analyze' })}
         </Button>
         <Button
           size="sm"
@@ -171,7 +171,7 @@ export function LatexEquationAnalysis({
           className="gap-2"
         >
           <Sparkles className="h-4 w-4" />
-          {t('equationAnalysis.simplify', { defaultValue: 'Simplify' })}
+          {t('ai.equationAnalysis.simplify', { defaultValue: 'Simplify' })}
         </Button>
         <Button
           size="sm"
@@ -181,7 +181,7 @@ export function LatexEquationAnalysis({
           className="gap-2"
         >
           <ArrowRight className="h-4 w-4" />
-          {t('equationAnalysis.expand', { defaultValue: 'Expand' })}
+          {t('ai.equationAnalysis.expand', { defaultValue: 'Expand' })}
         </Button>
       </div>
 
@@ -194,13 +194,13 @@ export function LatexEquationAnalysis({
           {analysis && (
             <AccordionItem value="analysis">
               <AccordionTrigger className="text-sm">
-                {t('equationAnalysis.analysisResults', { defaultValue: 'Analysis Results' })}
+                {t('ai.equationAnalysis.analysisResults', { defaultValue: 'Analysis Results' })}
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">
-                      {t('equationAnalysis.type', { defaultValue: 'Type' })}:
+                      {t('ai.equationAnalysis.type', { defaultValue: 'Type' })}:
                     </span>
                     <Badge variant="secondary" className="capitalize">
                       {analysis.type}
@@ -209,7 +209,7 @@ export function LatexEquationAnalysis({
 
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">
-                      {t('equationAnalysis.complexity', { defaultValue: 'Complexity' })}:
+                      {t('ai.equationAnalysis.complexity', { defaultValue: 'Complexity' })}:
                     </span>
                     <Badge
                       variant={
@@ -227,7 +227,7 @@ export function LatexEquationAnalysis({
                   {analysis.variables.length > 0 && (
                     <div>
                       <span className="text-muted-foreground">
-                        {t('equationAnalysis.variables', { defaultValue: 'Variables' })}:
+                        {t('ai.equationAnalysis.variables', { defaultValue: 'Variables' })}:
                       </span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {analysis.variables.map((v, i) => (
@@ -242,7 +242,7 @@ export function LatexEquationAnalysis({
                   {analysis.functions.length > 0 && (
                     <div>
                       <span className="text-muted-foreground">
-                        {t('equationAnalysis.functions', { defaultValue: 'Functions' })}:
+                        {t('ai.equationAnalysis.functions', { defaultValue: 'Functions' })}:
                       </span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {analysis.functions.map((f, i) => (
@@ -268,14 +268,14 @@ export function LatexEquationAnalysis({
                   ) : (
                     <XCircle className="h-4 w-4 text-destructive" />
                   )}
-                  {t('equationAnalysis.verification', { defaultValue: 'Verification' })}
+                  {t('ai.equationAnalysis.verification', { defaultValue: 'Verification' })}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">
-                      {t('equationAnalysis.confidence', { defaultValue: 'Confidence' })}:
+                      {t('ai.equationAnalysis.confidence', { defaultValue: 'Confidence' })}:
                     </span>
                     <Badge variant={verification.confidence > 0.7 ? 'default' : 'secondary'}>
                       {(verification.confidence * 100).toFixed(0)}%
@@ -285,7 +285,7 @@ export function LatexEquationAnalysis({
                   {verification.issues.length > 0 && (
                     <div className="space-y-2">
                       <span className="text-muted-foreground">
-                        {t('equationAnalysis.issues', { defaultValue: 'Issues' })}:
+                        {t('ai.equationAnalysis.issues', { defaultValue: 'Issues' })}:
                       </span>
                       {verification.issues.map((issue, i) => (
                         <div
@@ -297,7 +297,7 @@ export function LatexEquationAnalysis({
                             <div className="font-medium">{issue.message}</div>
                             {issue.suggestion && (
                               <div className="text-xs text-muted-foreground mt-1">
-                                {t('equationAnalysis.suggestion', { defaultValue: 'Suggestion' })}:{' '}
+                                {t('ai.equationAnalysis.suggestion', { defaultValue: 'Suggestion' })}:{' '}
                                 <code className="bg-muted px-1 rounded">{issue.suggestion}</code>
                               </div>
                             )}
@@ -310,7 +310,7 @@ export function LatexEquationAnalysis({
                   {verification.suggestions.length > 0 && (
                     <div className="space-y-2">
                       <span className="text-muted-foreground">
-                        {t('equationAnalysis.suggestions', { defaultValue: 'Suggestions' })}:
+                        {t('ai.equationAnalysis.suggestions', { defaultValue: 'Suggestions' })}:
                       </span>
                       {verification.suggestions.map((suggestion, i) => (
                         <div key={i} className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-xs">
@@ -328,7 +328,7 @@ export function LatexEquationAnalysis({
           {simplification && (
             <AccordionItem value="simplification">
               <AccordionTrigger className="text-sm">
-                {t('equationAnalysis.simplificationResult', { defaultValue: 'Simplified Form' })}
+                {t('ai.equationAnalysis.simplificationResult', { defaultValue: 'Simplified Form' })}
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-3">
@@ -363,7 +363,7 @@ export function LatexEquationAnalysis({
                   {simplification.steps.length > 0 && (
                     <div className="space-y-1">
                       <span className="text-xs text-muted-foreground">
-                        {t('equationAnalysis.steps', { defaultValue: 'Steps' })}:
+                        {t('ai.equationAnalysis.steps', { defaultValue: 'Steps' })}:
                       </span>
                       {simplification.steps.map((step, i) => (
                         <div key={i} className="flex gap-2 text-xs">
@@ -384,7 +384,7 @@ export function LatexEquationAnalysis({
           {expansion && (
             <AccordionItem value="expansion">
               <AccordionTrigger className="text-sm">
-                {t('equationAnalysis.expandedForm', { defaultValue: 'Expanded Form' })}
+                {t('ai.equationAnalysis.expandedForm', { defaultValue: 'Expanded Form' })}
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-3">
@@ -419,7 +419,7 @@ export function LatexEquationAnalysis({
                   {expansion.steps.length > 0 && (
                     <div className="space-y-1">
                       <span className="text-xs text-muted-foreground">
-                        {t('equationAnalysis.steps', { defaultValue: 'Steps' })}:
+                        {t('ai.equationAnalysis.steps', { defaultValue: 'Steps' })}:
                       </span>
                       {expansion.steps.map((step, i) => (
                         <div key={i} className="flex gap-2 text-xs">
@@ -442,7 +442,7 @@ export function LatexEquationAnalysis({
           <div className="text-center py-8 text-muted-foreground text-sm">
             <Calculator className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>
-              {t('equationAnalysis.emptyState', {
+              {t('ai.equationAnalysis.emptyState', {
                 defaultValue: 'Enter an equation and click Analyze to get started',
               })}
             </p>

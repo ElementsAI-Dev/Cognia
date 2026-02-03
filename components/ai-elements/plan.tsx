@@ -49,6 +49,8 @@ export const Plan = ({
     <Collapsible asChild data-slot="plan" {...props}>
       <Card className={cn(
         "shadow-lg bg-background/95 backdrop-blur",
+        "border-border/50 hover:border-border hover:shadow-xl",
+        "transition-all duration-300 ease-out",
         "animate-in fade-in-0 slide-in-from-bottom-2 duration-200",
         className
       )}>{children}</Card>
@@ -60,7 +62,11 @@ export type PlanHeaderProps = ComponentProps<typeof CardHeader>;
 
 export const PlanHeader = ({ className, ...props }: PlanHeaderProps) => (
   <CardHeader
-    className={cn("flex items-start justify-between", className)}
+    className={cn(
+      "flex items-start justify-between",
+      "p-3 sm:p-4 pb-2 sm:pb-3",
+      className
+    )}
     data-slot="plan-header"
     {...props}
   />
@@ -123,6 +129,7 @@ export const PlanContent = ({ className, ...props }: PlanContentProps) => (
       className={cn(
         "overflow-hidden transition-all duration-200 ease-out",
         "data-[state=closed]:animate-collapse data-[state=open]:animate-expand",
+        "p-3 sm:p-4 pt-0",
         className
       )}
       {...props} 
@@ -132,8 +139,12 @@ export const PlanContent = ({ className, ...props }: PlanContentProps) => (
 
 export type PlanFooterProps = ComponentProps<"div">;
 
-export const PlanFooter = (props: PlanFooterProps) => (
-  <CardFooter data-slot="plan-footer" {...props} />
+export const PlanFooter = ({ className, ...props }: PlanFooterProps & { className?: string }) => (
+  <CardFooter 
+    data-slot="plan-footer" 
+    className={cn("p-3 sm:p-4 pt-0", className)}
+    {...props} 
+  />
 );
 
 export type PlanTriggerProps = ComponentProps<typeof CollapsibleTrigger>;
@@ -141,13 +152,18 @@ export type PlanTriggerProps = ComponentProps<typeof CollapsibleTrigger>;
 export const PlanTrigger = ({ className, ...props }: PlanTriggerProps) => (
   <CollapsibleTrigger asChild>
     <Button
-      className={cn("size-8", className)}
+      className={cn(
+        "size-7 sm:size-8 touch-manipulation",
+        "hover:bg-accent/80 active:scale-95",
+        "transition-all duration-150",
+        className
+      )}
       data-slot="plan-trigger"
       size="icon"
       variant="ghost"
       {...props}
     >
-      <ChevronsUpDownIcon className="size-4" />
+      <ChevronsUpDownIcon className="size-3.5 sm:size-4" />
       <span className="sr-only">Toggle plan</span>
     </Button>
   </CollapsibleTrigger>

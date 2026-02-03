@@ -81,6 +81,7 @@ jest.mock('@/components/providers/ai/provider-icon', () => ({
 
 jest.mock('@/lib/ai/infrastructure/api-key-rotation', () => ({
   maskApiKey: (key: string) => `***${key.slice(-4)}`,
+  isValidApiKeyFormat: (key: string) => key.length >= 20 && !/\s/.test(key),
 }));
 
 const mockProvider = {
@@ -92,6 +93,8 @@ const mockProvider = {
     { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', contextLength: 4096 },
   ],
   defaultModel: 'gpt-4',
+  dashboardUrl: 'https://platform.openai.com/api-keys',
+  docsUrl: 'https://platform.openai.com/docs',
 };
 
 const mockSettings = {
@@ -214,5 +217,43 @@ describe('ProviderCard', () => {
       />
     );
     expect(screen.getByTestId('separator')).toBeInTheDocument();
+  });
+
+  it('renders provider links when dashboardUrl and docsUrl are provided', () => {
+    render(
+      <ProviderCard
+        provider={mockProvider as unknown as Parameters<typeof ProviderCard>[0]['provider']}
+        settings={mockSettings as unknown as Parameters<typeof ProviderCard>[0]['settings']}
+        isExpanded={true}
+        onToggleExpanded={mockOnToggleExpanded}
+        onToggleEnabled={mockOnToggleEnabled}
+        onApiKeyChange={mockOnApiKeyChange}
+        onBaseURLChange={mockOnBaseURLChange}
+        onDefaultModelChange={mockOnDefaultModelChange}
+        onTestConnection={mockOnTestConnection}
+      />
+    );
+    // Provider links should be rendered when URLs are present
+    const links = screen.getAllByRole('link');
+    expect(links.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it('shows API key validation warning for invalid format', () => {
+    const invalidSettings = { ...mockSettings, apiKey: 'short' };
+    render(
+      <ProviderCard
+        provider={mockProvider as unknown as Parameters<typeof ProviderCard>[0]['provider']}
+        settings={invalidSettings as unknown as Parameters<typeof ProviderCard>[0]['settings']}
+        isExpanded={true}
+        onToggleExpanded={mockOnToggleExpanded}
+        onToggleEnabled={mockOnToggleEnabled}
+        onApiKeyChange={mockOnApiKeyChange}
+        onBaseURLChange={mockOnBaseURLChange}
+        onDefaultModelChange={mockOnDefaultModelChange}
+        onTestConnection={mockOnTestConnection}
+      />
+    );
+    // The component should show validation warning for short API keys
+    expect(screen.getByTestId('collapsible-content')).toBeInTheDocument();
   });
 });

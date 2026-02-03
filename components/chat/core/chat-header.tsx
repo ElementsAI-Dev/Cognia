@@ -139,6 +139,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
     ? sessions.find((s) => s.id === sessionId)
     : sessions.find((s) => s.id === activeSessionId);
   const updateSession = useSessionStore((state) => state.updateSession);
+  const createSession = useSessionStore((state) => state.createSession);
   const setGoal = useSessionStore((state) => state.setGoal);
   const updateGoal = useSessionStore((state) => state.updateGoal);
   const selectPreset = usePresetStore((state) => state.selectPreset);
@@ -190,7 +191,9 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
 
   const handleModeChange = useCallback(
     (mode: ChatMode) => {
-      if (session && mode !== currentMode) {
+      if (mode === currentMode) return;
+      
+      if (session) {
         // Check if there are messages - if so, show confirmation dialog
         if (messages.length > 0) {
           setPendingTargetMode(mode);
@@ -202,9 +205,14 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
           updateSession(session.id, { mode });
           setTimeout(() => setModeTransitioning(false), 300);
         }
+      } else {
+        // No session exists, create a new one with the selected mode
+        setModeTransitioning(true);
+        createSession({ mode });
+        setTimeout(() => setModeTransitioning(false), 300);
       }
     },
-    [session, currentMode, messages.length, switchMode, updateSession]
+    [session, currentMode, messages.length, switchMode, updateSession, createSession]
   );
 
   // Handle mode switch confirmation

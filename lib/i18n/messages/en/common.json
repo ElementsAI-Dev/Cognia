@@ -1,5 +1,6 @@
 {
   "common": {
+    "all": "All",
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -23,7 +24,10 @@
     "dismiss": "Dismiss",
     "configured": "Configured",
     "create": "Create",
-    "viewAll": "View All"
+    "viewAll": "View All",
+    "chat": "Chat",
+    "agent": "Agent",
+    "research": "Research"
   },
   "platformWarning": {
     "notSupported": "{feature} is only available on {platforms}",

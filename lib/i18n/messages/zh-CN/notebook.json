@@ -1,0 +1,16 @@
+{
+  "title": "Jupyter Notebook",
+  "desktopRequired": "Jupyter Notebook 功能需要桌面应用程序来本地运行 Python 内核。",
+  "backToChat": "返回聊天",
+  "selectEnvironment": "选择环境",
+  "noEnvironments": "未找到环境",
+  "startKernel": "启动内核",
+  "createKernelTooltip": "创建新的内核会话",
+  "interruptTooltip": "中断执行",
+  "restartTooltip": "重启内核",
+  "stopKernelTooltip": "停止内核",
+  "toggleVariables": "切换变量面板",
+  "variables": "变量",
+  "variablesHint": "代码执行后，内核命名空间中的变量将显示在这里。",
+  "startKernelHint": "启动内核以检查变量"
+}
