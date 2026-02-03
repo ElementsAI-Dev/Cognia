@@ -6,7 +6,7 @@
 
 import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Coins, TrendingUp, Clock, Trash2, Download, ChevronDown, Search } from 'lucide-react';
+import { Coins, TrendingUp, Clock, Trash2, Download, ChevronDown, Search, AlertCircle, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +27,14 @@ import { EmptyState } from '@/components/layout/empty-state';
 import { useUsageStore } from '@/stores';
 import { formatTokens, formatCost, type UsageRecord } from '@/types/system/usage';
 import { UsageAnalyticsCard } from '@/components/chat/utils/usage-analytics-card';
+import { QuotaSettings } from './quota-settings';
+import { downloadRecordsAsCSV, downloadRecordsAsJSON } from '@/lib/ai/usage-export';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export function UsageSettings() {
   const t = useTranslations('usageSettings');
@@ -140,28 +148,6 @@ export function UsageSettings() {
     setShowClearDialog(false);
   };
 
-  const handleExportUsage = () => {
-    const data = {
-      exportedAt: new Date().toISOString(),
-      totalUsage,
-      providerUsage,
-      dailyUsage,
-      records: records.slice(-100), // Last 100 records
-    };
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cognia-usage-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   // Calculate max for progress bars
   const maxProviderTokens = Math.max(...providerUsage.map((p) => p.tokens), 1);
   const maxDailyTokens = Math.max(...dailyUsage.map((d) => d.tokens), 1);
@@ -175,6 +161,9 @@ export function UsageSettings() {
         showBreakdown={true}
         className="mb-2"
       />
+
+      {/* Quota Settings */}
+      <QuotaSettings className="mb-2" />
 
       {/* Top Row: Summary Cards + Provider Usage side by side */}
       <div className="grid gap-4 lg:grid-cols-2">
@@ -330,15 +319,52 @@ export function UsageSettings() {
 
               <div className="divide-y">
                 {paginatedRecords.map((record: UsageRecord) => (
-                  <div key={record.id} className="flex items-center justify-between py-2 text-sm">
-                    <div>
-                      <span className="font-medium capitalize">{record.provider}</span>
-                      <span className="text-muted-foreground"> / {record.model}</span>
+                  <div
+                    key={record.id}
+                    className={`flex items-center justify-between py-2 text-sm ${
+                      record.status === 'error' || record.status === 'timeout'
+                        ? 'bg-destructive/5 -mx-2 px-2 rounded'
+                        : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {(record.status === 'error' || record.status === 'timeout') && (
+                        <AlertCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+                      )}
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium capitalize">{record.provider}</span>
+                          <span className="text-muted-foreground"> / {record.model}</span>
+                          {record.status && record.status !== 'success' && (
+                            <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                              {record.status}
+                            </Badge>
+                          )}
+                        </div>
+                        {record.errorMessage && (
+                          <div className="text-[10px] text-destructive truncate max-w-[200px]">
+                            {record.errorMessage}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right">
-                      <div>{formatTokens(record.tokens.total)} tokens</div>
+                      <div className="flex items-center justify-end gap-2">
+                        <span>{formatTokens(record.tokens.total)} tokens</span>
+                        {record.latency !== undefined && (
+                          <span className="flex items-center gap-0.5 text-muted-foreground">
+                            <Timer className="h-3 w-3" />
+                            {record.latency < 1000
+                              ? `${record.latency}ms`
+                              : `${(record.latency / 1000).toFixed(1)}s`}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {new Date(record.createdAt).toLocaleString()}
+                        {record.timeToFirstToken !== undefined && (
+                          <span className="ml-1">(TTFT: {record.timeToFirstToken}ms)</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -387,10 +413,22 @@ export function UsageSettings() {
 
       {/* Actions */}
       <div className="flex gap-2">
-        <Button size="sm" variant="outline" onClick={handleExportUsage}>
-          <Download className="mr-1.5 h-3.5 w-3.5" />
-          {t('export')}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" disabled={records.length === 0}>
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              {t('export')}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => downloadRecordsAsJSON(records)}>
+              {t('exportJson') || 'Export as JSON'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => downloadRecordsAsCSV(records)}>
+              {t('exportCsv') || 'Export as CSV'}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           size="sm"
           variant="destructive"

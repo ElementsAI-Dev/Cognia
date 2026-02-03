@@ -1,19 +1,22 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useUIStore, useSessionStore, useSettingsStore } from '@/stores';
 import { useRouter } from 'next/navigation';
+import { DEFAULT_SHORTCUTS, parseShortcut } from '@/lib/ui/keyboard-constants';
+import type { ShortcutCategory } from '@/types/ui/keyboard';
 
 type ModifierKey = 'ctrl' | 'alt' | 'shift' | 'meta';
-type ShortcutCategory = 'navigation' | 'chat' | 'editing' | 'general';
 
 export interface KeyboardShortcut {
+  id: string;
   key: string;
   modifiers?: ModifierKey[];
   action: () => void;
   description: string;
   category: ShortcutCategory;
   enabled?: boolean;
+  isCustomized?: boolean;
 }
 
 interface KeyboardShortcutsHandlerProps {
@@ -24,7 +27,7 @@ interface KeyboardShortcutsHandlerProps {
   onFocusInput?: () => void;
   onScrollToBottom?: () => void;
   onToggleArtifactPanel?: () => void;
-  customShortcuts?: KeyboardShortcut[];
+  additionalShortcuts?: KeyboardShortcut[];
 }
 
 export function useKeyboardShortcuts({
@@ -35,7 +38,7 @@ export function useKeyboardShortcuts({
   onFocusInput,
   onScrollToBottom,
   onToggleArtifactPanel,
-  customShortcuts = [],
+  additionalShortcuts = [],
 }: KeyboardShortcutsHandlerProps) {
   const router = useRouter();
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
@@ -47,6 +50,10 @@ export function useKeyboardShortcuts({
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
   const toggleSimplifiedMode = useSettingsStore((state) => state.toggleSimplifiedMode);
+
+  // Read custom shortcuts from settings store
+  const customShortcuts = useSettingsStore((state) => state.customShortcuts);
+  const disabledShortcuts = useSettingsStore((state) => state.disabledShortcuts);
 
   // Navigate to adjacent session
   const navigateSession = useCallback((direction: 'prev' | 'next') => {
@@ -64,140 +71,64 @@ export function useKeyboardShortcuts({
     }
   }, [activeSessionId, sessions, setActiveSession]);
 
-  // Helper to create typed modifiers
-  const mods = (...keys: ModifierKey[]): ModifierKey[] => keys;
+  // Map shortcut IDs to their action handlers
+  const actionMap: Record<string, { action: () => void; enabled?: boolean }> = useMemo(() => ({
+    toggleSidebar: { action: toggleSidebar },
+    commandPalette: { action: () => setCommandPaletteOpen(true) },
+    openSettings: { action: () => openModal('settings') },
+    openProjects: { action: () => router.push('/projects') },
+    prevSession: { action: () => navigateSession('prev') },
+    nextSession: { action: () => navigateSession('next') },
+    newChat: { action: () => createSession() },
+    sendMessage: { action: () => onNewMessage?.(), enabled: !!onNewMessage },
+    stopGeneration: { action: () => onStopGeneration?.(), enabled: !!onStopGeneration },
+    regenerate: { action: () => onRegenerateResponse?.(), enabled: !!onRegenerateResponse },
+    copyLastResponse: { action: () => onCopyLastResponse?.(), enabled: !!onCopyLastResponse },
+    focusInput: { action: () => onFocusInput?.(), enabled: !!onFocusInput },
+    scrollToBottom: { action: () => onScrollToBottom?.(), enabled: !!onScrollToBottom },
+    showShortcuts: { action: () => setKeyboardShortcutsOpen(true) },
+    toggleArtifactPanel: { action: () => onToggleArtifactPanel?.(), enabled: !!onToggleArtifactPanel },
+    toggleSimplifiedMode: { action: toggleSimplifiedMode },
+  }), [
+    toggleSidebar, setCommandPaletteOpen, openModal, router, navigateSession,
+    createSession, onNewMessage, onStopGeneration, onRegenerateResponse,
+    onCopyLastResponse, onFocusInput, onScrollToBottom, setKeyboardShortcutsOpen,
+    onToggleArtifactPanel, toggleSimplifiedMode
+  ]);
 
-  // Define all shortcuts with explicit typing
-  const shortcuts = [
-    // Navigation shortcuts
-    {
-      key: 'b',
-      modifiers: mods('ctrl'),
-      action: toggleSidebar,
-      description: 'Toggle sidebar',
-      category: 'navigation',
-    },
-    {
-      key: 'k',
-      modifiers: mods('ctrl'),
-      action: () => setCommandPaletteOpen(true),
-      description: 'Open command palette',
-      category: 'navigation',
-    },
-    {
-      key: 'p',
-      modifiers: mods('ctrl', 'shift'),
-      action: () => router.push('/projects'),
-      description: 'Go to Projects',
-      category: 'navigation',
-    },
-    {
-      key: ',',
-      modifiers: mods('ctrl'),
-      action: () => openModal('settings'),
-      description: 'Open Settings',
-      category: 'navigation',
-    },
-    {
-      key: '[',
-      modifiers: mods('ctrl'),
-      action: () => navigateSession('prev'),
-      description: 'Previous session',
-      category: 'navigation',
-    },
-    {
-      key: ']',
-      modifiers: mods('ctrl'),
-      action: () => navigateSession('next'),
-      description: 'Next session',
-      category: 'navigation',
-    },
+  // Build shortcuts from DEFAULT_SHORTCUTS with custom overrides
+  const shortcuts: KeyboardShortcut[] = useMemo(() => {
+    const result: KeyboardShortcut[] = [];
 
-    // Chat shortcuts
-    {
-      key: 'n',
-      modifiers: mods('ctrl'),
-      action: () => createSession(),
-      description: 'New chat',
-      category: 'chat',
-    },
-    {
-      key: 'Enter',
-      modifiers: mods('ctrl'),
-      action: () => onNewMessage?.(),
-      description: 'Send message',
-      category: 'chat',
-      enabled: !!onNewMessage,
-    },
-    {
-      key: 'Escape',
-      action: () => onStopGeneration?.(),
-      description: 'Stop generation',
-      category: 'chat',
-      enabled: !!onStopGeneration,
-    },
-    {
-      key: 'r',
-      modifiers: mods('ctrl', 'shift'),
-      action: () => onRegenerateResponse?.(),
-      description: 'Regenerate response',
-      category: 'chat',
-      enabled: !!onRegenerateResponse,
-    },
-    {
-      key: 'c',
-      modifiers: mods('ctrl', 'shift'),
-      action: () => onCopyLastResponse?.(),
-      description: 'Copy last response',
-      category: 'chat',
-      enabled: !!onCopyLastResponse,
-    },
+    for (const def of DEFAULT_SHORTCUTS) {
+      const handler = actionMap[def.id];
+      if (!handler) continue;
 
-    // Editing shortcuts
-    {
-      key: '/',
-      modifiers: mods('ctrl'),
-      action: () => onFocusInput?.(),
-      description: 'Focus input',
-      category: 'editing',
-      enabled: !!onFocusInput,
-    },
-    {
-      key: 'End',
-      modifiers: mods('ctrl'),
-      action: () => onScrollToBottom?.(),
-      description: 'Scroll to bottom',
-      category: 'editing',
-      enabled: !!onScrollToBottom,
-    },
+      // Check if this shortcut is disabled
+      if (disabledShortcuts?.[def.id]) continue;
 
-    // General shortcuts
-    {
-      key: '?',
-      modifiers: mods('ctrl'),
-      action: () => setKeyboardShortcutsOpen(true),
-      description: 'Show keyboard shortcuts',
-      category: 'general',
-    },
-    {
-      key: 'i',
-      modifiers: mods('ctrl', 'shift'),
-      action: () => onToggleArtifactPanel?.(),
-      description: 'Toggle artifact panel',
-      category: 'general',
-      enabled: !!onToggleArtifactPanel,
-    },
-    {
-      key: 's',
-      modifiers: mods('ctrl', 'shift'),
-      action: toggleSimplifiedMode,
-      description: 'Toggle simplified mode',
-      category: 'general',
-    },
+      // Check if action is available
+      if (handler.enabled === false) continue;
 
-    // Add custom shortcuts
-    ...customShortcuts,
-  ].filter(s => s.enabled !== false);
+      // Get the shortcut key (custom or default)
+      const shortcutKey = customShortcuts?.[def.id] || def.defaultKey;
+      const { modifiers, key } = parseShortcut(shortcutKey);
+
+      result.push({
+        id: def.id,
+        key,
+        modifiers: modifiers as ModifierKey[],
+        action: handler.action,
+        description: def.defaultLabel,
+        category: def.category,
+        enabled: true,
+        isCustomized: !!customShortcuts?.[def.id],
+      });
+    }
+
+    // Add any additional shortcuts passed as props
+    return [...result, ...additionalShortcuts];
+  }, [actionMap, customShortcuts, disabledShortcuts, additionalShortcuts]);
 
   // Handle key events
   useEffect(() => {
@@ -245,21 +176,28 @@ export function getShortcutsByCategory(shortcuts: KeyboardShortcut[]) {
     navigation: shortcuts.filter(s => s.category === 'navigation'),
     chat: shortcuts.filter(s => s.category === 'chat'),
     editing: shortcuts.filter(s => s.category === 'editing'),
-    general: shortcuts.filter(s => s.category === 'general'),
+    system: shortcuts.filter(s => s.category === 'system'),
   };
 }
 
 export function formatShortcut(shortcut: KeyboardShortcut): string {
+  const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   const parts: string[] = [];
   
-  if (shortcut.modifiers?.includes('ctrl')) parts.push('Ctrl');
-  if (shortcut.modifiers?.includes('alt')) parts.push('Alt');
-  if (shortcut.modifiers?.includes('shift')) parts.push('Shift');
-  if (shortcut.modifiers?.includes('meta')) parts.push('⌘');
+  if (shortcut.modifiers?.includes('ctrl')) parts.push(isMac ? '⌃' : 'Ctrl');
+  if (shortcut.modifiers?.includes('alt')) parts.push(isMac ? '⌥' : 'Alt');
+  if (shortcut.modifiers?.includes('shift')) parts.push(isMac ? '⇧' : 'Shift');
+  if (shortcut.modifiers?.includes('meta')) parts.push(isMac ? '⌘' : 'Win');
   
-  parts.push(shortcut.key.charAt(0).toUpperCase() + shortcut.key.slice(1));
+  // Format key display
+  let keyDisplay = shortcut.key;
+  if (keyDisplay === 'escape') keyDisplay = 'Esc';
+  else if (keyDisplay === 'enter') keyDisplay = isMac ? '↵' : 'Enter';
+  else keyDisplay = keyDisplay.charAt(0).toUpperCase() + keyDisplay.slice(1);
   
-  return parts.join('+');
+  parts.push(keyDisplay);
+  
+  return parts.join(isMac ? '' : '+');
 }
 
 export default useKeyboardShortcuts;

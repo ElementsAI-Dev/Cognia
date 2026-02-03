@@ -7,8 +7,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { colors, symbols } from './theme.js';
-
-export type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'muted';
+import type { BadgeVariant } from './types.js';
 
 export interface BadgeProps {
   /** Badge variant/color */

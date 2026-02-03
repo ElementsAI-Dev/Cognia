@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Plus, X, AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
+import { Plus, X, AlertCircle, Check, Eye, EyeOff, Settings2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { ApiProtocol } from '@/types/provider';
+import type { CustomModelMetadata } from '@/stores/settings/settings-store';
 import {
   Dialog,
   DialogContent,
@@ -61,6 +62,8 @@ export function CustomProviderDialog({
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [modelMetadata, setModelMetadata] = useState<Record<string, CustomModelMetadata>>({});
+  const [expandedModelSettings, setExpandedModelSettings] = useState<string | null>(null);
 
   // Load data when editing
   useEffect(() => {
@@ -73,6 +76,7 @@ export function CustomProviderDialog({
         setApiProtocol(provider.apiProtocol || 'openai');
         setModels(provider.customModels || []);
         setDefaultModel(provider.defaultModel || '');
+        setModelMetadata(provider.customModelMetadata || {});
       } else {
         // Reset for new provider
         setName('');
@@ -82,6 +86,8 @@ export function CustomProviderDialog({
         setModels([]);
         setNewModel('');
         setDefaultModel('');
+        setModelMetadata({});
+        setExpandedModelSettings(null);
       }
       setTestResult(null);
       setShowDeleteConfirm(false);
@@ -97,6 +103,11 @@ export function CustomProviderDialog({
       if (!defaultModel) {
         setDefaultModel(trimmedModel);
       }
+      // Initialize metadata for new model
+      setModelMetadata((prev) => ({
+        ...prev,
+        [trimmedModel]: { id: trimmedModel },
+      }));
       setNewModel('');
     }
   };
@@ -107,6 +118,21 @@ export function CustomProviderDialog({
     if (defaultModel === model) {
       setDefaultModel(updatedModels[0] || '');
     }
+    // Remove metadata for deleted model
+    setModelMetadata((prev) => {
+      const { [model]: _, ...rest } = prev;
+      return rest;
+    });
+    if (expandedModelSettings === model) {
+      setExpandedModelSettings(null);
+    }
+  };
+
+  const updateModelMetadata = (modelId: string, updates: Partial<CustomModelMetadata>) => {
+    setModelMetadata((prev) => ({
+      ...prev,
+      [modelId]: { ...prev[modelId], id: modelId, ...updates },
+    }));
   };
 
   const handleTestConnection = async () => {
@@ -135,6 +161,7 @@ export function CustomProviderDialog({
       apiKey: apiKey.trim(),
       apiProtocol,
       customModels: models,
+      customModelMetadata: modelMetadata,
       defaultModel: defaultModel || models[0],
       enabled: editingProviderId ? (customProviders[editingProviderId]?.enabled ?? true) : true,
     };
@@ -315,28 +342,109 @@ export function CustomProviderDialog({
             </div>
 
             {models.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="space-y-2 mt-2">
                 {models.map((model) => (
-                  <Badge
-                    key={model}
-                    variant={model === defaultModel ? 'default' : 'secondary'}
-                    className="cursor-pointer"
-                    onClick={() => setDefaultModel(model)}
-                  >
-                    {model}
-                    {model === defaultModel && (
-                      <span className="ml-1 text-xs">({t('default')})</span>
+                  <div key={model} className="border rounded-md p-2">
+                    <div className="flex items-center justify-between">
+                      <Badge
+                        variant={model === defaultModel ? 'default' : 'secondary'}
+                        className="cursor-pointer"
+                        onClick={() => setDefaultModel(model)}
+                      >
+                        {model}
+                        {model === defaultModel && (
+                          <span className="ml-1 text-xs">({t('default')})</span>
+                        )}
+                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => setExpandedModelSettings(
+                            expandedModelSettings === model ? null : model
+                          )}
+                          title={t('modelSettings') || 'Model Settings'}
+                        >
+                          <Settings2 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 hover:text-destructive"
+                          onClick={() => handleRemoveModel(model)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Expandable Model Settings */}
+                    {expandedModelSettings === model && (
+                      <div className="mt-2 pt-2 border-t space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs">{t('contextLength') || 'Context Length'}</Label>
+                            <Input
+                              type="number"
+                              className="h-7 text-xs"
+                              placeholder="128000"
+                              value={modelMetadata[model]?.contextLength || ''}
+                              onChange={(e) => updateModelMetadata(model, {
+                                contextLength: e.target.value ? parseInt(e.target.value) : undefined,
+                              })}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">{t('maxOutputTokens') || 'Max Output'}</Label>
+                            <Input
+                              type="number"
+                              className="h-7 text-xs"
+                              placeholder="4096"
+                              value={modelMetadata[model]?.maxOutputTokens || ''}
+                              onChange={(e) => updateModelMetadata(model, {
+                                maxOutputTokens: e.target.value ? parseInt(e.target.value) : undefined,
+                              })}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs">{t('inputPricing') || 'Input $/1M'}</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="h-7 text-xs"
+                              placeholder="0.00"
+                              value={modelMetadata[model]?.pricing?.promptPer1M || ''}
+                              onChange={(e) => updateModelMetadata(model, {
+                                pricing: {
+                                  ...modelMetadata[model]?.pricing,
+                                  promptPer1M: e.target.value ? parseFloat(e.target.value) : undefined,
+                                },
+                              })}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">{t('outputPricing') || 'Output $/1M'}</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="h-7 text-xs"
+                              placeholder="0.00"
+                              value={modelMetadata[model]?.pricing?.completionPer1M || ''}
+                              onChange={(e) => updateModelMetadata(model, {
+                                pricing: {
+                                  ...modelMetadata[model]?.pricing,
+                                  completionPer1M: e.target.value ? parseFloat(e.target.value) : undefined,
+                                },
+                              })}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveModel(model);
-                      }}
-                      className="ml-1 hover:text-destructive"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
+                  </div>
                 ))}
               </div>
             )}

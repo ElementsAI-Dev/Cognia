@@ -60,7 +60,11 @@ export function ServerCard({
   onToggleEnabled,
 }: ServerCardProps) {
   const t = useTranslations('mcpSettings');
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<'tools' | 'resources' | 'prompts' | null>(null);
+
+  const toggleSection = (section: 'tools' | 'resources' | 'prompts') => {
+    setExpandedSection(expandedSection === section ? null : section);
+  };
 
   return (
     <Card>
@@ -187,38 +191,111 @@ export function ServerCard({
           />
         </div>
 
-        {/* Tools list (expandable) */}
-        {isServerConnected(server.status) && server.tools.length > 0 && (
-          <Collapsible
-            open={isExpanded}
-            onOpenChange={setIsExpanded}
-          >
-            <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
-              {isExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5" />
-              )}
-              {t('showTools')} ({server.tools.length})
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2 space-y-1 pl-4">
-              {server.tools.map((tool) => (
-                <div
-                  key={tool.name}
-                  className="flex items-start gap-2 text-xs"
-                >
-                  <code className="text-[10px] bg-muted px-1 py-0.5 rounded shrink-0">
-                    {tool.name}
-                  </code>
-                  {tool.description && (
-                    <span className="text-[10px] text-muted-foreground truncate">
-                      {tool.description}
-                    </span>
+        {/* Expandable sections */}
+        {isServerConnected(server.status) && (
+          <div className="space-y-2">
+            {/* Tools list (expandable) */}
+            {server.tools.length > 0 && (
+              <Collapsible
+                open={expandedSection === 'tools'}
+                onOpenChange={() => toggleSection('tools')}
+              >
+                <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+                  {expandedSection === 'tools' ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
                   )}
-                </div>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
+                  {t('showTools')} ({server.tools.length})
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-1 pl-4">
+                  {server.tools.map((tool) => (
+                    <div
+                      key={tool.name}
+                      className="flex items-start gap-2 text-xs"
+                    >
+                      <code className="text-[10px] bg-muted px-1 py-0.5 rounded shrink-0">
+                        {tool.name}
+                      </code>
+                      {tool.description && (
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {tool.description}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Resources list (expandable) */}
+            {server.resources.length > 0 && (
+              <Collapsible
+                open={expandedSection === 'resources'}
+                onOpenChange={() => toggleSection('resources')}
+              >
+                <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+                  {expandedSection === 'resources' ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  )}
+                  {t('showResources')} ({server.resources.length})
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-1 pl-4">
+                  {server.resources.map((resource) => (
+                    <div
+                      key={resource.uri}
+                      className="flex items-start gap-2 text-xs"
+                    >
+                      <code className="text-[10px] bg-muted px-1 py-0.5 rounded shrink-0 max-w-[150px] truncate">
+                        {resource.name || resource.uri}
+                      </code>
+                      {resource.description && (
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {resource.description}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Prompts list (expandable) */}
+            {server.prompts.length > 0 && (
+              <Collapsible
+                open={expandedSection === 'prompts'}
+                onOpenChange={() => toggleSection('prompts')}
+              >
+                <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+                  {expandedSection === 'prompts' ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  )}
+                  {t('showPrompts')} ({server.prompts.length})
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-1 pl-4">
+                  {server.prompts.map((prompt) => (
+                    <div
+                      key={prompt.name}
+                      className="flex items-start gap-2 text-xs"
+                    >
+                      <code className="text-[10px] bg-muted px-1 py-0.5 rounded shrink-0">
+                        {prompt.name}
+                      </code>
+                      {prompt.description && (
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {prompt.description}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

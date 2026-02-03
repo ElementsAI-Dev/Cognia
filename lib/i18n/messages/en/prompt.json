@@ -192,6 +192,10 @@
     "startCollecting": "Submit feedback to track prompt effectiveness"
   },
   "promptMarketplace": {
+    "common": {
+      "prompts": "prompts",
+      "thisWeek": "This Week"
+    },
     "tabs": {
       "browse": "Browse",
       "installed": "Installed",
@@ -211,6 +215,7 @@
       "downloads": "Most Downloads",
       "rating": "Highest Rated",
       "trending": "Trending",
+      "trendingDesc": "Popular prompts this week",
       "newest": "Newest",
       "name": "Name"
     },
@@ -220,12 +225,16 @@
       "minRating": "Minimum Rating",
       "minRatingValue": "{rating}+",
       "any": "Any",
-      "stars": "5 stars",
+      "anyRating": "Any",
+      "stars": "stars",
+      "quickFilters": "Quick Filters",
       "clearFilters": "Clear Filters"
     },
     "sections": {
       "featured": "Featured",
+      "featuredDesc": "Hand-picked prompts by our team",
       "trending": "Trending",
+      "trendingDesc": "Popular prompts this week",
       "allPrompts": "All Prompts",
       "installedPrompts": "Installed Prompts",
       "favoritePrompts": "Favorite Prompts",
@@ -379,6 +388,8 @@
   },
   "promptTemplate": {
     "manager": {
+      "title": "Prompt Templates",
+      "subtitle": "Manage your reusable prompt templates",
       "searchPlaceholder": "Search templates",
       "allCategory": "All",
       "import": "Import",
@@ -402,7 +413,8 @@
       "usedCount": "Used {count}×",
       "useTemplate": "Use template",
       "builtIn": "Built-in",
-      "targetTooltip": "Target context"
+      "targetTooltip": "Target context",
+      "lastUpdated": "Last updated"
     },
     "selector": {
       "title": "Insert prompt template",

@@ -107,6 +107,12 @@ export function McpMarketplace() {
     setShowFavoritesOnly,
     setCurrentPage,
     setViewMode,
+    addToRecentlyViewed,
+    getRecentlyViewedItems,
+    clearRecentlyViewed,
+    searchHistory,
+    addToSearchHistory,
+    clearSearchHistory,
   } = useMcpMarketplaceStore();
 
   const { servers } = useMcpStore();
@@ -117,17 +123,30 @@ export function McpMarketplace() {
   const [apiKeyInput, setApiKeyInput] = useState(smitheryApiKey || '');
   const [localSearch, setLocalSearch] = useState(filters.search);
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [showSearchHistory, setShowSearchHistory] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Debounce search input
   const debouncedSearch = useDebounce(localSearch, 300);
 
-  // Sync debounced search to store
+  // Sync debounced search to store and add to history
   useEffect(() => {
     if (debouncedSearch !== filters.search) {
       setFilters({ search: debouncedSearch });
+      if (debouncedSearch.trim()) {
+        addToSearchHistory(debouncedSearch.trim());
+      }
     }
-  }, [debouncedSearch, filters.search, setFilters]);
+  }, [debouncedSearch, filters.search, setFilters, addToSearchHistory]);
+
+  // Handle search history item click
+  const handleSearchHistoryClick = (query: string) => {
+    setLocalSearch(query);
+    setFilters({ search: query });
+    setShowSearchHistory(false);
+    searchInputRef.current?.focus();
+  };
 
   // Fetch catalog on mount
   useEffect(() => {
@@ -145,8 +164,6 @@ export function McpMarketplace() {
   const isItemInstalled = useCallback((mcpId: string): boolean => {
     return servers.some((server) => server.id === mcpId || server.name === mcpId);
   }, [servers]);
-
-  const { addToRecentlyViewed, getRecentlyViewedItems, clearRecentlyViewed } = useMcpMarketplaceStore();
 
   const [showInstalledOnly, setShowInstalledOnly] = useState(false);
 
@@ -249,15 +266,18 @@ export function McpMarketplace() {
 
         {/* Search and Filters */}
         <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex-1">
+          <div className="flex-1 relative">
             <InputGroup className="h-9">
               <InputGroupAddon align="inline-start">
                 <Search className="h-4 w-4" />
               </InputGroupAddon>
               <InputGroupInput
+                ref={searchInputRef}
                 placeholder={t('searchPlaceholder')}
                 value={localSearch}
                 onChange={(e) => setLocalSearch(e.target.value)}
+                onFocus={() => setShowSearchHistory(true)}
+                onBlur={() => setTimeout(() => setShowSearchHistory(false), 200)}
                 className="text-sm"
               />
               {localSearch && (
@@ -275,6 +295,45 @@ export function McpMarketplace() {
                 </InputGroupAddon>
               )}
             </InputGroup>
+            
+            {/* Search History Dropdown */}
+            {showSearchHistory && searchHistory.length > 0 && !localSearch && (
+              <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border rounded-md shadow-md">
+                <div className="flex items-center justify-between px-3 py-2 border-b">
+                  <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Clock className="h-3 w-3" />
+                    {t('recentSearches')}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      clearSearchHistory();
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    {tCommon('clear')}
+                  </Button>
+                </div>
+                <div className="py-1">
+                  {searchHistory.slice(0, 5).map((query, index) => (
+                    <button
+                      key={index}
+                      className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSearchHistoryClick(query);
+                      }}
+                    >
+                      <Search className="h-3 w-3 text-muted-foreground" />
+                      <span className="truncate">{query}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">

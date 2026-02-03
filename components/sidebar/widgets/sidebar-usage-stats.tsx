@@ -26,6 +26,7 @@ export function SidebarUsageStats({ className, collapsed }: SidebarUsageStatsPro
 
   const getDailyUsage = useUsageStore((state) => state.getDailyUsage);
   const records = useUsageStore((state) => state.records);
+  const quotaLimits = useUsageStore((state) => state.quotaLimits);
 
   const dailyUsage = useMemo(() => getDailyUsage(1), [getDailyUsage]);
   const todayUsage = dailyUsage[dailyUsage.length - 1] || { tokens: 0, cost: 0, requests: 0 };
@@ -62,8 +63,9 @@ export function SidebarUsageStats({ className, collapsed }: SidebarUsageStatsPro
     return `$${cost.toFixed(2)}`;
   };
 
-  // Calculate usage percentage (assume daily limit of 1M tokens)
-  const dailyLimit = 1000000;
+  // Calculate usage percentage using configured limit or default 1M tokens
+  const configuredLimit = quotaLimits['default']?.maxTokensPerDay;
+  const dailyLimit = configuredLimit || 1000000;
   const usagePercent = Math.min((todayUsage.tokens / dailyLimit) * 100, 100);
 
   // If sidebar is collapsed (icon only mode)

@@ -48,6 +48,18 @@ interface ExportData {
 
 type ExportFormat = 'json' | 'env';
 
+// Import conflict types
+interface ImportConflict {
+  id: string;
+  name: string;
+  type: 'builtin' | 'custom';
+  conflictType: 'exists' | 'different_settings';
+  currentValue?: string;
+  importValue?: string;
+}
+
+type ImportResolution = 'skip' | 'overwrite' | 'merge';
+
 export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
   const t = useTranslations('providers');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +84,9 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
   const [importSuccess, setImportSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importConflicts, setImportConflicts] = useState<ImportConflict[]>([]);
+  const [importResolution, setImportResolution] = useState<ImportResolution>('overwrite');
+  const [showConflictWarning, setShowConflictWarning] = useState(false);
 
   // Get list of providers with settings
   const availableProviders = useMemo(() => {
@@ -192,10 +207,66 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
     onClose?.();
   };
   
+  // Detect conflicts between import data and existing settings
+  const detectImportConflicts = useCallback((data: ExportData): ImportConflict[] => {
+    const conflicts: ImportConflict[] = [];
+    
+    // Check built-in provider conflicts
+    if (data.providerSettings) {
+      Object.entries(data.providerSettings).forEach(([id, importSettings]) => {
+        const currentSettings = providerSettings[id];
+        if (currentSettings?.apiKey || currentSettings?.enabled) {
+          const importApiKey = (importSettings as Record<string, unknown>)?.apiKey as string;
+          const currentApiKey = currentSettings.apiKey || '';
+          
+          if (currentApiKey && importApiKey && currentApiKey !== importApiKey) {
+            conflicts.push({
+              id,
+              name: PROVIDERS[id]?.name || id,
+              type: 'builtin',
+              conflictType: 'different_settings',
+              currentValue: `API Key: ***${currentApiKey.slice(-4)}`,
+              importValue: `API Key: ***${importApiKey.slice(-4)}`,
+            });
+          } else if (currentSettings.enabled && !importApiKey) {
+            conflicts.push({
+              id,
+              name: PROVIDERS[id]?.name || id,
+              type: 'builtin',
+              conflictType: 'exists',
+            });
+          }
+        }
+      });
+    }
+    
+    // Check custom provider conflicts
+    if (data.customProviders) {
+      Object.entries(data.customProviders).forEach(([id, importProvider]) => {
+        const currentProvider = customProviders[id];
+        if (currentProvider) {
+          const importName = (importProvider as Record<string, unknown>)?.customName as string;
+          conflicts.push({
+            id,
+            name: currentProvider.customName || importName || id,
+            type: 'custom',
+            conflictType: 'exists',
+            currentValue: currentProvider.baseURL,
+            importValue: (importProvider as Record<string, unknown>)?.baseURL as string,
+          });
+        }
+      });
+    }
+    
+    return conflicts;
+  }, [providerSettings, customProviders]);
+
   const processImportFile = useCallback((file: File) => {
     setImportError(null);
     setImportSuccess(false);
     setImportFileName(file.name);
+    setImportConflicts([]);
+    setShowConflictWarning(false);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -204,6 +275,14 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
         if (!data.version || !data.providerSettings) {
           throw new Error('Invalid export file format');
         }
+        
+        // Detect conflicts
+        const conflicts = detectImportConflicts(data);
+        setImportConflicts(conflicts);
+        if (conflicts.length > 0) {
+          setShowConflictWarning(true);
+        }
+        
         setImportData(data);
         setImportDialogOpen(true);
       } catch {
@@ -214,7 +293,7 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
       }
     };
     reader.readAsText(file);
-  }, []);
+  }, [detectImportConflicts]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -268,28 +347,75 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
   const handleImport = () => {
     if (!importData) return;
     
+    // Build set of conflicting IDs to check resolution strategy
+    const conflictIds = new Set(importConflicts.map(c => c.id));
+    
     try {
-      // Import provider settings
+      // Import provider settings based on resolution strategy
       if (importData.providerSettings) {
         Object.entries(importData.providerSettings).forEach(([id, settings]) => {
-          setProviderSettings(id, settings as Record<string, unknown>);
+          const hasConflict = conflictIds.has(id);
+          
+          // Skip if conflict and resolution is 'skip'
+          if (hasConflict && importResolution === 'skip') {
+            return;
+          }
+          
+          // Merge: only update non-API-key settings if conflict
+          if (hasConflict && importResolution === 'merge') {
+            const currentSettings = providerSettings[id];
+            const importSettings = settings as Record<string, string | string[] | boolean | undefined>;
+            // Keep current API key, merge other settings
+            setProviderSettings(id, {
+              ...importSettings,
+              apiKey: currentSettings?.apiKey || importSettings.apiKey as string,
+              apiKeys: currentSettings?.apiKeys || importSettings.apiKeys as string[],
+            });
+          } else {
+            // Overwrite or no conflict
+            setProviderSettings(id, settings as Record<string, unknown>);
+          }
         });
       }
       
-      // Import custom providers
+      // Import custom providers based on resolution strategy
       if (importData.customProviders) {
-        Object.entries(importData.customProviders).forEach(([_id, provider]) => {
+        Object.entries(importData.customProviders).forEach(([id, provider]) => {
+          const hasConflict = conflictIds.has(id);
+          
+          // Skip if conflict and resolution is 'skip'
+          if (hasConflict && importResolution === 'skip') {
+            return;
+          }
+          
           const providerData = provider as Record<string, unknown>;
-          addCustomProvider({
-            providerId: providerData.providerId as string,
-            customName: providerData.customName as string,
-            baseURL: providerData.baseURL as string,
-            apiKey: providerData.apiKey as string || '',
-            customModels: providerData.customModels as string[] || [],
-            defaultModel: providerData.defaultModel as string,
-            apiProtocol: (providerData.apiProtocol as 'openai' | 'anthropic' | 'gemini') || 'openai',
-            enabled: providerData.enabled as boolean,
-          });
+          
+          // For custom providers, merge keeps existing API key
+          if (hasConflict && importResolution === 'merge') {
+            const currentProvider = customProviders[id];
+            addCustomProvider({
+              providerId: providerData.providerId as string,
+              customName: providerData.customName as string,
+              baseURL: providerData.baseURL as string,
+              apiKey: currentProvider?.apiKey || providerData.apiKey as string || '',
+              customModels: providerData.customModels as string[] || [],
+              defaultModel: providerData.defaultModel as string,
+              apiProtocol: (providerData.apiProtocol as 'openai' | 'anthropic' | 'gemini') || 'openai',
+              enabled: providerData.enabled as boolean,
+            });
+          } else {
+            // Overwrite or no conflict
+            addCustomProvider({
+              providerId: providerData.providerId as string,
+              customName: providerData.customName as string,
+              baseURL: providerData.baseURL as string,
+              apiKey: providerData.apiKey as string || '',
+              customModels: providerData.customModels as string[] || [],
+              defaultModel: providerData.defaultModel as string,
+              apiProtocol: (providerData.apiProtocol as 'openai' | 'anthropic' | 'gemini') || 'openai',
+              enabled: providerData.enabled as boolean,
+            });
+          }
         });
       }
       
@@ -297,6 +423,8 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
       setTimeout(() => {
         setImportDialogOpen(false);
         setImportData(null);
+        setImportConflicts([]);
+        setShowConflictWarning(false);
         onClose?.();
       }, 1500);
     } catch {
@@ -604,6 +732,87 @@ export function ProviderImportExport({ onClose }: ProviderImportExportProps) {
                       `${Object.keys(importData.customProviders || {}).length} custom provider`}
                   </p>
                 </div>
+
+                {/* Conflict Warning */}
+                {showConflictWarning && importConflicts.length > 0 && (
+                  <div className="space-y-3">
+                    <Alert className="border-amber-500/50 bg-amber-500/10">
+                      <ShieldAlert className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="text-amber-600 dark:text-amber-400">
+                        {t('importConflictWarning') || `${importConflicts.length} conflict(s) detected with existing settings`}
+                      </AlertDescription>
+                    </Alert>
+
+                    {/* Conflict List */}
+                    <ScrollArea className="h-[100px] rounded-md border p-2">
+                      <div className="space-y-2">
+                        {importConflicts.map((conflict) => (
+                          <div key={conflict.id} className="flex items-center justify-between text-xs p-1.5 rounded bg-muted/50">
+                            <div>
+                              <span className="font-medium">{conflict.name}</span>
+                              <span className="text-muted-foreground ml-1">
+                                ({conflict.type === 'custom' ? t('custom') || 'Custom' : t('builtin') || 'Built-in'})
+                              </span>
+                            </div>
+                            <Badge variant="outline" className="text-[10px]">
+                              {conflict.conflictType === 'different_settings' 
+                                ? t('differentSettings') || 'Different' 
+                                : t('exists') || 'Exists'}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+
+                    {/* Resolution Options */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium">{t('conflictResolution') || 'Conflict Resolution'}</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setImportResolution('overwrite')}
+                          className={cn(
+                            'p-2 text-xs rounded-md border transition-colors',
+                            importResolution === 'overwrite'
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border hover:border-muted-foreground/50'
+                          )}
+                        >
+                          {t('overwrite') || 'Overwrite'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImportResolution('skip')}
+                          className={cn(
+                            'p-2 text-xs rounded-md border transition-colors',
+                            importResolution === 'skip'
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border hover:border-muted-foreground/50'
+                          )}
+                        >
+                          {t('skip') || 'Skip'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImportResolution('merge')}
+                          className={cn(
+                            'p-2 text-xs rounded-md border transition-colors',
+                            importResolution === 'merge'
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border hover:border-muted-foreground/50'
+                          )}
+                        >
+                          {t('merge') || 'Merge'}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {importResolution === 'overwrite' && (t('overwriteDesc') || 'Replace existing settings with imported values')}
+                        {importResolution === 'skip' && (t('skipDesc') || 'Keep existing settings, skip conflicting imports')}
+                        {importResolution === 'merge' && (t('mergeDesc') || 'Merge settings but keep existing API keys')}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

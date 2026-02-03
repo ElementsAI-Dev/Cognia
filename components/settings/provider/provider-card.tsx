@@ -24,7 +24,24 @@ import {
   Zap,
   ExternalLink,
   AlertCircle,
+  GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -61,11 +78,117 @@ import type {
   UserProviderSettings,
 } from '@/types/provider';
 import { maskApiKey, isValidApiKeyFormat } from '@/lib/ai/infrastructure/api-key-rotation';
+import { ModelListDialog } from './model-list-dialog';
+import { ModelSettingsDialog } from './model-settings-dialog';
 
 interface TestResult {
   success: boolean;
   message: string;
   latency?: number;
+}
+
+// Sortable API Key Item for drag-and-drop reordering
+interface SortableApiKeyItemProps {
+  id: string;
+  keyValue: string;
+  index: number;
+  isActive: boolean;
+  rotationEnabled: boolean;
+  usageStats?: ApiKeyUsageStats;
+  disabled: boolean;
+  onRemove?: () => void;
+  onResetStats?: () => void;
+  t: (key: string) => string;
+}
+
+function SortableApiKeyItem({
+  id,
+  keyValue,
+  isActive,
+  rotationEnabled,
+  usageStats,
+  disabled,
+  onRemove,
+  onResetStats,
+  t,
+}: SortableApiKeyItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex items-center gap-2 text-xs bg-background rounded-md px-2 py-1.5 border',
+        isDragging && 'shadow-lg ring-2 ring-primary/20'
+      )}
+    >
+      {/* Drag handle */}
+      <button
+        type="button"
+        className="cursor-grab active:cursor-grabbing touch-none"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-3 w-3 text-muted-foreground" />
+      </button>
+
+      {rotationEnabled && isActive && (
+        <Badge variant="default" className="text-[10px] px-1 py-0 shrink-0">
+          {t('active') || 'Active'}
+        </Badge>
+      )}
+      <span className="flex-1 font-mono truncate">
+        {maskApiKey(keyValue)}
+      </span>
+      {usageStats && (
+        <span className="text-muted-foreground text-[10px] hidden sm:inline">
+          {usageStats.usageCount}x
+          {usageStats.errorCount > 0 && (
+            <span className="text-destructive ml-0.5">
+              ({usageStats.errorCount}err)
+            </span>
+          )}
+        </span>
+      )}
+      {onResetStats && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5"
+          onClick={onResetStats}
+          title="Reset stats"
+          disabled={disabled}
+        >
+          <RotateCcw className="h-3 w-3" />
+        </Button>
+      )}
+      {onRemove && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5"
+          onClick={onRemove}
+          disabled={disabled}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
+  );
 }
 
 interface ProviderCardProps {
@@ -91,6 +214,7 @@ interface ProviderCardProps {
   onToggleRotation?: (enabled: boolean) => void;
   rotationStrategy?: ApiKeyRotationStrategy;
   onRotationStrategyChange?: (strategy: ApiKeyRotationStrategy) => void;
+  onReorderApiKeys?: (fromIndex: number, toIndex: number) => void;
   // Model settings
   onModelSettings?: (model: ModelConfig) => void;
   children?: ReactNode;
@@ -118,15 +242,38 @@ export const ProviderCard = React.memo(function ProviderCard({
   onToggleRotation,
   rotationStrategy = 'round-robin',
   onRotationStrategyChange,
+  onReorderApiKeys,
   children,
 }: ProviderCardProps) {
   const t = useTranslations('providers');
   const [showApiKey, setShowApiKey] = useState(false);
   const [newApiKey, setNewApiKey] = useState('');
   const [showNewKeyInput, setShowNewKeyInput] = useState(false);
+  const [showModelListDialog, setShowModelListDialog] = useState(false);
+  const [showModelSettingsDialog, setShowModelSettingsDialog] = useState(false);
+  const [selectedModelForSettings, setSelectedModelForSettings] = useState<ModelConfig | null>(null);
 
   const modelsCount = provider.models?.length || 0;
   const defaultModel = settings.defaultModel || provider.defaultModel;
+
+  // DnD sensors for API key reordering (must be at top level)
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id && onReorderApiKeys) {
+      const oldIndex = apiKeys.findIndex((_, i) => `key-${i}` === active.id);
+      const newIndex = apiKeys.findIndex((_, i) => `key-${i}` === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorderApiKeys(oldIndex, newIndex);
+      }
+    }
+  }, [apiKeys, onReorderApiKeys]);
 
   const handleAddKey = useCallback(() => {
     if (newApiKey.trim() && onAddApiKey) {
@@ -383,102 +530,80 @@ export const ProviderCard = React.memo(function ProviderCard({
                         </SelectContent>
                       </Select>
 
-                      {/* API Keys List */}
-                      <div className="space-y-2">
-                        {apiKeys.map((key, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center gap-2 text-xs bg-background rounded-md px-2 py-1.5 border"
-                          >
-                            {rotationEnabled && currentKeyIndex === index && (
-                              <Badge variant="default" className="text-[10px] px-1 py-0 shrink-0">
-                                {t('active') || 'Active'}
-                              </Badge>
-                            )}
-                            <span className="flex-1 font-mono truncate">
-                              {maskApiKey(key)}
-                            </span>
-                            {apiKeyUsageStats[key] && (
-                              <span className="text-muted-foreground text-[10px] hidden sm:inline">
-                                {apiKeyUsageStats[key].usageCount}x
-                                {apiKeyUsageStats[key].errorCount > 0 && (
-                                  <span className="text-destructive ml-0.5">
-                                    ({apiKeyUsageStats[key].errorCount}err)
-                                  </span>
-                                )}
-                              </span>
-                            )}
-                            {onResetApiKeyStats && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5"
-                                onClick={() => onResetApiKeyStats(key)}
-                                title="Reset stats"
+                      {/* API Keys List with Drag-and-Drop */}
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <SortableContext
+                          items={apiKeys.map((_, i) => `key-${i}`)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="space-y-2">
+                            {apiKeys.map((key, index) => (
+                              <SortableApiKeyItem
+                                key={`key-${index}`}
+                                id={`key-${index}`}
+                                keyValue={key}
+                                index={index}
+                                isActive={currentKeyIndex === index}
+                                rotationEnabled={rotationEnabled}
+                                usageStats={apiKeyUsageStats[key]}
                                 disabled={!settings.enabled}
-                              >
-                                <RotateCcw className="h-3 w-3" />
-                              </Button>
-                            )}
-                            {onRemoveApiKey && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5"
-                                onClick={() => onRemoveApiKey(index)}
-                                disabled={!settings.enabled}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            )}
+                                onRemove={onRemoveApiKey ? () => onRemoveApiKey(index) : undefined}
+                                onResetStats={onResetApiKeyStats ? () => onResetApiKeyStats(key) : undefined}
+                                t={t}
+                              />
+                            ))}
                           </div>
-                        ))}
+                        </SortableContext>
+                      </DndContext>
 
-                        {/* Add New Key */}
-                        {showNewKeyInput ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={newApiKey}
-                              onChange={(e) => setNewApiKey(e.target.value)}
-                              placeholder="sk-..."
-                              className="h-8 text-xs"
-                              disabled={!settings.enabled}
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8"
-                              onClick={handleAddKey}
-                              disabled={!settings.enabled || !newApiKey.trim()}
-                            >
-                              <Check className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8"
-                              onClick={() => {
-                                setShowNewKeyInput(false);
-                                setNewApiKey('');
-                              }}
-                              disabled={!settings.enabled}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ) : (
+                      {/* Add New Key */}
+                      {showNewKeyInput ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={newApiKey}
+                            onChange={(e) => setNewApiKey(e.target.value)}
+                            placeholder="sk-..."
+                            className="h-8 text-xs"
+                            disabled={!settings.enabled}
+                          />
                           <Button
                             variant="outline"
                             size="sm"
-                            className="w-full h-7 text-xs gap-1"
-                            onClick={() => setShowNewKeyInput(true)}
+                            className="h-8"
+                            onClick={handleAddKey}
+                            disabled={!settings.enabled || !newApiKey.trim()}
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => {
+                              setShowNewKeyInput(false);
+                              setNewApiKey('');
+                            }}
                             disabled={!settings.enabled}
                           >
-                            <Plus className="h-3 w-3" />
-                            {t('addKey') || 'Add Key'}
+                            <X className="h-3 w-3" />
                           </Button>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-7 text-xs gap-1"
+                          onClick={() => setShowNewKeyInput(true)}
+                          disabled={!settings.enabled}
+                        >
+                          <Plus className="h-3 w-3" />
+                          {t('addKey') || 'Add Key'}
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -490,9 +615,16 @@ export const ProviderCard = React.memo(function ProviderCard({
                   <span className="text-sm font-medium">
                     {t('availableModels') || 'Available Models'}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs gap-1"
+                    onClick={() => setShowModelListDialog(true)}
+                    disabled={!settings.enabled || modelsCount === 0}
+                  >
                     {modelsCount} {t('total') || 'total'}
-                  </span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
@@ -565,6 +697,34 @@ export const ProviderCard = React.memo(function ProviderCard({
           </CardContent>
         </CollapsibleContent>
       </Card>
+
+      {/* Model List Dialog */}
+      <ModelListDialog
+        open={showModelListDialog}
+        onOpenChange={setShowModelListDialog}
+        models={provider.models || []}
+        selectedModels={defaultModel ? [defaultModel] : []}
+        onModelsChange={(models) => {
+          if (models.length > 0) {
+            onDefaultModelChange(models[0]);
+          }
+        }}
+        onModelSettings={(model: ModelConfig) => {
+          setSelectedModelForSettings(model);
+          setShowModelSettingsDialog(true);
+        }}
+      />
+
+      {/* Model Settings Dialog */}
+      <ModelSettingsDialog
+        open={showModelSettingsDialog}
+        onOpenChange={setShowModelSettingsDialog}
+        model={selectedModelForSettings}
+        providerId={provider.id}
+        onSave={(_modelId, _settings) => {
+          setShowModelSettingsDialog(false);
+        }}
+      />
     </Collapsible>
   );
 });

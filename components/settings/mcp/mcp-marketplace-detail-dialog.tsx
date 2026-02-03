@@ -91,7 +91,7 @@ export function McpMarketplaceDetailDialog({
     getInstallStatus,
   } = useMcpMarketplaceStore();
 
-  const { addServer } = useMcpStore();
+  const { addServer, connectServer } = useMcpStore();
 
   const [isInstalling, setIsInstalling] = useState(false);
   const [installError, setInstallError] = useState<string | null>(null);
@@ -183,6 +183,15 @@ export function McpMarketplaceDetailDialog({
       };
 
       await addServer(item.mcpId, serverConfig);
+      
+      // Try to auto-connect after installation
+      try {
+        await connectServer(item.mcpId);
+      } catch {
+        // Connection failure is not fatal, server is still added
+        console.warn('Auto-connect failed, server added but not connected');
+      }
+      
       setInstallStatus(item.mcpId, 'installed');
       onOpenChange(false);
     } catch (error) {
@@ -582,7 +591,12 @@ export function McpMarketplaceDetailDialog({
             </Button>
             <Button
               onClick={handleInstall}
-              disabled={isCurrentlyInstalled || isInstalling || isLoadingDetails}
+              disabled={
+                isCurrentlyInstalled ||
+                isInstalling ||
+                isLoadingDetails ||
+                (!item?.remote && !isCheckingEnv && envCheck !== null && envCheck.supported === false)
+              }
             >
               {isInstalling ? (
                 <>

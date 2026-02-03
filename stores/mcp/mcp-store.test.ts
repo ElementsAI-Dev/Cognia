@@ -496,4 +496,103 @@ describe('useMcpStore', () => {
       expect(useMcpStore.getState().lastToolSelection).toBeNull();
     });
   });
+
+  // =========================================================================
+  // Log Management Tests
+  // =========================================================================
+
+  describe('log management', () => {
+    beforeEach(() => {
+      useMcpStore.setState({ logs: [] });
+    });
+
+    it('has empty logs initially', () => {
+      expect(useMcpStore.getState().logs).toEqual([]);
+    });
+
+    it('addLog adds a new log entry', () => {
+      act(() => {
+        useMcpStore.getState().addLog({
+          level: 'info',
+          message: 'Test log message',
+          serverId: 'server-1',
+          serverName: 'Test Server',
+        });
+      });
+
+      const logs = useMcpStore.getState().logs;
+      expect(logs).toHaveLength(1);
+      expect(logs[0].message).toBe('Test log message');
+      expect(logs[0].level).toBe('info');
+      expect(logs[0].serverId).toBe('server-1');
+      expect(logs[0].id).toBeDefined();
+      expect(logs[0].timestamp).toBeInstanceOf(Date);
+    });
+
+    it('addLog prepends new entries (newest first)', () => {
+      act(() => {
+        useMcpStore.getState().addLog({ level: 'info', message: 'First' });
+        useMcpStore.getState().addLog({ level: 'info', message: 'Second' });
+      });
+
+      const logs = useMcpStore.getState().logs;
+      expect(logs[0].message).toBe('Second');
+      expect(logs[1].message).toBe('First');
+    });
+
+    it('addLog respects max log entries limit', () => {
+      act(() => {
+        for (let i = 0; i < 510; i++) {
+          useMcpStore.getState().addLog({ level: 'info', message: `Log ${i}` });
+        }
+      });
+
+      const logs = useMcpStore.getState().logs;
+      expect(logs.length).toBeLessThanOrEqual(500);
+    });
+
+    it('clearLogs removes all logs', () => {
+      act(() => {
+        useMcpStore.getState().addLog({ level: 'info', message: 'Test 1' });
+        useMcpStore.getState().addLog({ level: 'error', message: 'Test 2' });
+        useMcpStore.getState().clearLogs();
+      });
+
+      expect(useMcpStore.getState().logs).toEqual([]);
+    });
+  });
+
+  // =========================================================================
+  // Test Connection Tests
+  // =========================================================================
+
+  describe('testConnection', () => {
+    it('calls mcp_test_connection command', async () => {
+      mockInvoke.mockResolvedValueOnce(true);
+
+      const result = await useMcpStore.getState().testConnection('server-1');
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_test_connection', { serverId: 'server-1' });
+      expect(result).toBe(true);
+    });
+
+    it('returns false for disconnected server', async () => {
+      mockInvoke.mockResolvedValueOnce(false);
+
+      const result = await useMcpStore.getState().testConnection('server-1');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('pingServer', () => {
+    it('calls mcp_ping_server and returns latency', async () => {
+      mockInvoke.mockResolvedValueOnce(42);
+
+      const result = await useMcpStore.getState().pingServer('server-1');
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_ping_server', { serverId: 'server-1' });
+      expect(result).toBe(42);
+    });
+  });
 });

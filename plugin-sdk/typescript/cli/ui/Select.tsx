@@ -62,12 +62,12 @@ export function Select<T = string>({
           initialIndex={initialIndex}
           limit={limit}
           isFocused={isFocused}
-          indicatorComponent={({ isSelected }: { isSelected: boolean }) => (
+          indicatorComponent={({ isSelected }) => (
             <Text color={isSelected ? colors.primary : colors.muted}>
               {isSelected ? symbols.pointer : ' '}{' '}
             </Text>
           )}
-          itemComponent={({ isSelected, label: itemLabel }: { isSelected: boolean; label: string }) => {
+          itemComponent={({ isSelected, label: itemLabel }) => {
             const option = options.find((o) => o.label === itemLabel);
             return (
               <Box flexDirection="column">

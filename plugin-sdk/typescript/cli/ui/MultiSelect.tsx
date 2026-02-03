@@ -7,6 +7,7 @@
 import React, { useState, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { colors, symbols } from './theme.js';
+import type { Key } from './types.js';
 
 export interface MultiSelectOption<T = string> {
   label: string;
@@ -62,7 +63,7 @@ export function MultiSelect<T = string>({
     });
   }, [max]);
 
-  useInput((input: string, key: { upArrow: boolean; downArrow: boolean; return: boolean }) => {
+  useInput((input: string, key: Key) => {
     if (!isFocused || submitted) return;
 
     if (key.upArrow) {

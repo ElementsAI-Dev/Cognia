@@ -6,8 +6,10 @@
  * Dialog for adding/editing MCP server configurations
  */
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Loader2, CheckCircle2, XCircle, Zap } from 'lucide-react';
+import { toast } from 'sonner';
 import { EnvVariablesForm } from './components';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useMcpServerForm } from '@/hooks/mcp';
+import { useMcpStore } from '@/stores/mcp';
 import type { McpServerState, McpConnectionType } from '@/types/mcp';
 
 interface McpServerDialogProps {
@@ -47,6 +50,10 @@ export function McpServerDialog({
 }: McpServerDialogProps) {
   const t = useTranslations('mcp');
   const tCommon = useTranslations('common');
+  const { pingServer, testConnection } = useMcpStore();
+  
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
 
   const {
     state,
@@ -210,13 +217,61 @@ export function McpServerDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {tCommon('cancel')}
-          </Button>
-          <Button onClick={handleSave} disabled={!isValid || saving}>
-            {saving ? tCommon('loading') : editingServer ? tCommon('save') : tCommon('add')}
-          </Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {/* Test Connection Button - only show when editing */}
+          {editingServer && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                setIsTesting(true);
+                setTestResult(null);
+                try {
+                  const isConnected = await testConnection(editingServer.id);
+                  if (isConnected) {
+                    const latency = await pingServer(editingServer.id);
+                    setTestResult('success');
+                    toast.success(t('connectionSuccess'), {
+                      description: `${t('latency')}: ${latency}ms`,
+                    });
+                  } else {
+                    setTestResult('error');
+                    toast.error(t('connectionFailed'), {
+                      description: t('serverNotConnected'),
+                    });
+                  }
+                } catch (err) {
+                  setTestResult('error');
+                  toast.error(t('connectionFailed'), {
+                    description: (err as Error).message,
+                  });
+                } finally {
+                  setIsTesting(false);
+                  setTimeout(() => setTestResult(null), 3000);
+                }
+              }}
+              disabled={isTesting}
+              className="sm:mr-auto"
+            >
+              {isTesting ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : testResult === 'success' ? (
+                <CheckCircle2 className="h-4 w-4 mr-1.5 text-green-500" />
+              ) : testResult === 'error' ? (
+                <XCircle className="h-4 w-4 mr-1.5 text-red-500" />
+              ) : (
+                <Zap className="h-4 w-4 mr-1.5" />
+              )}
+              {t('testConnection')}
+            </Button>
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>
+              {tCommon('cancel')}
+            </Button>
+            <Button onClick={handleSave} disabled={!isValid || saving}>
+              {saving ? tCommon('loading') : editingServer ? tCommon('save') : tCommon('add')}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

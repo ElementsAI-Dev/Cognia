@@ -6,7 +6,7 @@
  * A card component for displaying usage analytics summary
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   TrendingUp,
@@ -18,6 +18,7 @@ import {
   Clock,
   Lightbulb,
   ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -91,6 +92,48 @@ function ModelUsageItem({
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{percentage.toFixed(1)}%</span>
         <span>{formatCost(cost)}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Model breakdown section with expandable list
+ */
+function ModelBreakdownSection({
+  modelBreakdown,
+  t,
+}: {
+  modelBreakdown: Array<{ model: string; tokens: number; cost: number; percentage: number }>;
+  t: (key: string) => string | undefined;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const displayCount = expanded ? modelBreakdown.length : 3;
+  const hasMore = modelBreakdown.length > 3;
+
+  return (
+    <div className="pt-2 border-t space-y-3">
+      <h4 className="text-sm font-medium flex items-center gap-2">
+        <Clock className="h-4 w-4" />
+        {t('modelUsage') || 'Model Usage'}
+      </h4>
+      <div className="space-y-3">
+        {modelBreakdown.slice(0, displayCount).map((model) => (
+          <ModelUsageItem key={model.model} {...model} />
+        ))}
+        {hasMore && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span>{expanded ? (t('showLess') || 'Show less') : (t('viewMore') || 'View more')}</span>
+            {expanded ? (
+              <ChevronDown className="h-3 w-3 rotate-180 transition-transform" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -259,23 +302,10 @@ export function UsageAnalyticsCard({
 
         {/* Model breakdown */}
         {showBreakdown && modelBreakdown.length > 0 && (
-          <div className="pt-2 border-t space-y-3">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              {t('modelUsage') || 'Model Usage'}
-            </h4>
-            <div className="space-y-3">
-              {modelBreakdown.slice(0, 3).map((model) => (
-                <ModelUsageItem key={model.model} {...model} />
-              ))}
-              {modelBreakdown.length > 3 && (
-                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                  <span>{t('viewMore') || 'View more'}</span>
-                  <ChevronRight className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-          </div>
+          <ModelBreakdownSection
+            modelBreakdown={modelBreakdown}
+            t={t}
+          />
         )}
 
         {/* Efficiency metrics */}

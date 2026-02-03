@@ -5,7 +5,6 @@
 export { DesktopSettings } from './desktop-settings';
 export { EnvironmentSettings } from './environment-settings';
 export { KeyboardSettings } from './keyboard-settings';
-export { KeyboardShortcutsSettings } from './keyboard-shortcuts-settings';
 export { ProxySettings } from './proxy-settings';
 export { SpeechSettings } from './speech-settings';
 export { SandboxSettings } from './sandbox-settings';

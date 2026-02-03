@@ -192,6 +192,10 @@
     "startCollecting": "提交反馈以跟踪提示效果"
   },
   "promptMarketplace": {
+    "common": {
+      "prompts": "个提示",
+      "thisWeek": "本周"
+    },
     "tabs": {
       "browse": "浏览",
       "installed": "已安装",
@@ -220,12 +224,16 @@
       "minRating": "最低评分",
       "minRatingValue": "{rating}+",
       "any": "任意",
-      "stars": "5 星",
+      "anyRating": "任意",
+      "stars": "星",
+      "quickFilters": "快速筛选",
       "clearFilters": "清除筛选"
     },
     "sections": {
       "featured": "精选",
+      "featuredDesc": "团队精心挑选的提示",
       "trending": "热门趋势",
+      "trendingDesc": "本周热门提示",
       "allPrompts": "全部提示",
       "installedPrompts": "已安装的提示",
       "favoritePrompts": "收藏的提示",
@@ -379,6 +387,8 @@
   },
   "promptTemplate": {
     "manager": {
+      "title": "提示模板",
+      "subtitle": "管理可重用的提示模板",
       "searchPlaceholder": "搜索模板",
       "allCategory": "全部",
       "import": "导入",
@@ -402,7 +412,8 @@
       "usedCount": "已使用 {count} 次",
       "useTemplate": "使用模板",
       "builtIn": "内置",
-      "targetTooltip": "目标上下文"
+      "targetTooltip": "目标上下文",
+      "lastUpdated": "最后更新"
     },
     "selector": {
       "title": "插入提示模板",

@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { colors, symbols } from './theme.js';
+import type { Key } from './types.js';
 
 export interface ConfirmProps {
   /** Question to ask */
@@ -28,7 +29,7 @@ export function Confirm({
   const [value, setValue] = useState(defaultValue);
   const [submitted, setSubmitted] = useState(false);
 
-  useInput((input: string, key: { leftArrow: boolean; rightArrow: boolean; return: boolean }) => {
+  useInput((input: string, key: Key) => {
     if (!isFocused || submitted) return;
 
     const lowerInput = input.toLowerCase();

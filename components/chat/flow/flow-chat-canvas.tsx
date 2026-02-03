@@ -22,7 +22,7 @@ import {
   type Connection,
   type Node,
 } from '@xyflow/react';
-import { toPng, toSvg } from '@xyflow/react';
+import { toPng, toSvg } from 'html-to-image';
 import '@xyflow/react/dist/style.css';
 import { useTranslations } from 'next-intl';
 import { TooltipProvider } from '@/components/ui/tooltip';

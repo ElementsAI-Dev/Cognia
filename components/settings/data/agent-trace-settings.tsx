@@ -4,7 +4,7 @@ import { useMemo, useState, useCallback } from 'react';
 import Dexie from 'dexie';
 import { useTranslations } from 'next-intl';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { FileText, RefreshCw, Trash2, Download, Power } from 'lucide-react';
+import { FileText, RefreshCw, Trash2, Download, Power, RotateCcw } from 'lucide-react';
 
 import { db, type DBAgentTrace } from '@/lib/db';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import {
   SettingsEmptyState,
   SettingsGrid,
   SettingsPageHeader,
+  SettingsRow,
 } from '@/components/settings/common/settings-section';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -92,6 +93,11 @@ export function AgentTraceSettings() {
   // Settings
   const agentTraceSettings = useSettingsStore((state) => state.agentTraceSettings);
   const setAgentTraceEnabled = useSettingsStore((state) => state.setAgentTraceEnabled);
+  const setAgentTraceMaxRecords = useSettingsStore((state) => state.setAgentTraceMaxRecords);
+  const setAgentTraceAutoCleanupDays = useSettingsStore((state) => state.setAgentTraceAutoCleanupDays);
+  const setAgentTraceShellCommands = useSettingsStore((state) => state.setAgentTraceShellCommands);
+  const setAgentTraceCodeEdits = useSettingsStore((state) => state.setAgentTraceCodeEdits);
+  const resetAgentTraceSettings = useSettingsStore((state) => state.resetAgentTraceSettings);
 
   const trimmedSessionId = sessionId.trim();
   const trimmedFilePath = filePath.trim();
@@ -238,12 +244,12 @@ export function AgentTraceSettings() {
       />
 
       {/* Enable/Disable Toggle */}
-      <SettingsCard title="Agent Trace Recording" description="Control whether agent actions are traced and stored locally.">
+      <SettingsCard title={t('recording.title')} description={t('recording.description')}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Power className={cn('h-4 w-4', agentTraceSettings.enabled ? 'text-green-500' : 'text-muted-foreground')} />
             <Label htmlFor="agent-trace-enabled">
-              {agentTraceSettings.enabled ? 'Enabled' : 'Disabled'}
+              {agentTraceSettings.enabled ? t('status.enabled') : t('status.disabled')}
             </Label>
           </div>
           <Switch
@@ -251,6 +257,89 @@ export function AgentTraceSettings() {
             checked={agentTraceSettings.enabled}
             onCheckedChange={setAgentTraceEnabled}
           />
+        </div>
+      </SettingsCard>
+
+      {/* Configuration Options */}
+      <SettingsCard title={t('config.title')} description={t('config.description')}>
+        <div className="space-y-4">
+          {/* Max Records */}
+          <SettingsRow
+            label={t('config.maxRecords')}
+            description={t('config.maxRecordsDescription')}
+          >
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={100000}
+                value={agentTraceSettings.maxRecords}
+                onChange={(e) => setAgentTraceMaxRecords(Math.max(0, parseInt(e.target.value) || 0))}
+                className="w-24"
+              />
+              <span className="text-xs text-muted-foreground">
+                {agentTraceSettings.maxRecords === 0 ? t('config.maxRecordsUnlimited') : ''}
+              </span>
+            </div>
+          </SettingsRow>
+
+          {/* Auto Cleanup Days */}
+          <SettingsRow
+            label={t('config.autoCleanup')}
+            description={t('config.autoCleanupDescription')}
+          >
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={365}
+                value={agentTraceSettings.autoCleanupDays}
+                onChange={(e) => setAgentTraceAutoCleanupDays(Math.max(0, parseInt(e.target.value) || 0))}
+                className="w-24"
+              />
+              <span className="text-xs text-muted-foreground">
+                {agentTraceSettings.autoCleanupDays === 0
+                  ? t('config.autoCleanupNever')
+                  : t('config.autoCleanupDays', { days: agentTraceSettings.autoCleanupDays })}
+              </span>
+            </div>
+          </SettingsRow>
+
+          {/* Trace Shell Commands */}
+          <SettingsRow
+            label={t('config.traceShellCommands')}
+            description={t('config.traceShellCommandsDescription')}
+          >
+            <Switch
+              id="trace-shell-commands"
+              checked={agentTraceSettings.traceShellCommands}
+              onCheckedChange={setAgentTraceShellCommands}
+            />
+          </SettingsRow>
+
+          {/* Trace Code Edits */}
+          <SettingsRow
+            label={t('config.traceCodeEdits')}
+            description={t('config.traceCodeEditsDescription')}
+          >
+            <Switch
+              id="trace-code-edits"
+              checked={agentTraceSettings.traceCodeEdits}
+              onCheckedChange={setAgentTraceCodeEdits}
+            />
+          </SettingsRow>
+
+          {/* Reset to Defaults */}
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetAgentTraceSettings}
+            >
+              <RotateCcw className="h-4 w-4 mr-1" />
+              {t('config.resetToDefaults')}
+            </Button>
+          </div>
         </div>
       </SettingsCard>
 
@@ -297,20 +386,20 @@ export function AgentTraceSettings() {
                   disabled={traces.length === 0 || isDeleting}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
-                  Clear All
+                  {t('actions.clearAll')}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Clear All Traces?</AlertDialogTitle>
+                  <AlertDialogTitle>{t('dialogs.clearAllTitle')}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete all agent trace records. This action cannot be undone.
+                    {t('dialogs.clearAllDescription')}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
                   <AlertDialogAction onClick={handleClearAll}>
-                    Delete All
+                    {t('actions.deleteAll')}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -423,20 +512,20 @@ export function AgentTraceSettings() {
                     disabled={isDeleting}
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
+                    {tCommon('delete')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Trace?</AlertDialogTitle>
+                    <AlertDialogTitle>{t('dialogs.deleteTitle')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will permanently delete this agent trace record.
+                      {t('dialogs.deleteDescription')}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
                     <AlertDialogAction onClick={() => selected && handleDeleteTrace(selected.id)}>
-                      Delete
+                      {tCommon('delete')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

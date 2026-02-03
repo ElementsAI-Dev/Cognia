@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useMcpStore } from '@/stores/mcp';
 import type { McpServerState } from '@/types/mcp';
 import { loggers } from '@/lib/logger';
@@ -33,7 +34,9 @@ export function useMcpServerActions(): UseMcpServerActionsReturn {
       try {
         await connectServer(id);
       } catch (err) {
-        log.error('Failed to connect', err as Error);
+        const error = err as Error;
+        log.error('Failed to connect', error);
+        toast.error('Failed to connect', { description: error.message });
       } finally {
         setActionLoading(null);
       }
@@ -47,7 +50,9 @@ export function useMcpServerActions(): UseMcpServerActionsReturn {
       try {
         await disconnectServer(id);
       } catch (err) {
-        log.error('Failed to disconnect', err as Error);
+        const error = err as Error;
+        log.error('Failed to disconnect', error);
+        toast.error('Failed to disconnect', { description: error.message });
       } finally {
         setActionLoading(null);
       }
@@ -64,7 +69,9 @@ export function useMcpServerActions(): UseMcpServerActionsReturn {
       try {
         await removeServer(removeConfirmId);
       } catch (err) {
-        log.error('Failed to remove', err as Error);
+        const error = err as Error;
+        log.error('Failed to remove', error);
+        toast.error('Failed to remove server', { description: error.message });
       }
     }
     setRemoveConfirmId(null);
@@ -82,7 +89,9 @@ export function useMcpServerActions(): UseMcpServerActionsReturn {
           enabled: !server.config.enabled,
         });
       } catch (err) {
-        log.error('Failed to toggle enabled', err as Error);
+        const error = err as Error;
+        log.error('Failed to toggle enabled', error);
+        toast.error('Failed to toggle server', { description: error.message });
       }
     },
     [updateServer]

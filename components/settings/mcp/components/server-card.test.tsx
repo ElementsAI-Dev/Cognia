@@ -32,6 +32,8 @@ const messages = {
     resourcesTooltip: 'Available resources',
     promptsTooltip: 'Available prompts',
     showTools: 'Show Tools',
+    showResources: 'Show Resources',
+    showPrompts: 'Show Prompts',
   },
 };
 
@@ -198,5 +200,67 @@ describe('ServerCard', () => {
     } as unknown as McpServerState;
     renderWithProviders(<ServerCard {...defaultProps} server={sseServer} />);
     expect(screen.getByText('https://example.com/sse')).toBeInTheDocument();
+  });
+
+  describe('expandable sections', () => {
+    const serverWithAllData: McpServerState = {
+      ...connectedServer,
+      tools: [
+        { name: 'tool1', description: 'First tool', inputSchema: {} },
+        { name: 'tool2', description: 'Second tool', inputSchema: {} },
+      ],
+      resources: [
+        { uri: 'resource://file1', name: 'File 1', description: 'First resource' },
+        { uri: 'resource://file2', name: 'File 2', description: 'Second resource' },
+      ],
+      prompts: [
+        { name: 'prompt1', description: 'First prompt' },
+        { name: 'prompt2', description: 'Second prompt' },
+      ],
+    } as unknown as McpServerState;
+
+    it('shows expandable tools section when tools exist', () => {
+      renderWithProviders(<ServerCard {...defaultProps} server={serverWithAllData} />);
+      expect(screen.getByText(/Show Tools/)).toBeInTheDocument();
+    });
+
+    it('shows expandable resources section when resources exist', () => {
+      renderWithProviders(<ServerCard {...defaultProps} server={serverWithAllData} />);
+      expect(screen.getByText(/Show Resources/)).toBeInTheDocument();
+    });
+
+    it('shows expandable prompts section when prompts exist', () => {
+      renderWithProviders(<ServerCard {...defaultProps} server={serverWithAllData} />);
+      expect(screen.getByText(/Show Prompts/)).toBeInTheDocument();
+    });
+
+    it('does not show expandable sections when disconnected', () => {
+      const disconnectedWithData = {
+        ...serverWithAllData,
+        status: { type: 'disconnected' },
+      } as unknown as McpServerState;
+      renderWithProviders(<ServerCard {...defaultProps} server={disconnectedWithData} />);
+      expect(screen.queryByText(/Show Tools/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Show Resources/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Show Prompts/)).not.toBeInTheDocument();
+    });
+
+    it('does not show resources section when no resources', () => {
+      const serverNoResources = {
+        ...serverWithAllData,
+        resources: [],
+      } as unknown as McpServerState;
+      renderWithProviders(<ServerCard {...defaultProps} server={serverNoResources} />);
+      expect(screen.queryByText(/Show Resources/)).not.toBeInTheDocument();
+    });
+
+    it('does not show prompts section when no prompts', () => {
+      const serverNoPrompts = {
+        ...serverWithAllData,
+        prompts: [],
+      } as unknown as McpServerState;
+      renderWithProviders(<ServerCard {...defaultProps} server={serverNoPrompts} />);
+      expect(screen.queryByText(/Show Prompts/)).not.toBeInTheDocument();
+    });
   });
 });

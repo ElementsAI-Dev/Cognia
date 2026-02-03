@@ -22,6 +22,8 @@ import {
   DollarSign,
   Settings2,
   Shield,
+  List,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,11 +59,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/stores';
 import type { BYOKKeyEntry, BYOKProvider, OpenRouterExtendedSettings } from '@/types/provider';
+import type { OpenRouterModel } from '@/types/provider/openrouter';
 import {
   getCredits,
   formatCredits,
   maskApiKey,
   OpenRouterError,
+  listModels,
 } from '@/lib/ai/providers/openrouter';
 import {
   BYOK_PROVIDERS,
@@ -85,6 +89,10 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
   const [creditsError, setCreditsError] = useState<string | null>(null);
   const [isByokOpen, setIsByokOpen] = useState(false);
   const [isProviderOrderOpen, setIsProviderOrderOpen] = useState(false);
+  const [isModelsOpen, setIsModelsOpen] = useState(false);
+  const [isModelsLoading, setIsModelsLoading] = useState(false);
+  const [availableModels, setAvailableModels] = useState<OpenRouterModel[]>([]);
+  const [modelsError, setModelsError] = useState<string | null>(null);
   const [newByokProvider, setNewByokProvider] = useState<BYOKProvider | ''>('');
   const [newByokConfig, setNewByokConfig] = useState('');
   const [newByokName, setNewByokName] = useState('');
@@ -129,6 +137,27 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
       fetchCredits();
     }
   }, [settings?.apiKey, openRouterSettings.creditsLastFetched, fetchCredits]);
+
+  const fetchAvailableModels = useCallback(async () => {
+    setIsModelsLoading(true);
+    setModelsError(null);
+
+    try {
+      const models = await listModels(settings?.apiKey);
+      setAvailableModels(models);
+      updateOpenRouterSettings({
+        modelsLastFetched: Date.now(),
+      });
+    } catch (error) {
+      if (error instanceof OpenRouterError) {
+        setModelsError(error.message);
+      } else {
+        setModelsError('Failed to fetch models');
+      }
+    } finally {
+      setIsModelsLoading(false);
+    }
+  }, [settings?.apiKey, updateOpenRouterSettings]);
 
   const addByokKey = useCallback(() => {
     if (!newByokProvider || !newByokConfig) return;
@@ -224,6 +253,97 @@ export function OpenRouterSettings({ className }: OpenRouterSettingsProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Available Models Section */}
+      <Collapsible open={isModelsOpen} onOpenChange={setIsModelsOpen}>
+        <Card className="mb-4">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <List className="h-4 w-4" />
+                  <CardTitle className="text-sm">{t('availableModels') || 'Available Models'}</CardTitle>
+                  {availableModels.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {availableModels.length}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fetchAvailableModels();
+                    }}
+                    disabled={isModelsLoading}
+                  >
+                    {isModelsLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                  {isModelsOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </div>
+              </div>
+              <CardDescription className="text-xs">
+                {t('openRouterModelsDesc') || 'Browse available models on OpenRouter'}
+              </CardDescription>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              {modelsError ? (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {modelsError}
+                </div>
+              ) : availableModels.length > 0 ? (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {availableModels.slice(0, 50).map((model) => (
+                    <div
+                      key={model.id}
+                      className="flex items-center justify-between p-2 rounded-lg border bg-muted/30 text-sm"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Zap className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <div className="min-w-0">
+                          <span className="font-mono text-xs block truncate">{model.name || model.id}</span>
+                          {model.context_length && (
+                            <span className="text-[10px] text-muted-foreground">
+                              {Math.round(model.context_length / 1000)}K context
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {model.pricing && (
+                        <Badge variant="outline" className="text-[10px] shrink-0">
+                          ${(parseFloat(model.pricing.prompt) * 1000000).toFixed(2)}/1M
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                  {availableModels.length > 50 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      +{availableModels.length - 50} more models
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {t('clickRefreshToLoad') || 'Click refresh to load models'}
+                </p>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* BYOK Section */}
       <Collapsible open={isByokOpen} onOpenChange={setIsByokOpen}>

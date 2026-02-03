@@ -10,6 +10,15 @@
     "fromGitUrl": "From Git URL",
     "createPlugin": "Create Plugin",
     "description": "Manage AI extensions, tools, and integrations",
+    "configure": "Configure",
+    "desktopRequired": "This feature requires desktop environment",
+    "selectPluginFolder": "Select Plugin Folder",
+    "selectPluginZip": "Select Plugin ZIP File",
+    "pluginImported": "Plugin imported successfully",
+    "importFailed": "Failed to import plugin",
+    "common": {
+      "cancel": "Cancel"
+    },
     "tabs": {
       "myPlugins": "My Plugins",
       "installed": "Installed",
@@ -75,6 +84,9 @@
       "runtimeDesc": "Configure plugin execution environment",
       "pythonEnvironment": "Python environment",
       "pythonEnvironmentDesc": "Configure Python runtime for plugins",
+      "selectPythonPath": "Select Python Executable",
+      "pythonConfigured": "Python environment configured successfully",
+      "pythonConfigFailed": "Failed to configure Python environment",
       "sandboxMode": "Sandbox mode",
       "sandboxModeDesc": "Run plugins in isolated sandbox for security",
       "cacheData": "Cache & Data",
@@ -82,9 +94,14 @@
       "clearCache": "Clear plugin cache",
       "clearCacheDesc": "Remove cached plugin data and reload",
       "clearCacheBtn": "Clear Cache",
+      "cacheClearedSuccess": "Plugin cache cleared successfully",
+      "cacheClearFailed": "Failed to clear plugin cache",
       "resetPlugins": "Reset all plugins",
       "resetPluginsDesc": "Uninstall all plugins and reset to default state",
-      "resetPluginsBtn": "Reset All"
+      "resetPluginsBtn": "Reset All",
+      "resetPluginsConfirmTitle": "Reset All Plugins?",
+      "resetPluginsConfirmDesc": "This will remove all installed plugins and reset to default state. This action cannot be undone.",
+      "resetSuccess": "All plugins have been reset"
     }
   },
   "pluginConfig": {

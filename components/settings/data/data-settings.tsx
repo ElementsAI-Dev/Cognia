@@ -181,21 +181,29 @@ export function DataSettings() {
       clearAllSessions();
       useArtifactStore.getState().clearSessionData('');
 
-      // Clear IndexedDB
-      await db.sessions.clear();
-      await db.messages.clear();
-      await db.documents.clear();
+      // Clear all IndexedDB tables
+      await Promise.all([
+        db.sessions.clear(),
+        db.messages.clear(),
+        db.documents.clear(),
+        db.projects.clear(),
+        db.workflows.clear(),
+        db.summaries.clear(),
+        db.knowledgeFiles.clear(),
+      ]);
 
-      // Clear localStorage
-      localStorage.removeItem('cognia-sessions');
-      localStorage.removeItem('cognia-settings');
-      localStorage.removeItem('cognia-artifacts');
+      // Clear all cognia-* localStorage keys
+      const keysToRemove = Object.keys(localStorage).filter(
+        (key) => key.startsWith('cognia-') || key === 'selection-toolbar-storage' || key === 'app-cache'
+      );
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
 
       setDeleteDialogOpen(false);
-      toast.success('All data has been deleted.');
+      toast.success(t('deleteSuccess'));
+      refreshStats();
     } catch (error) {
       console.error('Delete failed:', error);
-      toast.error('Failed to delete all data.');
+      toast.error(t('deleteFailed'));
     }
   };
 

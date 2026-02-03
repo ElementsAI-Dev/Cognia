@@ -38,6 +38,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -49,6 +65,7 @@ import { PluginEmptyState } from '../core/plugin-empty-state';
 import { PluginGroupedList } from '../core/plugin-grouped-list';
 import { PluginAnalytics } from '../monitoring/plugin-analytics';
 import { PluginCreateWizard } from './plugin-create-wizard';
+import { PluginConfig } from './plugin-config';
 import { PluginDevTools } from '../dev/plugin-dev-tools';
 import { PluginHealth } from '../monitoring/plugin-health';
 import { PluginDependencyTree } from '../monitoring/plugin-dependency-tree';
@@ -64,7 +81,9 @@ import {
 import { PluginMarketplace, PluginDetailModal, type MarketplacePlugin } from '../marketplace';
 import { usePluginStore } from '@/stores/plugin';
 import { usePlugins } from '@/hooks/plugin';
-import type { PluginCapability } from '@/types/plugin';
+import type { Plugin, PluginCapability } from '@/types/plugin';
+import { invoke } from '@tauri-apps/api/core';
+import { getPluginSignatureVerifier } from '@/lib/plugin';
 import type { PluginScaffoldOptions } from '@/lib/plugin';
 import { getPluginManager } from '@/lib/plugin';
 import { toast } from '@/components/ui/sonner';
@@ -111,6 +130,19 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPlugins, setSelectedPlugins] = useState<Set<string>>(new Set());
+
+  // Config dialog state
+  const [configPlugin, setConfigPlugin] = useState<Plugin | null>(null);
+
+  // Reset confirmation dialog state
+  const [showResetDialog, setShowResetDialog] = useState(false);
+
+  // Settings state
+  const [autoEnableNewPlugins, setAutoEnableNewPlugins] = useState(false);
+  const [sandboxMode, setSandboxMode] = useState(true);
+
+  // Get reset from store
+  const { reset } = usePluginStore();
 
   // Stats for hero section
   const totalTools = plugins.reduce((acc, p) => acc + (p.tools?.length || 0), 0);
@@ -291,6 +323,99 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
     [handleRefresh]
   );
 
+  // Import from folder handler
+  const handleImportFromFolder = useCallback(async () => {
+    if (!detectTauri()) {
+      toast.error(t('desktopRequired'));
+      return;
+    }
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: t('selectPluginFolder'),
+      });
+      if (selected && typeof selected === 'string') {
+        const manager = getPluginManager();
+        await manager.installPlugin(selected, { type: 'local' });
+        await handleRefresh();
+        toast.success(t('pluginImported'));
+      }
+    } catch (error) {
+      toast.error(t('importFailed'));
+      console.error('Import from folder failed:', error);
+    }
+  }, [t, handleRefresh]);
+
+  // Import from zip handler
+  const handleImportFromZip = useCallback(async () => {
+    if (!detectTauri()) {
+      toast.error(t('desktopRequired'));
+      return;
+    }
+    try {
+      const selected = await open({
+        filters: [{ name: 'ZIP', extensions: ['zip'] }],
+        multiple: false,
+        title: t('selectPluginZip'),
+      });
+      if (selected && typeof selected === 'string') {
+        const manager = getPluginManager();
+        await manager.installPlugin(selected, { type: 'archive' });
+        await handleRefresh();
+        toast.success(t('pluginImported'));
+      }
+    } catch (error) {
+      toast.error(t('importFailed'));
+      console.error('Import from zip failed:', error);
+    }
+  }, [t, handleRefresh]);
+
+  // Clear cache handler
+  const handleClearCache = useCallback(async () => {
+    try {
+      const verifier = getPluginSignatureVerifier();
+      verifier.clearCache();
+      toast.success(t('settingsTab.cacheClearedSuccess'));
+    } catch (error) {
+      toast.error(t('settingsTab.cacheClearFailed'));
+      console.error('Clear cache failed:', error);
+    }
+  }, [t]);
+
+  // Reset all plugins handler
+  const handleResetAllPlugins = useCallback(() => {
+    reset();
+    toast.success(t('settingsTab.resetSuccess'));
+    setShowResetDialog(false);
+  }, [reset, t]);
+
+  // Python environment configure handler
+  const handleConfigurePython = useCallback(async () => {
+    if (!detectTauri()) {
+      toast.error(t('desktopRequired'));
+      return;
+    }
+    try {
+      const selected = await open({
+        filters: [{ name: 'Python', extensions: ['exe', ''] }],
+        title: t('settingsTab.selectPythonPath'),
+      });
+      if (selected && typeof selected === 'string') {
+        await invoke('plugin_python_initialize', { pythonPath: selected });
+        toast.success(t('settingsTab.pythonConfigured'));
+      }
+    } catch (error) {
+      toast.error(t('settingsTab.pythonConfigFailed'));
+      console.error('Python config failed:', error);
+    }
+  }, [t]);
+
+  // Configure plugin handler
+  const handleConfigurePlugin = useCallback((plugin: Plugin) => {
+    setConfigPlugin(plugin);
+  }, []);
+
   return (
     <TooltipProvider delayDuration={300}>
       <Tabs
@@ -445,11 +570,11 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuItem className="gap-2">
+                  <DropdownMenuItem onClick={handleImportFromFolder} className="gap-2">
                     <FolderOpen className="h-4 w-4" />
                     {t('fromFolder')}
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2">
+                  <DropdownMenuItem onClick={handleImportFromZip} className="gap-2">
                     <Upload className="h-4 w-4" />
                     {t('fromZip')}
                   </DropdownMenuItem>
@@ -582,7 +707,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     }
                   }
                 }}
-                onConfigure={() => {}}
+                onConfigure={handleConfigurePlugin}
                 onUninstall={(plugin) => {
                   try {
                     const manager = getPluginManager();
@@ -612,7 +737,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     }
                   }
                 }}
-                onConfigure={() => {}}
+                onConfigure={handleConfigurePlugin}
                 onUninstall={(plugin) => {
                   try {
                     const manager = getPluginManager();
@@ -716,7 +841,10 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     {t('settingsTab.autoEnableDesc')}
                   </p>
                 </div>
-                <Switch />
+                <Switch
+                  checked={autoEnableNewPlugins}
+                  onCheckedChange={setAutoEnableNewPlugins}
+                />
               </div>
 
               {/* Plugin Directory */}
@@ -766,7 +894,12 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     {t('settingsTab.pythonEnvironmentDesc')}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={handleConfigurePython}
+                >
                   <Settings2 className="h-3.5 w-3.5 mr-1.5" />
                   {t('settingsTab.configure')}
                 </Button>
@@ -780,7 +913,10 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     {t('settingsTab.sandboxModeDesc')}
                   </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={sandboxMode}
+                  onCheckedChange={setSandboxMode}
+                />
               </div>
             </CardContent>
           </Card>
@@ -802,7 +938,12 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     {t('settingsTab.clearCacheDesc')}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={handleClearCache}
+                >
                   <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                   {t('settingsTab.clearCacheBtn')}
                 </Button>
@@ -818,7 +959,12 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     {t('settingsTab.resetPluginsDesc')}
                   </p>
                 </div>
-                <Button variant="destructive" size="sm" className="shrink-0">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setShowResetDialog(true)}
+                >
                   {t('settingsTab.resetPluginsBtn')}
                 </Button>
               </div>
@@ -833,6 +979,41 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         onOpenChange={setIsCreateWizardOpen}
         onComplete={handleCreateComplete}
       />
+
+      {/* Plugin Config Dialog */}
+      <Dialog open={!!configPlugin} onOpenChange={(open) => !open && setConfigPlugin(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {configPlugin?.manifest.name} - {t('configure')}
+            </DialogTitle>
+          </DialogHeader>
+          {configPlugin && (
+            <PluginConfig
+              plugin={configPlugin}
+              onClose={() => setConfigPlugin(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Confirmation Dialog */}
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('settingsTab.resetPluginsConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('settingsTab.resetPluginsConfirmDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetAllPlugins}>
+              {t('settingsTab.resetPluginsBtn')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <PluginDetailModal
         plugin={selectedMarketplacePlugin}

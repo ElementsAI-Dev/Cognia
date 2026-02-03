@@ -19,6 +19,7 @@ import type {
   ToolUsageRecord,
   ToolSelectionResult,
 } from '@/types/mcp';
+import type { MCPLogEntry } from '@/components/mcp/mcp-log-viewer';
 import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
 import { getToolCacheManager } from '@/lib/mcp/tool-cache';
 import { loggers } from '@/lib/logger';
@@ -42,12 +43,16 @@ export interface ActiveToolCall {
   progress?: number;
 }
 
+/** Maximum number of log entries to keep */
+const MAX_LOG_ENTRIES = 500;
+
 interface McpState {
   // State
   servers: McpServerState[];
   isLoading: boolean;
   error: string | null;
   isInitialized: boolean;
+  logs: MCPLogEntry[];
 
   // Active tool calls tracking for parallel execution
   activeToolCalls: Map<string, ActiveToolCall>;
@@ -79,8 +84,13 @@ interface McpState {
   getAllTools: () => Promise<Array<{ serverId: string; tool: McpTool }>>;
   reloadConfig: () => Promise<void>;
   pingServer: (serverId: string) => Promise<number>;
+  testConnection: (serverId: string) => Promise<boolean>;
   setLogLevel: (serverId: string, level: LogLevel) => Promise<void>;
   clearError: () => void;
+  
+  // Log actions
+  addLog: (entry: Omit<MCPLogEntry, 'id' | 'timestamp'>) => void;
+  clearLogs: () => void;
 
   // Tool selection actions
   setToolSelectionConfig: (config: Partial<McpToolSelectionConfig>) => void;
@@ -113,12 +123,14 @@ let unlistenServerUpdate: UnlistenFn | null = null;
 let unlistenServersChanged: UnlistenFn | null = null;
 let unlistenNotification: UnlistenFn | null = null;
 let unlistenToolProgress: UnlistenFn | null = null;
+let unlistenLogMessage: UnlistenFn | null = null;
 
 export const useMcpStore = create<McpState>((set, get) => ({
   servers: [],
   isLoading: false,
   error: null,
   isInitialized: false,
+  logs: [],
 
   // Active tool calls tracking
   activeToolCalls: new Map<string, ActiveToolCall>(),
@@ -181,6 +193,23 @@ export const useMcpStore = create<McpState>((set, get) => ({
             get().trackToolCallError(callId, 'Cancelled');
             break;
         }
+      });
+
+      // Listen for log messages from MCP servers
+      unlistenLogMessage = await listen<{
+        serverId: string;
+        message: { level: LogLevel; message: string; logger?: string; data?: unknown };
+      }>('mcp:log-message', (event) => {
+        const { serverId, message } = event.payload;
+        const server = get().servers.find((s) => s.id === serverId);
+        get().addLog({
+          level: message.level,
+          message: message.message,
+          serverId,
+          serverName: server?.name,
+          logger: message.logger,
+          data: message.data,
+        });
       });
 
       // Load initial servers
@@ -308,12 +337,33 @@ export const useMcpStore = create<McpState>((set, get) => ({
     return latency;
   },
 
+  testConnection: async (serverId) => {
+    return invoke<boolean>('mcp_test_connection', { serverId });
+  },
+
   setLogLevel: async (serverId, level) => {
     return invoke('mcp_set_log_level', { serverId, level });
   },
 
   clearError: () => {
     set({ error: null });
+  },
+
+  // Log actions
+  addLog: (entry) => {
+    set((prev) => {
+      const newLog: MCPLogEntry = {
+        ...entry,
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: new Date(),
+      };
+      const logs = [newLog, ...prev.logs].slice(0, MAX_LOG_ENTRIES);
+      return { logs };
+    });
+  },
+
+  clearLogs: () => {
+    set({ logs: [] });
   },
 
   // Tool selection actions
@@ -480,6 +530,10 @@ export const useMcpStore = create<McpState>((set, get) => ({
     if (unlistenToolProgress) {
       unlistenToolProgress();
       unlistenToolProgress = null;
+    }
+    if (unlistenLogMessage) {
+      unlistenLogMessage();
+      unlistenLogMessage = null;
     }
     set({ isInitialized: false });
   },

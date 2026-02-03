@@ -174,6 +174,8 @@ export interface OpenRouterExtendedSettings {
   creditsUsed?: number;
   creditsRemaining?: number;
   creditsLastFetched?: number;
+  // Cached models info
+  modelsLastFetched?: number;
   // Site attribution
   siteUrl?: string;
   siteName?: string;

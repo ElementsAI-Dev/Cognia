@@ -12,6 +12,16 @@ jest.mock('@/stores/mcp', () => ({
   useMcpStore: jest.fn(),
 }));
 
+// Mock sonner toast
+const mockToast = {
+  error: jest.fn(),
+  success: jest.fn(),
+  warning: jest.fn(),
+};
+jest.mock('sonner', () => ({
+  toast: mockToast,
+}));
+
 const mockUseMcpStore = useMcpStore as jest.MockedFunction<typeof useMcpStore>;
 
 describe('useMcpServerActions', () => {
@@ -45,6 +55,9 @@ describe('useMcpServerActions', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockToast.error.mockClear();
+    mockToast.success.mockClear();
+    mockToast.warning.mockClear();
   });
 
   describe('initial state', () => {
@@ -107,10 +120,9 @@ describe('useMcpServerActions', () => {
       expect(result.current.actionLoading).toBeNull();
     });
 
-    it('should handle connection errors', async () => {
+    it('should handle connection errors and show toast', async () => {
       const errorMessage = 'Connection failed';
       const mockConnectServer = jest.fn().mockRejectedValue(new Error(errorMessage));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       mockUseMcpStore.mockReturnValue(createMockStore({
         connectServer: mockConnectServer,
@@ -124,9 +136,9 @@ describe('useMcpServerActions', () => {
 
       expect(mockConnectServer).toHaveBeenCalledWith('test-server');
       expect(result.current.actionLoading).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to connect:', expect.any(Error));
-
-      consoleSpy.mockRestore();
+      expect(mockToast.error).toHaveBeenCalledWith('Failed to connect', {
+        description: errorMessage,
+      });
     });
 
     it('should handle multiple concurrent connections', async () => {
@@ -197,10 +209,9 @@ describe('useMcpServerActions', () => {
       expect(result.current.actionLoading).toBeNull();
     });
 
-    it('should handle disconnection errors', async () => {
+    it('should handle disconnection errors and show toast', async () => {
       const errorMessage = 'Disconnection failed';
       const mockDisconnectServer = jest.fn().mockRejectedValue(new Error(errorMessage));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       mockUseMcpStore.mockReturnValue(createMockStore({
         disconnectServer: mockDisconnectServer,
@@ -214,9 +225,9 @@ describe('useMcpServerActions', () => {
 
       expect(mockDisconnectServer).toHaveBeenCalledWith('test-server');
       expect(result.current.actionLoading).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to disconnect:', expect.any(Error));
-
-      consoleSpy.mockRestore();
+      expect(mockToast.error).toHaveBeenCalledWith('Failed to disconnect', {
+        description: errorMessage,
+      });
     });
   });
 
@@ -272,10 +283,9 @@ describe('useMcpServerActions', () => {
       expect(result.current.removeConfirmId).toBeNull();
     });
 
-    it('should handle removal errors', async () => {
+    it('should handle removal errors and show toast', async () => {
       const errorMessage = 'Removal failed';
       const mockRemoveServer = jest.fn().mockRejectedValue(new Error(errorMessage));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       mockUseMcpStore.mockReturnValue(createMockStore({
         removeServer: mockRemoveServer,
@@ -293,9 +303,9 @@ describe('useMcpServerActions', () => {
 
       expect(mockRemoveServer).toHaveBeenCalledWith('test-server');
       expect(result.current.removeConfirmId).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to remove:', expect.any(Error));
-
-      consoleSpy.mockRestore();
+      expect(mockToast.error).toHaveBeenCalledWith('Failed to remove server', {
+        description: errorMessage,
+      });
     });
 
     it('should do nothing if removeConfirmId is null', async () => {
@@ -365,10 +375,9 @@ describe('useMcpServerActions', () => {
       });
     });
 
-    it('should handle toggle errors', async () => {
+    it('should handle toggle errors and show toast', async () => {
       const errorMessage = 'Toggle failed';
       const mockUpdateServer = jest.fn().mockRejectedValue(new Error(errorMessage));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       mockUseMcpStore.mockReturnValue(createMockStore({
         updateServer: mockUpdateServer,
@@ -384,9 +393,9 @@ describe('useMcpServerActions', () => {
         ...mockServer.config,
         enabled: !mockServer.config.enabled,
       });
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to toggle enabled:', expect.any(Error));
-
-      consoleSpy.mockRestore();
+      expect(mockToast.error).toHaveBeenCalledWith('Failed to toggle server', {
+        description: errorMessage,
+      });
     });
 
     it('should toggle from enabled to disabled', async () => {

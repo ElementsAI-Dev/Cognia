@@ -321,11 +321,30 @@ export interface CustomTheme {
   isDark: boolean;
 }
 
+// Custom model metadata for detailed model information
+export interface CustomModelMetadata {
+  id: string;
+  name?: string;
+  contextLength?: number;
+  maxOutputTokens?: number;
+  pricing?: {
+    promptPer1M?: number;
+    completionPer1M?: number;
+  };
+  capabilities?: {
+    vision?: boolean;
+    functionCalling?: boolean;
+    streaming?: boolean;
+  };
+}
+
 // Custom provider interface (extends UserProviderSettings)
 export interface CustomProviderSettings extends UserProviderSettings {
   isCustom: true;
   customName: string;
   customModels: string[];
+  // Enhanced: Model metadata for detailed model configuration
+  customModelMetadata?: Record<string, CustomModelMetadata>;
   apiProtocol: ApiProtocol;
 }
 
@@ -380,6 +399,26 @@ export const DEFAULT_SIMPLIFIED_MODE_SETTINGS: SimplifiedModeSettings = {
   hideMessageTimestamps: false,
   hideTokenCount: false,
   toggleShortcut: 'CommandOrControl+Shift+S',
+};
+
+// Provider Settings UI Preferences
+export type ProviderSortColumn = 'name' | 'models' | 'context' | 'price' | 'status';
+export type ProviderSortOrder = 'asc' | 'desc';
+export type ProviderViewMode = 'cards' | 'table';
+export type ProviderCategoryFilter = 'all' | 'flagship' | 'efficient' | 'specialized' | 'local' | 'aggregator';
+
+export interface ProviderUIPreferences {
+  viewMode: ProviderViewMode;
+  sortBy: ProviderSortColumn;
+  sortOrder: ProviderSortOrder;
+  categoryFilter: ProviderCategoryFilter;
+}
+
+export const DEFAULT_PROVIDER_UI_PREFERENCES: ProviderUIPreferences = {
+  viewMode: 'cards',
+  sortBy: 'name',
+  sortOrder: 'asc',
+  categoryFilter: 'all',
 };
 
 // Preset configurations for simplified mode
@@ -519,6 +558,7 @@ interface SettingsState {
     errorMessage?: string
   ) => void;
   resetApiKeyStats: (providerId: string, apiKey: string) => void;
+  reorderApiKeys: (providerId: string, fromIndex: number, toIndex: number) => void;
 
   // Custom providers
   customProviders: Record<string, CustomProviderSettings>;
@@ -530,6 +570,14 @@ interface SettingsState {
   // Default provider
   defaultProvider: string;
   setDefaultProvider: (providerId: string) => void;
+
+  // Provider UI preferences (persisted)
+  providerUIPreferences: ProviderUIPreferences;
+  setProviderUIPreferences: (prefs: Partial<ProviderUIPreferences>) => void;
+  setProviderViewMode: (mode: ProviderViewMode) => void;
+  setProviderSortBy: (sortBy: ProviderSortColumn) => void;
+  setProviderSortOrder: (order: ProviderSortOrder) => void;
+  setProviderCategoryFilter: (filter: ProviderCategoryFilter) => void;
 
   // UI preferences
   sidebarCollapsed: boolean;
@@ -694,8 +742,11 @@ interface SettingsState {
 
   // Keyboard shortcut customization
   customShortcuts: Record<string, string>;
+  disabledShortcuts: Record<string, boolean>;
   setCustomShortcut: (id: string, keys: string) => void;
+  setShortcutEnabled: (id: string, enabled: boolean) => void;
   resetShortcuts: () => void;
+  resetShortcut: (id: string) => void;
 
   // Speech settings
   speechSettings: SpeechSettings;
@@ -1051,6 +1102,7 @@ const initialState = {
   providerSettings: defaultProviderSettings,
   customProviders: {} as Record<string, CustomProviderSettings>,
   defaultProvider: 'openai',
+  providerUIPreferences: { ...DEFAULT_PROVIDER_UI_PREFERENCES },
 
   // UI
   sidebarCollapsed: false,
@@ -1131,6 +1183,7 @@ const initialState = {
 
   // Keyboard shortcut customization
   customShortcuts: {} as Record<string, string>,
+  disabledShortcuts: {} as Record<string, boolean>,
 
   // Speech settings
   speechSettings: { ...DEFAULT_SPEECH_SETTINGS },
@@ -1486,6 +1539,38 @@ export const useSettingsStore = create<SettingsState>()(
           };
         }),
 
+      // Reorder API keys via drag and drop
+      reorderApiKeys: (providerId, fromIndex, toIndex) =>
+        set((state) => {
+          const settings = state.providerSettings[providerId];
+          if (!settings?.apiKeys || settings.apiKeys.length < 2) return state;
+
+          const newApiKeys = [...settings.apiKeys];
+          const [movedKey] = newApiKeys.splice(fromIndex, 1);
+          newApiKeys.splice(toIndex, 0, movedKey);
+
+          // Adjust currentKeyIndex if needed
+          let newCurrentKeyIndex = settings.currentKeyIndex ?? 0;
+          if (fromIndex === newCurrentKeyIndex) {
+            newCurrentKeyIndex = toIndex;
+          } else if (fromIndex < newCurrentKeyIndex && toIndex >= newCurrentKeyIndex) {
+            newCurrentKeyIndex--;
+          } else if (fromIndex > newCurrentKeyIndex && toIndex <= newCurrentKeyIndex) {
+            newCurrentKeyIndex++;
+          }
+
+          return {
+            providerSettings: {
+              ...state.providerSettings,
+              [providerId]: {
+                ...settings,
+                apiKeys: newApiKeys,
+                currentKeyIndex: newCurrentKeyIndex,
+              },
+            },
+          };
+        }),
+
       // Custom provider actions
       addCustomProvider: (provider) => {
         const id = `custom-${nanoid()}`;
@@ -1530,6 +1615,29 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       setDefaultProvider: (defaultProvider) => set({ defaultProvider }),
+
+      // Provider UI preferences actions
+      setProviderUIPreferences: (prefs) =>
+        set((state) => ({
+          providerUIPreferences: { ...state.providerUIPreferences, ...prefs },
+        })),
+      setProviderViewMode: (viewMode) =>
+        set((state) => ({
+          providerUIPreferences: { ...state.providerUIPreferences, viewMode },
+        })),
+      setProviderSortBy: (sortBy) =>
+        set((state) => ({
+          providerUIPreferences: { ...state.providerUIPreferences, sortBy },
+        })),
+      setProviderSortOrder: (sortOrder) =>
+        set((state) => ({
+          providerUIPreferences: { ...state.providerUIPreferences, sortOrder },
+        })),
+      setProviderCategoryFilter: (categoryFilter) =>
+        set((state) => ({
+          providerUIPreferences: { ...state.providerUIPreferences, categoryFilter },
+        })),
+
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       setStreamingEnabled: (streamingEnabled) => set({ streamingEnabled }),
       setStreamResponses: (streamResponses) => set({ streamResponses }),
@@ -1859,7 +1967,19 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           customShortcuts: { ...state.customShortcuts, [id]: keys },
         })),
-      resetShortcuts: () => set({ customShortcuts: {} }),
+      setShortcutEnabled: (id, enabled) =>
+        set((state) => ({
+          disabledShortcuts: enabled
+            ? Object.fromEntries(Object.entries(state.disabledShortcuts).filter(([k]) => k !== id))
+            : { ...state.disabledShortcuts, [id]: true },
+        })),
+      resetShortcuts: () => set({ customShortcuts: {}, disabledShortcuts: {} }),
+      resetShortcut: (id) =>
+        set((state) => {
+          const { [id]: _removedCustom, ...restCustom } = state.customShortcuts;
+          const { [id]: _removedDisabled, ...restDisabled } = state.disabledShortcuts;
+          return { customShortcuts: restCustom, disabledShortcuts: restDisabled };
+        }),
 
       // Speech settings actions
       setSpeechSettings: (settings) =>
@@ -2715,6 +2835,7 @@ export const useSettingsStore = create<SettingsState>()(
           defaultPresencePenalty: state.defaultPresencePenalty,
           // Keyboard shortcuts
           customShortcuts: state.customShortcuts,
+          disabledShortcuts: state.disabledShortcuts,
           // Speech settings
           speechSettings: state.speechSettings,
           // Compression settings

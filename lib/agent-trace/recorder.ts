@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import { agentTraceRepository } from '@/lib/db/repositories/agent-trace-repository';
 import type { AgentTraceRecord, ContributorType, TraceFile, Contributor } from '@/types/agent-trace';
 import { useGitStore } from '@/stores/git';
+import { useSettingsStore } from '@/stores';
 import { vcsService, type VcsType } from '@/lib/native/vcs';
 import { countLines, fnv1a32 } from './utils';
 
@@ -209,6 +210,9 @@ export function isTracedTool(toolName: string): boolean {
 export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInput): Promise<void> {
   const { toolName, toolArgs, toolResult } = input;
 
+  // Get agent trace settings from store
+  const { traceShellCommands, traceCodeEdits } = useSettingsStore.getState().agentTraceSettings;
+
   // File write operations
   if (toolName === 'file_write' || toolName === 'file_append') {
     const path = asString(toolArgs.path);
@@ -288,8 +292,11 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
     return;
   }
 
-  // Code edit operations
+  // Code edit operations - check traceCodeEdits setting
   if (toolName === 'code_edit' || toolName === 'code_create') {
+    // Skip if code edit tracing is disabled
+    if (!traceCodeEdits) return;
+
     const path = asString(toolArgs.path) || asString(toolArgs.filePath);
     const content = asString(toolArgs.content) || asString(toolArgs.code);
     if (!path || content === null) return;
@@ -314,8 +321,11 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
     return;
   }
 
-  // Shell execute - track script content if available
+  // Shell execute - check traceShellCommands setting
   if (toolName === 'shell_execute') {
+    // Skip if shell command tracing is disabled
+    if (!traceShellCommands) return;
+
     const command = asString(toolArgs.command) || asString(toolArgs.script);
     if (!command) return;
     if (!isSuccessResult(toolResult)) return;

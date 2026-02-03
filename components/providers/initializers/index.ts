@@ -5,6 +5,7 @@
  * - Locale detection and setup
  * - Store subscriptions
  * - Skills loading
+ * - Agent trace cleanup
  */
 
 // Locale initialization
@@ -22,3 +23,6 @@ export {
   initializeSkillsSync,
 } from './skill-provider';
 export { default as SkillProviderDefault } from './skill-provider';
+
+// Agent trace initialization
+export { AgentTraceInitializer } from './agent-trace-initializer';

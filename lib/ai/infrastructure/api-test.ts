@@ -13,6 +13,30 @@ export interface ApiTestResult {
   model_info?: string;
 }
 
+// Local provider detection result
+export interface LocalProviderDetectionResult {
+  providerId: string;
+  name: string;
+  baseUrl: string;
+  isRunning: boolean;
+  models?: string[];
+  version?: string;
+}
+
+// Default configurations for local providers
+export const LOCAL_PROVIDER_CONFIGS: Record<string, { url: string; name: string; healthPath: string }> = {
+  ollama: { url: 'http://localhost:11434', name: 'Ollama', healthPath: '/api/tags' },
+  lmstudio: { url: 'http://localhost:1234', name: 'LM Studio', healthPath: '/v1/models' },
+  llamacpp: { url: 'http://localhost:8080', name: 'llama.cpp', healthPath: '/health' },
+  llamafile: { url: 'http://localhost:8080', name: 'llamafile', healthPath: '/health' },
+  vllm: { url: 'http://localhost:8000', name: 'vLLM', healthPath: '/v1/models' },
+  localai: { url: 'http://localhost:8080', name: 'LocalAI', healthPath: '/v1/models' },
+  jan: { url: 'http://localhost:1337', name: 'Jan', healthPath: '/v1/models' },
+  textgenwebui: { url: 'http://localhost:5000', name: 'Text Gen WebUI', healthPath: '/v1/models' },
+  koboldcpp: { url: 'http://localhost:5001', name: 'KoboldCpp', healthPath: '/api/v1/model' },
+  tabbyapi: { url: 'http://localhost:5000', name: 'TabbyAPI', healthPath: '/v1/models' },
+};
+
 export async function testCustomProviderConnectionByProtocol(
   baseUrl: string,
   apiKey: string,
@@ -454,4 +478,130 @@ export async function testProviderConnection(
         message: 'Unknown provider',
       };
   }
+}
+
+/**
+ * Detect running local AI providers by checking their health endpoints
+ * Returns list of detected providers with their status and available models
+ */
+export async function detectLocalProviders(
+  providerIds?: string[]
+): Promise<LocalProviderDetectionResult[]> {
+  const providersToCheck = providerIds || Object.keys(LOCAL_PROVIDER_CONFIGS);
+  const results: LocalProviderDetectionResult[] = [];
+  
+  // Check each provider in parallel with timeout
+  const checkPromises = providersToCheck.map(async (providerId) => {
+    const config = LOCAL_PROVIDER_CONFIGS[providerId];
+    if (!config) return null;
+    
+    const result: LocalProviderDetectionResult = {
+      providerId,
+      name: config.name,
+      baseUrl: config.url,
+      isRunning: false,
+    };
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+      
+      const response = await fetch(`${config.url}${config.healthPath}`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        result.isRunning = true;
+        
+        // Try to parse models from response
+        try {
+          const data = await response.json();
+          
+          // Handle different response formats
+          if (providerId === 'ollama' && data.models) {
+            result.models = data.models.map((m: { name: string }) => m.name);
+          } else if (data.data && Array.isArray(data.data)) {
+            // OpenAI-compatible format
+            result.models = data.data.map((m: { id: string }) => m.id);
+          } else if (Array.isArray(data)) {
+            result.models = data.map((m: { id?: string; name?: string }) => m.id || m.name || '');
+          }
+        } catch {
+          // Couldn't parse models, but provider is running
+        }
+      }
+    } catch {
+      // Provider not running or unreachable
+      result.isRunning = false;
+    }
+    
+    return result;
+  });
+  
+  const checkResults = await Promise.all(checkPromises);
+  
+  // Filter out nulls and add to results
+  for (const result of checkResults) {
+    if (result) {
+      results.push(result);
+    }
+  }
+  
+  return results;
+}
+
+/**
+ * Detect a single local provider
+ */
+export async function detectLocalProvider(
+  providerId: string,
+  customUrl?: string
+): Promise<LocalProviderDetectionResult | null> {
+  const config = LOCAL_PROVIDER_CONFIGS[providerId];
+  if (!config && !customUrl) return null;
+  
+  const baseUrl = customUrl || config?.url || '';
+  const healthPath = config?.healthPath || '/v1/models';
+  
+  const result: LocalProviderDetectionResult = {
+    providerId,
+    name: config?.name || providerId,
+    baseUrl,
+    isRunning: false,
+  };
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    
+    const response = await fetch(`${baseUrl}${healthPath}`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      result.isRunning = true;
+      
+      try {
+        const data = await response.json();
+        
+        if (providerId === 'ollama' && data.models) {
+          result.models = data.models.map((m: { name: string }) => m.name);
+        } else if (data.data && Array.isArray(data.data)) {
+          result.models = data.data.map((m: { id: string }) => m.id);
+        }
+      } catch {
+        // Couldn't parse models
+      }
+    }
+  } catch {
+    result.isRunning = false;
+  }
+  
+  return result;
 }

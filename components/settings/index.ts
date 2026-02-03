@@ -101,7 +101,6 @@ export {
   DesktopSettings,
   EnvironmentSettings,
   KeyboardSettings,
-  KeyboardShortcutsSettings,
   ProxySettings,
   SpeechSettings,
   SandboxSettings,
@@ -113,7 +112,6 @@ export {
 // Shortcuts settings
 export {
   ShortcutConflictDialog,
-  ShortcutManager,
 } from './shortcuts';
 
 // Sync settings (WebDAV & GitHub)

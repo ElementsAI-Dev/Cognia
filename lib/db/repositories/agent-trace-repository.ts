@@ -184,6 +184,26 @@ export const agentTraceRepository = {
     return db.agentTraces.count();
   },
 
+  /**
+   * Delete the oldest N records to enforce a maximum record limit
+   */
+  async deleteOldest(count: number): Promise<number> {
+    if (count <= 0) return 0;
+
+    // Get the oldest records by timestamp
+    const toDelete = await db.agentTraces
+      .orderBy('timestamp')
+      .limit(count)
+      .toArray();
+
+    const ids = toDelete.map((t) => t.id);
+    await withRetry(async () => {
+      await db.agentTraces.bulkDelete(ids);
+    }, 'agentTraceRepository.deleteOldest');
+
+    return ids.length;
+  },
+
   async getAll(options?: { limit?: number; offset?: number }): Promise<AgentTraceRecord[]> {
     let query = db.agentTraces.orderBy('timestamp').reverse();
 

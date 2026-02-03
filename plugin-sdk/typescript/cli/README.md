@@ -151,6 +151,9 @@ The CLI uses custom ink-based React components:
 - **Spinner** - Loading indicators
 - **Badge** - Status badges (success/warning/error)
 - **TaskRunner** - Execute tasks with progress UI
+- **Alert** - Important message alerts with variants (via @inkjs/ui)
+- **StatusMessage** - Status feedback messages (via @inkjs/ui)
+- **ProgressBar** - Progress bar with percentage (via @inkjs/ui)
 
 ## Development
 
@@ -207,7 +210,7 @@ cli/
 - **ink-text-input** - Text input component
 - **ink-select-input** - Select component
 - **ink-spinner** - Spinner component
-- **ink-multi-select** - Multi-select component
+- **@inkjs/ui** - UI components (Alert, StatusMessage, ProgressBar)
 - **commander** - CLI framework
 - **chalk** - Terminal colors
 - **figures** - Terminal symbols

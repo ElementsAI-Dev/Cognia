@@ -10,6 +10,15 @@
     "fromGitUrl": "从 Git URL",
     "createPlugin": "创建插件",
     "description": "管理 AI 扩展、工具和集成",
+    "configure": "配置",
+    "desktopRequired": "此功能需要桌面环境",
+    "selectPluginFolder": "选择插件文件夹",
+    "selectPluginZip": "选择插件 ZIP 文件",
+    "pluginImported": "插件导入成功",
+    "importFailed": "导入插件失败",
+    "common": {
+      "cancel": "取消"
+    },
     "tabs": {
       "myPlugins": "我的插件",
       "installed": "已安装",
@@ -75,6 +84,9 @@
       "runtimeDesc": "配置插件执行环境",
       "pythonEnvironment": "Python 环境",
       "pythonEnvironmentDesc": "配置插件的 Python 运行时",
+      "selectPythonPath": "选择 Python 可执行文件",
+      "pythonConfigured": "Python 环境配置成功",
+      "pythonConfigFailed": "Python 环境配置失败",
       "sandboxMode": "沙盒模式",
       "sandboxModeDesc": "在隔离沙盒中运行插件以确保安全",
       "cacheData": "缓存与数据",
@@ -82,9 +94,14 @@
       "clearCache": "清除插件缓存",
       "clearCacheDesc": "删除缓存的插件数据并重新加载",
       "clearCacheBtn": "清除缓存",
+      "cacheClearedSuccess": "插件缓存已清除",
+      "cacheClearFailed": "清除插件缓存失败",
       "resetPlugins": "重置所有插件",
       "resetPluginsDesc": "卸载所有插件并恢复到默认状态",
-      "resetPluginsBtn": "全部重置"
+      "resetPluginsBtn": "全部重置",
+      "resetPluginsConfirmTitle": "确定要重置所有插件吗？",
+      "resetPluginsConfirmDesc": "这将删除所有已安装的插件并恢复到默认状态。此操作无法撤销。",
+      "resetSuccess": "所有插件已重置"
     }
   },
   "pluginConfig": {

@@ -5,7 +5,7 @@
  * Enhanced with batch testing, collapsible sections, multi-key rotation, and default model selection
  */
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import dynamic from 'next/dynamic';
 import {
   Check,
@@ -80,6 +80,7 @@ import {
   PROVIDER_CATEGORIES,
   type ProviderCategory,
 } from '@/lib/ai/providers/provider-helpers';
+import type { ProviderCategoryFilter } from '@/stores/settings/settings-store';
 
 export function ProviderSettings() {
   const t = useTranslations('providers');
@@ -98,6 +99,7 @@ export function ProviderSettings() {
   const updateCustomProvider = useSettingsStore((state) => state.updateCustomProvider);
   const addApiKey = useSettingsStore((state) => state.addApiKey);
   const removeApiKey = useSettingsStore((state) => state.removeApiKey);
+  const reorderApiKeys = useSettingsStore((state) => state.reorderApiKeys);
   const setApiKeyRotation = useSettingsStore((state) => state.setApiKeyRotation);
   const resetApiKeyStats = useSettingsStore((state) => state.resetApiKeyStats);
 
@@ -111,11 +113,19 @@ export function ProviderSettings() {
   const [batchTestCancelRequested, setBatchTestCancelRequested] = useState(false);
   const batchTestCancelRef = useRef(false);
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
-  const [categoryFilter, setCategoryFilter] = useState<ProviderCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
-  const [sortBy, setSortBy] = useState<'name' | 'models' | 'context' | 'price' | 'status'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  // Debounce search query for performance - prevents filtering on every keystroke
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  
+  // Use persisted UI preferences from store
+  const providerUIPreferences = useSettingsStore((state) => state.providerUIPreferences);
+  const setProviderViewMode = useSettingsStore((state) => state.setProviderViewMode);
+  const setProviderSortBy = useSettingsStore((state) => state.setProviderSortBy);
+  const setProviderSortOrder = useSettingsStore((state) => state.setProviderSortOrder);
+  const setProviderCategoryFilter = useSettingsStore((state) => state.setProviderCategoryFilter);
+  
+  // Destructure for convenience
+  const { viewMode, sortBy, sortOrder, categoryFilter } = providerUIPreferences;
   const [expandedTableRows, setExpandedTableRows] = useState<Record<string, boolean>>({});
   const [selectedProviderIds, setSelectedProviderIds] = useState<Set<string>>(() => new Set());
   const [customTestResults, setCustomTestResults] = useState<Record<string, 'success' | 'error' | null>>({});
@@ -335,9 +345,9 @@ export function ProviderSettings() {
         const providerCategory = PROVIDER_CATEGORIES[providerId];
         if (providerCategory !== categoryFilter) return false;
       }
-      // Search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
+      // Search filter (uses deferred value for performance)
+      if (deferredSearchQuery.trim()) {
+        const query = deferredSearchQuery.toLowerCase();
         const matchesName = provider.name.toLowerCase().includes(query);
         const matchesModel = provider.models.some(m => 
           m.name.toLowerCase().includes(query) || m.id.toLowerCase().includes(query)
@@ -393,11 +403,11 @@ export function ProviderSettings() {
     }
 
     return filtered;
-  }, [categoryFilter, searchQuery, viewMode, sortBy, sortOrder, providerSettings]);
+  }, [categoryFilter, deferredSearchQuery, viewMode, sortBy, sortOrder, providerSettings]);
 
   const filteredCustomProviders = useMemo(() => {
-    if (!searchQuery.trim()) return customProviders;
-    const query = searchQuery.toLowerCase();
+    if (!deferredSearchQuery.trim()) return customProviders;
+    const query = deferredSearchQuery.toLowerCase();
     return Object.fromEntries(
       Object.entries(customProviders).filter(([_providerId, provider]) => {
         const matchesName = (provider.customName || '').toLowerCase().includes(query);
@@ -408,7 +418,7 @@ export function ProviderSettings() {
         return matchesName || matchesUrl || matchesModel;
       })
     );
-  }, [customProviders, searchQuery]);
+  }, [customProviders, deferredSearchQuery]);
 
   const visibleProviderIds = useMemo(
     () => filteredProviders.map(([providerId]) => providerId),
@@ -503,10 +513,10 @@ export function ProviderSettings() {
   // Toggle sort column
   const handleSort = (column: typeof sortBy) => {
     if (sortBy === column) {
-      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+      setProviderSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortBy(column);
-      setSortOrder('asc');
+      setProviderSortBy(column);
+      setProviderSortOrder('asc');
     }
   };
 
@@ -516,7 +526,7 @@ export function ProviderSettings() {
   };
 
   const handleConfigureProviderFromTable = useCallback((providerId: string) => {
-    setViewMode('cards');
+    setProviderViewMode('cards');
     setExpandedProviders((prev) => ({ ...prev, [providerId]: true }));
 
     requestAnimationFrame(() => {
@@ -525,7 +535,7 @@ export function ProviderSettings() {
         block: 'start',
       });
     });
-  }, []);
+  }, [setProviderViewMode]);
 
   const renderBuiltInProviderCard = (providerId: string, provider: ProviderConfig) => {
     const settings = providerSettings[providerId] || {};
@@ -594,6 +604,7 @@ export function ProviderSettings() {
         onToggleRotation={(enabled) => handleToggleRotation(providerId, enabled)}
         rotationStrategy={settings.apiKeyRotationStrategy || 'round-robin'}
         onRotationStrategyChange={(strategy) => handleRotationStrategyChange(providerId, strategy)}
+        onReorderApiKeys={(fromIndex, toIndex) => reorderApiKeys(providerId, fromIndex, toIndex)}
       >
         {isEnabled && hasAnyApiKey && <ProviderHealthStatus providerId={providerId} />}
 
@@ -725,7 +736,7 @@ export function ProviderSettings() {
 
       {/* Category Filter Tabs and Search */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as ProviderCategory)} className="w-full sm:w-auto">
+        <Tabs value={categoryFilter} onValueChange={(v) => setProviderCategoryFilter(v as ProviderCategoryFilter)} className="w-full sm:w-auto">
           <TabsList className="h-8 p-0.5 bg-muted/50">
             {(Object.keys(CATEGORY_CONFIG) as ProviderCategory[]).map((cat) => {
               const config = CATEGORY_CONFIG[cat];
@@ -774,7 +785,7 @@ export function ProviderSettings() {
               variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
               size="sm"
               className="h-8 px-2 rounded-r-none"
-              onClick={() => setViewMode('cards')}
+              onClick={() => setProviderViewMode('cards')}
             >
               <LayoutGrid className="h-4 w-4" />
             </Button>
@@ -782,7 +793,7 @@ export function ProviderSettings() {
               variant={viewMode === 'table' ? 'secondary' : 'ghost'}
               size="sm"
               className="h-8 px-2 rounded-l-none"
-              onClick={() => setViewMode('table')}
+              onClick={() => setProviderViewMode('table')}
             >
               <TableIcon className="h-4 w-4" />
             </Button>
@@ -884,7 +895,7 @@ export function ProviderSettings() {
                   </TableHead>
                   <TableHead className="text-center">
                     <Button variant="ghost" size="sm" className="h-7 px-2 font-medium" onClick={() => handleSort('status')}>
-                      {t('status')}
+                      Status
                       {sortBy === 'status' ? (sortOrder === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />) : <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />}
                     </Button>
                   </TableHead>

@@ -484,9 +484,18 @@ export function useAIChat({
         };
       };
 
-      // Helper function to record usage
-      const recordUsage = (usage: ChatUsageInfo | undefined) => {
+      // Track request timing
+      const requestStartTime = Date.now();
+      let firstTokenTime: number | undefined;
+
+      // Helper function to record usage with latency and status
+      const recordUsage = (
+        usage: ChatUsageInfo | undefined,
+        status: 'success' | 'error' | 'timeout' | 'cancelled' = 'success',
+        errorMessage?: string
+      ) => {
         if (sessionId && messageId && usage) {
+          const latency = Date.now() - requestStartTime;
           addUsageRecord({
             sessionId,
             messageId,
@@ -497,6 +506,10 @@ export function useAIChat({
               completion: usage.completionTokens,
               total: usage.totalTokens,
             },
+            latency,
+            status,
+            errorMessage,
+            timeToFirstToken: firstTokenTime ? firstTokenTime - requestStartTime : undefined,
           });
         }
       };
@@ -553,6 +566,10 @@ export function useAIChat({
           const closeTag = `</${reasoningTagName}>`;
 
           for await (const chunk of result.textStream) {
+            // Track time to first token
+            if (!firstTokenTime && chunk.length > 0) {
+              firstTokenTime = Date.now();
+            }
             fullText += chunk;
             
             // Track reasoning blocks during streaming
@@ -633,7 +650,7 @@ export function useAIChat({
               outputTokens: usage.completionTokens,
               cost,
               success: true,
-              latencyMs: Date.now() - (abortControllerRef.current?.signal ? 0 : Date.now()),
+              latencyMs: Date.now() - requestStartTime,
             });
           }
 
@@ -696,7 +713,7 @@ export function useAIChat({
               outputTokens: usage.completionTokens,
               cost,
               success: true,
-              latencyMs: Date.now() - (abortControllerRef.current?.signal ? 0 : Date.now()),
+              latencyMs: Date.now() - requestStartTime,
             });
           }
 
@@ -704,6 +721,8 @@ export function useAIChat({
         }
       } catch (error) {
         if ((error as Error).name === 'AbortError') {
+          // Record cancelled usage
+          recordUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 }, 'cancelled');
           return '';
         }
         
@@ -719,6 +738,19 @@ export function useAIChat({
         // Record circuit breaker failure
         circuitBreakerRegistry.get(provider).recordFailure(error as Error);
 
+        // Determine error status type
+        const errorMessage = (error as Error).message;
+        const isTimeout = errorMessage.toLowerCase().includes('timeout') || 
+                          errorMessage.toLowerCase().includes('timed out');
+        const errorStatus = isTimeout ? 'timeout' : 'error';
+
+        // Record failed usage to usage store
+        recordUsage(
+          { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+          errorStatus,
+          errorMessage
+        );
+
         // Record failed quota usage
         recordApiUsage({
           providerId: provider,
@@ -727,7 +759,7 @@ export function useAIChat({
           outputTokens: 0,
           cost: 0,
           success: false,
-          latencyMs: Date.now() - (abortControllerRef.current?.signal ? 0 : Date.now()),
+          latencyMs: Date.now() - requestStartTime,
         });
         
         onError?.(error as Error);

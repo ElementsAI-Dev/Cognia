@@ -178,3 +178,136 @@ export function verifyOAuthState(returnedState: string): OAuthState | null {
   }
   return storedState;
 }
+
+// Token expiration constants
+const TOKEN_REFRESH_BUFFER = 5 * 60 * 1000; // Refresh 5 minutes before expiry
+const TOKEN_EXPIRY_STORAGE_KEY = 'cognia-oauth-token-expiry';
+
+// Token expiration storage
+interface TokenExpiryInfo {
+  providerId: string;
+  expiresAt: number;
+  refreshToken?: string;
+}
+
+export function saveTokenExpiry(providerId: string, expiresAt: number, refreshToken?: string): void {
+  if (typeof window === 'undefined') return;
+  const key = `${TOKEN_EXPIRY_STORAGE_KEY}-${providerId}`;
+  const info: TokenExpiryInfo = { providerId, expiresAt, refreshToken };
+  localStorage.setItem(key, JSON.stringify(info));
+}
+
+export function getTokenExpiry(providerId: string): TokenExpiryInfo | null {
+  if (typeof window === 'undefined') return null;
+  const key = `${TOKEN_EXPIRY_STORAGE_KEY}-${providerId}`;
+  const stored = localStorage.getItem(key);
+  if (!stored) return null;
+  
+  try {
+    return JSON.parse(stored) as TokenExpiryInfo;
+  } catch {
+    return null;
+  }
+}
+
+export function clearTokenExpiry(providerId: string): void {
+  if (typeof window === 'undefined') return;
+  const key = `${TOKEN_EXPIRY_STORAGE_KEY}-${providerId}`;
+  localStorage.removeItem(key);
+}
+
+// Check if token needs refresh
+export function isTokenExpiringSoon(providerId: string): boolean {
+  const expiryInfo = getTokenExpiry(providerId);
+  if (!expiryInfo || !expiryInfo.expiresAt) return false;
+  
+  const now = Date.now();
+  const expiresAt = expiryInfo.expiresAt;
+  
+  // Token expires within the buffer period
+  return expiresAt - now <= TOKEN_REFRESH_BUFFER;
+}
+
+// Check if token is expired
+export function isTokenExpired(providerId: string): boolean {
+  const expiryInfo = getTokenExpiry(providerId);
+  if (!expiryInfo || !expiryInfo.expiresAt) return false;
+  
+  return Date.now() >= expiryInfo.expiresAt;
+}
+
+// Get time until token expiry in milliseconds
+export function getTokenTimeToExpiry(providerId: string): number | null {
+  const expiryInfo = getTokenExpiry(providerId);
+  if (!expiryInfo || !expiryInfo.expiresAt) return null;
+  
+  const remaining = expiryInfo.expiresAt - Date.now();
+  return remaining > 0 ? remaining : 0;
+}
+
+// Refresh OAuth token (for providers that support refresh tokens)
+export async function refreshOAuthToken(
+  providerId: string
+): Promise<{ apiKey: string; expiresAt?: number } | null> {
+  const expiryInfo = getTokenExpiry(providerId);
+  if (!expiryInfo?.refreshToken) {
+    log.warn('No refresh token available for provider', { providerId });
+    return null;
+  }
+  
+  try {
+    const response = await fetch(`/api/oauth/${providerId}/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: expiryInfo.refreshToken }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to refresh token');
+    }
+
+    const data = await response.json();
+    
+    // Update stored expiry info
+    if (data.expiresAt) {
+      saveTokenExpiry(providerId, data.expiresAt, data.refreshToken || expiryInfo.refreshToken);
+    }
+    
+    return {
+      apiKey: data.apiKey || data.key,
+      expiresAt: data.expiresAt,
+    };
+  } catch (error) {
+    log.error('OAuth token refresh failed', error as Error);
+    return null;
+  }
+}
+
+// Auto-refresh handler - call this periodically or before API requests
+export async function ensureValidToken(
+  providerId: string,
+  onRefresh?: (newApiKey: string) => void
+): Promise<boolean> {
+  // Check if token is expiring soon
+  if (!isTokenExpiringSoon(providerId)) {
+    return true; // Token is still valid
+  }
+  
+  // Token is expired or expiring soon, try to refresh
+  if (isTokenExpired(providerId)) {
+    log.info('Token expired, attempting refresh', { providerId });
+  } else {
+    log.info('Token expiring soon, proactively refreshing', { providerId });
+  }
+  
+  const result = await refreshOAuthToken(providerId);
+  if (result) {
+    log.info('Token refreshed successfully', { providerId });
+    onRefresh?.(result.apiKey);
+    return true;
+  }
+  
+  log.warn('Token refresh failed', { providerId });
+  return false;
+}

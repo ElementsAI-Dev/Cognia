@@ -13,6 +13,7 @@ import {
   Wrench,
   Brain,
   Sparkles,
+  Settings2,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
@@ -40,6 +41,7 @@ interface ModelListDialogProps {
   selectedModels: string[];
   onModelsChange: (models: string[]) => void;
   providerName?: string;
+  onModelSettings?: (model: Model) => void;
 }
 
 export function ModelListDialog({
@@ -49,6 +51,7 @@ export function ModelListDialog({
   selectedModels,
   onModelsChange,
   providerName: _providerName = 'Provider',
+  onModelSettings,
 }: ModelListDialogProps) {
   const t = useTranslations('providers');
   const [searchQuery, setSearchQuery] = useState('');
@@ -218,6 +221,7 @@ export function ModelListDialog({
                   model={model}
                   selected={localSelected.includes(model.id)}
                   onToggle={() => toggleModel(model.id)}
+                  onSettings={onModelSettings ? () => onModelSettings(model) : undefined}
                 />
               ))
             )}
@@ -248,9 +252,10 @@ interface ModelListItemProps {
   model: Model;
   selected: boolean;
   onToggle: () => void;
+  onSettings?: () => void;
 }
 
-function ModelListItem({ model, selected, onToggle }: ModelListItemProps) {
+function ModelListItem({ model, selected, onToggle, onSettings }: ModelListItemProps) {
   const formatContextLength = (length: number) => {
     if (length >= 1000000) {
       return `${(length / 1000000).toFixed(1)}M`;
@@ -306,6 +311,19 @@ function ModelListItem({ model, selected, onToggle }: ModelListItemProps) {
             <Brain className="h-2.5 w-2.5" />
             Reasoning
           </Badge>
+        )}
+        {onSettings && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSettings();
+            }}
+            className="p-1 rounded hover:bg-muted transition-colors"
+            title="Model Settings"
+          >
+            <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
         )}
       </div>
     </button>

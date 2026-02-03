@@ -3,7 +3,8 @@
  * Uses dagre for automatic graph layout
  */
 
-import dagre from '@dagrejs/dagre';
+import { Graph } from 'dagre-d3-es/src/graphlib/index.js';
+import { layout } from 'dagre-d3-es/src/dagre/index.js';
 import type { UIMessage } from '@/types/core/message';
 import type { ConversationBranch } from '@/types/core/session';
 import type {
@@ -123,7 +124,7 @@ function calculateDagreLayout(
   const { direction, nodeWidth, nodeHeight, horizontalSpacing, verticalSpacing } = options;
 
   // Create a new dagre graph
-  const g = new dagre.graphlib.Graph();
+  const g = new Graph();
   
   // Set graph options
   g.setGraph({
@@ -150,7 +151,7 @@ function calculateDagreLayout(
   }
 
   // Calculate layout
-  dagre.layout(g);
+  layout(g, {});
 
   // Extract positions
   const positions = new Map<string, { x: number; y: number }>();

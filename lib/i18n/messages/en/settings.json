@@ -64,6 +64,8 @@
     "descObservability": "AI tracing, metrics, and cost analysis",
     "descAgentOptimization": "Claude best practices for agent systems",
     "descAgentTrace": "View AI attribution traces for generated files and artifacts",
+    "descSafety": "Content safety and moderation settings",
+    "ready": "Ready",
     "descExternalAgents": "Configure external AI agents like Claude Code",
     "tabSync": "Cloud Sync",
     "descSync": "Sync data via WebDAV or GitHub",
@@ -150,7 +152,7 @@
       "sessionId": "Session ID",
       "sessionIdPlaceholder": "e.g. 01J...",
       "filePath": "File path",
-      "filePathPlaceholder": "e.g. src/app/page.tsx or artifact:<id>",
+      "filePathPlaceholder": "e.g. src/app/page.tsx or artifact:id",
       "clearFilters": "Clear",
       "showingCount": "Showing {count} traces",
       "emptyTitle": "No traces found",
@@ -160,7 +162,41 @@
       "view": "View",
       "detailsTitle": "Trace Details",
       "detailsHint": "This is the raw Agent Trace record stored locally.",
-      "copy": "Copy"
+      "copy": "Copy",
+      "recording": {
+        "title": "Agent Trace Recording",
+        "description": "Control whether agent actions are traced and stored locally."
+      },
+      "status": {
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "actions": {
+        "clearAll": "Clear All",
+        "deleteAll": "Delete All"
+      },
+      "dialogs": {
+        "clearAllTitle": "Clear All Traces?",
+        "clearAllDescription": "This will permanently delete all agent trace records. This action cannot be undone.",
+        "deleteTitle": "Delete Trace?",
+        "deleteDescription": "This will permanently delete this agent trace record."
+      },
+      "config": {
+        "title": "Recording Options",
+        "description": "Configure what gets traced and retention settings.",
+        "maxRecords": "Maximum Records",
+        "maxRecordsDescription": "Maximum number of trace records to keep (0 = unlimited)",
+        "maxRecordsUnlimited": "Unlimited",
+        "autoCleanup": "Auto Cleanup",
+        "autoCleanupDescription": "Automatically delete traces older than specified days (0 = never)",
+        "autoCleanupDays": "{days} days",
+        "autoCleanupNever": "Never",
+        "traceShellCommands": "Trace Shell Commands",
+        "traceShellCommandsDescription": "Include shell command executions in traces",
+        "traceCodeEdits": "Trace Code Edits",
+        "traceCodeEditsDescription": "Include code edit operations in traces",
+        "resetToDefaults": "Reset to Defaults"
+      }
     },
     "git": {
       "installation": {
@@ -281,7 +317,49 @@
     "indexedDB": "IndexedDB",
     "usage": "Usage",
     "importChatGPT": "Import ChatGPT",
-    "chatImportSuccess": "Imported {sessions} chats with {messages} messages"
+    "chatImportSuccess": "Imported {sessions} chats with {messages} messages",
+    "categoryCleared": "Cleared {count} items from category",
+    "clearFailed": "Failed to clear category",
+    "exportFailed": "Failed to export data",
+    "importFailed": "Failed to import data",
+    "deleteSuccess": "All data has been deleted",
+    "deleteFailed": "Failed to delete all data",
+    "healthStatus": "Health Status",
+    "cleanupStorage": "Cleanup Storage",
+    "noStorageData": "No storage data",
+    "other": "Other",
+    "viewDetails": "View details",
+    "clearCategory": "Clear this category",
+    "cleanup": "Cleanup",
+    "storageCleanup": "Storage Cleanup",
+    "storageCleanupDesc": "Free up space by removing unnecessary data",
+    "quick": "Quick",
+    "custom": "Custom",
+    "deep": "Deep",
+    "quickCleanupDesc": "Remove temporary files and cache data",
+    "runQuickCleanup": "Run Quick Cleanup",
+    "customCleanupDesc": "Select specific categories to clean",
+    "deepCleanupDesc": "Remove all non-essential data for maximum space savings",
+    "deepCleanupWarning": "This will remove all cached data and may affect performance temporarily",
+    "runDeepCleanup": "Run Deep Cleanup",
+    "willBeFreed": "{size} will be freed",
+    "itemsWillBeDeleted": "{count} items will be deleted",
+    "back": "Back",
+    "confirmCleanup": "Confirm Cleanup",
+    "cleanupComplete": "Cleanup Complete",
+    "freedSpace": "Freed {size} of space",
+    "deletedItems": "Deleted {count} items",
+    "errorsOccurred": "{count} errors occurred",
+    "done": "Done",
+    "statusHealthy": "Healthy",
+    "statusWarning": "Warning",
+    "statusCritical": "Critical",
+    "used": "used",
+    "issues": "Issues",
+    "recommendations": "Recommendations",
+    "storageHealthy": "Your storage is in good condition",
+    "potentialSavings": "Potential savings",
+    "preview": "Preview"
   },
   "themeEditor": {
     "title": "Theme Editor",
@@ -500,6 +578,9 @@
     "pressAnotherCombination": "Press another combination to change, or click Save",
     "customized": "Customized",
     "conflictWarning": "This shortcut conflicts with \"{action}\"",
+    "disableShortcut": "Disable shortcut",
+    "enableShortcut": "Enable shortcut",
+    "resetToDefault": "Reset to default",
     "shortcuts": {
       "newChat": "New Chat",
       "toggleSidebar": "Toggle Sidebar",
@@ -517,7 +598,13 @@
       "showShortcuts": "Show Shortcuts",
       "openSettings": "Open Settings",
       "searchChats": "Search Chats",
-      "clearChat": "Clear Chat"
+      "clearChat": "Clear Chat",
+      "openProjects": "Open Projects",
+      "prevSession": "Previous Session",
+      "nextSession": "Next Session",
+      "scrollToBottom": "Scroll to Bottom",
+      "toggleArtifactPanel": "Toggle Artifact Panel",
+      "toggleSimplifiedMode": "Toggle Simplified Mode"
     },
     "editTip": "Tip: Click edit, then press the new key combination"
   },

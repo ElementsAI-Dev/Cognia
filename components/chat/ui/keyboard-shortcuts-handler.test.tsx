@@ -81,17 +81,18 @@ describe('useKeyboardShortcuts', () => {
     expect(chatShortcuts.length).toBeGreaterThan(0);
   });
 
-  it('includes custom shortcuts', () => {
-    const customShortcut: KeyboardShortcut = {
+  it('includes additional shortcuts', () => {
+    const additionalShortcut: KeyboardShortcut = {
+      id: 'custom-1',
       key: 'x',
       modifiers: ['ctrl'],
       action: jest.fn(),
       description: 'Custom action',
-      category: 'general',
+      category: 'system',
     };
     
     const { result } = renderHook(() => useKeyboardShortcuts({
-      customShortcuts: [customShortcut],
+      additionalShortcuts: [additionalShortcut],
     }));
     
     const hasCustom = result.current.shortcuts.some(s => s.key === 'x');
@@ -117,10 +118,10 @@ describe('useKeyboardShortcuts', () => {
 describe('getShortcutsByCategory', () => {
   it('groups shortcuts by category', () => {
     const shortcuts: KeyboardShortcut[] = [
-      { key: 'a', action: jest.fn(), description: 'Nav', category: 'navigation' },
-      { key: 'b', action: jest.fn(), description: 'Chat', category: 'chat' },
-      { key: 'c', action: jest.fn(), description: 'Edit', category: 'editing' },
-      { key: 'd', action: jest.fn(), description: 'Gen', category: 'general' },
+      { id: 'nav-1', key: 'a', action: jest.fn(), description: 'Nav', category: 'navigation' },
+      { id: 'chat-1', key: 'b', action: jest.fn(), description: 'Chat', category: 'chat' },
+      { id: 'edit-1', key: 'c', action: jest.fn(), description: 'Edit', category: 'editing' },
+      { id: 'sys-1', key: 'd', action: jest.fn(), description: 'Sys', category: 'system' },
     ];
     
     const grouped = getShortcutsByCategory(shortcuts);
@@ -128,12 +129,12 @@ describe('getShortcutsByCategory', () => {
     expect(grouped.navigation).toHaveLength(1);
     expect(grouped.chat).toHaveLength(1);
     expect(grouped.editing).toHaveLength(1);
-    expect(grouped.general).toHaveLength(1);
+    expect(grouped.system).toHaveLength(1);
   });
 
   it('returns empty arrays for categories with no shortcuts', () => {
     const shortcuts: KeyboardShortcut[] = [
-      { key: 'a', action: jest.fn(), description: 'Nav', category: 'navigation' },
+      { id: 'nav-1', key: 'a', action: jest.fn(), description: 'Nav', category: 'navigation' },
     ];
     
     const grouped = getShortcutsByCategory(shortcuts);
@@ -141,18 +142,19 @@ describe('getShortcutsByCategory', () => {
     expect(grouped.navigation).toHaveLength(1);
     expect(grouped.chat).toHaveLength(0);
     expect(grouped.editing).toHaveLength(0);
-    expect(grouped.general).toHaveLength(0);
+    expect(grouped.system).toHaveLength(0);
   });
 });
 
 describe('formatShortcut', () => {
   it('formats shortcut with ctrl modifier', () => {
     const shortcut: KeyboardShortcut = {
+      id: 'test-1',
       key: 'b',
       modifiers: ['ctrl'],
       action: jest.fn(),
       description: 'Test',
-      category: 'general',
+      category: 'system',
     };
     
     expect(formatShortcut(shortcut)).toBe('Ctrl+B');
@@ -160,11 +162,12 @@ describe('formatShortcut', () => {
 
   it('formats shortcut with multiple modifiers', () => {
     const shortcut: KeyboardShortcut = {
+      id: 'test-2',
       key: 'r',
       modifiers: ['ctrl', 'shift'],
       action: jest.fn(),
       description: 'Test',
-      category: 'general',
+      category: 'system',
     };
     
     expect(formatShortcut(shortcut)).toBe('Ctrl+Shift+R');
@@ -172,24 +175,26 @@ describe('formatShortcut', () => {
 
   it('formats shortcut without modifiers', () => {
     const shortcut: KeyboardShortcut = {
+      id: 'test-3',
       key: 'Escape',
       action: jest.fn(),
       description: 'Test',
-      category: 'general',
+      category: 'system',
     };
     
-    expect(formatShortcut(shortcut)).toBe('Escape');
+    expect(formatShortcut(shortcut)).toBe('Esc');
   });
 
   it('formats shortcut with meta modifier', () => {
     const shortcut: KeyboardShortcut = {
+      id: 'test-4',
       key: 'k',
       modifiers: ['meta'],
       action: jest.fn(),
       description: 'Test',
-      category: 'general',
+      category: 'system',
     };
     
-    expect(formatShortcut(shortcut)).toBe('⌘+K');
+    expect(formatShortcut(shortcut)).toBe('Win+K');
   });
 });
