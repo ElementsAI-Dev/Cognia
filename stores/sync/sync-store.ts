@@ -10,6 +10,7 @@ import type {
   SyncStore,
   WebDAVConfig,
   GitHubSyncConfig,
+  GoogleDriveConfig,
   SyncProviderType,
   SyncStatus,
   SyncProgress,
@@ -17,13 +18,17 @@ import type {
   SyncDirection,
   BackupInfo,
 } from '@/types/sync';
-import { DEFAULT_WEBDAV_CONFIG, DEFAULT_GITHUB_CONFIG } from '@/types/sync';
+import {
+  DEFAULT_WEBDAV_CONFIG,
+  DEFAULT_GITHUB_CONFIG,
+  DEFAULT_GOOGLE_DRIVE_CONFIG,
+} from '@/types/sync';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.store;
 
 // Re-export defaults for convenience
-export { DEFAULT_WEBDAV_CONFIG, DEFAULT_GITHUB_CONFIG };
+export { DEFAULT_WEBDAV_CONFIG, DEFAULT_GITHUB_CONFIG, DEFAULT_GOOGLE_DRIVE_CONFIG };
 
 /**
  * Generate a unique device ID
@@ -55,6 +60,7 @@ const initialState: SyncState = {
   // Provider configurations
   webdavConfig: { ...DEFAULT_WEBDAV_CONFIG },
   githubConfig: { ...DEFAULT_GITHUB_CONFIG },
+  googleDriveConfig: { ...DEFAULT_GOOGLE_DRIVE_CONFIG },
   activeProvider: null,
   
   // Sync status
@@ -95,6 +101,12 @@ export const useSyncStore = create<SyncStore>()(
       setGitHubConfig: (config: Partial<GitHubSyncConfig>) => {
         set((state) => ({
           githubConfig: { ...state.githubConfig, ...config },
+        }));
+      },
+
+      setGoogleDriveConfig: (config: Partial<GoogleDriveConfig>) => {
+        set((state) => ({
+          googleDriveConfig: { ...state.googleDriveConfig, ...config },
         }));
       },
 
@@ -159,6 +171,10 @@ export const useSyncStore = create<SyncStore>()(
             } else if (activeProvider === 'github') {
               set((state) => ({
                 githubConfig: { ...state.githubConfig, lastSyncAt: timestamp },
+              }));
+            } else if (activeProvider === 'googledrive') {
+              set((state) => ({
+                googleDriveConfig: { ...state.googleDriveConfig, lastSyncAt: timestamp },
               }));
             }
           }
@@ -303,6 +319,7 @@ export const useSyncStore = create<SyncStore>()(
       partialize: (state) => ({
         webdavConfig: state.webdavConfig,
         githubConfig: state.githubConfig,
+        googleDriveConfig: state.googleDriveConfig,
         activeProvider: state.activeProvider,
         syncHistory: state.syncHistory.slice(0, 20), // Only persist last 20
         deviceId: state.deviceId,
@@ -321,6 +338,7 @@ export const selectSyncProgress = (state: SyncStore) => state.progress;
 export const selectActiveProvider = (state: SyncStore) => state.activeProvider;
 export const selectWebDAVConfig = (state: SyncStore) => state.webdavConfig;
 export const selectGitHubConfig = (state: SyncStore) => state.githubConfig;
+export const selectGoogleDriveConfig = (state: SyncStore) => state.googleDriveConfig;
 export const selectSyncHistory = (state: SyncStore) => state.syncHistory;
 export const selectPendingConflicts = (state: SyncStore) => state.pendingConflicts;
 export const selectLastError = (state: SyncStore) => state.lastError;
@@ -334,8 +352,9 @@ export const selectHasConflicts = (state: SyncStore) =>
   state.pendingConflicts.some((c) => !c.resolved);
 
 export const selectLastSyncTime = (state: SyncStore) => {
-  const { activeProvider, webdavConfig, githubConfig } = state;
+  const { activeProvider, webdavConfig, githubConfig, googleDriveConfig } = state;
   if (activeProvider === 'webdav') return webdavConfig.lastSyncAt;
   if (activeProvider === 'github') return githubConfig.lastSyncAt;
+  if (activeProvider === 'googledrive') return googleDriveConfig.lastSyncAt;
   return null;
 };

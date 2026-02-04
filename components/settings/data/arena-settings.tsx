@@ -27,6 +27,7 @@ import {
 } from '@/components/settings/common/settings-section';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -53,6 +54,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useArenaStore } from '@/stores/arena';
 import { exportPreferences, importPreferences } from '@/lib/ai/generation/preference-learner';
+import { useLeaderboardSyncSettings } from '@/hooks/arena';
 
 export function ArenaSettings() {
   const t = useTranslations('arena.settings');
@@ -62,6 +64,7 @@ export function ArenaSettings() {
   // Collapsible state
   const [showAntiGaming, setShowAntiGaming] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showLeaderboardSync, setShowLeaderboardSync] = useState(false);
 
   // Arena store
   const settings = useArenaStore((state) => state.settings);
@@ -73,6 +76,11 @@ export function ArenaSettings() {
   const resetModelRatings = useArenaStore((state) => state.resetModelRatings);
   const clearPreferences = useArenaStore((state) => state.clearPreferences);
   const getStats = useArenaStore((state) => state.getStats);
+
+  const {
+    settings: syncSettings,
+    updateSettings: updateSyncSettings,
+  } = useLeaderboardSyncSettings();
 
   const stats = getStats();
 
@@ -282,6 +290,195 @@ export function ArenaSettings() {
           />
         </SettingsCard>
       </SettingsGrid>
+
+      {/* Global Leaderboard Sync */}
+      <Collapsible open={showLeaderboardSync} onOpenChange={setShowLeaderboardSync}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="w-full justify-between p-4 h-auto">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              <span className="font-semibold">{tArena('leaderboard.sync.title')}</span>
+            </div>
+            {showLeaderboardSync ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SettingsGrid className="pt-2">
+            <SettingsCard
+              title={tArena('leaderboard.sync.enabled')}
+              description={tArena('leaderboard.sync.enabledDescription')}
+            >
+              <Switch
+                checked={syncSettings.enabled}
+                onCheckedChange={(checked) => {
+                  updateSyncSettings({ enabled: checked });
+                  updateSettings({ enableLeaderboardSync: checked });
+                }}
+              />
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.showGlobalLeaderboard')}
+              description={tArena('leaderboard.sync.showGlobalLeaderboardDescription')}
+            >
+              <Switch
+                checked={settings.showGlobalLeaderboard}
+                onCheckedChange={(checked) => updateSettings({ showGlobalLeaderboard: checked })}
+                disabled={!syncSettings.enabled}
+              />
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.apiUrl')}
+              description={tArena('leaderboard.sync.apiUrlPlaceholder')}
+            >
+              <Input
+                value={syncSettings.apiBaseUrl}
+                onChange={(event) => updateSyncSettings({ apiBaseUrl: event.target.value })}
+                placeholder={tArena('leaderboard.sync.apiUrlPlaceholder')}
+                disabled={!syncSettings.enabled}
+              />
+            </SettingsCard>
+
+            <SettingsCard title={tArena('leaderboard.sync.apiKey')}>
+              <Input
+                type="password"
+                value={syncSettings.apiKey ?? ''}
+                onChange={(event) => updateSyncSettings({ apiKey: event.target.value || undefined })}
+                disabled={!syncSettings.enabled}
+              />
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.autoSubmit')}
+              description={tArena('leaderboard.sync.autoSubmitDescription')}
+            >
+              <Switch
+                checked={syncSettings.autoSubmitPreferences}
+                onCheckedChange={(checked) => updateSyncSettings({ autoSubmitPreferences: checked })}
+                disabled={!syncSettings.enabled}
+              />
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.autoRefresh')}
+              description={tArena('leaderboard.sync.autoRefreshDescription')}
+            >
+              <Switch
+                checked={syncSettings.autoRefresh}
+                onCheckedChange={(checked) => updateSyncSettings({ autoRefresh: checked })}
+                disabled={!syncSettings.enabled}
+              />
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.refreshInterval')}
+              description={`${syncSettings.autoRefreshIntervalMinutes} min`}
+            >
+              <div className="w-32">
+                <Slider
+                  value={[syncSettings.autoRefreshIntervalMinutes]}
+                  onValueChange={([value]) => updateSyncSettings({ autoRefreshIntervalMinutes: value })}
+                  min={1}
+                  max={60}
+                  step={1}
+                  disabled={!syncSettings.enabled || !syncSettings.autoRefresh}
+                />
+              </div>
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.cacheDuration')}
+              description={`${syncSettings.cacheDurationMinutes} min`}
+            >
+              <div className="w-32">
+                <Slider
+                  value={[syncSettings.cacheDurationMinutes]}
+                  onValueChange={([value]) => updateSyncSettings({ cacheDurationMinutes: value })}
+                  min={1}
+                  max={60}
+                  step={1}
+                  disabled={!syncSettings.enabled}
+                />
+              </div>
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.minBattles')}
+              description={`${syncSettings.minBattlesThreshold}`}
+            >
+              <div className="w-32">
+                <Slider
+                  value={[syncSettings.minBattlesThreshold]}
+                  onValueChange={([value]) => updateSyncSettings({ minBattlesThreshold: value })}
+                  min={1}
+                  max={50}
+                  step={1}
+                  disabled={!syncSettings.enabled}
+                />
+              </div>
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.anonymousMode')}
+              description={tArena('leaderboard.sync.anonymousModeDescription')}
+            >
+              <Switch
+                checked={syncSettings.anonymousMode}
+                onCheckedChange={(checked) => updateSyncSettings({ anonymousMode: checked })}
+                disabled={!syncSettings.enabled}
+              />
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.retryFailedSubmissions')}
+              description={tArena('leaderboard.sync.retryFailedSubmissionsDescription')}
+            >
+              <Switch
+                checked={syncSettings.retryFailedSubmissions}
+                onCheckedChange={(checked) => updateSyncSettings({ retryFailedSubmissions: checked })}
+                disabled={!syncSettings.enabled}
+              />
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.maxRetryAttempts')}
+              description={`${syncSettings.maxRetryAttempts}`}
+            >
+              <div className="w-32">
+                <Slider
+                  value={[syncSettings.maxRetryAttempts]}
+                  onValueChange={([value]) => updateSyncSettings({ maxRetryAttempts: value })}
+                  min={1}
+                  max={10}
+                  step={1}
+                  disabled={!syncSettings.enabled || !syncSettings.retryFailedSubmissions}
+                />
+              </div>
+            </SettingsCard>
+
+            <SettingsCard
+              title={tArena('leaderboard.sync.requestTimeout')}
+              description={`${Math.round(syncSettings.requestTimeoutMs / 1000)}s`}
+            >
+              <div className="w-32">
+                <Slider
+                  value={[Math.round(syncSettings.requestTimeoutMs / 1000)]}
+                  onValueChange={([value]) => updateSyncSettings({ requestTimeoutMs: value * 1000 })}
+                  min={5}
+                  max={120}
+                  step={5}
+                  disabled={!syncSettings.enabled}
+                />
+              </div>
+            </SettingsCard>
+          </SettingsGrid>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Anti-Gaming Settings - NEW */}
       <Collapsible open={showAntiGaming} onOpenChange={setShowAntiGaming}>

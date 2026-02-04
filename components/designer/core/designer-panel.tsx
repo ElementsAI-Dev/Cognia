@@ -41,6 +41,8 @@ import {
 import { DesignerDndProvider, SelectionOverlay } from '../dnd';
 import { AIChatPanel } from '../ai/ai-chat-panel';
 import { createEditorOptions, getMonacoTheme } from '@/lib/monaco';
+import { CollabToolbar, RemoteCursors } from '../collab';
+import { useDesignerCollaboration } from '@/hooks/designer';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -51,6 +53,42 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
     </div>
   ),
 });
+
+function getTextDiff(prev: string, next: string): {
+  position: number;
+  deleted: string;
+  inserted: string;
+} | null {
+  if (prev === next) return null;
+
+  let start = 0;
+  const prevLength = prev.length;
+  const nextLength = next.length;
+  const minLength = Math.min(prevLength, nextLength);
+
+  while (start < minLength && prev[start] === next[start]) {
+    start += 1;
+  }
+
+  let prevEnd = prevLength - 1;
+  let nextEnd = nextLength - 1;
+
+  while (prevEnd >= start && nextEnd >= start && prev[prevEnd] === next[nextEnd]) {
+    prevEnd -= 1;
+    nextEnd -= 1;
+  }
+
+  const deleted = prev.slice(start, prevEnd + 1);
+  const inserted = next.slice(start, nextEnd + 1);
+
+  if (!deleted && !inserted) return null;
+
+  return {
+    position: start,
+    deleted,
+    inserted,
+  };
+}
 
 interface DesignerPanelProps {
   open: boolean;
@@ -76,6 +114,16 @@ export function DesignerPanel({
   const [leftPanelTab, setLeftPanelTab] = useState<'elements' | 'components'>('elements');
   const [showGridOverlay, setShowGridOverlay] = useState(false);
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
+  const [collabDocumentId] = useState(() => `designer-${Date.now()}`);
+
+  // Collaboration hook for real-time editing
+  const {
+    remoteCursors,
+    isConnected: isCollabConnected,
+    updateCode: updateCollabCode,
+    updateCursor: updateCollabCursor,
+    updateSelection: updateCollabSelection,
+  } = useDesignerCollaboration();
 
   // Settings for built-in AI
   const providerSettings = useSettingsStore((state) => state.providerSettings);
@@ -110,6 +158,7 @@ export function DesignerPanel({
   const redo = useDesignerStore((state) => state.redo);
   const history = useDesignerStore((state) => state.history);
   const historyIndex = useDesignerStore((state) => state.historyIndex);
+  const previousCodeRef = useRef(code);
 
   // Track if we've initialized to prevent re-initialization loops
   const initializedRef = useRef(false);
@@ -121,9 +170,13 @@ export function DesignerPanel({
     if (initialCode && !initializedRef.current) {
       initializedRef.current = true;
       setCode(initialCode);
-      parseCodeToElements(initialCode);
+      void parseCodeToElements(initialCode);
     }
   }, [initialCode, setCode, parseCodeToElements]);
+
+  useEffect(() => {
+    previousCodeRef.current = code;
+  }, [code]);
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
@@ -165,10 +218,50 @@ export function DesignerPanel({
   const handleCodeChange = useCallback(
     (value: string | undefined) => {
       const newCode = value || '';
+      const previousCode = previousCodeRef.current;
       setCode(newCode);
       onCodeChange?.(newCode);
+      // Sync to collaboration session if connected
+      if (isCollabConnected) {
+        const diff = getTextDiff(previousCode, newCode);
+        if (diff) {
+          if (diff.deleted) {
+            updateCollabCode(diff.position, diff.deleted, 'delete', diff.deleted.length);
+          }
+          if (diff.inserted) {
+            updateCollabCode(diff.position, diff.inserted, 'insert');
+          }
+        }
+      }
+      previousCodeRef.current = newCode;
     },
-    [setCode, onCodeChange]
+    [setCode, onCodeChange, isCollabConnected, updateCollabCode]
+  );
+
+  // Handle cursor position changes for collaboration
+  const handleEditorMount = useCallback(
+    (editor: {
+      onDidChangeCursorPosition: (cb: (e: { position: { lineNumber: number; column: number } }) => void) => void;
+      onDidChangeCursorSelection: (cb: (e: { selection: { startLineNumber: number; startColumn: number; endLineNumber: number; endColumn: number } }) => void) => void;
+    }) => {
+      editor.onDidChangeCursorPosition((e) => {
+        if (isCollabConnected) {
+          updateCollabCursor({ line: e.position.lineNumber, column: e.position.column });
+        }
+      });
+
+      editor.onDidChangeCursorSelection((e) => {
+        if (isCollabConnected) {
+          updateCollabSelection({
+            startLine: e.selection.startLineNumber,
+            startColumn: e.selection.startColumn,
+            endLine: e.selection.endLineNumber,
+            endColumn: e.selection.endColumn,
+          });
+        }
+      });
+    },
+    [isCollabConnected, updateCollabCursor, updateCollabSelection]
   );
 
   const handleAIEdit = useCallback(() => {
@@ -197,7 +290,7 @@ export function DesignerPanel({
       const aiHandler = onAIRequest || builtInAIRequest;
       const newCode = await aiHandler(aiPrompt, code);
       setCode(newCode);
-      parseCodeToElements(newCode);
+      await parseCodeToElements(newCode);
       onCodeChange?.(newCode);
       setAIPrompt('');
       setShowAIInput(false);
@@ -231,16 +324,30 @@ export function DesignerPanel({
         <SheetTitle className="sr-only">{t('panelTitle')}</SheetTitle>
         <DesignerDndProvider>
           {/* Toolbar */}
-          <DesignerToolbar 
-            onAIEdit={handleAIEdit} 
-            onExport={handleExport} 
-            onOpenInCanvas={handleOpenInCanvas}
-            showAIChatPanel={showAIChatPanel}
-            onToggleAIChat={() => setShowAIChatPanel(!showAIChatPanel)}
-            showGridOverlay={showGridOverlay}
-            onToggleGridOverlay={() => setShowGridOverlay(!showGridOverlay)}
-            onOpenTemplates={() => setShowTemplateBrowser(true)}
-          />
+          <div className="flex items-center justify-between border-b">
+            <DesignerToolbar 
+              onAIEdit={handleAIEdit} 
+              onExport={handleExport} 
+              onOpenInCanvas={handleOpenInCanvas}
+              showAIChatPanel={showAIChatPanel}
+              onToggleAIChat={() => setShowAIChatPanel(!showAIChatPanel)}
+              showGridOverlay={showGridOverlay}
+              onToggleGridOverlay={() => setShowGridOverlay(!showGridOverlay)}
+              onOpenTemplates={() => setShowTemplateBrowser(true)}
+              className="border-b-0"
+            />
+            {/* Collaboration toolbar */}
+            <CollabToolbar
+              className="px-2 py-1.5"
+              documentId={collabDocumentId}
+              initialCode={code}
+              onCodeUpdate={(newCode) => {
+                setCode(newCode);
+                void parseCodeToElements(newCode);
+                onCodeChange?.(newCode);
+              }}
+            />
+          </div>
 
           {/* AI Input Bar */}
           {showAIInput && (
@@ -294,6 +401,7 @@ export function DesignerPanel({
                 theme={getMonacoTheme(theme)}
                 value={code}
                 onChange={handleCodeChange}
+                onMount={handleEditorMount}
                 options={createEditorOptions('code', {
                   minimap: { enabled: false },
                   stickyScroll: { enabled: true, maxLineCount: 5 },
@@ -357,6 +465,13 @@ export function DesignerPanel({
                     {showGridOverlay && (
                       <LayoutGridOverlay className="absolute inset-0 pointer-events-none z-10" />
                     )}
+                    {/* Remote cursors overlay for collaboration */}
+                    {isCollabConnected && remoteCursors.length > 0 && (
+                      <RemoteCursors
+                        cursors={remoteCursors}
+                        className="absolute inset-0 z-15"
+                      />
+                    )}
                     {/* Selection overlay for design mode */}
                     {mode === 'design' && selectedElementId && (
                       <SelectionOverlay previewContainerRef={previewContainerRef} />
@@ -410,7 +525,7 @@ export function DesignerPanel({
                         code={code}
                         onCodeChange={(newCode) => {
                           setCode(newCode);
-                          parseCodeToElements(newCode);
+                          void parseCodeToElements(newCode);
                           onCodeChange?.(newCode);
                         }}
                         isOpen={showAIChatPanel}
@@ -448,13 +563,13 @@ export function DesignerPanel({
                 showBackButton={false}
                 onSelectTemplate={(template) => {
                   setCode(template.code);
-                  parseCodeToElements(template.code);
+                  void parseCodeToElements(template.code);
                   onCodeChange?.(template.code);
                   setShowTemplateBrowser(false);
                 }}
                 onCreateNew={() => {
                   setCode('');
-                  parseCodeToElements('');
+                  void parseCodeToElements('');
                   setShowTemplateBrowser(false);
                 }}
               />

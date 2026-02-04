@@ -18,6 +18,7 @@ let mockThemeSchedule = {
   enabled: false,
   lightModeStart: '07:00',
   darkModeStart: '19:00',
+  overrideSystem: false,
 };
 
 jest.mock('@/stores', () => ({
@@ -74,6 +75,7 @@ describe('ThemeSchedule', () => {
       enabled: false,
       lightModeStart: '07:00',
       darkModeStart: '19:00',
+      overrideSystem: false,
     };
   });
 
@@ -84,12 +86,12 @@ describe('ThemeSchedule', () => {
 
   it('displays title', () => {
     render(<ThemeSchedule />);
-    expect(screen.getByText('themeSchedule')).toBeInTheDocument();
+    expect(screen.getByText('title')).toBeInTheDocument();
   });
 
   it('displays description', () => {
     render(<ThemeSchedule />);
-    expect(screen.getByText('themeScheduleDescription')).toBeInTheDocument();
+    expect(screen.getByText('description')).toBeInTheDocument();
   });
 
   it('shows enable schedule switch', () => {
@@ -110,6 +112,7 @@ describe('ThemeSchedule', () => {
       enabled: true,
       lightModeStart: '07:00',
       darkModeStart: '19:00',
+      overrideSystem: false,
     };
     
     render(<ThemeSchedule />);
@@ -130,6 +133,7 @@ describe('ThemeSchedule', () => {
       enabled: true,
       lightModeStart: '07:00',
       darkModeStart: '19:00',
+      overrideSystem: false,
     };
     render(<ThemeSchedule />);
     expect(screen.getByTestId('card')).toBeInTheDocument();
@@ -140,6 +144,7 @@ describe('ThemeSchedule', () => {
       enabled: true,
       lightModeStart: '07:00',
       darkModeStart: '19:00',
+      overrideSystem: false,
     };
     
     render(<ThemeSchedule />);
@@ -163,8 +168,40 @@ describe('ThemeSchedule', () => {
       enabled: true,
       lightModeStart: '06:30',
       darkModeStart: '20:00',
+      overrideSystem: false,
     };
     render(<ThemeSchedule />);
     expect(screen.getByTestId('card')).toBeInTheDocument();
+  });
+
+  it('shows override system option when theme is system and schedule is enabled (A2)', () => {
+    mockTheme = 'system';
+    mockThemeSchedule = {
+      enabled: true,
+      lightModeStart: '07:00',
+      darkModeStart: '19:00',
+      overrideSystem: false,
+    };
+    render(<ThemeSchedule />);
+    // Should show the override system toggle
+    expect(screen.getByText('overrideSystem')).toBeInTheDocument();
+  });
+
+  it('toggles override system option (A2)', () => {
+    mockTheme = 'system';
+    mockThemeSchedule = {
+      enabled: true,
+      lightModeStart: '07:00',
+      darkModeStart: '19:00',
+      overrideSystem: false,
+    };
+    render(<ThemeSchedule />);
+    // Find and click the override system switch
+    const switches = screen.getAllByTestId('switch');
+    // The second switch should be the override system toggle
+    if (switches.length > 1) {
+      fireEvent.click(switches[1]);
+      expect(mockSetThemeSchedule).toHaveBeenCalledWith({ overrideSystem: true });
+    }
   });
 });

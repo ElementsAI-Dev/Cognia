@@ -57,6 +57,7 @@ const TASK_TYPES: Array<{ value: ScheduledTaskType; label: string; labelZh: stri
   { value: 'sync', label: 'Data Sync', labelZh: '数据同步' },
   { value: 'backup', label: 'Backup', labelZh: '备份' },
   { value: 'custom', label: 'Custom', labelZh: '自定义' },
+  { value: 'plugin', label: 'Plugin', labelZh: '插件' },
 ];
 
 const TRIGGER_TYPES: Array<{ value: TaskTriggerType; label: string; labelZh: string; icon: React.ReactNode }> = [

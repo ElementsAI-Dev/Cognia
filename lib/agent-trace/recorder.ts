@@ -1,9 +1,16 @@
 import { nanoid } from 'nanoid';
 import { agentTraceRepository } from '@/lib/db/repositories/agent-trace-repository';
-import type { AgentTraceRecord, ContributorType, TraceFile, Contributor } from '@/types/agent-trace';
+import type {
+  AgentTraceRecord,
+  AgentTraceEventType,
+  ContributorType,
+  TraceFile,
+  Contributor,
+} from '@/types/agent-trace';
 import { useGitStore } from '@/stores/git';
 import { useSettingsStore } from '@/stores';
 import { vcsService, type VcsType } from '@/lib/native/vcs';
+import { getCurrentSpanId, getCurrentTraceId } from '@/lib/ai/observability/tracing';
 import { countLines, fnv1a32 } from './utils';
 
 /** Current agent trace format version */
@@ -35,6 +42,10 @@ export interface RecordAgentTraceInput {
   modelId?: string;
   filePath: string;
   content: string;
+  range?: {
+    startLine: number;
+    endLine: number;
+  };
   metadata?: Record<string, unknown>;
   vcs?: {
     type: 'git' | 'jj' | 'hg' | 'svn';
@@ -42,6 +53,12 @@ export interface RecordAgentTraceInput {
   };
   /** Extended VCS context from Git store - branch, remote, etc. */
   vcsContext?: VcsContext;
+  eventType?: AgentTraceEventType;
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
+  turnId?: string;
+  stepId?: string;
 }
 
 function buildContributor(type: ContributorType, modelId?: string): Contributor {
@@ -54,6 +71,8 @@ function buildContributor(type: ContributorType, modelId?: string): Contributor 
 function buildFileEntry(input: RecordAgentTraceInput): TraceFile {
   const lineCount = countLines(input.content);
   const contributor = buildContributor(input.contributorType, input.modelId);
+  const startLine = input.range?.startLine ?? 1;
+  const endLine = input.range?.endLine ?? lineCount;
 
   return {
     path: input.filePath,
@@ -63,8 +82,8 @@ function buildFileEntry(input: RecordAgentTraceInput): TraceFile {
         contributor,
         ranges: [
           {
-            start_line: 1,
-            end_line: lineCount,
+            start_line: startLine,
+            end_line: endLine,
             content_hash: fnv1a32(input.content),
             contributor, // Also include in range for granular attribution
           },
@@ -72,6 +91,52 @@ function buildFileEntry(input: RecordAgentTraceInput): TraceFile {
       },
     ],
   };
+}
+
+function resolveTraceContext(input: {
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
+}) {
+  return {
+    traceId: input.traceId ?? getCurrentTraceId(),
+    spanId: input.spanId ?? getCurrentSpanId(),
+    parentSpanId: input.parentSpanId,
+  };
+}
+
+function extractLineRangeFromArgs(args: Record<string, unknown>): { startLine: number; endLine: number } | undefined {
+  const startLine = Number(
+    (args.startLine ?? args.start_line ?? args.lineStart ?? (args.range as { startLine?: unknown; start_line?: unknown })?.startLine
+    ?? (args.range as { start_line?: unknown })?.start_line) ??
+    (args.range as { start?: unknown })?.start
+  );
+  const endLine = Number(
+    (args.endLine ?? args.end_line ?? args.lineEnd ?? (args.range as { endLine?: unknown; end_line?: unknown })?.endLine
+    ?? (args.range as { end_line?: unknown })?.end_line) ??
+    (args.range as { end?: unknown })?.end
+  );
+
+  if (Number.isFinite(startLine) && Number.isFinite(endLine)) {
+    return { startLine: Math.max(1, startLine), endLine: Math.max(startLine, endLine) };
+  }
+  return undefined;
+}
+
+async function enforceMaxRecordsLimit(): Promise<void> {
+  try {
+    const { agentTraceSettings } = useSettingsStore.getState();
+    const { enabled, maxRecords } = agentTraceSettings;
+    if (!enabled || maxRecords <= 0) return;
+
+    const currentCount = await agentTraceRepository.count();
+    if (currentCount <= maxRecords) return;
+
+    const excessCount = currentCount - maxRecords;
+    await agentTraceRepository.deleteOldest(excessCount);
+  } catch (error) {
+    console.error('[AgentTrace] Failed to enforce max records limit:', error);
+  }
 }
 
 export async function recordAgentTrace(input: RecordAgentTraceInput): Promise<string> {
@@ -93,6 +158,8 @@ export async function recordAgentTrace(input: RecordAgentTraceInput): Promise<st
     if (input.vcsContext.repoPath) extendedMetadata.gitRepoPath = input.vcsContext.repoPath;
   }
 
+  const traceContext = resolveTraceContext(input);
+
   const record: AgentTraceRecord = {
     version: AGENT_TRACE_VERSION,
     id,
@@ -103,6 +170,12 @@ export async function recordAgentTrace(input: RecordAgentTraceInput): Promise<st
       version: AGENT_TRACE_TOOL_VERSION,
     },
     files: [buildFileEntry(input)],
+    eventType: input.eventType,
+    traceId: traceContext.traceId,
+    spanId: traceContext.spanId,
+    parentSpanId: traceContext.parentSpanId,
+    turnId: input.turnId,
+    stepId: input.stepId,
     metadata: extendedMetadata,
   };
 
@@ -113,7 +186,16 @@ export async function recordAgentTrace(input: RecordAgentTraceInput): Promise<st
     vcsRevision: vcsInfo?.revision,
   });
 
+  await enforceMaxRecordsLimit();
+
   return id;
+}
+
+/** Token usage information from AI SDK */
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
 }
 
 export interface RecordFromToolCallInput {
@@ -121,9 +203,14 @@ export interface RecordFromToolCallInput {
   agentName?: string;
   provider?: string;
   model?: string;
+  toolCallId?: string;
   toolName: string;
   toolArgs: Record<string, unknown>;
   toolResult: unknown;
+  /** Token usage for this tool call step */
+  tokenUsage?: TokenUsage;
+  /** Latency in milliseconds */
+  latencyMs?: number;
 }
 
 function asString(value: unknown): string | null {
@@ -200,6 +287,18 @@ function isSuccessResult(result: unknown): boolean {
   return Boolean((result as { success?: unknown }).success);
 }
 
+function extractErrorMessage(result: unknown): string | undefined {
+  if (!result || typeof result !== 'object') return 'Unknown error';
+  const obj = result as Record<string, unknown>;
+  if (typeof obj.error === 'string') return obj.error;
+  if (typeof obj.message === 'string') return obj.message;
+  if (obj.error && typeof obj.error === 'object') {
+    const err = obj.error as Record<string, unknown>;
+    if (typeof err.message === 'string') return err.message;
+  }
+  return 'Operation failed';
+}
+
 /**
  * Check if a tool name should be traced
  */
@@ -207,22 +306,92 @@ export function isTracedTool(toolName: string): boolean {
   return TRACED_TOOL_NAMES.includes(toolName as TracedToolName);
 }
 
+export interface RecordAgentTraceEventInput {
+  sessionId?: string;
+  contributorType: ContributorType;
+  modelId?: string;
+  eventType: AgentTraceEventType;
+  metadata?: Record<string, unknown>;
+  vcsContext?: VcsContext;
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
+  turnId?: string;
+  stepId?: string;
+}
+
+export async function recordAgentTraceEvent(input: RecordAgentTraceEventInput): Promise<string> {
+  const id = nanoid();
+  const vcsInfo = input.vcsContext?.vcs;
+  const traceContext = resolveTraceContext(input);
+
+  const record: AgentTraceRecord = {
+    version: AGENT_TRACE_VERSION,
+    id,
+    timestamp: new Date().toISOString(),
+    vcs: vcsInfo,
+    tool: {
+      name: AGENT_TRACE_TOOL_NAME,
+      version: AGENT_TRACE_TOOL_VERSION,
+    },
+    files: [],
+    eventType: input.eventType,
+    traceId: traceContext.traceId,
+    spanId: traceContext.spanId,
+    parentSpanId: traceContext.parentSpanId,
+    turnId: input.turnId,
+    stepId: input.stepId,
+    metadata: {
+      sessionId: input.sessionId,
+      ...input.metadata,
+    },
+  };
+
+  await agentTraceRepository.create({
+    record,
+    sessionId: input.sessionId,
+    vcsType: vcsInfo?.type,
+    vcsRevision: vcsInfo?.revision,
+  });
+
+  await enforceMaxRecordsLimit();
+
+  return id;
+}
+
 export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInput): Promise<void> {
-  const { toolName, toolArgs, toolResult } = input;
+  const { toolName, toolArgs, toolResult, tokenUsage, latencyMs } = input;
 
   // Get agent trace settings from store
-  const { traceShellCommands, traceCodeEdits } = useSettingsStore.getState().agentTraceSettings;
+  const { traceShellCommands, traceCodeEdits, traceFailedCalls } = useSettingsStore.getState().agentTraceSettings;
+
+  // Check if this is a successful result
+  const isSuccess = isSuccessResult(toolResult);
+
+  // Build common metadata including token usage and success status
+  const buildMetadata = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
+    toolCallId: input.toolCallId,
+    toolName,
+    agentName: input.agentName,
+    success: isSuccess,
+    ...(!isSuccess && { error: extractErrorMessage(toolResult) }),
+    ...(tokenUsage && { tokenUsage }),
+    ...(latencyMs !== undefined && { latencyMs }),
+    ...extra,
+  });
 
   // File write operations
   if (toolName === 'file_write' || toolName === 'file_append') {
     const path = asString(toolArgs.path);
     const content = asString(toolArgs.content);
     if (!path || content === null) return;
-    if (!isSuccessResult(toolResult)) return;
+    // Skip failed calls if traceFailedCalls is disabled
+    if (!isSuccess && !traceFailedCalls) return;
 
     // Use multi-VCS detection (supports git, jj, hg, svn)
     const vcsContext = await getVcsInfoAsync(path);
 
+    const range = extractLineRangeFromArgs(toolArgs);
     await recordAgentTrace({
       sessionId: input.sessionId,
       conversationUrl: input.sessionId ? `cognia://agent-session/${input.sessionId}` : undefined,
@@ -230,11 +399,10 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
       modelId: getModelId(input.provider, input.model),
       filePath: path,
       content,
+      range,
       vcsContext,
-      metadata: {
-        toolName,
-        agentName: input.agentName,
-      },
+      eventType: 'tool_call_result',
+      metadata: buildMetadata(),
     });
     return;
   }
@@ -242,11 +410,13 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
   if (toolName === 'artifact_create') {
     const content = asString(toolArgs.content);
     if (content === null) return;
-    if (!isSuccessResult(toolResult)) return;
+    // Skip failed calls if traceFailedCalls is disabled
+    if (!isSuccess && !traceFailedCalls) return;
 
     const resultObj = toolResult as { artifactId?: unknown } | null;
     const artifactId = resultObj && typeof resultObj === 'object' ? asString(resultObj.artifactId) : null;
-    if (!artifactId) return;
+    // For failed calls, use a placeholder artifact ID
+    const effectiveArtifactId = artifactId || `failed-${Date.now()}`;
 
     // Artifacts use Git store directly (no file path for VCS detection)
     const vcsContext = getVcsFromGitStore();
@@ -256,13 +426,11 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
       conversationUrl: input.sessionId ? `cognia://agent-session/${input.sessionId}` : undefined,
       contributorType: 'ai',
       modelId: getModelId(input.provider, input.model),
-      filePath: `artifact:${artifactId}`,
+      filePath: `artifact:${effectiveArtifactId}`,
       content,
       vcsContext,
-      metadata: {
-        toolName,
-        agentName: input.agentName,
-      },
+      eventType: 'tool_call_result',
+      metadata: buildMetadata(),
     });
     return;
   }
@@ -271,7 +439,8 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
     const artifactId = asString(toolArgs.artifactId);
     const content = asString(toolArgs.content);
     if (!artifactId || content === null) return;
-    if (!isSuccessResult(toolResult)) return;
+    // Skip failed calls if traceFailedCalls is disabled
+    if (!isSuccess && !traceFailedCalls) return;
 
     // Artifacts use Git store directly (no file path for VCS detection)
     const vcsContext = getVcsFromGitStore();
@@ -284,10 +453,8 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
       filePath: `artifact:${artifactId}`,
       content,
       vcsContext,
-      metadata: {
-        toolName,
-        agentName: input.agentName,
-      },
+      eventType: 'tool_call_result',
+      metadata: buildMetadata(),
     });
     return;
   }
@@ -300,11 +467,13 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
     const path = asString(toolArgs.path) || asString(toolArgs.filePath);
     const content = asString(toolArgs.content) || asString(toolArgs.code);
     if (!path || content === null) return;
-    if (!isSuccessResult(toolResult)) return;
+    // Skip failed calls if traceFailedCalls is disabled
+    if (!isSuccess && !traceFailedCalls) return;
 
     // Use multi-VCS detection (supports git, jj, hg, svn)
     const vcsContext = await getVcsInfoAsync(path);
 
+    const range = extractLineRangeFromArgs(toolArgs);
     await recordAgentTrace({
       sessionId: input.sessionId,
       conversationUrl: input.sessionId ? `cognia://agent-session/${input.sessionId}` : undefined,
@@ -312,11 +481,10 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
       modelId: getModelId(input.provider, input.model),
       filePath: path,
       content,
+      range,
       vcsContext,
-      metadata: {
-        toolName,
-        agentName: input.agentName,
-      },
+      eventType: 'tool_call_result',
+      metadata: buildMetadata(),
     });
     return;
   }
@@ -328,7 +496,8 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
 
     const command = asString(toolArgs.command) || asString(toolArgs.script);
     if (!command) return;
-    if (!isSuccessResult(toolResult)) return;
+    // Skip failed calls if traceFailedCalls is disabled
+    if (!isSuccess && !traceFailedCalls) return;
 
     // Shell commands use Git store directly (working directory context)
     const vcsContext = getVcsFromGitStore();
@@ -341,11 +510,8 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
       filePath: `shell:${Date.now()}`,
       content: command,
       vcsContext,
-      metadata: {
-        toolName,
-        agentName: input.agentName,
-        type: 'shell_command',
-      },
+      eventType: 'tool_call_result',
+      metadata: buildMetadata({ type: 'shell_command' }),
     });
   }
 }

@@ -61,9 +61,23 @@ export function ThemeSchedule() {
         </div>
 
         {theme === 'system' && schedule.enabled && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">
-            {t('systemThemeNote')}
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {t('systemThemeNote')}
+            </p>
+            <div className="flex items-center justify-between rounded-lg border p-2 bg-amber-50/50 dark:bg-amber-950/20">
+              <div className="space-y-0.5">
+                <Label className="text-xs">{t('overrideSystem')}</Label>
+                <p className="text-[10px] text-muted-foreground">
+                  {t('overrideSystemDesc')}
+                </p>
+              </div>
+              <Switch
+                checked={schedule.overrideSystem}
+                onCheckedChange={(overrideSystem) => updateSchedule({ overrideSystem })}
+              />
+            </div>
+          </div>
         )}
 
         {schedule.enabled && (

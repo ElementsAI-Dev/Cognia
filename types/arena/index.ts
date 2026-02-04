@@ -169,6 +169,8 @@ export interface ArenaBattle {
   isBothBad?: boolean;
   /** User notes about the battle */
   notes?: string;
+  /** When the user started viewing this battle */
+  viewingStartedAt?: Date;
   /** Battle creation time */
   createdAt: Date;
   /** Battle completion time */

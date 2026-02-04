@@ -23,9 +23,23 @@ jest.mock('../core/client', () => ({
   getProviderModel: jest.fn(() => 'mock-model'),
 }));
 
+jest.mock('@/lib/agent-trace', () => ({
+  recordAgentTraceFromToolCall: jest.fn(),
+  recordAgentTraceEvent: jest.fn(),
+  safeJsonStringify: (value: unknown, fallback = '{}') => {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return fallback;
+    }
+  },
+}));
+
 import { generateText } from 'ai';
+import { recordAgentTraceEvent } from '@/lib/agent-trace';
 
 const mockGenerateText = generateText as jest.Mock;
+const mockRecordAgentTraceEvent = recordAgentTraceEvent as jest.Mock;
 
 // Helper type for mock config to avoid type errors
 interface MockConfig {
@@ -74,6 +88,15 @@ describe('executeAgent', () => {
     expect(result.success).toBe(true);
     expect(result.finalResponse).toBe('Hello! How can I help you today?');
     expect(result.totalSteps).toBe(1);
+    expect(mockRecordAgentTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'step_start' })
+    );
+    expect(mockRecordAgentTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'step_finish' })
+    );
+    expect(mockRecordAgentTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'response' })
+    );
   });
 
   it('respects maxSteps configuration', async () => {

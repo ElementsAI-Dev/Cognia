@@ -24,7 +24,16 @@ interface FFmpegInstance {
   createDir: (path: string) => Promise<void>;
   rename: (oldPath: string, newPath: string) => Promise<void>;
   on: (event: string, callback: (data: unknown) => void) => void;
+  off: (event: string, callback?: (data: unknown) => void) => void;
   terminate: () => void;
+}
+
+/**
+ * FFmpeg log message type
+ */
+interface FFmpegLogMessage {
+  type: string;
+  message: string;
 }
 
 /**
@@ -166,21 +175,36 @@ export class FFmpegWasm {
       await this.load();
     }
 
-    if (onProgress) {
-      this.setProgressCallback(onProgress);
+    // Wrap progress callback for two-pass encoding
+    const progressWrapper = onProgress 
+      ? (progress: number) => {
+          if (options.twoPass) {
+            // Scale progress: 0-50% for pass 1, 50-100% for pass 2
+            onProgress(progress / 2);
+          } else {
+            onProgress(progress);
+          }
+        }
+      : undefined;
+
+    if (progressWrapper) {
+      this.setProgressCallback(progressWrapper);
     }
 
     try {
       // Write input file
       await this.writeFile(inputName, inputData);
 
-      // Build FFmpeg arguments
-      const args = this.buildTranscodeArgs(inputName, outputName, options);
-
-      // Execute transcoding
-      const exitCode = await this.exec(args);
-      if (exitCode !== 0) {
-        throw new Error(`FFmpeg exited with code ${exitCode}`);
+      if (options.twoPass) {
+        // Two-pass encoding for better quality
+        await this.executeTwoPassEncode(inputName, outputName, options, onProgress);
+      } else {
+        // Single pass encoding
+        const args = this.buildTranscodeArgs(inputName, outputName, options);
+        const exitCode = await this.exec(args);
+        if (exitCode !== 0) {
+          throw new Error(`FFmpeg exited with code ${exitCode}`);
+        }
       }
 
       // Read output file
@@ -189,10 +213,64 @@ export class FFmpegWasm {
       // Clean up
       await this.deleteFile(inputName);
       await this.deleteFile(outputName);
+      // Clean up two-pass log files if they exist
+      await this.deleteFile('ffmpeg2pass-0.log').catch(() => {});
+      await this.deleteFile('ffmpeg2pass-0.log.mbtree').catch(() => {});
 
       return outputData;
     } finally {
       this.setProgressCallback(null);
+    }
+  }
+
+  /**
+   * Execute two-pass video encoding
+   */
+  private async executeTwoPassEncode(
+    inputName: string,
+    outputName: string,
+    options: Partial<VideoExportOptions>,
+    onProgress?: ProgressCallback
+  ): Promise<void> {
+    // Build base arguments without output
+    const baseArgs = this.buildTranscodeArgs(inputName, outputName, options);
+    
+    // Remove the output file from args (last two elements: '-y', outputName)
+    const argsWithoutOutput = baseArgs.slice(0, -2);
+
+    // Pass 1: Analyze video and create log file
+    const pass1Args = [
+      ...argsWithoutOutput,
+      '-pass', '1',
+      '-an', // No audio in pass 1
+      '-f', 'null',
+      '-'
+    ];
+
+    if (onProgress) {
+      this.setProgressCallback((p) => onProgress(p / 2)); // 0-50%
+    }
+
+    const pass1Exit = await this.exec(pass1Args);
+    if (pass1Exit !== 0) {
+      throw new Error(`FFmpeg two-pass encoding (pass 1) failed with code ${pass1Exit}`);
+    }
+
+    // Pass 2: Actual encoding using the log file
+    const pass2Args = [
+      ...argsWithoutOutput,
+      '-pass', '2',
+      '-y',
+      outputName
+    ];
+
+    if (onProgress) {
+      this.setProgressCallback((p) => onProgress(50 + p / 2)); // 50-100%
+    }
+
+    const pass2Exit = await this.exec(pass2Args);
+    if (pass2Exit !== 0) {
+      throw new Error(`FFmpeg two-pass encoding (pass 2) failed with code ${pass2Exit}`);
     }
   }
 
@@ -236,11 +314,8 @@ export class FFmpegWasm {
       args.push('-b:v', options.bitrate.toString());
     }
 
-    // Two-pass encoding
-    if (options.twoPass) {
-      // Note: Two-pass requires running FFmpeg twice, simplified here
-      args.push('-pass', '1');
-    }
+    // Two-pass encoding is handled separately in transcode method
+    // This builds args for single pass or individual passes
 
     // Audio codec
     if (options.audioCodec) {
@@ -285,7 +360,7 @@ export class FFmpegWasm {
   }
 
   /**
-   * Extract video metadata
+   * Extract video metadata by parsing FFmpeg output
    */
   public async getMetadata(inputData: Uint8Array, inputName: string): Promise<VideoMetadata> {
     if (!this.isLoaded()) {
@@ -294,27 +369,41 @@ export class FFmpegWasm {
 
     await this.writeFile(inputName, inputData);
 
-    // Use ffprobe-like output
-    const args = [
-      '-i',
-      inputName,
-      '-f',
-      'null',
-      '-hide_banner',
-      '-',
-    ];
+    // Collect FFmpeg log output for parsing
+    const logMessages: string[] = [];
+    const logHandler = (data: unknown) => {
+      const logData = data as FFmpegLogMessage;
+      if (logData.message) {
+        logMessages.push(logData.message);
+      }
+    };
+
+    this.ffmpeg!.on('log', logHandler);
 
     try {
-      await this.exec(args);
+      // Run FFmpeg to get metadata (will fail but logs contain info)
+      await this.exec(['-i', inputName, '-f', 'null', '-']);
     } catch {
-      // FFmpeg will exit with error when no output, but metadata is still parsed
+      // Expected - FFmpeg exits with error when no output specified
     }
+
+    this.ffmpeg!.off('log', logHandler);
 
     // Clean up
     await this.deleteFile(inputName);
 
-    // Return basic metadata (full parsing would require log output parsing)
-    return {
+    // Parse metadata from logs
+    return this.parseMetadataFromLogs(logMessages, inputData.length, inputName);
+  }
+
+  /**
+   * Parse video metadata from FFmpeg log output
+   */
+  private parseMetadataFromLogs(logs: string[], fileSize: number, fileName: string): VideoMetadata {
+    const fullLog = logs.join('\n');
+    
+    // Initialize with defaults
+    const metadata: VideoMetadata = {
       width: 0,
       height: 0,
       duration: 0,
@@ -322,9 +411,106 @@ export class FFmpegWasm {
       codec: 'unknown',
       bitrate: 0,
       hasAudio: false,
-      fileSize: inputData.length,
-      mimeType: 'video/mp4',
+      fileSize,
+      mimeType: this.getMimeType(fileName),
     };
+
+    // Parse duration: "Duration: 00:01:30.50"
+    const durationMatch = fullLog.match(/Duration:\s*(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+    if (durationMatch) {
+      const [, hours, minutes, seconds, centiseconds] = durationMatch;
+      metadata.duration = 
+        parseInt(hours) * 3600 + 
+        parseInt(minutes) * 60 + 
+        parseInt(seconds) + 
+        parseInt(centiseconds) / 100;
+    }
+
+    // Parse bitrate: "bitrate: 1234 kb/s"
+    const bitrateMatch = fullLog.match(/bitrate:\s*(\d+)\s*kb\/s/);
+    if (bitrateMatch) {
+      metadata.bitrate = parseInt(bitrateMatch[1]) * 1000;
+    }
+
+    // Parse video stream: "Stream #0:0: Video: h264, 1920x1080, 30 fps"
+    const videoStreamMatch = fullLog.match(
+      /Stream\s*#\d+:\d+.*Video:\s*(\w+).*?,\s*(\d+)x(\d+).*?,\s*([\d.]+)\s*(?:fps|tbr)/
+    );
+    if (videoStreamMatch) {
+      metadata.codec = videoStreamMatch[1];
+      metadata.width = parseInt(videoStreamMatch[2]);
+      metadata.height = parseInt(videoStreamMatch[3]);
+      metadata.frameRate = parseFloat(videoStreamMatch[4]);
+    } else {
+      // Try alternative pattern for resolution
+      const resolutionMatch = fullLog.match(/(\d{2,5})x(\d{2,5})/);
+      if (resolutionMatch) {
+        metadata.width = parseInt(resolutionMatch[1]);
+        metadata.height = parseInt(resolutionMatch[2]);
+      }
+      
+      // Try alternative pattern for codec
+      const codecMatch = fullLog.match(/Video:\s*(\w+)/);
+      if (codecMatch) {
+        metadata.codec = codecMatch[1];
+      }
+      
+      // Try alternative pattern for fps
+      const fpsMatch = fullLog.match(/([\d.]+)\s*fps/);
+      if (fpsMatch) {
+        metadata.frameRate = parseFloat(fpsMatch[1]);
+      }
+    }
+
+    // Parse audio stream: "Stream #0:1: Audio: aac, 48000 Hz, stereo, 320 kb/s"
+    const audioStreamMatch = fullLog.match(
+      /Stream\s*#\d+:\d+.*Audio:\s*(\w+).*?,\s*(\d+)\s*Hz.*?,\s*(\w+)/
+    );
+    if (audioStreamMatch) {
+      metadata.hasAudio = true;
+      metadata.audioCodec = audioStreamMatch[1];
+      metadata.audioSampleRate = parseInt(audioStreamMatch[2]);
+      
+      // Parse audio channels
+      const channelStr = audioStreamMatch[3].toLowerCase();
+      if (channelStr === 'mono') {
+        metadata.audioChannels = 1;
+      } else if (channelStr === 'stereo') {
+        metadata.audioChannels = 2;
+      } else if (channelStr.includes('5.1') || channelStr.includes('surround')) {
+        metadata.audioChannels = 6;
+      } else {
+        metadata.audioChannels = 2; // Default to stereo
+      }
+      
+      // Parse audio bitrate
+      const audioBitrateMatch = fullLog.match(/Audio:.*?(\d+)\s*kb\/s/);
+      if (audioBitrateMatch) {
+        metadata.audioBitrate = parseInt(audioBitrateMatch[1]) * 1000;
+      }
+    }
+
+    return metadata;
+  }
+
+  /**
+   * Get MIME type from file extension
+   */
+  private getMimeType(fileName: string): string {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    const mimeTypes: Record<string, string> = {
+      mp4: 'video/mp4',
+      webm: 'video/webm',
+      mov: 'video/quicktime',
+      avi: 'video/x-msvideo',
+      mkv: 'video/x-matroska',
+      m4v: 'video/x-m4v',
+      flv: 'video/x-flv',
+      wmv: 'video/x-ms-wmv',
+      '3gp': 'video/3gpp',
+      ogv: 'video/ogg',
+    };
+    return mimeTypes[ext] || 'video/mp4';
   }
 
   /**

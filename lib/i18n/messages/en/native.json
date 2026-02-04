@@ -10,6 +10,7 @@
       "screenshot": "Screenshot",
       "focus": "Focus",
       "context": "Context",
+      "location": "Location",
       "system": "System",
       "sandbox": "Sandbox"
     }

@@ -6,3 +6,4 @@
 export * from '@/types/system/geolocation';
 export * from './geolocation';
 export * from './locale-detector';
+export * from './geocoding';

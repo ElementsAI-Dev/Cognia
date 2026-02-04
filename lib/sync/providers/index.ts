@@ -7,3 +7,4 @@ export type { SyncProvider } from './sync-provider';
 
 export { WebDAVProvider } from './webdav-provider';
 export { GitHubProvider } from './github-provider';
+export { GoogleDriveProvider } from './googledrive-provider';

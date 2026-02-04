@@ -135,6 +135,8 @@ export { LocaleInitializer } from './initializers';
 
 export { StoreInitializer } from './initializers';
 
+export { SkillSyncInitializer } from './initializers';
+
 export {
   SkillProvider,
   useInitializeSkills,

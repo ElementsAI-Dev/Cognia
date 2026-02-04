@@ -5,6 +5,7 @@
 import type { 
   Participant, 
   CursorPosition,
+  LineRange,
   CollaborationEvent,
   CollaborationEventType 
 } from '@/types/canvas/collaboration';
@@ -149,7 +150,7 @@ export class CanvasWebSocketProvider {
     });
   }
 
-  broadcastSelection(selection: { startLine: number; endLine: number }): void {
+  broadcastSelection(selection: LineRange | null): void {
     if (!this.sessionId || !this.participantId) return;
 
     this.send({

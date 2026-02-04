@@ -225,8 +225,9 @@ export async function checkWebUIAccess(
 
 /**
  * Format API key for display (mask middle portion)
+ * Named differently from openrouter.ts to avoid export conflict
  */
-export function maskApiKey(apiKey: string): string {
+export function maskCLIProxyApiKey(apiKey: string): string {
   if (!apiKey || apiKey.length < 8) return '****';
   return `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
 }

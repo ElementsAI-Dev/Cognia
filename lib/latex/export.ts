@@ -5,6 +5,7 @@
  */
 
 import type { LaTeXExportOptions, LaTeXExportFormat } from '@/types/latex';
+import { KATEX_CDN_VERSION } from '@/lib/latex/config';
 
 // ============================================================================
 // Types
@@ -160,9 +161,9 @@ export function latexToHtml(
 
   // Create standalone HTML document
   const mathScripts = mathRenderer === 'katex'
-    ? `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>`
+    ? `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@${KATEX_CDN_VERSION}/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@${KATEX_CDN_VERSION}/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@${KATEX_CDN_VERSION}/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>`
     : `<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>`;
 

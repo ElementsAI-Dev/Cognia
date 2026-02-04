@@ -12,7 +12,7 @@ import { db, type DBAgentTrace } from '@/lib/db';
 import { agentTraceRepository } from '@/lib/db/repositories/agent-trace-repository';
 import type { LineAttribution } from '@/lib/db/repositories/agent-trace-repository';
 import { useSettingsStore } from '@/stores/settings';
-import type { AgentTraceRecord } from '@/types/agent-trace';
+import type { AgentTraceEventType, AgentTraceRecord } from '@/types/agent-trace';
 
 export interface UseAgentTraceOptions {
   /** Filter by session ID */
@@ -21,6 +21,8 @@ export interface UseAgentTraceOptions {
   filePath?: string;
   /** Filter by VCS revision */
   vcsRevision?: string;
+  /** Filter by event type */
+  eventType?: AgentTraceEventType;
   /** Maximum number of records to return */
   limit?: number;
   /** Enable auto-refresh */
@@ -69,7 +71,7 @@ export interface UseAgentTraceReturn {
 }
 
 export function useAgentTrace(options: UseAgentTraceOptions = {}): UseAgentTraceReturn {
-  const { sessionId, filePath, limit = 200 } = options;
+  const { sessionId, filePath, vcsRevision, eventType, limit = 200 } = options;
 
   const [refreshTick, setRefreshTick] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +82,7 @@ export function useAgentTrace(options: UseAgentTraceOptions = {}): UseAgentTrace
   // Trimmed filter values
   const trimmedSessionId = sessionId?.trim() || '';
   const trimmedFilePath = filePath?.trim().toLowerCase() || '';
+  const trimmedVcsRevision = vcsRevision?.trim() || '';
 
   // Query traces with live updates
   const queryResult = useLiveQuery(
@@ -93,30 +96,65 @@ export function useAgentTrace(options: UseAgentTraceOptions = {}): UseAgentTrace
             .limit(limit)
             .toArray();
         }
+        if (trimmedVcsRevision) {
+          return db.agentTraces
+            .where('[vcsRevision+timestamp]')
+            .between([trimmedVcsRevision, Dexie.minKey], [trimmedVcsRevision, Dexie.maxKey])
+            .reverse()
+            .limit(limit)
+            .toArray();
+        }
         return db.agentTraces.orderBy('timestamp').reverse().limit(limit).toArray();
       } catch (err) {
         console.error('Failed to query agent traces:', err);
         return [];
       }
     },
-    [trimmedSessionId, limit, refreshTick],
+    [trimmedSessionId, trimmedVcsRevision, limit, refreshTick],
     [] as DBAgentTrace[]
   );
 
   // Filter by file path if provided
   const traces = useMemo(() => {
-    if (!trimmedFilePath) return queryResult;
+    if (!trimmedFilePath && !eventType && !trimmedVcsRevision) return queryResult;
 
     return queryResult.filter((trace) => {
-      try {
-        const record = JSON.parse(trace.record) as { files?: Array<{ path?: string }> };
-        const paths = record.files?.map((f) => f.path?.toLowerCase() || '') || [];
-        return paths.some((p) => p.includes(trimmedFilePath));
-      } catch {
-        return false;
+      let parsed: AgentTraceRecord | null = null;
+      const getRecord = () => {
+        if (parsed) return parsed;
+        try {
+          parsed = JSON.parse(trace.record) as AgentTraceRecord;
+          return parsed;
+        } catch {
+          return null;
+        }
+      };
+
+      if (trimmedVcsRevision) {
+        const revision = trace.vcsRevision || getRecord()?.vcs?.revision;
+        if (revision !== trimmedVcsRevision) return false;
       }
+
+      if (trimmedFilePath) {
+        const filePaths = trace.filePaths ?? [];
+        const matchesIndexed = filePaths.some((path) => path.toLowerCase().includes(trimmedFilePath));
+        if (!matchesIndexed) {
+          const record = getRecord();
+          const recordPaths = record?.files?.map((file) => file.path?.toLowerCase() || '') ?? [];
+          if (!recordPaths.some((path) => path.includes(trimmedFilePath))) {
+            return false;
+          }
+        }
+      }
+
+      if (eventType) {
+        const record = getRecord();
+        if (!record || record.eventType !== eventType) return false;
+      }
+
+      return true;
     });
-  }, [queryResult, trimmedFilePath]);
+  }, [queryResult, trimmedFilePath, eventType, trimmedVcsRevision]);
 
   // Get total count
   const totalCount = useLiveQuery(

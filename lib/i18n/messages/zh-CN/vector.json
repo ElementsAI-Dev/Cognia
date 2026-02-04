@@ -122,6 +122,7 @@
     "providerChroma": "Chroma（嵌入式/服务器）",
     "providerNative": "原生（本地 Tauri）",
     "providerPinecone": "Pinecone",
+    "providerWeaviate": "Weaviate",
     "providerQdrant": "Qdrant",
     "providerMilvus": "Milvus",
     "connectionSuccess": "成功：{count} 个集合可访问",
@@ -138,8 +139,14 @@
         "namespace": "命名空间",
         "namespacePlaceholder": "default"
       },
+      "weaviate": {
+        "url": "服务地址",
+        "urlPlaceholder": "http://localhost:8080",
+        "apiKey": "API Key（可选）",
+        "apiKeyPlaceholder": "如需请填写 API Key"
+      },
       "qdrant": {
-        "url": "服务器 URL",
+        "url": "服务地址",
         "urlPlaceholder": "http://localhost:6333",
         "apiKey": "API Key（可选）",
         "apiKeyPlaceholder": "如需要请输入 API Key"
@@ -191,17 +198,8 @@
       "add": "添加文档"
     }
   },
-  "vectorSetupGuide": {
-    "title": "向量数据库设置",
-    "subtitle": "三步完成向量数据库配置",
-    "step1Title": "选择提供商",
-    "step1Desc": "选择 Native 进行本地存储，或选择 Chroma/Pinecone/Qdrant/Milvus 获得更多能力。",
-    "step2Title": "配置嵌入",
-    "step2Desc": "选择嵌入提供商与模型以生成向量。",
-    "step3Title": "测试连接",
-    "step3Desc": "通过测试连接与创建首个集合来验证配置。",
-    "skip": "跳过引导",
-    "continue": "继续设置",
+  "chunking": {
+    "title": "分块设置",
     "hint": "你可以随时在此页面修改这些设置"
   },
   "vectorApiKeyModal": {

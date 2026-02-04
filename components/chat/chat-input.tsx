@@ -20,7 +20,8 @@ import { Button } from '@/components/ui/button';
 // TooltipProvider is now at app level in providers.tsx
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSettingsStore, useRecentFilesStore, usePromptTemplateStore } from '@/stores';
-import { RecentFilesPopover, MentionPopover, ToolHistoryPanel } from './popovers';
+import { RecentFilesPopover, MentionPopover, ToolHistoryPanel, SlashCommandPopover } from './popovers';
+import type { SlashCommandDefinition } from '@/types/chat/slash-commands';
 import type { RecentFile } from '@/stores/system';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
 import { useMention, useSpeech } from '@/hooks';
@@ -230,7 +231,7 @@ export function ChatInput({
   onManagePresets,
   onOpenWorkflowPicker,
   onOpenPromptOptimization,
-  onOpenArena: _onOpenArena,
+  onOpenArena,
   hasActivePreset,
 }: ChatInputProps) {
   const t = useTranslations('chatInput');
@@ -274,6 +275,14 @@ export function ChatInput({
 
   const [isTemplateSelectorOpen, setTemplateSelectorOpen] = useState(false);
 
+  // Slash command state
+  const [slashCommandState, setSlashCommandState] = useState<{
+    isOpen: boolean;
+    query: string;
+    triggerPosition: number;
+  }>({ isOpen: false, query: '', triggerPosition: 0 });
+  const [slashAnchorRect, setSlashAnchorRect] = useState<DOMRect | null>(null);
+
   useEffect(() => {
     initializePromptTemplates();
   }, [initializePromptTemplates]);
@@ -288,14 +297,14 @@ export function ChatInput({
     isListening,
     isRecording,
     transcript: _speechTranscript,
-    interimTranscript: _interimTranscript,
+    interimTranscript,
     startListening,
     stopListening,
     resetTranscript,
     sttSupported: speechSupported,
     currentProvider: speechProvider,
     currentLanguage: speechLanguage,
-    error: _speechError,
+    error: speechError,
     audioBlob,
     recordingDuration,
   } = useSpeech({
@@ -328,7 +337,7 @@ export function ChatInput({
   const isProcessing = isLoading || isStreaming;
   const canSend = (value.trim().length > 0 || attachments.length > 0) && !isProcessing && !disabled;
 
-  // Handle input change with mention detection
+  // Handle input change with mention and slash command detection
   const handleInputChange = useCallback(
     (newValue: string) => {
       onChange(newValue);
@@ -336,9 +345,36 @@ export function ChatInput({
       if (textarea) {
         const pos = textarea.selectionStart || 0;
         handleTextChange(newValue, pos);
+
+        // Detect slash command trigger
+        const textBeforeCursor = newValue.slice(0, pos);
+        const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
+
+        if (lastSlashIndex !== -1) {
+          const charBefore = lastSlashIndex > 0 ? newValue[lastSlashIndex - 1] : ' ';
+          // Only trigger if / is at start or after whitespace
+          if (charBefore === ' ' || charBefore === '\n' || lastSlashIndex === 0) {
+            const query = textBeforeCursor.slice(lastSlashIndex + 1);
+            // Only open if no space in query (command not completed)
+            if (!query.includes(' ')) {
+              const rect = getCaretCoordinates(textarea);
+              setSlashAnchorRect(rect);
+              setSlashCommandState({
+                isOpen: true,
+                query,
+                triggerPosition: lastSlashIndex,
+              });
+              return;
+            }
+          }
+        }
+        // Close slash command popover if no valid trigger
+        if (slashCommandState.isOpen) {
+          setSlashCommandState((prev) => ({ ...prev, isOpen: false }));
+        }
       }
     },
-    [onChange, handleTextChange]
+    [onChange, handleTextChange, slashCommandState.isOpen]
   );
 
   const handleTemplateSelect = useCallback(
@@ -383,6 +419,35 @@ export function ChatInput({
     },
     [selectMention, onChange]
   );
+
+  // Handle slash command selection from popover
+  const handleSlashCommandSelect = useCallback(
+    (command: SlashCommandDefinition) => {
+      const { triggerPosition, query } = slashCommandState;
+      const beforeTrigger = value.slice(0, triggerPosition);
+      const afterQuery = value.slice(triggerPosition + query.length + 1);
+      const commandText = `/${command.command} `;
+      const newText = `${beforeTrigger}${commandText}${afterQuery}`;
+      const newCursorPosition = beforeTrigger.length + commandText.length;
+
+      onChange(newText);
+      setSlashCommandState({ isOpen: false, query: '', triggerPosition: 0 });
+
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+          textarea.focus();
+        }
+      });
+    },
+    [value, onChange, slashCommandState]
+  );
+
+  // Close slash command popover
+  const closeSlashCommand = useCallback(() => {
+    setSlashCommandState({ isOpen: false, query: '', triggerPosition: 0 });
+  }, []);
 
   // Track selection changes for mention popover positioning
   useEffect(() => {
@@ -738,6 +803,15 @@ export function ChatInput({
             anchorRect={anchorRect}
             containerRef={inputContainerRef}
           />
+
+          {/* Slash Command Popover */}
+          <SlashCommandPopover
+            open={slashCommandState.isOpen}
+            onClose={closeSlashCommand}
+            onSelect={handleSlashCommandSelect}
+            query={slashCommandState.query}
+            anchorRect={slashAnchorRect}
+          />
           {/* Attachment button - hidden in simplified mode when hideAttachmentButton is set */}
           {!(isSimplifiedMode && simplifiedModeSettings.hideAttachmentButton) && (
             <Tooltip>
@@ -937,27 +1011,65 @@ export function ChatInput({
               />
             )}
 
-          {/* Textarea */}
-          <TextareaAutosize
-            ref={textareaRef}
-            value={value}
-            onChange={(e) => handleInputChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder={
-              isListening
-                ? tPlaceholders('listening')
-                : isMcpAvailable
-                  ? tPlaceholders('typeToMention')
-                  : tPlaceholders('typeMessage')
-            }
-            className={cn(
-              'flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground',
-              'max-h-50 min-h-6 py-1'
+          {/* Textarea with character counter */}
+          <div className="relative flex-1">
+            <TextareaAutosize
+              ref={textareaRef}
+              value={value}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder={
+                isListening
+                  ? tPlaceholders('listening')
+                  : isMcpAvailable
+                    ? tPlaceholders('typeToMention')
+                    : tPlaceholders('typeMessage')
+              }
+              className={cn(
+                'w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground',
+                'max-h-50 min-h-6 py-1 pr-12'
+              )}
+              maxRows={8}
+              disabled={isProcessing || disabled}
+              aria-label={t('inputAriaLabel')}
+              aria-describedby={speechError ? 'speech-error' : undefined}
+            />
+            {/* Character counter */}
+            {value.length > 0 && (
+              <span
+                className={cn(
+                  'absolute right-1 bottom-1 text-[10px] text-muted-foreground/60 select-none',
+                  value.length > 8000 && 'text-amber-500',
+                  value.length > 10000 && 'text-destructive'
+                )}
+                aria-live="polite"
+              >
+                {value.length.toLocaleString()}
+              </span>
             )}
-            maxRows={8}
-            disabled={isProcessing || disabled}
-          />
+          </div>
+
+          {/* Speech feedback - interim transcript preview */}
+          {(isListening || isRecording) && interimTranscript && (
+            <div
+              className="absolute left-2 right-2 -top-8 px-2 py-1 bg-muted/80 backdrop-blur-sm rounded text-xs text-muted-foreground truncate"
+              aria-live="polite"
+            >
+              {interimTranscript}
+            </div>
+          )}
+
+          {/* Speech error display */}
+          {speechError && (
+            <div
+              id="speech-error"
+              className="absolute left-2 right-2 -top-8 px-2 py-1 bg-destructive/10 text-destructive rounded text-xs"
+              role="alert"
+            >
+              {t('speechError')}: {speechError.message}
+            </div>
+          )}
 
           {/* Send/Stop button */}
           {isProcessing ? (
@@ -1018,6 +1130,7 @@ export function ChatInput({
             onSelectPrompt={(content) => onChange(value ? `${value}\n${content}` : content)}
             onOpenWorkflowPicker={onOpenWorkflowPicker}
             onOpenPromptOptimization={onOpenPromptOptimization}
+            onOpenArena={onOpenArena}
             hasActivePreset={hasActivePreset}
             disabled={disabled}
             isProcessing={isProcessing}

@@ -6,7 +6,7 @@ import {
   getBaseURL,
   getAPIURL,
   getWebUIURL,
-  maskApiKey,
+  maskCLIProxyApiKey,
   parseModelId,
   buildModelId,
   DEFAULT_CONFIG,
@@ -34,17 +34,17 @@ describe('CLIProxyAPI Provider', () => {
     });
   });
 
-  describe('maskApiKey', () => {
+  describe('maskCLIProxyApiKey', () => {
     it('should mask API key correctly', () => {
-      expect(maskApiKey('sk-1234567890abcdef')).toBe('sk-1...cdef');
+      expect(maskCLIProxyApiKey('sk-1234567890abcdef')).toBe('sk-1...cdef');
     });
 
     it('should handle short keys', () => {
-      expect(maskApiKey('short')).toBe('****');
+      expect(maskCLIProxyApiKey('short')).toBe('****');
     });
 
     it('should handle empty keys', () => {
-      expect(maskApiKey('')).toBe('****');
+      expect(maskCLIProxyApiKey('')).toBe('****');
     });
   });
 

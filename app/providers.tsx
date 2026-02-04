@@ -39,6 +39,7 @@ import { SetupWizard } from '@/components/settings';
 import { BackgroundRenderer } from '@/components/layout';
 import { TourManager, isOnboardingCompleted } from '@/components/onboarding';
 import { initializePluginManager } from '@/lib/plugin';
+import { PluginPermissionRequestDialog } from '@/components/plugin/permission-request-dialog';
 import {
   ErrorBoundaryProvider,
   LoggerProvider,
@@ -48,6 +49,7 @@ import {
   SkillProvider,
   NativeProvider,
   StoreInitializer,
+  SkillSyncInitializer,
 } from '@/components/providers';
 import { ObservabilityInitializer } from '@/components/observability';
 import { LocaleInitializer, AgentTraceInitializer } from '@/components/providers/initializers';
@@ -694,7 +696,8 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const applyScheduledTheme = () => {
       const currentTheme = useSettingsStore.getState().theme;
-      if (currentTheme === 'system') return;
+      // Skip if theme is 'system' and overrideSystem is not enabled
+      if (currentTheme === 'system' && !themeSchedule.overrideSystem) return;
 
       const shouldBeLight = isLightModePeriod(
         themeSchedule.lightModeStart,
@@ -714,6 +717,7 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     themeSchedule.enabled,
     themeSchedule.lightModeStart,
     themeSchedule.darkModeStart,
+    themeSchedule.overrideSystem,
     setTheme,
   ]);
 
@@ -887,6 +891,7 @@ export function Providers({ children }: ProvidersProps) {
                     <SkillProvider loadBuiltinSkills={true}>
                       <NativeProvider checkUpdatesOnMount={true}>
                         <StoreInitializer />
+                        <SkillSyncInitializer />
                         <ObservabilityInitializer />
                         <SchedulerInitializer />
                         <AgentTraceInitializer />
@@ -896,6 +901,7 @@ export function Providers({ children }: ProvidersProps) {
                     </SkillProvider>
                     <CommandPalette />
                     <Toaster />
+                    <PluginPermissionRequestDialog />
                     <KeyboardShortcutsDialog />
                     <ChatWidgetNativeSync />
                     <ChatAssistantContainerGate />

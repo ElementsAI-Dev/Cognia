@@ -39,3 +39,14 @@ export {
   type ChatWidgetConfig,
   type MessageFeedback,
 } from './chat-widget-store';
+
+export {
+  useParallelContextStore,
+  selectSessionContext,
+  selectContextCount,
+  DEFAULT_CONTEXT_ISOLATION_CONFIG,
+  type IsolatedSessionContext,
+  type WorkingMemoryItem,
+  type ToolResultCache,
+  type ContextIsolationConfig,
+} from './parallel-context-store';

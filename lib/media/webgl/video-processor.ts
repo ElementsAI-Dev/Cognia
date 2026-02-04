@@ -49,12 +49,25 @@ export class WebGLVideoProcessor {
   private positionBuffer: WebGLBuffer | null = null;
   private texCoordBuffer: WebGLBuffer | null = null;
   private isInitialized: boolean = false;
+  
+  // Context loss handling
+  private isContextLost: boolean = false;
+  private contextLostHandler: ((e: Event) => void) | null = null;
+  private contextRestoredHandler: ((e: Event) => void) | null = null;
+  private lastWidth: number = 0;
+  private lastHeight: number = 0;
+  private useOffscreenCanvas: boolean = true;
 
   /**
    * Initialize the WebGL context
    */
   public initialize(width: number, height: number, useOffscreen: boolean = true): boolean {
     try {
+      // Store initialization parameters for context restoration
+      this.lastWidth = width;
+      this.lastHeight = height;
+      this.useOffscreenCanvas = useOffscreen;
+
       // Create canvas
       if (useOffscreen && typeof OffscreenCanvas !== 'undefined') {
         this.canvas = new OffscreenCanvas(width, height);
@@ -62,6 +75,11 @@ export class WebGLVideoProcessor {
         this.canvas = document.createElement('canvas');
         this.canvas.width = width;
         this.canvas.height = height;
+      }
+
+      // Set up context loss handlers (only for HTMLCanvasElement)
+      if (this.canvas instanceof HTMLCanvasElement) {
+        this.setupContextLossHandlers();
       }
 
       // Get WebGL context
@@ -85,11 +103,83 @@ export class WebGLVideoProcessor {
       this.initializeFramebuffer(width, height);
 
       this.isInitialized = true;
+      this.isContextLost = false;
       return true;
     } catch (error) {
       log.error('Failed to initialize WebGL', error as Error);
       return false;
     }
+  }
+
+  /**
+   * Set up WebGL context loss and restoration handlers
+   */
+  private setupContextLossHandlers(): void {
+    if (!(this.canvas instanceof HTMLCanvasElement)) return;
+
+    // Handle context loss
+    this.contextLostHandler = (event: Event) => {
+      event.preventDefault(); // Allow context restoration
+      this.isContextLost = true;
+      this.isInitialized = false;
+      log.warn('WebGL context lost');
+      
+      // Clear WebGL resources (they're invalid now)
+      this.gl = null;
+      this.programs.clear();
+      this.texture = null;
+      this.framebuffer = null;
+      this.framebufferTexture = null;
+      this.positionBuffer = null;
+      this.texCoordBuffer = null;
+    };
+
+    // Handle context restoration
+    this.contextRestoredHandler = (_event: Event) => {
+      log.info('WebGL context restored, reinitializing...');
+      this.isContextLost = false;
+      
+      // Reinitialize with previous dimensions
+      if (this.lastWidth > 0 && this.lastHeight > 0) {
+        // Re-acquire context
+        this.gl = (this.canvas as HTMLCanvasElement).getContext('webgl', {
+          alpha: false,
+          antialias: false,
+          depth: false,
+          preserveDrawingBuffer: true,
+          premultipliedAlpha: false,
+        }) as WebGLRenderingContext | null;
+
+        if (this.gl) {
+          this.initializeBuffers();
+          this.initializeFramebuffer(this.lastWidth, this.lastHeight);
+          this.isInitialized = true;
+          log.info('WebGL context successfully restored');
+        } else {
+          log.error('Failed to restore WebGL context');
+        }
+      }
+    };
+
+    this.canvas.addEventListener('webglcontextlost', this.contextLostHandler);
+    this.canvas.addEventListener('webglcontextrestored', this.contextRestoredHandler);
+  }
+
+  /**
+   * Check if WebGL context is currently lost
+   */
+  public isWebGLContextLost(): boolean {
+    return this.isContextLost;
+  }
+
+  /**
+   * Attempt to force context restoration (for testing or recovery)
+   */
+  public forceContextRestore(): boolean {
+    if (!this.isContextLost) return true;
+    
+    // Try to reinitialize
+    return this.initialize(this.lastWidth, this.lastHeight, this.useOffscreenCanvas);
   }
 
   /**
@@ -538,45 +628,60 @@ export class WebGLVideoProcessor {
    * Dispose of WebGL resources
    */
   public dispose(): void {
-    if (!this.gl) return;
-
-    // Delete programs
-    this.programs.forEach((program) => {
-      this.gl!.deleteProgram(program.program);
-    });
-    this.programs.clear();
-
-    // Delete textures
-    if (this.texture) {
-      this.gl.deleteTexture(this.texture);
-      this.texture = null;
+    // Remove context loss event listeners
+    if (this.canvas instanceof HTMLCanvasElement) {
+      if (this.contextLostHandler) {
+        this.canvas.removeEventListener('webglcontextlost', this.contextLostHandler);
+        this.contextLostHandler = null;
+      }
+      if (this.contextRestoredHandler) {
+        this.canvas.removeEventListener('webglcontextrestored', this.contextRestoredHandler);
+        this.contextRestoredHandler = null;
+      }
     }
 
-    if (this.framebufferTexture) {
-      this.gl.deleteTexture(this.framebufferTexture);
-      this.framebufferTexture = null;
-    }
+    if (this.gl) {
+      // Delete programs
+      this.programs.forEach((program) => {
+        this.gl!.deleteProgram(program.program);
+      });
+      this.programs.clear();
 
-    // Delete framebuffer
-    if (this.framebuffer) {
-      this.gl.deleteFramebuffer(this.framebuffer);
-      this.framebuffer = null;
-    }
+      // Delete textures
+      if (this.texture) {
+        this.gl.deleteTexture(this.texture);
+        this.texture = null;
+      }
 
-    // Delete buffers
-    if (this.positionBuffer) {
-      this.gl.deleteBuffer(this.positionBuffer);
-      this.positionBuffer = null;
-    }
+      if (this.framebufferTexture) {
+        this.gl.deleteTexture(this.framebufferTexture);
+        this.framebufferTexture = null;
+      }
 
-    if (this.texCoordBuffer) {
-      this.gl.deleteBuffer(this.texCoordBuffer);
-      this.texCoordBuffer = null;
+      // Delete framebuffer
+      if (this.framebuffer) {
+        this.gl.deleteFramebuffer(this.framebuffer);
+        this.framebuffer = null;
+      }
+
+      // Delete buffers
+      if (this.positionBuffer) {
+        this.gl.deleteBuffer(this.positionBuffer);
+        this.positionBuffer = null;
+      }
+
+      if (this.texCoordBuffer) {
+        this.gl.deleteBuffer(this.texCoordBuffer);
+        this.texCoordBuffer = null;
+      }
     }
 
     this.gl = null;
     this.canvas = null;
     this.isInitialized = false;
+    this.isContextLost = false;
+    this.lastWidth = 0;
+    this.lastHeight = 0;
   }
 }
 

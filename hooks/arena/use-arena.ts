@@ -3,7 +3,7 @@
  * Handles parallel model execution and streaming
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useArenaStore } from '@/stores/arena';
 import { useSettingsStore } from '@/stores/settings';
 import { getProviderModel } from '@/lib/ai/core/client';
@@ -11,6 +11,8 @@ import { streamText } from 'ai';
 import { classifyTaskRuleBased } from '@/lib/ai/generation/auto-router';
 import type { ProviderName } from '@/types/provider';
 import type { ArenaBattle, ArenaContestant, ArenaWinReason } from '@/types/arena';
+
+const abortControllers = new Map<string, AbortController>();
 
 interface ModelSelection {
   provider: ProviderName;
@@ -48,7 +50,6 @@ export function useArena(options: UseArenaOptions = {}) {
 
   const [isExecuting, setIsExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
 
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const createBattle = useArenaStore((state) => state.createBattle);
@@ -72,7 +73,7 @@ export function useArena(options: UseArenaOptions = {}) {
       modelParams?: { temperature?: number; maxTokens?: number }
     ): Promise<void> => {
       const abortController = new AbortController();
-      abortControllersRef.current.set(contestant.id, abortController);
+      abortControllers.set(contestant.id, abortController);
 
       try {
         const settings = providerSettings[contestant.provider];
@@ -158,7 +159,7 @@ export function useArena(options: UseArenaOptions = {}) {
           onContestantError?.(contestant.id, err as Error);
         }
       } finally {
-        abortControllersRef.current.delete(contestant.id);
+        abortControllers.delete(contestant.id);
       }
     },
     [
@@ -251,7 +252,7 @@ export function useArena(options: UseArenaOptions = {}) {
 
     // Abort all ongoing contestants
     for (const contestant of battle.contestants) {
-      const controller = abortControllersRef.current.get(contestant.id);
+      const controller = abortControllers.get(contestant.id);
       if (controller) {
         controller.abort();
       }

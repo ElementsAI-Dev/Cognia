@@ -164,6 +164,99 @@ describe('useSettingsStore', () => {
       expect(useSettingsStore.getState().customThemes).toHaveLength(0);
       expect(useSettingsStore.getState().activeCustomThemeId).toBeNull();
     });
+
+    it('should clear colorTheme when activating custom theme (A3: mutual exclusivity)', () => {
+      let themeId;
+      // First set a color preset
+      act(() => {
+        useSettingsStore.getState().setColorTheme('rose');
+      });
+      expect(useSettingsStore.getState().colorTheme).toBe('rose');
+
+      // Create and activate a custom theme
+      act(() => {
+        themeId = useSettingsStore.getState().createCustomTheme({
+          name: 'Custom Theme',
+          colors: {
+            primary: '#ff0000',
+            secondary: '#00ff00',
+            accent: '#0000ff',
+            background: '#ffffff',
+            foreground: '#000000',
+            muted: '#cccccc',
+          },
+          isDark: false,
+        });
+        useSettingsStore.getState().setActiveCustomTheme(themeId!);
+      });
+
+      // colorTheme should be reset to 'default' when custom theme is activated
+      expect(useSettingsStore.getState().activeCustomThemeId).toBe(themeId);
+      expect(useSettingsStore.getState().colorTheme).toBe('default');
+    });
+
+    it('should not change colorTheme when deactivating custom theme', () => {
+      let themeId;
+      act(() => {
+        themeId = useSettingsStore.getState().createCustomTheme({
+          name: 'Test Theme',
+          colors: {
+            primary: '#ff0000',
+            secondary: '#00ff00',
+            accent: '#0000ff',
+            background: '#ffffff',
+            foreground: '#000000',
+            muted: '#cccccc',
+          },
+          isDark: false,
+        });
+        useSettingsStore.getState().setActiveCustomTheme(themeId!);
+      });
+
+      // Deactivate custom theme by setting to null
+      act(() => {
+        useSettingsStore.getState().setActiveCustomTheme(null);
+      });
+
+      expect(useSettingsStore.getState().activeCustomThemeId).toBeNull();
+      // colorTheme should remain 'default' (set when activating custom theme)
+      expect(useSettingsStore.getState().colorTheme).toBe('default');
+    });
+  });
+
+  describe('theme schedule (A2)', () => {
+    it('should have overrideSystem option in theme schedule', () => {
+      const state = useSettingsStore.getState();
+      expect(state.themeSchedule).toHaveProperty('overrideSystem');
+      expect(state.themeSchedule.overrideSystem).toBe(false);
+    });
+
+    it('should update overrideSystem option', () => {
+      act(() => {
+        useSettingsStore.getState().setThemeSchedule({ overrideSystem: true });
+      });
+      expect(useSettingsStore.getState().themeSchedule.overrideSystem).toBe(true);
+    });
+
+    it('should preserve other schedule settings when updating overrideSystem', () => {
+      act(() => {
+        useSettingsStore.getState().setThemeSchedule({
+          enabled: true,
+          lightModeStart: '06:00',
+          darkModeStart: '20:00',
+        });
+      });
+
+      act(() => {
+        useSettingsStore.getState().setThemeSchedule({ overrideSystem: true });
+      });
+
+      const schedule = useSettingsStore.getState().themeSchedule;
+      expect(schedule.enabled).toBe(true);
+      expect(schedule.lightModeStart).toBe('06:00');
+      expect(schedule.darkModeStart).toBe('20:00');
+      expect(schedule.overrideSystem).toBe(true);
+    });
   });
 
   describe('language', () => {

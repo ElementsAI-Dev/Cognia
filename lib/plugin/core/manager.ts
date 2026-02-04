@@ -13,13 +13,16 @@ import type {
   PluginSource,
   PluginContext,
   PluginHooks,
+  PluginPermission,
 } from '@/types/plugin';
-import { PluginLoader } from './loader';
-import { PluginRegistry } from './registry';
-import { createFullPluginContext } from './context';
-import { PluginLifecycleHooks } from '../messaging/hooks-system';
-import { validatePluginManifest } from './validation';
-import { loggers } from './logger';
+import { PluginLoader } from '@/lib/plugin/core/loader';
+import { PluginRegistry } from '@/lib/plugin/core/registry';
+import { createFullPluginContext } from '@/lib/plugin/core/context';
+import { PluginLifecycleHooks } from '@/lib/plugin/messaging/hooks-system';
+import { validatePluginManifest } from '@/lib/plugin/core/validation';
+import { loggers } from '@/lib/plugin/core/logger';
+import { getPluginSignatureVerifier } from '@/lib/plugin/security/signature';
+import { getPermissionGuard } from '@/lib/plugin/security/permission-guard';
 
 // =============================================================================
 // Types
@@ -176,11 +179,18 @@ export class PluginManager {
           continue;
         }
 
+        if (!(await this.verifyPluginSignature(path, manifest.id))) {
+          loggers.manager.warn(`Signature verification failed for plugin ${manifest.id}`);
+          continue;
+        }
+
         // Register with store if not already registered
         if (!store.plugins[manifest.id]) {
           store.discoverPlugin(manifest, 'local', path);
           await store.installPlugin(manifest.id);
         }
+
+        this.registerPluginPermissions(manifest.id, manifest.permissions || []);
 
         discovered.push({ manifest, path, source: 'local' });
       }
@@ -219,9 +229,16 @@ export class PluginManager {
         throw new Error(`Invalid plugin manifest: ${validation.errors.join(', ')}`);
       }
 
+      // Verify signature
+      if (!(await this.verifyPluginSignature(result.path, result.manifest.id))) {
+        throw new Error(`Signature verification failed for plugin ${result.manifest.id}`);
+      }
+
       // Register with store
       store.discoverPlugin(result.manifest, type as PluginSource, result.path);
       await store.installPlugin(result.manifest.id);
+
+      this.registerPluginPermissions(result.manifest.id, result.manifest.permissions || []);
 
       return store.plugins[result.manifest.id];
     } catch (error) {
@@ -238,6 +255,12 @@ export class PluginManager {
     }
 
     try {
+      if (!(await this.verifyPluginSignature(plugin.path, pluginId))) {
+        throw new Error(`Signature verification failed for plugin ${pluginId}`);
+      }
+
+      this.registerPluginPermissions(pluginId, plugin.manifest.permissions || []);
+
       // Load the plugin module
       const definition = await this.loader.load(plugin);
 
@@ -344,6 +367,27 @@ export class PluginManager {
 
     // Remove from store
     await store.uninstallPlugin(pluginId, { skipFileRemoval: true });
+
+    getPermissionGuard().unregisterPlugin(pluginId);
+  }
+
+  private async verifyPluginSignature(pluginPath: string, pluginId: string): Promise<boolean> {
+    try {
+      const verifier = getPluginSignatureVerifier();
+      const result = await verifier.verify(pluginPath);
+      if (!result.valid) {
+        loggers.manager.warn(`Signature verification failed for ${pluginId}:`, result.reason);
+      }
+      return result.valid;
+    } catch (error) {
+      loggers.manager.warn(`Signature verification error for ${pluginId}:`, error);
+      return false;
+    }
+  }
+
+  private registerPluginPermissions(pluginId: string, permissions: PluginPermission[]): void {
+    const guard = getPermissionGuard();
+    guard.registerPlugin(pluginId, permissions);
   }
 
   // ===========================================================================

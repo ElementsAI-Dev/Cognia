@@ -10,6 +10,11 @@ import {
   revokePermission,
 } from './permission-api';
 import type { PluginAPIPermission } from '@/types/plugin/plugin-extended';
+import { requestPluginPermission } from '@/lib/plugin/security/permission-requests';
+
+jest.mock('@/lib/plugin/security/permission-requests', () => ({
+  requestPluginPermission: jest.fn(),
+}));
 
 describe('Permission API', () => {
   const testPluginId = 'test-plugin';
@@ -17,6 +22,7 @@ describe('Permission API', () => {
   beforeEach(() => {
     // Revoke all permissions before each test
     revokePluginPermissions(testPluginId);
+    (requestPluginPermission as jest.Mock).mockReset();
   });
 
   describe('createPermissionAPI', () => {
@@ -71,10 +77,27 @@ describe('Permission API', () => {
 
       expect(api.hasPermission('canvas:write')).toBe(false);
 
+      (requestPluginPermission as jest.Mock).mockResolvedValue(true);
       const granted = await api.requestPermission('canvas:write', 'Need to edit canvas');
 
       expect(granted).toBe(true);
       expect(api.hasPermission('canvas:write')).toBe(true);
+      expect(requestPluginPermission).toHaveBeenCalledWith({
+        pluginId: testPluginId,
+        permission: 'canvas:write',
+        reason: 'Need to edit canvas',
+        kind: 'api',
+      });
+    });
+
+    it('should deny permission when request is rejected', async () => {
+      const api = createPermissionAPI(testPluginId, []);
+
+      (requestPluginPermission as jest.Mock).mockResolvedValue(false);
+      const granted = await api.requestPermission('artifact:write', 'Need to update artifact');
+
+      expect(granted).toBe(false);
+      expect(api.hasPermission('artifact:write')).toBe(false);
     });
   });
 

@@ -31,6 +31,7 @@ const PROVIDER_OPTIONS: ProviderTabOption[] = [
   { value: 'native', label: 'Native' },
   { value: 'chroma', label: 'Chroma' },
   { value: 'pinecone', label: 'Pinecone' },
+  { value: 'weaviate', label: 'Weaviate' },
   { value: 'qdrant', label: 'Qdrant' },
   { value: 'milvus', label: 'Milvus' },
 ];
@@ -197,6 +198,31 @@ export function VectorSettings() {
                       className="h-9"
                     />
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Weaviate provider */}
+            {settings.provider === 'weaviate' && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">{t('providers.weaviate.url')}</Label>
+                  <Input
+                    value={settings.weaviateUrl || ''}
+                    onChange={(e) => updateSettings({ weaviateUrl: e.target.value })}
+                    placeholder={t('providers.weaviate.urlPlaceholder')}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">{t('providers.weaviate.apiKey')}</Label>
+                  <Input
+                    type="password"
+                    value={settings.weaviateApiKey || ''}
+                    onChange={(e) => updateSettings({ weaviateApiKey: e.target.value })}
+                    placeholder={t('providers.weaviate.apiKeyPlaceholder')}
+                    className="h-9"
+                  />
                 </div>
               </div>
             )}

@@ -138,7 +138,7 @@ export default function DesignerPage() {
   // Sync code with designer store when code changes
   useEffect(() => {
     setDesignerCode(code, false);
-    parseCodeToElements(code);
+    void parseCodeToElements(code);
   }, [code, setDesignerCode, parseCodeToElements]);
 
   // Filter templates by selected framework, search, and category

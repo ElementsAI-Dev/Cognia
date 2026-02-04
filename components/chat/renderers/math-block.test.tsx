@@ -32,6 +32,16 @@ jest.mock('katex', () => ({
   }),
 }));
 
+// Mock the latex cache module
+jest.mock('@/lib/latex/cache', () => ({
+  renderMathSafe: jest.fn((content: string, _displayMode: boolean, _options?: { trust?: boolean }) => {
+    if (content.includes('invalid')) {
+      return { html: '', error: 'KaTeX parse error' };
+    }
+    return { html: `<span class="katex">${content}</span>`, error: null };
+  }),
+}));
+
 // Mock math export utilities
 jest.mock('@/lib/export/image/math-export', () => ({
   exportMath: jest.fn().mockResolvedValue(undefined),
@@ -40,6 +50,14 @@ jest.mock('@/lib/export/image/math-export', () => ({
 
 // Mock useCopy hook
 jest.mock('@/hooks/ui/use-copy', () => ({
+  useCopy: () => ({
+    copy: jest.fn().mockResolvedValue({ success: true }),
+    isCopying: false,
+  }),
+}));
+
+// Mock the entire hooks/ui module to avoid langfuse import chain
+jest.mock('@/hooks/ui', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,
@@ -69,24 +87,18 @@ describe('MathBlock', () => {
     });
 
     it('strips $$ delimiters from content', () => {
-      const katex = jest.requireMock('katex');
+      const { renderMathSafe } = jest.requireMock('@/lib/latex/cache');
       render(<MathBlock content="$$x^2 + y^2 = z^2$$" />);
       
-      expect(katex.renderToString).toHaveBeenCalledWith(
-        'x^2 + y^2 = z^2',
-        expect.objectContaining({ displayMode: true })
-      );
+      expect(renderMathSafe).toHaveBeenCalledWith('x^2 + y^2 = z^2', true, { trust: false });
     });
 
     it('strips \\[ \\] delimiters from content', () => {
-      const katex = jest.requireMock('katex');
-      katex.renderToString.mockClear();
+      const { renderMathSafe } = jest.requireMock('@/lib/latex/cache');
+      renderMathSafe.mockClear();
       render(<MathBlock content="\[a + b = c\]" />);
       
-      expect(katex.renderToString).toHaveBeenCalledWith(
-        'a + b = c',
-        expect.any(Object)
-      );
+      expect(renderMathSafe).toHaveBeenCalledWith('a + b = c', true, { trust: false });
     });
 
     it('applies custom className', () => {

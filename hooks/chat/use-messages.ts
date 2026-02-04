@@ -45,6 +45,9 @@ interface UseMessagesReturn {
     branchPointMessageId: string,
     newBranchId: string
   ) => Promise<UIMessage[]>;
+
+  // Emergency save
+  flushPendingSaves: () => Promise<void>;
 }
 
 const INITIAL_PAGE_SIZE = 100;
@@ -393,13 +396,72 @@ export function useMessages({
     [sessionId, branchId]
   );
 
+  // Flush all pending saves immediately (for emergency scenarios)
+  const flushPendingSaves = useCallback(async () => {
+    const pending = Array.from(pendingSaves.current.entries());
+    if (pending.length === 0) return;
+
+    // Clear all debounce timeouts first
+    saveTimeouts.current.forEach((timeout) => clearTimeout(timeout));
+    saveTimeouts.current.clear();
+
+    // Save all pending messages
+    await Promise.all(
+      pending.map(async ([id, msg]) => {
+        try {
+          await messageRepository.update(id, { content: msg.content });
+        } catch (err) {
+          log.error('Failed to flush pending message', err as Error);
+        }
+      })
+    );
+    pendingSaves.current.clear();
+  }, []);
+
+  // Emergency save on page visibility change or beforeunload
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // Page is being hidden - flush saves immediately
+        flushPendingSaves();
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      // Synchronously save pending messages before page unload
+      const pending = Array.from(pendingSaves.current.entries());
+      if (pending.length > 0) {
+        // Use sendBeacon for reliable delivery during unload
+        // Note: This requires a backend endpoint, fallback to sync save
+        pending.forEach(([id, msg]) => {
+          try {
+            // Attempt synchronous IndexedDB write
+            messageRepository.update(id, { content: msg.content });
+          } catch {
+            // Best effort - can't do much if it fails during unload
+          }
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [flushPendingSaves]);
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     const timeouts = saveTimeouts.current;
     return () => {
       timeouts.forEach((timeout) => clearTimeout(timeout));
+      // Also flush pending saves on unmount
+      flushPendingSaves();
     };
-  }, []);
+  }, [flushPendingSaves]);
 
   return {
     messages,
@@ -417,6 +479,7 @@ export function useMessages({
     createStreamingMessage,
     reloadMessages,
     copyMessagesForBranch,
+    flushPendingSaves,
   };
 }
 

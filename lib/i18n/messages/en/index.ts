@@ -45,6 +45,8 @@ import logging from './logging.json';
 import importMessages from './import.json';
 import externalAgent from './externalAgent.json';
 import keyboardShortcuts from './keyboardShortcuts.json';
+import map from './map.json';
+import search from './search.json';
 
 const messages = {
   ...common,
@@ -92,6 +94,8 @@ const messages = {
   import: importMessages,
   externalAgent,
   ...keyboardShortcuts,
+  map,
+  search,
 };
 
 export default messages;

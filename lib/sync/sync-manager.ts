@@ -14,6 +14,7 @@ import type {
 } from '@/types/sync';
 import { WebDAVProvider } from './providers/webdav-provider';
 import { GitHubProvider } from './providers/github-provider';
+import { GoogleDriveProvider } from './providers/googledrive-provider';
 import { createFullBackup } from '@/lib/storage/data-export';
 import { importFullBackup } from '@/lib/storage/data-import';
 import { generateChecksum } from '@/lib/storage/data-import';
@@ -46,6 +47,16 @@ class SyncManager {
     const config = useSyncStore.getState().githubConfig;
     
     this.provider = new GitHubProvider(config, token);
+  }
+
+  /**
+   * Initialize with Google Drive provider
+   */
+  async initGoogleDrive(accessToken: string): Promise<void> {
+    const { useSyncStore } = await import('@/stores/sync');
+    const config = useSyncStore.getState().googleDriveConfig;
+    
+    this.provider = new GoogleDriveProvider(config, accessToken);
   }
 
   /**
@@ -254,9 +265,15 @@ class SyncManager {
 
     // Get sync store for conflict resolution strategy
     const { useSyncStore } = await import('@/stores/sync');
-    const { webdavConfig, githubConfig, activeProvider } = useSyncStore.getState();
+    const { webdavConfig, githubConfig, googleDriveConfig, activeProvider } =
+      useSyncStore.getState();
     
-    const config = activeProvider === 'webdav' ? webdavConfig : githubConfig;
+    const config =
+      activeProvider === 'webdav'
+        ? webdavConfig
+        : activeProvider === 'github'
+          ? githubConfig
+          : googleDriveConfig;
     const resolution = config.conflictResolution;
 
     // Compare timestamps

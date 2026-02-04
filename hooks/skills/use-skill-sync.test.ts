@@ -77,6 +77,10 @@ describe('useSkillSync', () => {
   const mockInstall = jest.fn();
   const mockUninstall = jest.fn();
   const mockReadContent = jest.fn();
+  const mockWriteContent = jest.fn();
+  const mockWriteResource = jest.fn();
+  const mockRegisterLocal = jest.fn();
+  const mockUpdateNative = jest.fn();
   const mockCreateSkill = jest.fn();
   const mockDeleteSkill = jest.fn();
   const mockGetAllSkills = jest.fn();
@@ -104,14 +108,16 @@ describe('useSkillSync', () => {
       scanLocal: jest.fn(),
       install: mockInstall,
       installLocal: jest.fn(),
-      registerLocal: jest.fn(),
+      registerLocal: mockRegisterLocal,
       uninstall: mockUninstall,
       enable: jest.fn(),
       disable: jest.fn(),
-      update: jest.fn(),
+      update: mockUpdateNative,
       readContent: mockReadContent,
+      writeContent: mockWriteContent,
       listResources: jest.fn(),
       readResource: jest.fn(),
+      writeResource: mockWriteResource,
       getSsotDir: jest.fn(),
       clearError: jest.fn(),
     });
@@ -471,8 +477,19 @@ describe('useSkillSync', () => {
       expect(mockGetAllSkills).not.toHaveBeenCalled();
     });
 
-    it('should iterate through custom skills', async () => {
+    it('should write content and register custom skills', async () => {
+      const installedLocal: InstalledSkill = {
+        ...mockInstalledSkill,
+        id: 'local:frontend-skill',
+        directory: 'frontend-skill',
+        repoOwner: null,
+        repoName: null,
+        repoBranch: null,
+      };
       mockGetAllSkills.mockReturnValue([mockFrontendSkill]);
+      mockWriteContent.mockResolvedValue(undefined);
+      mockRegisterLocal.mockResolvedValue(installedLocal);
+      mockUpdateNative.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useSkillSync());
 
@@ -481,7 +498,24 @@ describe('useSkillSync', () => {
       });
 
       expect(mockGetAllSkills).toHaveBeenCalled();
+      expect(mockWriteContent).toHaveBeenCalledWith('frontend-skill', mockFrontendSkill.rawContent);
+      expect(mockRegisterLocal).toHaveBeenCalledWith('frontend-skill');
+      expect(mockUpdateNative).toHaveBeenCalledWith('local:frontend-skill', 'custom', []);
       expect(result.current.lastSyncAt).not.toBeNull();
+      expect(result.current.syncError).toBeNull();
+    });
+
+    it('should set syncError when native sync fails', async () => {
+      mockGetAllSkills.mockReturnValue([mockFrontendSkill]);
+      mockWriteContent.mockRejectedValue(new Error('Write failed'));
+
+      const { result } = renderHook(() => useSkillSync());
+
+      await act(async () => {
+        await result.current.syncToNative();
+      });
+
+      expect(result.current.syncError).toBe('i18n:syncToNativeFailed');
     });
   });
 });

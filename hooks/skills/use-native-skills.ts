@@ -53,8 +53,10 @@ interface UseNativeSkillsActions {
 
   // Content
   readContent: (directory: string) => Promise<string>;
+  writeContent: (directory: string, content: string) => Promise<void>;
   listResources: (directory: string) => Promise<string[]>;
   readResource: (directory: string, resourcePath: string) => Promise<string>;
+  writeResource: (directory: string, resourcePath: string, content: string) => Promise<void>;
   getSsotDir: () => Promise<string>;
 
   // Error handling
@@ -330,6 +332,14 @@ export function useNativeSkills(): UseNativeSkillsReturn {
     [isAvailable]
   );
 
+  const writeContent = useCallback(
+    async (directory: string, content: string): Promise<void> => {
+      if (!isAvailable) throw new Error('Native skill service not available');
+      return nativeSkill.writeSkillContent(directory, content);
+    },
+    [isAvailable]
+  );
+
   const listResources = useCallback(
     async (directory: string): Promise<string[]> => {
       if (!isAvailable) throw new Error('Native skill service not available');
@@ -342,6 +352,14 @@ export function useNativeSkills(): UseNativeSkillsReturn {
     async (directory: string, resourcePath: string): Promise<string> => {
       if (!isAvailable) throw new Error('Native skill service not available');
       return nativeSkill.readSkillResource(directory, resourcePath);
+    },
+    [isAvailable]
+  );
+
+  const writeResource = useCallback(
+    async (directory: string, resourcePath: string, content: string): Promise<void> => {
+      if (!isAvailable) throw new Error('Native skill service not available');
+      return nativeSkill.writeSkillResource(directory, resourcePath, content);
     },
     [isAvailable]
   );
@@ -373,8 +391,10 @@ export function useNativeSkills(): UseNativeSkillsReturn {
     disable,
     update,
     readContent,
+    writeContent,
     listResources,
     readResource,
+    writeResource,
     getSsotDir,
     clearError,
   };

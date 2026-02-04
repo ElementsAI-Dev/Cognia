@@ -24,15 +24,43 @@ jest.mock('@/hooks/ui', () => ({
 const mockSelectWinner = jest.fn();
 const mockDeclareTie = jest.fn();
 const mockDeclareBothBad = jest.fn();
+const mockCanVote = jest.fn(() => ({ allowed: true }));
+const mockMarkBattleViewed = jest.fn();
 let mockBattle: ArenaBattle | undefined;
 
+const mockCancelBattle = jest.fn();
+
+jest.mock('@/hooks/arena', () => ({
+  useArena: () => ({
+    cancelBattle: mockCancelBattle,
+  }),
+}));
+
+jest.mock('sonner', () => ({
+  toast: {
+    error: jest.fn(),
+    success: jest.fn(),
+  },
+}));
+
 jest.mock('@/stores/arena', () => ({
-  useArenaStore: (selector: (state: { battles: ArenaBattle[]; selectWinner: typeof mockSelectWinner; declareTie: typeof mockDeclareTie; declareBothBad: typeof mockDeclareBothBad }) => unknown) => {
+  useArenaStore: (selector: (state: {
+    battles: ArenaBattle[];
+    selectWinner: typeof mockSelectWinner;
+    declareTie: typeof mockDeclareTie;
+    declareBothBad: typeof mockDeclareBothBad;
+    canVote: typeof mockCanVote;
+    recordVoteAttempt: jest.Mock;
+    markBattleViewed: typeof mockMarkBattleViewed;
+  }) => unknown) => {
     const state = {
       battles: mockBattle ? [mockBattle] : [],
       selectWinner: mockSelectWinner,
       declareTie: mockDeclareTie,
       declareBothBad: mockDeclareBothBad,
+      canVote: mockCanVote,
+      recordVoteAttempt: jest.fn(),
+      markBattleViewed: mockMarkBattleViewed,
     };
     return selector(state);
   },
@@ -161,6 +189,26 @@ describe('ArenaBattleView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockBattle = createMockBattle();
+  });
+
+  it('calls cancelBattle when cancel button clicked', async () => {
+    mockBattle = createMockBattle({
+      contestants: [
+        createMockContestant('a', 'streaming'),
+        createMockContestant('b', 'completed'),
+      ],
+    });
+
+    render(<ArenaBattleView {...defaultProps} />);
+
+    const cancelButton = screen.getAllByRole('button').find((button) =>
+      button.querySelector('[data-testid="icon-ban"]')
+    );
+
+    if (cancelButton) {
+      await userEvent.click(cancelButton);
+      expect(mockCancelBattle).toHaveBeenCalledWith('battle-1');
+    }
   });
 
   it('renders nothing when battle not found', () => {

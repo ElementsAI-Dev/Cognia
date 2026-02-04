@@ -18,7 +18,7 @@ import { globalToolCache, type ToolCacheConfig } from '../tools/tool-cache';
 import { globalMetricsCollector } from './performance-metrics';
 import { globalMemoryManager, type MemoryEntry } from './memory-manager';
 import { getPluginLifecycleHooks, getPluginEventHooks } from '@/lib/plugin';
-import { recordAgentTraceFromToolCall } from '@/lib/agent-trace';
+import { recordAgentTraceFromToolCall, recordAgentTraceEvent, safeJsonStringify } from '@/lib/agent-trace';
 import { useSettingsStore } from '@/stores';
 import {
   type StopCondition as FunctionalStopCondition,
@@ -717,6 +717,33 @@ export async function executeAgent(
   const toolCallTracker = new Map<string, ToolCall>();
 
   const recordedTraceToolCalls = new Set<string>();
+  
+  // Track cumulative token usage for agent trace
+  const cumulativeTokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+
+  const modelId = provider && model ? `${provider}/${model}` : undefined;
+  const turnId = sessionId;
+  const buildStepId = (step: number) => `step-${step}`;
+
+  const handleToolCall = (toolCall: ToolCall) => {
+    onToolCall?.(toolCall);
+
+    if (!effectiveEnableAgentTrace || !sessionId) return;
+
+    void recordAgentTraceEvent({
+      sessionId,
+      contributorType: 'ai',
+      modelId,
+      eventType: 'tool_call_request',
+      turnId,
+      stepId: buildStepId(stepCount || 1),
+      metadata: {
+        toolCallId: toolCall.id,
+        toolName: toolCall.name,
+        toolArgs: safeJsonStringify(toolCall.args, '{}'),
+      },
+    });
+  };
 
   const handleToolResult = (toolCall: ToolCall) => {
     onToolResult?.(toolCall);
@@ -725,14 +752,22 @@ export async function executeAgent(
     if (recordedTraceToolCalls.has(toolCall.id)) return;
     recordedTraceToolCalls.add(toolCall.id);
 
+    // Calculate latency if timestamps are available
+    const latencyMs = toolCall.completedAt && toolCall.startedAt
+      ? toolCall.completedAt.getTime() - toolCall.startedAt.getTime()
+      : undefined;
+
     void recordAgentTraceFromToolCall({
       sessionId,
       agentName,
       provider,
       model,
+      toolCallId: toolCall.id,
       toolName: toolCall.name,
       toolArgs: toolCall.args,
       toolResult: toolCall.result,
+      tokenUsage: cumulativeTokenUsage.totalTokens > 0 ? { ...cumulativeTokenUsage } : undefined,
+      latencyMs,
     });
   };
 
@@ -886,7 +921,7 @@ export async function executeAgent(
     mode: toolExecutionMode,
     maxConcurrent: maxConcurrentToolCalls,
     defaultTimeout: toolTimeout,
-    onToolStart: onToolCall,
+    onToolStart: handleToolCall,
     onToolResult: handleToolResult,
     onToolError: (toolCall, error) => {
       onError?.(error);
@@ -905,7 +940,7 @@ export async function executeAgent(
   // Convert AgentTools to AI SDK format
   const sdkTools = toolCount > 0
     ? convertToAISDKTools(tools, toolCallTracker, {
-        onToolCall,
+        onToolCall: handleToolCall,
         onToolResult: handleToolResult,
         requireApproval,
         safetyOptions: config.safetyOptions,
@@ -931,6 +966,20 @@ export async function executeAgent(
         stepCount++;
         onStepStart?.(stepCount);
 
+        if (effectiveEnableAgentTrace && sessionId) {
+          void recordAgentTraceEvent({
+            sessionId,
+            contributorType: 'ai',
+            modelId,
+            eventType: 'step_start',
+            turnId,
+            stepId: buildStepId(stepCount),
+            metadata: {
+              stepNumber: stepCount,
+            },
+          });
+        }
+
         // Check custom stop conditions
         if (stepCount > 1) {
           const stopResult = checkStopConditions();
@@ -945,6 +994,20 @@ export async function executeAgent(
 
         // Call prepareStep callback if provided
         if (prepareStepCallback) {
+          if (effectiveEnableAgentTrace && sessionId) {
+            void recordAgentTraceEvent({
+              sessionId,
+              contributorType: 'ai',
+              modelId,
+              eventType: 'planning',
+              turnId,
+              stepId: buildStepId(stepCount),
+              metadata: {
+                stepNumber: stepCount,
+              },
+            });
+          }
+
           const state = getExecutionState();
           const stepConfig = await prepareStepCallback(stepCount, state);
 
@@ -1007,6 +1070,10 @@ export async function executeAgent(
             completionTokens: (u.completionTokens ?? u.completion_tokens ?? 0) as number,
             totalTokens: (u.totalTokens ?? u.total_tokens ?? 0) as number,
           };
+          // Accumulate token usage for agent trace
+          cumulativeTokenUsage.promptTokens += usage.promptTokens;
+          cumulativeTokenUsage.completionTokens += usage.completionTokens;
+          cumulativeTokenUsage.totalTokens += usage.totalTokens;
         }
 
         // Parse ReAct response if enabled
@@ -1054,6 +1121,25 @@ export async function executeAgent(
               usage.completionTokens
             );
           }
+        }
+
+        if (effectiveEnableAgentTrace && sessionId) {
+          void recordAgentTraceEvent({
+            sessionId,
+            contributorType: 'ai',
+            modelId,
+            eventType: 'step_finish',
+            turnId,
+            stepId: buildStepId(stepCount),
+            metadata: {
+              stepNumber: stepCount,
+              finishReason: event.finishReason,
+              toolCount: stepToolCalls.length,
+              toolNames: stepToolCalls.map((tc) => tc.name),
+              usage,
+              responseLength: (event.text || '').length,
+            },
+          });
         }
 
         onStepComplete?.(stepCount, event.text || '', stepToolCalls);
@@ -1152,6 +1238,26 @@ export async function executeAgent(
       toolExecutionStats,
     };
 
+    if (effectiveEnableAgentTrace && sessionId) {
+      void recordAgentTraceEvent({
+        sessionId,
+        contributorType: 'ai',
+        modelId,
+        eventType: 'response',
+        turnId,
+        stepId: buildStepId(stepCount || 1),
+        metadata: {
+          success: true,
+          stepCount,
+          toolCount: toolExecutionStats.total,
+          finishReason: steps[steps.length - 1]?.finishReason,
+          responseLength: agentResult.finalResponse.length,
+          responsePreview: agentResult.finalResponse.slice(0, 1000),
+          tokenUsage: cumulativeTokenUsage.totalTokens > 0 ? { ...cumulativeTokenUsage } : undefined,
+        },
+      });
+    }
+
     // End observability tracking
     if (observabilityManager) {
       const allToolCalls: ToolCall[] = steps.flatMap(s => s.toolCalls);
@@ -1204,7 +1310,7 @@ export async function executeAgent(
       globalMetricsCollector.endExecution(executionId, 'error');
     }
 
-    return {
+    const failedResult: AgentResult = {
       success: false,
       finalResponse: '',
       steps,
@@ -1212,6 +1318,24 @@ export async function executeAgent(
       duration: Date.now() - startTime.getTime(),
       error: err.message,
     };
+
+    if (effectiveEnableAgentTrace && sessionId) {
+      void recordAgentTraceEvent({
+        sessionId,
+        contributorType: 'ai',
+        modelId,
+        eventType: 'response',
+        turnId,
+        stepId: buildStepId(stepCount || 1),
+        metadata: {
+          success: false,
+          error: err.message,
+          stepCount,
+        },
+      });
+    }
+
+    return failedResult;
   }
 }
 

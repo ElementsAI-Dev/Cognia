@@ -143,7 +143,18 @@
     "includeModelOption": "包含模型信息",
     "messagesInfo": "共 {count} 条消息 · 最多分享 {max} 条",
     "share": "分享",
-    "imageFormatShare": "图片"
+    "imageFormatShare": "图片",
+    "qrTab": "二维码",
+    "qrPreset": "样式",
+    "qrSize": "尺寸",
+    "qrLogo": "Logo",
+    "qrAddLogo": "添加 Logo",
+    "qrChangeLogo": "更换",
+    "qrRemoveLogo": "移除",
+    "qrDownloadPNG": "PNG 已下载",
+    "qrDownloadSVG": "SVG 已下载",
+    "qrCopySuccess": "二维码已复制到剪贴板",
+    "qrContentDesc": "生成当前页面链接的二维码"
   },
   "batchExport": {
     "batchExport": "批量导出",

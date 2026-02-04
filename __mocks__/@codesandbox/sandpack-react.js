@@ -9,7 +9,14 @@ const SandpackPreview = () => React.createElement('div', { 'data-testid': 'sandp
 const SandpackConsole = () => React.createElement('div', { 'data-testid': 'sandpack-console' });
 
 const useSandpack = () => ({
-  sandpack: { files: {}, activeFile: '', updateFile: jest.fn() },
+  sandpack: {
+    files: {},
+    activeFile: '',
+    updateFile: jest.fn(),
+    addFile: jest.fn(),
+    deleteFile: jest.fn(),
+    openFile: jest.fn(),
+  },
   dispatch: jest.fn(),
   listen: jest.fn(),
 });

@@ -1,16 +1,21 @@
 'use client';
 
 import { useMemo, useState, useCallback } from 'react';
-import Dexie from 'dexie';
 import { useTranslations } from 'next-intl';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { FileText, RefreshCw, Trash2, Download, Power, RotateCcw } from 'lucide-react';
 
-import { db, type DBAgentTrace } from '@/lib/db';
+import { type DBAgentTrace } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -39,8 +44,10 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { useAgentTrace } from '@/hooks/agent-trace/use-agent-trace';
 import { useSettingsStore } from '@/stores';
 import { agentTraceRepository } from '@/lib/db/repositories/agent-trace-repository';
+import type { AgentTraceEventType } from '@/types/agent-trace';
 
 type DisplayTrace = {
   id: string;
@@ -85,8 +92,9 @@ export function AgentTraceSettings() {
 
   const [sessionId, setSessionId] = useState('');
   const [filePath, setFilePath] = useState('');
+  const [vcsRevision, setVcsRevision] = useState('');
+  const [eventType, setEventType] = useState<'all' | AgentTraceEventType>('all');
   const [selected, setSelected] = useState<DisplayTrace | null>(null);
-  const [refreshTick, setRefreshTick] = useState(0);
   const [copied, setCopied] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -97,10 +105,20 @@ export function AgentTraceSettings() {
   const setAgentTraceAutoCleanupDays = useSettingsStore((state) => state.setAgentTraceAutoCleanupDays);
   const setAgentTraceShellCommands = useSettingsStore((state) => state.setAgentTraceShellCommands);
   const setAgentTraceCodeEdits = useSettingsStore((state) => state.setAgentTraceCodeEdits);
+  const setAgentTraceFailedCalls = useSettingsStore((state) => state.setAgentTraceFailedCalls);
   const resetAgentTraceSettings = useSettingsStore((state) => state.resetAgentTraceSettings);
 
   const trimmedSessionId = sessionId.trim();
   const trimmedFilePath = filePath.trim();
+  const trimmedVcsRevision = vcsRevision.trim();
+
+  const { traces: rows, refresh } = useAgentTrace({
+    sessionId: trimmedSessionId,
+    filePath: trimmedFilePath,
+    vcsRevision: trimmedVcsRevision,
+    eventType: eventType === 'all' ? undefined : eventType,
+    limit: 200,
+  });
 
   // Delete single trace
   const handleDeleteTrace = useCallback(async (id: string) => {
@@ -108,13 +126,13 @@ export function AgentTraceSettings() {
       setIsDeleting(true);
       await agentTraceRepository.delete(id);
       setSelected(null);
-      setRefreshTick((x) => x + 1);
+      refresh();
     } catch (error) {
       console.error('Failed to delete trace:', error);
     } finally {
       setIsDeleting(false);
     }
-  }, []);
+  }, [refresh]);
 
   // Clear all traces
   const handleClearAll = useCallback(async () => {
@@ -122,13 +140,13 @@ export function AgentTraceSettings() {
       setIsDeleting(true);
       await agentTraceRepository.clear();
       setSelected(null);
-      setRefreshTick((x) => x + 1);
+      refresh();
     } catch (error) {
       console.error('Failed to clear traces:', error);
     } finally {
       setIsDeleting(false);
     }
-  }, []);
+  }, [refresh]);
 
   // Export as JSON
   const handleExportJson = useCallback((tracesToExport: DisplayTrace[]) => {
@@ -166,25 +184,6 @@ export function AgentTraceSettings() {
     URL.revokeObjectURL(url);
   }, []);
 
-  const rows = useLiveQuery(
-    async () => {
-      const limit = 200;
-
-      if (trimmedSessionId) {
-        return db.agentTraces
-          .where('[sessionId+timestamp]')
-          .between([trimmedSessionId, Dexie.minKey], [trimmedSessionId, Dexie.maxKey])
-          .reverse()
-          .limit(limit)
-          .toArray();
-      }
-
-      return db.agentTraces.orderBy('timestamp').reverse().limit(limit).toArray();
-    },
-    [trimmedSessionId, refreshTick],
-    [] as DBAgentTrace[]
-  );
-
   const traces = useMemo<DisplayTrace[]>(() => {
     const list = (rows ?? []).map((row) => {
       const files = parseRecordFiles(row.record);
@@ -199,11 +198,8 @@ export function AgentTraceSettings() {
       };
     });
 
-    if (!trimmedFilePath) return list;
-
-    const query = trimmedFilePath.toLowerCase();
-    return list.filter((tr) => tr.files.some((p) => p.toLowerCase().includes(query)));
-  }, [rows, trimmedFilePath]);
+    return list;
+  }, [rows]);
 
   return (
     <div className="space-y-4">
@@ -216,7 +212,7 @@ export function AgentTraceSettings() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setRefreshTick((x) => x + 1)}
+              onClick={refresh}
             >
               <RefreshCw className="h-4 w-4" />
               {t('refresh')}
@@ -329,6 +325,18 @@ export function AgentTraceSettings() {
             />
           </SettingsRow>
 
+          {/* Trace Failed Calls */}
+          <SettingsRow
+            label={t('config.traceFailedCalls')}
+            description={t('config.traceFailedCallsDescription')}
+          >
+            <Switch
+              id="trace-failed-calls"
+              checked={agentTraceSettings.traceFailedCalls}
+              onCheckedChange={setAgentTraceFailedCalls}
+            />
+          </SettingsRow>
+
           {/* Reset to Defaults */}
           <div className="flex justify-end pt-2">
             <Button
@@ -361,6 +369,31 @@ export function AgentTraceSettings() {
               placeholder={t('filePathPlaceholder')}
             />
           </div>
+          <div className="space-y-1.5">
+            <div className="text-xs font-medium">{t('vcsRevision')}</div>
+            <Input
+              value={vcsRevision}
+              onChange={(e) => setVcsRevision(e.target.value)}
+              placeholder={t('vcsRevisionPlaceholder')}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <div className="text-xs font-medium">{t('eventType')}</div>
+            <Select value={eventType} onValueChange={(value) => setEventType(value as 'all' | AgentTraceEventType)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('eventTypePlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('eventTypeAll')}</SelectItem>
+                <SelectItem value="tool_call_request">{t('eventTypeToolCallRequest')}</SelectItem>
+                <SelectItem value="tool_call_result">{t('eventTypeToolCallResult')}</SelectItem>
+                <SelectItem value="step_start">{t('eventTypeStepStart')}</SelectItem>
+                <SelectItem value="step_finish">{t('eventTypeStepFinish')}</SelectItem>
+                <SelectItem value="planning">{t('eventTypePlanning')}</SelectItem>
+                <SelectItem value="response">{t('eventTypeResponse')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </SettingsGrid>
 
         <div className="flex items-center justify-between">
@@ -374,6 +407,8 @@ export function AgentTraceSettings() {
               onClick={() => {
                 setSessionId('');
                 setFilePath('');
+                setVcsRevision('');
+                setEventType('all');
               }}
             >
               {t('clearFilters')}

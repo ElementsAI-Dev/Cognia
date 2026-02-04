@@ -285,6 +285,19 @@ pub async fn skill_read_content(
     service.read_skill_content(&directory).map_err(|e| e.to_string())
 }
 
+/// Write skill content (SKILL.md)
+#[tauri::command]
+pub async fn skill_write_content(
+    state: State<'_, SkillServiceState>,
+    directory: String,
+    content: String,
+) -> Result<(), String> {
+    let service = state.0.read().await;
+    service
+        .write_skill_content(&directory, &content)
+        .map_err(|e| e.to_string())
+}
+
 /// List skill resource files
 #[tauri::command]
 pub async fn skill_list_resources(
@@ -304,6 +317,20 @@ pub async fn skill_read_resource(
 ) -> Result<String, String> {
     let service = state.0.read().await;
     service.read_skill_resource(&directory, &resource_path).map_err(|e| e.to_string())
+}
+
+/// Write a skill resource file
+#[tauri::command]
+pub async fn skill_write_resource(
+    state: State<'_, SkillServiceState>,
+    directory: String,
+    resource_path: String,
+    content: String,
+) -> Result<(), String> {
+    let service = state.0.read().await;
+    service
+        .write_skill_resource(&directory, &resource_path, &content)
+        .map_err(|e| e.to_string())
 }
 
 /// Get SSOT directory path

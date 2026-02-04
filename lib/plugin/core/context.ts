@@ -4,6 +4,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { createPluginSystemLogger, loggers } from './logger';
+import { getPluginRateLimiter } from '@/lib/plugin/security/rate-limiter';
 import type {
   Plugin,
   PluginContext,
@@ -539,8 +540,10 @@ function createSettingsAPI(pluginId: string): PluginSettingsAPI {
 // =============================================================================
 
 function createPythonAPI(pluginId: string, _manager: PluginManager): PluginPythonAPI {
+  const rateLimiter = getPluginRateLimiter();
   return {
     call: async <T>(functionName: string, ...args: unknown[]): Promise<T> => {
+      rateLimiter.check(pluginId, 'python:call');
       return invoke<T>('plugin_python_call', {
         pluginId,
         functionName,
@@ -549,6 +552,7 @@ function createPythonAPI(pluginId: string, _manager: PluginManager): PluginPytho
     },
 
     eval: async <T>(code: string, locals?: Record<string, unknown>): Promise<T> => {
+      rateLimiter.check(pluginId, 'python:eval');
       return invoke<T>('plugin_python_eval', {
         pluginId,
         code,
@@ -557,6 +561,7 @@ function createPythonAPI(pluginId: string, _manager: PluginManager): PluginPytho
     },
 
     import: async (moduleName: string) => {
+      rateLimiter.check(pluginId, 'python:import');
       await invoke('plugin_python_import', {
         pluginId,
         moduleName,
@@ -589,10 +594,12 @@ function createPythonAPI(pluginId: string, _manager: PluginManager): PluginPytho
 // =============================================================================
 
 function createNetworkAPI(pluginId: string): PluginNetworkAPI {
+  const rateLimiter = getPluginRateLimiter();
   const makeRequest = async <T>(
     url: string,
     options?: NetworkRequestOptions
   ): Promise<NetworkResponse<T>> => {
+    rateLimiter.check(pluginId, 'network:fetch');
     return invoke<NetworkResponse<T>>('plugin_network_fetch', {
       pluginId,
       url,
@@ -619,6 +626,7 @@ function createNetworkAPI(pluginId: string): PluginNetworkAPI {
     fetch: makeRequest,
 
     download: async (url: string, destPath: string, _options?: DownloadOptions): Promise<DownloadResult> => {
+      rateLimiter.check(pluginId, 'network:download');
       return invoke<DownloadResult>('plugin_network_download', {
         pluginId,
         url,
@@ -627,6 +635,7 @@ function createNetworkAPI(pluginId: string): PluginNetworkAPI {
     },
 
     upload: async (url: string, filePath: string, _options?: UploadOptions): Promise<NetworkResponse<unknown>> => {
+      rateLimiter.check(pluginId, 'network:upload');
       return invoke<NetworkResponse<unknown>>('plugin_network_upload', {
         pluginId,
         url,
@@ -641,52 +650,81 @@ function createNetworkAPI(pluginId: string): PluginNetworkAPI {
 // =============================================================================
 
 function createFileSystemAPI(pluginId: string): PluginFileSystemAPI {
+  const rateLimiter = getPluginRateLimiter();
   const dataDir = `~/.cognia/plugins/${pluginId}/data`;
   const cacheDir = `~/.cognia/plugins/${pluginId}/cache`;
   const tempDir = `~/.cognia/temp`;
 
   return {
-    readText: (path: string) =>
-      invoke<string>('plugin_fs_read_text', { pluginId, path }),
+    readText: (path: string) => {
+      rateLimiter.check(pluginId, 'fs:read');
+      return invoke<string>('plugin_fs_read_text', { pluginId, path });
+    },
 
-    readBinary: (path: string) =>
-      invoke<Uint8Array>('plugin_fs_read_binary', { pluginId, path }),
+    readBinary: (path: string) => {
+      rateLimiter.check(pluginId, 'fs:read');
+      return invoke<Uint8Array>('plugin_fs_read_binary', { pluginId, path });
+    },
 
-    readJson: <T>(path: string) =>
-      invoke<T>('plugin_fs_read_json', { pluginId, path }),
+    readJson: <T>(path: string) => {
+      rateLimiter.check(pluginId, 'fs:read');
+      return invoke<T>('plugin_fs_read_json', { pluginId, path });
+    },
 
-    writeText: (path: string, content: string) =>
-      invoke<void>('plugin_fs_write_text', { pluginId, path, content }),
+    writeText: (path: string, content: string) => {
+      rateLimiter.check(pluginId, 'fs:write');
+      return invoke<void>('plugin_fs_write_text', { pluginId, path, content });
+    },
 
-    writeBinary: (path: string, content: Uint8Array) =>
-      invoke<void>('plugin_fs_write_binary', { pluginId, path, content: Array.from(content) }),
+    writeBinary: (path: string, content: Uint8Array) => {
+      rateLimiter.check(pluginId, 'fs:write');
+      return invoke<void>('plugin_fs_write_binary', { pluginId, path, content: Array.from(content) });
+    },
 
-    writeJson: (path: string, data: unknown, pretty = true) =>
-      invoke<void>('plugin_fs_write_json', { pluginId, path, data, pretty }),
+    writeJson: (path: string, data: unknown, pretty = true) => {
+      rateLimiter.check(pluginId, 'fs:write');
+      return invoke<void>('plugin_fs_write_json', { pluginId, path, data, pretty });
+    },
 
-    appendText: (path: string, content: string) =>
-      invoke<void>('plugin_fs_append_text', { pluginId, path, content }),
+    appendText: (path: string, content: string) => {
+      rateLimiter.check(pluginId, 'fs:write');
+      return invoke<void>('plugin_fs_append_text', { pluginId, path, content });
+    },
 
-    exists: (path: string) =>
-      invoke<boolean>('plugin_fs_exists', { pluginId, path }),
+    exists: (path: string) => {
+      rateLimiter.check(pluginId, 'fs:read');
+      return invoke<boolean>('plugin_fs_exists', { pluginId, path });
+    },
 
-    mkdir: (path: string, recursive = true) =>
-      invoke<void>('plugin_fs_mkdir', { pluginId, path, recursive }),
+    mkdir: (path: string, recursive = true) => {
+      rateLimiter.check(pluginId, 'fs:write');
+      return invoke<void>('plugin_fs_mkdir', { pluginId, path, recursive });
+    },
 
-    remove: (path: string, recursive = false) =>
-      invoke<void>('plugin_fs_remove', { pluginId, path, recursive }),
+    remove: (path: string, recursive = false) => {
+      rateLimiter.check(pluginId, 'fs:delete');
+      return invoke<void>('plugin_fs_remove', { pluginId, path, recursive });
+    },
 
-    copy: (src: string, dest: string) =>
-      invoke<void>('plugin_fs_copy', { pluginId, src, dest }),
+    copy: (src: string, dest: string) => {
+      rateLimiter.check(pluginId, 'fs:write');
+      return invoke<void>('plugin_fs_copy', { pluginId, src, dest });
+    },
 
-    move: (src: string, dest: string) =>
-      invoke<void>('plugin_fs_move', { pluginId, src, dest }),
+    move: (src: string, dest: string) => {
+      rateLimiter.check(pluginId, 'fs:write');
+      return invoke<void>('plugin_fs_move', { pluginId, src, dest });
+    },
 
-    readDir: (path: string) =>
-      invoke<FileEntry[]>('plugin_fs_read_dir', { pluginId, path }),
+    readDir: (path: string) => {
+      rateLimiter.check(pluginId, 'fs:read');
+      return invoke<FileEntry[]>('plugin_fs_read_dir', { pluginId, path });
+    },
 
-    stat: (path: string) =>
-      invoke<FileStat>('plugin_fs_stat', { pluginId, path }),
+    stat: (path: string) => {
+      rateLimiter.check(pluginId, 'fs:read');
+      return invoke<FileStat>('plugin_fs_stat', { pluginId, path });
+    },
 
     watch: (path: string, callback: (event: FileWatchEvent) => void) => {
       const watchId = `${pluginId}:${path}:${Date.now()}`;
@@ -717,15 +755,36 @@ function createFileSystemAPI(pluginId: string): PluginFileSystemAPI {
 // =============================================================================
 
 function createClipboardAPI(_pluginId: string): PluginClipboardAPI {
+  const rateLimiter = getPluginRateLimiter();
   return {
-    readText: () => invoke<string>('plugin_clipboard_read_text'),
-    writeText: (text: string) => invoke<void>('plugin_clipboard_write_text', { text }),
-    readImage: () => invoke<Uint8Array | null>('plugin_clipboard_read_image'),
-    writeImage: (data: Uint8Array, format?: 'png' | 'jpeg') =>
-      invoke<void>('plugin_clipboard_write_image', { data: Array.from(data), format }),
-    hasText: () => invoke<boolean>('plugin_clipboard_has_text'),
-    hasImage: () => invoke<boolean>('plugin_clipboard_has_image'),
-    clear: () => invoke<void>('plugin_clipboard_clear'),
+    readText: () => {
+      rateLimiter.check(_pluginId, 'clipboard:read');
+      return invoke<string>('plugin_clipboard_read_text');
+    },
+    writeText: (text: string) => {
+      rateLimiter.check(_pluginId, 'clipboard:write');
+      return invoke<void>('plugin_clipboard_write_text', { text });
+    },
+    readImage: () => {
+      rateLimiter.check(_pluginId, 'clipboard:read');
+      return invoke<Uint8Array | null>('plugin_clipboard_read_image');
+    },
+    writeImage: (data: Uint8Array, format?: 'png' | 'jpeg') => {
+      rateLimiter.check(_pluginId, 'clipboard:write');
+      return invoke<void>('plugin_clipboard_write_image', { data: Array.from(data), format });
+    },
+    hasText: () => {
+      rateLimiter.check(_pluginId, 'clipboard:read');
+      return invoke<boolean>('plugin_clipboard_has_text');
+    },
+    hasImage: () => {
+      rateLimiter.check(_pluginId, 'clipboard:read');
+      return invoke<boolean>('plugin_clipboard_has_image');
+    },
+    clear: () => {
+      rateLimiter.check(_pluginId, 'clipboard:write');
+      return invoke<void>('plugin_clipboard_clear');
+    },
   };
 }
 
@@ -734,11 +793,15 @@ function createClipboardAPI(_pluginId: string): PluginClipboardAPI {
 // =============================================================================
 
 function createShellAPI(pluginId: string): PluginShellAPI {
+  const rateLimiter = getPluginRateLimiter();
   return {
-    execute: (command: string, options?: ShellOptions) =>
-      invoke<ShellResult>('plugin_shell_execute', { pluginId, command, options }),
+    execute: (command: string, options?: ShellOptions) => {
+      rateLimiter.check(pluginId, 'shell:execute');
+      return invoke<ShellResult>('plugin_shell_execute', { pluginId, command, options });
+    },
 
     spawn: (command: string, args?: string[], options?: SpawnOptions): ChildProcess => {
+      rateLimiter.check(pluginId, 'process:spawn');
       const processId = `${pluginId}:${Date.now()}`;
       
       invoke('plugin_shell_spawn', { pluginId, processId, command, args, options })
@@ -770,12 +833,17 @@ function createShellAPI(pluginId: string): PluginShellAPI {
 // =============================================================================
 
 function createDatabaseAPI(pluginId: string): PluginDatabaseAPI {
+  const rateLimiter = getPluginRateLimiter();
   return {
-    query: <T>(sql: string, params?: unknown[]) =>
-      invoke<T[]>('plugin_db_query', { pluginId, sql, params }),
+    query: <T>(sql: string, params?: unknown[]) => {
+      rateLimiter.check(pluginId, 'db:query');
+      return invoke<T[]>('plugin_db_query', { pluginId, sql, params });
+    },
 
-    execute: (sql: string, params?: unknown[]) =>
-      invoke<DatabaseResult>('plugin_db_execute', { pluginId, sql, params }),
+    execute: (sql: string, params?: unknown[]) => {
+      rateLimiter.check(pluginId, 'db:execute');
+      return invoke<DatabaseResult>('plugin_db_execute', { pluginId, sql, params });
+    },
 
     transaction: async <T>(fn: (tx: DatabaseTransaction) => Promise<T>): Promise<T> => {
       const txId = `${pluginId}:${Date.now()}`;
@@ -798,14 +866,20 @@ function createDatabaseAPI(pluginId: string): PluginDatabaseAPI {
       }
     },
 
-    createTable: (name: string, schema: TableSchema) =>
-      invoke<void>('plugin_db_create_table', { pluginId, name, schema }),
+    createTable: (name: string, schema: TableSchema) => {
+      rateLimiter.check(pluginId, 'db:execute');
+      return invoke<void>('plugin_db_create_table', { pluginId, name, schema });
+    },
 
-    dropTable: (name: string) =>
-      invoke<void>('plugin_db_drop_table', { pluginId, name }),
+    dropTable: (name: string) => {
+      rateLimiter.check(pluginId, 'db:execute');
+      return invoke<void>('plugin_db_drop_table', { pluginId, name });
+    },
 
-    tableExists: (name: string) =>
-      invoke<boolean>('plugin_db_table_exists', { pluginId, name }),
+    tableExists: (name: string) => {
+      rateLimiter.check(pluginId, 'db:query');
+      return invoke<boolean>('plugin_db_table_exists', { pluginId, name });
+    },
   };
 }
 
@@ -1310,6 +1384,13 @@ function mapToPluginExecution(execution: TaskExecution, pluginId: string = ''): 
     duration: execution.duration,
     attemptNumber: execution.retryAttempt + 1,
     error: execution.error ? { message: execution.error } : undefined,
-    logs: execution.logs,
+    logs: execution.logs.map((log) => ({
+      timestamp: log.timestamp,
+      level: log.level,
+      message: log.message,
+      data: log.data && typeof log.data === 'object' && !Array.isArray(log.data)
+        ? (log.data as Record<string, unknown>)
+        : undefined,
+    })),
   };
 }

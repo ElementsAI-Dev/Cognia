@@ -24,6 +24,7 @@ import {
   ContextPanel,
   SystemMonitorPanel,
   SandboxPanel,
+  LocationPanel,
   NativeToolSidebar,
   NativeToolMobileNav,
   NATIVE_TOOLS,
@@ -143,6 +144,7 @@ export default function NativeToolsPage() {
               {activeTab === 'screenshot' && <ScreenshotPanel className="h-full" />}
               {activeTab === 'focus' && <FocusTrackerPanel className="h-full" />}
               {activeTab === 'context' && <ContextPanel className="h-full" />}
+              {activeTab === 'location' && <LocationPanel className="h-full" />}
               {activeTab === 'system' && <SystemMonitorPanel className="h-full" />}
               {activeTab === 'sandbox' && <SandboxPanel className="h-full" />}
             </div>

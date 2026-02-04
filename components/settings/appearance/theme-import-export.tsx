@@ -9,6 +9,8 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Download, Upload, FileJson, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Dialog,
   DialogContent,
@@ -22,17 +24,21 @@ import { cn } from '@/lib/utils';
 import { validateThemeData } from '@/lib/themes';
 import type { ThemeExportData } from '@/types/settings';
 
+export type ImportConflictStrategy = 'skip' | 'overwrite' | 'rename';
+
 export function ThemeImportExport() {
   const t = useTranslations('themeEditor');
   const tc = useTranslations('common');
 
   const customThemes = useSettingsStore((state) => state.customThemes);
   const createCustomTheme = useSettingsStore((state) => state.createCustomTheme);
+  const updateCustomTheme = useSettingsStore((state) => state.updateCustomTheme);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importMessage, setImportMessage] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [conflictStrategy, setConflictStrategy] = useState<ImportConflictStrategy>('skip');
 
   const handleExport = () => {
     if (customThemes.length === 0) {
@@ -75,14 +81,46 @@ export function ThemeImportExport() {
 
         const themeData = data as ThemeExportData;
         let importedCount = 0;
+        let skippedCount = 0;
+        let overwrittenCount = 0;
 
         for (const theme of themeData.themes) {
           // Check if theme with same name exists
-          const exists = customThemes.some(
+          const existingTheme = customThemes.find(
             (t) => t.name.toLowerCase() === theme.name.toLowerCase()
           );
 
-          if (!exists) {
+          if (existingTheme) {
+            // Handle conflict based on strategy
+            switch (conflictStrategy) {
+              case 'skip':
+                skippedCount++;
+                break;
+              case 'overwrite':
+                updateCustomTheme(existingTheme.id, {
+                  name: theme.name,
+                  isDark: theme.isDark,
+                  colors: theme.colors,
+                });
+                overwrittenCount++;
+                break;
+              case 'rename':
+                // Generate unique name by appending number
+                let newName = theme.name;
+                let counter = 1;
+                while (customThemes.some((t) => t.name.toLowerCase() === newName.toLowerCase())) {
+                  newName = `${theme.name} (${counter})`;
+                  counter++;
+                }
+                createCustomTheme({
+                  name: newName,
+                  isDark: theme.isDark,
+                  colors: theme.colors,
+                });
+                importedCount++;
+                break;
+            }
+          } else {
             createCustomTheme({
               name: theme.name,
               isDark: theme.isDark,
@@ -92,12 +130,27 @@ export function ThemeImportExport() {
           }
         }
 
+        // Build result message
+        const parts: string[] = [];
         if (importedCount > 0) {
+          parts.push(t('importedCount', { count: importedCount }));
+        }
+        if (overwrittenCount > 0) {
+          parts.push(t('overwrittenCount', { count: overwrittenCount }));
+        }
+        if (skippedCount > 0) {
+          parts.push(t('skippedCount', { count: skippedCount }));
+        }
+
+        if (importedCount > 0 || overwrittenCount > 0) {
           setImportStatus('success');
-          setImportMessage(t('importSuccess', { count: importedCount }));
-        } else {
+          setImportMessage(parts.join(', '));
+        } else if (skippedCount > 0) {
           setImportStatus('error');
           setImportMessage(t('themesAlreadyExist'));
+        } else {
+          setImportStatus('error');
+          setImportMessage(t('noThemesToImport'));
         }
       } catch {
         setImportStatus('error');
@@ -171,6 +224,36 @@ export function ThemeImportExport() {
             <p className="text-xs text-muted-foreground">
               {t('importThemesDesc')}
             </p>
+
+            {/* Conflict Strategy Selection */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">{t('conflictStrategy')}</Label>
+              <RadioGroup
+                value={conflictStrategy}
+                onValueChange={(value) => setConflictStrategy(value as ImportConflictStrategy)}
+                className="flex flex-col gap-1.5"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="skip" id="strategy-skip" className="h-3.5 w-3.5" />
+                  <Label htmlFor="strategy-skip" className="text-xs font-normal cursor-pointer">
+                    {t('conflictSkip')}
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="overwrite" id="strategy-overwrite" className="h-3.5 w-3.5" />
+                  <Label htmlFor="strategy-overwrite" className="text-xs font-normal cursor-pointer">
+                    {t('conflictOverwrite')}
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="rename" id="strategy-rename" className="h-3.5 w-3.5" />
+                  <Label htmlFor="strategy-rename" className="text-xs font-normal cursor-pointer">
+                    {t('conflictRename')}
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             <input
               ref={fileInputRef}
               type="file"

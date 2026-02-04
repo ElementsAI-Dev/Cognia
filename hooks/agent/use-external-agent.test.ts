@@ -20,6 +20,15 @@ const mockGetTools = jest.fn().mockReturnValue({});
 const mockGetCapabilities = jest.fn().mockReturnValue({});
 const mockIsConnected = jest.fn().mockReturnValue(false);
 const mockRespondToPermission = jest.fn().mockResolvedValue(undefined);
+const mockManagerGetAllAgents = jest.fn().mockReturnValue([]);
+const mockAddEventListener = jest.fn().mockReturnValue(() => {});
+const mockGetSession = jest.fn();
+const mockSetSessionMode = jest.fn().mockResolvedValue(undefined);
+const mockSetSessionModel = jest.fn().mockResolvedValue(undefined);
+const mockGetSessionModels = jest.fn().mockReturnValue(undefined);
+const mockGetAuthMethods = jest.fn().mockReturnValue([]);
+const mockIsAuthenticationRequired = jest.fn().mockReturnValue(false);
+const mockAuthenticate = jest.fn().mockResolvedValue(undefined);
 
 const mockManager = {
   connect: mockConnect,
@@ -32,6 +41,15 @@ const mockManager = {
   getCapabilities: mockGetCapabilities,
   isConnected: mockIsConnected,
   respondToPermission: mockRespondToPermission,
+  getAllAgents: mockManagerGetAllAgents,
+  addEventListener: mockAddEventListener,
+  getSession: mockGetSession,
+  setSessionMode: mockSetSessionMode,
+  setSessionModel: mockSetSessionModel,
+  getSessionModels: mockGetSessionModels,
+  getAuthMethods: mockGetAuthMethods,
+  isAuthenticationRequired: mockIsAuthenticationRequired,
+  authenticate: mockAuthenticate,
 };
 
 jest.mock('@/lib/ai/agent/external/manager', () => ({
@@ -66,6 +84,43 @@ describe('useExternalAgent', () => {
     mockIsConnected.mockReturnValue(false);
   });
 
+  describe('plan/commands updates', () => {
+    it('should update available commands and plan entries from events', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await waitFor(() => {
+        expect(mockAddEventListener).toHaveBeenCalled();
+      });
+
+      const listener = mockAddEventListener.mock.calls[0][1] as (event: unknown) => void;
+
+      act(() => {
+        listener({ type: 'commands_update', commands: [{ name: 'foo', description: 'Foo' }] });
+      });
+
+      expect(result.current.availableCommands).toEqual([
+        { name: 'foo', description: 'Foo' },
+      ]);
+
+      act(() => {
+        listener({
+          type: 'plan_update',
+          entries: [{ content: 'Step 1', priority: 'high', status: 'in_progress' }],
+          step: 0,
+        });
+      });
+
+      expect(result.current.planEntries).toEqual([
+        { content: 'Step 1', priority: 'high', status: 'in_progress' },
+      ]);
+      expect(result.current.planStep).toBe(0);
+    });
+  });
+
   describe('initial state', () => {
     it('has correct initial state', () => {
       const { result } = renderHook(() => useExternalAgent());
@@ -78,6 +133,9 @@ describe('useExternalAgent', () => {
       expect(result.current.error).toBeNull();
       expect(result.current.progress).toBe(0);
       expect(result.current.pendingPermission).toBeNull();
+      expect(result.current.availableCommands).toEqual([]);
+      expect(result.current.planEntries).toEqual([]);
+      expect(result.current.planStep).toBeNull();
       expect(result.current.streamingResponse).toBe('');
       expect(result.current.lastResult).toBeNull();
     });
@@ -189,6 +247,106 @@ describe('useExternalAgent', () => {
 
       expect(session).toEqual(mockSession);
       expect(result.current.activeSession).toEqual(mockSession);
+    });
+  });
+
+  describe('session settings', () => {
+    const mockSession = {
+      id: 'session-1',
+      agentId: 'agent-1',
+      status: 'active',
+      createdAt: new Date(),
+    };
+
+    beforeEach(() => {
+      mockCreateSession.mockResolvedValue(mockSession);
+    });
+
+    it('should call setSessionMode on manager', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        await result.current.createSession();
+      });
+
+      await act(async () => {
+        await result.current.setSessionMode('plan');
+      });
+
+      expect(mockSetSessionMode).toHaveBeenCalledWith('agent-1', 'session-1', 'plan');
+    });
+
+    it('should call setSessionModel on manager', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        await result.current.createSession();
+      });
+
+      await act(async () => {
+        await result.current.setSessionModel('model-1');
+      });
+
+      expect(mockSetSessionModel).toHaveBeenCalledWith('agent-1', 'session-1', 'model-1');
+    });
+
+    it('should read session models from manager', async () => {
+      const models = { availableModels: [{ modelId: 'model-1', name: 'Model 1' }] };
+      mockGetSessionModels.mockReturnValue(models);
+
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        await result.current.createSession();
+      });
+
+      expect(result.current.getSessionModels()).toEqual(models);
+    });
+  });
+
+  describe('auth helpers', () => {
+    it('should expose auth methods and requirements', async () => {
+      mockGetAuthMethods.mockReturnValue([{ id: 'token', label: 'Token' }]);
+      mockIsAuthenticationRequired.mockReturnValue(true);
+
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        await result.current.connect('agent-1');
+      });
+
+      expect(result.current.getAuthMethods()).toEqual([{ id: 'token', label: 'Token' }]);
+      expect(result.current.isAuthenticationRequired()).toBe(true);
+    });
+
+    it('should call authenticate on manager', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        await result.current.authenticate('token', { value: 'abc' });
+      });
+
+      expect(mockAuthenticate).toHaveBeenCalledWith('agent-1', 'token', { value: 'abc' });
     });
   });
 

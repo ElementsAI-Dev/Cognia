@@ -16,6 +16,12 @@ import { chunkDocumentAsync } from '../embedding/chunking';
 import type { EmbeddingModelConfig } from '@/lib/vector/embedding';
 import { generateEmbedding, generateEmbeddings } from '@/lib/vector/embedding';
 import { cosineSimilarity } from '@/lib/ai/embedding/embedding';
+import {
+  generateSparseEmbedding,
+  sparseCosineSimilarity,
+  type SparseVector,
+} from '@/lib/ai/embedding/sparse-embedding';
+import { scoreLateInteraction } from '@/lib/ai/embedding/late-interaction';
 
 import {
   HybridSearchEngine,
@@ -71,6 +77,10 @@ export interface RAGPipelineConfig {
     enabled?: boolean;
     vectorWeight?: number;
     keywordWeight?: number;
+    sparseWeight?: number;
+    lateInteractionWeight?: number;
+    enableSparseSearch?: boolean;
+    enableLateInteraction?: boolean;
   };
 
   // Contextual retrieval settings
@@ -153,6 +163,7 @@ interface IndexedDocument {
   content: string;
   embedding: number[];
   metadata?: Record<string, unknown>;
+  sparseEmbedding?: SparseVector;
 }
 
 /**
@@ -164,6 +175,7 @@ export class RAGPipeline {
   private contextCache: ContextCache;
   private collections: Map<string, IndexedDocument[]> = new Map();
   private embeddingCache: Map<string, number[]> = new Map();
+  private sparseEmbeddingCache: Map<string, SparseVector> = new Map();
   
   // New optimization components
   private queryCache: RAGQueryCache;
@@ -179,6 +191,10 @@ export class RAGPipeline {
         enabled: config.hybridSearch?.enabled ?? true,
         vectorWeight: config.hybridSearch?.vectorWeight ?? 0.5,
         keywordWeight: config.hybridSearch?.keywordWeight ?? 0.5,
+        sparseWeight: config.hybridSearch?.sparseWeight ?? 0.3,
+        lateInteractionWeight: config.hybridSearch?.lateInteractionWeight ?? 0.2,
+        enableSparseSearch: config.hybridSearch?.enableSparseSearch ?? false,
+        enableLateInteraction: config.hybridSearch?.enableLateInteraction ?? false,
       },
       contextualRetrieval: {
         enabled: config.contextualRetrieval?.enabled ?? false,
@@ -223,6 +239,8 @@ export class RAGPipeline {
     const hybridConfig: HybridSearchConfig = {
       vectorWeight: this.config.hybridSearch.vectorWeight,
       keywordWeight: this.config.hybridSearch.keywordWeight,
+      sparseWeight: this.config.hybridSearch.sparseWeight,
+      lateInteractionWeight: this.config.hybridSearch.lateInteractionWeight,
       deduplicateResults: true,
     };
     this.hybridEngine = new HybridSearchEngine(hybridConfig);
@@ -322,6 +340,11 @@ export class RAGPipeline {
         id: chunk.id,
         content: 'contextualContent' in chunk ? (chunk as ContextualChunk).contextualContent : chunk.content,
         embedding: embeddingResult.embeddings[i],
+        sparseEmbedding: this.config.hybridSearch.enableSparseSearch
+          ? generateSparseEmbedding(
+              'contextualContent' in chunk ? (chunk as ContextualChunk).contextualContent : chunk.content
+            )
+          : undefined,
         metadata: {
           ...metadata,
           documentId,
@@ -348,6 +371,9 @@ export class RAGPipeline {
       // Cache embeddings
       for (const doc of documents) {
         this.embeddingCache.set(doc.id, doc.embedding);
+        if (doc.sparseEmbedding) {
+          this.sparseEmbeddingCache.set(doc.id, doc.sparseEmbedding);
+        }
       }
 
       onProgress?.({ stage: 'complete', current: 1, total: 1 });
@@ -556,12 +582,22 @@ export class RAGPipeline {
     // Perform vector search
     const vectorResults = this.vectorSearch(collection, queryEmbedding.embedding);
 
+    const sparseResults = this.config.hybridSearch.enableSparseSearch
+      ? this.sparseSearch(collection, query)
+      : [];
+
+    const lateResults = this.config.hybridSearch.enableLateInteraction
+      ? this.lateInteractionSearch(collection, query, this.config.topK * 2)
+      : [];
+
     // If hybrid search enabled, combine with keyword search
     if (this.config.hybridSearch.enabled) {
       const hybridResults = this.hybridEngine.hybridSearch(
         vectorResults.map(r => ({ id: r.id, score: r.score })),
         query,
-        this.config.topK * 2
+        this.config.topK * 2,
+        sparseResults,
+        lateResults
       );
 
       return hybridResults.map(r => ({
@@ -602,6 +638,43 @@ export class RAGPipeline {
     return results
       .sort((a, b) => b.score - a.score)
       .slice(0, this.config.topK * 2);
+  }
+
+  private sparseSearch(
+    collection: IndexedDocument[],
+    query: string
+  ): { id: string; score: number }[] {
+    const querySparse = generateSparseEmbedding(query);
+    const results = collection
+      .map((doc) => {
+        const cached = doc.sparseEmbedding ?? this.sparseEmbeddingCache.get(doc.id);
+        const sparse = cached ?? generateSparseEmbedding(doc.content);
+        if (!cached) {
+          this.sparseEmbeddingCache.set(doc.id, sparse);
+        }
+        return {
+          id: doc.id,
+          score: sparseCosineSimilarity(querySparse, sparse),
+        };
+      })
+      .filter((item): item is { id: string; score: number } => item !== null)
+      .sort((a, b) => b.score - a.score);
+
+    return results.slice(0, this.config.topK * 2);
+  }
+
+  private lateInteractionSearch(
+    collection: IndexedDocument[],
+    query: string,
+    topK: number
+  ): { id: string; score: number }[] {
+    return collection
+      .map((doc) => ({
+        id: doc.id,
+        score: scoreLateInteraction(query, doc.content),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, topK);
   }
 
 
@@ -673,6 +746,7 @@ export class RAGPipeline {
     // Remove from embedding cache
     for (const id of documentIds) {
       this.embeddingCache.delete(id);
+      this.sparseEmbeddingCache.delete(id);
     }
 
     // Invalidate query cache for this collection
@@ -691,6 +765,7 @@ export class RAGPipeline {
       this.hybridEngine.removeDocuments(ids);
       for (const id of ids) {
         this.embeddingCache.delete(id);
+        this.sparseEmbeddingCache.delete(id);
       }
     }
     this.collections.delete(collectionName);
@@ -726,6 +801,8 @@ export class RAGPipeline {
       this.hybridEngine.updateConfig({
         vectorWeight: this.config.hybridSearch.vectorWeight,
         keywordWeight: this.config.hybridSearch.keywordWeight,
+        sparseWeight: this.config.hybridSearch.sparseWeight,
+        lateInteractionWeight: this.config.hybridSearch.lateInteractionWeight,
       });
     }
     if (config.contextualRetrieval) {

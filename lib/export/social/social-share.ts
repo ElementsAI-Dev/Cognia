@@ -311,21 +311,20 @@ export async function copyImageToClipboard(blob: Blob): Promise<boolean> {
  */
 export async function generateWeChatQRCode(
   content: string,
-  options: { width?: number; margin?: number } = {}
+  options: { width?: number; margin?: number; preset?: string; logo?: string } = {}
 ): Promise<string> {
-  const { width = 256, margin = 2 } = options;
-  
+  const { width = 256, margin = 10, preset = 'wechat', logo } = options;
+
   try {
-    const QRCode = await import('qrcode');
-    const dataUrl = await QRCode.toDataURL(content, {
+    const { generateStyledQR } = await import('@/lib/export/qr');
+    return generateStyledQR({
+      data: content,
       width,
+      height: width,
       margin,
-      color: {
-        dark: '#07c160',
-        light: '#ffffff',
-      },
+      preset,
+      logo,
     });
-    return dataUrl;
   } catch (error) {
     log.error('Failed to generate QR code', error as Error);
     throw error;

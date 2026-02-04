@@ -173,6 +173,7 @@
     "deleteConfirm": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
     "skillTestResult": "Skill Test Result",
     "previewInjection": "Preview of how this skill will be injected into the AI context",
+    "syncToNativeFailed": "Failed to sync skills to native storage",
     "newSkillLabel": "New Skill",
     "unsaved": "Unsaved",
     "valid": "Valid",

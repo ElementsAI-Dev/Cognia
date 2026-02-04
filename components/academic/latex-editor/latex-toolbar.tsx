@@ -49,6 +49,8 @@ import {
   Maximize2,
   Minimize2,
   ChevronDown,
+  PanelRight,
+  AlignLeft,
 } from 'lucide-react';
 
 interface LaTeXToolbarProps {
@@ -67,6 +69,9 @@ interface LaTeXToolbarProps {
   onOpenEquationDialog?: () => void;
   onOpenAISettings?: () => void;
   onAITextAction?: (action: LatexAITextAction) => void;
+  onFormat?: () => void;
+  onToggleAIPanel?: () => void;
+  isAIPanelOpen?: boolean;
   readOnly?: boolean;
   className?: string;
 }
@@ -94,6 +99,9 @@ export function LaTeXToolbar({
   onOpenEquationDialog,
   onOpenAISettings,
   onAITextAction,
+  onFormat,
+  onToggleAIPanel,
+  isAIPanelOpen = false,
   readOnly = false,
   className,
 }: LaTeXToolbarProps) {
@@ -265,6 +273,47 @@ export function LaTeXToolbar({
         onSelect={handleAISelect}
         className="h-8"
       />
+
+      {/* Format button */}
+      {onFormat && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={onFormat}
+                disabled={readOnly}
+              >
+                <AlignLeft className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Format Document</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* AI Panel toggle */}
+      {onToggleAIPanel && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={isAIPanelOpen ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={onToggleAIPanel}
+              >
+                <PanelRight className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isAIPanelOpen ? 'Close AI Panel' : 'Open AI Panel'}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
 
       <div className="flex-1" />
 

@@ -205,7 +205,7 @@ export function MonacoSandpackEditor({
       // Save: Ctrl/Cmd + S
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
         const currentCode = editor.getValue();
-        parseCodeToElements(currentCode);
+        void parseCodeToElements(currentCode);
         onSave?.(currentCode);
       });
 

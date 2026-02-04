@@ -211,6 +211,8 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
   private messageId = 0;
   private pendingRequests: Map<number | string, PendingRequest> = new Map();
   private processId?: string;
+  private networkSocket?: WebSocket;
+  private networkEventSource?: EventSource;
   private eventListeners: Map<string, Set<(event: ExternalAgentEvent) => void>> = new Map();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 3;
@@ -242,7 +244,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     try {
       if (config.transport === 'stdio') {
         await this.connectViaStdio(config);
-      } else if (config.transport === 'http' || config.transport === 'websocket') {
+      } else if (config.transport === 'http' || config.transport === 'websocket' || config.transport === 'sse') {
         await this.connectViaNetwork(config);
       } else {
         throw new Error(`Unsupported transport: ${config.transport}`);
@@ -342,8 +344,10 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
       throw new Error('Network endpoint required for HTTP/WebSocket transport');
     }
 
-    // For now, we'll implement a basic HTTP client
-    // WebSocket support can be added later
+    this._rpcEndpoint = this.resolveRpcEndpoint(config);
+    this._eventsEndpoint = this.resolveEventsEndpoint(config);
+
+    // Basic HTTP connectivity check
     const response = await fetch(`${config.network.endpoint}/health`, {
       method: 'GET',
       headers: this.buildHeaders(config),
@@ -353,7 +357,38 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
       throw new Error(`Health check failed: ${response.status} ${response.statusText}`);
     }
 
-    log.info('Connected to remote agent', { endpoint: config.network.endpoint });
+    if (config.transport === 'websocket') {
+      const socketUrl = this._rpcEndpoint || config.network.endpoint;
+      await new Promise<void>((resolve, reject) => {
+        const socket = new WebSocket(socketUrl);
+        this.networkSocket = socket;
+
+        socket.onopen = () => resolve();
+        socket.onerror = () => reject(new Error('WebSocket connection failed'));
+        socket.onmessage = (event) => {
+          if (typeof event.data === 'string') {
+            this.handleIncomingMessage(event.data);
+          }
+        };
+        socket.onclose = () => {
+          this.handleProcessExit(0);
+        };
+      });
+    }
+
+    if (config.transport === 'sse' && this._eventsEndpoint) {
+      await new Promise<void>((resolve, reject) => {
+        const source = new EventSource(this._eventsEndpoint!);
+        this.networkEventSource = source;
+        source.onopen = () => resolve();
+        source.onerror = () => reject(new Error('EventSource connection failed'));
+        source.onmessage = (event) => {
+          this.handleIncomingMessage(event.data);
+        };
+      });
+    }
+
+    log.info('Connected to remote agent', { endpoint: config.network.endpoint, transport: config.transport });
   }
 
   /**
@@ -381,21 +416,35 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
   private _agentCapabilities?: AcpAgentCapabilities;
   private _agentInfo?: AcpImplementationInfo;
   private _authMethods?: AcpAuthMethod[];
+  private _rpcEndpoint?: string;
+  private _eventsEndpoint?: string;
+
+  private resolveRpcEndpoint(config: ExternalAgentConfig): string {
+    return config.network?.rpcEndpoint || `${config.network?.endpoint}/message`;
+  }
+
+  private resolveEventsEndpoint(config: ExternalAgentConfig): string {
+    return config.network?.eventsEndpoint || `${config.network?.endpoint}/events`;
+  }
 
   /**
    * Initialize the ACP protocol
    * @see https://agentclientprotocol.com/protocol/initialization
    */
   private async initialize(): Promise<AcpInitializeResult> {
+    const supportsNative = isTauri();
+    const clientCapabilities: AcpClientCapabilities = supportsNative
+      ? {
+          fs: {
+            readTextFile: true,
+            writeTextFile: true,
+          },
+          terminal: true,
+        }
+      : {};
     const params: AcpInitializeParams = {
       protocolVersion: 1,
-      clientCapabilities: {
-        fs: {
-          readTextFile: true,
-          writeTextFile: true,
-        },
-        terminal: true,
-      },
+      clientCapabilities,
       clientInfo: {
         name: 'cognia',
         title: 'Cognia',
@@ -411,6 +460,42 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     this._authMethods = result.authMethods;
 
     return result;
+  }
+
+  /**
+   * Authenticate with the agent
+   * @see https://agentclientprotocol.com/protocol/initialization#authentication
+   */
+  async authenticate(methodId: string, credentials?: Record<string, unknown>): Promise<void> {
+    if (!this._authMethods || this._authMethods.length === 0) {
+      throw new Error('Agent does not require authentication');
+    }
+
+    const method = this._authMethods.find((m) => m.id === methodId);
+    if (!method) {
+      throw new Error(`Unknown authentication method: ${methodId}. Available: ${this._authMethods.map((m) => m.id).join(', ')}`);
+    }
+
+    await this.sendRequest('authenticate', {
+      method: methodId,
+      ...credentials,
+    });
+
+    log.info('Authenticated with agent', { method: methodId });
+  }
+
+  /**
+   * Get available authentication methods
+   */
+  getAuthMethods(): AcpAuthMethod[] {
+    return this._authMethods || [];
+  }
+
+  /**
+   * Check if authentication is required
+   */
+  isAuthenticationRequired(): boolean {
+    return (this._authMethods?.length ?? 0) > 0;
   }
 
   /**
@@ -445,6 +530,17 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
         log.warn('Error killing process', { error });
       }
     }
+
+    if (this.networkSocket) {
+      this.networkSocket.close();
+      this.networkSocket = undefined;
+    }
+    if (this.networkEventSource) {
+      this.networkEventSource.close();
+      this.networkEventSource = undefined;
+    }
+    this._rpcEndpoint = undefined;
+    this._eventsEndpoint = undefined;
 
     // Clear state
     this.processId = undefined;
@@ -571,40 +667,65 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
         }
       }
     };
-
     this.addEventListener(sessionId, listener);
 
-    try {
-      // Build prompt content blocks according to ACP spec
-      const promptBlocks: AcpPromptContentBlock[] = message.content.map((c) => {
-        if (c.type === 'text') {
-          return { type: 'text' as const, text: c.text };
-        } else if (c.type === 'image' && c.source) {
+    const promptBlocks: AcpPromptContentBlock[] = message.content.map((content) => {
+      switch (content.type) {
+        case 'text':
+          return { type: 'text', text: content.text };
+        case 'image':
+          if (content.source.type === 'base64') {
+            return {
+              type: 'image',
+              data: content.source.data,
+              mimeType: content.source.mediaType,
+            };
+          }
           return {
-            type: 'image' as const,
-            data: c.source.data,
-            mimeType: c.source.mediaType,
+            type: 'image',
+            uri: content.source.url,
+            mimeType: content.source.mediaType,
           };
-        } else if (c.type === 'file') {
-          return {
-            type: 'resource' as const,
-            resource: {
-              uri: `file://${c.path}`,
-              mimeType: c.mimeType,
-              text: c.content,
-            },
-          };
+        case 'file': {
+          const uri = content.path.startsWith('file://') ? content.path : `file://${content.path}`;
+          if (content.content) {
+            return {
+              type: 'resource',
+              resource: {
+                uri,
+                mimeType: content.mimeType,
+                text: content.content,
+              },
+            };
+          }
+          return { type: 'resource_link', uri };
         }
-        // Default to text for unknown types
-        return { type: 'text' as const, text: String(c) };
+        default:
+          return { type: 'text', text: JSON.stringify(content) };
+      }
+    });
+
+    if (options?.files?.length) {
+      const fileBlocks = options.files.map((file) => {
+        const uri = file.path.startsWith('file://') ? file.path : `file://${file.path}`;
+        return {
+          type: 'resource',
+          resource: {
+            uri,
+            mimeType: file.content ? 'text/plain' : undefined,
+            text: file.content,
+          },
+        } satisfies AcpPromptContentBlock;
       });
+      promptBlocks.unshift(...fileBlocks);
+    }
 
-      // Send the prompt request using correct ACP method name
-      const promptParams: AcpPromptParams = {
-        sessionId,
-        prompt: promptBlocks,
-      };
+    const promptParams: AcpPromptParams = {
+      sessionId,
+      prompt: promptBlocks,
+    };
 
+    try {
       // session/prompt is a REQUEST (not notification) that returns stopReason
       // We send it and handle streaming updates via session/update notifications
       this.sendPromptRequest(sessionId, promptParams);
@@ -714,6 +835,50 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
   async setSessionMode(sessionId: string, modeId: AcpPermissionMode): Promise<void> {
     await this.sendRequest('session/set_mode', { sessionId, modeId } as unknown as Record<string, unknown>);
     this.updateSession(sessionId, { permissionMode: modeId });
+  }
+
+  /**
+   * Set session model
+   * @see https://agentclientprotocol.com/protocol/session-setup#models
+   */
+  async setSessionModel(sessionId: string, modelId: string): Promise<void> {
+    const session = this._sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+
+    const models = session.metadata?.models as AcpSessionModelState | undefined;
+    if (!models?.availableModels?.length) {
+      throw new Error('Agent does not support model selection');
+    }
+
+    const modelExists = models.availableModels.some((m) => m.modelId === modelId);
+    if (!modelExists) {
+      throw new Error(`Unknown model: ${modelId}. Available: ${models.availableModels.map((m) => m.modelId).join(', ')}`);
+    }
+
+    await this.sendRequest('session/set_model', { sessionId, modelId } as unknown as Record<string, unknown>);
+
+    // Update session metadata with new model
+    this.updateSession(sessionId, {
+      metadata: {
+        ...session.metadata,
+        models: {
+          ...models,
+          currentModelId: modelId,
+        },
+      },
+    });
+
+    log.info('Session model changed', { sessionId, modelId });
+  }
+
+  /**
+   * Get available models for a session
+   */
+  getSessionModels(sessionId: string): AcpSessionModelState | undefined {
+    const session = this._sessions.get(sessionId);
+    return session?.metadata?.models as AcpSessionModelState | undefined;
   }
 
   /**
@@ -832,8 +997,25 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
         agentId: this.processId,
         message,
       });
+    } else if (this._config?.transport === 'websocket' && this.networkSocket) {
+      this.networkSocket.send(message);
     } else if (this._config?.transport === 'http' && this._config.network?.endpoint) {
-      const response = await fetch(`${this._config.network.endpoint}/message`, {
+      const response = await fetch(this._rpcEndpoint || `${this._config.network.endpoint}/message`, {
+        method: 'POST',
+        headers: this.buildHeaders(this._config),
+        body: message,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.text();
+      if (data) {
+        this.handleIncomingMessage(data);
+      }
+    } else if (this._config?.transport === 'sse' && this._config.network?.endpoint) {
+      const response = await fetch(this._rpcEndpoint || `${this._config.network.endpoint}/message`, {
         method: 'POST',
         headers: this.buildHeaders(this._config),
         body: message,
@@ -1300,14 +1482,17 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
             plan: update.entries,
           };
         }
+        const completedCount = update.entries.filter((entry) => entry.status === 'completed').length;
+        const totalSteps = update.entries.length;
+        const currentStep = update.entries.findIndex((entry) => entry.status === 'in_progress');
         return {
-          type: 'progress',
+          type: 'plan_update',
           sessionId,
           timestamp,
-          progress: 0,
-          message: `Plan: ${update.entries.length} steps`,
-          step: 0,
-          totalSteps: update.entries.length,
+          entries: update.entries,
+          progress: totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0,
+          step: currentStep,
+          totalSteps,
         };
 
       case 'available_commands_update':
@@ -1319,8 +1504,12 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
             availableCommands: update.availableCommands,
           };
         }
-        // No specific event for this, return null
-        return null;
+        return {
+          type: 'commands_update',
+          sessionId,
+          timestamp,
+          commands: update.availableCommands,
+        };
 
       case 'mode_change':
         this.updateSession(sessionId, { permissionMode: update.modeId });

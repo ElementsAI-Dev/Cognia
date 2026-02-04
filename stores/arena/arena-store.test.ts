@@ -265,6 +265,68 @@ describe('useArenaStore', () => {
       const preferences = useArenaStore.getState().preferences;
       expect(preferences.length).toBeGreaterThan(0);
     });
+
+    it('blocks voting when min viewing time is not met', () => {
+      let battleId: string = '';
+      act(() => {
+        const battle = useArenaStore.getState().createBattle('Test', mockContestants);
+        battleId = battle.id;
+        useArenaStore.getState().updateSettings({ enableAntiGaming: true, minViewingTimeMs: 3000 });
+        useArenaStore.getState().markBattleViewed(battleId);
+      });
+
+      act(() => {
+        useArenaStore.setState((state) => ({
+          battles: state.battles.map((battle) =>
+            battle.id === battleId
+              ? { ...battle, viewingStartedAt: new Date() }
+              : battle
+          ),
+        }));
+      });
+
+      const battle = useArenaStore.getState().getBattle(battleId);
+      const winnerId = battle?.contestants[0].id || '';
+
+      act(() => {
+        useArenaStore.getState().selectWinner(battleId, winnerId);
+      });
+
+      const updatedBattle = useArenaStore.getState().getBattle(battleId);
+      expect(updatedBattle?.winnerId).toBeUndefined();
+      expect(useArenaStore.getState().voteHistory.length).toBe(0);
+    });
+
+    it('allows voting after viewing time threshold', () => {
+      let battleId: string = '';
+      act(() => {
+        const battle = useArenaStore.getState().createBattle('Test', mockContestants);
+        battleId = battle.id;
+        useArenaStore.getState().updateSettings({ enableAntiGaming: true, minViewingTimeMs: 1000 });
+        useArenaStore.getState().markBattleViewed(battleId);
+      });
+
+      act(() => {
+        useArenaStore.setState((state) => ({
+          battles: state.battles.map((battle) =>
+            battle.id === battleId
+              ? { ...battle, viewingStartedAt: new Date(Date.now() - 2000) }
+              : battle
+          ),
+        }));
+      });
+
+      const battle = useArenaStore.getState().getBattle(battleId);
+      const winnerId = battle?.contestants[0].id || '';
+
+      act(() => {
+        useArenaStore.getState().selectWinner(battleId, winnerId);
+      });
+
+      const updatedBattle = useArenaStore.getState().getBattle(battleId);
+      expect(updatedBattle?.winnerId).toBe(winnerId);
+      expect(useArenaStore.getState().voteHistory.length).toBeGreaterThan(0);
+    });
   });
 
   describe('model ratings', () => {

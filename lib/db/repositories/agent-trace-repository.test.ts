@@ -210,4 +210,74 @@ describe('agentTraceRepository', () => {
       expect(await agentTraceRepository.count()).toBe(0);
     });
   });
+
+  describe('filePaths indexing', () => {
+    it('extracts and stores filePaths from record files', async () => {
+      const result = await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'fp-1',
+          timestamp: new Date().toISOString(),
+          files: [
+            { path: '/src/app.ts', conversations: [] },
+            { path: '/src/utils.ts', conversations: [] },
+          ],
+        },
+      });
+
+      expect(result.filePaths).toEqual(['/src/app.ts', '/src/utils.ts']);
+    });
+
+    it('stores undefined filePaths when no files', async () => {
+      const result = await agentTraceRepository.create({
+        record: { version: '0.1.0', id: 'fp-2', timestamp: new Date().toISOString(), files: [] },
+      });
+
+      expect(result.filePaths).toBeUndefined();
+    });
+
+    it('findByFilePath uses indexed query', async () => {
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'idx-1',
+          timestamp: new Date().toISOString(),
+          files: [{ path: '/src/target.ts', conversations: [] }],
+        },
+      });
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'idx-2',
+          timestamp: new Date().toISOString(),
+          files: [{ path: '/src/other.ts', conversations: [] }],
+        },
+      });
+
+      const results = await agentTraceRepository.findByFilePath('/src/target.ts');
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe('idx-1');
+    });
+
+    it('findByFilePath respects limit option', async () => {
+      for (let i = 0; i < 5; i++) {
+        await agentTraceRepository.create({
+          record: {
+            version: '0.1.0',
+            id: `lim-${i}`,
+            timestamp: new Date().toISOString(),
+            files: [{ path: '/shared/path.ts', conversations: [] }],
+          },
+        });
+      }
+
+      const results = await agentTraceRepository.findByFilePath('/shared/path.ts', { limit: 3 });
+      expect(results).toHaveLength(3);
+    });
+
+    it('findByFilePath returns empty array for non-existent path', async () => {
+      const results = await agentTraceRepository.findByFilePath('/non/existent.ts');
+      expect(results).toHaveLength(0);
+    });
+  });
 });

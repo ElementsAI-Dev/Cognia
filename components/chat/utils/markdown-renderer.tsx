@@ -23,6 +23,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import { REHYPE_KATEX_OPTIONS } from '@/lib/latex/config';
 import { cn } from '@/lib/utils';
 import { MermaidBlock } from '../renderers/mermaid-block';
 import { VegaLiteBlock } from '../renderers/vegalite-block';
@@ -52,8 +53,6 @@ export { DiffBlock } from '../renderers/diff-block';
 export { DetailsBlock, DetailsGroup } from '../renderers/details-block';
 export { KbdInline, KeyboardShortcut } from '../renderers/kbd-inline';
 
-import 'katex/dist/katex.min.css';
-
 /**
  * Custom sanitization schema for HTML in markdown
  * Extends default schema to allow additional safe elements and attributes
@@ -78,7 +77,15 @@ const sanitizeSchema = {
     // Allow common styling attributes
     '*': [
       ...(defaultSchema.attributes?.['*'] ?? []),
-      'className', 'class', 'style', 'aria-hidden',
+      'className', 'class', 'aria-hidden',
+    ],
+    div: [
+      ...(defaultSchema.attributes?.div ?? []),
+      'className', 'class', 'style',
+    ],
+    span: [
+      ...(defaultSchema.attributes?.span ?? []),
+      'className', 'class', 'style',
     ],
     // Allow specific attributes for links
     a: [
@@ -174,12 +181,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     // IMPORTANT: rehypeKatex must run BEFORE rehypeSanitize
     // Otherwise, KaTeX-generated HTML elements will be stripped
     if (enableMath) {
-      plugins.push([rehypeKatex, {
-        throwOnError: false,
-        strict: false,
-        trust: true,
-        output: 'htmlAndMathml',
-      }]);
+      plugins.push([rehypeKatex, REHYPE_KATEX_OPTIONS]);
     }
     // Sanitize HTML last to prevent XSS while preserving KaTeX output
     plugins.push([rehypeSanitize, sanitizeSchema]);

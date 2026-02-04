@@ -43,11 +43,17 @@ jest.mock('@/lib/ai/embedding/embedding', () => ({
 jest.mock('./hybrid-search', () => ({
   HybridSearchEngine: jest.fn().mockImplementation(() => ({
     addDocuments: jest.fn(),
-    search: jest.fn().mockReturnValue([
-      { id: 'chunk-1', content: 'Test content', score: 0.9 },
+    hybridSearch: jest.fn().mockReturnValue([
+      {
+        id: 'chunk-1',
+        content: 'Test content',
+        score: 0.9,
+        combinedScore: 0.9,
+      },
     ]),
     clear: jest.fn(),
     removeDocuments: jest.fn(),
+    updateConfig: jest.fn(),
   })),
 }));
 

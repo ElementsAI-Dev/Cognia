@@ -5,7 +5,7 @@
  * Displays streaming responses from multiple models side-by-side
  */
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   X,
@@ -24,6 +24,7 @@ import {
   Send,
   RotateCcw,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -49,6 +50,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useCopy } from '@/hooks/ui';
+import { useArena } from '@/hooks/arena';
 import { useArenaStore } from '@/stores/arena';
 import { MarkdownRenderer } from '@/components/chat/utils';
 import { QuickVoteBar } from '@/components/chat/ui/quick-vote-bar';
@@ -264,6 +266,7 @@ function ArenaBattleViewComponent({
   const t = useTranslations('arena');
   const tToasts = useTranslations('toasts');
   const { copy, isCopying } = useCopy({ toastMessage: tToasts('messageCopied') });
+  const { cancelBattle } = useArena();
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedReason, setSelectedReason] = useState<ArenaWinReason>('quality');
@@ -274,31 +277,54 @@ function ArenaBattleViewComponent({
   const selectWinner = useArenaStore((state) => state.selectWinner);
   const declareTie = useArenaStore((state) => state.declareTie);
   const declareBothBad = useArenaStore((state) => state.declareBothBad);
+  const canVote = useArenaStore((state) => state.canVote);
+  const markBattleViewed = useArenaStore((state) => state.markBattleViewed);
 
   // Track if reveal animation should be shown
   const [isRevealing, setIsRevealing] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      markBattleViewed(battleId);
+    }
+  }, [battleId, markBattleViewed, open]);
 
   // Check if all contestants are done
   const allDone = battle?.contestants.every(
     (c) => c.status === 'completed' || c.status === 'error' || c.status === 'cancelled'
   );
 
+  const ensureVoteAllowed = useCallback(() => {
+    const result = canVote(battleId);
+    if (!result.allowed) {
+      const message = result.reason === 'min-viewing-time'
+        ? tToasts('arenaMinViewingTime')
+        : tToasts('arenaRateLimit');
+      toast.error(message);
+      return false;
+    }
+    return true;
+  }, [battleId, canVote, tToasts]);
+
   const handleDeclareTie = useCallback(() => {
+    if (!ensureVoteAllowed()) return;
     setIsRevealing(true);
     declareTie(battleId);
-  }, [battleId, declareTie]);
+  }, [battleId, declareTie, ensureVoteAllowed]);
 
   const handleDeclareBothBad = useCallback(() => {
+    if (!ensureVoteAllowed()) return;
     setIsRevealing(true);
     declareBothBad(battleId);
-  }, [battleId, declareBothBad]);
+  }, [battleId, declareBothBad, ensureVoteAllowed]);
 
   const handleVote = useCallback(
     (contestantId: string) => {
+      if (!ensureVoteAllowed()) return;
       setIsRevealing(true);
       selectWinner(battleId, contestantId, { reason: selectedReason });
     },
-    [battleId, selectWinner, selectedReason]
+    [battleId, ensureVoteAllowed, selectWinner, selectedReason]
   );
 
   const handleCopy = useCallback(
@@ -307,6 +333,10 @@ function ArenaBattleViewComponent({
     },
     [copy]
   );
+
+  const handleCancel = useCallback(() => {
+    cancelBattle(battleId);
+  }, [battleId, cancelBattle]);
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
@@ -442,10 +472,7 @@ function ArenaBattleViewComponent({
                 blindMode={battle.mode === 'blind'}
                 isRevealed={isBattleComplete && isRevealing}
                 onCopy={() => handleCopy(contestant.response)}
-                onCancel={contestant.status === 'streaming' ? () => {
-                  // Note: Cancel functionality requires hook integration
-                  // For now, this provides the UI placeholder
-                } : undefined}
+                onCancel={contestant.status === 'streaming' ? handleCancel : undefined}
                 isCopying={isCopying}
               />
             ))}

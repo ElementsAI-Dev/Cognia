@@ -17,6 +17,7 @@ import type {
   ArenaWinReason,
   ArenaBattleMode,
   ArenaHeadToHead,
+  ArenaQualityIndicators,
 } from '@/types/arena';
 import {
   DEFAULT_ARENA_SETTINGS,
@@ -79,6 +80,37 @@ function calculateNewRatings(
   return { newWinnerRating, newLoserRating };
 }
 
+function buildQualityIndicators(
+  battle: ArenaBattle,
+  settings: ArenaSettings
+): ArenaQualityIndicators {
+  const responseLengths = battle.contestants.map((c) => c.response?.length || 0);
+  const avgResponseLength = responseLengths.length
+    ? responseLengths.reduce((sum, length) => sum + length, 0) / responseLengths.length
+    : 0;
+  const viewingStartedAt = battle.viewingStartedAt
+    ? new Date(battle.viewingStartedAt).getTime()
+    : null;
+  const viewingTimeMs = viewingStartedAt ? Math.max(0, Date.now() - viewingStartedAt) : 0;
+  const allResponsesComplete = battle.contestants.every((c) => c.status === 'completed');
+  const qualityScoreParts = [
+    battle.prompt.length > 0,
+    avgResponseLength > 0,
+    !settings.enableAntiGaming || viewingTimeMs >= settings.minViewingTimeMs,
+    allResponsesComplete,
+  ];
+  const qualityScore =
+    qualityScoreParts.filter(Boolean).length / Math.max(qualityScoreParts.length, 1);
+
+  return {
+    promptLength: battle.prompt.length,
+    avgResponseLength,
+    viewingTimeMs,
+    allResponsesComplete,
+    qualityScore,
+  };
+}
+
 /**
  * Convert preferences to matchups for BT calculation
  */
@@ -114,6 +146,7 @@ interface ArenaState {
   getBattle: (battleId: string) => ArenaBattle | undefined;
   getActiveBattle: () => ArenaBattle | undefined;
   setActiveBattle: (battleId: string | null) => void;
+  markBattleViewed: (battleId: string) => void;
   deleteBattle: (battleId: string) => void;
   clearBattleHistory: () => void;
 
@@ -176,7 +209,7 @@ interface ArenaState {
   continueBattle: (battleId: string, userMessage: string) => void;
 
   // Anti-gaming
-  canVote: () => { allowed: boolean; reason?: string };
+  canVote: (battleId?: string) => { allowed: boolean; reason?: 'rate-limit' | 'min-viewing-time' };
   recordVoteAttempt: () => void;
   voteHistory: { timestamp: number }[];
 
@@ -238,6 +271,15 @@ export const useArenaStore = create<ArenaState>()(
 
       setActiveBattle: (battleId) => {
         set({ activeBattleId: battleId });
+      },
+
+      markBattleViewed: (battleId) => {
+        set((state) => ({
+          battles: state.battles.map((battle) => {
+            if (battle.id !== battleId || battle.viewingStartedAt) return battle;
+            return { ...battle, viewingStartedAt: new Date() };
+          }),
+        }));
       },
 
       deleteBattle: (battleId) => {
@@ -310,6 +352,10 @@ export const useArenaStore = create<ArenaState>()(
       selectWinner: (battleId, winnerId, options) => {
         const battle = get().getBattle(battleId);
         if (!battle) return;
+        const settings = get().settings;
+        const voteCheck = get().canVote(battleId);
+        if (!voteCheck.allowed) return;
+        get().recordVoteAttempt();
 
         const winner = battle.contestants.find((c) => c.id === winnerId);
         if (!winner) return;
@@ -318,6 +364,7 @@ export const useArenaStore = create<ArenaState>()(
         const losers = battle.contestants.filter((c) => c.id !== winnerId);
 
         // Update battle
+        const qualityIndicators = buildQualityIndicators(battle, settings);
         set((state) => ({
           battles: state.battles.map((b) =>
             b.id === battleId
@@ -328,6 +375,7 @@ export const useArenaStore = create<ArenaState>()(
                   notes: options?.notes,
                   isTie: false,
                   completedAt: new Date(),
+                  qualityIndicators,
                 }
               : b
           ),
@@ -442,6 +490,11 @@ export const useArenaStore = create<ArenaState>()(
       declareTie: (battleId, notes) => {
         const battle = get().getBattle(battleId);
         if (!battle) return;
+        const settings = get().settings;
+        const voteCheck = get().canVote(battleId);
+        if (!voteCheck.allowed) return;
+        get().recordVoteAttempt();
+        const qualityIndicators = buildQualityIndicators(battle, settings);
 
         set((state) => ({
           battles: state.battles.map((b) =>
@@ -451,6 +504,7 @@ export const useArenaStore = create<ArenaState>()(
                   isTie: true,
                   notes,
                   completedAt: new Date(),
+                  qualityIndicators,
                 }
               : b
           ),
@@ -501,6 +555,11 @@ export const useArenaStore = create<ArenaState>()(
       declareBothBad: (battleId, notes) => {
         const battle = get().getBattle(battleId);
         if (!battle) return;
+        const settings = get().settings;
+        const voteCheck = get().canVote(battleId);
+        if (!voteCheck.allowed) return;
+        get().recordVoteAttempt();
+        const qualityIndicators = buildQualityIndicators(battle, settings);
 
         set((state) => ({
           battles: state.battles.map((b) =>
@@ -510,6 +569,7 @@ export const useArenaStore = create<ArenaState>()(
                   isBothBad: true,
                   notes,
                   completedAt: new Date(),
+                  qualityIndicators,
                 }
               : b
           ),
@@ -840,7 +900,7 @@ export const useArenaStore = create<ArenaState>()(
       },
 
       // Anti-gaming
-      canVote: () => {
+      canVote: (battleId) => {
         const { settings, voteHistory } = get();
         if (!settings.enableAntiGaming) {
           return { allowed: true };
@@ -852,8 +912,18 @@ export const useArenaStore = create<ArenaState>()(
         if (recentVotes.length >= settings.maxVotesPerHour) {
           return {
             allowed: false,
-            reason: `Rate limit exceeded. Maximum ${settings.maxVotesPerHour} votes per hour.`,
+            reason: 'rate-limit',
           };
+        }
+
+        if (battleId && settings.minViewingTimeMs > 0) {
+          const battle = get().getBattle(battleId);
+          if (battle?.viewingStartedAt) {
+            const elapsed = Date.now() - new Date(battle.viewingStartedAt).getTime();
+            if (elapsed < settings.minViewingTimeMs) {
+              return { allowed: false, reason: 'min-viewing-time' };
+            }
+          }
         }
 
         return { allowed: true };
@@ -898,6 +968,7 @@ export const useArenaStore = create<ArenaState>()(
               startedAt: c.startedAt ? new Date(c.startedAt) : undefined,
               completedAt: c.completedAt ? new Date(c.completedAt) : undefined,
             })),
+            viewingStartedAt: b.viewingStartedAt ? new Date(b.viewingStartedAt) : undefined,
           }));
           state.preferences = state.preferences.map((p: ArenaPreference) => ({
             ...p,

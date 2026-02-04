@@ -89,3 +89,6 @@ export * from './vcs';
 // Scheduler hooks (task automation)
 export * from './scheduler';
 
+// Map hooks (geolocation, geocoding)
+export * from './map';
+

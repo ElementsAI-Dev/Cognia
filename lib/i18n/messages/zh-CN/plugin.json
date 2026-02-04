@@ -499,5 +499,17 @@
       "description": "您所有安装的插件目前都已启用。",
       "viewAll": "查看所有插件"
     }
+  },
+  "pluginPermissionRequest": {
+    "title": "插件权限请求",
+    "description": "某个插件正在请求额外访问权限，请先确认再允许。",
+    "pluginLabel": "插件",
+    "permissionLabel": "权限",
+    "reasonLabel": "原因",
+    "allow": "允许",
+    "deny": "拒绝",
+    "queueNotice": "还有 {count} 个请求等待处理",
+    "kindApi": "API",
+    "kindManifest": "清单"
   }
 }

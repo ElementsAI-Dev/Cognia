@@ -33,6 +33,8 @@
     "copied": "已复制到剪贴板",
     "messageCopied": "消息已复制",
     "copyFailed": "复制失败",
+    "arenaMinViewingTime": "请先查看回答后再投票",
+    "arenaRateLimit": "投票过于频繁，请稍后再试",
     "addedToQuote": "已添加到引用",
     "chatCopied": "对话已复制到剪贴板",
     "chatCleared": "对话已清除",

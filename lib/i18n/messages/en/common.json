@@ -38,6 +38,8 @@
     "copied": "Copied to clipboard",
     "messageCopied": "Message copied",
     "copyFailed": "Failed to copy",
+    "arenaMinViewingTime": "Please review responses before voting",
+    "arenaRateLimit": "Rate limit exceeded. Please wait before voting again",
     "addedToQuote": "Added to quote",
     "chatCopied": "Chat copied to clipboard",
     "chatCleared": "Chat cleared",

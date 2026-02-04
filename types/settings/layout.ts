@@ -14,6 +14,7 @@ export type SettingsSection =
   | 'speech'
   | 'search'
   | 'data'
+  | 'arena'
   | 'sync'
   | 'agent-trace'
   | 'vector'

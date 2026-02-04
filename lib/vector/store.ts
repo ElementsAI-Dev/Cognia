@@ -7,7 +7,7 @@
 import type { EmbeddingModelConfig } from './embedding';
 import { generateEmbedding, generateEmbeddings } from './embedding';
 
-export type VectorStoreProvider = 'chroma' | 'pinecone' | 'qdrant' | 'milvus' | 'native';
+export type VectorStoreProvider = 'chroma' | 'pinecone' | 'qdrant' | 'milvus' | 'native' | 'weaviate';
 
 export interface VectorDocument {
   id: string;
@@ -34,6 +34,9 @@ export interface VectorStoreConfig {
   pineconeApiKey?: string;
   pineconeIndexName?: string;
   pineconeNamespace?: string;
+  // Weaviate-specific
+  weaviateUrl?: string;
+  weaviateApiKey?: string;
   // Qdrant-specific
   qdrantUrl?: string;
   qdrantApiKey?: string;
@@ -47,6 +50,22 @@ export interface VectorStoreConfig {
   milvusCollectionName?: string;
   // Native (Tauri) local store
   native?: Record<string, never>;
+}
+
+function sanitizePineconeMetadata(
+  metadata?: Record<string, unknown>
+): Record<string, string | number | boolean | string[]> | undefined {
+  if (!metadata) return undefined;
+
+  const safe: Record<string, string | number | boolean | string[]> = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      safe[key] = value;
+    } else if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+      safe[key] = value;
+    }
+  }
+  return safe;
 }
 
 export interface VectorCollectionInfo {
@@ -677,9 +696,231 @@ export class ChromaVectorStore implements IVectorStore {
   }
 }
 
-// PineconeVectorStore has been moved to a separate file (pinecone-store.ts)
-// to avoid client-side bundling issues with Node.js dependencies.
-// Import it directly on server-side: import { PineconeVectorStore } from '@/lib/vector/pinecone-store';
+/**
+ * Pinecone Vector Store implementation
+ */
+export class PineconeVectorStore implements IVectorStore {
+  readonly provider: VectorStoreProvider = 'pinecone';
+  private config: VectorStoreConfig;
+  private index: import('@pinecone-database/pinecone').Index<import('@pinecone-database/pinecone').RecordMetadata> | null = null;
+
+  constructor(config: VectorStoreConfig) {
+    this.config = config;
+  }
+
+  private assertServer(): void {
+    if (typeof window !== 'undefined') {
+      throw new Error('Pinecone vector store is only available in server environments');
+    }
+  }
+
+  private getPineconeConfig(collectionName?: string) {
+    return {
+      apiKey: this.config.pineconeApiKey!,
+      indexName: this.config.pineconeIndexName!,
+      namespace: this.config.pineconeNamespace ?? collectionName,
+      embeddingConfig: this.config.embeddingConfig,
+      embeddingApiKey: this.config.embeddingApiKey,
+    };
+  }
+
+  private async getIndex(): Promise<import('@pinecone-database/pinecone').Index<import('@pinecone-database/pinecone').RecordMetadata>> {
+    this.assertServer();
+    if (!this.index) {
+      const { getPineconeClient, getPineconeIndex } = await import('./pinecone-client');
+      const client = getPineconeClient(this.config.pineconeApiKey!);
+      this.index = getPineconeIndex(client, this.config.pineconeIndexName!);
+    }
+    return this.index;
+  }
+
+  async addDocuments(collectionName: string, documents: VectorDocument[]): Promise<void> {
+    const index = await this.getIndex();
+    const { upsertDocuments } = await import('./pinecone-client');
+    const mappedDocs = documents.map((doc) => ({
+      id: doc.id,
+      content: doc.content,
+      metadata: sanitizePineconeMetadata(doc.metadata),
+      embedding: doc.embedding,
+    }));
+    await upsertDocuments(index, mappedDocs, this.getPineconeConfig(collectionName));
+  }
+
+  async updateDocuments(collectionName: string, documents: VectorDocument[]): Promise<void> {
+    await this.addDocuments(collectionName, documents);
+  }
+
+  async deleteDocuments(collectionName: string, ids: string[]): Promise<void> {
+    const index = await this.getIndex();
+    const { deleteDocuments } = await import('./pinecone-client');
+    await deleteDocuments(index, ids, this.getPineconeConfig(collectionName).namespace);
+  }
+
+  async deleteAllDocuments(collectionName: string): Promise<number> {
+    const index = await this.getIndex();
+    const { deleteAllDocuments, getIndexStats } = await import('./pinecone-client');
+    const stats = await getIndexStats(index);
+    const namespace = this.getPineconeConfig(collectionName).namespace || 'default';
+    const before = stats.namespaces?.[namespace]?.vectorCount ?? 0;
+    await deleteAllDocuments(index, namespace);
+    return before;
+  }
+
+  async searchDocuments(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
+    const index = await this.getIndex();
+    const { queryPinecone } = await import('./pinecone-client');
+    const { topK = 5, filter } = options;
+
+    return queryPinecone(index, query, this.getPineconeConfig(collectionName), {
+      topK,
+      filter,
+      includeMetadata: true,
+    });
+  }
+
+  async getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]> {
+    const index = await this.getIndex();
+    const { fetchDocuments } = await import('./pinecone-client');
+    return fetchDocuments(index, ids, this.getPineconeConfig(collectionName).namespace);
+  }
+
+  async createCollection(
+    name: string,
+    options?: { dimension?: number; metadata?: Record<string, unknown>; description?: string }
+  ): Promise<void> {
+    const { createPineconeIndex } = await import('./pinecone-client');
+    const dimension = options?.dimension || this.config.embeddingConfig.dimensions || 1536;
+    const client = (await import('./pinecone-client')).getPineconeClient(this.config.pineconeApiKey!);
+
+    await createPineconeIndex(client, this.config.pineconeIndexName!, dimension, {
+      suppressConflicts: true,
+      tags: options?.metadata as Record<string, string> | undefined,
+    });
+
+    // Pinecone collections are namespaces, no explicit creation needed.
+    void name;
+  }
+
+  async deleteCollection(name: string): Promise<void> {
+    const index = await this.getIndex();
+    const { deleteAllDocuments } = await import('./pinecone-client');
+    await deleteAllDocuments(index, this.getPineconeConfig(name).namespace);
+  }
+
+  async listCollections(): Promise<VectorCollectionInfo[]> {
+    const index = await this.getIndex();
+    const { getIndexStats } = await import('./pinecone-client');
+    const stats = await getIndexStats(index);
+    return Object.entries(stats.namespaces || {}).map(([name, info]) => ({
+      name,
+      documentCount: info.vectorCount,
+      dimension: stats.dimension,
+    }));
+  }
+
+  async getCollectionInfo(name: string): Promise<VectorCollectionInfo> {
+    const index = await this.getIndex();
+    const { describePineconeIndex, getIndexStats } = await import('./pinecone-client');
+    const info = await describePineconeIndex(
+      (await import('./pinecone-client')).getPineconeClient(this.config.pineconeApiKey!),
+      this.config.pineconeIndexName!
+    );
+    const stats = await getIndexStats(index);
+    const namespace = this.getPineconeConfig(name).namespace || 'default';
+    return {
+      name: namespace,
+      documentCount: stats.namespaces?.[namespace]?.vectorCount ?? 0,
+      dimension: info.dimension,
+    };
+  }
+}
+
+/**
+ * Weaviate Vector Store implementation
+ */
+export class WeaviateVectorStore implements IVectorStore {
+  readonly provider: VectorStoreProvider = 'weaviate';
+  private config: VectorStoreConfig;
+
+  constructor(config: VectorStoreConfig) {
+    this.config = config;
+  }
+
+  private getWeaviateConfig(collectionName?: string) {
+    return {
+      url: this.config.weaviateUrl!,
+      apiKey: this.config.weaviateApiKey,
+      className: collectionName,
+      embeddingConfig: this.config.embeddingConfig,
+      embeddingApiKey: this.config.embeddingApiKey,
+    };
+  }
+
+  async addDocuments(collectionName: string, documents: VectorDocument[]): Promise<void> {
+    const { upsertWeaviateDocuments } = await import('./weaviate-client');
+    await upsertWeaviateDocuments(this.getWeaviateConfig(collectionName), documents);
+  }
+
+  async updateDocuments(collectionName: string, documents: VectorDocument[]): Promise<void> {
+    await this.addDocuments(collectionName, documents);
+  }
+
+  async deleteDocuments(collectionName: string, ids: string[]): Promise<void> {
+    const { deleteWeaviateDocuments } = await import('./weaviate-client');
+    await deleteWeaviateDocuments(this.getWeaviateConfig(collectionName), ids);
+  }
+
+  async searchDocuments(
+    collectionName: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<VectorSearchResult[]> {
+    const { queryWeaviate } = await import('./weaviate-client');
+    return queryWeaviate(this.getWeaviateConfig(collectionName), query, options);
+  }
+
+  async getDocuments(collectionName: string, ids: string[]): Promise<VectorDocument[]> {
+    const { getWeaviateDocuments } = await import('./weaviate-client');
+    return getWeaviateDocuments(this.getWeaviateConfig(collectionName), ids);
+  }
+
+  async createCollection(
+    name: string,
+    options?: { dimension?: number; metadata?: Record<string, unknown>; description?: string }
+  ): Promise<void> {
+    const { createWeaviateClass } = await import('./weaviate-client');
+    await createWeaviateClass(this.getWeaviateConfig(name), {
+      description: options?.description,
+      metadata: options?.metadata,
+      dimension: options?.dimension || this.config.embeddingConfig.dimensions,
+    });
+  }
+
+  async deleteCollection(name: string): Promise<void> {
+    const { deleteWeaviateClass } = await import('./weaviate-client');
+    await deleteWeaviateClass(this.getWeaviateConfig(name));
+  }
+
+  async listCollections(): Promise<VectorCollectionInfo[]> {
+    const { listWeaviateClasses } = await import('./weaviate-client');
+    return listWeaviateClasses(this.getWeaviateConfig()).then((classes: Array<{ name: string; description?: string; documentCount?: number }>) =>
+      classes.map((cls) => ({
+        name: cls.name,
+        documentCount: cls.documentCount ?? 0,
+        description: cls.description,
+      }))
+    );
+  }
+
+  async getCollectionInfo(name: string): Promise<VectorCollectionInfo> {
+    const { getWeaviateClassInfo } = await import('./weaviate-client');
+    return getWeaviateClassInfo(this.getWeaviateConfig(name));
+  }
+}
 
 /**
  * Qdrant Vector Store implementation
@@ -1097,8 +1338,15 @@ export function createVectorStore(config: VectorStoreConfig): IVectorStore {
       if (!config.pineconeApiKey) {
         throw new Error('Pinecone API key is required');
       }
-      // TODO: Implement PineconeVectorStore
-      throw new Error('Pinecone vector store is not yet implemented');
+      if (!config.pineconeIndexName) {
+        throw new Error('Pinecone index name is required');
+      }
+      return new PineconeVectorStore(config);
+    case 'weaviate':
+      if (!config.weaviateUrl) {
+        throw new Error('Weaviate URL is required');
+      }
+      return new WeaviateVectorStore(config);
     case 'qdrant':
       if (!config.qdrantUrl) {
         throw new Error('Qdrant URL is required');
@@ -1120,5 +1368,5 @@ export function createVectorStore(config: VectorStoreConfig): IVectorStore {
  * Get supported vector store providers
  */
 export function getSupportedVectorStoreProviders(): VectorStoreProvider[] {
-  return ['chroma', 'pinecone', 'qdrant', 'milvus', 'native'];
+  return ['chroma', 'pinecone', 'qdrant', 'milvus', 'native', 'weaviate'];
 }

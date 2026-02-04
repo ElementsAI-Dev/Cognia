@@ -6,10 +6,10 @@
 import { useState, useCallback } from 'react';
 import { useSettingsStore } from '@/stores/settings/settings-store';
 import {
-  verifySource,
   generateVerificationReport,
   getRootDomain,
   extractDomain,
+  enhanceSearchResponse,
 } from '@/lib/search/source-verification';
 import type {
   SearchResponse,
@@ -73,10 +73,12 @@ export function useSourceVerification(
           return response;
         }
 
-        const enhancedResults: VerifiedSearchResult[] = searchResponse.results.map((result) => {
-          const verification = verifySource(result.url);
-          const domain = extractDomain(result.url);
-          const rootDomain = getRootDomain(domain);
+        // Use enhanceSearchResponse to get base verification data
+        const enhanced = enhanceSearchResponse(searchResponse, { includeReport: false });
+
+        // Apply user settings (trust/block lists, auto-filter) on top
+        const enhancedResults: VerifiedSearchResult[] = enhanced.results.map((result) => {
+          const rootDomain = getRootDomain(extractDomain(result.url));
 
           const isBlocked = settings.blockedDomains.some(
             (d) => rootDomain.includes(d) || d.includes(rootDomain)
@@ -90,35 +92,38 @@ export function useSourceVerification(
             isEnabled = false;
           } else if (
             settings.autoFilterLowCredibility &&
-            verification.credibilityScore < settings.minimumCredibilityScore * 100
+            result.verification &&
+            result.verification.credibilityScore < settings.minimumCredibilityScore * 100
           ) {
             isEnabled = false;
           }
 
           return {
             ...result,
-            verification: {
-              url: verification.url,
-              domain: verification.domain,
-              rootDomain,
-              sourceType: verification.sourceType as
-                | 'government'
-                | 'academic'
-                | 'news'
-                | 'reference'
-                | 'organization'
-                | 'corporate'
-                | 'blog'
-                | 'social'
-                | 'forum'
-                | 'unknown',
-              credibilityScore: verification.credibilityScore / 100,
-              credibilityLevel: verification.credibilityLevel,
-              isHttps: verification.isHttps,
-              trustIndicators: verification.trustIndicators,
-              warningIndicators: verification.warningIndicators,
-              userMarked: isBlocked ? 'blocked' : isTrusted ? 'trusted' : null,
-            },
+            verification: result.verification
+              ? {
+                  url: result.verification.url,
+                  domain: result.verification.domain,
+                  rootDomain,
+                  sourceType: result.verification.sourceType as
+                    | 'government'
+                    | 'academic'
+                    | 'news'
+                    | 'reference'
+                    | 'organization'
+                    | 'corporate'
+                    | 'blog'
+                    | 'social'
+                    | 'forum'
+                    | 'unknown',
+                  credibilityScore: result.verification.credibilityScore / 100,
+                  credibilityLevel: result.verification.credibilityLevel,
+                  isHttps: result.verification.isHttps,
+                  trustIndicators: result.verification.trustIndicators,
+                  warningIndicators: result.verification.warningIndicators,
+                  userMarked: isBlocked ? 'blocked' : isTrusted ? 'trusted' : null,
+                }
+              : undefined,
             isEnabled,
           };
         });

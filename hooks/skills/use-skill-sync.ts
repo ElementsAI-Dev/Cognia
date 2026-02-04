@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSkillStore } from '@/stores/skills/skill-store';
+import { toHyphenCase } from '@/lib/skills';
 import { useNativeSkills, type DiscoverableSkill, type InstalledSkill } from './use-native-skills';
 import * as nativeSkill from '@/lib/native/skill';
 import type { Skill, CreateSkillInput } from '@/types/system/skill';
@@ -64,6 +65,10 @@ export function useSkillSync(): UseSkillSyncReturn {
     install: nativeInstall,
     uninstall: nativeUninstall,
     readContent,
+    writeContent,
+    writeResource,
+    registerLocal,
+    update: updateNative,
     isDiscovering: nativeIsDiscovering,
     discoverable: nativeDiscoverable,
     error: nativeError,
@@ -156,19 +161,32 @@ export function useSkillSync(): UseSkillSyncReturn {
     try {
       // Note: nativeInstalled is used for comparison below
       const frontendList = getAllSkills();
+      let hadErrors = false;
 
       // Find custom frontend skills not in native
       for (const skill of frontendList) {
         if (skill.source === 'custom') {
-          const existsInNative = nativeInstalled.some((n) => n.name === skill.metadata.name);
+          const directory = toHyphenCase(skill.metadata.name);
+          const existsInNative = nativeInstalled.some(
+            (n) => n.name === skill.metadata.name || n.directory === directory
+          );
 
           if (!existsInNative) {
-            // Would need to create in native - but we can't easily do this
-            // since native expects a directory with SKILL.md
-            // This is a TODO for future implementation
-            console.log(
-              `Custom skill ${skill.metadata.name} not synced to native (not implemented)`
-            );
+            try {
+              await writeContent(directory, skill.rawContent);
+
+              for (const resource of skill.resources) {
+                if (resource.content) {
+                  await writeResource(directory, resource.path, resource.content);
+                }
+              }
+
+              const installed = await registerLocal(directory);
+              await updateNative(installed.id, skill.category, skill.tags);
+            } catch (error) {
+              hadErrors = true;
+              console.error('Failed to sync skill to native:', skill.metadata.name, error);
+            }
           }
         }
       }
@@ -177,15 +195,24 @@ export function useSkillSync(): UseSkillSyncReturn {
         ...s,
         isSyncing: false,
         lastSyncAt: new Date(),
+        syncError: hadErrors ? 'i18n:syncToNativeFailed' : null,
       }));
-    } catch (error) {
+    } catch (_error) {
       setState((s) => ({
         ...s,
         isSyncing: false,
-        syncError: String(error),
+        syncError: 'i18n:syncToNativeFailed',
       }));
     }
-  }, [isNativeAvailable, nativeInstalled, getAllSkills]);
+  }, [
+    isNativeAvailable,
+    nativeInstalled,
+    getAllSkills,
+    writeContent,
+    writeResource,
+    registerLocal,
+    updateNative,
+  ]);
 
   /**
    * Install a skill from repository via native backend

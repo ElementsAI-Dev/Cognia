@@ -4,6 +4,7 @@
 
 import {
   getImageExportFormats,
+  getSafeCanvasScale,
   estimateImageSize,
 } from './image-export';
 
@@ -89,6 +90,20 @@ describe('Image Export', () => {
       // Large size should be in KB or MB
       const largeSize = estimateImageSize(100, { scale: 3, format: 'png' });
       expect(largeSize).toMatch(/^\d+(\.\d+)?\s*(KB|MB)$/);
+    });
+  });
+
+  describe('getSafeCanvasScale', () => {
+    it('should constrain scale to fit canvas limits', () => {
+      const result = getSafeCanvasScale(12000, 12000, 2);
+      expect(result.scale).toBeLessThan(2);
+      expect(result.constrained).toBe(true);
+    });
+
+    it('should keep scale when within limits', () => {
+      const result = getSafeCanvasScale(800, 600, 2);
+      expect(result.scale).toBe(2);
+      expect(result.constrained).toBe(false);
     });
   });
 });

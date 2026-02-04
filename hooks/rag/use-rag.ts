@@ -45,8 +45,12 @@ export interface UseRAGOptions {
   enableHybridSearch?: boolean;
   enableReranking?: boolean;
   enableQueryExpansion?: boolean;
+  enableSparseSearch?: boolean;
+  enableLateInteraction?: boolean;
   vectorWeight?: number;
   keywordWeight?: number;
+  sparseWeight?: number;
+  lateInteractionWeight?: number;
 }
 
 export interface UseRAGReturn {
@@ -332,6 +336,10 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
         enabled: options.enableHybridSearch ?? true,
         vectorWeight: options.vectorWeight ?? 0.5,
         keywordWeight: options.keywordWeight ?? 0.5,
+        sparseWeight: options.sparseWeight ?? 0.3,
+        lateInteractionWeight: options.lateInteractionWeight ?? 0.2,
+        enableSparseSearch: options.enableSparseSearch ?? false,
+        enableLateInteraction: options.enableLateInteraction ?? false,
       },
       reranking: {
         enabled: options.enableReranking ?? true,
@@ -361,8 +369,12 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
     options.enableHybridSearch,
     options.enableReranking,
     options.enableQueryExpansion,
+    options.enableSparseSearch,
+    options.enableLateInteraction,
     options.vectorWeight,
     options.keywordWeight,
+    options.sparseWeight,
+    options.lateInteractionWeight,
     topK,
     similarityThreshold,
     maxContextLength,

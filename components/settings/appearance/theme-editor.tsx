@@ -65,6 +65,44 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'colors' | 'palettes'>('colors');
   const [isLivePreview, setIsLivePreview] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  // Theme name validation constants
+  const THEME_NAME_MIN_LENGTH = 1;
+  const THEME_NAME_MAX_LENGTH = 40;
+
+  // Validate theme name
+  const validateThemeName = useCallback((value: string): string | null => {
+    const trimmed = value.trim();
+    const invalidCharsPattern = /[<>:"/\\|?*]/;
+    if (trimmed.length < THEME_NAME_MIN_LENGTH) {
+      return t('nameRequired');
+    }
+    if (trimmed.length > THEME_NAME_MAX_LENGTH) {
+      return t('nameTooLong', { max: THEME_NAME_MAX_LENGTH });
+    }
+    if (invalidCharsPattern.test(trimmed)) {
+      return t('nameInvalidChars');
+    }
+    // Check for duplicate names (excluding current theme if editing)
+    const isDuplicate = customThemes.some(
+      (theme) => theme.name.toLowerCase() === trimmed.toLowerCase() && theme.id !== editingThemeId
+    );
+    if (isDuplicate) {
+      return t('nameDuplicate');
+    }
+    return null;
+  }, [t, customThemes, editingThemeId]);
+
+  // Handle name change with validation
+  const handleNameChange = useCallback((value: string) => {
+    // Enforce max length
+    if (value.length > THEME_NAME_MAX_LENGTH) {
+      value = value.slice(0, THEME_NAME_MAX_LENGTH);
+    }
+    setName(value);
+    setNameError(validateThemeName(value));
+  }, [validateThemeName]);
 
   // Calculate contrast ratios
   const contrastResults = useMemo(() => {
@@ -192,7 +230,12 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
   };
 
   const handleSave = () => {
-    if (!name.trim()) return;
+    // Validate before saving
+    const error = validateThemeName(name);
+    if (error) {
+      setNameError(error);
+      return;
+    }
 
     if (editingThemeId) {
       updateCustomTheme(editingThemeId, {
@@ -272,14 +315,23 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
           {/* Theme Name & Dark Mode Row */}
           <div className="grid grid-cols-2 gap-3 items-end">
             <div className="space-y-1.5">
-              <Label htmlFor="theme-name" className="text-xs">{t('themeName')}</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="theme-name" className="text-xs">{t('themeName')}</Label>
+                <span className="text-[10px] text-muted-foreground">
+                  {name.length}/{THEME_NAME_MAX_LENGTH}
+                </span>
+              </div>
               <Input
                 id="theme-name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => handleNameChange(e.target.value)}
                 placeholder={t('themeNamePlaceholder')}
-                className="h-8"
+                className={cn('h-8', nameError && 'border-destructive')}
+                maxLength={THEME_NAME_MAX_LENGTH}
               />
+              {nameError && (
+                <p className="text-[10px] text-destructive">{nameError}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">{t('darkTheme')}</Label>

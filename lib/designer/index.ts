@@ -7,7 +7,7 @@
  * - export/: Export and CDN resolution utilities
  * - config/: Templates and Tailwind configuration
  * - collaboration/: Collaboration features
- * - plugins/: Plugin system
+ * - plugins/: Accessibility analysis utilities
  */
 
 // AI utilities

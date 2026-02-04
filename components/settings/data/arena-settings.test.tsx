@@ -68,6 +68,21 @@ const mockClearBattleHistory = jest.fn();
 const mockResetModelRatings = jest.fn();
 const mockClearPreferences = jest.fn();
 const mockGetStats = jest.fn(() => mockStats);
+const mockLeaderboardSyncSettings = {
+  enabled: true,
+  apiBaseUrl: 'https://api.example.com',
+  apiKey: 'secret',
+  autoSubmitPreferences: true,
+  autoRefresh: true,
+  autoRefreshIntervalMinutes: 5,
+  cacheDurationMinutes: 5,
+  retryFailedSubmissions: true,
+  maxRetryAttempts: 3,
+  requestTimeoutMs: 30000,
+  minBattlesThreshold: 5,
+  anonymousMode: false,
+};
+const mockUpdateLeaderboardSyncSettings = jest.fn();
 
 // Mock arena store
 jest.mock('@/stores/arena', () => ({
@@ -95,6 +110,13 @@ jest.mock('@/lib/ai/generation/preference-learner', () => ({
     exportedAt: new Date(),
   })),
   importPreferences: jest.fn(),
+}));
+
+jest.mock('@/hooks/arena', () => ({
+  useLeaderboardSyncSettings: () => ({
+    settings: mockLeaderboardSyncSettings,
+    updateSettings: mockUpdateLeaderboardSyncSettings,
+  }),
 }));
 
 // Mock next-intl
@@ -152,6 +174,27 @@ jest.mock('next-intl', () => ({
         'stats.completedBattles': 'Completed',
         'stats.ties': 'Ties',
         'stats.topModels': 'Top Models',
+        'leaderboard.sync.title': 'Global Leaderboard',
+        'leaderboard.sync.enabled': 'Enable Global Leaderboard Sync',
+        'leaderboard.sync.enabledDescription': 'Sync leaderboard data',
+        'leaderboard.sync.showGlobalLeaderboard': 'Show Global Leaderboard',
+        'leaderboard.sync.showGlobalLeaderboardDescription': 'Display global rankings',
+        'leaderboard.sync.apiUrl': 'API URL',
+        'leaderboard.sync.apiUrlPlaceholder': 'https://api.example.com',
+        'leaderboard.sync.apiKey': 'API Key (optional)',
+        'leaderboard.sync.autoSubmit': 'Auto-submit Preferences',
+        'leaderboard.sync.autoSubmitDescription': 'Submit results',
+        'leaderboard.sync.autoRefresh': 'Auto-refresh',
+        'leaderboard.sync.autoRefreshDescription': 'Refresh data',
+        'leaderboard.sync.refreshInterval': 'Refresh Interval (minutes)',
+        'leaderboard.sync.cacheDuration': 'Cache Duration (minutes)',
+        'leaderboard.sync.minBattles': 'Minimum Battles Threshold',
+        'leaderboard.sync.anonymousMode': 'Anonymous Mode',
+        'leaderboard.sync.anonymousModeDescription': 'Anonymous',
+        'leaderboard.sync.retryFailedSubmissions': 'Retry Failed Submissions',
+        'leaderboard.sync.retryFailedSubmissionsDescription': 'Retry failed',
+        'leaderboard.sync.maxRetryAttempts': 'Max Retry Attempts',
+        'leaderboard.sync.requestTimeout': 'Request Timeout (seconds)',
       },
       common: {
         cancel: 'Cancel',
@@ -332,45 +375,19 @@ jest.mock('@/components/ui/slider', () => ({
 }));
 
 jest.mock('@/components/ui/select', () => ({
-  Select: ({
-    value,
-    _onValueChange,
-    children,
-  }: {
-    value: string;
-    _onValueChange?: (value: string) => void;
-    children: React.ReactNode;
-  }) => (
-    <div data-testid="select" data-value={value}>
+  Select: ({ children, onValueChange }: { children: React.ReactNode; onValueChange: (value: string) => void }) => (
+    <div data-testid="select" onClick={() => onValueChange('blind')}>
       {children}
     </div>
   ),
-  SelectContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="select-content">{children}</div>
-  ),
-  SelectItem: ({
-    value,
-    children,
-  }: {
-    value: string;
-    children: React.ReactNode;
-  }) => (
-    <option value={value} data-testid={`select-item-${value}`}>
-      {children}
-    </option>
-  ),
-  SelectTrigger: ({
-    children,
-    className,
-  }: {
-    children: React.ReactNode;
-    className?: string;
-  }) => (
-    <button data-testid="select-trigger" className={className}>
-      {children}
-    </button>
-  ),
-  SelectValue: () => <span data-testid="select-value" />,
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectValue: () => <div>Select Value</div>,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+jest.mock('@/components/ui/input', () => ({
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
 }));
 
 jest.mock('@/components/ui/alert-dialog', () => ({
@@ -519,6 +536,7 @@ describe('ArenaSettings', () => {
       render(<ArenaSettings />);
       expect(screen.getByText('Anti-Gaming Protection')).toBeInTheDocument();
       expect(screen.getByText('Advanced Settings')).toBeInTheDocument();
+      expect(screen.getByText('Global Leaderboard')).toBeInTheDocument();
     });
   });
 
@@ -650,26 +668,26 @@ describe('ArenaSettings', () => {
     it('anti-gaming section is collapsed by default', () => {
       render(<ArenaSettings />);
       const collapsibles = screen.getAllByTestId('collapsible');
-      expect(collapsibles[0]).toHaveAttribute('data-open', 'false');
+      expect(collapsibles[1]).toHaveAttribute('data-open', 'false');
     });
 
     it('advanced settings section is collapsed by default', () => {
       render(<ArenaSettings />);
       const collapsibles = screen.getAllByTestId('collapsible');
-      expect(collapsibles[1]).toHaveAttribute('data-open', 'false');
+      expect(collapsibles[2]).toHaveAttribute('data-open', 'false');
     });
 
     it('toggles anti-gaming section when clicked', () => {
       render(<ArenaSettings />);
       const triggers = screen.getAllByTestId('collapsible-trigger');
-      fireEvent.click(triggers[0]);
+      fireEvent.click(triggers[1]);
       // State change is handled by React state
     });
 
     it('toggles advanced settings section when clicked', () => {
       render(<ArenaSettings />);
       const triggers = screen.getAllByTestId('collapsible-trigger');
-      fireEvent.click(triggers[1]);
+      fireEvent.click(triggers[2]);
       // State change is handled by React state
     });
   });

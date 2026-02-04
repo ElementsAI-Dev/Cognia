@@ -15,6 +15,9 @@ import type {
   AcpCapabilities,
   AcpToolInfo,
   AcpPermissionResponse,
+  AcpPermissionMode,
+  AcpAuthMethod,
+  AcpSessionModelState,
   ExternalAgentConnectionStatus,
 } from '@/types/agent/external-agent';
 
@@ -98,6 +101,36 @@ export interface ProtocolAdapter {
    * @param response Permission response
    */
   respondToPermission(sessionId: string, response: AcpPermissionResponse): Promise<void>;
+
+  /**
+   * Optional: Set session permission mode (ACP)
+   */
+  setSessionMode?: (sessionId: string, modeId: AcpPermissionMode) => Promise<void>;
+
+  /**
+   * Optional: Set session model (ACP)
+   */
+  setSessionModel?: (sessionId: string, modelId: string) => Promise<void>;
+
+  /**
+   * Optional: Get session model state (ACP)
+   */
+  getSessionModels?: (sessionId: string) => AcpSessionModelState | undefined;
+
+  /**
+   * Optional: Get available auth methods (ACP)
+   */
+  getAuthMethods?: () => AcpAuthMethod[];
+
+  /**
+   * Optional: Check if auth is required (ACP)
+   */
+  isAuthenticationRequired?: () => boolean;
+
+  /**
+   * Optional: Authenticate with the agent (ACP)
+   */
+  authenticate?: (methodId: string, credentials?: Record<string, unknown>) => Promise<void>;
 
   /**
    * Cancel an ongoing execution
@@ -269,6 +302,10 @@ export abstract class BaseProtocolAdapter implements ProtocolAdapter {
               const response = await options.onPermissionRequest(event.request);
               await this.respondToPermission(sessionId, response);
             }
+            break;
+
+          case 'plan_update':
+            options?.onProgress?.(event.progress);
             break;
 
           case 'progress':

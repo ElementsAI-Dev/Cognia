@@ -34,6 +34,14 @@ export interface TraceFile {
   conversations: TraceConversation[];
 }
 
+export type AgentTraceEventType =
+  | 'tool_call_request'
+  | 'tool_call_result'
+  | 'step_start'
+  | 'step_finish'
+  | 'planning'
+  | 'response';
+
 export interface AgentTraceRecord {
   version: string;
   id: string;
@@ -41,5 +49,14 @@ export interface AgentTraceRecord {
   vcs?: AgentTraceVcsInfo;
   tool?: AgentTraceToolInfo;
   files: TraceFile[];
+  /** Optional event classification for non-file trace records */
+  eventType?: AgentTraceEventType;
+  /** OpenTelemetry trace correlation */
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
+  /** Logical turn/step identifiers for agent execution */
+  turnId?: string;
+  stepId?: string;
   metadata?: Record<string, unknown>;
 }

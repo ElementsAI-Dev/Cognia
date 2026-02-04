@@ -18,6 +18,10 @@ import type {
   ExternalAgentConnectionStatus,
   AcpCapabilities,
   AcpToolInfo,
+  AcpPermissionMode,
+  AcpPermissionResponse,
+  AcpAuthMethod,
+  AcpSessionModelState,
 } from '@/types/agent/external-agent';
 import type { AgentTool } from '@/lib/ai/agent';
 import {
@@ -82,6 +86,64 @@ export class ExternalAgentManager {
     if (this.config.healthCheckInterval > 0) {
       this.startHealthCheck();
     }
+  }
+
+  // ==========================================================================
+  // ACP-specific helpers (optional)
+  // ==========================================================================
+
+  async respondToPermission(
+    agentId: string,
+    sessionId: string,
+    response: AcpPermissionResponse
+  ): Promise<void> {
+    const adapter = this.adapters.get(agentId);
+    if (!adapter) {
+      throw new Error(`Agent not found: ${agentId}`);
+    }
+    await adapter.respondToPermission(sessionId, response);
+  }
+
+  async setSessionMode(agentId: string, sessionId: string, modeId: AcpPermissionMode): Promise<void> {
+    const adapter = this.adapters.get(agentId);
+    if (!adapter?.setSessionMode) {
+      throw new Error('Agent does not support session mode changes');
+    }
+    await adapter.setSessionMode(sessionId, modeId);
+  }
+
+  async setSessionModel(agentId: string, sessionId: string, modelId: string): Promise<void> {
+    const adapter = this.adapters.get(agentId);
+    if (!adapter?.setSessionModel) {
+      throw new Error('Agent does not support model selection');
+    }
+    await adapter.setSessionModel(sessionId, modelId);
+  }
+
+  getSessionModels(agentId: string, sessionId: string): AcpSessionModelState | undefined {
+    const adapter = this.adapters.get(agentId);
+    if (!adapter?.getSessionModels) {
+      return undefined;
+    }
+    return adapter.getSessionModels(sessionId);
+  }
+
+  getAuthMethods(agentId: string): AcpAuthMethod[] {
+    const adapter = this.adapters.get(agentId);
+    return adapter?.getAuthMethods ? adapter.getAuthMethods() : [];
+  }
+
+  isAuthenticationRequired(agentId: string): boolean {
+    const adapter = this.adapters.get(agentId);
+    return adapter?.isAuthenticationRequired ? adapter.isAuthenticationRequired() : false;
+  }
+
+  async authenticate(agentId: string, methodId: string, credentials?: Record<string, unknown>): Promise<void> {
+    const adapter = this.adapters.get(agentId);
+    if (!adapter?.authenticate) {
+      throw new Error('Agent does not support authentication');
+    }
+    await adapter.authenticate(methodId, credentials);
   }
 
   /**
@@ -240,9 +302,18 @@ export class ExternalAgentManager {
     await this.connect(agentId);
   }
 
-  // ============================================================================
+  // ==========================================================================
   // Session Management
-  // ============================================================================
+  // ==========================================================================
+
+  private buildSessionOptions(options?: ExternalAgentExecutionOptions): SessionCreateOptions {
+    return {
+      systemPrompt: options?.systemPrompt,
+      context: options?.context as Record<string, unknown> | undefined,
+      permissionMode: options?.permissionMode,
+      timeout: options?.timeout,
+    };
+  }
 
   /**
    * Create a session with an external agent
@@ -323,21 +394,21 @@ export class ExternalAgentManager {
     let session: ExternalAgentSession;
     const existingSession = options?.context?.custom?.sessionId as string | undefined;
 
+    const sessionOptions = this.buildSessionOptions(options);
+
     if (existingSession) {
       const existing = instance.sessions.get(existingSession);
       if (existing) {
         session = existing;
       } else {
-        session = await adapter.createSession({
-          systemPrompt: options?.systemPrompt,
-          context: options?.context as Record<string, unknown> | undefined,
-        });
+        session = await adapter.createSession(sessionOptions);
       }
     } else {
-      session = await adapter.createSession({
-        systemPrompt: options?.systemPrompt,
-        context: options?.context as Record<string, unknown> | undefined,
-      });
+      session = await adapter.createSession(sessionOptions);
+    }
+
+    if (options?.permissionMode && adapter.setSessionMode && session.permissionMode !== options.permissionMode) {
+      await adapter.setSessionMode(session.id, options.permissionMode);
     }
 
     instance.sessions.set(session.id, session);
@@ -393,10 +464,12 @@ export class ExternalAgentManager {
     const startTime = Date.now();
 
     // Create session
-    const session = await adapter.createSession({
-      systemPrompt: options?.systemPrompt,
-      context: options?.context as Record<string, unknown> | undefined,
-    });
+    const sessionOptions = this.buildSessionOptions(options);
+    const session = await adapter.createSession(sessionOptions);
+
+    if (options?.permissionMode && adapter.setSessionMode && session.permissionMode !== options.permissionMode) {
+      await adapter.setSessionMode(session.id, options.permissionMode);
+    }
 
     instance.sessions.set(session.id, session);
 

@@ -3,6 +3,7 @@
  */
 
 import { createSessionAPI } from './session-api';
+import { getPermissionGuard, resetPermissionGuard } from '@/lib/plugin/security';
 import type { Session, UIMessage } from '@/types';
 
 // Mock session store
@@ -12,6 +13,12 @@ const mockSubscribers: Array<(state: unknown) => void> = [];
 
 // Mock messages storage
 const mockMessages: Record<string, UIMessage[]> = {};
+
+const messageHooks = {
+  creating: new Set<(primaryKey: string, obj: { sessionId?: string }) => void>(),
+  updating: new Set<(mods: unknown, primaryKey: string, obj: { sessionId?: string }) => void>(),
+  deleting: new Set<(primaryKey: string, obj: { sessionId?: string }) => void>(),
+};
 
 jest.mock('@/stores/chat/session-store', () => ({
   useSessionStore: {
@@ -59,6 +66,21 @@ jest.mock('@/stores/chat/session-store', () => ({
 }));
 
 jest.mock('@/lib/db', () => ({
+  db: {
+    messages: {
+      hook: (type: 'creating' | 'updating' | 'deleting', fn?: unknown) => {
+        if (fn) {
+          messageHooks[type].add(fn as never);
+          return fn;
+        }
+        return {
+          unsubscribe: (handler: unknown) => {
+            messageHooks[type].delete(handler as never);
+          },
+        };
+      },
+    },
+  },
   messageRepository: {
     getBySessionId: jest.fn((sessionId) => {
       return Promise.resolve(mockMessages[sessionId] || []);
@@ -104,12 +126,19 @@ jest.mock('nanoid', () => ({
 
 describe('Session API', () => {
   const testPluginId = 'test-plugin';
+  let guard: ReturnType<typeof getPermissionGuard>;
 
   beforeEach(() => {
+    resetPermissionGuard();
+    guard = getPermissionGuard();
+    guard.registerPlugin(testPluginId, ['session:read', 'session:write']);
     mockSessions.length = 0;
     mockActiveSessionId = null;
     mockSubscribers.length = 0;
     Object.keys(mockMessages).forEach(key => delete mockMessages[key]);
+    messageHooks.creating.clear();
+    messageHooks.updating.clear();
+    messageHooks.deleting.clear();
   });
 
   describe('createSessionAPI', () => {
@@ -414,19 +443,20 @@ describe('Session API', () => {
       expect(typeof unsubscribe).toBe('function');
     });
 
-    it('should stop polling when unsubscribed', () => {
-      jest.useFakeTimers();
-      
+    it('should stop listening when unsubscribed', () => {
       const api = createSessionAPI(testPluginId);
       const handler = jest.fn();
 
       const unsubscribe = api.onMessagesChange('session-1', handler);
+      expect(messageHooks.creating.size).toBe(1);
+      expect(messageHooks.updating.size).toBe(1);
+      expect(messageHooks.deleting.size).toBe(1);
+
       unsubscribe();
 
-      // Advance timers - handler should not be called after unsubscribe
-      jest.advanceTimersByTime(2000);
-
-      jest.useRealTimers();
+      expect(messageHooks.creating.size).toBe(0);
+      expect(messageHooks.updating.size).toBe(0);
+      expect(messageHooks.deleting.size).toBe(0);
     });
   });
 

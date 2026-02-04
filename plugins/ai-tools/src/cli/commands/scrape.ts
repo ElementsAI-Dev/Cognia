@@ -6,7 +6,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { listPricingProviderIds, getPricingProviderConfig } from '../../utils/providers';
+import { listPricingProviderIds, getPricingProvider } from '../../utils/providers';
 import type { PricingProviderConfig } from '../../types';
 
 interface ScrapeOptions {

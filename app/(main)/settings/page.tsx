@@ -37,9 +37,11 @@ import {
   Cloud,
   ScrollText,
   ExternalLink,
+  Swords,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -110,6 +112,7 @@ import {
   SyncSettings,
   LogViewer,
   LoggingSettings,
+  ArenaSettings,
 } from '@/components/settings';
 import { ExternalAgentSettings } from '@/components/settings/agent';
 import { ObservabilitySettings } from '@/components/observability';
@@ -278,10 +281,14 @@ function SettingsSidebar({
 
 export default function SettingsPage() {
   const t = useTranslations('settings');
-  const [activeSection, setActiveSection] = useState<SettingsSection>('providers');
   const [searchQuery, setSearchQuery] = useState('');
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const resetSettings = useSettingsStore((state) => state.resetSettings);
+  const searchParams = useSearchParams();
+  const initialSection = searchParams.get('section');
+  const [activeSection, setActiveSection] = useState<SettingsSection>(
+    () => (initialSection as SettingsSection) || 'providers'
+  );
 
   const isDesktop = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -484,6 +491,13 @@ export default function SettingsPage() {
         group: 'data',
       },
       {
+        id: 'arena',
+        label: t('tabArena'),
+        icon: <Swords className="h-4 w-4" />,
+        description: t('descArena'),
+        group: 'data',
+      },
+      {
         id: 'agent-trace',
         label: t('tabAgentTrace') || 'Agent Trace',
         icon: <FileText className="h-4 w-4" />,
@@ -613,6 +627,8 @@ export default function SettingsPage() {
         return <SearchSettings />;
       case 'data':
         return <DataSettings />;
+      case 'arena':
+        return <ArenaSettings />;
       case 'sync':
         return <SyncSettings />;
       case 'agent-trace':

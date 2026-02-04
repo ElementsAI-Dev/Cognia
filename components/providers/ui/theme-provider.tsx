@@ -1,5 +1,15 @@
 'use client';
 
+/**
+ * @deprecated This ThemeProvider is deprecated. Use the main ThemeProvider from app/providers.tsx instead.
+ * This component is kept for backwards compatibility but should not be used in new code.
+ * The main ThemeProvider in app/providers.tsx handles:
+ * - Light/dark/system mode
+ * - Color theme presets and custom themes
+ * - Theme scheduling
+ * - UI customization
+ */
+
 import * as React from 'react';
 
 export type Theme = 'dark' | 'light' | 'system';

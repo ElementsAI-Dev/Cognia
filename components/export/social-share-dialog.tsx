@@ -18,6 +18,7 @@ import {
   Link2,
   Mail,
   MessageCircle,
+  QrCode,
 } from 'lucide-react';
 import {
   Dialog,
@@ -47,13 +48,14 @@ import {
   generateShareableMarkdown,
 } from '@/lib/export/social/social-share';
 import { exportToImage } from '@/lib/export/image/image-export';
+import { QRCodeGenerator } from '@/components/export/qr';
 
 interface SocialShareDialogProps {
   session: Session;
   trigger?: React.ReactNode;
 }
 
-type ShareFormat = 'text' | 'markdown' | 'image' | 'link';
+type ShareFormat = 'text' | 'markdown' | 'image' | 'link' | 'qrcode';
 
 const PLATFORM_ICONS: Record<SocialPlatform, React.ReactNode> = {
   twitter: <span className="font-bold">𝕏</span>,
@@ -292,7 +294,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
 
             {/* Share Format */}
             <Tabs value={shareFormat} onValueChange={(v) => setShareFormat(v as ShareFormat)}>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="text" className="flex items-center gap-1">
                   <FileText className="h-3 w-3" />
                   {t('textTab')}
@@ -308,6 +310,10 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
                 <TabsTrigger value="link" className="flex items-center gap-1">
                   <Link2 className="h-3 w-3" />
                   {t('linkTab')}
+                </TabsTrigger>
+                <TabsTrigger value="qrcode" className="flex items-center gap-1">
+                  <QrCode className="h-3 w-3" />
+                  {t('qrTab')}
                 </TabsTrigger>
               </TabsList>
 
@@ -369,6 +375,19 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
                   {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                   {copied ? t('copied') : t('copyLinkBtn')}
                 </Button>
+              </TabsContent>
+
+              <TabsContent value="qrcode" className="space-y-3">
+                <p className="text-sm text-muted-foreground text-center">
+                  {t('qrContentDesc')}
+                </p>
+                <QRCodeGenerator
+                  data={window.location.href}
+                  defaultPreset="cognia"
+                  showDownload
+                  showCopy
+                  showPresetSelector
+                />
               </TabsContent>
             </Tabs>
 

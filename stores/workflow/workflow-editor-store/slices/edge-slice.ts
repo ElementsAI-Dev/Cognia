@@ -11,6 +11,7 @@ import {
 } from '@xyflow/react';
 import { nanoid } from 'nanoid';
 import type { SliceCreator, EdgeSliceActions, WorkflowEdge } from '../types';
+import { scheduleWorkflowValidation } from '../utils/validation-scheduler';
 
 export const createEdgeSlice: SliceCreator<EdgeSliceActions> = (set, get) => {
   return {
@@ -36,6 +37,7 @@ export const createEdgeSlice: SliceCreator<EdgeSliceActions> = (set, get) => {
 
       set({ currentWorkflow: updated, isDirty: true });
       get().pushHistory();
+      scheduleWorkflowValidation(get);
     },
 
     updateEdge: (edgeId, data) => {
@@ -70,6 +72,7 @@ export const createEdgeSlice: SliceCreator<EdgeSliceActions> = (set, get) => {
         selectedEdges: get().selectedEdges.filter((id) => id !== edgeId),
       });
       get().pushHistory();
+      scheduleWorkflowValidation(get);
     },
 
     deleteEdges: (edgeIds) => {
@@ -89,6 +92,7 @@ export const createEdgeSlice: SliceCreator<EdgeSliceActions> = (set, get) => {
         selectedEdges: get().selectedEdges.filter((id) => !edgeIdSet.has(id)),
       });
       get().pushHistory();
+      scheduleWorkflowValidation(get);
     },
 
     onEdgesChange: (changes: EdgeChange<WorkflowEdge>[]) => {
@@ -113,6 +117,11 @@ export const createEdgeSlice: SliceCreator<EdgeSliceActions> = (set, get) => {
       if (shouldRecordHistory) {
         get().pushHistory();
       }
+
+      const shouldValidate = changes.some((c) => c.type !== 'select');
+      if (shouldValidate) {
+        scheduleWorkflowValidation(get);
+      }
     },
 
     onConnect: (connection: Connection) => {
@@ -135,6 +144,7 @@ export const createEdgeSlice: SliceCreator<EdgeSliceActions> = (set, get) => {
 
       set({ currentWorkflow: updated, isDirty: true });
       get().pushHistory();
+      scheduleWorkflowValidation(get);
     },
   };
 };

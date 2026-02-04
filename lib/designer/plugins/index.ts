@@ -1,47 +1,14 @@
 /**
- * Plugin System index
- * Re-exports plugin system and built-in plugins
+ * Designer Plugins - Accessibility analysis utilities
+ * 
+ * Note: The previous custom plugin system has been removed.
+ * Use the main plugin system at lib/plugin/ for extensibility.
  */
-
-export {
-  type PluginCategory,
-  type PluginHook,
-  type PluginContext,
-  type PluginResult,
-  type PluginAction,
-  type PluginPanel,
-  type DesignerPlugin,
-  type PluginSetting,
-  type PluginRegistry,
-  registerPlugin,
-  unregisterPlugin,
-  enablePlugin,
-  disablePlugin,
-  getPlugin,
-  getAllPlugins,
-  getEnabledPlugins,
-  getPluginsByCategory,
-  executeHook,
-  executePluginAction,
-  getPluginSettings,
-  updatePluginSettings,
-  getAllPluginActions,
-  getAllPluginPanels,
-  resetPluginRegistry,
-} from './plugin-system';
 
 export {
   type AccessibilityIssue,
   type AccessibilityReport,
-  createAccessibilityPlugin,
+  analyzeAccessibility,
+  autoFixAccessibilityIssues,
+  getWCAGCriteria,
 } from './accessibility-plugin';
-
-/**
- * Register all built-in plugins
- */
-import { registerPlugin } from './plugin-system';
-import { createAccessibilityPlugin } from './accessibility-plugin';
-
-export function registerBuiltInPlugins(): void {
-  registerPlugin(createAccessibilityPlugin());
-}

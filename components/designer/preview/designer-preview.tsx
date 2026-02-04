@@ -373,6 +373,7 @@ export function DesignerPreview({
             try {
               const insertPoint = await getInsertionPoint(code, targetElementId, 'inside');
               
+              let nextCode = code;
               if (insertPoint && insertPoint.offset !== undefined) {
                 // Insert at calculated position with proper indentation
                 const before = code.slice(0, insertPoint.offset);
@@ -381,8 +382,8 @@ export function DesignerPreview({
                   .split('\n')
                   .map((line: string, i: number) => (i === 0 ? line : insertPoint.indentation + line))
                   .join('\n');
-                const newCode = before + '\n' + insertPoint.indentation + indentedCode + '\n' + after;
-                setCode(newCode, true);
+                nextCode = before + '\n' + insertPoint.indentation + indentedCode + '\n' + after;
+                setCode(nextCode, true);
               } else {
                 // Fallback: use pattern matching to find insertion point
                 if (targetElementId) {
@@ -391,20 +392,20 @@ export function DesignerPreview({
                     // Find the closing > of the opening tag
                     const tagEnd = code.indexOf('>', match.startIndex);
                     if (tagEnd !== -1) {
-                      const newCode = code.slice(0, tagEnd + 1) + '\n  ' + droppedCode + code.slice(tagEnd + 1);
-                      setCode(newCode, true);
+                      nextCode = code.slice(0, tagEnd + 1) + '\n  ' + droppedCode + code.slice(tagEnd + 1);
+                      setCode(nextCode, true);
                     }
                   }
                 } else {
                   // Append to root
                   const insertIdx = code.lastIndexOf('</');
                   if (insertIdx !== -1) {
-                    const newCode = code.slice(0, insertIdx) + '\n' + droppedCode + '\n' + code.slice(insertIdx);
-                    setCode(newCode, true);
+                    nextCode = code.slice(0, insertIdx) + '\n' + droppedCode + '\n' + code.slice(insertIdx);
+                    setCode(nextCode, true);
                   }
                 }
               }
-              parseCodeToElements(code);
+              void parseCodeToElements(nextCode);
             } catch (err) {
               console.error('Failed to insert code:', err);
             }

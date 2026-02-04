@@ -35,6 +35,8 @@ import { Tooltip, TooltipContent, TooltipTrigger
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useExternalAgent } from '@/hooks/agent';
+import { ExternalAgentCommands } from './external-agent-commands';
+import { ExternalAgentPlan } from './external-agent-plan';
 import type { ExternalAgentConfig, ExternalAgentConnectionStatus } from '@/types/agent/external-agent';
 import {
   EXTERNAL_AGENT_PRESETS,
@@ -393,12 +395,17 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
   const {
     agents,
     activeAgentId,
+    isExecuting,
     isLoading,
     error,
+    availableCommands,
+    planEntries,
+    planStep,
     addAgent,
     removeAgent,
     connect,
     disconnect,
+    execute,
     setActiveAgent,
     refresh,
     clearError,
@@ -450,6 +457,14 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
       }
     },
     [removeAgent]
+  );
+
+  const handleCommandExecute = useCallback(
+    async (command: string, args?: string) => {
+      const prompt = args ? `${command} ${args}` : command;
+      await execute(prompt);
+    },
+    [execute]
   );
 
   return (
@@ -528,6 +543,19 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
           </div>
         )}
       </ScrollArea>
+
+      {(availableCommands.length > 0 || planEntries.length > 0) && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <ExternalAgentCommands
+              commands={availableCommands}
+              onExecute={handleCommandExecute}
+              isExecuting={isExecuting}
+            />
+          </div>
+          <ExternalAgentPlan entries={planEntries} currentStep={planStep ?? undefined} />
+        </div>
+      )}
 
       {/* Add Agent Dialog */}
       <AddAgentDialog

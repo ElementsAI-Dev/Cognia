@@ -8,7 +8,8 @@ import type {
   PluginPermissionAPI,
   PluginAPIPermission,
 } from '@/types/plugin/plugin-extended';
-import { createPluginSystemLogger } from '../core/logger';
+import { createPluginSystemLogger } from '@/lib/plugin/core/logger';
+import { requestPluginPermission } from '@/lib/plugin/security/permission-requests';
 
 // Permission grants by plugin
 const grantedPermissions = new Map<string, Set<PluginAPIPermission>>();
@@ -91,14 +92,27 @@ export function createPermissionAPI(
 
     requestPermission: async (
       permission: PluginAPIPermission, 
-      _reason?: string
+      reason?: string
     ): Promise<boolean> => {
-      // For now, auto-grant requested permissions
-      // In production, this would show a dialog to the user
-      const permissions = getPermissions();
-      permissions.add(permission);
-      logger.info(`Granted permission: ${permission}`);
-      return true;
+      const existing = getPermissions();
+      if (existing.has(permission)) {
+        return true;
+      }
+
+      const granted = await requestPluginPermission({
+        pluginId,
+        permission,
+        reason,
+        kind: 'api',
+      });
+
+      if (granted) {
+        existing.add(permission);
+        logger.info(`Granted permission: ${permission}`);
+      } else {
+        logger.info(`Denied permission: ${permission}`);
+      }
+      return granted;
     },
 
     getGrantedPermissions: (): PluginAPIPermission[] => {

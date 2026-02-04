@@ -16,9 +16,11 @@ import {
   buildChatRequestHeaders,
   buildChatRequestBody,
   getEnabledBYOKProviders,
+  getUsageHistory,
+  getAllUsageHistory,
   OpenRouterError,
 } from './openrouter';
-import type { OpenRouterModel } from '@/types/provider/openrouter';
+import type { OpenRouterModel, OpenRouterUsageResponse } from '@/types/provider/openrouter';
 import type { BYOKKeyEntry } from '@/types/provider';
 
 describe('OpenRouterError', () => {
@@ -263,5 +265,162 @@ describe('getEnabledBYOKProviders', () => {
 
   it('returns empty array when no BYOK keys', () => {
     expect(getEnabledBYOKProviders([])).toEqual([]);
+  });
+});
+
+describe('getUsageHistory', () => {
+  const mockUsageResponse: OpenRouterUsageResponse = {
+    data: [
+      {
+        id: 'usage-1',
+        model: 'openai/gpt-4o',
+        provider: 'openai',
+        tokens_prompt: 100,
+        tokens_completion: 50,
+        cost: 0.001,
+        created_at: '2024-01-01T00:00:00Z',
+        is_byok: false,
+      },
+      {
+        id: 'usage-2',
+        model: 'anthropic/claude-3-opus',
+        provider: 'anthropic',
+        tokens_prompt: 200,
+        tokens_completion: 100,
+        cost: 0.002,
+        created_at: '2024-01-02T00:00:00Z',
+        is_byok: true,
+      },
+    ],
+    total_cost: 0.003,
+    total_tokens: 450,
+  };
+
+  beforeEach(() => {
+    global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it('should fetch usage history with default options', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockUsageResponse),
+    });
+
+    const result = await getUsageHistory('test-api-key');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/auth/key/usage',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-api-key',
+        }),
+      })
+    );
+    expect(result.data).toHaveLength(2);
+    expect(result.total_cost).toBe(0.003);
+  });
+
+  it('should fetch usage history with custom limit and offset', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockUsageResponse),
+    });
+
+    await getUsageHistory('test-api-key', { limit: 50, offset: 10 });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/auth/key/usage?limit=50&offset=10',
+      expect.any(Object)
+    );
+  });
+
+  it('should throw OpenRouterError on API error', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: () => Promise.resolve({ error: { message: 'Invalid API key', code: 401 } }),
+    });
+
+    await expect(getUsageHistory('invalid-key')).rejects.toThrow('Invalid API key');
+  });
+});
+
+describe('getAllUsageHistory', () => {
+  beforeEach(() => {
+    global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it('should paginate through all usage entries', async () => {
+    const page1 = {
+      data: Array(100).fill(null).map((_, i) => ({
+        id: `usage-${i}`,
+        model: 'openai/gpt-4o',
+        provider: 'openai',
+        tokens_prompt: 100,
+        tokens_completion: 50,
+        cost: 0.001,
+        created_at: '2024-01-01T00:00:00Z',
+        is_byok: false,
+      })),
+      total_cost: 0.1,
+      total_tokens: 15000,
+    };
+
+    const page2 = {
+      data: Array(50).fill(null).map((_, i) => ({
+        id: `usage-${100 + i}`,
+        model: 'openai/gpt-4o',
+        provider: 'openai',
+        tokens_prompt: 100,
+        tokens_completion: 50,
+        cost: 0.001,
+        created_at: '2024-01-02T00:00:00Z',
+        is_byok: false,
+      })),
+      total_cost: 0.05,
+      total_tokens: 7500,
+    };
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(page1) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(page2) });
+
+    const result = await getAllUsageHistory('test-api-key');
+
+    expect(result).toHaveLength(150);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('should respect maxEntries limit', async () => {
+    const page1 = {
+      data: Array(100).fill(null).map((_, i) => ({
+        id: `usage-${i}`,
+        model: 'openai/gpt-4o',
+        provider: 'openai',
+        tokens_prompt: 100,
+        tokens_completion: 50,
+        cost: 0.001,
+        created_at: '2024-01-01T00:00:00Z',
+        is_byok: false,
+      })),
+      total_cost: 0.1,
+      total_tokens: 15000,
+    };
+
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: () => Promise.resolve(page1) });
+
+    const result = await getAllUsageHistory('test-api-key', 50);
+
+    expect(result).toHaveLength(50);
   });
 });

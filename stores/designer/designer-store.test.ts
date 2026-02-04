@@ -430,9 +430,9 @@ describe('useDesignerStore', () => {
   });
 
   describe('parseCodeToElements', () => {
-    it('should generate deterministic element IDs (el-0, el-1, etc.)', () => {
-      act(() => {
-        useDesignerStore.getState().parseCodeToElements('<div><span>Hello</span><p>World</p></div>');
+    it('should generate deterministic element IDs (el-0, el-1, etc.)', async () => {
+      await act(async () => {
+        await useDesignerStore.getState().parseCodeToElements('<div><span>Hello</span><p>World</p></div>');
       });
 
       const state = useDesignerStore.getState();
@@ -445,27 +445,27 @@ describe('useDesignerStore', () => {
       expect(state.elementTree?.children[1]?.id).toBe('el-2');
     });
 
-    it('should reset ID counter for each parse to ensure consistency', () => {
+    it('should reset ID counter for each parse to ensure consistency', async () => {
       // First parse
-      act(() => {
-        useDesignerStore.getState().parseCodeToElements('<div><span>Test1</span></div>');
+      await act(async () => {
+        await useDesignerStore.getState().parseCodeToElements('<div><span>Test1</span></div>');
       });
       const firstTree = useDesignerStore.getState().elementTree;
       expect(firstTree?.id).toBe('el-0');
       expect(firstTree?.children[0]?.id).toBe('el-1');
 
       // Second parse - IDs should start from el-0 again
-      act(() => {
-        useDesignerStore.getState().parseCodeToElements('<section><article>Test2</article></section>');
+      await act(async () => {
+        await useDesignerStore.getState().parseCodeToElements('<section><article>Test2</article></section>');
       });
       const secondTree = useDesignerStore.getState().elementTree;
       expect(secondTree?.id).toBe('el-0');
       expect(secondTree?.children[0]?.id).toBe('el-1');
     });
 
-    it('should build element map with deterministic IDs', () => {
-      act(() => {
-        useDesignerStore.getState().parseCodeToElements('<div class="container"><button>Click</button></div>');
+    it('should build element map with deterministic IDs', async () => {
+      await act(async () => {
+        await useDesignerStore.getState().parseCodeToElements('<div class="container"><button>Click</button></div>');
       });
 
       const state = useDesignerStore.getState();

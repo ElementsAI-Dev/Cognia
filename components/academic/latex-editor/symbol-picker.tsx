@@ -21,26 +21,13 @@ import {
 import {
   GREEK_LETTERS,
   MATH_OPERATORS,
+  RELATIONS,
   ARROWS,
   DELIMITERS,
+  FUNCTIONS,
   searchSymbols,
 } from '@/lib/latex/symbols';
 import type { LaTeXSymbol } from '@/types/latex';
-
-// Define relations and functions locally since they're not exported from symbols
-const MATH_RELATIONS = MATH_OPERATORS.filter((s) => ['=', '<', '>', '≤', '≥', '≠'].some((r) => s.name.includes(r) || s.command.includes(r)));
-const MATH_FUNCTIONS: LaTeXSymbol[] = [
-  { name: 'sin', command: '\\sin', category: 'functions' },
-  { name: 'cos', command: '\\cos', category: 'functions' },
-  { name: 'tan', command: '\\tan', category: 'functions' },
-  { name: 'log', command: '\\log', category: 'functions' },
-  { name: 'ln', command: '\\ln', category: 'functions' },
-  { name: 'exp', command: '\\exp', category: 'functions' },
-  { name: 'lim', command: '\\lim', category: 'functions' },
-  { name: 'sum', command: '\\sum', category: 'functions' },
-  { name: 'prod', command: '\\prod', category: 'functions' },
-  { name: 'int', command: '\\int', category: 'functions' },
-];
 
 interface SymbolPickerProps {
   onSelect: (symbol: LaTeXSymbol) => void;
@@ -55,10 +42,10 @@ export function SymbolPicker({ onSelect, className }: SymbolPickerProps) {
     () => [
       { id: 'greek', label: 'Greek', symbols: GREEK_LETTERS },
       { id: 'operators', label: 'Operators', symbols: MATH_OPERATORS },
-      { id: 'relations', label: 'Relations', symbols: MATH_RELATIONS },
+      { id: 'relations', label: 'Relations', symbols: RELATIONS },
       { id: 'arrows', label: 'Arrows', symbols: ARROWS },
       { id: 'delimiters', label: 'Delimiters', symbols: DELIMITERS },
-      { id: 'functions', label: 'Functions', symbols: MATH_FUNCTIONS },
+      { id: 'functions', label: 'Functions', symbols: FUNCTIONS },
     ],
     []
   );

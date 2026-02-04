@@ -156,4 +156,11 @@ export const SETTINGS_SEARCH_INDEX: SearchableSetting[] = [
     sectionId: 'sync',
     description: 'Sync data across devices via WebDAV or GitHub',
   },
+  {
+    id: 'arena-settings',
+    title: 'Arena Settings',
+    keywords: ['arena', 'leaderboard', 'battle', 'model comparison', 'vote', 'rating'],
+    sectionId: 'arena',
+    description: 'Configure chat arena battles and leaderboard preferences',
+  },
 ];

@@ -5,12 +5,13 @@
  * Provides isolated React runtime for code execution
  */
 
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   SandpackProvider,
   SandpackLayout,
   SandpackPreview,
   SandpackCodeEditor,
+  SandpackConsole,
   useSandpack,
 } from '@codesandbox/sandpack-react';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,7 @@ import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
 import type { FrameworkType } from '@/lib/designer';
 import { SandboxErrorBoundary, useErrorBoundaryReset } from './sandbox-error-boundary';
+import { SandboxFileExplorer } from './sandbox-file-explorer';
 
 export type { FrameworkType };
 
@@ -58,18 +60,21 @@ const INDEX_CSS = `@tailwind base;
 `;
 
 // Internal component to sync code with store
-function SandboxSync() {
+function SandboxSync({ onCodeChange }: { onCodeChange?: (code: string) => void }) {
   const { sandpack } = useSandpack();
   const setCode = useDesignerStore((state) => state.setCode);
+  const lastCodeRef = useRef<string | null>(null);
 
   // Sync changes to store
   const handleChange = useCallback(() => {
     const files = sandpack.files;
     const appFile = files['/App.tsx'] || files['/App.jsx'];
-    if (appFile) {
+    if (appFile && appFile.code !== lastCodeRef.current) {
+      lastCodeRef.current = appFile.code;
       setCode(appFile.code, false);
+      onCodeChange?.(appFile.code);
     }
-  }, [sandpack.files, setCode]);
+  }, [sandpack.files, setCode, onCodeChange]);
 
   // Listen for file changes
   useEffect(() => {
@@ -84,9 +89,9 @@ export function ReactSandbox({
   showEditor = true,
   showPreview = true,
   code: propCode,
-  onCodeChange: _onCodeChange,
-  showFileExplorer: _showFileExplorer,
-  showConsole: _showConsole,
+  onCodeChange,
+  showFileExplorer = false,
+  showConsole = false,
   framework: _framework,
   onAIEdit: _onAIEdit,
 }: ReactSandboxProps) {
@@ -130,27 +135,95 @@ export function ReactSandbox({
             recompileDelay: 300,
           }}
         >
-          <SandboxSync />
+          <SandboxSync onCodeChange={onCodeChange} />
           <SandpackLayout className="h-full flex-1 min-h-0">
-            {showEditor && (
-              <SandpackCodeEditor
-                showTabs={false}
-                showLineNumbers
-                showInlineErrors
-                wrapContent
-                style={{ height: '100%' }}
-              />
-            )}
-            {showPreview && (
-              <SandpackPreview
-                showNavigator={false}
-                showRefreshButton
-                style={{ height: '100%' }}
-              />
-            )}
+            <SandboxContent
+              showEditor={showEditor}
+              showPreview={showPreview}
+              showFileExplorer={showFileExplorer}
+              showConsole={showConsole}
+            />
           </SandpackLayout>
         </SandpackProvider>
       </SandboxErrorBoundary>
+    </div>
+  );
+}
+
+interface SandboxContentProps {
+  showEditor: boolean;
+  showPreview: boolean;
+  showFileExplorer: boolean;
+  showConsole: boolean;
+}
+
+function SandboxContent({
+  showEditor,
+  showPreview,
+  showFileExplorer,
+  showConsole,
+}: SandboxContentProps) {
+  const { sandpack } = useSandpack();
+
+  const handleFileSelect = useCallback(
+    (path: string) => {
+      sandpack.openFile(path);
+    },
+    [sandpack]
+  );
+
+  const handleFileCreate = useCallback(
+    (path: string) => {
+      sandpack.addFile(path, '', true);
+      sandpack.openFile(path);
+    },
+    [sandpack]
+  );
+
+  const handleFileDelete = useCallback(
+    (path: string) => {
+      sandpack.deleteFile(path, true);
+    },
+    [sandpack]
+  );
+
+  return (
+    <div className="flex h-full w-full min-h-0">
+      {showFileExplorer && (
+        <div className="w-56 border-r bg-muted/10">
+          <SandboxFileExplorer
+            files={sandpack.files}
+            activeFile={sandpack.activeFile}
+            onFileSelect={handleFileSelect}
+            onFileCreate={handleFileCreate}
+            onFileDelete={handleFileDelete}
+          />
+        </div>
+      )}
+      <div className="flex min-h-0 flex-1">
+        {showEditor && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SandpackCodeEditor
+              showTabs={false}
+              showLineNumbers
+              showInlineErrors
+              wrapContent
+              style={{ height: '100%' }}
+            />
+          </div>
+        )}
+        {showPreview && (
+          <SandpackPreview
+            showNavigator={false}
+            showRefreshButton
+            className={cn(showEditor ? 'border-l' : '')}
+            style={{ height: '100%' }}
+          />
+        )}
+        {showConsole && (
+          <SandpackConsole className={cn('border-l', showEditor || showPreview ? 'w-64' : 'flex-1')} />
+        )}
+      </div>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import type { EmbeddingModelConfig, EmbeddingProvider } from '@/lib/vector/embed
 import { DEFAULT_EMBEDDING_MODELS } from '@/lib/vector/embedding';
 
 export type VectorDBMode = 'embedded' | 'server';
-export type VectorDBProvider = 'chroma' | 'native' | 'pinecone' | 'qdrant' | 'milvus';
+export type VectorDBProvider = 'chroma' | 'native' | 'pinecone' | 'qdrant' | 'milvus' | 'weaviate';
 
 export interface VectorCollection {
   id: string;
@@ -38,6 +38,8 @@ export interface VectorSettings {
   pineconeApiKey: string;
   pineconeIndexName: string;
   pineconeNamespace: string;
+  weaviateUrl: string;
+  weaviateApiKey: string;
   qdrantUrl: string;
   qdrantApiKey: string;
   milvusAddress: string;
@@ -59,6 +61,8 @@ const DEFAULT_SETTINGS: VectorSettings = {
   pineconeApiKey: '',
   pineconeIndexName: '',
   pineconeNamespace: '',
+  weaviateUrl: 'http://localhost:8080',
+  weaviateApiKey: '',
   qdrantUrl: 'http://localhost:6333',
   qdrantApiKey: '',
   milvusAddress: 'http://localhost:19530',

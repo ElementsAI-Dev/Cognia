@@ -26,8 +26,10 @@ import {
   disableSkill,
   updateSkill,
   readSkillContent,
+  writeSkillContent,
   listSkillResources,
   readSkillResource,
+  writeSkillResource,
   getSkillSsotDir,
   isNativeSkillAvailable,
   safeSkillInvoke,
@@ -370,6 +372,18 @@ describe('Native Skill Module', () => {
       expect(content).toBe(mockContent);
     });
 
+    it('should write skill content', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await writeSkillContent('test-skill', 'content');
+
+      expect(mockInvoke).toHaveBeenCalledWith('skill_write_content', {
+        directory: 'test-skill',
+        content: 'content',
+      });
+    });
+
+
     it('should list skill resources', async () => {
       const mockResources = ['SKILL.md', 'helper.js', 'config.json'];
       mockInvoke.mockResolvedValue(mockResources);
@@ -386,14 +400,27 @@ describe('Native Skill Module', () => {
       const mockResourceContent = '{"key": "value"}';
       mockInvoke.mockResolvedValue(mockResourceContent);
 
-      const content = await readSkillResource('test-skill', 'config.json');
+      const resource = await readSkillResource('test-skill', 'config.json');
 
       expect(mockInvoke).toHaveBeenCalledWith('skill_read_resource', {
         directory: 'test-skill',
         resourcePath: 'config.json',
       });
-      expect(content).toBe(mockResourceContent);
+      expect(resource).toBe(mockResourceContent);
     });
+
+    it('should write a skill resource', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await writeSkillResource('skill-dir', 'scripts/test.js', 'console.log(1)');
+
+      expect(mockInvoke).toHaveBeenCalledWith('skill_write_resource', {
+        directory: 'skill-dir',
+        resourcePath: 'scripts/test.js',
+        content: 'console.log(1)',
+      });
+    });
+
 
     it('should get SSOT directory path', async () => {
       const mockPath = '/Users/test/.cognia/skills';

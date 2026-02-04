@@ -27,7 +27,9 @@ import { LaTeXAutocomplete } from './latex-autocomplete';
 import { LatexAIContextMenu } from './latex-ai-context-menu';
 import { EditorTextarea } from './editor-textarea';
 import { LatexAIPanel } from './latex-ai-panel';
-import { validate, extractMetadata } from '@/lib/latex/parser';
+import { ErrorPanel } from './error-panel';
+import { validate, extractMetadata, format } from '@/lib/latex/parser';
+import { searchSymbols, searchCommands } from '@/lib/latex/symbols';
 import type {
   LaTeXEditorConfig,
   LaTeXEditMode,
@@ -88,7 +90,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
   const [content, setContent] = useState(initialContent);
   const [mode, setMode] = useState<LaTeXEditMode>('split');
   const [errors, setErrors] = useState<LaTeXError[]>([]);
-  const [suggestions, _setSuggestions] = useState<LaTeXSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<LaTeXSuggestion[]>([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autocompletePosition, setAutocompletePosition] = useState({ x: 0, y: 0 });
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -111,6 +113,8 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
   const selectionRangeRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
   const previewRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const isSyncingScroll = useRef(false);
 
   // Config with defaults - memoized to prevent useCallback dependency changes
   const config: LaTeXEditorConfig = useMemo(() => ({
@@ -209,14 +213,41 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
 
       if (lastWord.startsWith('\\') && lastWord.length > 1) {
         // Show autocomplete for LaTeX commands
+        const query = lastWord.slice(1); // Remove backslash for search
+        
+        // Search symbols and commands
+        const symbolResults = searchSymbols(query).slice(0, 5);
+        const commandResults = searchCommands(query).slice(0, 5);
+        
+        // Convert to LaTeXSuggestion format
+        const newSuggestions: LaTeXSuggestion[] = [
+          ...symbolResults.map((s, idx) => ({
+            id: `sym-${idx}-${s.name}`,
+            type: 'command' as const,
+            label: s.command,
+            insertText: s.command,
+            detail: s.description || s.name,
+          })),
+          ...commandResults.map((c, idx) => ({
+            id: `cmd-${idx}-${c.name}`,
+            type: 'command' as const,
+            label: `\\${c.name}`,
+            insertText: c.signature || `\\${c.name}{}`,
+            detail: c.description,
+          })),
+        ].slice(0, 10); // Limit to 10 suggestions
+        
+        setSuggestions(newSuggestions);
+        
         const rect = textarea.getBoundingClientRect();
         setAutocompletePosition({
           x: rect.left + column * 8, // Approximate character width
           y: rect.top + line * 20, // Approximate line height
         });
-        setShowAutocomplete(true);
+        setShowAutocomplete(newSuggestions.length > 0);
       } else {
         setShowAutocomplete(false);
+        setSuggestions([]);
       }
     }
   }, [config.autocomplete]);
@@ -418,6 +449,62 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
     URL.revokeObjectURL(url);
   }, [content]);
 
+  // Handle format document
+  const handleFormat = useCallback(() => {
+    const formatted = format(content, {
+      indentSize: config.tabSize,
+      insertSpaces: config.insertSpaces,
+    });
+    handleContentChange(formatted);
+  }, [content, config.tabSize, config.insertSpaces, handleContentChange]);
+
+  // Sync scroll between editor and preview
+  const handleEditorScroll = useCallback(() => {
+    if (!config.syncScroll || isSyncingScroll.current || !editorContainerRef.current || !previewRef.current) return;
+    
+    isSyncingScroll.current = true;
+    const editor = editorContainerRef.current;
+    const preview = previewRef.current;
+    
+    const scrollRatio = editor.scrollTop / (editor.scrollHeight - editor.clientHeight);
+    preview.scrollTop = scrollRatio * (preview.scrollHeight - preview.clientHeight);
+    
+    requestAnimationFrame(() => {
+      isSyncingScroll.current = false;
+    });
+  }, [config.syncScroll]);
+
+  const handlePreviewScroll = useCallback(() => {
+    if (!config.syncScroll || isSyncingScroll.current || !editorContainerRef.current || !previewRef.current) return;
+    
+    isSyncingScroll.current = true;
+    const editor = editorContainerRef.current;
+    const preview = previewRef.current;
+    
+    const scrollRatio = preview.scrollTop / (preview.scrollHeight - preview.clientHeight);
+    editor.scrollTop = scrollRatio * (editor.scrollHeight - editor.clientHeight);
+    
+    requestAnimationFrame(() => {
+      isSyncingScroll.current = false;
+    });
+  }, [config.syncScroll]);
+
+  // Handle error click - navigate to error location
+  const handleErrorClick = useCallback((error: LaTeXError) => {
+    if (!editorRef.current) return;
+    
+    const lines = content.split('\n');
+    let position = 0;
+    for (let i = 0; i < error.line - 1 && i < lines.length; i++) {
+      position += lines[i].length + 1; // +1 for newline
+    }
+    position += error.column - 1;
+    
+    editorRef.current.focus();
+    editorRef.current.setSelectionRange(position, position);
+    setCursorPosition({ line: error.line, column: error.column });
+  }, [content]);
+
   // Get metadata
   const metadata = extractMetadata(content);
 
@@ -439,6 +526,9 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
         canRedo={redoStack.length > 0}
         mode={mode}
         onModeChange={setMode}
+        onFormat={handleFormat}
+        onToggleAIPanel={handleAIPanelToggle}
+        isAIPanelOpen={aiPanelOpen}
         onImport={handleImport}
         onExport={handleExport}
         onFullscreen={toggleFullscreen}
@@ -469,6 +559,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                       onContextMenu={handleCursorChange}
                       config={config}
                       readOnly={readOnly}
+                      currentLine={cursorPosition.line}
                     />
                   ) : (
                     <LatexAIContextMenu
@@ -486,6 +577,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                           onContextMenu={handleCursorChange}
                           config={config}
                           readOnly={readOnly}
+                          currentLine={cursorPosition.line}
                         />
                       </div>
                     </LatexAIContextMenu>
@@ -502,7 +594,11 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
               {mode === 'split' && (
                 <ResizablePanelGroup direction="horizontal" className="h-full">
                   <ResizablePanel defaultSize={50} minSize={30}>
-                    <div className="h-full overflow-auto">
+                    <div 
+                      ref={editorContainerRef}
+                      className="h-full overflow-auto"
+                      onScroll={handleEditorScroll}
+                    >
                       {readOnly ? (
                         <EditorTextarea
                           ref={editorRef}
@@ -514,6 +610,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                           onContextMenu={handleCursorChange}
                           config={config}
                           readOnly={readOnly}
+                          currentLine={cursorPosition.line}
                         />
                       ) : (
                         <LatexAIContextMenu
@@ -531,6 +628,7 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                               onContextMenu={handleCursorChange}
                               config={config}
                               readOnly={readOnly}
+                              currentLine={cursorPosition.line}
                             />
                           </div>
                         </LatexAIContextMenu>
@@ -539,7 +637,11 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
                   </ResizablePanel>
                   <ResizableHandle withHandle />
                   <ResizablePanel defaultSize={50} minSize={30}>
-                    <div ref={previewRef} className="h-full overflow-auto p-4 bg-white dark:bg-gray-900">
+                    <div 
+                      ref={previewRef} 
+                      className="h-full overflow-auto p-4 bg-white dark:bg-gray-900"
+                      onScroll={handlePreviewScroll}
+                    >
                       <LaTeXPreview content={content} scale={config.previewScale} />
                     </div>
                   </ResizablePanel>
@@ -568,6 +670,12 @@ export const LaTeXEditor = forwardRef<LaTeXEditorHandle, LaTeXEditorProps>(funct
           )}
         </ResizablePanelGroup>
       </div>
+
+      {/* Error Panel */}
+      <ErrorPanel
+        errors={errors}
+        onErrorClick={handleErrorClick}
+      />
 
       {/* Status Bar */}
       <div className="flex items-center justify-between px-4 py-1 border-t text-xs text-muted-foreground">

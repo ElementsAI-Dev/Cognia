@@ -3,7 +3,7 @@
  */
 
 import { act } from '@testing-library/react';
-import { useLatexStore } from './latex-store';
+import { useLatexStore, type LaTeXDocument } from './latex-store';
 import type { Paper } from '@/types/learning/academic';
 
 // Mock LaTeXVersionControlService
@@ -69,7 +69,7 @@ describe('useLatexStore', () => {
 
   describe('document management', () => {
     it('should create a new document', () => {
-      let doc: ReturnType<typeof useLatexStore.getState.createDocument>;
+      let doc: LaTeXDocument | undefined;
 
       act(() => {
         doc = useLatexStore.getState().createDocument('Test Doc', '\\documentclass{article}');
@@ -83,7 +83,7 @@ describe('useLatexStore', () => {
     });
 
     it('should create document with auto-generated name', () => {
-      let doc: ReturnType<typeof useLatexStore.getState.createDocument>;
+      let doc: LaTeXDocument | undefined;
 
       act(() => {
         doc = useLatexStore.getState().createDocument();
@@ -201,7 +201,7 @@ describe('useLatexStore', () => {
     });
 
     it('should return null when duplicating non-existent document', () => {
-      let result: ReturnType<typeof useLatexStore.getState.duplicateDocument>;
+      let result: LaTeXDocument | null | undefined;
 
       act(() => {
         result = useLatexStore.getState().duplicateDocument('non-existent');

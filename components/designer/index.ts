@@ -32,7 +32,6 @@ export { AIChatPanel } from './ai';
 export { AISuggestionsPanel } from './ai';
 
 // Editor components
-export { MonacoSandpackEditor } from './editor';
 export { ReactSandbox } from './editor';
 export { SandboxFileExplorer } from './editor';
 export { SandboxErrorBoundary, useErrorBoundaryReset, useConsoleErrorInterceptor } from './editor';
@@ -63,6 +62,9 @@ export { KeyboardShortcutsDialog } from './toolbar';
 // DnD exports
 export { DesignerDndProvider, useDesignerDnd, useDesignerDndStrict } from './dnd';
 
+// Collaboration components
+export { RemoteCursors, CollabUserList, CollabConnectionStatus, CollabToolbar } from './collab';
+
 // Lazy-loaded components for code splitting (heavy components)
 export const LazyDesignerPanel = lazy(() => import('./core/designer-panel'));
 export const LazyComponentLibrary = lazy(() => import('./panels/component-library'));
@@ -70,7 +72,6 @@ export const LazyVersionHistoryPanel = lazy(() => import('./panels/version-histo
 export const LazyAIChatPanel = lazy(() => import('./ai/ai-chat-panel'));
 export const LazyAISuggestionsPanel = lazy(() => import('./ai/ai-suggestions-panel'));
 export const LazyStylePanel = lazy(() => import('./panels/style-panel'));
-export const LazyMonacoEditor = lazy(() => import('./editor/monaco-sandpack-editor'));
 
 // Re-export submodule namespaces for direct access
 export * as CoreComponents from './core';
@@ -80,3 +81,4 @@ export * as PanelComponents from './panels';
 export * as PreviewComponents from './preview';
 export * as ToolbarComponents from './toolbar';
 export * as DndComponents from './dnd';
+export * as CollabComponents from './collab';

@@ -13,6 +13,7 @@ export { ScreenshotPanel } from './screenshot-panel';
 export { SystemMonitorPanel } from './system-monitor-panel';
 export { SandboxPanel } from './sandbox-panel';
 export { ProcessSettingsPanel } from './process-settings-panel';
+export { LocationPanel } from './location-panel';
 
 // Layout components
 export { NativeToolSidebar, NATIVE_TOOLS, type NativeToolItem } from './native-tool-sidebar';

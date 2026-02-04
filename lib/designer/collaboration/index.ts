@@ -45,3 +45,11 @@ export {
   getElementsWithComments,
   deleteDesignComments,
 } from './comments';
+
+export {
+  CollabAwareness,
+  collabAwareness,
+  type CollabUserState,
+  type CollabAwarenessConfig,
+  type AwarenessChangeCallback,
+} from './collab-awareness';

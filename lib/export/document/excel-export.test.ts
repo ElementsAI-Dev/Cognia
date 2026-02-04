@@ -172,6 +172,32 @@ describe('exportChatToExcel', () => {
     expect(result.filename).toBe('custom-export.xlsx');
   });
 
+  it('should sanitize formula-like content in message sheet', async () => {
+    const XLSX = await import('xlsx');
+    const formulaMessages: UIMessage[] = [
+      {
+        id: 'msg-1',
+        role: 'user',
+        content: '=SUM(1,2)',
+        createdAt: new Date('2024-01-15T10:01:00Z'),
+      },
+    ];
+
+    await exportChatToExcel(mockSession, formulaMessages);
+
+    const aoaCalls = (XLSX.utils.aoa_to_sheet as jest.Mock).mock.calls;
+    const messageSheetCall = aoaCalls.find((call) => {
+      const data = call[0] as (string | number)[][];
+      return data[0] && data[0][0] === '#' && data[0][2] === 'Content';
+    });
+
+    expect(messageSheetCall).toBeDefined();
+    if (messageSheetCall) {
+      const data = messageSheetCall[0] as (string | number)[][];
+      expect(data[1][2]).toBe("'=SUM(1,2)");
+    }
+  });
+
   describe('media statistics', () => {
     // Helper to find stats data in mock calls
     const findStatsData = (aoaCalls: unknown[][][], searchKey: string) => {

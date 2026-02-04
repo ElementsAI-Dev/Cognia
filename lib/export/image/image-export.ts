@@ -9,6 +9,10 @@ import { loggers } from '@/lib/logger';
 
 const log = loggers.app;
 
+const MAX_CANVAS_DIMENSION = 16384;
+const MAX_CANVAS_AREA = 268_435_456; // 16384 * 16384
+const MIN_CANVAS_SCALE = 0.1;
+
 export interface ImageExportOptions {
   format: 'png' | 'jpg' | 'webp';
   quality: number; // 0.1 - 1.0 (for jpg/webp)
@@ -25,6 +29,30 @@ export interface ImageExportOptions {
   showModel?: boolean;
   borderRadius?: number;
   fontScale?: number;
+}
+
+export function getSafeCanvasScale(
+  width: number,
+  height: number,
+  scale: number
+): { scale: number; constrained: boolean } {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return { scale, constrained: false };
+  }
+
+  const maxScaleByDimension = Math.min(
+    MAX_CANVAS_DIMENSION / width,
+    MAX_CANVAS_DIMENSION / height
+  );
+  const maxScaleByArea = Math.sqrt(MAX_CANVAS_AREA / (width * height));
+  const maxScale = Math.min(maxScaleByDimension, maxScaleByArea);
+  const safeScale = Math.min(scale, maxScale);
+
+  if (!Number.isFinite(safeScale) || safeScale < MIN_CANVAS_SCALE) {
+    throw new Error('Image export size exceeds browser canvas limits.');
+  }
+
+  return { scale: safeScale, constrained: safeScale < scale };
 }
 
 export interface ImageExportResult {
@@ -264,14 +292,29 @@ export async function exportToImage(
     if (!contentElement) {
       throw new Error('Content container not found');
     }
+
+    const { width: contentWidth, height: contentHeight } = getElementSize(contentElement);
+    const { scale: safeScale, constrained } = getSafeCanvasScale(
+      contentWidth,
+      contentHeight,
+      opts.scale
+    );
+
+    if (constrained) {
+      log.warn(
+        `Image export scale adjusted from ${opts.scale} to ${safeScale} to fit canvas limits.`
+      );
+    }
     
     // Render to canvas
     const canvas = await html2canvas(contentElement, {
-      scale: opts.scale,
+      scale: safeScale,
       useCORS: true,
       allowTaint: true,
       backgroundColor: null,
       logging: false,
+      windowWidth: contentWidth,
+      windowHeight: contentHeight,
     });
     
     // Convert to blob
@@ -424,6 +467,14 @@ function generateImageFilename(title: string, format: string): string {
   
   const timestamp = new Date().toISOString().slice(0, 10);
   return `${safeTitle}-${timestamp}.${format}`;
+}
+
+function getElementSize(element: HTMLElement): { width: number; height: number } {
+  const rect = element.getBoundingClientRect();
+  const width = Math.ceil(Math.max(element.scrollWidth, element.offsetWidth, rect.width));
+  const height = Math.ceil(Math.max(element.scrollHeight, element.offsetHeight, rect.height));
+
+  return { width, height };
 }
 
 /**

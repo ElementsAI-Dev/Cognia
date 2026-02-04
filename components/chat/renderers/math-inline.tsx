@@ -9,6 +9,7 @@
  */
 
 import { useMemo, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -17,8 +18,8 @@ import {
 } from '@/components/ui/tooltip';
 import { useCopy } from '@/hooks/ui';
 import { Check, Copy } from 'lucide-react';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
+import { renderMathSafe } from '@/lib/latex/cache';
+import { withMathErrorBoundary } from './math-error-boundary';
 
 interface MathInlineProps {
   content: string;
@@ -27,14 +28,16 @@ interface MathInlineProps {
   showCopyOnHover?: boolean;
 }
 
-export function MathInline({ 
+function MathInlineBase({ 
   content, 
   className, 
   scale = 1,
   showCopyOnHover = true,
 }: MathInlineProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const { copy, isCopying } = useCopy({ toastMessage: 'LaTeX copied' });
+  const t = useTranslations('renderer');
+  const tToasts = useTranslations('toasts');
+  const { copy, isCopying } = useCopy({ toastMessage: tToasts('latexCopied') });
 
   const cleanContent = useMemo(() => {
     return content
@@ -46,19 +49,7 @@ export function MathInline({
   }, [content]);
 
   const result = useMemo(() => {
-    try {
-      const rendered = katex.renderToString(cleanContent, {
-        displayMode: false,
-        throwOnError: false,
-        trust: true,
-        strict: false,
-        output: 'html',
-      });
-
-      return { html: rendered, error: null };
-    } catch (err) {
-      return { html: '', error: err instanceof Error ? err.message : 'Failed to render math' };
-    }
+    return renderMathSafe(cleanContent, false, { trust: false });
   }, [cleanContent]);
 
   const handleCopy = useCallback(async (e: React.MouseEvent) => {
@@ -134,9 +125,14 @@ export function MathInline({
       <TooltipContent>
         <div className="text-xs space-y-1">
           <p className="font-mono bg-muted px-1.5 py-0.5 rounded">{cleanContent}</p>
-          <p className="text-muted-foreground">Click to copy</p>
+          <p className="text-muted-foreground">{t('copyLatex')}</p>
         </div>
       </TooltipContent>
     </Tooltip>
   );
 }
+
+export const MathInline = withMathErrorBoundary(
+  MathInlineBase,
+  (props) => props.content
+);

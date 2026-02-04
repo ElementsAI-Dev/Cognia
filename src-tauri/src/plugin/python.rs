@@ -491,6 +491,53 @@ except Exception as e:
 import sys
 import json
 
+SAFE_BUILTINS = {{
+    "abs": abs,
+    "all": all,
+    "any": any,
+    "ascii": ascii,
+    "bin": bin,
+    "bool": bool,
+    "chr": chr,
+    "dict": dict,
+    "enumerate": enumerate,
+    "filter": filter,
+    "float": float,
+    "format": format,
+    "frozenset": frozenset,
+    "hex": hex,
+    "int": int,
+    "isinstance": isinstance,
+    "issubclass": issubclass,
+    "iter": iter,
+    "len": len,
+    "list": list,
+    "map": map,
+    "max": max,
+    "min": min,
+    "oct": oct,
+    "ord": ord,
+    "pow": pow,
+    "print": print,
+    "range": range,
+    "repr": repr,
+    "reversed": reversed,
+    "round": round,
+    "set": set,
+    "slice": slice,
+    "sorted": sorted,
+    "str": str,
+    "sum": sum,
+    "tuple": tuple,
+    "type": type,
+    "zip": zip,
+}}
+
+def _blocked_import(*_args, **_kwargs):
+    raise Exception("Import not allowed in plugin eval")
+
+SAFE_BUILTINS["__import__"] = _blocked_import
+
 sys.path.insert(0, r'{}')
 
 try:
@@ -500,7 +547,7 @@ try:
     local_vars['plugin'] = plugin_module
     
     code = r'''{}'''
-    result = eval(code, {{'__builtins__': __builtins__}}, local_vars)
+    result = eval(code, {{'__builtins__': SAFE_BUILTINS}}, local_vars)
     
     # Try to serialize result
     try:
@@ -552,6 +599,8 @@ except Exception as e:
 mod tests {
     use super::*;
     use std::sync::atomic::Ordering;
+    use tempfile::tempdir;
+    use std::fs;
 
     #[test]
     fn test_python_runtime_new() {
@@ -632,5 +681,38 @@ mod tests {
         assert_eq!(stats.total_calls.load(Ordering::Relaxed), 0);
         assert_eq!(stats.total_execution_time_ms.load(Ordering::Relaxed), 0);
         assert_eq!(stats.failed_calls.load(Ordering::Relaxed), 0);
+    }
+
+    #[tokio::test]
+    async fn test_eval_code_blocks_imports() {
+        let mut runtime = PythonRuntime::new(None).unwrap();
+        if !runtime.is_available() {
+            return;
+        }
+
+        let temp_dir = tempdir().unwrap();
+        let plugin_path = temp_dir.path();
+        let module_path = plugin_path.join("plugin.py");
+
+        fs::write(
+            &module_path,
+            "class Plugin:\n    name = 'Test'\n    version = '1.0'\n",
+        )
+        .unwrap();
+
+        runtime
+            .load_plugin("test-plugin", plugin_path.to_str().unwrap(), "plugin")
+            .await
+            .unwrap();
+
+        let result = runtime
+            .eval_code(
+                "test-plugin",
+                "__import__('os').listdir('.')",
+                serde_json::json!({}),
+            )
+            .await;
+
+        assert!(result.is_err());
     }
 }

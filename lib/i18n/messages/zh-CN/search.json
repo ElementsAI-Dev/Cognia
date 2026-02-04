@@ -1,0 +1,53 @@
+{
+  "hook": {
+    "initializationFailed": "搜索提供商管理器初始化失败",
+    "notInitialized": "搜索提供商管理器未初始化",
+    "searchFailed": "搜索失败",
+    "noProvidersEnabled": "没有启用的搜索提供商"
+  },
+  "cache": {
+    "hit": "缓存命中",
+    "miss": "缓存未命中",
+    "cleared": "缓存已清除",
+    "expired": "缓存条目已过期",
+    "evicted": "缓存条目已淘汰",
+    "stats": "缓存统计",
+    "size": "大小",
+    "maxSize": "最大容量",
+    "hits": "命中次数",
+    "misses": "未命中次数",
+    "hitRate": "命中率"
+  },
+  "router": {
+    "routingTo": "将搜索路由到 {provider}",
+    "noProviderForType": "没有可用的搜索提供商支持搜索类型: {type}",
+    "unknownProvider": "未知提供商: {provider}",
+    "searchTypes": {
+      "general": "常规搜索",
+      "news": "新闻搜索",
+      "images": "图片搜索",
+      "videos": "视频搜索",
+      "academic": "学术搜索"
+    }
+  },
+  "provider": {
+    "metrics": {
+      "successRate": "成功率",
+      "averageLatency": "平均延迟",
+      "totalRequests": "总请求数"
+    },
+    "status": {
+      "healthy": "健康",
+      "degraded": "降级",
+      "unavailable": "不可用"
+    }
+  },
+  "errors": {
+    "providerFailed": "{provider} 搜索失败: {message}",
+    "allProvidersFailed": "所有搜索提供商都失败了",
+    "quotaExceeded": "{provider} 的搜索配额已用尽",
+    "rateLimited": "被 {provider} 限速",
+    "networkError": "搜索时发生网络错误",
+    "timeout": "搜索请求超时"
+  }
+}

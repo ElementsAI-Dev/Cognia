@@ -281,6 +281,13 @@ export class VideoWorkerPool {
     payload: VideoWorkerPayload,
     options: { priority?: number; onProgress?: ProgressCallback } = {}
   ): Promise<VideoWorkerResponse> {
+    // Check queue size limit before accepting new tasks
+    if (this.taskQueue.length >= this.config.maxQueueSize) {
+      return Promise.reject(
+        new Error(`Task queue full (max: ${this.config.maxQueueSize}). Please try again later.`)
+      );
+    }
+
     return new Promise((resolve, reject) => {
       const taskId = nanoid();
 
@@ -306,6 +313,20 @@ export class VideoWorkerPool {
       this.taskQueue.push(task);
       this.processNextTask();
     });
+  }
+
+  /**
+   * Check if the queue is full
+   */
+  public isQueueFull(): boolean {
+    return this.taskQueue.length >= this.config.maxQueueSize;
+  }
+
+  /**
+   * Get remaining queue capacity
+   */
+  public getRemainingCapacity(): number {
+    return Math.max(0, this.config.maxQueueSize - this.taskQueue.length);
   }
 
   /**

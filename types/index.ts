@@ -78,3 +78,6 @@ export * from './scheduler';
 
 // Import types (ChatGPT, etc.)
 export * from './import';
+
+// Map types
+export * from './map';

@@ -281,6 +281,31 @@ describe('HybridSearchEngine', () => {
       expect(results.length).toBeGreaterThan(0);
       expect(results[0].combinedScore).toBeGreaterThan(0);
     });
+
+    it('includes sparse and late interaction sources when provided', () => {
+      engine.addDocuments([
+        { id: 'doc1', content: 'Machine learning algorithms' },
+        { id: 'doc2', content: 'Deep learning neural networks' },
+      ]);
+
+      const vectorResults = [{ id: 'doc1', score: 0.9 }];
+      const sparseResults = [{ id: 'doc1', score: 0.8 }];
+      const lateResults = [{ id: 'doc1', score: 0.7 }];
+
+      const results = engine.hybridSearch(
+        vectorResults,
+        'machine learning',
+        5,
+        sparseResults,
+        lateResults
+      );
+
+      expect(results[0].sources).toEqual(
+        expect.arrayContaining(['vector', 'sparse', 'late'])
+      );
+      expect(results[0].sparseScore).toBe(0.8);
+      expect(results[0].lateInteractionScore).toBe(0.7);
+    });
   });
 
   describe('clear', () => {

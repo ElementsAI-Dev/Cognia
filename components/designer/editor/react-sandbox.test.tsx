@@ -5,6 +5,10 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ReactSandbox } from './react-sandbox';
 
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 // Mock designer store
 const mockSetCode = jest.fn();
 jest.mock('@/stores/designer', () => ({

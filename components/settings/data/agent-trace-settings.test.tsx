@@ -13,11 +13,22 @@ jest.mock('next-intl', () => ({
       description: 'View and manage agent trace records',
       refresh: 'Refresh',
       filtersTitle: 'Filters',
-      filtersDescription: 'Filter traces by session or file path',
+      filtersDescription: 'Filter traces by session, file path, VCS revision, or event type',
       sessionId: 'Session ID',
       sessionIdPlaceholder: 'Enter session ID...',
       filePath: 'File Path',
       filePathPlaceholder: 'Enter file path...',
+      vcsRevision: 'VCS Revision',
+      vcsRevisionPlaceholder: 'Enter VCS revision...',
+      eventType: 'Event Type',
+      eventTypePlaceholder: 'Select event type',
+      eventTypeAll: 'All events',
+      eventTypeToolCallRequest: 'Tool call request',
+      eventTypeToolCallResult: 'Tool call result',
+      eventTypeStepStart: 'Step start',
+      eventTypeStepFinish: 'Step finish',
+      eventTypePlanning: 'Planning',
+      eventTypeResponse: 'Response',
       showingCount: `Showing ${params?.count ?? 0} traces`,
       clearFilters: 'Clear Filters',
       emptyTitle: 'No Traces Found',
@@ -47,11 +58,22 @@ jest.mock('next-intl', () => ({
       description: 'View and manage agent trace records',
       refresh: 'Refresh',
       filtersTitle: 'Filters',
-      filtersDescription: 'Filter traces by session or file path',
+      filtersDescription: 'Filter traces by session, file path, VCS revision, or event type',
       sessionId: 'Session ID',
       sessionIdPlaceholder: 'Enter session ID...',
       filePath: 'File Path',
       filePathPlaceholder: 'Enter file path...',
+      vcsRevision: 'VCS Revision',
+      vcsRevisionPlaceholder: 'Enter VCS revision...',
+      eventType: 'Event Type',
+      eventTypePlaceholder: 'Select event type',
+      eventTypeAll: 'All events',
+      eventTypeToolCallRequest: 'Tool call request',
+      eventTypeToolCallResult: 'Tool call result',
+      eventTypeStepStart: 'Step start',
+      eventTypeStepFinish: 'Step finish',
+      eventTypePlanning: 'Planning',
+      eventTypeResponse: 'Response',
       showingCount: `Showing ${params?.count ?? 0} traces`,
       clearFilters: 'Clear Filters',
       emptyTitle: 'No Traces Found',
@@ -68,31 +90,11 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock dexie-react-hooks
-jest.mock('dexie-react-hooks', () => ({
-  useLiveQuery: jest.fn(() => []),
-}));
-
-// Mock dexie
-jest.mock('dexie', () => ({
-  __esModule: true,
-  default: class Dexie {
-    static minKey = Symbol('minKey');
-    static maxKey = Symbol('maxKey');
-  },
-}));
-
-// Mock db
-jest.mock('@/lib/db', () => ({
-  db: {
-    agentTraces: {
-      where: jest.fn().mockReturnThis(),
-      between: jest.fn().mockReturnThis(),
-      reverse: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      orderBy: jest.fn().mockReturnThis(),
-      toArray: jest.fn().mockResolvedValue([]),
-    },
-  },
+jest.mock('@/hooks/agent-trace/use-agent-trace', () => ({
+  useAgentTrace: jest.fn(() => ({
+    traces: [],
+    refresh: jest.fn(),
+  })),
 }));
 
 // Mock agent trace repository - use jest.fn at module level for hoisting
@@ -108,14 +110,33 @@ const getMockedRepository = () =>
   jest.requireMock('@/lib/db/repositories/agent-trace-repository').agentTraceRepository;
 
 // Mock stores
-const mockAgentTraceSettings = { enabled: true };
+const mockAgentTraceSettings = {
+  enabled: true,
+  maxRecords: 1000,
+  autoCleanupDays: 30,
+  traceShellCommands: true,
+  traceCodeEdits: true,
+  traceFailedCalls: false,
+};
 const mockSetAgentTraceEnabled = jest.fn();
+const mockSetAgentTraceMaxRecords = jest.fn();
+const mockSetAgentTraceAutoCleanupDays = jest.fn();
+const mockSetAgentTraceShellCommands = jest.fn();
+const mockSetAgentTraceCodeEdits = jest.fn();
+const mockSetAgentTraceFailedCalls = jest.fn();
+const mockResetAgentTraceSettings = jest.fn();
 
 jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: unknown) => unknown) => {
     const state = {
       agentTraceSettings: mockAgentTraceSettings,
       setAgentTraceEnabled: mockSetAgentTraceEnabled,
+      setAgentTraceMaxRecords: mockSetAgentTraceMaxRecords,
+      setAgentTraceAutoCleanupDays: mockSetAgentTraceAutoCleanupDays,
+      setAgentTraceShellCommands: mockSetAgentTraceShellCommands,
+      setAgentTraceCodeEdits: mockSetAgentTraceCodeEdits,
+      setAgentTraceFailedCalls: mockSetAgentTraceFailedCalls,
+      resetAgentTraceSettings: mockResetAgentTraceSettings,
     };
     return selector(state);
   },
@@ -160,6 +181,18 @@ jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div data-testid="scroll-area" className={className}>{children}</div>
   ),
+}));
+
+jest.mock('@/components/ui/select', () => ({
+  Select: ({ children }: { children: React.ReactNode }) => <div data-testid="select">{children}</div>,
+  SelectTrigger: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="select-trigger" className={className}>{children}</div>
+  ),
+  SelectValue: ({ placeholder }: { placeholder?: string }) => (
+    <span data-testid="select-value">{placeholder}</span>
+  ),
+  SelectContent: ({ children }: { children: React.ReactNode }) => <div data-testid="select-content">{children}</div>,
+  SelectItem: ({ children }: { children: React.ReactNode }) => <div data-testid="select-item">{children}</div>,
 }));
 
 jest.mock('@/components/ui/dialog', () => ({
@@ -324,6 +357,16 @@ describe('AgentTraceSettings', () => {
     it('displays file path input', () => {
       render(<AgentTraceSettings />);
       expect(screen.getByPlaceholderText('Enter file path...')).toBeInTheDocument();
+    });
+
+    it('displays VCS revision input', () => {
+      render(<AgentTraceSettings />);
+      expect(screen.getByPlaceholderText('Enter VCS revision...')).toBeInTheDocument();
+    });
+
+    it('displays event type select', () => {
+      render(<AgentTraceSettings />);
+      expect(screen.getByText('Select event type')).toBeInTheDocument();
     });
 
     it('displays Clear Filters button', () => {

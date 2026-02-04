@@ -39,10 +39,13 @@ import latex from './latex.json';
 import observability from './observability.json';
 import arena from './arena.json';
 import syncSettings from './syncSettings.json';
+import scheduler from './scheduler.json';
 import logging from './logging.json';
 import importMessages from './import.json';
 import externalAgent from './externalAgent.json';
 import keyboardShortcuts from './keyboardShortcuts.json';
+import map from './map.json';
+import search from './search.json';
 
 const messages = {
   ...common,
@@ -83,10 +86,13 @@ const messages = {
   ...observability,
   arena,
   syncSettings,
+  scheduler,
   ...logging,
   import: importMessages,
   externalAgent,
   ...keyboardShortcuts,
+  map,
+  search,
 };
 
 export default messages;

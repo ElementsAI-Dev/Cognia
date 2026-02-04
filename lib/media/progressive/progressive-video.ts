@@ -83,6 +83,13 @@ const QUALITY_DIMENSIONS: Record<VideoQuality, { width: number; height: number }
 };
 
 /**
+ * Check if MediaSource Extensions are available
+ */
+export function isMSESupported(): boolean {
+  return typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported('video/mp4; codecs="avc1.42E01E"');
+}
+
+/**
  * Progressive Video Loader
  */
 export class ProgressiveVideoLoader {
@@ -95,6 +102,13 @@ export class ProgressiveVideoLoader {
   private abortController: AbortController | null = null;
   private videoElement: HTMLVideoElement | null = null;
   private canvas: HTMLCanvasElement | null = null;
+  
+  // MSE support
+  private mediaSource: MediaSource | null = null;
+  private sourceBuffer: SourceBuffer | null = null;
+  private pendingSegments: ArrayBuffer[] = [];
+  private totalFileSize: number = 0;
+  private segmentSize: number = 1024 * 1024; // 1MB segments
 
   /**
    * Initialize with video URL
@@ -304,7 +318,121 @@ export class ProgressiveVideoLoader {
   }
 
   /**
-   * Preload video segment
+   * Fetch byte range from URL
+   */
+  private async fetchByteRange(
+    url: string,
+    start: number,
+    end: number,
+    signal?: AbortSignal
+  ): Promise<ArrayBuffer> {
+    const response = await fetch(url, {
+      headers: {
+        Range: `bytes=${start}-${end}`,
+      },
+      signal,
+    });
+
+    if (!response.ok && response.status !== 206) {
+      throw new Error(`Failed to fetch byte range: ${response.status}`);
+    }
+
+    // Update total file size from Content-Range header
+    const contentRange = response.headers.get('Content-Range');
+    if (contentRange) {
+      const match = contentRange.match(/\/(\d+)$/);
+      if (match) {
+        this.totalFileSize = parseInt(match[1], 10);
+      }
+    }
+
+    return response.arrayBuffer();
+  }
+
+  /**
+   * Initialize MediaSource for streaming
+   */
+  private initializeMediaSource(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!isMSESupported()) {
+        reject(new Error('MediaSource Extensions not supported'));
+        return;
+      }
+
+      this.mediaSource = new MediaSource();
+      
+      const sourceOpenHandler = () => {
+        try {
+          // Determine MIME type based on video info
+          const mimeType = this.videoInfo?.mimeType === 'video/webm'
+            ? 'video/webm; codecs="vp8, vorbis"'
+            : 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+
+          if (!MediaSource.isTypeSupported(mimeType)) {
+            reject(new Error(`MIME type not supported: ${mimeType}`));
+            return;
+          }
+
+          this.sourceBuffer = this.mediaSource!.addSourceBuffer(mimeType);
+          
+          this.sourceBuffer.addEventListener('updateend', () => {
+            this.processPendingSegments();
+          });
+
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      this.mediaSource.addEventListener('sourceopen', sourceOpenHandler, { once: true });
+
+      if (this.videoElement) {
+        this.videoElement.src = URL.createObjectURL(this.mediaSource);
+      }
+    });
+  }
+
+  /**
+   * Process pending segments queue
+   */
+  private processPendingSegments(): void {
+    if (!this.sourceBuffer || this.sourceBuffer.updating || this.pendingSegments.length === 0) {
+      return;
+    }
+
+    const segment = this.pendingSegments.shift();
+    if (segment) {
+      try {
+        this.sourceBuffer.appendBuffer(segment);
+      } catch (error) {
+        console.error('Failed to append buffer:', error);
+      }
+    }
+  }
+
+  /**
+   * Append segment data to MediaSource
+   */
+  private appendSegmentData(data: ArrayBuffer): void {
+    if (!this.sourceBuffer) {
+      this.pendingSegments.push(data);
+      return;
+    }
+
+    if (this.sourceBuffer.updating) {
+      this.pendingSegments.push(data);
+    } else {
+      try {
+        this.sourceBuffer.appendBuffer(data);
+      } catch {
+        this.pendingSegments.push(data);
+      }
+    }
+  }
+
+  /**
+   * Preload video segment using byte-range requests
    */
   public async preloadSegment(
     startTime: number,
@@ -329,18 +457,76 @@ export class ProgressiveVideoLoader {
       loaded: false,
     };
 
-    // For now, just mark as loaded since we're using the full video URL
-    // In a real implementation, this would use Media Source Extensions
-    // to load specific byte ranges
-    segment.loaded = true;
-    segment.url = this.videoInfo.url;
+    // Check if MSE is supported for true byte-range loading
+    if (isMSESupported() && this.totalFileSize > 0) {
+      try {
+        // Initialize MediaSource if not already done
+        if (!this.mediaSource) {
+          await this.initializeMediaSource();
+        }
 
-    this.segments.set(index, segment);
+        // Calculate byte range based on time position
+        const duration = this.videoInfo.duration || 1;
+        const bytesPerSecond = this.totalFileSize / duration;
+        const byteStart = Math.floor(startTime * bytesPerSecond);
+        const byteEnd = Math.min(
+          Math.floor(endTime * bytesPerSecond),
+          this.totalFileSize - 1
+        );
 
-    if (onProgress) {
-      onProgress(1, 1, this.currentQuality);
+        // Fetch byte range
+        const data = await this.fetchByteRange(
+          this.videoInfo.url,
+          byteStart,
+          byteEnd,
+          this.abortController?.signal
+        );
+
+        // Append to MediaSource
+        this.appendSegmentData(data);
+
+        // Create blob for segment
+        segment.blob = new Blob([data], { type: this.videoInfo.mimeType });
+        segment.loaded = true;
+
+        if (onProgress) {
+          onProgress(1, 1, this.currentQuality);
+        }
+      } catch (error) {
+        // Fall back to full URL loading on error
+        console.warn('MSE byte-range loading failed, falling back to full URL:', error);
+        segment.loaded = true;
+        segment.url = this.videoInfo.url;
+      }
+    } else {
+      // Fallback: Use full video URL (no byte-range support or file size unknown)
+      // First try to get file size via HEAD request
+      if (this.totalFileSize === 0) {
+        try {
+          const headResponse = await fetch(this.videoInfo.url, {
+            method: 'HEAD',
+            signal: this.abortController?.signal,
+          });
+          const contentLength = headResponse.headers.get('Content-Length');
+          if (contentLength) {
+            this.totalFileSize = parseInt(contentLength, 10);
+            // Retry with MSE if we now have file size
+            return this.preloadSegment(startTime, endTime, onProgress);
+          }
+        } catch {
+          // HEAD request failed, continue with fallback
+        }
+      }
+
+      segment.loaded = true;
+      segment.url = this.videoInfo.url;
+
+      if (onProgress) {
+        onProgress(1, 1, this.currentQuality);
+      }
     }
 
+    this.segments.set(index, segment);
     return segment;
   }
 
@@ -407,7 +593,26 @@ export class ProgressiveVideoLoader {
   public dispose(): void {
     this.cancel();
 
+    // Clean up MediaSource resources
+    if (this.sourceBuffer && this.mediaSource) {
+      try {
+        if (this.mediaSource.readyState === 'open') {
+          this.sourceBuffer.abort();
+          this.mediaSource.removeSourceBuffer(this.sourceBuffer);
+        }
+      } catch {
+        // Ignore errors during cleanup
+      }
+    }
+    this.sourceBuffer = null;
+    this.mediaSource = null;
+    this.pendingSegments = [];
+
     if (this.videoElement) {
+      // Revoke object URL if it was created for MediaSource
+      if (this.videoElement.src.startsWith('blob:')) {
+        URL.revokeObjectURL(this.videoElement.src);
+      }
       this.videoElement.src = '';
       this.videoElement = null;
     }
@@ -420,6 +625,7 @@ export class ProgressiveVideoLoader {
     this.thumbnails.clear();
     this.thumbnailStrip = null;
     this.videoInfo = null;
+    this.totalFileSize = 0;
   }
 }
 

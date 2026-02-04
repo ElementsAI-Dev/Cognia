@@ -31,3 +31,5 @@ export { A2UITemplatePreview } from './a2ui-template-preview';
 // External agent components
 export { ExternalAgentSelector } from './external-agent-selector';
 export { ExternalAgentManager } from './external-agent-manager';
+export { ExternalAgentCommands, type ExternalAgentCommandsProps } from './external-agent-commands';
+export { ExternalAgentPlan, type ExternalAgentPlanProps } from './external-agent-plan';

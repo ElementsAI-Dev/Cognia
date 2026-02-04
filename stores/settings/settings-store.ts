@@ -214,6 +214,8 @@ export interface AgentTraceSettings {
   traceShellCommands: boolean;
   /** Include code edits in traces */
   traceCodeEdits: boolean;
+  /** Include failed tool calls in traces (for debugging) */
+  traceFailedCalls: boolean;
 }
 
 export const DEFAULT_AGENT_TRACE_SETTINGS: AgentTraceSettings = {
@@ -222,6 +224,7 @@ export const DEFAULT_AGENT_TRACE_SETTINGS: AgentTraceSettings = {
   autoCleanupDays: 30,
   traceShellCommands: true,
   traceCodeEdits: true,
+  traceFailedCalls: false,
 };
 
 // Agent Optimization settings (Claude Best Practices)
@@ -271,12 +274,14 @@ export interface ThemeScheduleSettings {
   enabled: boolean;
   lightModeStart: string; // HH:MM
   darkModeStart: string; // HH:MM
+  overrideSystem: boolean; // When true, schedule will override 'system' theme mode
 }
 
 const DEFAULT_THEME_SCHEDULE: ThemeScheduleSettings = {
   enabled: false,
   lightModeStart: '07:00',
   darkModeStart: '19:00',
+  overrideSystem: false,
 };
 
 // Response display settings types
@@ -930,6 +935,7 @@ interface SettingsState {
   setAgentTraceAutoCleanupDays: (days: number) => void;
   setAgentTraceShellCommands: (enabled: boolean) => void;
   setAgentTraceCodeEdits: (enabled: boolean) => void;
+  setAgentTraceFailedCalls: (enabled: boolean) => void;
   resetAgentTraceSettings: () => void;
 
   // Reset
@@ -1273,6 +1279,8 @@ export const useSettingsStore = create<SettingsState>()(
         set((_state) => {
           if (activeCustomThemeId) {
             getPluginEventHooks().dispatchCustomThemeActivate(activeCustomThemeId);
+            // Clear preset colorTheme when activating a custom theme to ensure mutual exclusivity
+            return { activeCustomThemeId, colorTheme: 'default' };
           }
           return { activeCustomThemeId };
         }),
@@ -2701,6 +2709,10 @@ export const useSettingsStore = create<SettingsState>()(
       setAgentTraceCodeEdits: (traceCodeEdits) =>
         set((state) => ({
           agentTraceSettings: { ...state.agentTraceSettings, traceCodeEdits },
+        })),
+      setAgentTraceFailedCalls: (traceFailedCalls) =>
+        set((state) => ({
+          agentTraceSettings: { ...state.agentTraceSettings, traceFailedCalls },
         })),
       resetAgentTraceSettings: () =>
         set({ agentTraceSettings: { ...DEFAULT_AGENT_TRACE_SETTINGS } }),

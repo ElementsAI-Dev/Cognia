@@ -12,6 +12,7 @@ jest.mock('next-intl', () => ({
 
 // Mock stores
 const mockCreateCustomTheme = jest.fn();
+const mockUpdateCustomTheme = jest.fn();
 let mockCustomThemes: Array<{ id: string; name: string; isDark: boolean; colors: Record<string, string> }> = [];
 
 jest.mock('@/stores', () => ({
@@ -19,6 +20,7 @@ jest.mock('@/stores', () => ({
     const state = {
       customThemes: mockCustomThemes,
       createCustomTheme: mockCreateCustomTheme,
+      updateCustomTheme: mockUpdateCustomTheme,
     };
     return selector(state);
   },
@@ -49,10 +51,27 @@ jest.mock('@/components/ui/dialog', () => ({
   ),
 }));
 
+// Mock Label and RadioGroup components for conflict strategy UI
+jest.mock('@/components/ui/label', () => ({
+  Label: ({ children, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) => (
+    <label {...props}>{children}</label>
+  ),
+}));
+
+jest.mock('@/components/ui/radio-group', () => ({
+  RadioGroup: ({ children, value, onValueChange: _onValueChange }: { children: React.ReactNode; value: string; onValueChange: (v: string) => void }) => (
+    <div data-testid="radio-group" data-value={value}>{children}</div>
+  ),
+  RadioGroupItem: ({ value, id }: { value: string; id: string }) => (
+    <input type="radio" value={value} id={id} data-testid={`radio-${value}`} />
+  ),
+}));
+
 describe('ThemeImportExport', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCustomThemes = [];
+    mockUpdateCustomTheme.mockReset();
   });
 
   it('renders without crashing', () => {
@@ -62,7 +81,8 @@ describe('ThemeImportExport', () => {
 
   it('displays import/export button', () => {
     render(<ThemeImportExport />);
-    expect(screen.getByText('Import/Export')).toBeInTheDocument();
+    // There are multiple elements with this text (button and title), use getAllByText
+    expect(screen.getAllByText('importExportThemes').length).toBeGreaterThan(0);
   });
 
   it('shows dialog content', () => {
@@ -97,6 +117,7 @@ describe('ThemeImportExport validation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCustomThemes = [];
+    mockUpdateCustomTheme.mockReset();
   });
 
   it('handles file import correctly', async () => {
@@ -108,5 +129,45 @@ describe('ThemeImportExport validation', () => {
     render(<ThemeImportExport />);
     // Validation logic is tested through component behavior
     expect(screen.getByTestId('dialog-trigger')).toBeInTheDocument();
+  });
+});
+
+describe('ThemeImportExport conflict handling (B1)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCustomThemes = [];
+    mockUpdateCustomTheme.mockReset();
+  });
+
+  it('shows conflict strategy options', () => {
+    render(<ThemeImportExport />);
+    // Should display conflict handling options
+    expect(screen.getByText('conflictStrategy')).toBeInTheDocument();
+  });
+
+  it('shows skip option', () => {
+    render(<ThemeImportExport />);
+    expect(screen.getByText('conflictSkip')).toBeInTheDocument();
+  });
+
+  it('shows overwrite option', () => {
+    render(<ThemeImportExport />);
+    expect(screen.getByText('conflictOverwrite')).toBeInTheDocument();
+  });
+
+  it('shows rename option', () => {
+    render(<ThemeImportExport />);
+    expect(screen.getByText('conflictRename')).toBeInTheDocument();
+  });
+
+  it('renders radio group for conflict strategy', () => {
+    render(<ThemeImportExport />);
+    expect(screen.getByTestId('radio-group')).toBeInTheDocument();
+  });
+
+  it('has skip as default strategy', () => {
+    render(<ThemeImportExport />);
+    const radioGroup = screen.getByTestId('radio-group');
+    expect(radioGroup).toHaveAttribute('data-value', 'skip');
   });
 });

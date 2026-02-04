@@ -4,6 +4,7 @@
  */
 
 import type { TableData } from './excel-export';
+import { sanitizeSpreadsheetCell } from './spreadsheet-sanitize';
 import type { UIMessage, Session } from '@/types';
 
 export interface GoogleSheetsExportOptions {
@@ -57,7 +58,8 @@ function formatCSVRow(
 ): string {
   return row
     .map((cell) => {
-      const value = cell === null || cell === undefined ? '' : String(cell);
+      const rawValue = cell === null || cell === undefined ? '' : String(cell);
+      const value = sanitizeSpreadsheetCell(rawValue);
 
       // Quote strings that contain delimiter, quotes, or newlines
       if (options.quoteStrings) {
@@ -227,7 +229,8 @@ export function tableToHTML(tableData: TableData): string {
     lines.push('  <thead>');
     lines.push('    <tr>');
     for (const header of tableData.headers) {
-      lines.push(`      <th>${escapeHtml(String(header))}</th>`);
+      const safeHeader = sanitizeSpreadsheetCell(String(header));
+      lines.push(`      <th>${escapeHtml(safeHeader)}</th>`);
     }
     lines.push('    </tr>');
     lines.push('  </thead>');
@@ -238,7 +241,8 @@ export function tableToHTML(tableData: TableData): string {
   for (const row of tableData.rows) {
     lines.push('    <tr>');
     for (const cell of row) {
-      lines.push(`      <td>${escapeHtml(String(cell ?? ''))}</td>`);
+      const safeCell = sanitizeSpreadsheetCell(String(cell ?? ''));
+      lines.push(`      <td>${escapeHtml(safeCell)}</td>`);
     }
     lines.push('    </tr>');
   }

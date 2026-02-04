@@ -1,0 +1,53 @@
+{
+  "hook": {
+    "initializationFailed": "Failed to initialize search provider manager",
+    "notInitialized": "Search provider manager not initialized",
+    "searchFailed": "Search failed",
+    "noProvidersEnabled": "No search providers are enabled"
+  },
+  "cache": {
+    "hit": "Cache hit",
+    "miss": "Cache miss",
+    "cleared": "Cache cleared",
+    "expired": "Cache entry expired",
+    "evicted": "Cache entry evicted",
+    "stats": "Cache Statistics",
+    "size": "Size",
+    "maxSize": "Max Size",
+    "hits": "Hits",
+    "misses": "Misses",
+    "hitRate": "Hit Rate"
+  },
+  "router": {
+    "routingTo": "Routing search to {provider}",
+    "noProviderForType": "No enabled provider available for search type: {type}",
+    "unknownProvider": "Unknown provider: {provider}",
+    "searchTypes": {
+      "general": "General",
+      "news": "News",
+      "images": "Images",
+      "videos": "Videos",
+      "academic": "Academic"
+    }
+  },
+  "provider": {
+    "metrics": {
+      "successRate": "Success Rate",
+      "averageLatency": "Average Latency",
+      "totalRequests": "Total Requests"
+    },
+    "status": {
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "unavailable": "Unavailable"
+    }
+  },
+  "errors": {
+    "providerFailed": "{provider} search failed: {message}",
+    "allProvidersFailed": "All search providers failed",
+    "quotaExceeded": "Search quota exceeded for {provider}",
+    "rateLimited": "Rate limited by {provider}",
+    "networkError": "Network error during search",
+    "timeout": "Search request timed out"
+  }
+}

@@ -42,6 +42,7 @@ import { useSyncStore } from '@/stores/sync';
 import { initSyncScheduler } from '@/lib/sync';
 import { WebDAVConfigForm } from './webdav-config';
 import { GitHubConfigForm } from './github-config';
+import { GoogleDriveConfigForm } from './googledrive-config';
 import { SyncHistoryDialog } from './sync-history-dialog';
 import type { SyncProviderType } from '@/types/sync';
 
@@ -53,6 +54,7 @@ export function SyncSettings() {
     setActiveProvider,
     webdavConfig,
     githubConfig,
+    googleDriveConfig,
     status,
     lastError,
     startSync,
@@ -115,7 +117,12 @@ export function SyncSettings() {
     }
   }, [startSync, t]);
 
-  const currentConfig = activeProvider === 'webdav' ? webdavConfig : githubConfig;
+  const currentConfig =
+    activeProvider === 'webdav'
+      ? webdavConfig
+      : activeProvider === 'github'
+        ? githubConfig
+        : googleDriveConfig;
   const lastSyncTime = currentConfig?.lastSyncAt;
 
   return (
@@ -156,6 +163,12 @@ export function SyncSettings() {
                   <div className="flex items-center gap-2">
                     <Github className="h-4 w-4" />
                     GitHub
+                  </div>
+                </SelectItem>
+                <SelectItem value="googledrive">
+                  <div className="flex items-center gap-2">
+                    <Cloud className="h-4 w-4" />
+                    Google Drive
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -217,6 +230,10 @@ export function SyncSettings() {
 
       {activeProvider === 'github' && (
         <GitHubConfigForm onConnectionStatusChange={setConnectionStatus} />
+      )}
+
+      {activeProvider === 'googledrive' && (
+        <GoogleDriveConfigForm onConnectionStatusChange={setConnectionStatus} />
       )}
 
       {/* Sync Actions */}

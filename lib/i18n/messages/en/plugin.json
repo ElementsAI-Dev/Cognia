@@ -499,5 +499,17 @@
       "description": "All your installed plugins are currently enabled.",
       "viewAll": "View All Plugins"
     }
+  },
+  "pluginPermissionRequest": {
+    "title": "Plugin Permission Request",
+    "description": "A plugin is requesting additional access. Review the request before allowing.",
+    "pluginLabel": "Plugin",
+    "permissionLabel": "Permission",
+    "reasonLabel": "Reason",
+    "allow": "Allow",
+    "deny": "Deny",
+    "queueNotice": "{count} more request(s) waiting",
+    "kindApi": "API",
+    "kindManifest": "Manifest"
   }
 }

@@ -10,6 +10,9 @@ const log = loggers.auth;
 // Storage keys
 const WEBDAV_PASSWORD_KEY = 'sync:webdav:password';
 const GITHUB_TOKEN_KEY = 'sync:github:token';
+const GOOGLE_ACCESS_TOKEN_KEY = 'sync:google:access_token';
+const GOOGLE_REFRESH_TOKEN_KEY = 'sync:google:refresh_token';
+const GOOGLE_TOKEN_EXPIRY_KEY = 'sync:google:token_expiry';
 
 /**
  * Store WebDAV password securely
@@ -193,12 +196,249 @@ export async function removeGitHubToken(): Promise<boolean> {
 /**
  * Check if credentials are stored
  */
-export async function hasStoredCredentials(provider: 'webdav' | 'github'): Promise<boolean> {
+export async function hasStoredCredentials(
+  provider: 'webdav' | 'github' | 'googledrive'
+): Promise<boolean> {
   if (provider === 'webdav') {
     const password = await getWebDAVPassword();
     return password !== null && password.length > 0;
-  } else {
+  } else if (provider === 'github') {
     const token = await getGitHubToken();
     return token !== null && token.length > 0;
+  } else if (provider === 'googledrive') {
+    const token = await getGoogleAccessToken();
+    return token !== null && token.length > 0;
+  }
+  return false;
+}
+
+// ============================================
+// Google Drive Token Storage
+// ============================================
+
+/**
+ * Store Google Drive tokens securely
+ */
+export async function storeGoogleTokens(
+  accessToken: string,
+  refreshToken: string,
+  expiresAt: number
+): Promise<boolean> {
+  if (!isTauri()) {
+    try {
+      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, btoa(accessToken));
+      localStorage.setItem(GOOGLE_REFRESH_TOKEN_KEY, btoa(refreshToken));
+      localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, String(expiresAt));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('stronghold_store_sync_credential', {
+      key: GOOGLE_ACCESS_TOKEN_KEY,
+      value: accessToken,
+    });
+    await invoke('stronghold_store_sync_credential', {
+      key: GOOGLE_REFRESH_TOKEN_KEY,
+      value: refreshToken,
+    });
+    await invoke('stronghold_store_sync_credential', {
+      key: GOOGLE_TOKEN_EXPIRY_KEY,
+      value: String(expiresAt),
+    });
+    return true;
+  } catch (error) {
+    log.error('Failed to store Google tokens', error as Error);
+    try {
+      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, btoa(accessToken));
+      localStorage.setItem(GOOGLE_REFRESH_TOKEN_KEY, btoa(refreshToken));
+      localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, String(expiresAt));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
+ * Update Google access token (after refresh)
+ */
+export async function updateGoogleAccessToken(
+  accessToken: string,
+  expiresAt: number
+): Promise<boolean> {
+  if (!isTauri()) {
+    try {
+      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, btoa(accessToken));
+      localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, String(expiresAt));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('stronghold_store_sync_credential', {
+      key: GOOGLE_ACCESS_TOKEN_KEY,
+      value: accessToken,
+    });
+    await invoke('stronghold_store_sync_credential', {
+      key: GOOGLE_TOKEN_EXPIRY_KEY,
+      value: String(expiresAt),
+    });
+    return true;
+  } catch (error) {
+    log.error('Failed to update Google access token', error as Error);
+    try {
+      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, btoa(accessToken));
+      localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, String(expiresAt));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
+ * Get Google access token
+ */
+export async function getGoogleAccessToken(): Promise<string | null> {
+  if (!isTauri()) {
+    try {
+      const stored = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
+      return stored ? atob(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const token = await invoke<string | null>('stronghold_get_sync_credential', {
+      key: GOOGLE_ACCESS_TOKEN_KEY,
+    });
+    return token;
+  } catch (error) {
+    log.error('Failed to get Google access token', error as Error);
+    try {
+      const stored = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
+      return stored ? atob(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Get Google refresh token
+ */
+export async function getGoogleRefreshToken(): Promise<string | null> {
+  if (!isTauri()) {
+    try {
+      const stored = localStorage.getItem(GOOGLE_REFRESH_TOKEN_KEY);
+      return stored ? atob(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const token = await invoke<string | null>('stronghold_get_sync_credential', {
+      key: GOOGLE_REFRESH_TOKEN_KEY,
+    });
+    return token;
+  } catch (error) {
+    log.error('Failed to get Google refresh token', error as Error);
+    try {
+      const stored = localStorage.getItem(GOOGLE_REFRESH_TOKEN_KEY);
+      return stored ? atob(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Get Google token expiry timestamp
+ */
+export async function getGoogleTokenExpiry(): Promise<number | null> {
+  if (!isTauri()) {
+    try {
+      const stored = localStorage.getItem(GOOGLE_TOKEN_EXPIRY_KEY);
+      return stored ? parseInt(stored, 10) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const expiry = await invoke<string | null>('stronghold_get_sync_credential', {
+      key: GOOGLE_TOKEN_EXPIRY_KEY,
+    });
+    return expiry ? parseInt(expiry, 10) : null;
+  } catch (error) {
+    log.error('Failed to get Google token expiry', error as Error);
+    try {
+      const stored = localStorage.getItem(GOOGLE_TOKEN_EXPIRY_KEY);
+      return stored ? parseInt(stored, 10) : null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Check if Google token is expired
+ */
+export async function isGoogleTokenExpired(): Promise<boolean> {
+  const expiry = await getGoogleTokenExpiry();
+  if (!expiry) return true;
+  // Consider expired 5 minutes before actual expiry
+  const buffer = 5 * 60 * 1000;
+  return Date.now() >= expiry - buffer;
+}
+
+/**
+ * Remove all Google tokens
+ */
+export async function removeGoogleTokens(): Promise<boolean> {
+  if (!isTauri()) {
+    try {
+      localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+      localStorage.removeItem(GOOGLE_REFRESH_TOKEN_KEY);
+      localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('stronghold_remove_sync_credential', {
+      key: GOOGLE_ACCESS_TOKEN_KEY,
+    });
+    await invoke('stronghold_remove_sync_credential', {
+      key: GOOGLE_REFRESH_TOKEN_KEY,
+    });
+    await invoke('stronghold_remove_sync_credential', {
+      key: GOOGLE_TOKEN_EXPIRY_KEY,
+    });
+    localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+    localStorage.removeItem(GOOGLE_REFRESH_TOKEN_KEY);
+    localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+    return true;
+  } catch (error) {
+    log.error('Failed to remove Google tokens', error as Error);
+    localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+    localStorage.removeItem(GOOGLE_REFRESH_TOKEN_KEY);
+    localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+    return true;
   }
 }

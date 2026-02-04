@@ -5,6 +5,7 @@
 import {
   DEFAULT_WEBDAV_CONFIG,
   DEFAULT_GITHUB_CONFIG,
+  DEFAULT_GOOGLE_DRIVE_CONFIG,
   type SyncProviderType,
   type SyncStatus,
   type ConflictResolution,
@@ -354,6 +355,7 @@ describe('Sync Types', () => {
       const state: SyncState = {
         webdavConfig: DEFAULT_WEBDAV_CONFIG,
         githubConfig: DEFAULT_GITHUB_CONFIG,
+        googleDriveConfig: DEFAULT_GOOGLE_DRIVE_CONFIG,
         activeProvider: null,
         status: 'idle',
         progress: null,
@@ -373,6 +375,7 @@ describe('Sync Types', () => {
       const state: SyncState = {
         webdavConfig: DEFAULT_WEBDAV_CONFIG,
         githubConfig: DEFAULT_GITHUB_CONFIG,
+        googleDriveConfig: DEFAULT_GOOGLE_DRIVE_CONFIG,
         activeProvider: 'webdav',
         status: 'syncing',
         progress: {

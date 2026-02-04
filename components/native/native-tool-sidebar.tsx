@@ -10,6 +10,7 @@ import {
   Terminal,
   Sparkles,
   FileText,
+  MapPin,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -31,6 +32,7 @@ export const NATIVE_TOOLS: NativeToolItem[] = [
   { id: 'screenshot', icon: Camera, labelKey: 'screenshot', description: 'Screenshot capture' },
   { id: 'focus', icon: Monitor, labelKey: 'focus', description: 'Focus tracking' },
   { id: 'context', icon: Eye, labelKey: 'context', description: 'Context awareness' },
+  { id: 'location', icon: MapPin, labelKey: 'location', description: 'Location & Map' },
   { id: 'system', icon: Activity, labelKey: 'system', description: 'System monitor' },
   { id: 'sandbox', icon: Terminal, labelKey: 'sandbox', description: 'Code sandbox' },
 ];

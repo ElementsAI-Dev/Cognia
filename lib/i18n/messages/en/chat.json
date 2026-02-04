@@ -145,7 +145,10 @@
     "toolHistory": "Tool History",
     "arena": "Arena",
     "openArena": "Compare multiple AI models",
-    "optimize": "Optimize"
+    "optimize": "Optimize",
+    "inputAriaLabel": "Type your message to the AI assistant",
+    "speechError": "Voice input error",
+    "typeSlashForCommands": "Type / for commands"
   },
   "chatGoal": {
     "label": "Conversation Goal",
@@ -301,6 +304,30 @@
     "edit": "Edit",
     "duplicate": "Duplicate",
     "remove": "Remove"
+  },
+  "parallelChat": {
+    "retrying": "Retrying...",
+    "retryAttempt": "Retry attempt {attempt}",
+    "retryFailed": "All retry attempts failed",
+    "savingMessages": "Saving messages...",
+    "messagesSaved": "Messages saved",
+    "messagesSaveFailed": "Failed to save messages",
+    "syncingTabs": "Syncing across tabs...",
+    "syncComplete": "Sync complete",
+    "contextIsolated": "Context isolated",
+    "concurrencyAdjusted": "Concurrency adjusted to {level}",
+    "highLatencyDetected": "High latency detected, reducing concurrency",
+    "lowErrorRate": "Low error rate, increasing concurrency",
+    "emergencySave": "Emergency save completed"
+  },
+  "crossTabSync": {
+    "connected": "Connected to other tabs",
+    "disconnected": "Disconnected from other tabs",
+    "messageReceived": "Message received from another tab",
+    "sessionUpdated": "Session updated from another tab",
+    "conflictDetected": "Conflict detected with another tab",
+    "syncEnabled": "Cross-tab sync enabled",
+    "syncDisabled": "Cross-tab sync disabled"
   },
   "carriedContext": {
     "title": "Context from previous chat",

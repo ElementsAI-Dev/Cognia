@@ -5,7 +5,7 @@
  * Main page for managing scheduled tasks
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Plus,
@@ -46,9 +46,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { TaskList, TaskForm, TaskDetails } from '@/components/scheduler';
-import { useScheduler } from '@/hooks/scheduler';
-import type { CreateScheduledTaskInput } from '@/types/scheduler';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AdminElevationDialog,
+  SystemTaskForm,
+  TaskConfirmationDialog,
+  TaskDetails,
+  TaskForm,
+  TaskList,
+} from '@/components/scheduler';
+import { useScheduler, useSystemScheduler } from '@/hooks/scheduler';
+import type {
+  CreateScheduledTaskInput,
+  CreateSystemTaskInput,
+  SystemTask,
+  SystemTaskAction,
+  SystemTaskTrigger,
+} from '@/types/scheduler';
 
 export default function SchedulerPage() {
   const t = useTranslations('scheduler');
@@ -68,6 +82,26 @@ export default function SchedulerPage() {
     selectTask,
     refresh,
   } = useScheduler();
+  const {
+    capabilities,
+    isAvailable: isSystemAvailable,
+    isElevated,
+    tasks: systemTasks,
+    pendingConfirmation,
+    loading: systemLoading,
+    error: systemError,
+    refresh: refreshSystem,
+    createTask: createSystemTask,
+    updateTask: updateSystemTask,
+    deleteTask: deleteSystemTask,
+    enableTask: enableSystemTask,
+    disableTask: disableSystemTask,
+    runTaskNow: runSystemTaskNow,
+    confirmPending,
+    cancelPending,
+    requestElevation,
+    clearError: clearSystemError,
+  } = useSystemScheduler();
 
   // UI state
   const [showCreateSheet, setShowCreateSheet] = useState(false);
@@ -75,6 +109,24 @@ export default function SchedulerPage() {
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
+  const [schedulerTab, setSchedulerTab] = useState<'app' | 'system'>('app');
+  const [showSystemCreateSheet, setShowSystemCreateSheet] = useState(false);
+  const [showSystemEditSheet, setShowSystemEditSheet] = useState(false);
+  const [systemDeleteTaskId, setSystemDeleteTaskId] = useState<string | null>(null);
+  const [systemEditTaskId, setSystemEditTaskId] = useState<string | null>(null);
+  const [systemSubmitting, setSystemSubmitting] = useState(false);
+  const [showAdminDialog, setShowAdminDialog] = useState(false);
+
+  const isSystemView = schedulerTab === 'system';
+  const isRefreshing = isSystemView ? systemLoading : isLoading;
+  const selectedSystemTask = useMemo(
+    () => systemTasks.find((task) => task.id === systemEditTaskId) || null,
+    [systemTasks, systemEditTaskId]
+  );
+  const sortedSystemTasks = useMemo(
+    () => [...systemTasks].sort((a, b) => a.name.localeCompare(b.name)),
+    [systemTasks]
+  );
 
   // Handlers
   const handleCreateTask = useCallback(
@@ -88,6 +140,27 @@ export default function SchedulerPage() {
       }
     },
     [createTask]
+  );
+
+  const handleCreateSystemTask = useCallback(
+    async (input: CreateSystemTaskInput) => {
+      setSystemSubmitting(true);
+      clearSystemError();
+      try {
+        const response = await createSystemTask(input);
+        if (response.status === 'success') {
+          setShowSystemCreateSheet(false);
+        } else if (
+          response.status === 'error' &&
+          response.message.toLowerCase().includes('administrator')
+        ) {
+          setShowAdminDialog(true);
+        }
+      } finally {
+        setSystemSubmitting(false);
+      }
+    },
+    [createSystemTask, clearSystemError]
   );
 
   const handleEditTask = useCallback(
@@ -112,12 +185,42 @@ export default function SchedulerPage() {
     [selectedTask, updateTask]
   );
 
+  const handleEditSystemTask = useCallback(
+    async (input: CreateSystemTaskInput) => {
+      if (!selectedSystemTask) return;
+      setSystemSubmitting(true);
+      clearSystemError();
+      try {
+        const response = await updateSystemTask(selectedSystemTask.id, input);
+        if (response.status === 'success') {
+          setShowSystemEditSheet(false);
+          setSystemEditTaskId(null);
+        } else if (
+          response.status === 'error' &&
+          response.message.toLowerCase().includes('administrator')
+        ) {
+          setShowAdminDialog(true);
+        }
+      } finally {
+        setSystemSubmitting(false);
+      }
+    },
+    [selectedSystemTask, updateSystemTask, clearSystemError]
+  );
+
   const handleDeleteConfirm = useCallback(async () => {
     if (deleteTaskId) {
       await deleteTask(deleteTaskId);
       setDeleteTaskId(null);
     }
   }, [deleteTaskId, deleteTask]);
+
+  const handleSystemDeleteConfirm = useCallback(async () => {
+    if (systemDeleteTaskId) {
+      await deleteSystemTask(systemDeleteTaskId);
+      setSystemDeleteTaskId(null);
+    }
+  }, [systemDeleteTaskId, deleteSystemTask]);
 
   const handlePause = useCallback(
     async (taskId: string) => {
@@ -140,7 +243,79 @@ export default function SchedulerPage() {
     [runTaskNow]
   );
 
-  if (!isInitialized) {
+  const handleSystemRunNow = useCallback(
+    async (taskId: string) => {
+      await runSystemTaskNow(taskId);
+    },
+    [runSystemTaskNow]
+  );
+
+  const handleSystemToggle = useCallback(
+    async (task: SystemTask) => {
+      if (task.status === 'disabled') {
+        await enableSystemTask(task.id);
+      } else {
+        await disableSystemTask(task.id);
+      }
+    },
+    [enableSystemTask, disableSystemTask]
+  );
+
+  const handleRefresh = useCallback(() => {
+    if (isSystemView) {
+      refreshSystem();
+    } else {
+      refresh();
+    }
+  }, [isSystemView, refresh, refreshSystem]);
+
+  const handleCreateClick = useCallback(() => {
+    if (isSystemView) {
+      setShowSystemCreateSheet(true);
+    } else {
+      setShowCreateSheet(true);
+    }
+  }, [isSystemView]);
+
+  const formatSystemTrigger = useCallback(
+    (trigger: SystemTaskTrigger) => {
+      switch (trigger.type) {
+        case 'cron':
+          return `${t('systemCronExpression') || 'Cron'}: ${trigger.expression}`;
+        case 'interval':
+          return `${t('intervalSeconds') || 'Interval'}: ${trigger.seconds}s`;
+        case 'once':
+          return `${t('systemRunAt') || 'Run At'}: ${trigger.run_at}`;
+        case 'on_boot':
+          return `${t('triggerOnBoot') || 'On Boot'}: ${trigger.delay_seconds || 0}s`;
+        case 'on_logon':
+          return `${t('triggerOnLogon') || 'On Logon'}${trigger.user ? ` (${trigger.user})` : ''}`;
+        case 'on_event':
+          return `${t('triggerOnEvent') || 'On Event'}: ${trigger.source} (${trigger.event_id})`;
+        default:
+          return t('systemTrigger') || 'Trigger';
+      }
+    },
+    [t]
+  );
+
+  const formatSystemAction = useCallback(
+    (action: SystemTaskAction) => {
+      switch (action.type) {
+        case 'execute_script':
+          return `${t('actionScript') || 'Script'}: ${action.language}`;
+        case 'run_command':
+          return `${t('actionCommand') || 'Command'}: ${action.command}`;
+        case 'launch_app':
+          return `${t('actionApp') || 'App'}: ${action.path}`;
+        default:
+          return t('systemAction') || 'Action';
+      }
+    },
+    [t]
+  );
+
+  if (!isInitialized && !isSystemView) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -168,19 +343,21 @@ export default function SchedulerPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={refresh} disabled={isLoading} className="h-8 sm:h-9">
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="h-8 sm:h-9">
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline ml-1">{t('refresh') || 'Refresh'}</span>
             </Button>
-            <Button size="sm" onClick={() => setShowCreateSheet(true)} className="h-8 sm:h-9">
+            <Button size="sm" onClick={handleCreateClick} className="h-8 sm:h-9">
               <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline ml-1">{t('createTask') || 'Create Task'}</span>
+              <span className="hidden sm:inline ml-1">
+                {isSystemView ? t('createSystemTask') || 'Create System Task' : t('createTask') || 'Create Task'}
+              </span>
             </Button>
           </div>
         </div>
 
         {/* Statistics */}
-        {statistics && (
+        {!isSystemView && statistics && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-3 sm:mt-4">
             <Card className="bg-gradient-to-br from-card to-muted/20">
               <CardContent className="p-2.5 sm:p-3">
@@ -243,142 +420,268 @@ export default function SchedulerPage() {
         )}
       </div>
 
-      {/* Main Content - Desktop: side-by-side, Mobile: tabs */}
-      {/* Desktop Layout */}
-      <div className="flex-1 hidden md:flex min-h-0">
-        {/* Task List */}
-        <div className="w-72 lg:w-80 border-r flex flex-col">
-          <div className="p-2 border-b">
-            <h2 className="text-sm font-medium px-2">{t('tasks') || 'Tasks'}</h2>
-          </div>
-          <div className="flex-1 min-h-0">
-            <TaskList
-              tasks={tasks}
-              selectedTaskId={selectedTask?.id || null}
-              onSelect={selectTask}
-              onPause={handlePause}
-              onResume={handleResume}
-              onRunNow={handleRunNow}
-              onDelete={setDeleteTaskId}
-              isLoading={isLoading}
-            />
-          </div>
-        </div>
-
-        {/* Task Details */}
-        <div className="flex-1 min-w-0">
-          {selectedTask ? (
-            <TaskDetails
-              task={selectedTask}
-              executions={executions}
-              onPause={() => handlePause(selectedTask.id)}
-              onResume={() => handleResume(selectedTask.id)}
-              onRunNow={() => handleRunNow(selectedTask.id)}
-              onDelete={() => setDeleteTaskId(selectedTask.id)}
-              onEdit={() => setShowEditSheet(true)}
-              isLoading={isLoading}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-center p-4">
-              <div>
-                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-muted/50">
-                  <Calendar className="h-10 w-10 text-muted-foreground/50" />
-                </div>
-                <h3 className="text-lg font-medium">
-                  {t('selectTask') || 'Select a task'}
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1 max-w-[240px]">
-                  {t('selectTaskDescription') || 'Choose a task from the list to view details'}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => setShowCreateSheet(true)}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t('createFirst') || 'Create your first task'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Mobile Layout - Tab Navigation */}
-      <div className="flex-1 flex flex-col md:hidden min-h-0">
-        <Tabs value={mobileView} onValueChange={(v) => setMobileView(v as 'list' | 'details')} className="flex flex-col flex-1 min-h-0">
-          <TabsList className="mx-3 mt-2 grid w-auto grid-cols-2">
-            <TabsTrigger value="list" className="gap-1.5">
-              <List className="h-4 w-4" />
-              {t('tasks') || 'Tasks'}
-              {tasks.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                  {tasks.length}
-                </Badge>
-              )}
+      <div className="px-3 sm:px-4 pb-2">
+        <Tabs value={schedulerTab} onValueChange={(v) => setSchedulerTab(v as 'app' | 'system')}>
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="app" className="gap-1">
+              {t('appScheduler') || 'App Scheduler'}
             </TabsTrigger>
-            <TabsTrigger value="details" className="gap-1.5">
-              <FileText className="h-4 w-4" />
-              {t('details') || 'Details'}
+            <TabsTrigger value="system" className="gap-1">
+              {t('systemScheduler') || 'System Scheduler'}
             </TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="list" className="flex-1 min-h-0 mt-0 p-0">
-            <TaskList
-              tasks={tasks}
-              selectedTaskId={selectedTask?.id || null}
-              onSelect={(taskId) => {
-                selectTask(taskId);
-                setMobileView('details');
-              }}
-              onPause={handlePause}
-              onResume={handleResume}
-              onRunNow={handleRunNow}
-              onDelete={setDeleteTaskId}
-              isLoading={isLoading}
-            />
-          </TabsContent>
-          
-          <TabsContent value="details" className="flex-1 min-h-0 mt-0">
-            {selectedTask ? (
-              <TaskDetails
-                task={selectedTask}
-                executions={executions}
-                onPause={() => handlePause(selectedTask.id)}
-                onResume={() => handleResume(selectedTask.id)}
-                onRunNow={() => handleRunNow(selectedTask.id)}
-                onDelete={() => setDeleteTaskId(selectedTask.id)}
-                onEdit={() => setShowEditSheet(true)}
-                isLoading={isLoading}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-center p-4">
-                <div>
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted/50">
-                    <Calendar className="h-8 w-8 text-muted-foreground/50" />
-                  </div>
-                  <h3 className="text-base font-medium">
-                    {t('selectTask') || 'Select a task'}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {t('selectTaskDescription') || 'Choose a task from the list'}
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                    onClick={() => setMobileView('list')}
-                  >
-                    <List className="h-4 w-4 mr-1" />
-                    {t('viewTasks') || 'View Tasks'}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </TabsContent>
         </Tabs>
       </div>
+
+      {!isSystemView && (
+        <>
+          {/* Main Content - Desktop: side-by-side, Mobile: tabs */}
+          {/* Desktop Layout */}
+          <div className="flex-1 hidden md:flex min-h-0">
+            {/* Task List */}
+            <div className="w-72 lg:w-80 border-r flex flex-col">
+              <div className="p-2 border-b">
+                <h2 className="text-sm font-medium px-2">{t('tasks') || 'Tasks'}</h2>
+              </div>
+              <div className="flex-1 min-h-0">
+                <TaskList
+                  tasks={tasks}
+                  selectedTaskId={selectedTask?.id || null}
+                  onSelect={selectTask}
+                  onPause={handlePause}
+                  onResume={handleResume}
+                  onRunNow={handleRunNow}
+                  onDelete={setDeleteTaskId}
+                  isLoading={isLoading}
+                />
+              </div>
+            </div>
+
+            {/* Task Details */}
+            <div className="flex-1 min-w-0">
+              {selectedTask ? (
+                <TaskDetails
+                  task={selectedTask}
+                  executions={executions}
+                  onPause={() => handlePause(selectedTask.id)}
+                  onResume={() => handleResume(selectedTask.id)}
+                  onRunNow={() => handleRunNow(selectedTask.id)}
+                  onDelete={() => setDeleteTaskId(selectedTask.id)}
+                  onEdit={() => setShowEditSheet(true)}
+                  isLoading={isLoading}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-center p-4">
+                  <div>
+                    <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-muted/50">
+                      <Calendar className="h-10 w-10 text-muted-foreground/50" />
+                    </div>
+                    <h3 className="text-lg font-medium">
+                      {t('selectTask') || 'Select a task'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-[240px]">
+                      {t('selectTaskDescription') || 'Choose a task from the list to view details'}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                      onClick={() => setShowCreateSheet(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      {t('createFirst') || 'Create your first task'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Layout - Tab Navigation */}
+          <div className="flex-1 flex flex-col md:hidden min-h-0">
+            <Tabs
+              value={mobileView}
+              onValueChange={(v) => setMobileView(v as 'list' | 'details')}
+              className="flex flex-col flex-1 min-h-0"
+            >
+              <TabsList className="mx-3 mt-2 grid w-auto grid-cols-2">
+                <TabsTrigger value="list" className="gap-1.5">
+                  <List className="h-4 w-4" />
+                  {t('tasks') || 'Tasks'}
+                  {tasks.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                      {tasks.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="details" className="gap-1.5">
+                  <FileText className="h-4 w-4" />
+                  {t('details') || 'Details'}
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="list" className="flex-1 min-h-0 mt-0 p-0">
+                <TaskList
+                  tasks={tasks}
+                  selectedTaskId={selectedTask?.id || null}
+                  onSelect={(taskId) => {
+                    selectTask(taskId);
+                    setMobileView('details');
+                  }}
+                  onPause={handlePause}
+                  onResume={handleResume}
+                  onRunNow={handleRunNow}
+                  onDelete={setDeleteTaskId}
+                  isLoading={isLoading}
+                />
+              </TabsContent>
+              
+              <TabsContent value="details" className="flex-1 min-h-0 mt-0">
+                {selectedTask ? (
+                  <TaskDetails
+                    task={selectedTask}
+                    executions={executions}
+                    onPause={() => handlePause(selectedTask.id)}
+                    onResume={() => handleResume(selectedTask.id)}
+                    onRunNow={() => handleRunNow(selectedTask.id)}
+                    onDelete={() => setDeleteTaskId(selectedTask.id)}
+                    onEdit={() => setShowEditSheet(true)}
+                    isLoading={isLoading}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-center p-4">
+                    <div>
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted/50">
+                        <Calendar className="h-8 w-8 text-muted-foreground/50" />
+                      </div>
+                      <h3 className="text-base font-medium">
+                        {t('selectTask') || 'Select a task'}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {t('selectTaskDescription') || 'Choose a task from the list'}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4"
+                        onClick={() => setMobileView('list')}
+                      >
+                        <List className="h-4 w-4 mr-1" />
+                        {t('viewTasks') || 'View Tasks'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        </>
+      )}
+
+      {isSystemView && (
+        <div className="flex-1 min-h-0">
+          {!isSystemAvailable ? (
+            <div className="p-4 text-sm text-muted-foreground">
+              <p>{t('systemSchedulerUnavailable') || 'System scheduler is unavailable.'}</p>
+              {capabilities?.can_elevate && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3"
+                  onClick={() => setShowAdminDialog(true)}
+                >
+                  {t('requestElevation') || 'Request Elevation'}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <ScrollArea className="h-full">
+              <div className="space-y-3 p-3 sm:p-4">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline" className="capitalize">
+                    {isElevated ? t('runLevelAdmin') || 'Administrator' : t('runLevelUser') || 'User'}
+                  </Badge>
+                  <span>{t('systemSchedulerDescription') || 'Manage OS-level scheduled tasks'}</span>
+                </div>
+                {systemError && (
+                  <div className="text-xs text-destructive">
+                    {systemError}
+                  </div>
+                )}
+                {sortedSystemTasks.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">
+                    {t('noSystemTasks') || 'No system tasks'}
+                  </div>
+                ) : (
+                  sortedSystemTasks.map((task) => (
+                    <Card key={task.id} className="bg-gradient-to-br from-card to-muted/20">
+                      <CardContent className="p-3 sm:p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 space-y-1">
+                            <div className="text-sm font-medium truncate">{task.name}</div>
+                            {task.description && (
+                              <div className="text-xs text-muted-foreground line-clamp-2">
+                                {task.description}
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              {formatSystemTrigger(task.trigger)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatSystemAction(task.action)}
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="capitalize">
+                            {task.status}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSystemRunNow(task.id)}
+                            disabled={systemLoading}
+                          >
+                            {t('runNow') || 'Run Now'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSystemToggle(task)}
+                            disabled={systemLoading}
+                          >
+                            {task.status === 'disabled'
+                              ? t('enableTask') || 'Enable'
+                              : t('disableTask') || 'Disable'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSystemEditTaskId(task.id);
+                              setShowSystemEditSheet(true);
+                            }}
+                          >
+                            {t('edit') || 'Edit'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive"
+                            onClick={() => setSystemDeleteTaskId(task.id)}
+                          >
+                            {t('delete') || 'Delete'}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
+      )}
 
       {/* Create Task Sheet */}
       <Sheet open={showCreateSheet} onOpenChange={setShowCreateSheet}>
@@ -399,6 +702,64 @@ export default function SchedulerPage() {
               onSubmit={handleCreateTask}
               onCancel={() => setShowCreateSheet(false)}
               isSubmitting={isSubmitting}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Edit System Task Sheet */}
+      <Sheet open={showSystemEditSheet} onOpenChange={setShowSystemEditSheet}>
+        <SheetContent className="w-full sm:w-[540px] sm:max-w-[540px] overflow-y-auto border-l bg-gradient-to-b from-background to-muted/20">
+          <SheetHeader className="space-y-1">
+            <SheetTitle className="flex items-center gap-2.5 text-lg">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10">
+                <Settings className="h-5 w-5 text-blue-500" />
+              </div>
+              {t('editSystemTask') || 'Edit System Task'}
+            </SheetTitle>
+            <SheetDescription className="text-sm">
+              {t('systemSchedulerDescription') || 'Manage OS-level scheduled tasks'}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            {selectedSystemTask && (
+              <SystemTaskForm
+                initialValues={{
+                  name: selectedSystemTask.name,
+                  description: selectedSystemTask.description,
+                  trigger: selectedSystemTask.trigger,
+                  action: selectedSystemTask.action,
+                  run_level: selectedSystemTask.run_level,
+                  tags: selectedSystemTask.tags,
+                }}
+                onSubmit={handleEditSystemTask}
+                onCancel={() => setShowSystemEditSheet(false)}
+                isSubmitting={systemSubmitting}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Create System Task Sheet */}
+      <Sheet open={showSystemCreateSheet} onOpenChange={setShowSystemCreateSheet}>
+        <SheetContent className="w-full sm:w-[540px] sm:max-w-[540px] overflow-y-auto border-l bg-gradient-to-b from-background to-muted/20">
+          <SheetHeader className="space-y-1">
+            <SheetTitle className="flex items-center gap-2.5 text-lg">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
+                <Plus className="h-5 w-5 text-primary" />
+              </div>
+              {t('createSystemTask') || 'Create System Task'}
+            </SheetTitle>
+            <SheetDescription className="text-sm">
+              {t('systemSchedulerDescription') || 'Manage OS-level scheduled tasks'}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <SystemTaskForm
+              onSubmit={handleCreateSystemTask}
+              onCancel={() => setShowSystemCreateSheet(false)}
+              isSubmitting={systemSubmitting}
             />
           </div>
         </SheetContent>
@@ -457,6 +818,46 @@ export default function SchedulerPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete System Task Confirmation */}
+      <AlertDialog open={!!systemDeleteTaskId} onOpenChange={() => setSystemDeleteTaskId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteTask') || 'Delete Task'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteTaskConfirm') ||
+                'Are you sure you want to delete this task? This action cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSystemDeleteConfirm} className="bg-destructive text-destructive-foreground">
+              {t('delete') || 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <TaskConfirmationDialog
+        open={!!pendingConfirmation}
+        confirmation={pendingConfirmation}
+        loading={systemSubmitting}
+        onConfirm={confirmPending}
+        onCancel={cancelPending}
+      />
+
+      <AdminElevationDialog
+        open={showAdminDialog}
+        loading={systemSubmitting}
+        onCancel={() => setShowAdminDialog(false)}
+        onRequestElevation={async () => {
+          setSystemSubmitting(true);
+          await requestElevation();
+          setSystemSubmitting(false);
+          setShowAdminDialog(false);
+          refreshSystem();
+        }}
+      />
     </div>
   );
 }

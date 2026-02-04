@@ -2,6 +2,17 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MathInline } from './math-inline';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      copyLatex: 'Copy LaTeX',
+      latexCopied: 'LaTeX copied to clipboard',
+    };
+    return translations[key] || key;
+  },
+}));
+
 // Mock KaTeX
 jest.mock('katex', () => ({
   renderToString: jest.fn((content: string) => {
@@ -12,8 +23,26 @@ jest.mock('katex', () => ({
   }),
 }));
 
+// Mock the latex cache module
+jest.mock('@/lib/latex/cache', () => ({
+  renderMathSafe: jest.fn((content: string, _displayMode: boolean, _options?: { trust?: boolean }) => {
+    if (content.includes('invalid')) {
+      return { html: '', error: 'KaTeX parse error' };
+    }
+    return { html: `<span class="katex">${content}</span>`, error: null };
+  }),
+}));
+
 // Mock useCopy hook
 jest.mock('@/hooks/ui/use-copy', () => ({
+  useCopy: () => ({
+    copy: jest.fn().mockResolvedValue({ success: true }),
+    isCopying: false,
+  }),
+}));
+
+// Mock the entire hooks/ui module to avoid langfuse import chain
+jest.mock('@/hooks/ui', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,
@@ -35,24 +64,18 @@ describe('MathInline', () => {
     });
 
     it('strips $ delimiters from content', () => {
-      const katex = jest.requireMock('katex');
+      const { renderMathSafe } = jest.requireMock('@/lib/latex/cache');
       render(<MathInline content="$a + b$" />);
       
-      expect(katex.renderToString).toHaveBeenCalledWith(
-        'a + b',
-        expect.objectContaining({ displayMode: false })
-      );
+      expect(renderMathSafe).toHaveBeenCalledWith('a + b', false, { trust: false });
     });
 
     it('strips \\( \\) delimiters from content', () => {
-      const katex = jest.requireMock('katex');
-      katex.renderToString.mockClear();
+      const { renderMathSafe } = jest.requireMock('@/lib/latex/cache');
+      renderMathSafe.mockClear();
       render(<MathInline content="\(a + b\)" />);
       
-      expect(katex.renderToString).toHaveBeenCalledWith(
-        'a + b',
-        expect.any(Object)
-      );
+      expect(renderMathSafe).toHaveBeenCalledWith('a + b', false, { trust: false });
     });
 
     it('applies custom className', () => {

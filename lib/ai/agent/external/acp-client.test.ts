@@ -138,6 +138,26 @@ describe('AcpClientAdapter Permission Handling', () => {
     const client = new AcpClientAdapter();
     expect(client).toBeDefined();
   });
+
+  it('should support sse transport', () => {
+    const _config: ExternalAgentConfig = {
+      id: 'sse-agent',
+      name: 'SSE Agent',
+      protocol: 'acp',
+      transport: 'sse',
+      enabled: true,
+      network: {
+        endpoint: 'http://localhost:8080',
+      },
+      defaultPermissionMode: 'default',
+      timeout: 300000,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const client = new AcpClientAdapter();
+    expect(client).toBeDefined();
+  });
 });
 
 describe('AcpClientAdapter Transport Configuration', () => {
@@ -241,5 +261,59 @@ describe('AcpClientAdapter Retry Configuration', () => {
   it('should support retry configuration', () => {
     const client = new AcpClientAdapter();
     expect(client).toBeDefined();
+  });
+});
+
+describe('AcpClientAdapter Authentication', () => {
+  it('should have authenticate method', () => {
+    const client = new AcpClientAdapter();
+    expect(typeof client.authenticate).toBe('function');
+  });
+
+  it('should have getAuthMethods method', () => {
+    const client = new AcpClientAdapter();
+    expect(typeof client.getAuthMethods).toBe('function');
+  });
+
+  it('should have isAuthenticationRequired method', () => {
+    const client = new AcpClientAdapter();
+    expect(typeof client.isAuthenticationRequired).toBe('function');
+  });
+
+  it('should return empty auth methods when not initialized', () => {
+    const client = new AcpClientAdapter();
+    expect(client.getAuthMethods()).toEqual([]);
+  });
+
+  it('should return false for isAuthenticationRequired when not initialized', () => {
+    const client = new AcpClientAdapter();
+    expect(client.isAuthenticationRequired()).toBe(false);
+  });
+
+  it('should throw when authenticate called without auth methods', async () => {
+    const client = new AcpClientAdapter();
+    await expect(client.authenticate('api-key')).rejects.toThrow('Agent does not require authentication');
+  });
+});
+
+describe('AcpClientAdapter Model Selection', () => {
+  it('should have setSessionModel method', () => {
+    const client = new AcpClientAdapter();
+    expect(typeof client.setSessionModel).toBe('function');
+  });
+
+  it('should have getSessionModels method', () => {
+    const client = new AcpClientAdapter();
+    expect(typeof client.getSessionModels).toBe('function');
+  });
+
+  it('should throw when setSessionModel called with non-existent session', async () => {
+    const client = new AcpClientAdapter();
+    await expect(client.setSessionModel('non-existent', 'gpt-4')).rejects.toThrow('Session not found');
+  });
+
+  it('should return undefined for getSessionModels with non-existent session', () => {
+    const client = new AcpClientAdapter();
+    expect(client.getSessionModels('non-existent')).toBeUndefined();
   });
 });

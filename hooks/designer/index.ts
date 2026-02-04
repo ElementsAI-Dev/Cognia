@@ -46,3 +46,8 @@ export {
   type UseAISuggestionsOptions,
   type UseAISuggestionsReturn,
 } from './use-ai-suggestions';
+export {
+  useDesignerCollaboration,
+  type DesignerCollaborationConfig,
+  type UseDesignerCollaborationReturn,
+} from './use-designer-collaboration';

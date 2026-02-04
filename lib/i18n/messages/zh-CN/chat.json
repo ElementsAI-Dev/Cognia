@@ -145,7 +145,10 @@
     "toolHistory": "工具历史",
     "arena": "竞技场",
     "openArena": "比较多个 AI 模型",
-    "optimize": "优化"
+    "optimize": "优化",
+    "inputAriaLabel": "输入您的消息给 AI 助手",
+    "speechError": "语音输入错误",
+    "typeSlashForCommands": "输入 / 使用命令"
   },
   "chatGoal": {
     "label": "对话目标",

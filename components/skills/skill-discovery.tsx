@@ -391,7 +391,9 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
       {syncError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{syncError}</AlertDescription>
+          <AlertDescription>
+            {syncError.startsWith('i18n:') ? t(syncError.replace('i18n:', '')) : syncError}
+          </AlertDescription>
         </Alert>
       )}
 

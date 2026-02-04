@@ -516,6 +516,10 @@ export interface ExternalAgentProcessConfig {
 export interface ExternalAgentNetworkConfig {
   /** Endpoint URL */
   endpoint: string;
+  /** Optional JSON-RPC endpoint (defaults to `${endpoint}/message`) */
+  rpcEndpoint?: string;
+  /** Optional events endpoint for SSE (defaults to `${endpoint}/events`) */
+  eventsEndpoint?: string;
   /** Authentication method */
   authMethod?: 'none' | 'bearer' | 'api-key' | 'oauth2' | 'custom';
   /** API key or token */
@@ -879,6 +883,8 @@ export type ExternalAgentEventType =
   | 'permission_request'
   | 'permission_response'
   | 'thinking'
+  | 'plan_update'
+  | 'commands_update'
   | 'progress'
   | 'error'
   | 'done';
@@ -1002,6 +1008,25 @@ export interface ExternalAgentThinkingEvent extends ExternalAgentEventBase {
 }
 
 /**
+ * Plan update event
+ */
+export interface ExternalAgentPlanUpdateEvent extends ExternalAgentEventBase {
+  type: 'plan_update';
+  entries: AcpPlanEntry[];
+  progress: number;
+  step: number;
+  totalSteps: number;
+}
+
+/**
+ * Available commands update event
+ */
+export interface ExternalAgentCommandsUpdateEvent extends ExternalAgentEventBase {
+  type: 'commands_update';
+  commands: AcpAvailableCommand[];
+}
+
+/**
  * Progress event
  */
 export interface ExternalAgentProgressEvent extends ExternalAgentEventBase {
@@ -1047,6 +1072,8 @@ export type ExternalAgentEvent =
   | ExternalAgentPermissionRequestEvent
   | ExternalAgentPermissionResponseEvent
   | ExternalAgentThinkingEvent
+  | ExternalAgentPlanUpdateEvent
+  | ExternalAgentCommandsUpdateEvent
   | ExternalAgentProgressEvent
   | ExternalAgentErrorEvent
   | ExternalAgentDoneEvent;

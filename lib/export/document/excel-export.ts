@@ -5,6 +5,7 @@
 
 import type { UIMessage, Session } from '@/types';
 import { getPluginEventHooks } from '@/lib/plugin';
+import { sanitizeSpreadsheetCell, sanitizeSpreadsheetTable } from './spreadsheet-sanitize';
 
 export interface ExcelExportOptions {
   sheetName?: string;
@@ -64,12 +65,14 @@ export async function exportTableToExcel(
     
     wsData.push(...tableData.rows);
 
+    const sanitizedData = sanitizeSpreadsheetTable(wsData);
+
     // Create worksheet
-    const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+    const worksheet = XLSX.utils.aoa_to_sheet(sanitizedData);
 
     // Auto-width columns
     if (opts.autoWidth) {
-      const colWidths = calculateColumnWidths(wsData);
+      const colWidths = calculateColumnWidths(sanitizedData);
       worksheet['!cols'] = colWidths.map((w) => ({ wch: Math.min(w + 2, 50) }));
     }
 
@@ -124,12 +127,14 @@ export async function exportMultiSheetExcel(
       
       wsData.push(...sheet.data.rows);
 
+      const sanitizedData = sanitizeSpreadsheetTable(wsData);
+
       // Create worksheet
-      const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+      const worksheet = XLSX.utils.aoa_to_sheet(sanitizedData);
 
       // Auto-width columns
       if (opts.autoWidth) {
-        const colWidths = calculateColumnWidths(wsData);
+        const colWidths = calculateColumnWidths(sanitizedData);
         worksheet['!cols'] = colWidths.map((w) => ({ wch: Math.min(w + 2, 50) }));
       }
 
@@ -196,7 +201,9 @@ export async function exportChatToExcel(
       ['Total Messages', messages.length.toString()],
     ];
 
-    const sessionSheet = XLSX.utils.aoa_to_sheet(sessionData);
+    const sessionSheet = XLSX.utils.aoa_to_sheet(
+      sanitizeSpreadsheetTable(sessionData)
+    );
     sessionSheet['!cols'] = [{ wch: 15 }, { wch: 40 }];
     XLSX.utils.book_append_sheet(workbook, sessionSheet, 'Session Info');
 
@@ -211,7 +218,7 @@ export async function exportChatToExcel(
       msg.tokens?.total || '',
     ]);
 
-    const messageData = [messageHeaders, ...messageRows];
+    const messageData = sanitizeSpreadsheetTable([messageHeaders, ...messageRows]);
     const messageSheet = XLSX.utils.aoa_to_sheet(messageData);
     
     // Set column widths
@@ -293,7 +300,9 @@ export async function exportChatToExcel(
       statsData.push(['Video Models', Array.from(videoModels).join(', ')]);
     }
 
-    const statsSheet = XLSX.utils.aoa_to_sheet(statsData);
+    const statsSheet = XLSX.utils.aoa_to_sheet(
+      sanitizeSpreadsheetTable(statsData)
+    );
     statsSheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
     XLSX.utils.book_append_sheet(workbook, statsSheet, 'Statistics');
 
@@ -338,7 +347,7 @@ export async function exportChatToExcel(
       }
 
       if (mediaRows.length > 0) {
-        const mediaData = [mediaHeaders, ...mediaRows];
+        const mediaData = sanitizeSpreadsheetTable([mediaHeaders, ...mediaRows]);
         const mediaSheet = XLSX.utils.aoa_to_sheet(mediaData);
         mediaSheet['!cols'] = [
           { wch: 5 },   // #
@@ -405,13 +414,21 @@ export async function exportJSONToExcel(
     const workbook = XLSX.utils.book_new();
 
     // Convert JSON to worksheet
-    const worksheet = XLSX.utils.json_to_sheet(data);
+    const sanitizedData = data.map((row) =>
+      Object.fromEntries(
+        Object.entries(row).map(([key, value]) => [
+          key,
+          typeof value === 'string' ? sanitizeSpreadsheetCell(value) : value,
+        ])
+      )
+    );
+    const worksheet = XLSX.utils.json_to_sheet(sanitizedData);
 
     // Auto-width columns
     if (opts.autoWidth) {
-      const headers = Object.keys(data[0]);
+      const headers = Object.keys(sanitizedData[0]);
       const colWidths = headers.map((header) => {
-        const maxDataWidth = data.reduce((max, row) => {
+        const maxDataWidth = sanitizedData.reduce((max, row) => {
           const value = String(row[header] || '');
           return Math.max(max, value.length);
         }, header.length);

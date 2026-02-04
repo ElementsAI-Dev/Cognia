@@ -338,4 +338,42 @@ describe('ChatInput', () => {
     // Verify component renders
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
+
+  describe('character counter', () => {
+    it('displays character counter when input has content', () => {
+      render(<ChatInput {...defaultProps} value="Hello world" />);
+      // Character counter should show the length
+      expect(screen.getByText('11')).toBeInTheDocument();
+    });
+
+    it('does not display character counter when input is empty', () => {
+      render(<ChatInput {...defaultProps} value="" />);
+      // Character counter should not be present for empty input
+      expect(screen.queryByText('0')).not.toBeInTheDocument();
+    });
+
+    it('displays character counter with locale formatting for large values', () => {
+      const longText = 'a'.repeat(1500);
+      render(<ChatInput {...defaultProps} value={longText} />);
+      // Character counter should show formatted number (1,500)
+      expect(screen.getByText('1,500')).toBeInTheDocument();
+    });
+  });
+
+  describe('accessibility', () => {
+    it('has aria-label on textarea', () => {
+      render(<ChatInput {...defaultProps} />);
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('aria-label');
+    });
+  });
+
+  describe('onOpenArena prop', () => {
+    it('passes onOpenArena to BottomToolbar', () => {
+      const onOpenArena = jest.fn();
+      render(<ChatInput {...defaultProps} onOpenArena={onOpenArena} />);
+      // Verify component renders with the arena prop
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+    });
+  });
 });

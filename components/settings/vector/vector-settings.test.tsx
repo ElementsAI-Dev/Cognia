@@ -31,6 +31,8 @@ jest.mock('@/stores', () => ({
         pineconeApiKey: '',
         pineconeIndexName: '',
         pineconeNamespace: '',
+        weaviateUrl: 'http://localhost:8080',
+        weaviateApiKey: '',
         qdrantUrl: '',
         qdrantApiKey: '',
         milvusAddress: '',
@@ -205,6 +207,7 @@ describe('VectorSettings', () => {
     expect(screen.getByTestId('provider-tab-native')).toBeInTheDocument();
     expect(screen.getByTestId('provider-tab-chroma')).toBeInTheDocument();
     expect(screen.getByTestId('provider-tab-pinecone')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-tab-weaviate')).toBeInTheDocument();
     expect(screen.getByTestId('provider-tab-qdrant')).toBeInTheDocument();
     expect(screen.getByTestId('provider-tab-milvus')).toBeInTheDocument();
   });

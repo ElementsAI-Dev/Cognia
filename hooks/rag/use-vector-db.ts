@@ -126,6 +126,8 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
       pineconeApiKey: settings.pineconeApiKey,
       pineconeIndexName: settings.pineconeIndexName,
       pineconeNamespace: settings.pineconeNamespace,
+      weaviateUrl: settings.weaviateUrl,
+      weaviateApiKey: settings.weaviateApiKey,
       qdrantUrl: settings.qdrantUrl,
       qdrantApiKey: settings.qdrantApiKey,
       milvusAddress: settings.milvusAddress,

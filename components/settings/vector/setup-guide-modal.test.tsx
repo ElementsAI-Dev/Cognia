@@ -12,7 +12,7 @@ jest.mock('next-intl', () => ({
       title: 'Vector Database Setup',
       subtitle: 'Complete these steps to configure your vector database',
       step1Title: 'Choose Provider',
-      step1Desc: 'Select Native for local storage, or Chroma/Pinecone/Qdrant/Milvus for more capabilities.',
+      step1Desc: 'Select Native for local storage, or Chroma/Pinecone/Weaviate/Qdrant/Milvus for more capabilities.',
       step2Title: 'Configure Embedding',
       step2Desc: 'Choose an embedding provider and model to generate vectors.',
       step3Title: 'Test Connection',

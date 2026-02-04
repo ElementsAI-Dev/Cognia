@@ -45,6 +45,7 @@ describe('TaskForm', () => {
     render(<TaskForm {...defaultProps} />);
     
     expect(screen.getByText('taskType')).toBeInTheDocument();
+    expect(screen.getByText('Plugin')).toBeInTheDocument();
   });
 
   it('should render trigger type buttons', () => {

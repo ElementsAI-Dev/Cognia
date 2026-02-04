@@ -279,6 +279,13 @@ export async function readSkillContent(directory: string): Promise<string> {
 }
 
 /**
+ * Write skill content (SKILL.md)
+ */
+export async function writeSkillContent(directory: string, content: string): Promise<void> {
+  return invoke('skill_write_content', { directory, content });
+}
+
+/**
  * List skill resource files
  */
 export async function listSkillResources(directory: string): Promise<string[]> {
@@ -293,6 +300,17 @@ export async function readSkillResource(
   resourcePath: string
 ): Promise<string> {
   return invoke<string>('skill_read_resource', { directory, resourcePath });
+}
+
+/**
+ * Write a skill resource file
+ */
+export async function writeSkillResource(
+  directory: string,
+  resourcePath: string,
+  content: string
+): Promise<void> {
+  return invoke('skill_write_resource', { directory, resourcePath, content });
 }
 
 /**

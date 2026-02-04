@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import { parseCodeToAst } from '@/lib/designer/elements';
 import type {
   DesignerElement,
   ViewportSize,
@@ -102,7 +103,7 @@ interface DesignerActions {
   // Code
   setCode: (code: string, addToHistory?: boolean) => void;
   syncCodeFromElements: () => void;
-  parseCodeToElements: (code: string) => void;
+  parseCodeToElements: (code: string) => Promise<void>;
 
   // History
   undo: () => void;
@@ -160,6 +161,8 @@ const initialState: DesignerState = {
   isMobileLayout: false,
   mobileActiveTab: 'preview',
 };
+
+let parseRequestId = 0;
 
 // Helper to build element map from tree
 function buildElementMap(element: DesignerElement | null): Record<string, DesignerElement> {
@@ -502,10 +505,12 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()(
     set({ code: generatedCode });
   },
 
-  parseCodeToElements: (code: string) => {
+  parseCodeToElements: async (code: string) => {
+    const requestId = ++parseRequestId;
     // Parse code and build element tree
     // This is a simplified parser - in production, use a proper AST parser
-    const tree = parseHTMLToElementTree(code);
+    const tree = await parseHTMLToElementTree(code);
+    if (requestId !== parseRequestId) return;
     const elementMap = buildElementMap(tree);
     set({ code, elementTree: tree, elementMap, isDirty: false });
   },
@@ -764,7 +769,7 @@ function elementToHTML(element: DesignerElement, indent: number): string {
 }
 
 // Enhanced parser that handles both HTML and React/JSX code
-function parseHTMLToElementTree(code: string): DesignerElement | null {
+async function parseHTMLToElementTree(code: string): Promise<DesignerElement | null> {
   if (typeof window === 'undefined') return null;
 
   // Reset ID counter for deterministic IDs matching preview iframe
@@ -787,8 +792,278 @@ function parseHTMLToElementTree(code: string): DesignerElement | null {
   return domToDesignerElement(body.firstElementChild as HTMLElement, null);
 }
 
+type AstNode = NonNullable<Awaited<ReturnType<typeof parseCodeToAst>>>;
+
+function findJsxRootNode(ast: AstNode): AstNode | null {
+  const queue: AstNode[] = [ast];
+
+  while (queue.length > 0) {
+    const node = queue.shift();
+    if (!node) continue;
+
+    if (node.type === 'ReturnStatement') {
+      const argument = (node as unknown as { argument?: AstNode }).argument;
+      if (argument && (argument.type === 'JSXElement' || argument.type === 'JSXFragment')) {
+        return argument;
+      }
+    }
+
+    if (node.type === 'ArrowFunctionExpression') {
+      const body = (node as unknown as { body?: AstNode }).body;
+      if (body && (body.type === 'JSXElement' || body.type === 'JSXFragment')) {
+        return body;
+      }
+    }
+
+    const traverseProps = [
+      'body',
+      'declarations',
+      'init',
+      'argument',
+      'expression',
+      'consequent',
+      'alternate',
+      'declaration',
+      'properties',
+      'value',
+      'arguments',
+      'elements',
+    ];
+
+    for (const prop of traverseProps) {
+      const value = (node as unknown as Record<string, unknown>)[prop];
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (item && typeof item === 'object') queue.push(item as AstNode);
+        }
+      } else if (value && typeof value === 'object') {
+        queue.push(value as AstNode);
+      }
+    }
+  }
+
+  return null;
+}
+
+function buildDesignerElementFromJsx(node: AstNode, parentId: string | null): DesignerElement | null {
+  if (node.type === 'JSXFragment') {
+    const fragmentChildren = getJsxChildElements(node);
+    if (fragmentChildren.length === 0) return null;
+    return buildDesignerElementFromJsx(fragmentChildren[0], parentId);
+  }
+
+  if (node.type !== 'JSXElement') return null;
+
+  const openingElement = (node as unknown as { openingElement?: { name?: AstNode; attributes?: AstNode[] } }).openingElement;
+  if (!openingElement?.name) return null;
+
+  const tagName = getJsxElementName(openingElement.name);
+  const attributes: Record<string, string> = {};
+  let className = '';
+  let styles: Record<string, string> = {};
+
+  for (const attr of openingElement.attributes ?? []) {
+    if (attr.type !== 'JSXAttribute') continue;
+    const nameNode = (attr as unknown as { name?: { name?: string } }).name;
+    const attrName = nameNode?.name;
+    if (!attrName) continue;
+
+    if (attrName === 'style') {
+      styles = {
+        ...styles,
+        ...parseJsxStyleAttribute(attr as AstNode),
+      };
+      continue;
+    }
+
+    const value = parseJsxAttributeValue(attr as AstNode);
+    if (value === undefined) continue;
+
+    if (attrName === 'className' || attrName === 'class') {
+      className = value;
+    } else {
+      attributes[attrName] = value;
+    }
+  }
+
+  const id = generateElementId();
+  const children: DesignerElement[] = [];
+
+  const textContent = extractJsxTextContent(node);
+
+  for (const child of getJsxChildElements(node)) {
+    const childElement = buildDesignerElementFromJsx(child, id);
+    if (childElement) children.push(childElement);
+  }
+
+  return {
+    id,
+    tagName: tagName.toLowerCase(),
+    className,
+    textContent: textContent || undefined,
+    attributes,
+    styles,
+    children,
+    parentId,
+    sourceRange: node.loc
+      ? {
+          startLine: node.loc.start.line,
+          endLine: node.loc.end.line,
+          startColumn: node.loc.start.column,
+          endColumn: node.loc.end.column,
+        }
+      : undefined,
+  };
+}
+
+function getJsxChildElements(node: AstNode): AstNode[] {
+  if (!node || !('children' in node)) return [];
+  const children = (node as unknown as { children?: AstNode[] }).children ?? [];
+  return children.filter((child) => child.type === 'JSXElement' || child.type === 'JSXFragment');
+}
+
+function getJsxElementName(nameNode: AstNode): string {
+  if (nameNode.type === 'JSXIdentifier') {
+    return (nameNode as unknown as { name: string }).name;
+  }
+  if (nameNode.type === 'JSXMemberExpression') {
+    const member = nameNode as unknown as { object: AstNode; property: AstNode };
+    return `${getJsxElementName(member.object)}.${getJsxElementName(member.property)}`;
+  }
+  if (nameNode.type === 'JSXNamespacedName') {
+    const namespaced = nameNode as unknown as { namespace: { name: string }; name: { name: string } };
+    return `${namespaced.namespace.name}:${namespaced.name.name}`;
+  }
+  return 'div';
+}
+
+function parseJsxAttributeValue(attr: AstNode): string | undefined {
+  const value = (attr as unknown as { value?: AstNode | null }).value;
+  if (!value) return 'true';
+
+  if (value.type === 'StringLiteral') {
+    return (value as unknown as { value: string }).value;
+  }
+
+  if (value.type === 'JSXExpressionContainer') {
+    const expression = (value as unknown as { expression?: AstNode }).expression;
+    if (!expression) return undefined;
+
+    if (expression.type === 'StringLiteral') {
+      return (expression as unknown as { value: string }).value;
+    }
+
+    if (expression.type === 'NumericLiteral') {
+      return String((expression as unknown as { value: number }).value);
+    }
+
+    if (expression.type === 'TemplateLiteral') {
+      const quasis = (expression as unknown as { quasis?: Array<{ value?: { cooked?: string } }> }).quasis ?? [];
+      return quasis.map((quasi) => quasi.value?.cooked ?? '').join('');
+    }
+  }
+
+  return undefined;
+}
+
+function parseJsxStyleAttribute(attr: AstNode): Record<string, string> {
+  const value = (attr as unknown as { value?: AstNode | null }).value;
+  if (!value) return {};
+
+  if (value.type === 'StringLiteral') {
+    return parseInlineStyleString((value as unknown as { value: string }).value);
+  }
+
+  if (value.type !== 'JSXExpressionContainer') return {};
+
+  const expression = (value as unknown as { expression?: AstNode }).expression;
+  if (!expression || expression.type !== 'ObjectExpression') return {};
+
+  const styles: Record<string, string> = {};
+  const properties = (expression as unknown as { properties?: AstNode[] }).properties ?? [];
+
+  for (const property of properties) {
+    if (property.type !== 'ObjectProperty') continue;
+
+    const keyNode = (property as unknown as { key?: AstNode }).key;
+    const valueNode = (property as unknown as { value?: AstNode }).value;
+    if (!keyNode || !valueNode) continue;
+
+    const key =
+      keyNode.type === 'Identifier'
+        ? (keyNode as unknown as { name: string }).name
+        : keyNode.type === 'StringLiteral'
+          ? (keyNode as unknown as { value: string }).value
+          : undefined;
+
+    if (!key) continue;
+
+    let valueText: string | undefined;
+    if (valueNode.type === 'StringLiteral') {
+      valueText = (valueNode as unknown as { value: string }).value;
+    } else if (valueNode.type === 'NumericLiteral') {
+      valueText = String((valueNode as unknown as { value: number }).value);
+    }
+
+    if (valueText !== undefined) {
+      styles[key] = valueText;
+    }
+  }
+
+  return styles;
+}
+
+function parseInlineStyleString(style: string): Record<string, string> {
+  const styles: Record<string, string> = {};
+  style.split(';').forEach((rule) => {
+    const [key, value] = rule.split(':').map((part) => part.trim());
+    if (!key || !value) return;
+    const camelKey = key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    styles[camelKey] = value;
+  });
+  return styles;
+}
+
+function extractJsxTextContent(node: AstNode): string | null {
+  if (!node || !('children' in node)) return null;
+  const children = (node as unknown as { children?: AstNode[] }).children ?? [];
+
+  for (const child of children) {
+    if (child.type === 'JSXText') {
+      const text = (child as unknown as { value?: string }).value?.trim();
+      if (text) return text;
+    }
+    if (child.type === 'JSXExpressionContainer') {
+      const expression = (child as unknown as { expression?: AstNode }).expression;
+      if (expression?.type === 'StringLiteral') {
+        const text = (expression as unknown as { value?: string }).value;
+        if (text?.trim()) return text.trim();
+      }
+    }
+  }
+
+  return null;
+}
+
 // Parse React/JSX code to element tree
-function parseReactToElementTree(code: string): DesignerElement | null {
+async function parseReactToElementTree(code: string): Promise<DesignerElement | null> {
+  const astTree = await parseReactToElementTreeWithAst(code);
+  if (astTree) return astTree;
+
+  return parseReactToElementTreeFallback(code);
+}
+
+async function parseReactToElementTreeWithAst(code: string): Promise<DesignerElement | null> {
+  const ast = await parseCodeToAst(code);
+  if (!ast) return null;
+
+  const rootNode = findJsxRootNode(ast);
+  if (!rootNode) return null;
+
+  return buildDesignerElementFromJsx(rootNode, null);
+}
+
+function parseReactToElementTreeFallback(code: string): DesignerElement | null {
   // Extract JSX from return statement
   const jsxContent = extractJSXFromReact(code);
   if (!jsxContent) return null;

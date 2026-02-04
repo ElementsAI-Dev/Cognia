@@ -84,7 +84,7 @@ export function ElementActionsPopover({
       
       if (result.success && result.code) {
         setCode(result.code);
-        parseCodeToElements(result.code);
+        void parseCodeToElements(result.code);
         setAIPrompt('');
         setShowAIInput(false);
         onClose?.();

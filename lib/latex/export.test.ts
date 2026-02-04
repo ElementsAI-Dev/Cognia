@@ -11,6 +11,7 @@ import latexExportApi, {
   DEFAULT_EXPORT_OPTIONS,
   DEFAULT_PROJECT_OPTIONS,
 } from './export';
+import { KATEX_CDN_VERSION } from './config';
 
 describe('LaTeX Export', () => {
   const sampleLatex = `\\documentclass{article}
@@ -45,6 +46,11 @@ This is a test.
       expect(html).toBeDefined();
       expect(typeof html).toBe('string');
       expect(html.length).toBeGreaterThan(0);
+    });
+
+    it('should use the configured KaTeX CDN version', () => {
+      const html = latexToHtml(sampleLatex);
+      expect(html).toContain(`katex@${KATEX_CDN_VERSION}`);
     });
 
     it('should handle empty input', () => {

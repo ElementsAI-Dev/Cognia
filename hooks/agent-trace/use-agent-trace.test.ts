@@ -6,9 +6,16 @@ import { renderHook, act } from '@testing-library/react';
 import { useAgentTrace } from './use-agent-trace';
 
 // Mock dependencies
+const liveQueryResults: unknown[] = [];
+const setLiveQueryResults = (...results: unknown[]) => {
+  liveQueryResults.splice(0, liveQueryResults.length, ...results);
+};
+
 jest.mock('dexie-react-hooks', () => ({
-  useLiveQuery: jest.fn((queryFn, deps, defaultValue) => {
-    // Return default value for initial render
+  useLiveQuery: jest.fn((_queryFn, _deps, defaultValue) => {
+    if (liveQueryResults.length > 0) {
+      return liveQueryResults.shift();
+    }
     return defaultValue;
   }),
 }));
@@ -62,6 +69,7 @@ jest.mock('@/stores/settings', () => ({
 describe('useAgentTrace', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    liveQueryResults.length = 0;
   });
 
   describe('initialization', () => {
@@ -84,6 +92,77 @@ describe('useAgentTrace', () => {
       const { result } = renderHook(() => useAgentTrace(options));
 
       expect(result.current.traces).toEqual([]);
+    });
+  });
+
+  describe('filters', () => {
+    it('filters by event type', () => {
+      const traceA = {
+        id: 'trace-a',
+        timestamp: new Date(),
+        record: JSON.stringify({ eventType: 'step_start', files: [] }),
+        createdAt: new Date(),
+      };
+      const traceB = {
+        id: 'trace-b',
+        timestamp: new Date(),
+        record: JSON.stringify({ eventType: 'tool_call_result', files: [] }),
+        createdAt: new Date(),
+      };
+      setLiveQueryResults([traceA, traceB], 2);
+
+      const { result } = renderHook(() => useAgentTrace({ eventType: 'step_start' }));
+
+      expect(result.current.traces).toHaveLength(1);
+      expect(result.current.traces[0].id).toBe('trace-a');
+    });
+
+    it('filters by file path using indexed filePaths', () => {
+      const traceA = {
+        id: 'trace-a',
+        timestamp: new Date(),
+        record: JSON.stringify({ files: [{ path: 'src/target.ts' }] }),
+        createdAt: new Date(),
+        filePaths: ['src/target.ts'],
+      };
+      const traceB = {
+        id: 'trace-b',
+        timestamp: new Date(),
+        record: JSON.stringify({ files: [{ path: 'src/other.ts' }] }),
+        createdAt: new Date(),
+        filePaths: ['src/other.ts'],
+      };
+      setLiveQueryResults([traceA, traceB], 2);
+
+      const { result } = renderHook(() => useAgentTrace({ filePath: 'target' }));
+
+      expect(result.current.traces).toHaveLength(1);
+      expect(result.current.traces[0].id).toBe('trace-a');
+    });
+
+    it('filters by session and vcs revision together', () => {
+      const traceA = {
+        id: 'trace-a',
+        sessionId: 'session-1',
+        vcsRevision: 'abc123',
+        timestamp: new Date(),
+        record: JSON.stringify({ vcs: { revision: 'abc123' }, files: [] }),
+        createdAt: new Date(),
+      };
+      const traceB = {
+        id: 'trace-b',
+        sessionId: 'session-1',
+        vcsRevision: 'def456',
+        timestamp: new Date(),
+        record: JSON.stringify({ vcs: { revision: 'def456' }, files: [] }),
+        createdAt: new Date(),
+      };
+      setLiveQueryResults([traceA, traceB], 2);
+
+      const { result } = renderHook(() => useAgentTrace({ sessionId: 'session-1', vcsRevision: 'abc123' }));
+
+      expect(result.current.traces).toHaveLength(1);
+      expect(result.current.traces[0].id).toBe('trace-a');
     });
   });
 

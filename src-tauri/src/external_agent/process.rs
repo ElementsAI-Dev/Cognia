@@ -207,10 +207,7 @@ impl ExternalAgentProcessManager {
 
         // On Windows, prevent window from showing
         #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        }
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
         // Spawn the process
         let mut child = cmd.spawn().map_err(|e| {

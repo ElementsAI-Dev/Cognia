@@ -24,8 +24,10 @@ jest.mock('@/lib/native/skill', () => ({
   disableSkill: jest.fn(),
   updateSkill: jest.fn(),
   readSkillContent: jest.fn(),
+  writeSkillContent: jest.fn(),
   listSkillResources: jest.fn(),
   readSkillResource: jest.fn(),
+  writeSkillResource: jest.fn(),
   getSkillSsotDir: jest.fn(),
 }));
 
@@ -389,6 +391,18 @@ describe('useNativeSkills', () => {
       expect(content).toBe('---\nname: test\n---');
     });
 
+    it('should write skill content', async () => {
+      mockNativeSkill.writeSkillContent.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useNativeSkills());
+
+      await act(async () => {
+        await result.current.writeContent('test', 'content');
+      });
+
+      expect(mockNativeSkill.writeSkillContent).toHaveBeenCalledWith('test', 'content');
+    });
+
     it('should list skill resources', async () => {
       mockNativeSkill.listSkillResources.mockResolvedValue(['SKILL.md', 'helper.js']);
 
@@ -415,6 +429,18 @@ describe('useNativeSkills', () => {
 
       expect(mockNativeSkill.readSkillResource).toHaveBeenCalledWith('test', 'file.txt');
       expect(content).toBe('content');
+    });
+
+    it('should write skill resource', async () => {
+      mockNativeSkill.writeSkillResource.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useNativeSkills());
+
+      await act(async () => {
+        await result.current.writeResource('test', 'file.txt', 'content');
+      });
+
+      expect(mockNativeSkill.writeSkillResource).toHaveBeenCalledWith('test', 'file.txt', 'content');
     });
 
     it('should get SSOT directory', async () => {
@@ -497,6 +523,12 @@ describe('useNativeSkills', () => {
       const { result } = renderHook(() => useNativeSkills());
 
       await expect(result.current.readContent('test')).rejects.toThrow(
+        'Native skill service not available'
+      );
+      await expect(result.current.writeContent('test', 'content')).rejects.toThrow(
+        'Native skill service not available'
+      );
+      await expect(result.current.writeResource('test', 'file.txt', 'content')).rejects.toThrow(
         'Native skill service not available'
       );
     });

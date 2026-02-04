@@ -13,6 +13,8 @@ import type {
   OpenRouterCredits,
   OpenRouterModel,
   OpenRouterModelsResponse,
+  OpenRouterUsageEntry,
+  OpenRouterUsageResponse,
   ProviderOrderingConfig,
 } from '@/types/provider/openrouter';
 import type { BYOKKeyEntry } from '@/types/provider';
@@ -167,6 +169,68 @@ export async function getCredits(apiKey: string): Promise<OpenRouterCredits> {
 
   const data = await handleResponse<{ data: OpenRouterCredits }>(response);
   return data.data;
+}
+
+export interface UsageHistoryOptions {
+  /** Number of entries to return (default: 100) */
+  limit?: number;
+  /** Offset for pagination (default: 0) */
+  offset?: number;
+}
+
+/**
+ * Get usage history for an API key
+ * https://openrouter.ai/docs/api-reference/get-api-key-usage
+ */
+export async function getUsageHistory(
+  apiKey: string,
+  options: UsageHistoryOptions = {}
+): Promise<OpenRouterUsageResponse> {
+  const { limit = 100, offset = 0 } = options;
+  
+  const url = new URL(`${OPENROUTER_BASE_URL}/auth/key/usage`);
+  if (limit !== 100) {
+    url.searchParams.set('limit', limit.toString());
+  }
+  if (offset > 0) {
+    url.searchParams.set('offset', offset.toString());
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return handleResponse<OpenRouterUsageResponse>(response);
+}
+
+/**
+ * Get all usage entries by paginating through results
+ */
+export async function getAllUsageHistory(
+  apiKey: string,
+  maxEntries: number = 1000
+): Promise<OpenRouterUsageEntry[]> {
+  const allEntries: OpenRouterUsageEntry[] = [];
+  let offset = 0;
+  const limit = 100;
+
+  while (allEntries.length < maxEntries) {
+    const response = await getUsageHistory(apiKey, { limit, offset });
+    allEntries.push(...response.data);
+    
+    // If we got fewer entries than the limit, we've reached the end
+    if (response.data.length < limit) {
+      break;
+    }
+    
+    offset += limit;
+  }
+
+  return allEntries.slice(0, maxEntries);
 }
 
 // ============================================================================

@@ -24,3 +24,7 @@ export {
 
 export * from './chunking';
 export * from './compression';
+export * from './sparse-embedding';
+export * from './late-interaction';
+export * from './multimodal-embedding';
+export * from './quantization';

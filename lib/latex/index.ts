@@ -5,6 +5,8 @@
 // Core modules
 export * from './symbols';
 export * from './parser';
+export * from './config';
+export * from './cache';
 
 // Math vocabulary (selective exports to avoid conflicts with symbols)
 export {

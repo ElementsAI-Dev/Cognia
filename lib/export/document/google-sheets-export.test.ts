@@ -74,5 +74,20 @@ describe('Google Sheets Export', () => {
       const csv = tableToCSV(emptyData);
       expect(csv).toBe('');
     });
+
+    it('should sanitize formula-like values', () => {
+      const formulaData: TableData = {
+        headers: ['Value'],
+        rows: [['=SUM(1,2)'], ['+1'], ['-1'], ['@cmd'], ['\t=1']],
+      };
+      const csv = tableToCSV(formulaData);
+      const lines = csv.split('\n');
+
+      expect(lines[1]).toBe("\"'=SUM(1,2)\"");
+      expect(lines[2]).toBe("'+1");
+      expect(lines[3]).toBe("'-1");
+      expect(lines[4]).toBe("'@cmd");
+      expect(lines[5]).toBe("'\t=1");
+    });
   });
 });

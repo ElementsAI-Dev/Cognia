@@ -45,8 +45,8 @@ import {
 import { useCopy } from '@/hooks/ui';
 import { exportMath, generateMathFilename } from '@/lib/export/image/math-export';
 import { toast } from 'sonner';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
+import { renderMathSafe } from '@/lib/latex/cache';
+import { withMathErrorBoundary } from './math-error-boundary';
 
 interface MathBlockProps {
   content: string;
@@ -54,7 +54,7 @@ interface MathBlockProps {
   scale?: number;
 }
 
-export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
+function MathBlockBase({ content, className, scale = 1 }: MathBlockProps) {
   const t = useTranslations('renderer');
   const tToasts = useTranslations('toasts');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -74,19 +74,7 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
   }, [content]);
 
   const result = useMemo(() => {
-    try {
-      const rendered = katex.renderToString(cleanContent, {
-        displayMode: true,
-        throwOnError: false,
-        trust: true,
-        strict: false,
-        output: 'html',
-      });
-
-      return { html: rendered, error: null };
-    } catch (err) {
-      return { html: '', error: err instanceof Error ? err.message : 'Failed to render math' };
-    }
+    return renderMathSafe(cleanContent, true, { trust: false });
   }, [cleanContent]);
 
   const handleCopy = useCallback(async () => {
@@ -341,3 +329,8 @@ export function MathBlock({ content, className, scale = 1 }: MathBlockProps) {
     </>
   );
 }
+
+export const MathBlock = withMathErrorBoundary(
+  MathBlockBase,
+  (props) => props.content
+);

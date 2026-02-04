@@ -11,12 +11,14 @@ import { Scale, Trophy, Grid3X3, History, Zap, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import {
   ArenaLeaderboard,
   ArenaHeatmap,
   ArenaHistory,
   ArenaDialog,
   ArenaBattleView,
+  ArenaQuickBattle,
 } from '@/components/arena';
 import { useArenaStore } from '@/stores/arena';
 import Link from 'next/link';
@@ -27,6 +29,7 @@ export default function ArenaPage() {
   const [activeTab, setActiveTab] = useState('leaderboard');
   const [showArenaDialog, setShowArenaDialog] = useState(false);
   const [selectedBattleId, setSelectedBattleId] = useState<string | null>(null);
+  const [quickPrompt, setQuickPrompt] = useState('');
 
   const battles = useArenaStore((state) => state.battles);
   const activeBattleId = useArenaStore((state) => state.activeBattleId);
@@ -55,7 +58,7 @@ export default function ArenaPage() {
             {t('startBattle')}
           </Button>
           <Button variant="outline" size="icon" asChild>
-            <Link href="/settings/arena">
+            <Link href="/settings?section=arena">
               <Settings className="h-4 w-4" />
             </Link>
           </Button>
@@ -66,6 +69,10 @@ export default function ArenaPage() {
       <div className="flex-1 p-6 overflow-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
           <TabsList className="mb-4">
+            <TabsTrigger value="battle" className="gap-2">
+              <Zap className="h-4 w-4" />
+              {t('quickBattle.title')}
+            </TabsTrigger>
             <TabsTrigger value="leaderboard" className="gap-2">
               <Trophy className="h-4 w-4" />
               {t('leaderboard.title')}
@@ -79,6 +86,29 @@ export default function ArenaPage() {
               {t('history.title')}
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="battle" className="h-[calc(100%-60px)]">
+            <div className="max-w-3xl space-y-4">
+              <div className="rounded-lg border bg-card p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{t('prompt')}</p>
+                  <p className="text-xs text-muted-foreground">{t('promptPlaceholder')}</p>
+                </div>
+                <Textarea
+                  value={quickPrompt}
+                  onChange={(event) => setQuickPrompt(event.target.value)}
+                  placeholder={t('promptPlaceholder')}
+                  className="min-h-[120px]"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <ArenaQuickBattle prompt={quickPrompt} />
+                  <Button variant="outline" onClick={() => setShowArenaDialog(true)}>
+                    {t('newBattle')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
 
           <TabsContent value="leaderboard" className="h-[calc(100%-60px)]">
             <ArenaLeaderboard />

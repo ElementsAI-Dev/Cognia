@@ -24,5 +24,9 @@ export {
 } from './skill-provider';
 export { default as SkillProviderDefault } from './skill-provider';
 
+// Skill sync initialization
+export { SkillSyncInitializer } from './skill-sync-initializer';
+export { default as SkillSyncInitializerDefault } from './skill-sync-initializer';
+
 // Agent trace initialization
 export { AgentTraceInitializer } from './agent-trace-initializer';

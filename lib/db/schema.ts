@@ -176,6 +176,8 @@ export interface DBAgentTrace {
   vcsRevision?: string;
   record: string;
   createdAt: Date;
+  /** Extracted file paths for indexed queries (added in v9) */
+  filePaths?: string[];
 }
 
 // Database class
@@ -286,6 +288,22 @@ class CogniaDB extends Dexie {
       workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
       summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
       agentTraces: 'id, sessionId, timestamp, vcsRevision, [sessionId+timestamp], [vcsRevision+timestamp]',
+      assets: 'id, kind, createdAt',
+      folders: 'id, name, order, createdAt',
+    });
+
+    // Version 9: Add filePaths multi-entry index for agent traces query optimization
+    this.version(9).stores({
+      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
+      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
+      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
+      agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
       assets: 'id, kind, createdAt',
       folders: 'id, name, order, createdAt',
     });

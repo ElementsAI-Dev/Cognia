@@ -94,6 +94,7 @@ export {
   MemorySettings,
   UsageSettings,
   AgentTraceSettings,
+  ArenaSettings,
 } from './data';
 
 // System settings

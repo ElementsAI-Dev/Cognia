@@ -50,6 +50,7 @@ interface SessionState {
   activeSessionId: string | null;
   modeHistory: ModeHistoryEntry[];
   folders: ChatFolder[];
+  inputDrafts: Record<string, string>;
 
   createSession: (input?: CreateSessionInput) => Session;
   deleteSession: (id: string) => void;
@@ -133,6 +134,11 @@ interface SessionState {
   bulkDeleteSessions: (ids: string[]) => void;
   bulkMoveSessions: (ids: string[], folderId: string | null) => void;
   bulkPinSessions: (ids: string[], pinned: boolean) => void;
+
+  // Input draft management
+  setInputDraft: (sessionId: string, draft: string) => void;
+  getInputDraft: (sessionId: string) => string;
+  clearInputDraft: (sessionId: string) => void;
 }
 
 const DEFAULT_PROVIDER: ProviderName = 'openai';
@@ -182,6 +188,7 @@ export const useSessionStore = create<SessionState>()(
       activeSessionId: null,
       modeHistory: [] as ModeHistoryEntry[],
       folders: [],
+      inputDrafts: {} as Record<string, string>,
 
       createFolder: (name: string) => {
         const folder: ChatFolder = {
@@ -968,6 +975,23 @@ export const useSessionStore = create<SessionState>()(
             ),
           };
         }),
+
+      // Input draft management
+      setInputDraft: (sessionId, draft) =>
+        set((state) => ({
+          inputDrafts: {
+            ...state.inputDrafts,
+            [sessionId]: draft,
+          },
+        })),
+
+      getInputDraft: (sessionId) => get().inputDrafts[sessionId] || '',
+
+      clearInputDraft: (sessionId) =>
+        set((state) => {
+          const { [sessionId]: _, ...rest } = state.inputDrafts;
+          return { inputDrafts: rest };
+        }),
     }),
     {
       name: 'cognia-sessions',
@@ -1019,6 +1043,7 @@ export const useSessionStore = create<SessionState>()(
           createdAt: f.createdAt instanceof Date ? f.createdAt.toISOString() : f.createdAt,
           updatedAt: f.updatedAt instanceof Date ? f.updatedAt.toISOString() : f.updatedAt,
         })),
+        inputDrafts: state.inputDrafts,
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.sessions) {

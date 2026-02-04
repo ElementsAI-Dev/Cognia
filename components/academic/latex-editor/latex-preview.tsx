@@ -7,7 +7,7 @@
 
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import katex from 'katex';
+import { renderMathCached } from '@/lib/latex/cache';
 
 interface LaTeXPreviewProps {
   content: string;
@@ -16,110 +16,118 @@ interface LaTeXPreviewProps {
   showLineNumbers?: boolean;
 }
 
-// Counter state for numbered environments
-let theoremCounter = 0;
-let lemmaCounter = 0;
-let definitionCounter = 0;
-let corollaryCounter = 0;
-let propositionCounter = 0;
-let exampleCounter = 0;
+/**
+ * Counter state for numbered environments
+ * Using a class-based approach to avoid global mutable state
+ */
+interface EnvironmentCounters {
+  theorem: number;
+  lemma: number;
+  definition: number;
+  corollary: number;
+  proposition: number;
+  example: number;
+  equation: number;
+}
 
-function resetCounters() {
-  theoremCounter = 0;
-  lemmaCounter = 0;
-  definitionCounter = 0;
-  corollaryCounter = 0;
-  propositionCounter = 0;
-  exampleCounter = 0;
+function createCounters(): EnvironmentCounters {
+  return {
+    theorem: 0,
+    lemma: 0,
+    definition: 0,
+    corollary: 0,
+    proposition: 0,
+    example: 0,
+    equation: 0,
+  };
+}
+
+/**
+ * Safely render math with caching, returning HTML or error message
+ */
+function safeRenderMath(latex: string, displayMode: boolean): string {
+  try {
+    return renderMathCached(latex, displayMode);
+  } catch {
+    return `<span class="text-red-500">[Math Error: ${latex}]</span>`;
+  }
 }
 
 export function LaTeXPreview({ content, scale = 1, className, showLineNumbers: _showLineNumbers = false }: LaTeXPreviewProps) {
   const renderedContent = useMemo(() => {
     if (!content) return '';
 
-    // Reset counters on each render
-    resetCounters();
+    // Create local counters for this render pass
+    const counters = createCounters();
 
     let html = content;
 
     // Render display math: $$...$$ or \[...\]
     html = html.replace(/\$\$([^$]+)\$\$/g, (_, math) => {
-      try {
-        return `<div class="my-4 overflow-x-auto">${katex.renderToString(math, { displayMode: true, throwOnError: false })}</div>`;
-      } catch {
-        return `<span class="text-red-500">[Math Error: ${math}]</span>`;
-      }
+      return `<div class="my-4 overflow-x-auto">${safeRenderMath(math, true)}</div>`;
     });
 
     html = html.replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => {
-      try {
-        return `<div class="my-4 overflow-x-auto">${katex.renderToString(math, { displayMode: true, throwOnError: false })}</div>`;
-      } catch {
-        return `<span class="text-red-500">[Math Error: ${math}]</span>`;
-      }
+      return `<div class="my-4 overflow-x-auto">${safeRenderMath(math, true)}</div>`;
     });
 
     // Render inline math: $...$
     html = html.replace(/\$([^$]+)\$/g, (_, math) => {
-      try {
-        return katex.renderToString(math, { displayMode: false, throwOnError: false });
-      } catch {
-        return `<span class="text-red-500">[Math Error: ${math}]</span>`;
-      }
+      return safeRenderMath(math, false);
     });
 
     // Theorem-like environments
-    html = html.replace(/\\begin\{theorem\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{theorem\}/g, (_, title, content) => {
-      theoremCounter++;
+    html = html.replace(/\\begin\{theorem\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{theorem\}/g, (_, title, envContent) => {
+      counters.theorem++;
       const titleText = title ? ` (${title})` : '';
       return `<div class="my-4 p-4 border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-950/30 rounded-r">
-        <p class="font-bold text-blue-700 dark:text-blue-300 mb-2">Theorem ${theoremCounter}${titleText}</p>
-        <div class="italic">${content.trim()}</div>
+        <p class="font-bold text-blue-700 dark:text-blue-300 mb-2">Theorem ${counters.theorem}${titleText}</p>
+        <div class="italic">${envContent.trim()}</div>
       </div>`;
     });
 
-    html = html.replace(/\\begin\{lemma\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{lemma\}/g, (_, title, content) => {
-      lemmaCounter++;
+    html = html.replace(/\\begin\{lemma\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{lemma\}/g, (_, title, envContent) => {
+      counters.lemma++;
       const titleText = title ? ` (${title})` : '';
       return `<div class="my-4 p-4 border-l-4 border-green-500 bg-green-50 dark:bg-green-950/30 rounded-r">
-        <p class="font-bold text-green-700 dark:text-green-300 mb-2">Lemma ${lemmaCounter}${titleText}</p>
-        <div class="italic">${content.trim()}</div>
+        <p class="font-bold text-green-700 dark:text-green-300 mb-2">Lemma ${counters.lemma}${titleText}</p>
+        <div class="italic">${envContent.trim()}</div>
       </div>`;
     });
 
-    html = html.replace(/\\begin\{definition\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{definition\}/g, (_, title, content) => {
-      definitionCounter++;
+    html = html.replace(/\\begin\{definition\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{definition\}/g, (_, title, envContent) => {
+      counters.definition++;
       const titleText = title ? ` (${title})` : '';
       return `<div class="my-4 p-4 border-l-4 border-purple-500 bg-purple-50 dark:bg-purple-950/30 rounded-r">
-        <p class="font-bold text-purple-700 dark:text-purple-300 mb-2">Definition ${definitionCounter}${titleText}</p>
-        <div>${content.trim()}</div>
+        <p class="font-bold text-purple-700 dark:text-purple-300 mb-2">Definition ${counters.definition}${titleText}</p>
+        <div>${envContent.trim()}</div>
       </div>`;
     });
 
-    html = html.replace(/\\begin\{corollary\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{corollary\}/g, (_, title, content) => {
-      corollaryCounter++;
+    html = html.replace(/\\begin\{corollary\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{corollary\}/g, (_, title, envContent) => {
+      counters.corollary++;
       const titleText = title ? ` (${title})` : '';
       return `<div class="my-4 p-4 border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-950/30 rounded-r">
-        <p class="font-bold text-orange-700 dark:text-orange-300 mb-2">Corollary ${corollaryCounter}${titleText}</p>
-        <div class="italic">${content.trim()}</div>
+        <p class="font-bold text-orange-700 dark:text-orange-300 mb-2">Corollary ${counters.corollary}${titleText}</p>
+        <div class="italic">${envContent.trim()}</div>
       </div>`;
     });
 
-    html = html.replace(/\\begin\{proposition\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{proposition\}/g, (_, title, content) => {
-      propositionCounter++;
+    html = html.replace(/\\begin\{proposition\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{proposition\}/g, (_, title, envContent) => {
+      counters.proposition++;
       const titleText = title ? ` (${title})` : '';
       return `<div class="my-4 p-4 border-l-4 border-teal-500 bg-teal-50 dark:bg-teal-950/30 rounded-r">
-        <p class="font-bold text-teal-700 dark:text-teal-300 mb-2">Proposition ${propositionCounter}${titleText}</p>
-        <div class="italic">${content.trim()}</div>
+        <p class="font-bold text-teal-700 dark:text-teal-300 mb-2">Proposition ${counters.proposition}${titleText}</p>
+        <div class="italic">${envContent.trim()}</div>
       </div>`;
     });
 
-    html = html.replace(/\\begin\{example\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{example\}/g, (_, title, content) => {
-      exampleCounter++;
+    html = html.replace(/\\begin\{example\}(?:\[([^\]]*)\])?([\s\S]*?)\\end\{example\}/g, (_, title, envContent) => {
+      counters.example++;
       const titleText = title ? ` (${title})` : '';
       return `<div class="my-4 p-4 border-l-4 border-gray-400 bg-gray-50 dark:bg-gray-800/30 rounded-r">
-        <p class="font-bold text-gray-700 dark:text-gray-300 mb-2">Example ${exampleCounter}${titleText}</p>
-        <div>${content.trim()}</div>
+        <p class="font-bold text-gray-700 dark:text-gray-300 mb-2">Example ${counters.example}${titleText}</p>
+        <div>${envContent.trim()}</div>
       </div>`;
     });
 
@@ -167,51 +175,33 @@ export function LaTeXPreview({ content, scale = 1, className, showLineNumbers: _
 
     // Equation environment with numbering
     html = html.replace(/\\begin\{equation\}([\s\S]*?)\\end\{equation\}/g, (_, math) => {
-      try {
-        return `<div class="my-4 flex items-center justify-center gap-4">
-          <div class="flex-1 overflow-x-auto text-center">${katex.renderToString(math.trim(), { displayMode: true, throwOnError: false })}</div>
-        </div>`;
-      } catch {
-        return `<span class="text-red-500">[Math Error]</span>`;
-      }
+      counters.equation++;
+      return `<div class="my-4 flex items-center justify-center gap-4">
+        <div class="flex-1 overflow-x-auto text-center">${safeRenderMath(math.trim(), true)}</div>
+        <span class="text-muted-foreground text-sm">(${counters.equation})</span>
+      </div>`;
     });
 
     // Align environment - preserve & as alignment marker for KaTeX
     html = html.replace(/\\begin\{align\*?\}([\s\S]*?)\\end\{align\*?\}/g, (_, math) => {
-      try {
-        // KaTeX's aligned environment supports & as alignment markers
-        return `<div class="my-4 overflow-x-auto">${katex.renderToString(`\\begin{aligned}${math}\\end{aligned}`, { displayMode: true, throwOnError: false })}</div>`;
-      } catch {
-        return `<span class="text-red-500">[Align Error]</span>`;
-      }
+      // KaTeX's aligned environment supports & as alignment markers
+      return `<div class="my-4 overflow-x-auto">${safeRenderMath(`\\begin{aligned}${math}\\end{aligned}`, true)}</div>`;
     });
 
     // Gather environment - centered multi-line equations
     html = html.replace(/\\begin\{gather\*?\}([\s\S]*?)\\end\{gather\*?\}/g, (_, math) => {
-      try {
-        return `<div class="my-4 overflow-x-auto">${katex.renderToString(`\\begin{gathered}${math}\\end{gathered}`, { displayMode: true, throwOnError: false })}</div>`;
-      } catch {
-        return `<span class="text-red-500">[Gather Error]</span>`;
-      }
+      return `<div class="my-4 overflow-x-auto">${safeRenderMath(`\\begin{gathered}${math}\\end{gathered}`, true)}</div>`;
     });
 
     // Multline environment - long equation split across lines
     html = html.replace(/\\begin\{multline\*?\}([\s\S]*?)\\end\{multline\*?\}/g, (_, math) => {
-      try {
-        // Use gathered as KaTeX doesn't have multline, apply similar styling
-        return `<div class="my-4 overflow-x-auto">${katex.renderToString(`\\begin{gathered}${math}\\end{gathered}`, { displayMode: true, throwOnError: false })}</div>`;
-      } catch {
-        return `<span class="text-red-500">[Multline Error]</span>`;
-      }
+      // Use gathered as KaTeX doesn't have multline, apply similar styling
+      return `<div class="my-4 overflow-x-auto">${safeRenderMath(`\\begin{gathered}${math}\\end{gathered}`, true)}</div>`;
     });
 
     // Cases environment - piecewise functions (KaTeX native support)
     html = html.replace(/\\begin\{cases\}([\s\S]*?)\\end\{cases\}/g, (_, math) => {
-      try {
-        return `<div class="my-4 overflow-x-auto">${katex.renderToString(`\\begin{cases}${math}\\end{cases}`, { displayMode: true, throwOnError: false })}</div>`;
-      } catch {
-        return `<span class="text-red-500">[Cases Error]</span>`;
-      }
+      return `<div class="my-4 overflow-x-auto">${safeRenderMath(`\\begin{cases}${math}\\end{cases}`, true)}</div>`;
     });
 
     // Convert LaTeX commands to HTML

@@ -464,4 +464,76 @@ describe('useSessionStore', () => {
       expect(updated?.virtualEnvPath).toBeUndefined();
     });
   });
+
+  describe('input draft management', () => {
+    it('should set and get input draft for a session', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      act(() => {
+        useSessionStore.getState().setInputDraft(session!.id, 'Hello, this is a draft');
+      });
+
+      const draft = useSessionStore.getState().getInputDraft(session!.id);
+      expect(draft).toBe('Hello, this is a draft');
+    });
+
+    it('should return empty string for non-existent draft', () => {
+      const draft = useSessionStore.getState().getInputDraft('non-existent-id');
+      expect(draft).toBe('');
+    });
+
+    it('should clear input draft for a session', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+        useSessionStore.getState().setInputDraft(session!.id, 'Draft to clear');
+      });
+
+      act(() => {
+        useSessionStore.getState().clearInputDraft(session!.id);
+      });
+
+      const draft = useSessionStore.getState().getInputDraft(session!.id);
+      expect(draft).toBe('');
+    });
+
+    it('should update existing draft', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+        useSessionStore.getState().setInputDraft(session!.id, 'Initial draft');
+      });
+
+      act(() => {
+        useSessionStore.getState().setInputDraft(session!.id, 'Updated draft');
+      });
+
+      const draft = useSessionStore.getState().getInputDraft(session!.id);
+      expect(draft).toBe('Updated draft');
+    });
+
+    it('should manage drafts for multiple sessions independently', () => {
+      let session1: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      let session2: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session1 = useSessionStore.getState().createSession({ title: 'Session 1' });
+        session2 = useSessionStore.getState().createSession({ title: 'Session 2' });
+        useSessionStore.getState().setInputDraft(session1!.id, 'Draft for session 1');
+        useSessionStore.getState().setInputDraft(session2!.id, 'Draft for session 2');
+      });
+
+      expect(useSessionStore.getState().getInputDraft(session1!.id)).toBe('Draft for session 1');
+      expect(useSessionStore.getState().getInputDraft(session2!.id)).toBe('Draft for session 2');
+
+      act(() => {
+        useSessionStore.getState().clearInputDraft(session1!.id);
+      });
+
+      expect(useSessionStore.getState().getInputDraft(session1!.id)).toBe('');
+      expect(useSessionStore.getState().getInputDraft(session2!.id)).toBe('Draft for session 2');
+    });
+  });
 });

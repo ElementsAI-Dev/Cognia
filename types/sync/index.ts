@@ -1,5 +1,5 @@
 /**
- * Sync Types - Type definitions for WebDAV and GitHub sync features
+ * Sync Types - Type definitions for WebDAV, GitHub, and Google Drive sync features
  */
 
 import type { Session, Artifact } from '@/types';
@@ -9,7 +9,7 @@ import type { DBMessage } from '@/lib/db';
 // Base Sync Configuration
 // ============================================
 
-export type SyncProviderType = 'webdav' | 'github';
+export type SyncProviderType = 'webdav' | 'github' | 'googledrive';
 export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'conflict';
 export type ConflictResolution = 'local' | 'remote' | 'newest' | 'manual';
 export type SyncDirection = 'upload' | 'download' | 'bidirectional';
@@ -86,6 +86,37 @@ export const DEFAULT_GITHUB_CONFIG: GitHubSyncConfig = {
   remotePath: 'backup/',
   createPrivateRepo: true,
   gistMode: false,
+};
+
+// ============================================
+// Google Drive Configuration
+// ============================================
+
+export interface GoogleDriveConfig extends BaseSyncConfig {
+  type: 'googledrive';
+  useAppDataFolder: boolean; // Use hidden app-specific folder (recommended)
+  folderId?: string; // Custom folder ID (when not using appDataFolder)
+  folderName: string; // Folder name for display
+  enableResumableUpload: boolean; // Use resumable upload for large files
+  chunkSize: number; // Chunk size for resumable upload (bytes)
+  userEmail?: string; // Connected Google account email
+  // OAuth tokens stored in Stronghold, not here
+}
+
+export const DEFAULT_GOOGLE_DRIVE_CONFIG: GoogleDriveConfig = {
+  type: 'googledrive',
+  enabled: false,
+  autoSync: false,
+  syncInterval: 30,
+  lastSyncAt: null,
+  syncOnStartup: false,
+  syncOnExit: false,
+  conflictResolution: 'newest',
+  syncDirection: 'bidirectional',
+  useAppDataFolder: true,
+  folderName: 'cognia-backup',
+  enableResumableUpload: true,
+  chunkSize: 10 * 1024 * 1024, // 10MB chunks
 };
 
 // ============================================
@@ -199,6 +230,7 @@ export interface SyncState {
   // Provider configurations
   webdavConfig: WebDAVConfig;
   githubConfig: GitHubSyncConfig;
+  googleDriveConfig: GoogleDriveConfig;
   activeProvider: SyncProviderType | null;
   
   // Sync status
@@ -221,6 +253,7 @@ export interface SyncActions {
   // Configuration
   setWebDAVConfig: (config: Partial<WebDAVConfig>) => void;
   setGitHubConfig: (config: Partial<GitHubSyncConfig>) => void;
+  setGoogleDriveConfig: (config: Partial<GoogleDriveConfig>) => void;
   setActiveProvider: (provider: SyncProviderType | null) => void;
   
   // Operations
@@ -261,6 +294,12 @@ export interface WebDAVCredentials {
 
 export interface GitHubCredentials {
   accessToken: string;
+}
+
+export interface GoogleDriveCredentials {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
 }
 
 // ============================================

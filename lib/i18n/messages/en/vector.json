@@ -122,6 +122,7 @@
     "providerChroma": "Chroma (embedded/server)",
     "providerNative": "Native (local Tauri)",
     "providerPinecone": "Pinecone",
+    "providerWeaviate": "Weaviate",
     "providerQdrant": "Qdrant",
     "providerMilvus": "Milvus",
     "connectionSuccess": "Success: {count} collections reachable",
@@ -137,6 +138,12 @@
         "indexPlaceholder": "my-index",
         "namespace": "Namespace",
         "namespacePlaceholder": "default"
+      },
+      "weaviate": {
+        "url": "Server URL",
+        "urlPlaceholder": "http://localhost:8080",
+        "apiKey": "API Key (optional)",
+        "apiKeyPlaceholder": "Enter API key if required"
       },
       "qdrant": {
         "url": "Server URL",
@@ -191,17 +198,8 @@
       "add": "Add Documents"
     }
   },
-  "vectorSetupGuide": {
-    "title": "Vector Database Setup",
-    "subtitle": "Configure your vector database in 3 easy steps",
-    "step1Title": "Choose Provider",
-    "step1Desc": "Select Native for local storage, or Chroma/Pinecone/Qdrant/Milvus for advanced features.",
-    "step2Title": "Configure Embedding",
-    "step2Desc": "Choose an embedding provider and model for vector generation.",
-    "step3Title": "Test Connection",
-    "step3Desc": "Verify your configuration by testing the connection and creating your first collection.",
-    "skip": "Skip Guide",
-    "continue": "Continue Setup",
+  "chunking": {
+    "title": "Chunking Settings",
     "hint": "You can always change these settings later"
   },
   "vectorApiKeyModal": {

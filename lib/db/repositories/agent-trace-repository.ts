@@ -66,6 +66,9 @@ export const agentTraceRepository = {
     };
     const timestamp = new Date(normalizedRecord.timestamp);
 
+    // Extract file paths for indexed queries
+    const filePaths = extractFilePaths(normalizedRecord.files);
+
     const row: DBAgentTrace = {
       id,
       sessionId: input.sessionId,
@@ -74,6 +77,7 @@ export const agentTraceRepository = {
       vcsRevision: input.vcsRevision,
       record: safeStringify(normalizedRecord),
       createdAt: new Date(),
+      filePaths: filePaths.length > 0 ? filePaths : undefined,
     };
 
     await withRetry(async () => {
@@ -123,22 +127,23 @@ export const agentTraceRepository = {
   },
 
   async findByFilePath(filePath: string, options?: { limit?: number }): Promise<AgentTraceRecord[]> {
-    const all = await db.agentTraces.toArray();
-    const matched: AgentTraceRecord[] = [];
+    // Use the filePaths multi-entry index for efficient queries
+    const rows = await db.agentTraces
+      .where('filePaths')
+      .equals(filePath)
+      .reverse()
+      .sortBy('timestamp');
 
-    for (const row of all) {
+    const matched: AgentTraceRecord[] = [];
+    for (const row of rows) {
       try {
-        const record = parseTraceRecord(row.record);
-        const paths = extractFilePaths(record.files);
-        if (paths.includes(filePath)) {
-          matched.push(record);
-        }
+        matched.push(parseTraceRecord(row.record));
       } catch (error) {
-        // ignore malformed records
         log.error('Failed to parse agent trace record', error as Error);
       }
     }
 
+    // Sort by timestamp descending (newest first)
     matched.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     return options?.limit ? matched.slice(0, options.limit) : matched;
   },
@@ -166,10 +171,14 @@ export const agentTraceRepository = {
   async deleteOlderThan(days: number): Promise<number> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
+    const cutoffTime = cutoff.getTime();
 
+    // Use filter with Date normalization for reliable comparison
     const toDelete = await db.agentTraces
-      .where('timestamp')
-      .below(cutoff)
+      .filter((trace) => {
+        const ts = trace.timestamp instanceof Date ? trace.timestamp : new Date(trace.timestamp);
+        return ts.getTime() < cutoffTime;
+      })
       .toArray();
 
     const ids = toDelete.map((t) => t.id);

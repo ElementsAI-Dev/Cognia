@@ -10,12 +10,39 @@ import { streamText } from 'ai';
 import { nanoid } from 'nanoid';
 import { getProviderModel } from '@/lib/ai/core/client';
 import { useSettingsStore } from '@/stores';
+import { withRetry, isRetryableError, type RetryConfig } from '@/lib/utils/retry';
+import { loggers } from '@/lib/logger';
 import type {
   ArenaModelConfig,
   ColumnMessageState,
   ColumnMetrics,
   MultiModelMessage,
 } from '@/types/chat/multi-model';
+
+const log = loggers.chat;
+
+/**
+ * Retry configuration for multi-model chat
+ */
+const MULTI_MODEL_RETRY_CONFIG: Partial<RetryConfig> = {
+  maxRetries: 2,
+  initialDelay: 1000,
+  maxDelay: 10000,
+  backoffStrategy: 'exponential',
+  retryableErrors: [
+    'rate_limit',
+    'rate limit',
+    '429',
+    '500',
+    '502',
+    '503',
+    '504',
+    'timeout',
+    'network',
+    'overloaded',
+    'capacity',
+  ],
+};
 
 interface UseMultiModelChatOptions {
   models: ArenaModelConfig[];
@@ -24,6 +51,10 @@ interface UseMultiModelChatOptions {
   onColumnStream?: (modelId: string, chunk: string) => void;
   onColumnComplete?: (modelId: string, state: ColumnMessageState) => void;
   onColumnError?: (modelId: string, error: Error) => void;
+  /** Custom retry configuration (defaults to MULTI_MODEL_RETRY_CONFIG) */
+  retryConfig?: Partial<RetryConfig>;
+  /** Callback when a retry is attempted */
+  onRetry?: (modelId: string, error: Error, attempt: number) => void;
 }
 
 interface UseMultiModelChatReturn {
@@ -41,6 +72,8 @@ export function useMultiModelChat({
   onColumnStream,
   onColumnComplete,
   onColumnError,
+  retryConfig,
+  onRetry,
 }: UseMultiModelChatOptions): UseMultiModelChatReturn {
   const [isExecuting, setIsExecuting] = useState(false);
   const [columnStates, setColumnStates] = useState<Record<string, ColumnMessageState>>({});
@@ -59,7 +92,7 @@ export function useMultiModelChat({
     []
   );
 
-  // Execute a single model
+  // Execute a single model with retry support
   const executeModel = useCallback(
     async (
       model: ArenaModelConfig,
@@ -69,9 +102,26 @@ export function useMultiModelChat({
       abortControllersRef.current.set(model.id, abortController);
 
       const startTime = Date.now();
-      let content = '';
 
-      try {
+      // Merge retry config with defaults
+      const effectiveRetryConfig: Partial<RetryConfig> = {
+        ...MULTI_MODEL_RETRY_CONFIG,
+        ...retryConfig,
+        onRetry: (error, attempt, delay) => {
+          log.info(`Retrying ${model.displayName} (attempt ${attempt}, delay ${delay}ms)`, { error: error.message });
+          // Update UI to show retry status
+          updateColumnState(model.id, {
+            status: 'pending',
+            error: `Retrying... (attempt ${attempt})`,
+          });
+          onRetry?.(model.id, error, attempt);
+        },
+      };
+
+      // Inner execution function (will be retried on transient errors)
+      const executeWithStream = async (): Promise<ColumnMessageState> => {
+        let content = '';
+
         const settings = providerSettings[model.provider];
         if (!settings?.apiKey && model.provider !== 'ollama') {
           throw new Error(`No API key configured for ${model.provider}`);
@@ -146,14 +196,26 @@ export function useMultiModelChat({
         updateColumnState(model.id, state);
         onColumnComplete?.(model.id, state);
         return state;
+      };
+
+      try {
+        // Execute with retry for transient errors
+        return await withRetry(executeWithStream, effectiveRetryConfig);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const isAborted = abortController.signal.aborted;
+        const isRetryable = isRetryableError(error as Error, effectiveRetryConfig);
+
+        log.error(`Model execution failed: ${model.displayName}`, {
+          error: errorMessage,
+          isAborted,
+          isRetryable,
+        });
 
         const state: ColumnMessageState = {
           modelId: model.id,
           status: isAborted ? 'pending' : 'error',
-          content: isAborted ? '' : content,
+          content: '',
           error: isAborted ? undefined : errorMessage,
           metrics: {
             latencyMs: Date.now() - startTime,
@@ -170,7 +232,7 @@ export function useMultiModelChat({
         abortControllersRef.current.delete(model.id);
       }
     },
-    [providerSettings, systemPrompt, updateColumnState, onColumnStream, onColumnComplete, onColumnError]
+    [providerSettings, systemPrompt, updateColumnState, onColumnStream, onColumnComplete, onColumnError, retryConfig, onRetry]
   );
 
   // Send message to all models in parallel

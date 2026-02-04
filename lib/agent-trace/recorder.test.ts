@@ -22,6 +22,24 @@ jest.mock('@/stores/git', () => ({
   },
 }));
 
+// Mock the settings store with default settings
+const mockAgentTraceSettings = {
+  enabled: true,
+  maxRecords: 1000,
+  autoCleanupDays: 30,
+  traceShellCommands: true,
+  traceCodeEdits: true,
+  traceFailedCalls: false,
+};
+
+jest.mock('@/stores', () => ({
+  useSettingsStore: {
+    getState: () => ({
+      agentTraceSettings: mockAgentTraceSettings,
+    }),
+  },
+}));
+
 describe('agent-trace/recorder', () => {
   beforeEach(async () => {
     await db.agentTraces.clear();
@@ -173,6 +191,7 @@ describe('agent-trace/recorder', () => {
         agentName: 'assistant',
         provider: 'openai',
         model: 'gpt-4o',
+        toolCallId: 'tool-123',
         toolName: 'file_write',
         toolArgs: {
           path: '/src/new-file.ts',
@@ -183,6 +202,11 @@ describe('agent-trace/recorder', () => {
 
       const finalCount = await db.agentTraces.count();
       expect(finalCount).toBe(initialCount + 1);
+
+      const traces = await db.agentTraces.toArray();
+      const record = JSON.parse(traces[traces.length - 1].record);
+      expect(record.eventType).toBe('tool_call_result');
+      expect(record.metadata.toolCallId).toBe('tool-123');
     });
 
     it('records artifact_create tool call', async () => {
@@ -262,6 +286,129 @@ describe('agent-trace/recorder', () => {
 
       const finalCount = await db.agentTraces.count();
       expect(finalCount).toBe(initialCount);
+    });
+
+    it('includes token usage in metadata when provided', async () => {
+      await recordAgentTraceFromToolCall({
+        sessionId: 'session-1',
+        provider: 'openai',
+        model: 'gpt-4o',
+        toolName: 'file_write',
+        toolArgs: {
+          path: '/src/test.ts',
+          content: 'const x = 1;',
+        },
+        toolResult: { success: true },
+        tokenUsage: {
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+        },
+      });
+
+      const traces = await db.agentTraces.toArray();
+      expect(traces.length).toBeGreaterThan(0);
+
+      const lastTrace = traces[traces.length - 1];
+      const record = JSON.parse(lastTrace.record);
+      expect(record.metadata.tokenUsage).toEqual({
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      });
+    });
+
+    it('includes latency in metadata when provided', async () => {
+      await recordAgentTraceFromToolCall({
+        sessionId: 'session-1',
+        provider: 'openai',
+        model: 'gpt-4o',
+        toolName: 'file_write',
+        toolArgs: {
+          path: '/src/test.ts',
+          content: 'const x = 1;',
+        },
+        toolResult: { success: true },
+        latencyMs: 1500,
+      });
+
+      const traces = await db.agentTraces.toArray();
+      expect(traces.length).toBeGreaterThan(0);
+
+      const lastTrace = traces[traces.length - 1];
+      const record = JSON.parse(lastTrace.record);
+      expect(record.metadata.latencyMs).toBe(1500);
+    });
+
+    it('includes success status in metadata', async () => {
+      await recordAgentTraceFromToolCall({
+        sessionId: 'session-1',
+        provider: 'openai',
+        model: 'gpt-4o',
+        toolName: 'file_write',
+        toolArgs: {
+          path: '/src/test.ts',
+          content: 'const x = 1;',
+        },
+        toolResult: { success: true },
+      });
+
+      const traces = await db.agentTraces.toArray();
+      expect(traces.length).toBeGreaterThan(0);
+
+      const lastTrace = traces[traces.length - 1];
+      const record = JSON.parse(lastTrace.record);
+      expect(record.metadata.success).toBe(true);
+    });
+
+    describe('traceFailedCalls setting', () => {
+      it('does not record failed calls when traceFailedCalls is false (default)', async () => {
+        const initialCount = await db.agentTraces.count();
+
+        await recordAgentTraceFromToolCall({
+          sessionId: 'session-1',
+          toolName: 'file_write',
+          toolArgs: {
+            path: '/test.ts',
+            content: 'test',
+          },
+          toolResult: { success: false, error: 'Permission denied' },
+        });
+
+        const finalCount = await db.agentTraces.count();
+        expect(finalCount).toBe(initialCount);
+      });
+
+      it('records failed calls when traceFailedCalls is true', async () => {
+        // Enable traceFailedCalls
+        mockAgentTraceSettings.traceFailedCalls = true;
+
+        const initialCount = await db.agentTraces.count();
+
+        await recordAgentTraceFromToolCall({
+          sessionId: 'session-1',
+          provider: 'openai',
+          model: 'gpt-4o',
+          toolName: 'file_write',
+          toolArgs: {
+            path: '/test.ts',
+            content: 'test',
+          },
+          toolResult: { success: false, error: 'Permission denied' },
+        });
+
+        const finalCount = await db.agentTraces.count();
+        expect(finalCount).toBe(initialCount + 1);
+
+        const traces = await db.agentTraces.toArray();
+        const lastTrace = traces[traces.length - 1];
+        const record = JSON.parse(lastTrace.record);
+        expect(record.metadata.success).toBe(false);
+        expect(record.metadata.error).toBe('Permission denied');
+
+        // Reset for other tests
+        mockAgentTraceSettings.traceFailedCalls = false;
+      });
     });
   });
 });

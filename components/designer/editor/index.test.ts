@@ -4,10 +4,6 @@
 import * as EditorExports from './index';
 
 describe('editor index exports', () => {
-  it('should export MonacoSandpackEditor', () => {
-    expect(EditorExports.MonacoSandpackEditor).toBeDefined();
-  });
-
   it('should export ReactSandbox', () => {
     expect(EditorExports.ReactSandbox).toBeDefined();
   });

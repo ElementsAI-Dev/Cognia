@@ -19,6 +19,8 @@ export interface BM25Config {
 export interface HybridSearchConfig {
   vectorWeight?: number;       // Weight for vector search results (0-1, default: 0.5)
   keywordWeight?: number;      // Weight for keyword search results (0-1, default: 0.5)
+  sparseWeight?: number;       // Weight for sparse search results (0-1, default: 0.3)
+  lateInteractionWeight?: number; // Weight for late interaction results (0-1, default: 0.2)
   bm25Config?: BM25Config;
   rrf?: {
     k?: number;                // RRF constant (default: 60)
@@ -39,8 +41,10 @@ export interface HybridSearchResult {
   metadata?: Record<string, unknown>;
   vectorScore?: number;
   keywordScore?: number;
+  sparseScore?: number;
+  lateInteractionScore?: number;
   combinedScore: number;
-  sources: ('vector' | 'keyword')[];
+  sources: ('vector' | 'keyword' | 'sparse' | 'late')[];
 }
 
 /**
@@ -325,6 +329,8 @@ export class HybridSearchEngine {
     this.config = {
       vectorWeight: config.vectorWeight ?? 0.5,
       keywordWeight: config.keywordWeight ?? 0.5,
+      sparseWeight: config.sparseWeight ?? 0.3,
+      lateInteractionWeight: config.lateInteractionWeight ?? 0.2,
       bm25Config: config.bm25Config ?? {},
       rrf: { k: config.rrf?.k ?? 60 },
       deduplicateResults: config.deduplicateResults ?? true,
@@ -359,7 +365,9 @@ export class HybridSearchEngine {
   hybridSearch(
     vectorResults: { id: string; score: number }[],
     query: string,
-    topK: number = 10
+    topK: number = 10,
+    sparseResults: { id: string; score: number }[] = [],
+    lateResults: { id: string; score: number }[] = []
   ): HybridSearchResult[] {
     // Get keyword search results
     const keywordResults = this.bm25Index.search(query, topK * 2);
@@ -367,24 +375,37 @@ export class HybridSearchEngine {
     // Normalize scores
     const normalizedVector = normalizeScores(vectorResults);
     const normalizedKeyword = normalizeScores(keywordResults);
+    const normalizedSparse = sparseResults.length > 0 ? normalizeScores(sparseResults) : [];
+    const normalizedLate = lateResults.length > 0 ? normalizeScores(lateResults) : [];
 
     // Apply RRF to combine results
-    const fusedResults = reciprocalRankFusion(
-      [normalizedVector, normalizedKeyword],
-      [this.config.vectorWeight, this.config.keywordWeight],
-      this.config.rrf.k
-    );
+    const rankedLists = [normalizedVector, normalizedKeyword];
+    const weights = [this.config.vectorWeight, this.config.keywordWeight];
+    if (normalizedSparse.length > 0) {
+      rankedLists.push(normalizedSparse);
+      weights.push(this.config.sparseWeight);
+    }
+    if (normalizedLate.length > 0) {
+      rankedLists.push(normalizedLate);
+      weights.push(this.config.lateInteractionWeight);
+    }
+
+    const fusedResults = reciprocalRankFusion(rankedLists, weights, this.config.rrf.k);
 
     // Build final results with all scores
     const vectorScoreMap = new Map(vectorResults.map(r => [r.id, r.score]));
     const keywordScoreMap = new Map(keywordResults.map(r => [r.id, r.score]));
+    const sparseScoreMap = new Map(sparseResults.map(r => [r.id, r.score]));
+    const lateScoreMap = new Map(lateResults.map(r => [r.id, r.score]));
 
     let results: HybridSearchResult[] = fusedResults.map(r => {
       const doc = this.documents.get(r.id);
-      const sources: ('vector' | 'keyword')[] = [];
+      const sources: ('vector' | 'keyword' | 'sparse' | 'late')[] = [];
       
       if (vectorScoreMap.has(r.id)) sources.push('vector');
       if (keywordScoreMap.has(r.id)) sources.push('keyword');
+      if (sparseScoreMap.has(r.id)) sources.push('sparse');
+      if (lateScoreMap.has(r.id)) sources.push('late');
 
       return {
         id: r.id,
@@ -392,6 +413,8 @@ export class HybridSearchEngine {
         metadata: doc?.metadata,
         vectorScore: vectorScoreMap.get(r.id),
         keywordScore: keywordScoreMap.get(r.id),
+        sparseScore: sparseScoreMap.get(r.id),
+        lateInteractionScore: lateScoreMap.get(r.id),
         combinedScore: r.score,
         sources,
       };
@@ -467,6 +490,12 @@ export class HybridSearchEngine {
     }
     if (config.keywordWeight !== undefined) {
       this.config.keywordWeight = config.keywordWeight;
+    }
+    if (config.sparseWeight !== undefined) {
+      this.config.sparseWeight = config.sparseWeight;
+    }
+    if (config.lateInteractionWeight !== undefined) {
+      this.config.lateInteractionWeight = config.lateInteractionWeight;
     }
     if (config.rrf?.k !== undefined) {
       this.config.rrf.k = config.rrf.k;

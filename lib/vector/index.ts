@@ -129,6 +129,22 @@ export {
   hybridSearchMilvus,
 } from './milvus-client';
 
+// Weaviate client
+export {
+  type WeaviateConfig,
+  type WeaviateDocument,
+  type WeaviateSearchResult,
+  type WeaviateClassInfo,
+  listWeaviateClasses,
+  getWeaviateClassInfo,
+  createWeaviateClass,
+  deleteWeaviateClass,
+  upsertWeaviateDocuments,
+  deleteWeaviateDocuments,
+  getWeaviateDocuments,
+  queryWeaviate,
+} from './weaviate-client';
+
 // Unified vector store interface
 export {
   type VectorStoreProvider,
@@ -148,8 +164,10 @@ export {
   type IVectorStore,
   NativeVectorStore,
   ChromaVectorStore,
+  PineconeVectorStore,
   QdrantVectorStore,
   MilvusVectorStore,
+  WeaviateVectorStore,
   createVectorStore,
   getSupportedVectorStoreProviders,
 } from './store';

@@ -1,6 +1,6 @@
 {
   "cloudSync": "Cloud Sync",
-  "cloudSyncDesc": "Sync your data across devices using WebDAV or GitHub",
+  "cloudSyncDesc": "Sync your data across devices using WebDAV, GitHub, or Google Drive",
   "syncProvider": "Sync Provider",
   "selectProvider": "Select provider",
   "disabled": "Disabled",
@@ -92,5 +92,24 @@
   "actions": "Actions",
   "noBackups": "No backups found",
   "backupDeleted": "Backup deleted",
-  "deleteFailed": "Failed to delete backup"
+  "deleteFailed": "Failed to delete backup",
+  
+  "googleDrive": "Google Drive",
+  "googleDriveConfig": "Google Drive Configuration",
+  "googleDriveConfigDesc": "Connect your Google account to sync data to Google Drive",
+  "connectGoogle": "Connect Google Account",
+  "disconnect": "Disconnect",
+  "googleConnected": "Connected",
+  "googleNotConnected": "Not connected",
+  "googleConnectedSuccess": "Connected to Google Drive",
+  "googleDisconnected": "Disconnected from Google Drive",
+  "googleAuthError": "Google authentication failed",
+  "googleClientIdMissing": "Google Client ID is not configured. Set NEXT_PUBLIC_GOOGLE_CLIENT_ID environment variable.",
+  "enableSync": "Enable Sync",
+  "enableSyncDesc": "Automatically sync data to Google Drive",
+  "useAppDataFolder": "Use App Data Folder",
+  "useAppDataFolderDesc": "Store backups in a hidden app-specific folder (recommended)",
+  "folderName": "Folder Name",
+  "resumableUpload": "Resumable Upload",
+  "resumableUploadDesc": "Enable for large backups and unstable connections"
 }

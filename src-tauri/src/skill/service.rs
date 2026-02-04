@@ -527,6 +527,31 @@ impl SkillService {
         Ok(fs::read_to_string(skill_md)?)
     }
 
+    /// Write skill content (SKILL.md)
+    pub fn write_skill_content(&self, directory: &str, content: &str) -> Result<()> {
+        let skill_dir = self.ssot_dir.join(directory);
+        fs::create_dir_all(&skill_dir)?;
+        let skill_md = skill_dir.join("SKILL.md");
+        fs::write(skill_md, content)?;
+        Ok(())
+    }
+
+    /// Write a skill resource file
+    pub fn write_skill_resource(
+        &self,
+        directory: &str,
+        resource_path: &str,
+        content: &str,
+    ) -> Result<()> {
+        let skill_dir = self.ssot_dir.join(directory);
+        let file_path = skill_dir.join(resource_path);
+        if let Some(parent) = file_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(file_path, content)?;
+        Ok(())
+    }
+
     /// List skill resources
     pub fn list_skill_resources(&self, directory: &str) -> Result<Vec<String>> {
         let skill_dir = self.ssot_dir.join(directory);
@@ -1085,6 +1110,32 @@ mod tests {
         
         // Verify removed
         assert!(service.get_installed_skill(&installed.id).await.is_none());
+    }
+
+    #[test]
+    fn test_write_skill_content() {
+        let (service, _temp) = create_test_service();
+        let content = "---\nname: write-test\n---\n\nContent";
+
+        service.write_skill_content("write-test", content).unwrap();
+        let read_back = service.read_skill_content("write-test").unwrap();
+
+        assert_eq!(read_back, content);
+    }
+
+    #[test]
+    fn test_write_skill_resource() {
+        let (service, _temp) = create_test_service();
+
+        service
+            .write_skill_resource("resource-test", "scripts/test.js", "console.log(1);")
+            .unwrap();
+
+        let read_back = service
+            .read_skill_resource("resource-test", "scripts/test.js")
+            .unwrap();
+
+        assert_eq!(read_back, "console.log(1);");
     }
 
     #[tokio::test]

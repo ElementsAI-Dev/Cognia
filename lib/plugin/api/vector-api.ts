@@ -11,7 +11,7 @@ import {
   type IVectorStore,
   type VectorDocument as LibVectorDocument,
 } from '@/lib/vector';
-import { generateEmbedding, generateEmbeddings } from '@/lib/vector/embedding';
+import { generateEmbedding, generateEmbeddings, getEmbeddingApiKey } from '@/lib/vector/embedding';
 import { createPluginSystemLogger } from '../core/logger';
 import type {
   PluginVectorAPI,
@@ -35,6 +35,11 @@ export function createVectorAPI(pluginId: string): PluginVectorAPI {
 
     const settings = useSettingsStore.getState();
     const vectorSettings = useVectorStore.getState().settings;
+    const embeddingApiKey =
+      getEmbeddingApiKey(
+        vectorSettings.embeddingProvider || 'openai',
+        settings.providerSettings || {}
+      ) || '';
 
     store = createVectorStore({
       provider: vectorSettings.provider || 'native',
@@ -43,7 +48,19 @@ export function createVectorAPI(pluginId: string): PluginVectorAPI {
         model: vectorSettings.embeddingModel || 'text-embedding-3-small',
         dimensions: 1536,
       },
-      embeddingApiKey: settings.providerSettings?.openai?.apiKey || '',
+      embeddingApiKey,
+      chromaMode: vectorSettings.mode,
+      chromaServerUrl: vectorSettings.serverUrl,
+      pineconeApiKey: vectorSettings.pineconeApiKey,
+      pineconeIndexName: vectorSettings.pineconeIndexName,
+      pineconeNamespace: vectorSettings.pineconeNamespace,
+      weaviateUrl: vectorSettings.weaviateUrl,
+      weaviateApiKey: vectorSettings.weaviateApiKey,
+      qdrantUrl: vectorSettings.qdrantUrl,
+      qdrantApiKey: vectorSettings.qdrantApiKey,
+      milvusAddress: vectorSettings.milvusAddress,
+      milvusToken: vectorSettings.milvusToken,
+      native: {},
     });
 
     return store;

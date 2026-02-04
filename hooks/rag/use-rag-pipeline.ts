@@ -36,10 +36,14 @@ export interface UseRAGPipelineOptions {
   enableQueryExpansion?: boolean;
   enableReranking?: boolean;
   enableContextualRetrieval?: boolean;
+  enableSparseSearch?: boolean;
+  enableLateInteraction?: boolean;
 
   // Weights
   vectorWeight?: number;
   keywordWeight?: number;
+  sparseWeight?: number;
+  lateInteractionWeight?: number;
 }
 
 export interface IndexingResult {
@@ -101,8 +105,12 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
     enableQueryExpansion = false,
     enableReranking = true,
     enableContextualRetrieval = false,
+    enableSparseSearch = false,
+    enableLateInteraction = false,
     vectorWeight = 0.5,
     keywordWeight = 0.5,
+    sparseWeight = 0.3,
+    lateInteractionWeight = 0.2,
   } = options;
 
   const [isLoading, setIsLoading] = useState(false);
@@ -143,6 +151,10 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
         enabled: enableHybridSearch,
         vectorWeight,
         keywordWeight,
+        sparseWeight,
+        lateInteractionWeight,
+        enableSparseSearch,
+        enableLateInteraction,
       },
       queryExpansion: {
         enabled: enableQueryExpansion,
@@ -172,8 +184,12 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
       enableQueryExpansion,
       enableReranking,
       enableContextualRetrieval,
+      enableSparseSearch,
+      enableLateInteraction,
       vectorWeight,
       keywordWeight,
+      sparseWeight,
+      lateInteractionWeight,
       topK,
       similarityThreshold,
       maxContextLength,
@@ -371,13 +387,25 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
   const updateConfig = useCallback(
     (config: Partial<UseRAGPipelineOptions>) => {
       const pipeline = getPipeline();
+      const hasHybridUpdate =
+        config.enableHybridSearch !== undefined ||
+        config.vectorWeight !== undefined ||
+        config.keywordWeight !== undefined ||
+        config.sparseWeight !== undefined ||
+        config.lateInteractionWeight !== undefined ||
+        config.enableSparseSearch !== undefined ||
+        config.enableLateInteraction !== undefined;
       pipeline.updateConfig({
         hybridSearch:
-          config.enableHybridSearch !== undefined
+          hasHybridUpdate
             ? {
                 enabled: config.enableHybridSearch,
                 vectorWeight: config.vectorWeight,
                 keywordWeight: config.keywordWeight,
+                sparseWeight: config.sparseWeight,
+                lateInteractionWeight: config.lateInteractionWeight,
+                enableSparseSearch: config.enableSparseSearch,
+                enableLateInteraction: config.enableLateInteraction,
               }
             : undefined,
         queryExpansion:

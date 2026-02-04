@@ -30,6 +30,7 @@ export function VectorSetupGuideModal({
     if (provider === 'native') return 'Native';
     if (provider === 'chroma') return 'Chroma';
     if (provider === 'pinecone') return 'Pinecone';
+    if (provider === 'weaviate') return 'Weaviate';
     if (provider === 'qdrant') return 'Qdrant';
     if (provider === 'milvus') return 'Milvus';
     return provider;

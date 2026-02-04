@@ -199,7 +199,18 @@
     "includeTitleOption": "Include Title",
     "includeTimestampsShareOption": "Include Timestamps",
     "includeModelOption": "Include Model Info",
-    "messagesInfo": "{count} messages · max {max} for sharing"
+    "messagesInfo": "{count} messages · max {max} for sharing",
+    "qrTab": "QR",
+    "qrPreset": "Style",
+    "qrSize": "Size",
+    "qrLogo": "Logo",
+    "qrAddLogo": "Add Logo",
+    "qrChangeLogo": "Change",
+    "qrRemoveLogo": "Remove",
+    "qrDownloadPNG": "PNG downloaded",
+    "qrDownloadSVG": "SVG downloaded",
+    "qrCopySuccess": "QR code copied to clipboard",
+    "qrContentDesc": "Generate QR code for this page URL"
   },
   "batchExport": {
     "batchExport": "Batch Export",

@@ -9,6 +9,7 @@ import type {
   SearchResult,
   SearchRecency,
 } from '@/types/search';
+import { perplexityFetch } from '../proxy-search-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.network;
@@ -94,7 +95,7 @@ export async function searchWithPerplexity(
   }
 
   try {
-    const response = await fetch(PERPLEXITY_API_URL, {
+    const response = await perplexityFetch(PERPLEXITY_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

@@ -1,6 +1,6 @@
 {
   "cloudSync": "云同步",
-  "cloudSyncDesc": "通过 WebDAV 或 GitHub 跨设备同步数据",
+  "cloudSyncDesc": "通过 WebDAV、GitHub 或 Google Drive 跨设备同步数据",
   "syncProvider": "同步服务",
   "selectProvider": "选择服务",
   "disabled": "已禁用",
@@ -92,5 +92,24 @@
   "actions": "操作",
   "noBackups": "未找到备份",
   "backupDeleted": "备份已删除",
-  "deleteFailed": "删除备份失败"
+  "deleteFailed": "删除备份失败",
+  
+  "googleDrive": "Google Drive",
+  "googleDriveConfig": "Google Drive 配置",
+  "googleDriveConfigDesc": "连接您的 Google 账号以将数据同步到 Google Drive",
+  "connectGoogle": "连接 Google 账号",
+  "disconnect": "断开连接",
+  "googleConnected": "已连接",
+  "googleNotConnected": "未连接",
+  "googleConnectedSuccess": "已连接到 Google Drive",
+  "googleDisconnected": "已断开 Google Drive 连接",
+  "googleAuthError": "Google 认证失败",
+  "googleClientIdMissing": "未配置 Google Client ID。请设置 NEXT_PUBLIC_GOOGLE_CLIENT_ID 环境变量。",
+  "enableSync": "启用同步",
+  "enableSyncDesc": "自动同步数据到 Google Drive",
+  "useAppDataFolder": "使用应用数据文件夹",
+  "useAppDataFolderDesc": "将备份存储在隐藏的应用专属文件夹中（推荐）",
+  "folderName": "文件夹名称",
+  "resumableUpload": "断点续传",
+  "resumableUploadDesc": "适用于大型备份和不稳定的网络连接"
 }

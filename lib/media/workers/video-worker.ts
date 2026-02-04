@@ -320,7 +320,125 @@ function applyVideoFilter(imageData: ImageData, filter: VideoFilter): ImageData 
 }
 
 /**
- * Process decode operation
+ * Parse MP4 box structure to extract metadata
+ */
+function parseMP4Metadata(buffer: ArrayBuffer): Partial<VideoMetadata> {
+  const view = new DataView(buffer);
+  const metadata: Partial<VideoMetadata> = {};
+  let offset = 0;
+
+  const readUint32 = (pos: number) => view.getUint32(pos, false);
+  const readString = (pos: number, len: number) => {
+    let str = '';
+    for (let i = 0; i < len; i++) {
+      str += String.fromCharCode(view.getUint8(pos + i));
+    }
+    return str;
+  };
+
+  try {
+    while (offset < buffer.byteLength - 8) {
+      const size = readUint32(offset);
+      const type = readString(offset + 4, 4);
+
+      if (size === 0 || size > buffer.byteLength - offset) break;
+
+      if (type === 'moov' || type === 'trak' || type === 'mdia' || type === 'minf' || type === 'stbl') {
+        // Container boxes - recurse into them
+        offset += 8;
+        continue;
+      }
+
+      if (type === 'mvhd') {
+        // Movie header - contains duration and timescale
+        const version = view.getUint8(offset + 8);
+        let timescale: number, duration: number;
+        if (version === 1) {
+          timescale = readUint32(offset + 28);
+          duration = readUint32(offset + 36); // Lower 32 bits of 64-bit duration
+        } else {
+          timescale = readUint32(offset + 20);
+          duration = readUint32(offset + 24);
+        }
+        if (timescale > 0) {
+          metadata.duration = duration / timescale;
+        }
+      }
+
+      if (type === 'tkhd') {
+        // Track header - contains width/height
+        const version = view.getUint8(offset + 8);
+        const widthOffset = version === 1 ? offset + 92 : offset + 84;
+        const heightOffset = version === 1 ? offset + 96 : offset + 88;
+        const width = readUint32(widthOffset) >> 16;
+        const height = readUint32(heightOffset) >> 16;
+        if (width > 0 && height > 0) {
+          metadata.width = width;
+          metadata.height = height;
+        }
+      }
+
+      if (type === 'stts') {
+        // Time-to-sample box - can derive frame rate
+        const entryCount = readUint32(offset + 12);
+        if (entryCount > 0) {
+          const sampleDelta = readUint32(offset + 20);
+          // Frame rate calculation needs timescale from mdhd
+          if (sampleDelta > 0 && metadata.duration) {
+            // Approximate frame rate
+            metadata.frameRate = Math.round(1000 / sampleDelta * 10) / 10;
+          }
+        }
+      }
+
+      if (type === 'avcC' || type === 'hvcC' || type === 'vpcC' || type === 'av1C') {
+        // Codec configuration boxes
+        const codecMap: Record<string, string> = {
+          avcC: 'h264',
+          hvcC: 'h265',
+          vpcC: 'vp9',
+          av1C: 'av1',
+        };
+        metadata.codec = codecMap[type] || 'unknown';
+      }
+
+      offset += size;
+    }
+  } catch {
+    // Parsing error - return what we have
+  }
+
+  return metadata;
+}
+
+/**
+ * Detect video mime type from magic bytes
+ */
+function detectMimeType(buffer: ArrayBuffer): string {
+  const view = new Uint8Array(buffer.slice(0, 12));
+  
+  // Check for MP4/MOV (ftyp box)
+  if (view[4] === 0x66 && view[5] === 0x74 && view[6] === 0x79 && view[7] === 0x70) {
+    return 'video/mp4';
+  }
+  // Check for WebM (EBML header)
+  if (view[0] === 0x1A && view[1] === 0x45 && view[2] === 0xDF && view[3] === 0xA3) {
+    return 'video/webm';
+  }
+  // Check for AVI (RIFF header)
+  if (view[0] === 0x52 && view[1] === 0x49 && view[2] === 0x46 && view[3] === 0x46) {
+    return 'video/x-msvideo';
+  }
+  // Check for MKV (EBML with specific doctype)
+  if (view[0] === 0x1A && view[1] === 0x45) {
+    return 'video/x-matroska';
+  }
+  
+  return 'video/mp4'; // Default
+}
+
+/**
+ * Process decode operation - Extract video metadata
  */
 function processDecode(id: string, payload: VideoWorkerPayload): void {
   try {
@@ -328,18 +446,25 @@ function processDecode(id: string, payload: VideoWorkerPayload): void {
       throw new Error('Missing video data for decode operation');
     }
 
-    // For now, we'll return metadata extraction
-    // Full decoding requires FFmpeg WASM which is handled separately
+    const buffer = payload.videoData;
+    const mimeType = detectMimeType(buffer);
+    
+    // Parse metadata from container
+    const parsedMetadata = mimeType.includes('mp4') || mimeType.includes('quicktime')
+      ? parseMP4Metadata(buffer)
+      : {};
+
+    // Build complete metadata with parsed values and defaults
     const metadata: VideoMetadata = {
-      width: 0,
-      height: 0,
-      duration: 0,
-      frameRate: 0,
-      codec: 'unknown',
-      bitrate: 0,
-      hasAudio: false,
-      fileSize: payload.videoData.byteLength,
-      mimeType: 'video/mp4',
+      width: parsedMetadata.width || 0,
+      height: parsedMetadata.height || 0,
+      duration: parsedMetadata.duration || 0,
+      frameRate: parsedMetadata.frameRate || 30,
+      codec: parsedMetadata.codec || 'unknown',
+      bitrate: buffer.byteLength * 8 / Math.max(parsedMetadata.duration || 1, 1),
+      hasAudio: true, // Assume audio present, will be confirmed by full decode
+      fileSize: buffer.byteLength,
+      mimeType,
     };
 
     postSuccess(id, metadata);
@@ -349,28 +474,107 @@ function processDecode(id: string, payload: VideoWorkerPayload): void {
 }
 
 /**
- * Process encode operation
+ * Check if WebCodecs API is available
  */
-function processEncode(id: string, _payload: VideoWorkerPayload): void {
-  try {
-    // Encoding requires FFmpeg WASM - this is a placeholder
-    // The actual implementation will use the WASM codec worker
-    postProgress(id, 0);
+function isWebCodecsAvailable(): boolean {
+  return typeof VideoEncoder !== 'undefined' && typeof VideoDecoder !== 'undefined';
+}
 
-    // Simulate encoding progress
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      postProgress(id, progress);
+/**
+ * Encode frames using WebCodecs API
+ */
+async function encodeWithWebCodecs(
+  frames: ImageData[],
+  options: { width: number; height: number; frameRate: number; bitrate: number },
+  onProgress: (progress: number) => void
+): Promise<ArrayBuffer> {
+  const chunks: Uint8Array[] = [];
+  let encodedFrames = 0;
 
-      if (progress >= 100) {
-        clearInterval(interval);
-        postSuccess(id);
-      }
-    }, 100);
-  } catch (error) {
-    postError(id, error instanceof Error ? error.message : 'Unknown encode error');
+  const encoder = new VideoEncoder({
+    output: (chunk) => {
+      const data = new Uint8Array(chunk.byteLength);
+      chunk.copyTo(data);
+      chunks.push(data);
+    },
+    error: (e) => {
+      throw new Error(`Encoding error: ${e.message}`);
+    },
+  });
+
+  encoder.configure({
+    codec: 'avc1.42001f', // H.264 Baseline
+    width: options.width,
+    height: options.height,
+    bitrate: options.bitrate,
+    framerate: options.frameRate,
+  });
+
+  for (let i = 0; i < frames.length; i++) {
+    const frame = frames[i];
+    const videoFrame = new VideoFrame(frame.data.buffer, {
+      format: 'RGBA',
+      codedWidth: frame.width,
+      codedHeight: frame.height,
+      timestamp: (i / options.frameRate) * 1_000_000, // microseconds
+    });
+
+    encoder.encode(videoFrame, { keyFrame: i % 30 === 0 });
+    videoFrame.close();
+
+    encodedFrames++;
+    onProgress(Math.round((encodedFrames / frames.length) * 100));
   }
+
+  await encoder.flush();
+  encoder.close();
+
+  // Combine chunks into single buffer
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return result.buffer;
+}
+
+/**
+ * Process encode operation using WebCodecs or fallback
+ */
+function processEncode(id: string, payload: VideoWorkerPayload): void {
+  postProgress(id, 0);
+
+  (async () => {
+    try {
+      const { frameData, exportOptions } = payload;
+
+      if (!isWebCodecsAvailable()) {
+        // Fallback: Signal that main thread should use FFmpeg WASM
+        postError(id, 'WEBCODECS_UNAVAILABLE:Use FFmpeg WASM for encoding');
+        return;
+      }
+
+      if (!frameData) {
+        throw new Error('Missing frame data for encoding');
+      }
+
+      // For single frame, create a simple encoded result
+      const options = {
+        width: frameData.width,
+        height: frameData.height,
+        frameRate: exportOptions?.frameRate || 30,
+        bitrate: exportOptions?.bitrate || 5_000_000,
+      };
+
+      const result = await encodeWithWebCodecs([frameData], options, (p) => postProgress(id, p));
+      postSuccess(id, result);
+    } catch (error) {
+      postError(id, error instanceof Error ? error.message : 'Unknown encode error');
+    }
+  })();
 }
 
 /**
@@ -426,53 +630,326 @@ function processFilter(id: string, payload: VideoWorkerPayload): void {
 }
 
 /**
- * Process export operation
+ * Process export operation - Encode and package video for export
  */
 function processExport(id: string, payload: VideoWorkerPayload): void {
-  try {
-    if (!payload.exportOptions) {
-      throw new Error('Missing export options');
+  postProgress(id, 0);
+
+  (async () => {
+    try {
+      const { videoData, frameData, exportOptions } = payload;
+
+      if (!exportOptions) {
+        throw new Error('Missing export options');
+      }
+
+      // If we have raw video data, signal to use FFmpeg for transcoding
+      if (videoData && !frameData) {
+        // Cannot do full video export in worker without FFmpeg
+        // Return signal for main thread to handle with FFmpeg WASM
+        postError(id, 'FFMPEG_REQUIRED:Full video export requires FFmpeg WASM');
+        return;
+      }
+
+      // If we have frame data, try WebCodecs encoding
+      if (frameData) {
+        if (!isWebCodecsAvailable()) {
+          postError(id, 'WEBCODECS_UNAVAILABLE:WebCodecs not available for export');
+          return;
+        }
+
+        postProgress(id, 10);
+
+        const options = {
+          width: exportOptions.resolution?.width || frameData.width,
+          height: exportOptions.resolution?.height || frameData.height,
+          frameRate: exportOptions.frameRate || 30,
+          bitrate: exportOptions.bitrate || 5_000_000,
+        };
+
+        const result = await encodeWithWebCodecs(
+          [frameData],
+          options,
+          (p) => postProgress(id, 10 + p * 0.9)
+        );
+
+        postSuccess(id, result);
+        return;
+      }
+
+      throw new Error('No video data or frame data provided for export');
+    } catch (error) {
+      postError(id, error instanceof Error ? error.message : 'Unknown export error');
     }
-
-    // Export requires FFmpeg WASM - this is a placeholder
-    // The actual implementation will coordinate with the WASM codec worker
-    postProgress(id, 0);
-
-    // Report completion
-    postSuccess(id);
-  } catch (error) {
-    postError(id, error instanceof Error ? error.message : 'Unknown export error');
-  }
+  })();
 }
 
 /**
- * Process frame extraction
+ * Extract frame from video using VideoDecoder (WebCodecs API)
  */
-function processExtractFrame(id: string, _payload: VideoWorkerPayload): void {
-  try {
-    // Frame extraction placeholder
-    // Full implementation requires video decoder
-    postSuccess(id);
-  } catch (error) {
-    postError(id, error instanceof Error ? error.message : 'Unknown frame extraction error');
-  }
+async function extractFrameWithWebCodecs(
+  videoData: ArrayBuffer,
+  timestamp: number
+): Promise<ImageData> {
+  return new Promise((resolve, reject) => {
+    let frameExtracted = false;
+    let canvas: OffscreenCanvas | null = null;
+
+    const decoder = new VideoDecoder({
+      output: (frame) => {
+        if (!frameExtracted && frame.timestamp !== null) {
+          frameExtracted = true;
+          
+          // Create canvas and draw frame
+          canvas = new OffscreenCanvas(frame.displayWidth, frame.displayHeight);
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(frame, 0, 0);
+            const imageData = ctx.getImageData(0, 0, frame.displayWidth, frame.displayHeight);
+            frame.close();
+            resolve(imageData);
+          } else {
+            frame.close();
+            reject(new Error('Failed to get canvas context'));
+          }
+        } else {
+          frame.close();
+        }
+      },
+      error: (e) => reject(new Error(`Decoder error: ${e.message}`)),
+    });
+
+    // Configure decoder based on detected codec
+    const mimeType = detectMimeType(videoData);
+    const codec = mimeType.includes('webm') ? 'vp8' : 'avc1.42001f';
+
+    try {
+      decoder.configure({ codec });
+
+      // Create EncodedVideoChunk from data
+      const chunk = new EncodedVideoChunk({
+        type: 'key',
+        timestamp: timestamp * 1_000_000, // Convert to microseconds
+        data: new Uint8Array(videoData),
+      });
+
+      decoder.decode(chunk);
+      decoder.flush().then(() => {
+        if (!frameExtracted) {
+          reject(new Error('No frame extracted'));
+        }
+        decoder.close();
+      });
+    } catch (e) {
+      decoder.close();
+      reject(e);
+    }
+  });
 }
 
 /**
- * Process thumbnail generation
+ * Process frame extraction - Extract a single frame at specified timestamp
  */
-function processGenerateThumbnail(id: string, _payload: VideoWorkerPayload): void {
-  try {
-    // Thumbnail generation placeholder
-    // Full implementation requires video decoder and canvas
-    postSuccess(id);
-  } catch (error) {
-    postError(id, error instanceof Error ? error.message : 'Unknown thumbnail generation error');
-  }
+function processExtractFrame(id: string, payload: VideoWorkerPayload): void {
+  (async () => {
+    try {
+      const { videoData, timestamp } = payload;
+
+      if (!videoData) {
+        throw new Error('Missing video data for frame extraction');
+      }
+
+      const targetTime = timestamp || 0;
+
+      // Try WebCodecs first
+      if (isWebCodecsAvailable()) {
+        try {
+          const imageData = await extractFrameWithWebCodecs(videoData, targetTime);
+          ctx.postMessage(
+            { id, type: 'success', data: imageData } as VideoWorkerResponse,
+            [imageData.data.buffer]
+          );
+          return;
+        } catch {
+          // WebCodecs failed, signal for FFmpeg fallback
+        }
+      }
+
+      // Signal main thread to use FFmpeg WASM for extraction
+      postError(id, 'FFMPEG_REQUIRED:Frame extraction requires FFmpeg WASM');
+    } catch (error) {
+      postError(id, error instanceof Error ? error.message : 'Unknown frame extraction error');
+    }
+  })();
 }
 
 /**
- * Process video analysis
+ * Generate thumbnail from ImageData
+ */
+function createThumbnail(
+  imageData: ImageData,
+  targetWidth: number,
+  targetHeight: number,
+  quality: number
+): { data: Uint8Array; width: number; height: number } {
+  // Calculate dimensions maintaining aspect ratio
+  const aspectRatio = imageData.width / imageData.height;
+  let finalWidth = targetWidth;
+  let finalHeight = targetHeight;
+
+  if (targetWidth / targetHeight > aspectRatio) {
+    finalWidth = Math.round(targetHeight * aspectRatio);
+  } else {
+    finalHeight = Math.round(targetWidth / aspectRatio);
+  }
+
+  // Create source canvas
+  const sourceCanvas = new OffscreenCanvas(imageData.width, imageData.height);
+  const sourceCtx = sourceCanvas.getContext('2d');
+  if (!sourceCtx) throw new Error('Failed to create source canvas context');
+  sourceCtx.putImageData(imageData, 0, 0);
+
+  // Create target canvas and scale
+  const targetCanvas = new OffscreenCanvas(finalWidth, finalHeight);
+  const targetCtx = targetCanvas.getContext('2d');
+  if (!targetCtx) throw new Error('Failed to create target canvas context');
+
+  // Use high-quality scaling
+  targetCtx.imageSmoothingEnabled = true;
+  targetCtx.imageSmoothingQuality = 'high';
+  targetCtx.drawImage(sourceCanvas, 0, 0, finalWidth, finalHeight);
+
+  // Get thumbnail data
+  const thumbnailData = targetCtx.getImageData(0, 0, finalWidth, finalHeight);
+
+  // Apply quality compression by reducing color depth if quality < 100
+  if (quality < 100) {
+    const factor = Math.max(1, Math.round((100 - quality) / 10));
+    const data = thumbnailData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = Math.round(data[i] / factor) * factor;
+      data[i + 1] = Math.round(data[i + 1] / factor) * factor;
+      data[i + 2] = Math.round(data[i + 2] / factor) * factor;
+    }
+  }
+
+  return {
+    data: new Uint8Array(thumbnailData.data.buffer),
+    width: finalWidth,
+    height: finalHeight,
+  };
+}
+
+/**
+ * Process thumbnail generation - Create thumbnail from video frame
+ */
+function processGenerateThumbnail(id: string, payload: VideoWorkerPayload): void {
+  (async () => {
+    try {
+      const { videoData, frameData, timestamp, quality } = payload;
+      const targetWidth = 160;
+      const targetHeight = 90;
+      const thumbnailQuality = quality || 80;
+
+      let sourceFrame: ImageData;
+
+      // If we have frame data, use it directly
+      if (frameData) {
+        sourceFrame = frameData;
+      } else if (videoData) {
+        // Extract frame from video first
+        if (isWebCodecsAvailable()) {
+          try {
+            sourceFrame = await extractFrameWithWebCodecs(videoData, timestamp || 0);
+          } catch {
+            // WebCodecs failed, signal for FFmpeg fallback
+            postError(id, 'FFMPEG_REQUIRED:Thumbnail generation requires FFmpeg WASM');
+            return;
+          }
+        } else {
+          postError(id, 'FFMPEG_REQUIRED:Thumbnail generation requires FFmpeg WASM');
+          return;
+        }
+      } else {
+        throw new Error('Missing video data or frame data for thumbnail generation');
+      }
+
+      // Create thumbnail from the frame
+      const thumbnail = createThumbnail(sourceFrame, targetWidth, targetHeight, thumbnailQuality);
+
+      // Create ImageData for the thumbnail
+      const thumbnailImageData = new ImageData(
+        new Uint8ClampedArray(thumbnail.data),
+        thumbnail.width,
+        thumbnail.height
+      );
+
+      ctx.postMessage(
+        { id, type: 'success', data: thumbnailImageData } as VideoWorkerResponse,
+        [thumbnailImageData.data.buffer]
+      );
+    } catch (error) {
+      postError(id, error instanceof Error ? error.message : 'Unknown thumbnail generation error');
+    }
+  })();
+}
+
+/**
+ * Analyze video content for quality metrics
+ */
+function _analyzeVideoQuality(imageData: ImageData): {
+  brightness: number;
+  contrast: number;
+  sharpness: number;
+} {
+  const data = imageData.data;
+  const pixelCount = data.length / 4;
+
+  // Calculate brightness (average luminance)
+  let totalLuminance = 0;
+  const luminanceValues: number[] = [];
+
+  for (let i = 0; i < data.length; i += 4) {
+    const luminance = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    totalLuminance += luminance;
+    luminanceValues.push(luminance);
+  }
+
+  const brightness = totalLuminance / pixelCount / 255; // Normalize to 0-1
+
+  // Calculate contrast (standard deviation of luminance)
+  const meanLuminance = totalLuminance / pixelCount;
+  let varianceSum = 0;
+  for (const lum of luminanceValues) {
+    varianceSum += (lum - meanLuminance) ** 2;
+  }
+  const contrast = Math.sqrt(varianceSum / pixelCount) / 128; // Normalize to 0-1 range
+
+  // Calculate sharpness using Laplacian variance
+  let laplacianSum = 0;
+  const width = imageData.width;
+  const height = imageData.height;
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const center = luminanceValues[y * width + x];
+      const top = luminanceValues[(y - 1) * width + x];
+      const bottom = luminanceValues[(y + 1) * width + x];
+      const left = luminanceValues[y * width + (x - 1)];
+      const right = luminanceValues[y * width + (x + 1)];
+
+      const laplacian = Math.abs(4 * center - top - bottom - left - right);
+      laplacianSum += laplacian * laplacian;
+    }
+  }
+
+  const sharpness = Math.min(1, Math.sqrt(laplacianSum / pixelCount) / 50);
+
+  return { brightness, contrast, sharpness };
+}
+
+/**
+ * Process video analysis - Extract metadata and quality metrics
  */
 function processAnalyze(id: string, payload: VideoWorkerPayload): void {
   try {
@@ -480,18 +957,31 @@ function processAnalyze(id: string, payload: VideoWorkerPayload): void {
       throw new Error('Missing video data for analysis');
     }
 
-    // Basic analysis - returns file size and basic info
+    const buffer = payload.videoData;
+    const mimeType = detectMimeType(buffer);
+
+    // Parse container metadata
+    const parsedMetadata = mimeType.includes('mp4') || mimeType.includes('quicktime')
+      ? parseMP4Metadata(buffer)
+      : {};
+
+    // Build complete metadata
     const metadata: VideoMetadata = {
-      width: 0,
-      height: 0,
-      duration: 0,
-      frameRate: 0,
-      codec: 'unknown',
-      bitrate: 0,
-      hasAudio: false,
-      fileSize: payload.videoData.byteLength,
-      mimeType: 'video/mp4',
+      width: parsedMetadata.width || 0,
+      height: parsedMetadata.height || 0,
+      duration: parsedMetadata.duration || 0,
+      frameRate: parsedMetadata.frameRate || 0,
+      codec: parsedMetadata.codec || 'unknown',
+      bitrate: buffer.byteLength * 8 / Math.max(parsedMetadata.duration || 1, 1),
+      hasAudio: false, // Will be detected during full analysis
+      fileSize: buffer.byteLength,
+      mimeType,
     };
+
+    // Check for audio track indicator in MP4
+    const bufferView = new Uint8Array(buffer);
+    const bufferStr = String.fromCharCode.apply(null, Array.from(bufferView.slice(0, 1000)));
+    metadata.hasAudio = bufferStr.includes('mp4a') || bufferStr.includes('samr') || bufferStr.includes('sowt');
 
     postSuccess(id, metadata);
   } catch (error) {

@@ -6,6 +6,7 @@
 import { applyNodeChanges, type NodeChange } from '@xyflow/react';
 import { nanoid } from 'nanoid';
 import type { SliceCreator, NodeSliceActions, WorkflowNode, WorkflowNodeData } from '../types';
+import { scheduleWorkflowValidation } from '../utils/validation-scheduler';
 import { createDefaultNodeData } from '@/types/workflow/workflow-editor';
 
 let nodeHistoryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -45,6 +46,7 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
 
       set({ currentWorkflow: updated, isDirty: true, selectedNodes: [nodeId] });
       get().pushHistory();
+      scheduleWorkflowValidation(get);
       return nodeId;
     },
 
@@ -81,6 +83,8 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
       } else {
         get().pushHistory();
       }
+
+      scheduleWorkflowValidation(get);
     },
 
     deleteNode: (nodeId) => {
@@ -100,6 +104,7 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
         selectedNodes: get().selectedNodes.filter((id) => id !== nodeId),
       });
       get().pushHistory();
+      scheduleWorkflowValidation(get);
     },
 
     deleteNodes: (nodeIds) => {
@@ -122,6 +127,7 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
         selectedNodes: get().selectedNodes.filter((id) => !nodeIdSet.has(id)),
       });
       get().pushHistory();
+      scheduleWorkflowValidation(get);
     },
 
     duplicateNode: (nodeId) => {
@@ -150,6 +156,7 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
 
       set({ currentWorkflow: updated, isDirty: true, selectedNodes: [newNodeId] });
       get().pushHistory();
+      scheduleWorkflowValidation(get);
       return newNodeId;
     },
 
@@ -170,6 +177,11 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
       };
 
       set({ currentWorkflow: updated, isDirty: true });
+
+      const shouldValidate = changes.some((c) => c.type !== 'select');
+      if (shouldValidate) {
+        scheduleWorkflowValidation(get);
+      }
     },
   };
 };

@@ -178,6 +178,7 @@ export interface WorkerPoolConfig {
   maxWorkers: number;
   idleTimeout: number;
   taskTimeout: number;
+  maxQueueSize: number;
 }
 
 /**
@@ -250,4 +251,5 @@ export const DEFAULT_WORKER_POOL_CONFIG: WorkerPoolConfig = {
   maxWorkers: navigator?.hardwareConcurrency ?? 4,
   idleTimeout: 30000, // 30 seconds
   taskTimeout: 300000, // 5 minutes
+  maxQueueSize: 1000, // Maximum pending tasks
 };

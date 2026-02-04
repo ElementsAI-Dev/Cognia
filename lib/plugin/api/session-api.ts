@@ -5,7 +5,7 @@
  */
 
 import { useSessionStore } from '@/stores/chat/session-store';
-import { messageRepository } from '@/lib/db';
+import { db, messageRepository } from '@/lib/db';
 import type {
   PluginSessionAPI,
   SessionFilter,
@@ -15,6 +15,7 @@ import type {
 import type { Session, UIMessage } from '@/types';
 import { createPluginSystemLogger } from '../core/logger';
 import { nanoid } from 'nanoid';
+import { createGuardedAPI } from '@/lib/plugin/security/permission-guard';
 
 /**
  * Create the Session API for a plugin
@@ -24,7 +25,7 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
   const subscriptions = new Map<string, () => void>();
   const logger = createPluginSystemLogger(pluginId);
 
-  return {
+  const api: PluginSessionAPI = {
     getCurrentSession: () => {
       const store = useSessionStore.getState();
       if (!store.activeSessionId) return null;
@@ -211,33 +212,51 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
     },
 
     onMessagesChange: (sessionId: string, handler: (messages: UIMessage[]) => void) => {
-      // This would ideally use a database subscription
-      // For now, we'll use polling as a fallback
       let active = true;
-      let lastMessageCount = 0;
+      const table = db.messages;
 
-      const checkMessages = async () => {
+      const emitMessages = async () => {
         if (!active) return;
-        
+
         try {
           const messages = await messageRepository.getBySessionId(sessionId);
-          if (messages.length !== lastMessageCount) {
-            lastMessageCount = messages.length;
-            handler(messages);
-          }
+          handler(messages);
         } catch (error) {
           logger.error('Error checking messages:', error);
         }
+      };
 
-        if (active) {
-          setTimeout(checkMessages, 1000);
+      const handleCreate = (_primaryKey: string, obj: { sessionId?: string }) => {
+        if (!active) return;
+        if (obj.sessionId === sessionId) {
+          void emitMessages();
         }
       };
 
-      checkMessages();
+      const handleUpdate = (_mods: unknown, _primaryKey: string, obj: { sessionId?: string }) => {
+        if (!active) return;
+        if (obj?.sessionId === sessionId) {
+          void emitMessages();
+        }
+      };
+
+      const handleDelete = (_primaryKey: string, obj: { sessionId?: string }) => {
+        if (!active) return;
+        if (obj?.sessionId === sessionId) {
+          void emitMessages();
+        }
+      };
+
+      void emitMessages();
+      table.hook('creating', handleCreate);
+      table.hook('updating', handleUpdate);
+      table.hook('deleting', handleDelete);
 
       return () => {
         active = false;
+        table.hook('creating').unsubscribe(handleCreate);
+        table.hook('updating').unsubscribe(handleUpdate);
+        table.hook('deleting').unsubscribe(handleDelete);
       };
     },
 
@@ -288,4 +307,22 @@ export function createSessionAPI(pluginId: string): PluginSessionAPI {
       }
     },
   };
+
+  return createGuardedAPI(pluginId, api, {
+    getCurrentSession: 'session:read',
+    getCurrentSessionId: 'session:read',
+    getSession: 'session:read',
+    listSessions: 'session:read',
+    getMessages: 'session:read',
+    onSessionChange: 'session:read',
+    onMessagesChange: 'session:read',
+    getSessionStats: 'session:read',
+    createSession: 'session:write',
+    updateSession: 'session:write',
+    switchSession: 'session:write',
+    deleteSession: 'session:write',
+    addMessage: 'session:write',
+    updateMessage: 'session:write',
+    deleteMessage: 'session:write',
+  });
 }

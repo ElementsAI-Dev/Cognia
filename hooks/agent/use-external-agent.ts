@@ -20,6 +20,11 @@ import type {
   AcpToolInfo,
   AcpPermissionRequest,
   AcpPermissionResponse,
+  AcpAvailableCommand,
+  AcpPlanEntry,
+  AcpPermissionMode,
+  AcpSessionModelState,
+  AcpAuthMethod,
 } from '@/types/agent/external-agent';
 import type { AgentTool } from '@/lib/ai/agent';
 
@@ -47,6 +52,12 @@ export interface UseExternalAgentState {
   progress: number;
   /** Pending permission request */
   pendingPermission: AcpPermissionRequest | null;
+  /** Available slash commands for the active session */
+  availableCommands: AcpAvailableCommand[];
+  /** Current plan entries for the active session */
+  planEntries: AcpPlanEntry[];
+  /** Current plan step index */
+  planStep: number | null;
   /** Streaming response text */
   streamingResponse: string;
   /** Last execution result */
@@ -84,6 +95,18 @@ export interface UseExternalAgentActions {
   cancel: () => Promise<void>;
   /** Respond to a permission request */
   respondToPermission: (response: AcpPermissionResponse) => Promise<void>;
+  /** Set session permission mode */
+  setSessionMode: (modeId: AcpPermissionMode) => Promise<void>;
+  /** Set session model */
+  setSessionModel: (modelId: string) => Promise<void>;
+  /** Get available models for the active session */
+  getSessionModels: () => AcpSessionModelState | undefined;
+  /** Get available authentication methods */
+  getAuthMethods: () => AcpAuthMethod[];
+  /** Check if authentication is required */
+  isAuthenticationRequired: () => boolean;
+  /** Authenticate with the agent */
+  authenticate: (methodId: string, credentials?: Record<string, unknown>) => Promise<void>;
   /** Get agent tools as Cognia AgentTools */
   getAgentTools: (agentId?: string) => Record<string, AgentTool>;
   /** Check agent health */
@@ -142,6 +165,9 @@ export function useExternalAgent(): UseExternalAgentReturn {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [pendingPermission, setPendingPermission] = useState<AcpPermissionRequest | null>(null);
+  const [availableCommands, setAvailableCommands] = useState<AcpAvailableCommand[]>([]);
+  const [planEntries, setPlanEntries] = useState<AcpPlanEntry[]>([]);
+  const [planStep, setPlanStep] = useState<number | null>(null);
   const [streamingResponse, setStreamingResponse] = useState('');
   const [lastResult, setLastResult] = useState<ExternalAgentResult | null>(null);
 
@@ -198,6 +224,56 @@ export function useExternalAgent(): UseExternalAgentReturn {
       }
     };
   }, [refresh]);
+
+  // Subscribe to ACP session updates for commands/plan
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+    let isActive = true;
+
+    const attach = async () => {
+      if (!activeAgentId) {
+        setAvailableCommands([]);
+        setPlanEntries([]);
+        setPlanStep(null);
+        return;
+      }
+
+      const manager = await getManager();
+
+      if (!isActive) return;
+
+      unsubscribe = manager.addEventListener(activeAgentId, (event) => {
+        if (event.type === 'commands_update') {
+          setAvailableCommands(event.commands);
+        }
+        if (event.type === 'plan_update') {
+          setPlanEntries(event.entries);
+          setPlanStep(event.step ?? null);
+        }
+      });
+
+      if (activeSession) {
+        const session = manager.getSession(activeAgentId, activeSession.id);
+        const sessionCommands = session?.metadata?.availableCommands as AcpAvailableCommand[] | undefined;
+        const sessionPlan = session?.metadata?.plan as AcpPlanEntry[] | undefined;
+        if (sessionCommands) {
+          setAvailableCommands(sessionCommands);
+        }
+        if (sessionPlan) {
+          setPlanEntries(sessionPlan);
+          const activeIndex = sessionPlan.findIndex((entry) => entry.status === 'in_progress');
+          setPlanStep(activeIndex >= 0 ? activeIndex : null);
+        }
+      }
+    };
+
+    attach();
+
+    return () => {
+      isActive = false;
+      unsubscribe?.();
+    };
+  }, [activeAgentId, activeSession, getManager]);
 
   // Add a new agent
   const addAgent = useCallback(
@@ -510,13 +586,81 @@ export function useExternalAgent(): UseExternalAgentReturn {
   // Respond to permission request
   const respondToPermission = useCallback(
     async (response: AcpPermissionResponse): Promise<void> => {
+      const pendingRequest = pendingPermission;
       if (permissionResolveRef.current) {
         permissionResolveRef.current(response);
         permissionResolveRef.current = null;
+        setPendingPermission(null);
+        return;
       }
+
+      if (activeAgentId && pendingRequest) {
+        try {
+          const manager = await getManager();
+          await manager.respondToPermission(activeAgentId, pendingRequest.sessionId, response);
+        } catch (err) {
+          console.error('[useExternalAgent] Failed to respond to permission:', err);
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      }
+
       setPendingPermission(null);
     },
-    []
+    [getManager, activeAgentId, pendingPermission]
+  );
+
+  const setSessionMode = useCallback(
+    async (modeId: AcpPermissionMode): Promise<void> => {
+      if (!activeAgentId || !activeSession) {
+        throw new Error('No active session to update');
+      }
+      const manager = await getManager();
+      await manager.setSessionMode(activeAgentId, activeSession.id, modeId);
+    },
+    [getManager, activeAgentId, activeSession]
+  );
+
+  const setSessionModel = useCallback(
+    async (modelId: string): Promise<void> => {
+      if (!activeAgentId || !activeSession) {
+        throw new Error('No active session to update');
+      }
+      const manager = await getManager();
+      await manager.setSessionModel(activeAgentId, activeSession.id, modelId);
+    },
+    [getManager, activeAgentId, activeSession]
+  );
+
+  const getSessionModels = useCallback((): AcpSessionModelState | undefined => {
+    if (!activeAgentId || !activeSession || !managerRef.current) {
+      return undefined;
+    }
+    return managerRef.current.getSessionModels(activeAgentId, activeSession.id);
+  }, [activeAgentId, activeSession]);
+
+  const getAuthMethods = useCallback((): AcpAuthMethod[] => {
+    if (!activeAgentId || !managerRef.current) {
+      return [];
+    }
+    return managerRef.current.getAuthMethods(activeAgentId);
+  }, [activeAgentId]);
+
+  const isAuthenticationRequired = useCallback((): boolean => {
+    if (!activeAgentId || !managerRef.current) {
+      return false;
+    }
+    return managerRef.current.isAuthenticationRequired(activeAgentId);
+  }, [activeAgentId]);
+
+  const authenticate = useCallback(
+    async (methodId: string, credentials?: Record<string, unknown>): Promise<void> => {
+      if (!activeAgentId) {
+        throw new Error('No active agent selected');
+      }
+      const manager = await getManager();
+      await manager.authenticate(activeAgentId, methodId, credentials);
+    },
+    [getManager, activeAgentId]
   );
 
   // Get agent tools
@@ -560,6 +704,9 @@ export function useExternalAgent(): UseExternalAgentReturn {
     error,
     progress,
     pendingPermission,
+    availableCommands,
+    planEntries,
+    planStep,
     streamingResponse,
     lastResult,
     // Actions
@@ -575,6 +722,12 @@ export function useExternalAgent(): UseExternalAgentReturn {
     executeStreaming,
     cancel,
     respondToPermission,
+    setSessionMode,
+    setSessionModel,
+    getSessionModels,
+    getAuthMethods,
+    isAuthenticationRequired,
+    authenticate,
     getAgentTools,
     checkHealth,
     refresh,

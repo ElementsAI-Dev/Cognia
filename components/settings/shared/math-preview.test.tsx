@@ -8,6 +8,10 @@ jest.mock('katex', () => ({
   renderToString: jest.fn().mockReturnValue('<span class="katex">E = mc²</span>'),
 }));
 
+jest.mock('@/lib/latex/config', () => ({
+  getKatexOptions: jest.fn(() => ({ displayMode: true })),
+}));
+
 describe('MathPreview', () => {
   it('renders preview label', () => {
     render(<MathPreview scale={1} alignment="center" previewLabel="Preview" />);
@@ -51,6 +55,12 @@ describe('MathPreview', () => {
       <MathPreview scale={1} alignment="center" previewLabel="Preview" />
     );
     expect(container.innerHTML).toContain('katex');
+  });
+
+  it('uses unified KaTeX options', () => {
+    const { getKatexOptions } = jest.requireMock('@/lib/latex/config');
+    render(<MathPreview scale={1} alignment="center" previewLabel="Preview" />);
+    expect(getKatexOptions).toHaveBeenCalledWith(true);
   });
 
   it('has proper container structure', () => {
