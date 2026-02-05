@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Select,
   SelectContent,
@@ -109,35 +110,25 @@ export function VideoStudioHeader({
         </div>
 
         {/* Mode Selector */}
-        <div className="hidden sm:flex items-center gap-1 ml-4 bg-muted rounded-lg p-1">
-          <Button
-            variant={studioMode === 'recording' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => onStudioModeChange('recording')}
-            className="h-7"
-          >
-            <Disc className="h-3 w-3 mr-1" />
+        <ToggleGroup
+          type="single"
+          value={studioMode}
+          onValueChange={(value) => value && onStudioModeChange(value as StudioMode)}
+          className="hidden sm:flex ml-4 bg-muted rounded-lg p-1"
+        >
+          <ToggleGroupItem value="recording" size="sm" className="h-7 px-3 gap-1">
+            <Disc className="h-3 w-3" />
             {tEditor('recording')}
-          </Button>
-          <Button
-            variant={studioMode === 'ai-generation' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => onStudioModeChange('ai-generation')}
-            className="h-7"
-          >
-            <Sparkles className="h-3 w-3 mr-1" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="ai-generation" size="sm" className="h-7 px-3 gap-1">
+            <Sparkles className="h-3 w-3" />
             {tGen('aiGeneration')}
-          </Button>
-          <Button
-            variant={studioMode === 'editor' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => onStudioModeChange('editor')}
-            className="h-7"
-          >
-            <Scissors className="h-3 w-3 mr-1" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="editor" size="sm" className="h-7 px-3 gap-1">
+            <Scissors className="h-3 w-3" />
             {t('editor')}
-          </Button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       <Separator orientation="vertical" className="h-6 hidden sm:block" />

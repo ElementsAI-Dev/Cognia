@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { useMcpStore } from '@/stores';
 import type { PromptContent, PromptMessage } from '@/types/mcp';
 
@@ -82,14 +83,32 @@ export function McpPromptsPanel({ serverId, onInsert, className }: McpPromptsPan
                 </Button>
               ))}
               {prompts.length === 0 && (
-                <p className="text-muted-foreground text-sm">No prompts exposed by this server.</p>
+                <Empty className="py-6">
+                  <EmptyMedia variant="icon">
+                    <FileText className="h-5 w-5" />
+                  </EmptyMedia>
+                  <EmptyTitle className="text-sm">No prompts available</EmptyTitle>
+                  <EmptyDescription className="text-xs">
+                    This server does not expose any prompts.
+                  </EmptyDescription>
+                </Empty>
               )}
             </div>
           </ScrollArea>
         </div>
 
         <div className="rounded-md border p-3 min-h-[260px]">
-          {!selectedPrompt && <p className="text-muted-foreground text-sm">Select a prompt to preview.</p>}
+          {!selectedPrompt && (
+            <Empty className="py-8">
+              <EmptyMedia variant="icon">
+                <Sparkles className="h-5 w-5" />
+              </EmptyMedia>
+              <EmptyTitle className="text-sm">Select a prompt</EmptyTitle>
+              <EmptyDescription className="text-xs">
+                Choose a prompt from the list to preview its content.
+              </EmptyDescription>
+            </Empty>
+          )}
           {isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />

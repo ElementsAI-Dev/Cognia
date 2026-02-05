@@ -15,6 +15,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Empty, EmptyDescription } from '@/components/ui/empty';
+import { ImageOff } from 'lucide-react';
 
 export type ComparisonMode = 'split-horizontal' | 'split-vertical' | 'side-by-side' | 'toggle';
 
@@ -287,9 +290,10 @@ export function ImagePreview({
   const renderContent = () => {
     if (!originalImage && !editedImage) {
       return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-muted-foreground text-sm">{t('noImageLoaded')}</div>
-        </div>
+        <Empty className="h-full border-0">
+          <ImageOff className="h-12 w-12 text-muted-foreground/50" />
+          <EmptyDescription>{t('noImageLoaded')}</EmptyDescription>
+        </Empty>
       );
     }
 
@@ -367,9 +371,9 @@ export function ImagePreview({
         return (
           <div className="flex w-full h-full gap-2">
             <div className="flex-1 relative overflow-hidden border rounded">
-              <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-1 rounded">
+              <Badge variant="secondary" className="absolute top-2 left-2 bg-black/50 text-white border-0">
                 {t('original')}
-              </div>
+              </Badge>
               <canvas
                 ref={originalCanvasRef}
                 className="absolute inset-0 m-auto"
@@ -381,9 +385,9 @@ export function ImagePreview({
               />
             </div>
             <div className="flex-1 relative overflow-hidden border rounded">
-              <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-1 rounded">
+              <Badge variant="secondary" className="absolute top-2 left-2 bg-black/50 text-white border-0">
                 {t('edited')}
-              </div>
+              </Badge>
               <canvas
                 ref={editedCanvasRef}
                 className="absolute inset-0 m-auto"
@@ -405,9 +409,9 @@ export function ImagePreview({
               className="absolute inset-0 m-auto"
               style={{ width: canvasSize.width, height: canvasSize.height }}
             />
-            <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">
+            <Badge variant="secondary" className="absolute top-2 left-2 bg-black/50 text-white border-0">
               {showOriginal ? 'Original (hold Space)' : 'Edited'}
-            </div>
+            </Badge>
           </div>
         );
 
@@ -429,9 +433,9 @@ export function ImagePreview({
       {renderHistogram()}
 
       {/* Zoom indicator */}
-      <div className="absolute bottom-4 left-4 text-xs bg-black/50 text-white px-2 py-1 rounded">
+      <Badge variant="secondary" className="absolute bottom-4 left-4 bg-black/50 text-white border-0">
         {Math.round(zoom * 100)}%
-      </div>
+      </Badge>
     </div>
   );
 }

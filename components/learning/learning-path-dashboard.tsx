@@ -27,6 +27,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { useLearningStore } from '@/stores/learning';
 import { 
   formatTimeSpent, 
@@ -212,14 +213,18 @@ export const LearningPathDashboard = memo(function LearningPathDashboard({
       {/* Empty State */}
       {activePaths.length === 0 && !selectedPath && (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-            <Map className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">
-              {t('dashboard.noActivePaths') || '还没有学习路径'}
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              {t('dashboard.noActivePathsDesc') || '开始一个系统学习计划，跟踪你的学习进度'}
-            </p>
+          <CardContent className="py-8">
+            <Empty className="border-0">
+              <EmptyMedia variant="icon">
+                <Map className="h-6 w-6" />
+              </EmptyMedia>
+              <EmptyTitle>
+                {t('dashboard.noActivePaths') || '还没有学习路径'}
+              </EmptyTitle>
+              <EmptyDescription>
+                {t('dashboard.noActivePathsDesc') || '开始一个系统学习计划，跟踪你的学习进度'}
+              </EmptyDescription>
+            </Empty>
           </CardContent>
         </Card>
       )}

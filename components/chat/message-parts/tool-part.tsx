@@ -14,9 +14,11 @@ import {
   ToolInput,
   ToolOutput,
 } from '@/components/ai-elements/tool';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -279,11 +281,14 @@ export function ToolPart({
         
         {/* Running progress indicator */}
         {isRunning && (
-          <div className="px-4 py-2">
+          <div className="px-4 py-2 space-y-2">
             <Progress value={undefined} className="h-1" />
-            <p className="text-xs text-muted-foreground mt-1 animate-pulse">
-              {t('executing')}...
-            </p>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-3 w-3 rounded-full" />
+              <p className="text-xs text-muted-foreground animate-pulse">
+                {t('executing')}...
+              </p>
+            </div>
           </div>
         )}
         
@@ -329,16 +334,14 @@ export function ToolPart({
         <ToolInput input={part.args} />
         
         {isError && part.errorText ? (
-          <div className="px-4 py-3 bg-destructive/5 border-t border-destructive/20">
-            <div className="flex items-start gap-2">
-              <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-destructive">{t('errorOccurred')}</p>
-                <p className="text-xs text-destructive/80 mt-1 whitespace-pre-wrap break-words">
-                  {part.errorText}
-                </p>
-              </div>
-            </div>
+          <div className="px-4 py-3">
+            <Alert variant="destructive">
+              <XCircle className="h-4 w-4" />
+              <AlertTitle>{t('errorOccurred')}</AlertTitle>
+              <AlertDescription className="whitespace-pre-wrap break-words">
+                {part.errorText}
+              </AlertDescription>
+            </Alert>
           </div>
         ) : null}
         

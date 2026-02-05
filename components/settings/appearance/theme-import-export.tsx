@@ -8,6 +8,7 @@
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Download, Upload, FileJson, Check, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -20,7 +21,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useSettingsStore } from '@/stores';
-import { cn } from '@/lib/utils';
 import { validateThemeData } from '@/lib/themes';
 import type { ThemeExportData } from '@/types/settings';
 
@@ -273,19 +273,19 @@ export function ThemeImportExport() {
 
             {/* Import Status */}
             {importStatus !== 'idle' && (
-              <div
-                className={cn(
-                  'flex items-center gap-2 p-2 rounded-md text-xs',
-                  importStatus === 'success' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'
-                )}
+              <Alert
+                variant={importStatus === 'error' ? 'destructive' : 'default'}
+                className="py-2"
               >
                 {importStatus === 'success' ? (
-                  <Check className="h-3.5 w-3.5" />
+                  <Check className="h-4 w-4 text-green-600" />
                 ) : (
-                  <AlertCircle className="h-3.5 w-3.5" />
+                  <AlertCircle className="h-4 w-4" />
                 )}
-                {importMessage}
-              </div>
+                <AlertDescription className="text-xs">
+                  {importMessage}
+                </AlertDescription>
+              </Alert>
             )}
           </div>
 

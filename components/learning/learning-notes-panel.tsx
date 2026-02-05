@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Empty, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { useLearningStore } from '@/stores/learning';
 import type { LearningNote } from '@/types/learning';
@@ -190,21 +191,22 @@ export const LearningNotesPanel = memo(function LearningNotesPanel({
 
             {/* Empty State */}
             {notes.length === 0 && !isAddingNote && (
-              <div className="text-center py-6">
-                <StickyNote className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  {t('notes.empty')}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => setIsAddingNote(true)}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t('notes.addFirst')}
-                </Button>
-              </div>
+              <Empty className="border-0 py-6">
+                <EmptyMedia variant="icon">
+                  <StickyNote className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle className="text-sm">{t('notes.empty')}</EmptyTitle>
+                <EmptyContent>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddingNote(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    {t('notes.addFirst')}
+                  </Button>
+                </EmptyContent>
+              </Empty>
             )}
           </div>
         </ScrollArea>

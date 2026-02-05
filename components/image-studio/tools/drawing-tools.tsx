@@ -23,6 +23,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Switch } from '@/components/ui/switch';
 import {
   Pencil,
   Square,
@@ -601,23 +603,27 @@ export function DrawingTools({
         {/* Toolbar */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Shape tools */}
-          <div className="flex items-center gap-1 border rounded-md p-1">
+          <ToggleGroup
+            type="single"
+            value={currentTool}
+            onValueChange={(value) => value && setCurrentTool(value as ShapeType)}
+            className="border rounded-md p-1"
+          >
             {SHAPE_TOOLS.map((tool) => (
               <Tooltip key={tool.type}>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant={currentTool === tool.type ? 'secondary' : 'ghost'}
-                    size="icon"
+                  <ToggleGroupItem
+                    value={tool.type}
+                    size="sm"
                     className="h-8 w-8"
-                    onClick={() => setCurrentTool(tool.type)}
                   >
                     {tool.icon}
-                  </Button>
+                  </ToggleGroupItem>
                 </TooltipTrigger>
                 <TooltipContent>{tool.label}</TooltipContent>
               </Tooltip>
             ))}
-          </div>
+          </ToggleGroup>
 
           <Separator orientation="vertical" className="h-6" />
 
@@ -802,14 +808,10 @@ export function DrawingTools({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">{t('fillShape')}</Label>
-                    <Button
-                      variant={fill ? 'secondary' : 'outline'}
-                      size="sm"
-                      className="h-6 text-xs"
-                      onClick={() => setFill(!fill)}
-                    >
-                      {fill ? tc('on') : tc('off')}
-                    </Button>
+                    <Switch
+                      checked={fill}
+                      onCheckedChange={setFill}
+                    />
                   </div>
                   {fill && (
                     <div className="space-y-2">

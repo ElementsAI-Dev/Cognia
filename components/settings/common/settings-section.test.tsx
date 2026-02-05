@@ -200,7 +200,8 @@ describe('SettingsDivider', () => {
   it('renders simple divider', () => {
     const { container } = render(<SettingsDivider />);
     
-    expect(container.firstChild).toHaveClass('h-px');
+    // Separator uses data-orientation attribute for responsive height
+    expect(container.querySelector('[data-slot="separator"]')).toBeInTheDocument();
   });
 
   it('renders divider with label', () => {
@@ -343,12 +344,13 @@ describe('SettingsAlert', () => {
 
   it('applies variant styles', () => {
     const { container } = render(
-      <SettingsAlert variant="warning">
-        Warning message
+      <SettingsAlert variant="destructive">
+        Error message
       </SettingsAlert>
     );
     
-    expect(container.firstChild).toHaveClass('bg-yellow-500/10');
+    // Using @ui/alert, check for the alert role and data-slot
+    expect(container.querySelector('[data-slot="alert"]')).toBeInTheDocument();
   });
 });
 

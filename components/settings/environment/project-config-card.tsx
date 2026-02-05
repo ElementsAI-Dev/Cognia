@@ -48,6 +48,12 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Table,
   TableBody,
   TableHead,
@@ -114,14 +120,21 @@ export function ProjectConfigCard({
             <FolderOpen className="h-4 w-4 text-muted-foreground" />
             <CardTitle className="text-sm">{config.projectName}</CardTitle>
           </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 w-7 p-0 text-destructive"
-            onClick={onDelete}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0 text-destructive"
+                  onClick={onDelete}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('deleteProject')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <CardDescription className="text-[10px] truncate">
           {config.projectPath}

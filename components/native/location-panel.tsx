@@ -7,9 +7,10 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { MapPin, Search, Navigation, Copy, Check } from 'lucide-react';
+import { MapPin, Search, Navigation, Copy, Check, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { MapContainer, AddressSearch } from '@/components/map';
 import { useMapLocation } from '@/hooks/map';
@@ -93,9 +94,10 @@ export function LocationPanel({ className }: LocationPanelProps) {
 
       {/* Error display */}
       {error && (
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {/* Address Search */}

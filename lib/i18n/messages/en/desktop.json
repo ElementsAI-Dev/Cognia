@@ -245,6 +245,7 @@
     "allCategories": "All Categories",
     "clearFilters": "Clear Filters",
     "noVariables": "No environment variables found",
+    "noVariablesTitle": "No Variables",
     "addFirst": "Add your first variable",
     "confirmDeleteTitle": "Delete Variable?",
     "confirmDeleteDesc": "Are you sure you want to delete {key}? This action cannot be undone."

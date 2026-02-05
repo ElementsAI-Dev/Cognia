@@ -41,6 +41,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Empty,
+  EmptyMedia,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
 import { workflowRepository } from '@/lib/db/repositories';
 import { workflowEditorTemplates } from '@/lib/workflow-editor/templates';
 import type { VisualWorkflow, WorkflowEditorTemplate } from '@/types/workflow/workflow-editor';
@@ -360,19 +367,23 @@ export function WorkflowPickerDialog({
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       </div>
                     ) : filteredWorkflows.length === 0 ? (
-                      <div className="text-center py-8">
-                        <Workflow className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                        <p className="text-sm text-muted-foreground">
-                          {searchQuery
-                            ? t('noWorkflowsFound') || 'No workflows found'
-                            : t('noWorkflowsYet') || 'No workflows yet'}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {searchQuery
-                            ? t('tryDifferentSearch') || 'Try a different search term'
-                            : t('createWorkflowFirst') || 'Create a workflow in the editor first'}
-                        </p>
-                      </div>
+                      <Empty className="py-8 border-0">
+                        <EmptyHeader>
+                          <EmptyMedia variant="icon">
+                            <Workflow className="h-6 w-6" />
+                          </EmptyMedia>
+                          <EmptyTitle>
+                            {searchQuery
+                              ? t('noWorkflowsFound') || 'No workflows found'
+                              : t('noWorkflowsYet') || 'No workflows yet'}
+                          </EmptyTitle>
+                          <EmptyDescription>
+                            {searchQuery
+                              ? t('tryDifferentSearch') || 'Try a different search term'
+                              : t('createWorkflowFirst') || 'Create a workflow in the editor first'}
+                          </EmptyDescription>
+                        </EmptyHeader>
+                      </Empty>
                     ) : (
                       filteredWorkflows.map((workflow) => (
                         <WorkflowCard
@@ -395,12 +406,16 @@ export function WorkflowPickerDialog({
                 <ScrollArea className="h-[400px]">
                   <div className="px-6 py-4 space-y-2">
                     {filteredTemplates.length === 0 ? (
-                      <div className="text-center py-8">
-                        <Sparkles className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                        <p className="text-sm text-muted-foreground">
-                          {t('noTemplatesFound') || 'No templates found'}
-                        </p>
-                      </div>
+                      <Empty className="py-8 border-0">
+                        <EmptyHeader>
+                          <EmptyMedia variant="icon">
+                            <Sparkles className="h-6 w-6" />
+                          </EmptyMedia>
+                          <EmptyTitle>
+                            {t('noTemplatesFound') || 'No templates found'}
+                          </EmptyTitle>
+                        </EmptyHeader>
+                      </Empty>
                     ) : (
                       filteredTemplates.map((template: WorkflowEditorTemplate) => (
                         <TemplateCard

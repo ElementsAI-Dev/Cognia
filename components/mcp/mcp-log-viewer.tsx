@@ -30,6 +30,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import type { LogLevel } from '@/types/mcp';
 
@@ -270,9 +271,17 @@ export function MCPLogViewer({
           {/* Log entries */}
           <ScrollArea style={{ maxHeight }} ref={scrollRef}>
             {filteredLogs.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                {logs.length === 0 ? t('noLogs') : t('noMatchingLogs')}
-              </div>
+              <Empty className="py-8">
+                <EmptyMedia variant="icon">
+                  <Info className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>
+                  {logs.length === 0 ? t('noLogs') : t('noMatchingLogs')}
+                </EmptyTitle>
+                <EmptyDescription>
+                  {logs.length === 0 ? t('noLogsDescription') : t('noMatchingLogsDescription')}
+                </EmptyDescription>
+              </Empty>
             ) : (
               <div className="divide-y divide-border/30">
                 {filteredLogs.map((log) => {

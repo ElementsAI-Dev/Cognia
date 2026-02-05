@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Kbd } from '@/components/ui/kbd';
 import {
   Tooltip,
   TooltipContent,
@@ -319,9 +320,9 @@ export function SimplifiedWelcome({
           style={{ animationDelay: '400ms' }}
         >
           <span>Type a message or press</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-muted/50 text-[10px] font-medium">
-            <ArrowUp className="h-2.5 w-2.5 inline" />
-          </kbd>
+          <Kbd className="h-auto px-1.5 py-0.5 text-[10px]">
+            <ArrowUp className="h-2.5 w-2.5" />
+          </Kbd>
           <span>to send</span>
         </p>
 

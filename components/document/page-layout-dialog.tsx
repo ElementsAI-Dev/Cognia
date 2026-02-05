@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -373,72 +374,76 @@ export function PageLayoutDialog({
       {/* Header/Footer Tab */}
       <TabsContent value="headerFooter" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
         {/* Header */}
-        <div className="space-y-2.5 sm:space-y-3 p-3 sm:p-4 border rounded-lg">
-          <div className="flex items-center justify-between gap-2">
-            <Label className="text-sm sm:text-base font-medium">{t('header')}</Label>
-            <Switch
-              checked={localSettings.headerEnabled}
-              onCheckedChange={(checked) => setLocalSettings(prev => ({
-                ...prev,
-                headerEnabled: checked,
-              }))}
-              className="touch-manipulation"
-            />
-          </div>
-          {localSettings.headerEnabled && (
-            <Input
-              placeholder={t('headerContentPlaceholder')}
-              value={localSettings.headerContent || ''}
-              onChange={(e) => setLocalSettings(prev => ({
-                ...prev,
-                headerContent: e.target.value,
-              }))}
-              className="h-9 sm:h-10"
-            />
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="space-y-2.5 sm:space-y-3 p-3 sm:p-4 border rounded-lg">
-          <div className="flex items-center justify-between gap-2">
-            <Label className="text-sm sm:text-base font-medium">{t('footer')}</Label>
-            <Switch
-              checked={localSettings.footerEnabled}
-              onCheckedChange={(checked) => setLocalSettings(prev => ({
-                ...prev,
-                footerEnabled: checked,
-              }))}
-              className="touch-manipulation"
-            />
-          </div>
-          {localSettings.footerEnabled && (
-            <>
+        <Card className="py-3 sm:py-4">
+          <CardContent className="space-y-2.5 sm:space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-sm sm:text-base font-medium">{t('header')}</Label>
+              <Switch
+                checked={localSettings.headerEnabled}
+                onCheckedChange={(checked) => setLocalSettings(prev => ({
+                  ...prev,
+                  headerEnabled: checked,
+                }))}
+                className="touch-manipulation"
+              />
+            </div>
+            {localSettings.headerEnabled && (
               <Input
-                placeholder={t('footerContentPlaceholder')}
-                value={localSettings.footerContent || ''}
+                placeholder={t('headerContentPlaceholder')}
+                value={localSettings.headerContent || ''}
                 onChange={(e) => setLocalSettings(prev => ({
                   ...prev,
-                  footerContent: e.target.value,
+                  headerContent: e.target.value,
                 }))}
                 className="h-9 sm:h-10"
               />
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="showPageNumbers"
-                  checked={localSettings.showPageNumbers}
-                  onCheckedChange={(checked) => setLocalSettings(prev => ({
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Footer */}
+        <Card className="py-3 sm:py-4">
+          <CardContent className="space-y-2.5 sm:space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-sm sm:text-base font-medium">{t('footer')}</Label>
+              <Switch
+                checked={localSettings.footerEnabled}
+                onCheckedChange={(checked) => setLocalSettings(prev => ({
+                  ...prev,
+                  footerEnabled: checked,
+                }))}
+                className="touch-manipulation"
+              />
+            </div>
+            {localSettings.footerEnabled && (
+              <>
+                <Input
+                  placeholder={t('footerContentPlaceholder')}
+                  value={localSettings.footerContent || ''}
+                  onChange={(e) => setLocalSettings(prev => ({
                     ...prev,
-                    showPageNumbers: checked,
+                    footerContent: e.target.value,
                   }))}
-                  className="touch-manipulation"
+                  className="h-9 sm:h-10"
                 />
-                <Label htmlFor="showPageNumbers" className="text-xs sm:text-sm cursor-pointer">
-                  {t('showPageNumbers')}
-                </Label>
-              </div>
-            </>
-          )}
-        </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="showPageNumbers"
+                    checked={localSettings.showPageNumbers}
+                    onCheckedChange={(checked) => setLocalSettings(prev => ({
+                      ...prev,
+                      showPageNumbers: checked,
+                    }))}
+                    className="touch-manipulation"
+                  />
+                  <Label htmlFor="showPageNumbers" className="text-xs sm:text-sm cursor-pointer">
+                    {t('showPageNumbers')}
+                  </Label>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </TabsContent>
     </Tabs>
   );

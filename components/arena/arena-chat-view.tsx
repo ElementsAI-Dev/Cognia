@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import {
   ArenaLeaderboard,
   ArenaHeatmap,
@@ -146,24 +147,26 @@ export function ArenaChatView({
             <ScrollArea className="h-full">
               <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                 {/* Quick Start Card */}
-                <div className="rounded-lg border bg-card p-4">
-                  <h3 className="font-medium mb-2">{t('quickBattle.title')}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {t('description')}
-                  </p>
-                  <Button onClick={handleStartBattle} className="w-full gap-2">
-                    <Plus className="h-4 w-4" />
-                    {t('newBattle')}
-                  </Button>
-                </div>
+                <Card className="py-4">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">{t('quickBattle.title')}</CardTitle>
+                    <CardDescription>{t('description')}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button onClick={handleStartBattle} className="w-full gap-2">
+                      <Plus className="h-4 w-4" />
+                      {t('newBattle')}
+                    </Button>
+                  </CardContent>
+                </Card>
 
                 {/* Recent Battles */}
                 {recentBattles.length > 0 && (
-                  <div className="rounded-lg border bg-card">
-                    <div className="px-4 py-3 border-b">
-                      <h3 className="font-medium text-sm">{t('history.recentBattles')}</h3>
-                    </div>
-                    <div className="divide-y">
+                  <Card className="py-0 gap-0">
+                    <CardHeader className="px-4 py-3 border-b">
+                      <CardTitle className="text-sm">{t('history.recentBattles')}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 divide-y">
                       {recentBattles.map((battle) => (
                         <div
                           key={battle.id}
@@ -202,20 +205,24 @@ export function ArenaChatView({
                           </div>
                         </div>
                       ))}
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 )}
 
                 {/* Stats Summary */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg border bg-card p-3">
-                    <div className="text-2xl font-bold">{battles.length}</div>
-                    <div className="text-xs text-muted-foreground">{t('history.totalBattles')}</div>
-                  </div>
-                  <div className="rounded-lg border bg-card p-3">
-                    <div className="text-2xl font-bold">{completedBattles.length}</div>
-                    <div className="text-xs text-muted-foreground">{t('history.completed')}</div>
-                  </div>
+                  <Card className="py-3">
+                    <CardContent className="p-0 px-3">
+                      <div className="text-2xl font-bold">{battles.length}</div>
+                      <div className="text-xs text-muted-foreground">{t('history.totalBattles')}</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="py-3">
+                    <CardContent className="p-0 px-3">
+                      <div className="text-2xl font-bold">{completedBattles.length}</div>
+                      <div className="text-xs text-muted-foreground">{t('history.completed')}</div>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             </ScrollArea>

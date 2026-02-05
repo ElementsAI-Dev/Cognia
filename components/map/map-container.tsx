@@ -7,30 +7,16 @@
 
 import { useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { useTranslations } from 'next-intl';
-import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LoadingOverlay } from '@/components/ui/loading-states';
 import type { MapContainerProps, MapPosition, MapBounds } from '@/types/map';
 import { DEFAULT_MAP_CENTER, DEFAULT_ZOOM, MIN_ZOOM, MAX_ZOOM } from '@/types/map';
-
-function MapLoadingPlaceholder() {
-  const t = useTranslations('map');
-
-  return (
-    <div className="flex h-full w-full items-center justify-center bg-muted/30">
-      <div className="flex flex-col items-center gap-2">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">{t('loading')}</span>
-      </div>
-    </div>
-  );
-}
 
 const LeafletMap = dynamic(
   () => import('./leaflet-map').then((mod) => mod.LeafletMap),
   {
     ssr: false,
-    loading: () => <MapLoadingPlaceholder />,
+    loading: () => <LoadingOverlay />,
   }
 );
 

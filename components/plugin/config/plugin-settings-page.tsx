@@ -59,6 +59,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 import { PluginList } from '../core/plugin-list';
 import { PluginEmptyState } from '../core/plugin-empty-state';
@@ -361,7 +362,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
       });
       if (selected && typeof selected === 'string') {
         const manager = getPluginManager();
-        await manager.installPlugin(selected, { type: 'archive' });
+        await manager.installPlugin(selected, { type: 'local' });
         await handleRefresh();
         toast.success(t('pluginImported'));
       }
@@ -618,31 +619,28 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 activeCount={filteredPlugins.length}
               />
 
-              {/* View Mode Toggle - Enhanced */}
-              <div className="flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5">
-                <Button
-                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className={cn(
-                    "h-8 w-8 p-0 rounded-md transition-all duration-200",
-                    viewMode === 'grid' && "bg-background shadow-sm"
-                  )}
-                  onClick={() => setViewMode('grid')}
+              {/* View Mode Toggle - Enhanced with ToggleGroup */}
+              <ToggleGroup
+                type="single"
+                value={viewMode}
+                onValueChange={(value) => value && setViewMode(value as ViewMode)}
+                className="rounded-lg border border-border/50 bg-muted/30 p-0.5"
+              >
+                <ToggleGroupItem
+                  value="grid"
+                  aria-label="Grid view"
+                  className="h-8 w-8 p-0 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm"
                 >
                   <LayoutGrid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className={cn(
-                    "h-8 w-8 p-0 rounded-md transition-all duration-200",
-                    viewMode === 'list' && "bg-background shadow-sm"
-                  )}
-                  onClick={() => setViewMode('list')}
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="list"
+                  aria-label="List view"
+                  className="h-8 w-8 p-0 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm"
                 >
                   <List className="h-4 w-4" />
-                </Button>
-              </div>
+                </ToggleGroupItem>
+              </ToggleGroup>
 
               {/* Selection Mode Toggle */}
               <Button

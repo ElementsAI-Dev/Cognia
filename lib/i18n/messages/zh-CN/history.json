@@ -1,0 +1,20 @@
+{
+  "history": {
+    "title": "历史记录",
+    "empty": "暂无历史记录",
+    "emptyHint": "操作记录将在您进行更改时显示在这里",
+    "initialState": "初始状态",
+    "projectStart": "项目开始",
+    "clear": "清除",
+    "clearTitle": "清除历史记录",
+    "clearDescription": "确定要清除所有历史记录吗？此操作无法撤销。",
+    "undoShortcut": "撤销 (Ctrl+Z)",
+    "redoShortcut": "重做 (Ctrl+Y)",
+    "actions": "个操作",
+    "relativeTime": {
+      "justNow": "刚刚",
+      "minutesAgo": "{count} 分钟前",
+      "hoursAgo": "{count} 小时前"
+    }
+  }
+}

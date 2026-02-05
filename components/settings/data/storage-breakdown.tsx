@@ -123,47 +123,44 @@ export function StorageBreakdown({
   }
 
   return (
+    <TooltipProvider>
     <div className={cn('space-y-3', className)}>
       {/* Visual bar chart */}
       <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
         {topCategories.map((cat) => {
           const percentage = totalSize > 0 ? (cat.totalSize / totalSize) * 100 : 0;
           return (
-            <TooltipProvider key={cat.category}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className={cn(CATEGORY_COLORS[cat.category], 'h-full transition-all')}
-                    style={{ width: `${percentage}%` }}
-                  />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="font-medium">{cat.displayName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatBytes(cat.totalSize)} ({percentage.toFixed(1)}%)
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          );
-        })}
-        {otherTotal > 0 && (
-          <TooltipProvider>
-            <Tooltip>
+            <Tooltip key={cat.category}>
               <TooltipTrigger asChild>
                 <div
-                  className="h-full bg-zinc-400 transition-all"
-                  style={{ width: `${(otherTotal / totalSize) * 100}%` }}
+                  className={cn(CATEGORY_COLORS[cat.category], 'h-full transition-all')}
+                  style={{ width: `${percentage}%` }}
                 />
               </TooltipTrigger>
               <TooltipContent>
-                <p className="font-medium">{t('other') || 'Other'}</p>
+                <p className="font-medium">{cat.displayName}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatBytes(otherTotal)} ({((otherTotal / totalSize) * 100).toFixed(1)}%)
+                  {formatBytes(cat.totalSize)} ({percentage.toFixed(1)}%)
                 </p>
               </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
+          );
+        })}
+        {otherTotal > 0 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className="h-full bg-zinc-400 transition-all"
+                style={{ width: `${(otherTotal / totalSize) * 100}%` }}
+              />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="font-medium">{t('other') || 'Other'}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatBytes(otherTotal)} ({((otherTotal / totalSize) * 100).toFixed(1)}%)
+              </p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
 
@@ -216,24 +213,22 @@ export function StorageBreakdown({
                   <Progress value={percentage} className="h-1 mt-0.5" />
                 </div>
                 {onClearCategory && cat.totalSize > 0 && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => onClearCategory(cat.category)}
-                          disabled={isClearing}
-                        >
-                          <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {t('clearCategory') || 'Clear this category'}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => onClearCategory(cat.category)}
+                        disabled={isClearing}
+                      >
+                        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t('clearCategory') || 'Clear this category'}
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
             );
@@ -241,6 +236,7 @@ export function StorageBreakdown({
         </CollapsibleContent>
       </Collapsible>
     </div>
+    </TooltipProvider>
   );
 }
 

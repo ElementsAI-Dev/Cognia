@@ -16,9 +16,18 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
+import {
+  Empty,
+  EmptyMedia,
+  EmptyDescription,
+} from '@/components/ui/empty';
 import {
   Collapsible,
   CollapsibleContent,
@@ -123,15 +132,17 @@ export function VariableInspector({
       <CollapsibleContent>
         {variables.length > 5 && (
           <div className="px-3 py-2 border-b">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-              <Input
+            <InputGroup className="h-7">
+              <InputGroupAddon align="inline-start">
+                <Search className="h-3 w-3" />
+              </InputGroupAddon>
+              <InputGroupInput
                 placeholder={t('searchVariables')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-7 pl-7 text-xs"
+                className="text-xs"
               />
-            </div>
+            </InputGroup>
           </div>
         )}
 
@@ -149,9 +160,14 @@ export function VariableInspector({
               ))}
             </div>
           ) : filteredVariables.length === 0 ? (
-            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-              {variables.length === 0 ? t('noVariables') : t('noMatchingVariables')}
-            </div>
+            <Empty className="py-6 border-0">
+              <EmptyMedia variant="icon">
+                <Variable className="h-4 w-4" />
+              </EmptyMedia>
+              <EmptyDescription>
+                {variables.length === 0 ? t('noVariables') : t('noMatchingVariables')}
+              </EmptyDescription>
+            </Empty>
           ) : (
             <TooltipProvider>
               <div className="divide-y">

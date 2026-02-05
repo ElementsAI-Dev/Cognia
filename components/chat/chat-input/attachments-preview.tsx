@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Music, Video, X } from 'lucide-react';
 import type { Attachment } from '../chat-input';
 import { formatFileSize, getFileIcon } from './utils';
@@ -29,20 +30,22 @@ export function AttachmentsPreview({ attachments, onRemove, onPreview, removeLab
           onClick={() => onPreview(attachment)}
         >
           {attachment.type === 'image' ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={attachment.url}
-              alt={attachment.name}
-              className="h-8 w-8 rounded object-cover"
-            />
+            <Avatar className="h-8 w-8 rounded">
+              <AvatarImage src={attachment.url} alt={attachment.name} className="object-cover" />
+              <AvatarFallback className="rounded">{attachment.name.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
           ) : attachment.type === 'video' ? (
-            <div className="relative h-8 w-8 rounded bg-muted flex items-center justify-center overflow-hidden">
-              <Video className="h-4 w-4 text-muted-foreground" />
-            </div>
+            <Avatar className="h-8 w-8 rounded">
+              <AvatarFallback className="rounded bg-muted">
+                <Video className="h-4 w-4 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
           ) : attachment.type === 'audio' ? (
-            <div className="relative h-8 w-8 rounded bg-muted flex items-center justify-center">
-              <Music className="h-4 w-4 text-muted-foreground" />
-            </div>
+            <Avatar className="h-8 w-8 rounded">
+              <AvatarFallback className="rounded bg-muted">
+                <Music className="h-4 w-4 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
           ) : (
             getFileIcon(attachment.type)
           )}

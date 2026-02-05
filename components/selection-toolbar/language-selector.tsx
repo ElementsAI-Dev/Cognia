@@ -2,7 +2,8 @@
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
-import { Languages, ChevronDown, ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { Languages, ChevronDown, ArrowRight, Sparkles } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-states";
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -118,7 +119,7 @@ export function LanguageSelector({
             <div className="flex items-center gap-2 text-xs">
               {isDetecting ? (
                 <>
-                  <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />
+                  <LoadingSpinner size="sm" className="text-cyan-400" />
                   <span className="text-white/60">{t("detectingLanguage")}</span>
                 </>
               ) : (

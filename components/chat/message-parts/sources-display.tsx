@@ -33,6 +33,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
@@ -141,56 +147,68 @@ function SourceItem({ source, index, showVerificationBadges = false }: SourceIte
 
   return (
     <Source href={source.url} title={source.title}>
-      <div className="flex items-start gap-3 p-2 rounded-lg hover:bg-accent transition-colors">
-        <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
-          {index + 1}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-sm truncate">{source.title}</span>
-            {showVerificationBadges && verification && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded border', iconConfig.className)}>
-                      {iconConfig.icon}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{t(`credibility.${credibility}`)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t('credibilityScore', { score: Math.round(verification.credibilityScore * 100) })}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+      <HoverCard>
+        <HoverCardTrigger asChild>
+          <div className="flex items-start gap-3 p-2 rounded-lg hover:bg-accent transition-colors cursor-pointer">
+            <Avatar className="h-6 w-6 shrink-0">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                {index + 1}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-sm truncate">{source.title}</span>
+                {showVerificationBadges && verification && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded border', iconConfig.className)}>
+                          {iconConfig.icon}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{t(`credibility.${credibility}`)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t('credibilityScore', { score: Math.round(verification.credibilityScore * 100) })}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground truncate">{hostname}</p>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground truncate">{hostname}</p>
-          {source.content && (
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-              {source.content}
-            </p>
-          )}
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <Badge variant="outline" className="text-xs px-1.5 py-0">
-              {t('relevanceScore', { score: Math.round(source.score * 100) })}
-            </Badge>
-            {showVerificationBadges && verification?.sourceType && verification.sourceType !== 'unknown' && (
+        </HoverCardTrigger>
+        <HoverCardContent className="w-80">
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold">{source.title}</h4>
+            <p className="text-xs text-muted-foreground truncate">{hostname}</p>
+            {source.content && (
+              <p className="text-xs text-muted-foreground line-clamp-3">
+                {source.content}
+              </p>
+            )}
+            <div className="flex items-center gap-2 flex-wrap pt-1">
               <Badge variant="outline" className="text-xs px-1.5 py-0">
-                {verification.sourceType}
+                {t('relevanceScore', { score: Math.round(source.score * 100) })}
               </Badge>
-            )}
-            {source.publishedDate && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {formatDate(source.publishedDate)}
-              </span>
-            )}
+              {showVerificationBadges && verification?.sourceType && verification.sourceType !== 'unknown' && (
+                <Badge variant="outline" className="text-xs px-1.5 py-0">
+                  {verification.sourceType}
+                </Badge>
+              )}
+              {source.publishedDate && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {formatDate(source.publishedDate)}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </HoverCardContent>
+      </HoverCard>
     </Source>
   );
 }

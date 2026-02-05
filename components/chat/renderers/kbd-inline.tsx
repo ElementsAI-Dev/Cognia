@@ -3,13 +3,14 @@
 /**
  * KbdInline - Keyboard shortcut renderer
  * Features:
- * - Styled keyboard keys
+ * - Styled keyboard keys (uses @ui/kbd)
  * - Shortcut combinations
  * - Platform-aware symbols (Mac vs Windows)
  */
 
 import { memo } from 'react';
 import { cn } from '@/lib/utils';
+import { Kbd, KbdGroup } from '@/components/ui/kbd';
 
 interface KbdInlineProps {
   children: React.ReactNode;
@@ -18,7 +19,7 @@ interface KbdInlineProps {
 }
 
 /**
- * Single keyboard key
+ * Single keyboard key - wrapper around @ui/kbd with variant support
  */
 export const KbdInline = memo(function KbdInline({
   children,
@@ -26,23 +27,15 @@ export const KbdInline = memo(function KbdInline({
   variant = 'default',
 }: KbdInlineProps) {
   const variantClasses = {
-    default:
-      'bg-muted border border-border shadow-sm shadow-muted-foreground/20',
-    outline: 'border border-border',
-    ghost: 'bg-muted/50',
+    default: 'border border-border shadow-sm shadow-muted-foreground/20',
+    outline: 'border border-border bg-transparent',
+    ghost: 'bg-muted/50 border-transparent',
   };
 
   return (
-    <kbd
-      className={cn(
-        'inline-flex items-center justify-center px-1.5 py-0.5 rounded text-xs font-mono font-medium',
-        'min-w-[1.5rem] h-5',
-        variantClasses[variant],
-        className
-      )}
-    >
+    <Kbd className={cn(variantClasses[variant], className)}>
       {children}
-    </kbd>
+    </Kbd>
   );
 });
 
@@ -54,7 +47,7 @@ interface KeyboardShortcutProps {
 }
 
 /**
- * Keyboard shortcut combination (e.g., Ctrl+C)
+ * Keyboard shortcut combination (e.g., Ctrl+C) - uses @ui/kbd KbdGroup
  */
 export const KeyboardShortcut = memo(function KeyboardShortcut({
   keys,
@@ -63,7 +56,7 @@ export const KeyboardShortcut = memo(function KeyboardShortcut({
   variant = 'default',
 }: KeyboardShortcutProps) {
   return (
-    <span className={cn('inline-flex items-center gap-0.5', className)}>
+    <KbdGroup className={className}>
       {keys.map((key, index) => (
         <span key={index} className="inline-flex items-center">
           {index > 0 && (
@@ -72,7 +65,7 @@ export const KeyboardShortcut = memo(function KeyboardShortcut({
           <KbdInline variant={variant}>{formatKey(key)}</KbdInline>
         </span>
       ))}
-    </span>
+    </KbdGroup>
   );
 });
 

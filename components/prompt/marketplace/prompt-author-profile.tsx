@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import type { PromptAuthor, MarketplacePrompt } from '@/types/content/prompt-marketplace';
 import { PromptMarketplaceCard } from './prompt-marketplace-card';
@@ -177,10 +178,12 @@ export function PromptAuthorProfile({
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-xl bg-muted/20">
-                  <User className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                  <p className="text-muted-foreground">{t('noPrompts')}</p>
-                </div>
+                <Empty className="py-12 border-2 rounded-xl bg-muted/20">
+                  <EmptyMedia>
+                    <User className="h-10 w-10 text-muted-foreground/40" />
+                  </EmptyMedia>
+                  <EmptyDescription>{t('noPrompts')}</EmptyDescription>
+                </Empty>
               )}
             </div>
           </div>

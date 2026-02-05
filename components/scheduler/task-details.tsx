@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -252,12 +253,7 @@ export function TaskDetails({
                     <span>{t('successRate') || 'Success Rate'}</span>
                     <span className="font-medium">{successRate}%</span>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-500 transition-all"
-                      style={{ width: `${successRate}%` }}
-                    />
-                  </div>
+                  <Progress value={successRate} className="h-2 [&>div]:bg-green-500" />
                 </div>
               )}
             </CardContent>

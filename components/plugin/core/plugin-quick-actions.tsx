@@ -17,8 +17,8 @@ import {
   Square,
   AlertTriangle,
   MoreHorizontal,
-  Loader2,
 } from 'lucide-react';
+import { Loader } from '@/components/ai-elements/loader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -161,7 +161,7 @@ export function PluginQuickActions({
             className="h-8"
           >
             {isLoading === 'enable' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader size={16} />
             ) : (
               <Play className="h-4 w-4" />
             )}
@@ -182,7 +182,7 @@ export function PluginQuickActions({
             className="h-8"
           >
             {isLoading === 'disable' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader size={16} />
             ) : (
               <Pause className="h-4 w-4" />
             )}
@@ -204,7 +204,7 @@ export function PluginQuickActions({
               className="h-8 hidden md:flex"
             >
               {isLoading === 'update' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader size={16} />
               ) : (
                 <Download className="h-4 w-4" />
               )}
@@ -221,7 +221,7 @@ export function PluginQuickActions({
             className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             {isLoading === 'uninstall' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader size={16} />
             ) : (
               <Trash2 className="h-4 w-4" />
             )}

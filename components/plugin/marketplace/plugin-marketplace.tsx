@@ -35,6 +35,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { usePluginStore } from '@/stores/plugin';
 import { useMarketplace } from '@/hooks/plugin';
 import { cn } from '@/lib/utils';
@@ -346,24 +347,19 @@ export function PluginMarketplace({
             </SelectContent>
           </Select>
 
-          <div className="flex items-center border rounded-lg h-9 ml-auto bg-background">
-            <Button
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="rounded-r-none h-full px-2.5"
-              onClick={() => setViewMode('grid')}
-            >
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(value) => value && setViewMode(value as ViewMode)}
+            className="ml-auto"
+          >
+            <ToggleGroupItem value="grid" aria-label="Grid view" className="h-9 px-2.5">
               <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="rounded-l-none h-full px-2.5"
-              onClick={() => setViewMode('list')}
-            >
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List view" className="h-9 px-2.5">
               <List className="h-4 w-4" />
-            </Button>
-          </div>
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
 
         {/* Search and Filters - Mobile */}
@@ -401,24 +397,19 @@ export function PluginMarketplace({
                 </Button>
               </CollapsibleTrigger>
               
-              <div className="flex items-center border rounded-lg h-8 bg-background">
-                <Button
-                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="rounded-r-none h-full px-2"
-                  onClick={() => setViewMode('grid')}
-                >
+              <ToggleGroup
+                type="single"
+                value={viewMode}
+                onValueChange={(value) => value && setViewMode(value as ViewMode)}
+                size="sm"
+              >
+                <ToggleGroupItem value="grid" aria-label="Grid view" className="h-8 px-2">
                   <Grid3X3 className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="rounded-l-none h-full px-2"
-                  onClick={() => setViewMode('list')}
-                >
+                </ToggleGroupItem>
+                <ToggleGroupItem value="list" aria-label="List view" className="h-8 px-2">
                   <List className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
             
             <CollapsibleContent className="pt-2 space-y-2">

@@ -56,6 +56,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useArtifactStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import type { CanvasDocumentVersion } from '@/types';
@@ -270,10 +271,11 @@ export function VersionHistoryPanel({
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <Label htmlFor="version-description">
                 {t('descriptionOptional')}
-              </label>
+              </Label>
               <Input
+                id="version-description"
                 value={saveDescription}
                 onChange={(e) => setSaveDescription(e.target.value)}
                 placeholder={t('descriptionPlaceholder')}

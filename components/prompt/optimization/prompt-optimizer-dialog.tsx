@@ -27,6 +27,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader } from '@/components/ai-elements/loader';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, useSessionStore } from '@/stores';
@@ -416,9 +417,9 @@ export function PromptOptimizerDialog({
 
         {/* Error Display */}
         {error && (
-          <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
-          </div>
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         <DialogFooter className="gap-2">

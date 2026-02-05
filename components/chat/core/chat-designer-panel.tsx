@@ -12,6 +12,7 @@ import { X, Maximize2, Minimize2, ExternalLink, Sparkles, Send, Loader2, Chevron
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Tooltip,
   TooltipContent,
@@ -214,7 +215,9 @@ export function ChatDesignerPanel({
                   ))}
                 </div>
                 {aiError && (
-                  <p className="text-xs text-destructive mt-2">{aiError}</p>
+                  <Alert variant="destructive" className="mt-2 py-2">
+                    <AlertDescription className="text-xs">{aiError}</AlertDescription>
+                  </Alert>
                 )}
               </div>
               <div className="flex flex-col gap-1">

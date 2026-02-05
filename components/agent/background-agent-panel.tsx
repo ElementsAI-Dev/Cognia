@@ -26,7 +26,6 @@ import {
   Download,
   Filter,
   CheckSquare,
-  Square,
 } from 'lucide-react';
 import { cn, formatDurationShort, formatTimeFromDate } from '@/lib/utils';
 import { BACKGROUND_AGENT_STATUS_CONFIG, LOG_LEVEL_CONFIG } from '@/lib/agent';
@@ -63,6 +62,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Use shared configs from lib/agent/constants.ts
 
@@ -849,16 +849,11 @@ export function BackgroundAgentPanel() {
                       displayAgents.map((agent) => (
                         <div key={agent.id} className="flex items-start gap-2">
                           {isMultiSelectMode && (
-                            <button
-                              className="mt-3 p-1 hover:bg-muted rounded"
-                              onClick={() => toggleSelection(agent.id)}
-                            >
-                              {selectedIds.has(agent.id) ? (
-                                <CheckSquare className="h-4 w-4 text-primary" />
-                              ) : (
-                                <Square className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </button>
+                            <Checkbox
+                              checked={selectedIds.has(agent.id)}
+                              onCheckedChange={() => toggleSelection(agent.id)}
+                              className="mt-3"
+                            />
                           )}
                           <div className="flex-1">
                             <AgentCard

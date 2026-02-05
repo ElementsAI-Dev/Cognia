@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Brush,
   Eraser,
@@ -499,49 +500,39 @@ export function MaskCanvas({
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         {/* Tool selection */}
-        <div className="flex items-center gap-1 border rounded-md p-1">
+        <ToggleGroup
+          type="single"
+          value={currentTool}
+          onValueChange={(value) => value && setCurrentTool(value as Tool)}
+          className="border rounded-md p-1"
+        >
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant={currentTool === 'brush' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setCurrentTool('brush')}
-              >
+              <ToggleGroupItem value="brush" size="sm" className="h-8 w-8">
                 <Brush className="h-4 w-4" />
-              </Button>
+              </ToggleGroupItem>
             </TooltipTrigger>
             <TooltipContent>{t('brush')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant={currentTool === 'eraser' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setCurrentTool('eraser')}
-              >
+              <ToggleGroupItem value="eraser" size="sm" className="h-8 w-8">
                 <Eraser className="h-4 w-4" />
-              </Button>
+              </ToggleGroupItem>
             </TooltipTrigger>
             <TooltipContent>{t('eraser')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant={currentTool === 'pan' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setCurrentTool('pan')}
-              >
+              <ToggleGroupItem value="pan" size="sm" className="h-8 w-8">
                 <Move className="h-4 w-4" />
-              </Button>
+              </ToggleGroupItem>
             </TooltipTrigger>
             <TooltipContent>{t('pan')}</TooltipContent>
           </Tooltip>
-        </div>
+        </ToggleGroup>
 
         {/* Brush size */}
         <div className="flex items-center gap-2 min-w-[160px]">

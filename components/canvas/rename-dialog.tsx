@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 interface RenameDialogProps {
   open: boolean;
@@ -58,8 +59,10 @@ export function RenameDialog({
         <DialogHeader>
           <DialogTitle>{t('renameDocument')}</DialogTitle>
         </DialogHeader>
-        <div className="py-4">
+        <div className="py-4 space-y-2">
+          <Label htmlFor="rename-input">{t('documentTitle')}</Label>
           <Input
+            id="rename-input"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={t('documentTitle')}

@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
+import { Kbd } from '@/components/ui/kbd';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -254,9 +255,7 @@ export function QuotedContent({ className }: QuotedContentProps) {
                 {shortcuts.map((shortcut, i) => (
                   <div key={i} className="flex items-center justify-between px-2 py-1.5 text-sm">
                     <span className="text-muted-foreground">{shortcut.description}</span>
-                    <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded font-mono">
-                      {shortcut.key}
-                    </kbd>
+                    <Kbd>{shortcut.key}</Kbd>
                   </div>
                 ))}
               </DropdownMenuContent>

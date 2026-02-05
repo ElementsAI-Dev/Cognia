@@ -62,6 +62,15 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  Empty,
+  EmptyMedia,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from '@/components/ui/empty';
+import { LoadingSpinner } from '@/components/ui/loading-states';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -630,24 +639,28 @@ export function EnvVarsPanel() {
         <ScrollArea className="h-[400px]">
           {isLoading && filteredEnvVars.length === 0 ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <LoadingSpinner size="lg" />
             </div>
           ) : filteredEnvVars.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-8">
-                <Key className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">{t('noVariables')}</p>
+            <Empty className="border-dashed">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Key className="h-5 w-5" />
+                </EmptyMedia>
+                <EmptyTitle>{t('noVariablesTitle')}</EmptyTitle>
+                <EmptyDescription>{t('noVariables')}</EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-3"
                   onClick={() => setShowAddDialog(true)}
                 >
                   <Plus className="h-3.5 w-3.5 mr-1.5" />
                   {t('addFirst')}
                 </Button>
-              </CardContent>
-            </Card>
+              </EmptyContent>
+            </Empty>
           ) : (
             <div className="space-y-4">
               {Object.entries(groupedEnvVars).map(([category, vars]) => {

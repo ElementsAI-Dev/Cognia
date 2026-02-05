@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import type { PPTTheme } from '@/types/workflow';
 import { Palette, Type, RotateCcw } from 'lucide-react';
@@ -153,7 +153,6 @@ export function ThemeCustomizer({
   className,
 }: ThemeCustomizerProps) {
   const t = useTranslations('pptEditor');
-  const [activeTab, setActiveTab] = useState<'colors' | 'fonts'>('colors');
 
   const handleColorChange = (key: keyof PPTTheme, color: string) => {
     onChange({ ...theme, [key]: color });
@@ -179,157 +178,142 @@ export function ThemeCustomizer({
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b">
-        <button
-          className={cn(
-            'flex-1 px-4 py-2 text-sm font-medium transition-colors',
-            activeTab === 'colors'
-              ? 'text-primary border-b-2 border-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('colors')}
-        >
-          <Palette className="h-4 w-4 inline mr-1" />
-          {t('colors')}
-        </button>
-        <button
-          className={cn(
-            'flex-1 px-4 py-2 text-sm font-medium transition-colors',
-            activeTab === 'fonts'
-              ? 'text-primary border-b-2 border-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('fonts')}
-        >
-          <Type className="h-4 w-4 inline mr-1" />
-          {t('fonts')}
-        </button>
-      </div>
+      {/* Tabs - Using shadcn Tabs component */}
+      <Tabs defaultValue="colors" className="w-full">
+        <TabsList className="w-full rounded-none border-b bg-transparent p-0">
+          <TabsTrigger
+            value="colors"
+            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+          >
+            <Palette className="h-4 w-4 mr-1" />
+            {t('colors')}
+          </TabsTrigger>
+          <TabsTrigger
+            value="fonts"
+            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+          >
+            <Type className="h-4 w-4 mr-1" />
+            {t('fonts')}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Content */}
-      <ScrollArea className="h-80">
-        <div className="p-4 space-y-4">
-          {activeTab === 'colors' && (
-            <>
-              <ColorPickerField
-                label={t('primaryColor')}
-                value={theme.primaryColor}
-                onChange={(c) => handleColorChange('primaryColor', c)}
-              />
-              <ColorPickerField
-                label={t('secondaryColor')}
-                value={theme.secondaryColor}
-                onChange={(c) => handleColorChange('secondaryColor', c)}
-              />
-              <ColorPickerField
-                label={t('accentColor')}
-                value={theme.accentColor}
-                onChange={(c) => handleColorChange('accentColor', c)}
-              />
-              
-              <Separator />
-              
-              <ColorPickerField
-                label={t('backgroundColor')}
-                value={theme.backgroundColor}
-                onChange={(c) => handleColorChange('backgroundColor', c)}
-              />
-              <ColorPickerField
-                label={t('textColor')}
-                value={theme.textColor}
-                onChange={(c) => handleColorChange('textColor', c)}
-              />
+        <ScrollArea className="h-80">
+          <TabsContent value="colors" className="m-0 p-4 space-y-4">
+            <ColorPickerField
+              label={t('primaryColor')}
+              value={theme.primaryColor}
+              onChange={(c) => handleColorChange('primaryColor', c)}
+            />
+            <ColorPickerField
+              label={t('secondaryColor')}
+              value={theme.secondaryColor}
+              onChange={(c) => handleColorChange('secondaryColor', c)}
+            />
+            <ColorPickerField
+              label={t('accentColor')}
+              value={theme.accentColor}
+              onChange={(c) => handleColorChange('accentColor', c)}
+            />
+            
+            <Separator />
+            
+            <ColorPickerField
+              label={t('backgroundColor')}
+              value={theme.backgroundColor}
+              onChange={(c) => handleColorChange('backgroundColor', c)}
+            />
+            <ColorPickerField
+              label={t('textColor')}
+              value={theme.textColor}
+              onChange={(c) => handleColorChange('textColor', c)}
+            />
 
-              <Separator />
+            <Separator />
 
-              {/* Theme Preview */}
-              <div className="space-y-2">
-                <Label className="text-sm">{t('preview')}</Label>
-                <div
-                  className="p-4 rounded-lg border"
-                  style={{ backgroundColor: theme.backgroundColor }}
+            {/* Theme Preview */}
+            <div className="space-y-2">
+              <Label className="text-sm">{t('preview')}</Label>
+              <div
+                className="p-4 rounded-lg border"
+                style={{ backgroundColor: theme.backgroundColor }}
+              >
+                <h3
+                  className="font-bold text-lg mb-2"
+                  style={{ color: theme.primaryColor, fontFamily: theme.headingFont }}
                 >
-                  <h3
-                    className="font-bold text-lg mb-2"
-                    style={{ color: theme.primaryColor, fontFamily: theme.headingFont }}
-                  >
-                    {t('sampleTitle')}
-                  </h3>
-                  <p
-                    className="text-sm mb-2"
-                    style={{ color: theme.textColor, fontFamily: theme.bodyFont }}
-                  >
-                    {t('sampleContent')}
-                  </p>
-                  <div className="flex gap-2">
-                    <div className="h-4 w-12 rounded" style={{ backgroundColor: theme.primaryColor }} />
-                    <div className="h-4 w-8 rounded" style={{ backgroundColor: theme.secondaryColor }} />
-                    <div className="h-4 w-6 rounded" style={{ backgroundColor: theme.accentColor }} />
-                  </div>
+                  {t('sampleTitle')}
+                </h3>
+                <p
+                  className="text-sm mb-2"
+                  style={{ color: theme.textColor, fontFamily: theme.bodyFont }}
+                >
+                  {t('sampleContent')}
+                </p>
+                <div className="flex gap-2">
+                  <div className="h-4 w-12 rounded" style={{ backgroundColor: theme.primaryColor }} />
+                  <div className="h-4 w-8 rounded" style={{ backgroundColor: theme.secondaryColor }} />
+                  <div className="h-4 w-6 rounded" style={{ backgroundColor: theme.accentColor }} />
                 </div>
               </div>
-            </>
-          )}
+            </div>
+          </TabsContent>
 
-          {activeTab === 'fonts' && (
-            <>
-              <FontSelectorField
-                label={t('headingFont')}
-                value={theme.headingFont}
-                fonts={HEADING_FONTS}
-                onChange={(f) => handleFontChange('headingFont', f)}
-              />
+          <TabsContent value="fonts" className="m-0 p-4 space-y-4">
+            <FontSelectorField
+              label={t('headingFont')}
+              value={theme.headingFont}
+              fonts={HEADING_FONTS}
+              onChange={(f) => handleFontChange('headingFont', f)}
+            />
 
-              <Separator />
+            <Separator />
 
-              <FontSelectorField
-                label={t('bodyFont')}
-                value={theme.bodyFont}
-                fonts={BODY_FONTS}
-                onChange={(f) => handleFontChange('bodyFont', f)}
-              />
+            <FontSelectorField
+              label={t('bodyFont')}
+              value={theme.bodyFont}
+              fonts={BODY_FONTS}
+              onChange={(f) => handleFontChange('bodyFont', f)}
+            />
 
-              <Separator />
+            <Separator />
 
-              <FontSelectorField
-                label={t('codeFont')}
-                value={theme.codeFont}
-                fonts={CODE_FONTS}
-                onChange={(f) => handleFontChange('codeFont', f)}
-              />
+            <FontSelectorField
+              label={t('codeFont')}
+              value={theme.codeFont}
+              fonts={CODE_FONTS}
+              onChange={(f) => handleFontChange('codeFont', f)}
+            />
 
-              {/* Font Preview */}
-              <div className="space-y-2 mt-4">
-                <Label className="text-sm">{t('fontPreview')}</Label>
-                <div
-                  className="p-4 rounded-lg border space-y-2"
-                  style={{ backgroundColor: theme.backgroundColor }}
+            {/* Font Preview */}
+            <div className="space-y-2 mt-4">
+              <Label className="text-sm">{t('fontPreview')}</Label>
+              <div
+                className="p-4 rounded-lg border space-y-2"
+                style={{ backgroundColor: theme.backgroundColor }}
+              >
+                <h1
+                  className="text-2xl font-bold"
+                  style={{ fontFamily: theme.headingFont, color: theme.primaryColor }}
                 >
-                  <h1
-                    className="text-2xl font-bold"
-                    style={{ fontFamily: theme.headingFont, color: theme.primaryColor }}
-                  >
-                    Heading Text
-                  </h1>
-                  <p
-                    className="text-base"
-                    style={{ fontFamily: theme.bodyFont, color: theme.textColor }}
-                  >
-                    Body text for regular content and descriptions.
-                  </p>
-                  <pre
-                    className="text-sm p-2 rounded bg-black/5"
-                    style={{ fontFamily: theme.codeFont, color: theme.textColor }}
-                  >
-                    const code = &quot;example&quot;;
-                  </pre>
-                </div>
+                  Heading Text
+                </h1>
+                <p
+                  className="text-base"
+                  style={{ fontFamily: theme.bodyFont, color: theme.textColor }}
+                >
+                  Body text for regular content and descriptions.
+                </p>
+                <pre
+                  className="text-sm p-2 rounded bg-black/5"
+                  style={{ fontFamily: theme.codeFont, color: theme.textColor }}
+                >
+                  const code = &quot;example&quot;;
+                </pre>
               </div>
-            </>
-          )}
-        </div>
-      </ScrollArea>
+            </div>
+          </TabsContent>
+        </ScrollArea>
+      </Tabs>
     </div>
   );
 }

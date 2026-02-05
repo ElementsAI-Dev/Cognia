@@ -11,6 +11,7 @@ import { Grid3X3, Info, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
   TooltipContent,
@@ -174,6 +175,8 @@ function ArenaHeatmapComponent({ className, maxModels = 15 }: ArenaHeatmapProps)
           <span>100%</span>
         </div>
       </div>
+
+      <Separator />
 
       {/* Matrix */}
       <ScrollArea className="max-h-[600px]">

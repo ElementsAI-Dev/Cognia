@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Empty, EmptyMedia, EmptyTitle, EmptyContent } from '@/components/ui/empty';
 import {
   Dialog,
   DialogContent,
@@ -411,14 +412,15 @@ export function ChatSummaryDialog({
                 </div>
               </ScrollArea>
             ) : (
-              <div className="h-[300px] flex items-center justify-center border rounded-lg bg-muted/30">
-                <div className="text-center">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-muted-foreground">{t('noSummaryYet')}</p>
+              <Empty className="h-[300px] border rounded-lg bg-muted/30">
+                <EmptyMedia variant="icon">
+                  <FileText className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>{t('noSummaryYet')}</EmptyTitle>
+                <EmptyContent>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="mt-3"
                     onClick={handleGenerateSummary}
                     disabled={isGenerating}
                   >
@@ -429,8 +431,8 @@ export function ChatSummaryDialog({
                     )}
                     {t('generateSummary')}
                   </Button>
-                </div>
-              </div>
+                </EmptyContent>
+              </Empty>
             )}
           </TabsContent>
 
@@ -440,11 +442,13 @@ export function ChatSummaryDialog({
                 <MermaidBlock content={diagram.mermaidCode} />
               </div>
             ) : (
-              <div className="h-[300px] flex items-center justify-center border rounded-lg bg-muted/30">
-                <div className="text-center">
-                  <GitBranch className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-muted-foreground">{t('noDiagramYet')}</p>
-                  <div className="flex flex-wrap justify-center gap-2 mt-3">
+              <Empty className="h-[300px] border rounded-lg bg-muted/30">
+                <EmptyMedia variant="icon">
+                  <GitBranch className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>{t('noDiagramYet')}</EmptyTitle>
+                <EmptyContent>
+                  <div className="flex flex-wrap justify-center gap-2">
                     {DIAGRAM_TYPES.slice(0, 3).map(type => (
                       <Button
                         key={type.value}
@@ -461,8 +465,8 @@ export function ChatSummaryDialog({
                       </Button>
                     ))}
                   </div>
-                </div>
-              </div>
+                </EmptyContent>
+              </Empty>
             )}
           </TabsContent>
         </Tabs>

@@ -24,7 +24,9 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Sparkles, Users, Target, MessageSquare, Palette } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { LoadingSpinner } from '@/components/ui/loading-states';
+import { Sparkles, Users, Target, MessageSquare, Palette } from 'lucide-react';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
 import type { PPTGenerationConfig } from '@/hooks/ppt';
 
@@ -269,16 +271,20 @@ export function PPTGenerationDialog({
               <Palette className="h-4 w-4" />
               {t('theme')}
             </Label>
-            <div className="grid grid-cols-4 gap-2">
+            <ToggleGroup
+              type="single"
+              value={config.theme.id}
+              onValueChange={(value) => {
+                const theme = DEFAULT_PPT_THEMES.find((t) => t.id === value);
+                if (theme) setConfig((prev) => ({ ...prev, theme }));
+              }}
+              className="grid grid-cols-4 gap-2"
+            >
               {DEFAULT_PPT_THEMES.slice(0, 8).map((theme) => (
-                <button
+                <ToggleGroupItem
                   key={theme.id}
-                  className={`p-2 rounded-lg border transition-all ${
-                    config.theme.id === theme.id
-                      ? 'border-primary ring-2 ring-primary/20'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                  onClick={() => setConfig((prev) => ({ ...prev, theme }))}
+                  value={theme.id}
+                  className="p-2 h-auto data-[state=on]:border-primary data-[state=on]:ring-2 data-[state=on]:ring-primary/20"
                 >
                   <div className="flex items-center gap-1.5">
                     <div
@@ -287,9 +293,9 @@ export function PPTGenerationDialog({
                     />
                     <span className="text-xs truncate">{theme.name}</span>
                   </div>
-                </button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           </div>
 
           {/* Options */}
@@ -328,7 +334,7 @@ export function PPTGenerationDialog({
           <Button onClick={handleGenerate} disabled={!isValid || isGenerating}>
             {isGenerating ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <LoadingSpinner size="sm" className="mr-2" />
                 {t('generating')}
               </>
             ) : (

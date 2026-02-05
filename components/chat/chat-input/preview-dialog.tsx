@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Music } from 'lucide-react';
 import type { Attachment } from '../chat-input';
 import { formatFileSize, getFileIcon } from './utils';
@@ -35,9 +36,11 @@ export function PreviewDialog({ attachment, onOpenChange }: PreviewDialogProps) 
             />
           ) : attachment?.type === 'audio' ? (
             <div className="flex flex-col items-center gap-4 py-4 w-full">
-              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
-                <Music className="h-8 w-8 text-primary" />
-              </div>
+              <Avatar className="w-16 h-16">
+                <AvatarFallback className="bg-primary/10">
+                  <Music className="h-8 w-8 text-primary" />
+                </AvatarFallback>
+              </Avatar>
               <audio
                 controls
                 className="w-full max-w-md"

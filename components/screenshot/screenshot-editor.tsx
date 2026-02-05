@@ -10,6 +10,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Kbd } from '@/components/ui/kbd';
 import { AnnotationCanvas } from './annotation-canvas';
 import { AnnotationToolbar } from './annotation-toolbar';
 import { Magnifier } from './magnifier';
@@ -316,17 +318,19 @@ export function ScreenshotEditor({
 
       {/* Size info */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-background/90 backdrop-blur rounded-lg px-4 py-2 shadow-lg">
-        <p className="text-sm text-muted-foreground">
-          {t('dimensions', { width: imageDimensions.width, height: imageDimensions.height })}
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span>{t('dimensions', { width: imageDimensions.width, height: imageDimensions.height })}</span>
           {region && (
-            <span className="ml-4">
+            <span>
               {t('region') || 'Region'}: {Math.round(region.x)}, {Math.round(region.y)}
             </span>
           )}
           {annotations.length > 0 && (
-            <span className="ml-4">{t('annotationCount', { count: annotations.length })}</span>
+            <Badge variant="secondary">
+              {t('annotationCount', { count: annotations.length })}
+            </Badge>
           )}
-        </p>
+        </div>
       </div>
 
       {/* Quick color bar */}
@@ -369,9 +373,11 @@ export function ScreenshotEditor({
       {/* Magnifier hint */}
       {showMagnifier && (
         <div className="absolute top-4 right-4 bg-background/90 backdrop-blur rounded-lg px-3 py-1 shadow-lg">
-          <p className="text-xs text-muted-foreground">
-            {t('magnifierActive') || 'Magnifier active (G to toggle)'}
-          </p>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>{t('magnifierActive') || 'Magnifier active'}</span>
+            <Kbd>G</Kbd>
+            <span>{t('toToggle') || 'to toggle'}</span>
+          </div>
         </div>
       )}
     </div>

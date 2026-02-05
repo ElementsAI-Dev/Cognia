@@ -30,7 +30,6 @@ import {
   Copy,
   Check,
   Download,
-  Settings2,
   WrapText,
   Map,
   Hash,
@@ -102,6 +101,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Toggle } from '@/components/ui/toggle';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -245,8 +245,7 @@ function CanvasPanelContent() {
     minimap: true,
     lineNumbers: true,
   });
-  const [showEditorSettings, setShowEditorSettings] = useState(false);
-
+  
   // Check if current document can be opened in Designer
   const canOpenInDesigner = activeDocument && 
     ['jsx', 'tsx', 'html', 'javascript', 'typescript'].includes(activeDocument.language);
@@ -902,36 +901,48 @@ function CanvasPanelContent() {
                 )}
               </div>
               <div className="flex items-center gap-1">
-                <DropdownMenu open={showEditorSettings} onOpenChange={setShowEditorSettings}>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-6 px-2">
-                      <Settings2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem
-                      onClick={() => setEditorSettings(s => ({ ...s, wordWrap: !s.wordWrap }))}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Toggle
+                      size="sm"
+                      pressed={editorSettings.wordWrap}
+                      onPressedChange={(pressed) => setEditorSettings(s => ({ ...s, wordWrap: pressed }))}
+                      aria-label={t('wordWrap')}
+                      className="h-6 w-6 p-0"
                     >
-                      <WrapText className="h-4 w-4 mr-2" />
-                      <span className="flex-1">{t('wordWrap')}</span>
-                      {editorSettings.wordWrap && <Check className="h-4 w-4 ml-2" />}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setEditorSettings(s => ({ ...s, minimap: !s.minimap }))}
+                      <WrapText className="h-3.5 w-3.5" />
+                    </Toggle>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('wordWrap')}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Toggle
+                      size="sm"
+                      pressed={editorSettings.minimap}
+                      onPressedChange={(pressed) => setEditorSettings(s => ({ ...s, minimap: pressed }))}
+                      aria-label={t('minimap')}
+                      className="h-6 w-6 p-0"
                     >
-                      <Map className="h-4 w-4 mr-2" />
-                      <span className="flex-1">{t('minimap')}</span>
-                      {editorSettings.minimap && <Check className="h-4 w-4 ml-2" />}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setEditorSettings(s => ({ ...s, lineNumbers: !s.lineNumbers }))}
+                      <Map className="h-3.5 w-3.5" />
+                    </Toggle>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('minimap')}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Toggle
+                      size="sm"
+                      pressed={editorSettings.lineNumbers}
+                      onPressedChange={(pressed) => setEditorSettings(s => ({ ...s, lineNumbers: pressed }))}
+                      aria-label={t('lineNumbers')}
+                      className="h-6 w-6 p-0"
                     >
-                      <Hash className="h-4 w-4 mr-2" />
-                      <span className="flex-1">{t('lineNumbers')}</span>
-                      {editorSettings.lineNumbers && <Check className="h-4 w-4 ml-2" />}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      <Hash className="h-3.5 w-3.5" />
+                    </Toggle>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('lineNumbers')}</TooltipContent>
+                </Tooltip>
               </div>
             </div>
 

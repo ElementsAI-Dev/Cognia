@@ -32,6 +32,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { Toggle } from '@/components/ui/toggle';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Switch } from '@/components/ui/switch';
 import {
   Type,
   Plus,
@@ -569,78 +572,73 @@ export function TextOverlay({
                 <div className="flex items-center gap-1">
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
-                        variant={selectedLayer.fontWeight === 'bold' ? 'secondary' : 'outline'}
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() =>
+                      <Toggle
+                        variant="outline"
+                        size="sm"
+                        pressed={selectedLayer.fontWeight === 'bold'}
+                        onPressedChange={(pressed) =>
                           updateLayer(selectedLayer.id, {
-                            fontWeight: selectedLayer.fontWeight === 'bold' ? 'normal' : 'bold',
+                            fontWeight: pressed ? 'bold' : 'normal',
                           })
                         }
+                        className="h-8 w-8"
                       >
                         <Bold className="h-4 w-4" />
-                      </Button>
+                      </Toggle>
                     </TooltipTrigger>
                     <TooltipContent>{t('bold')}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
-                        variant={selectedLayer.fontStyle === 'italic' ? 'secondary' : 'outline'}
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() =>
+                      <Toggle
+                        variant="outline"
+                        size="sm"
+                        pressed={selectedLayer.fontStyle === 'italic'}
+                        onPressedChange={(pressed) =>
                           updateLayer(selectedLayer.id, {
-                            fontStyle: selectedLayer.fontStyle === 'italic' ? 'normal' : 'italic',
+                            fontStyle: pressed ? 'italic' : 'normal',
                           })
                         }
+                        className="h-8 w-8"
                       >
                         <Italic className="h-4 w-4" />
-                      </Button>
+                      </Toggle>
                     </TooltipTrigger>
                     <TooltipContent>{t('italic')}</TooltipContent>
                   </Tooltip>
                   <Separator orientation="vertical" className="h-6 mx-1" />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={selectedLayer.align === 'left' ? 'secondary' : 'outline'}
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => updateLayer(selectedLayer.id, { align: 'left' })}
-                      >
-                        <AlignLeft className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('alignLeft')}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={selectedLayer.align === 'center' ? 'secondary' : 'outline'}
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => updateLayer(selectedLayer.id, { align: 'center' })}
-                      >
-                        <AlignCenter className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('alignCenter')}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={selectedLayer.align === 'right' ? 'secondary' : 'outline'}
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => updateLayer(selectedLayer.id, { align: 'right' })}
-                      >
-                        <AlignRight className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('alignRight')}</TooltipContent>
-                  </Tooltip>
+                  <ToggleGroup
+                    type="single"
+                    value={selectedLayer.align}
+                    onValueChange={(value) =>
+                      value && updateLayer(selectedLayer.id, { align: value as 'left' | 'center' | 'right' })
+                    }
+                  >
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <ToggleGroupItem value="left" size="sm" className="h-8 w-8">
+                          <AlignLeft className="h-4 w-4" />
+                        </ToggleGroupItem>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('alignLeft')}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <ToggleGroupItem value="center" size="sm" className="h-8 w-8">
+                          <AlignCenter className="h-4 w-4" />
+                        </ToggleGroupItem>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('alignCenter')}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <ToggleGroupItem value="right" size="sm" className="h-8 w-8">
+                          <AlignRight className="h-4 w-4" />
+                        </ToggleGroupItem>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('alignRight')}</TooltipContent>
+                    </Tooltip>
+                  </ToggleGroup>
                 </div>
 
                 {/* Color */}
@@ -733,18 +731,14 @@ export function TextOverlay({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">{t('shadow')}</Label>
-                    <Button
-                      variant={selectedLayer.shadowEnabled ? 'secondary' : 'outline'}
-                      size="sm"
-                      className="h-6 text-xs"
-                      onClick={() =>
+                    <Switch
+                      checked={selectedLayer.shadowEnabled}
+                      onCheckedChange={(checked) =>
                         updateLayer(selectedLayer.id, {
-                          shadowEnabled: !selectedLayer.shadowEnabled,
+                          shadowEnabled: checked,
                         })
                       }
-                    >
-                      {selectedLayer.shadowEnabled ? tc('on') : tc('off')}
-                    </Button>
+                    />
                   </div>
                   {selectedLayer.shadowEnabled && (
                     <div className="space-y-2 pl-2 border-l-2">

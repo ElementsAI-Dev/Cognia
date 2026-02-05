@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
   TooltipContent,
@@ -293,7 +294,7 @@ function NotebookToolbar({
             <TooltipContent>{t('collapseAll')}</TooltipContent>
           </Tooltip>
 
-          <div className="w-px h-4 bg-border mx-1" />
+          <Separator orientation="vertical" className="h-4 mx-1" />
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -324,7 +325,7 @@ function NotebookToolbar({
 
           {onClearOutputs && (
             <>
-              <div className="w-px h-4 bg-border mx-1" />
+              <Separator orientation="vertical" className="h-4 mx-1" />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

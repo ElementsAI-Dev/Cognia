@@ -17,6 +17,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Tabs,
   TabsContent,
@@ -28,6 +30,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Loader } from '@/components/ai-elements/loader';
 import {
   Sparkles,
   Check,
@@ -431,7 +434,10 @@ export function FiltersGallery({
           />
           {!imageLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">{tc('loadingImage')}</div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader size={16} />
+                <span>{tc('loadingImage')}</span>
+              </div>
             </div>
           )}
         </div>
@@ -472,21 +478,24 @@ export function FiltersGallery({
       </div>
 
       {/* Filter grid */}
-      <div className="w-72 flex flex-col border rounded-lg">
+      <Card className="w-72 flex flex-col py-0">
         <Tabs value={activeCategory} onValueChange={setActiveCategory} className="flex flex-col h-full">
-          <TabsList className="w-full justify-start rounded-none border-b h-auto p-1 flex-wrap">
-            {Object.keys(filtersByCategory).map((category) => (
-              <TabsTrigger
-                key={category}
-                value={category}
-                className="text-xs px-2 py-1"
-              >
-                {CATEGORY_LABELS[category]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <CardHeader className="p-0 border-b">
+            <TabsList className="w-full justify-start rounded-none h-auto p-1 flex-wrap">
+              {Object.keys(filtersByCategory).map((category) => (
+                <TabsTrigger
+                  key={category}
+                  value={category}
+                  className="text-xs px-2 py-1"
+                >
+                  {CATEGORY_LABELS[category]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </CardHeader>
 
-          <ScrollArea className="flex-1">
+          <CardContent className="flex-1 p-0">
+            <ScrollArea className="h-full">
             {Object.entries(filtersByCategory).map(([category, filters]) => (
               <TabsContent key={category} value={category} className="mt-0 p-2">
                 <div className="grid grid-cols-2 gap-2">
@@ -512,7 +521,7 @@ export function FiltersGallery({
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full bg-muted animate-pulse" />
+                            <Skeleton className="w-full h-full" />
                           )}
                           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1">
                             <span className="text-xs text-white font-medium">{filter.name}</span>
@@ -541,8 +550,9 @@ export function FiltersGallery({
               </TabsContent>
             ))}
           </ScrollArea>
-        </Tabs>
-      </div>
+        </CardContent>
+      </Tabs>
+    </Card>
     </div>
   );
 }

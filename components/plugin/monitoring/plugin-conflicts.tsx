@@ -20,6 +20,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@/components/ui/alert';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import {
   AlertTriangle,
   AlertCircle,
@@ -194,15 +195,13 @@ export function PluginConflicts({
         {/* Conflicts List */}
         <ScrollArea className="flex-1 min-h-0">
           {conflicts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
-              <p className="text-muted-foreground">
-                {t('noConflicts')}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {t('allCompatible')}
-              </p>
-            </div>
+            <Empty className="py-8 border-0">
+              <EmptyMedia>
+                <CheckCircle className="h-12 w-12 text-green-500" />
+              </EmptyMedia>
+              <EmptyTitle>{t('noConflicts')}</EmptyTitle>
+              <EmptyDescription>{t('allCompatible')}</EmptyDescription>
+            </Empty>
           ) : (
             <div className="space-y-3">
               {conflicts.map((conflict, idx) => (

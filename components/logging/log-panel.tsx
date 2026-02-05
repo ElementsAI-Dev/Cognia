@@ -36,8 +36,15 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
+import { InlineLoading } from '@/components/ui/loading-states';
+import { Empty, EmptyTitle } from '@/components/ui/empty';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
@@ -442,15 +449,16 @@ export function LogPanel({
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 p-2 sm:p-3 border-b bg-muted/30">
         {/* Search - full width on mobile */}
-        <div className="relative w-full sm:flex-1 sm:min-w-[160px] sm:max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+        <InputGroup className="w-full sm:flex-1 sm:min-w-[160px] sm:max-w-xs h-8">
+          <InputGroupAddon>
+            <Search className="h-4 w-4" />
+          </InputGroupAddon>
+          <InputGroupInput
             placeholder={t('panel.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-8"
           />
-        </div>
+        </InputGroup>
 
         {/* Filters row - scrollable on mobile */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0">
@@ -623,19 +631,20 @@ export function LogPanel({
         style={{ maxHeight }}
       >
         {isLoading && filteredLogs.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground">
-            <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-            {t('panel.loadingLogs')}
+          <div className="flex items-center justify-center py-8">
+            <InlineLoading text={t('panel.loadingLogs')} />
           </div>
         ) : error ? (
-          <div className="flex items-center justify-center py-8 text-red-500">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            {t('panel.errorLoading')}
-          </div>
+          <Alert variant="destructive" className="m-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{t('panel.errorLoading')}</AlertDescription>
+          </Alert>
         ) : filteredLogs.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground">
-            {t('panel.noLogs')}
-          </div>
+          <Empty className="py-8 border-0">
+            <EmptyTitle className="text-sm font-normal text-muted-foreground">
+              {t('panel.noLogs')}
+            </EmptyTitle>
+          </Empty>
         ) : groupByTraceId ? (
           <div className="p-2">
             {Array.from(groupedLogs.entries()).map(([traceId, traceLogs]) => (

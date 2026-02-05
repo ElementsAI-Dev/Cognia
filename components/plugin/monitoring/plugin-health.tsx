@@ -23,6 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import {
   Heart,
   AlertTriangle,
@@ -195,12 +196,12 @@ export function PluginHealth({
         <CardContent className="p-3 sm:p-4 pt-0 flex-1 min-h-0">
           <ScrollArea className="h-full">
             {healthStatuses.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
-                <Heart className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
-                <p className="text-sm text-muted-foreground">
-                  {t('list.noPlugins')}
-                </p>
-              </div>
+              <Empty className="py-6 sm:py-8 border-0">
+                <EmptyMedia>
+                  <Heart className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground" />
+                </EmptyMedia>
+                <EmptyDescription>{t('list.noPlugins')}</EmptyDescription>
+              </Empty>
             ) : (
               <div className="space-y-2 sm:space-y-3">
                 {healthStatuses.map((status) => {

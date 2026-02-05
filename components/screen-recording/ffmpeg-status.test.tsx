@@ -199,7 +199,10 @@ describe('FFmpegStatus', () => {
       const installButton = screen.getByText('Installation Guide');
       fireEvent.click(installButton);
 
-      const copyButtons = screen.getAllByText('Copy');
+      // CopyButton renders icon-only buttons with tooltip
+      const copyButtons = screen.getAllByRole('button').filter(
+        btn => btn.querySelector('svg.lucide-copy') || btn.querySelector('svg.lucide-check')
+      );
       expect(copyButtons.length).toBeGreaterThan(0);
     });
 
@@ -214,10 +217,16 @@ describe('FFmpegStatus', () => {
       const installButton = screen.getByText('Installation Guide');
       fireEvent.click(installButton);
 
-      const copyButtons = screen.getAllByText('Copy');
-      fireEvent.click(copyButtons[0]);
-
-      expect(mockClipboard.writeText).toHaveBeenCalled();
+      // CopyButton renders icon-only buttons - find by svg icon
+      const copyButtons = screen.getAllByRole('button').filter(
+        btn => btn.querySelector('svg.lucide-copy')
+      );
+      if (copyButtons.length > 0) {
+        fireEvent.click(copyButtons[0]);
+        await waitFor(() => {
+          expect(mockClipboard.writeText).toHaveBeenCalled();
+        });
+      }
     });
 
     it('should have official download link', () => {

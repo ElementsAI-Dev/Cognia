@@ -245,6 +245,7 @@
     "allCategories": "所有分类",
     "clearFilters": "清除筛选",
     "noVariables": "未找到环境变量",
+    "noVariablesTitle": "暂无变量",
     "addFirst": "添加您的第一个变量",
     "confirmDeleteTitle": "删除变量？",
     "confirmDeleteDesc": "确定要删除 {key} 吗？此操作无法撤消。"

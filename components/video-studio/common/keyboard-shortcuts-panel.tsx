@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import {
   Dialog,
   DialogContent,
@@ -200,14 +201,16 @@ export function KeyboardShortcutsPanel({
   }, []);
 
   const formatKeys = (keys: string[]) => {
-    return keys.map((key, index) => (
-      <span key={index}>
-        <kbd className="px-1.5 py-0.5 text-xs font-semibold bg-muted border rounded">
-          {key}
-        </kbd>
-        {index < keys.length - 1 && <span className="mx-0.5 text-muted-foreground">+</span>}
-      </span>
-    ));
+    return (
+      <KbdGroup>
+        {keys.map((key, index) => (
+          <span key={index} className="inline-flex items-center">
+            <Kbd>{key}</Kbd>
+            {index < keys.length - 1 && <span className="mx-0.5 text-muted-foreground">+</span>}
+          </span>
+        ))}
+      </KbdGroup>
+    );
   };
 
   return (

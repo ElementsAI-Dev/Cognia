@@ -20,6 +20,8 @@ import {
   MoreVertical,
   Layers,
 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -294,19 +296,19 @@ export function SettingsProfiles() {
       <CardContent className="space-y-3">
         {/* Import Status */}
         {importStatus !== 'idle' && (
-          <div
-            className={cn(
-              'flex items-center gap-2 p-2 rounded-md text-xs',
-              importStatus === 'success' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'
-            )}
+          <Alert
+            variant={importStatus === 'error' ? 'destructive' : 'default'}
+            className="py-2"
           >
             {importStatus === 'success' ? (
-              <Check className="h-3.5 w-3.5" />
+              <Check className="h-4 w-4 text-green-600" />
             ) : (
-              <AlertCircle className="h-3.5 w-3.5" />
+              <AlertCircle className="h-4 w-4" />
             )}
-            {importMessage}
-          </div>
+            <AlertDescription className="text-xs">
+              {importMessage}
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Profiles List */}
@@ -331,9 +333,9 @@ export function SettingsProfiles() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm truncate">{profile.name}</span>
                       {activeProfileId === profile.id && (
-                        <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
                           {t('active')}
-                        </span>
+                        </Badge>
                       )}
                     </div>
                     {profile.description && (

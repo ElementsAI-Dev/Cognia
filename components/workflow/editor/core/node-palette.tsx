@@ -31,6 +31,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Kbd } from '@/components/ui/kbd';
 import { motion } from 'framer-motion';
 import {
   Search,
@@ -474,7 +475,7 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
         <div className="p-3 border-t text-xs text-muted-foreground shrink-0">
           <div className="flex items-center gap-1">
             <span>{t('dragToCanvas')}</span>
-            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">{t('doubleClick')}</kbd>
+            <Kbd className="text-[10px]">{t('doubleClick')}</Kbd>
             <span>{t('toAdd')}</span>
           </div>
         </div>

@@ -53,6 +53,7 @@ import {
   Radar,
 } from 'lucide-react';
 import { NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow/workflow-editor';
+import { Kbd } from '@/components/ui/kbd';
 
 const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: string }>> = {
   start: Play,
@@ -265,9 +266,9 @@ export function NodeSearchCommand() {
     <div className="flex items-center gap-0.5 ml-auto">
       {shortcut.map((key, i) => (
         <span key={i} className="flex items-center gap-0.5">
-          <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border">
+          <Kbd>
             {key === 'Ctrl' && navigator.platform.includes('Mac') ? '⌘' : key}
-          </kbd>
+          </Kbd>
           {i < shortcut.length - 1 && <span className="text-muted-foreground text-xs">+</span>}
         </span>
       ))}

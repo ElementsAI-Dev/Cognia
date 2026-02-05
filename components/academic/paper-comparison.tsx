@@ -39,6 +39,14 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
 import type { LibraryPaper } from '@/types/learning/academic';
@@ -345,66 +353,66 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                   </CardHeader>
                   <CardContent>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left py-2 pr-4">{t('feature')}</th>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="pr-4">{t('feature')}</TableHead>
                             {selectedPapers.map((p) => (
-                              <th key={p.id} className="text-center py-2 px-2">
+                              <TableHead key={p.id} className="text-center px-2">
                                 <span className="line-clamp-1 max-w-[120px]">
                                   {p.title.slice(0, 20)}...
                                 </span>
-                              </th>
+                              </TableHead>
                             ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b">
-                            <td className="py-2 pr-4">{t('openAccess')}</td>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell className="pr-4">{t('openAccess')}</TableCell>
                             {selectedPapers.map((p) => (
-                              <td key={p.id} className="text-center py-2">
+                              <TableCell key={p.id} className="text-center">
                                 {p.isOpenAccess ? (
                                   <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
                                 ) : (
                                   <XCircle className="h-4 w-4 text-muted-foreground mx-auto" />
                                 )}
-                              </td>
+                              </TableCell>
                             ))}
-                          </tr>
-                          <tr className="border-b">
-                            <td className="py-2 pr-4">{t('pdfAvailable')}</td>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="pr-4">{t('pdfAvailable')}</TableCell>
                             {selectedPapers.map((p) => (
-                              <td key={p.id} className="text-center py-2">
+                              <TableCell key={p.id} className="text-center">
                                 {p.pdfUrl || p.hasCachedPdf ? (
                                   <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
                                 ) : (
                                   <XCircle className="h-4 w-4 text-muted-foreground mx-auto" />
                                 )}
-                              </td>
+                              </TableCell>
                             ))}
-                          </tr>
-                          <tr className="border-b">
-                            <td className="py-2 pr-4">In Reading List</td>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="pr-4">In Reading List</TableCell>
                             {selectedPapers.map((p) => (
-                              <td key={p.id} className="text-center py-2">
+                              <TableCell key={p.id} className="text-center">
                                 {p.readingStatus !== 'archived' ? (
                                   <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
                                 ) : (
                                   <XCircle className="h-4 w-4 text-muted-foreground mx-auto" />
                                 )}
-                              </td>
+                              </TableCell>
                             ))}
-                          </tr>
-                          <tr>
-                            <td className="py-2 pr-4">User Rating</td>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="pr-4">User Rating</TableCell>
                             {selectedPapers.map((p) => (
-                              <td key={p.id} className="text-center py-2">
+                              <TableCell key={p.id} className="text-center">
                                 {p.userRating ? `${p.userRating}/5` : '-'}
-                              </td>
+                              </TableCell>
                             ))}
-                          </tr>
-                        </tbody>
-                      </table>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
                     </div>
                   </CardContent>
                 </Card>

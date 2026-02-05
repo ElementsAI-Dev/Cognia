@@ -15,7 +15,6 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Tooltip,
@@ -23,6 +22,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { ProgressBar } from '@/components/ui/loading-states';
 import {
   Eraser,
   Brush,
@@ -464,49 +465,40 @@ export function BackgroundRemover({
       {/* Toolbar */}
       <div className="flex items-center gap-4 flex-wrap">
         {/* Tool selection */}
-        <div className="flex items-center gap-1 border rounded-md p-1">
+        <ToggleGroup
+          type="single"
+          value={selectedTool}
+          onValueChange={(value) => value && setSelectedTool(value as Tool)}
+          variant="outline"
+          className="border rounded-md p-1"
+        >
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant={selectedTool === 'auto' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setSelectedTool('auto')}
-              >
+              <ToggleGroupItem value="auto" aria-label={t('autoDetect')} className="h-8 w-8 p-0">
                 <Wand2 className="h-4 w-4" />
-              </Button>
+              </ToggleGroupItem>
             </TooltipTrigger>
             <TooltipContent>{t('autoDetect')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant={selectedTool === 'keep' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setSelectedTool('keep')}
-              >
+              <ToggleGroupItem value="keep" aria-label={t('keep')} className="h-8 w-8 p-0">
                 <Brush className="h-4 w-4" />
-              </Button>
+              </ToggleGroupItem>
             </TooltipTrigger>
             <TooltipContent>{t('keep')}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant={selectedTool === 'remove' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setSelectedTool('remove')}
-              >
+              <ToggleGroupItem value="remove" aria-label={t('remove')} className="h-8 w-8 p-0">
                 <Eraser className="h-4 w-4" />
-              </Button>
+              </ToggleGroupItem>
             </TooltipTrigger>
             <TooltipContent>{t('remove')}</TooltipContent>
           </Tooltip>
-        </div>
+        </ToggleGroup>
 
         {/* Brush size */}
         {selectedTool !== 'auto' && (
@@ -657,13 +649,11 @@ export function BackgroundRemover({
 
       {/* Progress */}
       {isProcessing && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">{t('processing', { progress })}</span>
-          </div>
-          <Progress value={progress} />
-        </div>
+        <ProgressBar
+          progress={progress}
+          label={t('processing', { progress })}
+          showPercentage={false}
+        />
       )}
 
       {/* Canvas */}

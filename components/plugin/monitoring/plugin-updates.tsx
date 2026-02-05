@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import {
   Download,
   RefreshCw,
@@ -232,15 +233,15 @@ export function PluginUpdates({
         {/* Regular Updates */}
         <ScrollArea className="flex-1 min-h-0">
           {updates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
-              <p className="text-muted-foreground">
-                {t('allUpToDate')}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
+            <Empty className="py-8 border-0">
+              <EmptyMedia>
+                <CheckCircle className="h-12 w-12 text-green-500" />
+              </EmptyMedia>
+              <EmptyTitle>{t('allUpToDate')}</EmptyTitle>
+              <EmptyDescription>
                 {isChecking ? t('checking') : t('lastChecked')}
-              </p>
-            </div>
+              </EmptyDescription>
+            </Empty>
           ) : (
             <div className="space-y-2">
               {regularUpdates.map((update) => (

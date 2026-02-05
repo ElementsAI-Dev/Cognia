@@ -8,6 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
 
 export interface ToolbarButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -177,15 +178,9 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-white">{label}</span>
               {shortcut && (
-                <kbd
-                  className={cn(
-                    "px-1.5 py-0.5 text-[10px] font-mono",
-                    "bg-white/10 rounded",
-                    "text-white/70 border border-white/10"
-                  )}
-                >
+                <Kbd className="bg-white/10 text-white/70 border-white/10">
                   {shortcut}
-                </kbd>
+                </Kbd>
               )}
             </div>
             {description && (

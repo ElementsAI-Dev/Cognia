@@ -7,10 +7,11 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Send, Square, AlertCircle } from 'lucide-react';
+import { Send, Square, AlertCircle, Columns3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { ChatColumn } from './chat-column';
 import { QuickVoteBar } from '../ui/quick-vote-bar';
 import { MultiModelSelector } from '../selectors/multi-model-selector';
@@ -211,13 +212,15 @@ export function MultiColumnChat({
             ))}
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <p className="text-center">
-              {t('selectModelsToStart')}
-              <br />
-              <span className="text-sm">{t('selectModelsHint', { min: 2, max: 4 })}</span>
-            </p>
-          </div>
+          <Empty className="h-full border-0">
+            <EmptyMedia variant="icon">
+              <Columns3 className="h-6 w-6" />
+            </EmptyMedia>
+            <EmptyTitle>{t('selectModelsToStart')}</EmptyTitle>
+            <EmptyDescription>
+              {t('selectModelsHint', { min: 2, max: 4 })}
+            </EmptyDescription>
+          </Empty>
         )}
       </div>
 

@@ -350,6 +350,8 @@
     "dragToAdjust": "Drag to move, use handles to resize",
     "pressEscToCancel": "Press Esc to cancel",
     "pressEnterToConfirm": "Press Enter to confirm",
+    "toCancel": "to cancel",
+    "toConfirm": "to confirm",
     "startRecording": "Start Recording",
     "config": {
       "title": "Recording Settings",
@@ -1151,5 +1153,20 @@
     "cancel": "Cancel",
     "save": "Save",
     "edit": "Edit"
+  },
+  "audioMixer": {
+    "title": "Audio Mixer",
+    "master": "Master",
+    "noTracks": "No audio tracks",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "solo": "Solo",
+    "unsolo": "Unsolo",
+    "pan": "Pan",
+    "left": "L",
+    "center": "C",
+    "right": "R",
+    "volume": "Volume",
+    "gain": "Gain"
   }
 }

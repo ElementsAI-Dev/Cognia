@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Info,
   Users,
+  HelpCircle,
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -29,11 +30,17 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Accordion,
   AccordionContent,
@@ -109,7 +116,19 @@ export function AgentOptimizationSettings() {
                 {/* Single Agent Threshold */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm">{t('smartRouting.threshold')}</Label>
+                    <div className="flex items-center gap-1">
+                      <Label className="text-sm">{t('smartRouting.threshold')}</Label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-[250px]">
+                            <p>{t('smartRouting.thresholdTooltip')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <span className="text-sm text-muted-foreground">
                       {(agentOptSettings.singleAgentThreshold * 100).toFixed(0)}%
                     </span>
@@ -171,7 +190,19 @@ export function AgentOptimizationSettings() {
               <div className="space-y-4 pl-4 border-l-2 border-muted">
                 {/* Max Token Budget */}
                 <div className="space-y-2">
-                  <Label className="text-sm">{t('tokenBudget.maxBudget')}</Label>
+                  <div className="flex items-center gap-1">
+                    <Label className="text-sm">{t('tokenBudget.maxBudget')}</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[250px]">
+                          <p>{t('tokenBudget.maxBudgetTooltip')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
@@ -330,16 +361,12 @@ export function AgentOptimizationSettings() {
               />
             </div>
 
-            <Card className="bg-muted/50">
-              <CardContent className="pt-4">
-                <div className="flex items-start gap-2">
-                  <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <p className="text-xs text-muted-foreground">
-                    {t('skillsMcp.info')}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                {t('skillsMcp.info')}
+              </AlertDescription>
+            </Alert>
           </AccordionContent>
         </AccordionItem>
 

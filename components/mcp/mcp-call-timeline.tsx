@@ -33,6 +33,7 @@ import {
   Collapsible,
   CollapsibleContent,
 } from '@/components/ui/collapsible';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { MCPServerBadge } from './mcp-server-badge';
 import type { ToolState } from '@/types/core/message';
@@ -154,7 +155,15 @@ export function MCPCallTimeline({
   };
 
   if (steps.length === 0) {
-    return null;
+    return (
+      <Empty className={cn('border rounded-xl py-8', className)}>
+        <EmptyMedia variant="icon">
+          <Wrench className="h-6 w-6" />
+        </EmptyMedia>
+        <EmptyTitle>{t('noMcpCalls')}</EmptyTitle>
+        <EmptyDescription>{t('noMcpCallsDescription')}</EmptyDescription>
+      </Empty>
+    );
   }
 
   const renderStep = (step: MCPCallStep, index: number, isLast: boolean) => {

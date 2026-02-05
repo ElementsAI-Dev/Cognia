@@ -36,7 +36,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { EmptyState } from '@/components/layout/empty-state';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Video,
   Search,
@@ -245,16 +252,21 @@ export function RecordingHistoryPanel({
       {/* Recording list */}
       <ScrollArea className="flex-1">
         {filteredHistory.length === 0 ? (
-          <EmptyState
-            icon={Video}
-            title={searchQuery ? t('noResultsFound') : t('noRecordings')}
-            description={
-              searchQuery
-                ? t('tryDifferentQuery')
-                : t('startRecordingToStart')
-            }
-            className="py-8"
-          />
+          <Empty className="py-8 border-0">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Video className="h-6 w-6" />
+              </EmptyMedia>
+              <EmptyTitle>
+                {searchQuery ? t('noResultsFound') : t('noRecordings')}
+              </EmptyTitle>
+              <EmptyDescription>
+                {searchQuery
+                  ? t('tryDifferentQuery')
+                  : t('startRecordingToStart')}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <div className="p-2 sm:p-3 space-y-2">
             {filteredHistory.map((recording) => (
@@ -266,7 +278,7 @@ export function RecordingHistoryPanel({
                 <CardContent className="p-2 sm:p-3">
                   <div className="flex gap-3">
                     {/* Thumbnail placeholder */}
-                    <div className="w-20 h-14 bg-muted rounded flex items-center justify-center shrink-0">
+                    <div className="w-20 h-14 bg-muted rounded flex items-center justify-center shrink-0 relative overflow-hidden">
                       {recording.thumbnail ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -274,6 +286,8 @@ export function RecordingHistoryPanel({
                           alt="Recording thumbnail"
                           className="w-full h-full object-cover rounded"
                         />
+                      ) : isLoading ? (
+                        <Skeleton className="w-full h-full absolute inset-0" />
                       ) : (
                         <Video className="h-6 w-6 text-muted-foreground" />
                       )}

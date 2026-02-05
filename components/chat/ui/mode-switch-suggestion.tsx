@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import type { ChatMode } from '@/types/core/session';
 import type { IntentDetectionResult } from '@/lib/ai/tools/intent-detection';
 import { cn } from '@/lib/utils';
@@ -176,14 +177,10 @@ export function ModeSwitchSuggestion({
           {/* Confidence indicator */}
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             <span>置信度：</span>
-            <div className="flex-1 h-1.5 bg-background/50 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${result.confidence * 100}%` }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="h-full bg-foreground/30 rounded-full"
-              />
-            </div>
+            <Progress 
+              value={result.confidence * 100} 
+              className="flex-1 h-1.5 bg-background/50" 
+            />
             <span>{Math.round(result.confidence * 100)}%</span>
           </div>
         </motion.div>

@@ -6,11 +6,11 @@ import {
   Play,
   Copy,
   Check,
-  Loader2,
   Send,
   Sparkles,
   Variable,
 } from 'lucide-react';
+import { Loader } from '@/components/ai-elements/loader';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn as _cn } from '@/lib/utils';
 import type { MarketplacePrompt } from '@/types/content/prompt-marketplace';
 import { useSettingsStore } from '@/stores/settings';
@@ -176,10 +177,12 @@ export function PromptPreviewDialog({
           <ScrollArea className="flex-1 mt-4">
             <TabsContent value="variables" className="mt-0 space-y-4">
               {prompt.variables.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Variable className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p>{t('noVariables')}</p>
-                </div>
+                <Empty className="py-8">
+                  <EmptyMedia>
+                    <Variable className="h-10 w-10 text-muted-foreground/50" />
+                  </EmptyMedia>
+                  <EmptyDescription>{t('noVariables')}</EmptyDescription>
+                </Empty>
               ) : (
                 <div className="space-y-4">
                   {prompt.variables.map((variable) => (
@@ -264,7 +267,7 @@ export function PromptPreviewDialog({
                   className="gap-2"
                 >
                   {isTesting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader size={16} />
                   ) : (
                     <Play className="h-4 w-4" />
                   )}
@@ -308,15 +311,17 @@ export function PromptPreviewDialog({
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Play className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">
+                <Empty className="py-12">
+                  <EmptyMedia>
+                    <Play className="h-12 w-12 text-muted-foreground/30" />
+                  </EmptyMedia>
+                  <EmptyDescription>
                     {isTesting ? t('testing') : t('runTestHint')}
-                  </p>
+                  </EmptyDescription>
                   {isTesting && (
-                    <Loader2 className="h-6 w-6 mx-auto mt-4 animate-spin" />
+                    <Loader size={24} className="mt-4" />
                   )}
-                </div>
+                </Empty>
               )}
             </TabsContent>
           </ScrollArea>

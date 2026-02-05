@@ -13,7 +13,6 @@ import {
   Copy,
   Check,
   X,
-  Loader2,
   Languages,
   Sparkles,
   FileText,
@@ -23,6 +22,7 @@ import {
   Cloud,
   Monitor,
 } from "lucide-react";
+import { LoadingSpinner, InlineLoading } from "@/components/ui/loading-states";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -500,7 +500,7 @@ export function OCRPanel({
           </div>
           
           {loadingLanguages && (
-            <Loader2 className="w-3 h-3 animate-spin text-white/40" />
+            <LoadingSpinner size="sm" className="text-white/40" />
           )}
         </div>
 
@@ -571,9 +571,8 @@ export function OCRPanel({
             />
 
             {isProcessing && (
-              <div className="flex items-center justify-center gap-2 py-4">
-                <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-                <span className="text-sm text-white/60">{t("processing")}</span>
+              <div className="flex items-center justify-center py-4">
+                <InlineLoading text={t("processing")} className="text-cyan-400" />
               </div>
             )}
 
@@ -609,9 +608,8 @@ export function OCRPanel({
             </div>
 
             {isProcessing && (
-              <div className="flex items-center justify-center gap-2 py-2">
-                <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
-                <span className="text-xs text-white/60">{t("extracting")}</span>
+              <div className="flex items-center justify-center py-2">
+                <InlineLoading text={t("extracting")} className="text-cyan-400" />
               </div>
             )}
           </div>

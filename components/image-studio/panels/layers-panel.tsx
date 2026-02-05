@@ -38,6 +38,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import { Empty, EmptyTitle } from '@/components/ui/empty';
 import {
   Layers,
   Eye,
@@ -191,9 +193,9 @@ export function LayersPanel({
   );
 
   return (
-    <div className={cn('flex flex-col border rounded-lg', className)} role="region" aria-label="Layers Panel">
+    <Card className={cn('flex flex-col gap-0 py-0', className)} role="region" aria-label="Layers Panel">
       {/* Header */}
-      <div className="p-3 border-b flex items-center justify-between">
+      <CardHeader className="p-3 border-b flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4" aria-hidden="true" />
           <h3 className="font-medium text-sm" id="layers-panel-title">{t('title')}</h3>
@@ -220,7 +222,7 @@ export function LayersPanel({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </CardHeader>
 
       {/* Active layer settings */}
       {activeLayer && (
@@ -265,13 +267,14 @@ export function LayersPanel({
       )}
 
       {/* Layers list */}
-      <ScrollArea className="flex-1 max-h-[300px]">
-        <div className="p-2 space-y-1">
-          {sortedLayers.length === 0 ? (
-            <div className="text-center py-4 text-xs text-muted-foreground">
-              {t('noLayers')}
-            </div>
-          ) : (
+      <CardContent className="flex-1 p-0">
+        <ScrollArea className="max-h-[300px]">
+          <div className="p-2 space-y-1">
+            {sortedLayers.length === 0 ? (
+              <Empty className="py-4 border-0">
+                <EmptyTitle className="text-xs">{t('noLayers')}</EmptyTitle>
+              </Empty>
+            ) : (
             sortedLayers.map((layer) => (
               <div
                 key={layer.id}
@@ -414,13 +417,14 @@ export function LayersPanel({
                 </div>
               </div>
             ))
-          )}
-        </div>
-      </ScrollArea>
+            )}
+          </div>
+        </ScrollArea>
+      </CardContent>
 
       {/* Footer actions */}
       {onLayerMerge && layers.length > 1 && (
-        <div className="p-2 border-t">
+        <CardFooter className="p-2 border-t">
           <Button
             variant="outline"
             size="sm"
@@ -430,9 +434,9 @@ export function LayersPanel({
             <Merge className="h-3 w-3 mr-1" />
             {t('mergeVisible')}
           </Button>
-        </div>
+        </CardFooter>
       )}
-    </div>
+    </Card>
   );
 }
 

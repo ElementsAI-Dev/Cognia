@@ -21,6 +21,7 @@ import {
   ChainOfThoughtSearchResult,
 } from '@/components/ai-elements/chain-of-thought';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
@@ -161,7 +162,7 @@ export function ReasoningPart({ part, showChainOfThought = true }: ReasoningPart
       {/* Toggle and actions bar */}
       {hasMultipleSteps && (
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
+          <ButtonGroup>
             <Button
               variant={viewMode === 'chain' ? 'secondary' : 'ghost'}
               size="sm"
@@ -179,7 +180,7 @@ export function ReasoningPart({ part, showChainOfThought = true }: ReasoningPart
             >
               {t('rawView')}
             </Button>
-          </div>
+          </ButtonGroup>
           <div className="flex items-center gap-1">
             <Badge variant="outline" className="text-[10px]">
               {parsed.steps.length} {t('steps')}

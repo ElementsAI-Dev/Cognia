@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { usePromptOptimizer } from '@/hooks/ai/use-prompt-optimizer';
 import type { PromptTemplate, PromptFeedback } from '@/types/content/prompt-template';
@@ -340,11 +341,13 @@ export function PromptAnalyticsPanel({ template }: PromptAnalyticsPanelProps) {
             
             {/* Empty State */}
             {feedback.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>{t('noData')}</p>
-                <p className="text-sm">{t('startCollecting')}</p>
-              </div>
+              <Empty className="py-8">
+                <EmptyMedia variant="icon">
+                  <BarChart3 className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>{t('noData')}</EmptyTitle>
+                <EmptyDescription>{t('startCollecting')}</EmptyDescription>
+              </Empty>
             )}
           </div>
         </ScrollArea>

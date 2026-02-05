@@ -89,8 +89,9 @@ describe('RecordingHistoryPanel', () => {
 
   it('shows empty state when no recordings', () => {
     render(<RecordingHistoryPanel />);
-    expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+    // Using @ui/empty component which has data-slot="empty"
     expect(screen.getByText('No recordings')).toBeInTheDocument();
+    expect(screen.getByText('Start recording to see history')).toBeInTheDocument();
   });
 
   it('renders recordings list when history exists', () => {

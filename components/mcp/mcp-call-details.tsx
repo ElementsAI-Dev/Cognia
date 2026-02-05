@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader } from '@/components/ui/card';
 import {
   Collapsible,
   CollapsibleContent,
@@ -130,9 +131,8 @@ export function MCPCallDetails({
   const t = useTranslations('mcp');
 
   return (
-    <div className={cn('rounded-lg border bg-card overflow-hidden', className)}>
-      {/* Header with basic info */}
-      <div className="p-4 border-b bg-muted/30">
+    <Card className={cn('overflow-hidden', className)}>
+      <CardHeader className="p-4 bg-muted/30">
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2">
             <Server className="h-4 w-4 text-muted-foreground" />
@@ -171,7 +171,7 @@ export function MCPCallDetails({
             {endedAt && ` → ${t('ended')}: ${formatTimestamp(endedAt)}`}
           </div>
         )}
-      </div>
+      </CardHeader>
 
       {/* Scrollable content */}
       <ScrollArea style={{ maxHeight }}>
@@ -255,6 +255,6 @@ export function MCPCallDetails({
           )}
         </div>
       </ScrollArea>
-    </div>
+    </Card>
   );
 }

@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Tooltip,
   TooltipContent,
@@ -189,33 +191,30 @@ export function MediaLibraryPanel({
             <FolderOpen className="h-4 w-4" />
             {t('title')}
           </h3>
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setViewMode('grid')}
-                >
-                  <Grid className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('gridView')}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('listView')}</TooltipContent>
-            </Tooltip>
+          <div className="flex items-center gap-2">
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}
+              className="bg-muted rounded-md p-0.5"
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem value="grid" size="sm" className="h-7 w-7 p-0">
+                    <Grid className="h-3.5 w-3.5" />
+                  </ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent>{t('gridView')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem value="list" size="sm" className="h-7 w-7 p-0">
+                    <List className="h-3.5 w-3.5" />
+                  </ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent>{t('listView')}</TooltipContent>
+              </Tooltip>
+            </ToggleGroup>
             <Button size="sm" onClick={onImport}>
               <Plus className="h-3.5 w-3.5 mr-1" />
               {t('import')}
@@ -253,14 +252,17 @@ export function MediaLibraryPanel({
       {/* Asset list */}
       <ScrollArea className="flex-1">
         {filteredAssets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <FolderOpen className="h-12 w-12 mb-3 opacity-50" />
-            <p className="text-sm">{t('noMedia')}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={onImport}>
+          <Empty className="py-12 border-0">
+            <EmptyMedia variant="icon">
+              <FolderOpen className="h-6 w-6" />
+            </EmptyMedia>
+            <EmptyTitle>{t('noMedia')}</EmptyTitle>
+            <EmptyDescription>{t('importMedia')}</EmptyDescription>
+            <Button variant="outline" size="sm" onClick={onImport}>
               <Plus className="h-3.5 w-3.5 mr-1" />
-              {t('importMedia')}
+              {t('import')}
             </Button>
-          </div>
+          </Empty>
         ) : viewMode === 'grid' ? (
           <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
             {filteredAssets.map((asset) => {

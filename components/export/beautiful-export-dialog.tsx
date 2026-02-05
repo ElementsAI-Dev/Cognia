@@ -39,6 +39,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -904,17 +905,19 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
         {/* Error message */}
         {exportError && (
-          <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive mt-4">
-            {exportError}
-          </div>
+          <Alert variant="destructive" className="mt-4">
+            <AlertDescription>{exportError}</AlertDescription>
+          </Alert>
         )}
 
         {/* Success message */}
         {exportSuccess && (
-          <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3 text-sm text-green-600 dark:text-green-400 flex items-center gap-2 mt-4">
+          <Alert className="mt-4 border-green-500/20 bg-green-500/10 text-green-600 dark:text-green-400">
             <Check className="h-4 w-4" />
-            {t('exportedAs', { format: FORMAT_CONFIG[exportSuccess].label })}
-          </div>
+            <AlertDescription>
+              {t('exportedAs', { format: FORMAT_CONFIG[exportSuccess].label })}
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Export button */}

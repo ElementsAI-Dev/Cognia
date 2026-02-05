@@ -36,6 +36,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useSubAgent } from '@/hooks';
 import { SubAgentNode } from './sub-agent-node';
 import { SubAgentTemplateSelector } from './sub-agent-template-selector';
@@ -288,15 +295,19 @@ export function AgentFlowVisualizer({
                 </Tooltip>
                 
                 {/* Execution Mode Selector */}
-                <select
+                <Select
                   value={executionMode}
-                  onChange={(e) => setExecutionMode(e.target.value as SubAgentExecutionMode)}
-                  className="text-xs px-2 py-1 rounded border bg-background"
+                  onValueChange={(value) => setExecutionMode(value as SubAgentExecutionMode)}
                   disabled={isExecuting}
                 >
-                  <option value="sequential">{t('sequential')}</option>
-                  <option value="parallel">{t('parallel')}</option>
-                </select>
+                  <SelectTrigger className="h-7 w-[110px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sequential">{t('sequential')}</SelectItem>
+                    <SelectItem value="parallel">{t('parallel')}</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 {/* Execute All Button */}
                 {pendingSubAgents > 0 && !isExecuting && (

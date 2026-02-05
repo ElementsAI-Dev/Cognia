@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
+import { Empty, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,10 +79,12 @@ export function RecordingSidebar({
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
           {history.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Film className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">{t('noRecordings')}</p>
-            </div>
+            <Empty className="py-8 border-0">
+              <EmptyMedia variant="icon">
+                <Film className="h-6 w-6" />
+              </EmptyMedia>
+              <EmptyTitle className="text-sm text-muted-foreground">{t('noRecordings')}</EmptyTitle>
+            </Empty>
           ) : (
             history.map((entry) => (
               <Card

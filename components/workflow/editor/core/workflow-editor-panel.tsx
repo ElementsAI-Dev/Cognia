@@ -21,6 +21,7 @@ import {
 import { useShallow } from 'zustand/react/shallow';
 import { Controls } from '@/components/ai-elements/controls';
 import { Panel } from '@/components/ai-elements/panel';
+import { Loader } from '@/components/ai-elements/loader';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import {
@@ -228,8 +229,9 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
 
   if (!currentWorkflow) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="flex items-center justify-center h-full gap-2">
+        <Loader size={20} className="text-muted-foreground" />
+        <span className="text-muted-foreground">Loading...</span>
       </div>
     );
   }

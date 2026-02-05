@@ -246,6 +246,7 @@
     "variableValue": "值",
     "name": "名称",
     "value": "值",
+    "deleteProject": "删除项目配置",
     "placeholders": {
       "variableName": "MY_VARIABLE",
       "variableValue": "value",

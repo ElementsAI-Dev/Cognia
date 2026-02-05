@@ -64,6 +64,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Toggle } from '@/components/ui/toggle';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { FONT_FAMILIES, FONT_SIZES } from '@/types/document/document-formatting';
 
@@ -135,7 +137,7 @@ const HIGHLIGHT_COLORS = [
   { nameKey: 'gray', value: '#E5E7EB' },
 ];
 
-interface ToolbarButtonProps {
+interface ToolbarToggleProps {
   action: FormatAction;
   icon: React.ElementType;
   tooltip: string;
@@ -145,7 +147,7 @@ interface ToolbarButtonProps {
   onClick: (action: FormatAction) => void;
 }
 
-function ToolbarButton({ 
+function ToolbarToggle({ 
   action, 
   icon: Icon, 
   tooltip, 
@@ -153,22 +155,19 @@ function ToolbarButton({
   shortcut,
   disabled,
   onClick,
-}: ToolbarButtonProps) {
+}: ToolbarToggleProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
+        <Toggle
           size="sm"
-          className={cn(
-            'h-8 w-8 p-0',
-            active && 'bg-accent text-accent-foreground'
-          )}
-          onClick={() => onClick(action)}
+          pressed={active}
+          onPressedChange={() => onClick(action)}
           disabled={disabled}
+          className="h-8 w-8 p-0"
         >
           <Icon className="h-4 w-4" />
-        </Button>
+        </Toggle>
       </TooltipTrigger>
       <TooltipContent side="bottom">
         <p>{tooltip}{shortcut && <span className="ml-2 text-muted-foreground">{shortcut}</span>}</p>
@@ -204,7 +203,7 @@ export function DocumentFormatToolbar({
     <>
       {/* Undo/Redo */}
       <div className="flex items-center shrink-0">
-        <ToolbarButton 
+        <ToolbarToggle 
           action="undo" 
           icon={Undo} 
           tooltip={t('undo')} 
@@ -212,7 +211,7 @@ export function DocumentFormatToolbar({
           disabled={disabled}
           onClick={handleAction}
         />
-        <ToolbarButton 
+        <ToolbarToggle 
           action="redo" 
           icon={Redo} 
           tooltip={t('redo')} 
@@ -266,7 +265,7 @@ export function DocumentFormatToolbar({
 
       {/* Text Formatting */}
       <div className="flex items-center shrink-0">
-        <ToolbarButton 
+        <ToolbarToggle 
           action="bold" 
           icon={Bold} 
           tooltip={t('bold')} 
@@ -275,7 +274,7 @@ export function DocumentFormatToolbar({
           disabled={disabled}
           onClick={handleAction}
         />
-        <ToolbarButton 
+        <ToolbarToggle 
           action="italic" 
           icon={Italic} 
           tooltip={t('italic')} 
@@ -284,7 +283,7 @@ export function DocumentFormatToolbar({
           disabled={disabled}
           onClick={handleAction}
         />
-        <ToolbarButton 
+        <ToolbarToggle 
           action="underline" 
           icon={Underline} 
           tooltip={t('underline')} 
@@ -294,7 +293,7 @@ export function DocumentFormatToolbar({
           onClick={handleAction}
         />
         <span className="hidden sm:inline-flex">
-          <ToolbarButton 
+          <ToolbarToggle 
             action="strikethrough" 
             icon={Strikethrough} 
             tooltip={t('strikethrough')} 
@@ -385,69 +384,89 @@ export function DocumentFormatToolbar({
       <Separator orientation="vertical" className="mx-1 h-6 hidden md:block" />
 
       {/* Alignment - Hidden on mobile, shown in More menu */}
-      <div className="hidden md:flex items-center shrink-0">
-        <ToolbarButton 
-          action="alignLeft" 
-          icon={AlignLeft} 
-          tooltip={t('alignLeft')} 
-          active={formatState.alignment === 'left'}
-          disabled={disabled}
-          onClick={handleAction}
-        />
-        <ToolbarButton 
-          action="alignCenter" 
-          icon={AlignCenter} 
-          tooltip={t('alignCenter')} 
-          active={formatState.alignment === 'center'}
-          disabled={disabled}
-          onClick={handleAction}
-        />
-        <ToolbarButton 
-          action="alignRight" 
-          icon={AlignRight} 
-          tooltip={t('alignRight')} 
-          active={formatState.alignment === 'right'}
-          disabled={disabled}
-          onClick={handleAction}
-        />
-        <ToolbarButton 
-          action="alignJustify" 
-          icon={AlignJustify} 
-          tooltip={t('alignJustify')} 
-          active={formatState.alignment === 'justify'}
-          disabled={disabled}
-          onClick={handleAction}
-        />
-      </div>
+      <ToggleGroup 
+        type="single" 
+        value={formatState.alignment || 'left'}
+        onValueChange={(value) => {
+          if (value) {
+            handleAction(`align${value.charAt(0).toUpperCase() + value.slice(1)}` as FormatAction);
+          }
+        }}
+        className="hidden md:flex shrink-0"
+        disabled={disabled}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ToggleGroupItem value="left" size="sm" className="h-8 w-8 p-0">
+              <AlignLeft className="h-4 w-4" />
+            </ToggleGroupItem>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t('alignLeft')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ToggleGroupItem value="center" size="sm" className="h-8 w-8 p-0">
+              <AlignCenter className="h-4 w-4" />
+            </ToggleGroupItem>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t('alignCenter')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ToggleGroupItem value="right" size="sm" className="h-8 w-8 p-0">
+              <AlignRight className="h-4 w-4" />
+            </ToggleGroupItem>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t('alignRight')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ToggleGroupItem value="justify" size="sm" className="h-8 w-8 p-0">
+              <AlignJustify className="h-4 w-4" />
+            </ToggleGroupItem>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t('alignJustify')}</TooltipContent>
+        </Tooltip>
+      </ToggleGroup>
 
       <Separator orientation="vertical" className="mx-1 h-6 hidden lg:block" />
 
       {/* Lists - Hidden on smaller screens */}
-      <div className="hidden lg:flex items-center shrink-0">
-        <ToolbarButton 
-          action="bulletList" 
-          icon={List} 
-          tooltip={t('bulletList')} 
-          active={formatState.listType === 'bullet'}
+      <div className="hidden lg:flex items-center gap-0.5 shrink-0">
+        <ToggleGroup 
+          type="single" 
+          value={formatState.listType || ''}
+          onValueChange={(value) => {
+            if (value === 'bullet') handleAction('bulletList');
+            else if (value === 'numbered') handleAction('numberedList');
+          }}
           disabled={disabled}
-          onClick={handleAction}
-        />
-        <ToolbarButton 
-          action="numberedList" 
-          icon={ListOrdered} 
-          tooltip={t('numberedList')} 
-          active={formatState.listType === 'numbered'}
-          disabled={disabled}
-          onClick={handleAction}
-        />
-        <ToolbarButton 
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ToggleGroupItem value="bullet" size="sm" className="h-8 w-8 p-0">
+                <List className="h-4 w-4" />
+              </ToggleGroupItem>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t('bulletList')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ToggleGroupItem value="numbered" size="sm" className="h-8 w-8 p-0">
+                <ListOrdered className="h-4 w-4" />
+              </ToggleGroupItem>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t('numberedList')}</TooltipContent>
+          </Tooltip>
+        </ToggleGroup>
+        <ToolbarToggle 
           action="indentDecrease" 
           icon={IndentDecrease} 
           tooltip={t('decreaseIndent')}
           disabled={disabled}
           onClick={handleAction}
         />
-        <ToolbarButton 
+        <ToolbarToggle 
           action="indentIncrease" 
           icon={IndentIncrease} 
           tooltip={t('increaseIndent')}
@@ -489,7 +508,7 @@ export function DocumentFormatToolbar({
         </DropdownMenu>
 
         {/* Quote & Code */}
-        <ToolbarButton 
+        <ToolbarToggle 
           action="quote" 
           icon={Quote} 
           tooltip={t('quote')} 
@@ -497,7 +516,7 @@ export function DocumentFormatToolbar({
           disabled={disabled}
           onClick={handleAction}
         />
-        <ToolbarButton 
+        <ToolbarToggle 
           action="codeBlock" 
           icon={Code} 
           tooltip={t('codeBlock')} 

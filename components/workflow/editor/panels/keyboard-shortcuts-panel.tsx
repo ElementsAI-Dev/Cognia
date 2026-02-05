@@ -24,7 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { Kbd } from '@/components/ui/kbd';
 import {
   Keyboard,
   Search,
@@ -142,15 +142,9 @@ export function KeyboardShortcutsPanel({ className }: KeyboardShortcutsPanelProp
   }, []);
 
   const renderKey = (key: string) => (
-    <kbd
-      key={key}
-      className={cn(
-        'px-1.5 py-0.5 text-xs font-mono rounded border bg-muted',
-        'min-w-[24px] text-center inline-block'
-      )}
-    >
+    <Kbd key={key} className="min-w-[24px] text-center">
       {key === 'Ctrl' && navigator.platform.includes('Mac') ? '⌘' : key}
-    </kbd>
+    </Kbd>
   );
 
   return (

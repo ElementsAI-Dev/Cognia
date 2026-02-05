@@ -19,6 +19,8 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
+import { Loader } from '@/components/ai-elements/loader';
 import {
   Sun,
   Contrast,
@@ -486,29 +488,33 @@ export function ImageAdjustmentsPanel({
         />
         {!imageLoaded && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="animate-pulse text-muted-foreground">
-              {tc('loadingImage')}
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader size={16} />
+              <span>{tc('loadingImage')}</span>
             </div>
           </div>
         )}
       </div>
 
       {/* Controls panel */}
-      <div className="w-72 flex flex-col border rounded-lg">
-        <div className="p-3 border-b flex items-center justify-between">
-          <h3 className="font-medium text-sm">{t('title')}</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={resetAll}
-            disabled={!hasChanges}
-          >
-            <RotateCcw className="h-4 w-4 mr-1" />
-            {tc('reset')}
-          </Button>
-        </div>
+      <Card className="w-72 flex flex-col py-0">
+        <CardHeader className="p-3 border-b flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm font-medium">{t('title')}</CardTitle>
+          <CardAction>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetAll}
+              disabled={!hasChanges}
+            >
+              <RotateCcw className="h-4 w-4 mr-1" />
+              {tc('reset')}
+            </Button>
+          </CardAction>
+        </CardHeader>
 
-        <ScrollArea className="flex-1">
+        <CardContent className="flex-1 p-0">
+          <ScrollArea className="h-full">
           <div className="p-4 space-y-6">
             {/* Filter presets */}
             <div className="space-y-2">
@@ -599,10 +605,11 @@ export function ImageAdjustmentsPanel({
               />
             </div>
           </div>
-        </ScrollArea>
+          </ScrollArea>
+        </CardContent>
 
         {/* Actions */}
-        <div className="p-3 border-t flex gap-2">
+        <CardFooter className="p-3 border-t flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onCancel}>
             <X className="h-4 w-4 mr-1" />
             {tc('cancel')}
@@ -611,8 +618,8 @@ export function ImageAdjustmentsPanel({
             <Check className="h-4 w-4 mr-1" />
             {t('apply')}
           </Button>
-        </div>
-      </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 }

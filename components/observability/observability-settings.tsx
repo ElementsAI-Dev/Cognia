@@ -8,7 +8,8 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { ExternalLink, TestTube, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { ExternalLink, TestTube, CheckCircle, XCircle } from 'lucide-react';
+import { Loader } from '@/components/ai-elements/loader';
 import { useState } from 'react';
 import { useSettingsStore } from '@/stores';
 
@@ -148,7 +149,7 @@ export function ObservabilitySettings() {
                     disabled={testStatus === 'testing'}
                   >
                     {testStatus === 'testing' ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader size={16} className="mr-2" />
                     ) : (
                       <TestTube className="h-4 w-4 mr-2" />
                     )}

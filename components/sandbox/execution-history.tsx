@@ -54,6 +54,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Empty, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { LANGUAGE_INFO, type ExecutionStatus } from '@/types/system/sandbox';
 
 export interface ExecutionHistoryProps {
@@ -284,10 +285,12 @@ export function ExecutionHistory({
                 ))}
               </div>
             ) : executions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>{t('history.empty')}</p>
-              </div>
+              <Empty className="py-8 border-0">
+                <EmptyMedia variant="icon">
+                  <History className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>{t('history.empty')}</EmptyTitle>
+              </Empty>
             ) : (
               executions.map((execution) => {
                 const langInfo = getLanguageInfo(execution.language);

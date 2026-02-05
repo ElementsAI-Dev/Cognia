@@ -19,12 +19,24 @@ jest.mock('next/link', () => ({
 }));
 
 // Mock UI components
-jest.mock('@/components/ui/card', () => ({
-  Card: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="card">{children}</div>
+jest.mock('@/components/ui/empty', () => ({
+  Empty: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="empty" data-slot="empty" className={className}>{children}</div>
   ),
-  CardContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="card-content">{children}</div>
+  EmptyHeader: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="empty-header" data-slot="empty-header">{children}</div>
+  ),
+  EmptyMedia: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="empty-media" data-slot="empty-media">{children}</div>
+  ),
+  EmptyTitle: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="empty-title" data-slot="empty-title">{children}</div>
+  ),
+  EmptyDescription: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="empty-description" data-slot="empty-description">{children}</div>
+  ),
+  EmptyContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="empty-content" data-slot="empty-content">{children}</div>
   ),
 }));
 
@@ -79,8 +91,8 @@ describe('EmptyState', () => {
     expect(icons.length).toBeGreaterThan(0);
   });
 
-  it('renders card container', () => {
+  it('renders empty container', () => {
     render(<EmptyState />);
-    expect(screen.getByTestId('card')).toBeInTheDocument();
+    expect(screen.getByTestId('empty')).toBeInTheDocument();
   });
 });

@@ -22,6 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import {
   Tooltip,
   TooltipContent,
@@ -304,12 +305,14 @@ export function PPTEditor({
 
   if (!presentation) {
     return (
-      <div className={cn('flex items-center justify-center h-full', className)}>
-        <div className="text-center text-muted-foreground">
-          <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>{t('noPresentation')}</p>
-        </div>
-      </div>
+      <Empty className={cn('h-full', className)}>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <FileText className="h-6 w-6" />
+          </EmptyMedia>
+          <EmptyTitle>{t('noPresentation')}</EmptyTitle>
+        </EmptyHeader>
+      </Empty>
     );
   }
 

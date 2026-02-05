@@ -26,6 +26,15 @@ import {
 } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from '@/components/ui/empty';
 
 /**
  * SettingsCard - Main card wrapper with consistent styling
@@ -403,9 +412,10 @@ export function SettingsPageHeader({
 
 /**
  * SettingsAlert - Contextual alert for settings sections
+ * Uses @ui/alert for consistent styling
  */
 interface SettingsAlertProps {
-  variant?: 'default' | 'info' | 'success' | 'warning' | 'destructive';
+  variant?: 'default' | 'destructive';
   icon?: ReactNode;
   title?: string;
   children: ReactNode;
@@ -421,34 +431,21 @@ export function SettingsAlert({
   className,
   action,
 }: SettingsAlertProps) {
-  const variantStyles = {
-    default: 'bg-muted/50 border-muted-foreground/20',
-    info: 'bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400',
-    success: 'bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400',
-    warning: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-700 dark:text-yellow-400',
-    destructive: 'bg-destructive/10 border-destructive/30 text-destructive',
-  };
-
   return (
-    <div
-      className={cn(
-        'flex items-start gap-3 rounded-lg border p-3',
-        variantStyles[variant],
-        className
-      )}
-    >
-      {icon && <span className="shrink-0 mt-0.5">{icon}</span>}
-      <div className="flex-1 min-w-0">
-        {title && <p className="font-medium text-sm mb-0.5">{title}</p>}
-        <div className="text-xs">{children}</div>
-      </div>
-      {action && <div className="shrink-0">{action}</div>}
-    </div>
+    <Alert variant={variant} className={cn('relative', className)}>
+      {icon}
+      {title && <AlertTitle>{title}</AlertTitle>}
+      <AlertDescription className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">{children}</div>
+        {action && <div className="shrink-0">{action}</div>}
+      </AlertDescription>
+    </Alert>
   );
 }
 
 /**
  * SettingsEmptyState - Empty state for settings sections
+ * Uses @ui/empty for consistent styling
  */
 interface SettingsEmptyStateProps {
   icon?: ReactNode;
@@ -466,20 +463,13 @@ export function SettingsEmptyState({
   className,
 }: SettingsEmptyStateProps) {
   return (
-    <div
-      className={cn(
-        'flex flex-col items-center justify-center py-8 text-center',
-        className
-      )}
-    >
-      {icon && (
-        <div className="mb-3 text-muted-foreground opacity-50">{icon}</div>
-      )}
-      <h3 className="font-medium text-sm mb-1">{title}</h3>
-      {description && (
-        <p className="text-xs text-muted-foreground max-w-sm">{description}</p>
-      )}
-      {action && <div className="mt-4">{action}</div>}
-    </div>
+    <Empty className={cn('py-8', className)}>
+      <EmptyHeader>
+        {icon && <EmptyMedia variant="icon">{icon}</EmptyMedia>}
+        <EmptyTitle>{title}</EmptyTitle>
+        {description && <EmptyDescription>{description}</EmptyDescription>}
+      </EmptyHeader>
+      {action && <EmptyContent>{action}</EmptyContent>}
+    </Empty>
   );
 }

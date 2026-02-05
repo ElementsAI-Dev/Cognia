@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Sparkles, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Suggestions, Suggestion, type SuggestionCategory } from '@/components/ai-elements/suggestion';
 import { cn } from '@/lib/utils';
 import type { UIMessage } from '@/types';
 
@@ -116,29 +116,17 @@ export function QuickReplyBar({
     generateSuggestions();
   };
 
-  const typeStyles: Record<QuickReplySuggestion['type'], string> = {
-    followup:
-      'border-blue-500/30 hover:border-blue-500/50 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400',
-    action:
-      'border-green-500/30 hover:border-green-500/50 hover:bg-green-500/10 text-green-600 dark:text-green-400',
-    clarify:
-      'border-amber-500/30 hover:border-amber-500/50 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  };
-
-  const typeIcons: Record<QuickReplySuggestion['type'], string> = {
-    followup: '→',
-    action: '⚡',
-    clarify: '?',
+  // Map internal types to ai-elements SuggestionCategory
+  const typeToCategory: Record<QuickReplySuggestion['type'], SuggestionCategory> = {
+    followup: 'follow-up',
+    action: 'quick',
+    clarify: 'explore',
   };
 
   return (
     <div className={cn('relative mx-auto max-w-5xl px-4 py-2', className)}>
-      {/* Header with label and refresh button */}
+      {/* Header with refresh button */}
       <div className="flex items-center gap-2 mb-2.5">
-        <div className="flex items-center gap-1.5 bg-linear-to-r from-primary/10 to-transparent rounded-full px-2.5 py-1">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          <span className="text-xs font-medium text-primary">{t('quickReplies')}</span>
-        </div>
         <Button
           variant="ghost"
           size="icon"
@@ -151,48 +139,25 @@ export function QuickReplyBar({
         </Button>
       </div>
 
-      {/* Suggestions scroll area */}
-      <ScrollArea
-        className="w-full whitespace-nowrap rounded-lg"
-        onWheel={(e) => {
-          if (e.deltaY !== 0) {
-            e.currentTarget.querySelector('[data-radix-scroll-area-viewport]')?.scrollBy({
-              left: e.deltaY,
-              behavior: 'auto',
-            });
-          }
-        }}
+      {/* Suggestions using ai-elements */}
+      <Suggestions 
+        variant="horizontal" 
+        title={t('quickReplies')} 
+        showTitle
       >
-        <div className="flex gap-2 pb-2">
-          {suggestions.map((suggestion, index) => {
-            const text = getSuggestionText(suggestion.textKey);
-            return (
-              <Button
-                key={suggestion.id}
-                variant="outline"
-                size="sm"
-                className={cn(
-                  'shrink-0 text-xs h-9 px-4 rounded-full transition-all duration-200',
-                  'shadow-sm hover:shadow-md',
-                  'animate-in fade-in-0 slide-in-from-bottom-2',
-                  typeStyles[suggestion.type],
-                  disabled && 'opacity-50 cursor-not-allowed'
-                )}
-                style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => !disabled && onSelect(text)}
-                disabled={disabled}
-              >
-                <span className="mr-1.5 opacity-70">{typeIcons[suggestion.type]}</span>
-                {text}
-              </Button>
-            );
-          })}
-        </div>
-        <ScrollBar
-          orientation="horizontal"
-          className="h-1 opacity-0 group-hover:opacity-100 transition-opacity"
-        />
-      </ScrollArea>
+        {suggestions.map((suggestion) => {
+          const text = getSuggestionText(suggestion.textKey);
+          return (
+            <Suggestion
+              key={suggestion.id}
+              suggestion={text}
+              category={typeToCategory[suggestion.type]}
+              onClick={() => !disabled && onSelect(text)}
+              disabled={disabled}
+            />
+          );
+        })}
+      </Suggestions>
     </div>
   );
 }

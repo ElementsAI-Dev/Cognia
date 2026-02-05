@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Card,
@@ -130,18 +131,17 @@ export function TaskList({
 
   if (tasks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-2xl" />
-          <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-muted to-muted/50 mb-4">
-            <Calendar className="h-10 w-10 text-muted-foreground/70" />
-          </div>
-        </div>
-        <h3 className="text-base sm:text-lg font-medium mt-2">{t('noTasks') || 'No scheduled tasks'}</h3>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-[200px]">
-          {t('noTasksDescription') || 'Create a scheduled task to automate your workflows'}
-        </p>
-      </div>
+      <Empty className="py-12 px-4">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Calendar className="h-6 w-6" />
+          </EmptyMedia>
+          <EmptyTitle>{t('noTasks') || 'No scheduled tasks'}</EmptyTitle>
+          <EmptyDescription>
+            {t('noTasksDescription') || 'Create a scheduled task to automate your workflows'}
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 

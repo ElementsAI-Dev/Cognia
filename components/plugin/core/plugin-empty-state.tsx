@@ -3,6 +3,7 @@
 /**
  * PluginEmptyState - Enhanced empty state for plugin list
  * Features: Engaging illustrations, quick actions, and helpful suggestions
+ * Uses @ui/empty components for consistent styling
  */
 
 import React from 'react';
@@ -19,6 +20,14 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { TRANSPARENCY_CONFIG } from '@/lib/constants/transparency';
 
@@ -100,138 +109,145 @@ export function PluginEmptyState({
       case 'no-plugins':
         return (
           <>
-            <h3 className="text-lg sm:text-xl font-semibold mb-2">{t('noPlugins.title')}</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-              {t('noPlugins.description')}
-            </p>
+            <EmptyHeader>
+              <EmptyTitle>{t('noPlugins.title')}</EmptyTitle>
+              <EmptyDescription>{t('noPlugins.description')}</EmptyDescription>
+            </EmptyHeader>
 
-            {/* Quick Actions Grid */}
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 w-full max-w-lg mb-8">
-              <button
-                onClick={onBrowseMarketplace}
-                className={
-                  isBackgroundActive
-                    ? buttonBaseClass
-                    : 'group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all'
-                }
-              >
-                <div className="p-2.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <Store className="h-5 w-5 text-primary" />
-                </div>
-                <span className="text-sm font-medium">{t('noPlugins.browseMarketplace')}</span>
-              </button>
+            <EmptyContent>
+              {/* Quick Actions Grid */}
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-3 w-full max-w-lg">
+                <button
+                  onClick={onBrowseMarketplace}
+                  className={cn(
+                    buttonBaseClass,
+                    !isBackgroundActive && 'bg-card hover:border-primary/50 hover:bg-primary/5'
+                  )}
+                >
+                  <div className="p-2.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                    <Store className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium">{t('noPlugins.browseMarketplace')}</span>
+                </button>
 
-              <button
-                onClick={onCreatePlugin}
-                className={
-                  isBackgroundActive
-                    ? buttonBaseClass
-                    : 'group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all'
-                }
-              >
-                <div className="p-2.5 rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
-                  <Code2 className="h-5 w-5 text-emerald-500" />
-                </div>
-                <span className="text-sm font-medium">{t('noPlugins.createPlugin')}</span>
-              </button>
+                <button
+                  onClick={onCreatePlugin}
+                  className={cn(
+                    buttonBaseClass,
+                    !isBackgroundActive && 'bg-card hover:border-emerald-500/50 hover:bg-emerald-500/5'
+                  )}
+                >
+                  <div className="p-2.5 rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+                    <Code2 className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <span className="text-sm font-medium">{t('noPlugins.createPlugin')}</span>
+                </button>
 
-              <button
-                onClick={onImportPlugin}
-                className={
-                  isBackgroundActive
-                    ? buttonBaseClass
-                    : 'group flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-blue-500/50 hover:bg-blue-500/5 transition-all'
-                }
-              >
-                <div className="p-2.5 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
-                  <FolderOpen className="h-5 w-5 text-blue-500" />
-                </div>
-                <span className="text-sm font-medium">{t('noPlugins.importPlugin')}</span>
-              </button>
-            </div>
+                <button
+                  onClick={onImportPlugin}
+                  className={cn(
+                    buttonBaseClass,
+                    !isBackgroundActive && 'bg-card hover:border-blue-500/50 hover:bg-blue-500/5'
+                  )}
+                >
+                  <div className="p-2.5 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                    <FolderOpen className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <span className="text-sm font-medium">{t('noPlugins.importPlugin')}</span>
+                </button>
+              </div>
 
-            {/* Suggestion */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Lightbulb className="h-4 w-4" />
-              <span>{t('noPlugins.tip')}</span>
-            </div>
+              {/* Suggestion */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4">
+                <Lightbulb className="h-4 w-4" />
+                <span>{t('noPlugins.tip')}</span>
+              </div>
+            </EmptyContent>
           </>
         );
 
       case 'no-results':
         return (
           <>
-            <h3 className="text-lg sm:text-xl font-semibold mb-2">{t('noResults.title')}</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-              {searchQuery
-                ? t('noResults.searchDescription', { query: searchQuery })
-                : t('noResults.filterDescription')}
-            </p>
+            <EmptyHeader>
+              <EmptyTitle>{t('noResults.title')}</EmptyTitle>
+              <EmptyDescription>
+                {searchQuery
+                  ? t('noResults.searchDescription', { query: searchQuery })
+                  : t('noResults.filterDescription')}
+              </EmptyDescription>
+            </EmptyHeader>
 
-            <div className="flex flex-wrap gap-2 justify-center mb-6">
-              {onClearFilters && (
-                <Button variant="outline" size="sm" onClick={onClearFilters}>
-                  {t('noResults.clearFilters')}
-                </Button>
-              )}
-              <Button variant="secondary" size="sm" onClick={onBrowseMarketplace}>
-                <Store className="h-4 w-4 mr-2" />
-                {t('noResults.browseMore')}
-              </Button>
-            </div>
-
-            {/* Search Suggestions */}
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground mb-3">{t('noResults.suggestions')}</p>
+            <EmptyContent>
               <div className="flex flex-wrap gap-2 justify-center">
-                {['tools', 'themes', 'ai', 'code'].map((term) => (
-                  <Button key={term} variant="ghost" size="sm" className="h-7 text-xs gap-1">
-                    <Search className="h-3 w-3" />
-                    {term}
+                {onClearFilters && (
+                  <Button variant="outline" size="sm" onClick={onClearFilters}>
+                    {t('noResults.clearFilters')}
                   </Button>
-                ))}
+                )}
+                <Button variant="secondary" size="sm" onClick={onBrowseMarketplace}>
+                  <Store className="h-4 w-4 mr-2" />
+                  {t('noResults.browseMore')}
+                </Button>
               </div>
-            </div>
+
+              {/* Search Suggestions */}
+              <div className="text-center mt-4">
+                <p className="text-xs text-muted-foreground mb-3">{t('noResults.suggestions')}</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {['tools', 'themes', 'ai', 'code'].map((term) => (
+                    <Button key={term} variant="ghost" size="sm" className="h-7 text-xs gap-1">
+                      <Search className="h-3 w-3" />
+                      {term}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </EmptyContent>
           </>
         );
 
       case 'no-enabled':
         return (
           <>
-            <h3 className="text-lg sm:text-xl font-semibold mb-2">{t('noEnabled.title')}</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-              {t('noEnabled.description')}
-            </p>
+            <EmptyHeader>
+              <EmptyTitle>{t('noEnabled.title')}</EmptyTitle>
+              <EmptyDescription>{t('noEnabled.description')}</EmptyDescription>
+            </EmptyHeader>
 
-            <Button onClick={onClearFilters}>
-              {t('noEnabled.viewAll')}
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
+            <EmptyContent>
+              <Button onClick={onClearFilters}>
+                {t('noEnabled.viewAll')}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </EmptyContent>
           </>
         );
 
       case 'no-disabled':
         return (
           <>
-            <h3 className="text-lg sm:text-xl font-semibold mb-2">{t('noDisabled.title')}</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-              {t('noDisabled.description')}
-            </p>
+            <EmptyHeader>
+              <EmptyTitle>{t('noDisabled.title')}</EmptyTitle>
+              <EmptyDescription>{t('noDisabled.description')}</EmptyDescription>
+            </EmptyHeader>
 
-            <Button variant="outline" onClick={onClearFilters}>
-              {t('noDisabled.viewAll')}
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
+            <EmptyContent>
+              <Button variant="outline" onClick={onClearFilters}>
+                {t('noDisabled.viewAll')}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </EmptyContent>
           </>
         );
     }
   };
 
   return (
-    <div className={cn('flex flex-col items-center justify-center py-12 sm:py-16 px-4', className)}>
-      <div className="mb-6">{illustrations[variant]}</div>
+    <Empty className={cn(isBackgroundActive && 'border-none', className)}>
+      <EmptyMedia>{illustrations[variant]}</EmptyMedia>
       {renderContent()}
-    </div>
+    </Empty>
   );
 }
 

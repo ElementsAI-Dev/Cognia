@@ -22,6 +22,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Badge } from '@/components/ui/badge';
+import { Loader } from '@/components/ai-elements/loader';
 import {
   SplitSquareHorizontal,
   SplitSquareVertical,
@@ -165,23 +168,18 @@ export function ImageComparison({
   return (
     <div className={cn('flex flex-col gap-4', className)}>
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-1 border rounded-md p-1">
+        <ToggleGroup type="single" value={mode} onValueChange={(v) => v && setMode(v as ComparisonMode)} className="border rounded-md p-1">
           {MODE_OPTIONS.map((option) => (
             <Tooltip key={option.mode}>
               <TooltipTrigger asChild>
-                <Button
-                  variant={mode === option.mode ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setMode(option.mode)}
-                >
+                <ToggleGroupItem value={option.mode} className="h-8 w-8 data-[state=on]:bg-secondary">
                   {option.icon}
-                </Button>
+                </ToggleGroupItem>
               </TooltipTrigger>
               <TooltipContent>{t(option.label)}</TooltipContent>
             </Tooltip>
           ))}
-        </div>
+        </ToggleGroup>
 
         <Separator orientation="vertical" className="h-6" />
 
@@ -259,8 +257,9 @@ export function ImageComparison({
         onMouseUp={() => setIsDragging(false)}
       >
         {!allLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="animate-pulse text-muted-foreground">{t('loadingImages')}</div>
+          <div className="absolute inset-0 flex items-center justify-center gap-2">
+            <Loader size={20} />
+            <span className="text-muted-foreground">{t('loadingImages')}</span>
           </div>
         )}
 
@@ -282,8 +281,8 @@ export function ImageComparison({
                 <SplitSquareHorizontal className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
-            <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{beforeLabel || t('before')}</div>
-            <div className="absolute top-2 right-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{afterLabel || t('after')}</div>
+            <Badge variant="secondary" className="absolute top-2 left-2 bg-black/50 text-white border-0">{beforeLabel || t('before')}</Badge>
+            <Badge variant="secondary" className="absolute top-2 right-2 bg-black/50 text-white border-0">{afterLabel || t('after')}</Badge>
           </>
         )}
 
@@ -305,8 +304,8 @@ export function ImageComparison({
                 <SplitSquareVertical className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
-            <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{beforeLabel || t('before')}</div>
-            <div className="absolute bottom-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{afterLabel || t('after')}</div>
+            <Badge variant="secondary" className="absolute top-2 left-2 bg-black/50 text-white border-0">{beforeLabel || t('before')}</Badge>
+            <Badge variant="secondary" className="absolute bottom-2 left-2 bg-black/50 text-white border-0">{afterLabel || t('after')}</Badge>
           </>
         )}
 
@@ -315,12 +314,12 @@ export function ImageComparison({
             <div className="flex-1 relative border-r">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={beforeImage} alt={beforeLabel || t('before')} className="w-full h-full object-contain" />
-              <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{beforeLabel || t('before')}</div>
+              <Badge variant="secondary" className="absolute top-2 left-2 bg-black/50 text-white border-0">{beforeLabel || t('before')}</Badge>
             </div>
             <div className="flex-1 relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={afterImage} alt={afterLabel || t('after')} className="w-full h-full object-contain" />
-              <div className="absolute top-2 right-2 text-xs bg-black/50 text-white px-2 py-1 rounded">{afterLabel || t('after')}</div>
+              <Badge variant="secondary" className="absolute top-2 right-2 bg-black/50 text-white border-0">{afterLabel || t('after')}</Badge>
             </div>
           </div>
         )}
@@ -335,9 +334,9 @@ export function ImageComparison({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={afterImage} alt={afterLabel || t('after')} className="w-full h-full object-contain" />
             </div>
-            <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">
+            <Badge variant="secondary" className="absolute top-2 left-2 bg-black/50 text-white border-0">
               {(beforeLabel || t('before')) + ' + ' + (afterLabel || t('after')) + ' (' + opacity + '%)'}
-            </div>
+            </Badge>
           </>
         )}
 
@@ -351,9 +350,9 @@ export function ImageComparison({
                 className="w-full h-full object-contain"
               />
             </div>
-            <div className="absolute top-2 left-2 text-xs bg-black/50 text-white px-2 py-1 rounded">
+            <Badge variant="secondary" className="absolute top-2 left-2 bg-black/50 text-white border-0">
               {showBefore ? beforeLabel : afterLabel}
-            </div>
+            </Badge>
           </>
         )}
       </div>

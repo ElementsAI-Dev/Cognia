@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -110,9 +111,9 @@ function BattleCard({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <div
+      <Card
         className={cn(
-          'border rounded-lg p-3 transition-colors',
+          'p-3 py-3 gap-0 transition-colors',
           isExpanded ? 'bg-muted/30' : 'hover:bg-muted/20'
         )}
       >
@@ -270,7 +271,7 @@ function BattleCard({
             </div>
           )}
         </CollapsibleContent>
-      </div>
+      </Card>
     </Collapsible>
   );
 }

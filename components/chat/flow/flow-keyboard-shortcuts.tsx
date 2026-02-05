@@ -20,7 +20,7 @@ import {
   GitBranch,
   ChevronUp,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
@@ -81,20 +81,12 @@ const SHORTCUTS: ShortcutDefinition[] = [
 
 function ShortcutBadge({ shortcut }: { shortcut: ShortcutDefinition }) {
   return (
-    <div className="flex items-center gap-1">
-      {shortcut.modifiers?.includes('ctrl') && (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0">Ctrl</Badge>
-      )}
-      {shortcut.modifiers?.includes('shift') && (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0">Shift</Badge>
-      )}
-      {shortcut.modifiers?.includes('alt') && (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0">Alt</Badge>
-      )}
-      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
-        {shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key}
-      </Badge>
-    </div>
+    <KbdGroup>
+      {shortcut.modifiers?.includes('ctrl') && <Kbd>Ctrl</Kbd>}
+      {shortcut.modifiers?.includes('shift') && <Kbd>Shift</Kbd>}
+      {shortcut.modifiers?.includes('alt') && <Kbd>Alt</Kbd>}
+      <Kbd>{shortcut.key.length === 1 ? shortcut.key.toUpperCase() : shortcut.key}</Kbd>
+    </KbdGroup>
   );
 }
 

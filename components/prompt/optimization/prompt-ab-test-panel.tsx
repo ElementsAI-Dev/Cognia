@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { usePromptOptimizer } from '@/hooks/ai/use-prompt-optimizer';
 import { generateABTestVariant } from '@/lib/ai/prompts/prompt-self-optimizer';
@@ -320,10 +321,10 @@ export function PromptABTestPanel({
       
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 text-sm text-destructive">
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          {error}
-        </div>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       
       {/* Start Test Button */}

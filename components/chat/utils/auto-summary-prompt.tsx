@@ -14,6 +14,8 @@ import { useTranslations } from 'next-intl';
 import { X, Sparkles, FileText, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useSummaryStore } from '@/stores/chat';
 
@@ -106,17 +108,19 @@ export function AutoSummaryPrompt({
               </Button>
             </div>
             
-            <label className="flex items-center gap-2 mt-2 cursor-pointer">
-              <input
-                type="checkbox"
+            <div className="flex items-center gap-2 mt-2">
+              <Checkbox
+                id="dont-show-again"
                 checked={dontShowAgain}
-                onChange={(e) => setDontShowAgain(e.target.checked)}
-                className="rounded border-muted-foreground/50"
+                onCheckedChange={(checked) => setDontShowAgain(checked === true)}
               />
-              <span className="text-xs text-muted-foreground">
+              <Label
+                htmlFor="dont-show-again"
+                className="text-xs text-muted-foreground cursor-pointer"
+              >
                 {t('dontShowAgain') || "Don't show again"}
-              </span>
-            </label>
+              </Label>
+            </div>
           </div>
           
           <Button

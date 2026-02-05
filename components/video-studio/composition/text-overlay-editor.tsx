@@ -34,6 +34,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Separator } from '@/components/ui/separator';
 import {
   Type,
   Bold,
@@ -138,24 +140,6 @@ export function TextOverlayEditor({
     [onOverlayChange]
   );
 
-  const toggleBold = useCallback(() => {
-    onOverlayChange({
-      fontWeight: overlay.fontWeight === 'bold' ? 'normal' : 'bold',
-    });
-  }, [overlay.fontWeight, onOverlayChange]);
-
-  const toggleItalic = useCallback(() => {
-    onOverlayChange({
-      fontStyle: overlay.fontStyle === 'italic' ? 'normal' : 'italic',
-    });
-  }, [overlay.fontStyle, onOverlayChange]);
-
-  const toggleUnderline = useCallback(() => {
-    onOverlayChange({
-      textDecoration: overlay.textDecoration === 'underline' ? 'none' : 'underline',
-    });
-  }, [overlay.textDecoration, onOverlayChange]);
-
   return (
     <div className={cn('flex flex-col h-full bg-background border rounded-lg', className)}>
       {/* Header */}
@@ -241,71 +225,94 @@ export function TextOverlayEditor({
             {/* Text style buttons */}
             <div className="space-y-2">
               <Label>{t('fontStyle')}</Label>
-              <div className="flex items-center gap-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={overlay.fontWeight === 'bold' ? 'secondary' : 'outline'}
-                      size="icon"
-                      onClick={toggleBold}
-                    >
-                      <Bold className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('bold')}</TooltipContent>
-                </Tooltip>
+              <div className="flex items-center gap-2">
+                <ToggleGroup
+                  type="multiple"
+                  value={[
+                    ...(overlay.fontWeight === 'bold' ? ['bold'] : []),
+                    ...(overlay.fontStyle === 'italic' ? ['italic'] : []),
+                    ...(overlay.textDecoration === 'underline' ? ['underline'] : []),
+                  ]}
+                  onValueChange={(value) => {
+                    onOverlayChange({
+                      fontWeight: value.includes('bold') ? 'bold' : 'normal',
+                      fontStyle: value.includes('italic') ? 'italic' : 'normal',
+                      textDecoration: value.includes('underline') ? 'underline' : 'none',
+                    });
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ToggleGroupItem value="bold" aria-label={t('bold')}>
+                        <Bold className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('bold')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ToggleGroupItem value="italic" aria-label={t('italic')}>
+                        <Italic className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('italic')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ToggleGroupItem value="underline" aria-label={t('underline')}>
+                        <Underline className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('underline')}</TooltipContent>
+                  </Tooltip>
+                </ToggleGroup>
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={overlay.fontStyle === 'italic' ? 'secondary' : 'outline'}
-                      size="icon"
-                      onClick={toggleItalic}
-                    >
-                      <Italic className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('italic')}</TooltipContent>
-                </Tooltip>
+                <Separator orientation="vertical" className="h-8" />
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={overlay.textDecoration === 'underline' ? 'secondary' : 'outline'}
-                      size="icon"
-                      onClick={toggleUnderline}
-                    >
-                      <Underline className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('underline')}</TooltipContent>
-                </Tooltip>
-
-                <div className="w-px h-8 bg-border mx-1" />
-
-                {(['left', 'center', 'right', 'justify'] as TextAlignment[]).map((align) => {
-                  const icons = {
-                    left: AlignLeft,
-                    center: AlignCenter,
-                    right: AlignRight,
-                    justify: AlignJustify,
-                  };
-                  const Icon = icons[align];
-                  return (
-                    <Tooltip key={align}>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={overlay.alignment === align ? 'secondary' : 'outline'}
-                          size="icon"
-                          onClick={() => onOverlayChange({ alignment: align })}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{t(`alignment.${align}`)}</TooltipContent>
-                    </Tooltip>
-                  );
-                })}
+                <ToggleGroup
+                  type="single"
+                  value={overlay.alignment}
+                  onValueChange={(value) => {
+                    if (value) onOverlayChange({ alignment: value as TextAlignment });
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ToggleGroupItem value="left" aria-label={t('alignment.left')}>
+                        <AlignLeft className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('alignment.left')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ToggleGroupItem value="center" aria-label={t('alignment.center')}>
+                        <AlignCenter className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('alignment.center')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ToggleGroupItem value="right" aria-label={t('alignment.right')}>
+                        <AlignRight className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('alignment.right')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ToggleGroupItem value="justify" aria-label={t('alignment.justify')}>
+                        <AlignJustify className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('alignment.justify')}</TooltipContent>
+                  </Tooltip>
+                </ToggleGroup>
               </div>
             </div>
           </TabsContent>

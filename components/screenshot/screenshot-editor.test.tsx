@@ -432,7 +432,7 @@ describe('ScreenshotEditor', () => {
       { key: 'a', tool: 'arrow' },
       { key: 'p', tool: 'freehand' },
       { key: 't', tool: 'text' },
-      { key: 'm', tool: 'blur' },
+      { key: 'b', tool: 'blur' },
       { key: 'h', tool: 'highlight' },
       { key: 'n', tool: 'marker' },
       { key: 'v', tool: 'select' },

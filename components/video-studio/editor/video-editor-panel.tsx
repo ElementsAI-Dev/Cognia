@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { Separator } from '@/components/ui/separator';
 
 import { VideoTimeline } from '../timeline/video-timeline';
 import { VideoPreview } from '../preview/video-preview';
@@ -384,7 +385,7 @@ export function VideoEditorPanel({
             <TooltipContent>{t('importVideo')}</TooltipContent>
           </Tooltip>
 
-          <div className="w-px h-6 bg-border hidden sm:block" />
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -414,7 +415,7 @@ export function VideoEditorPanel({
             <TooltipContent>{t('redo')}</TooltipContent>
           </Tooltip>
 
-          <div className="w-px h-6 bg-border hidden sm:block" />
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -469,7 +470,7 @@ export function VideoEditorPanel({
             <TooltipContent>{t('subtitles')}</TooltipContent>
           </Tooltip>
 
-          <div className="w-px h-6 bg-border hidden sm:block" />
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
           <Tooltip>
             <TooltipTrigger asChild>

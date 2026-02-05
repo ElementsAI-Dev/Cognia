@@ -17,10 +17,14 @@ import {
   BarChart3,
   Clock,
   Lightbulb,
-  ChevronRight,
   ChevronDown,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -108,34 +112,42 @@ function ModelBreakdownSection({
   t: (key: string) => string | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const displayCount = expanded ? modelBreakdown.length : 3;
   const hasMore = modelBreakdown.length > 3;
 
   return (
-    <div className="pt-2 border-t space-y-3">
+    <Collapsible open={expanded} onOpenChange={setExpanded} className="pt-2 border-t space-y-3">
       <h4 className="text-sm font-medium flex items-center gap-2">
         <Clock className="h-4 w-4" />
         {t('modelUsage') || 'Model Usage'}
       </h4>
       <div className="space-y-3">
-        {modelBreakdown.slice(0, displayCount).map((model) => (
+        {modelBreakdown.slice(0, 3).map((model) => (
           <ModelUsageItem key={model.model} {...model} />
         ))}
         {hasMore && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <span>{expanded ? (t('showLess') || 'Show less') : (t('viewMore') || 'View more')}</span>
-            {expanded ? (
-              <ChevronDown className="h-3 w-3 rotate-180 transition-transform" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-          </button>
+          <>
+            <CollapsibleContent className="space-y-3">
+              {modelBreakdown.slice(3).map((model) => (
+                <ModelUsageItem key={model.model} {...model} />
+              ))}
+            </CollapsibleContent>
+            <CollapsibleTrigger asChild>
+              <button
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span>{expanded ? (t('showLess') || 'Show less') : (t('viewMore') || 'View more')}</span>
+                <ChevronDown
+                  className={cn(
+                    'h-3 w-3 transition-transform duration-200',
+                    expanded && 'rotate-180'
+                  )}
+                />
+              </button>
+            </CollapsibleTrigger>
+          </>
         )}
       </div>
-    </div>
+    </Collapsible>
   );
 }
 

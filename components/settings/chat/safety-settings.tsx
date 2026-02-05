@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useSettingsStore } from '@/stores';
@@ -257,12 +258,14 @@ export function SafetySettings() {
                     {safetyModeSettings.customBlockedPatterns.map((pattern, index) => (
                       <Badge key={index} variant="destructive" className="flex items-center gap-1">
                         {typeof pattern === 'string' ? pattern : pattern.toString()}
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 ml-1 hover:bg-red-500/20"
                           onClick={() => removeCustomBlockedPattern(pattern)}
-                          className="ml-1 hover:bg-red-500/20 rounded-full p-0.5"
                         >
                           <X className="h-3 w-3" />
-                        </button>
+                        </Button>
                       </Badge>
                     ))}
                   </div>
@@ -295,12 +298,14 @@ export function SafetySettings() {
                     {safetyModeSettings.customAllowedPatterns.map((pattern, index) => (
                       <Badge key={index} variant="secondary" className="flex items-center gap-1">
                         {typeof pattern === 'string' ? pattern : pattern.toString()}
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 ml-1 hover:bg-green-500/20"
                           onClick={() => removeCustomAllowedPattern(pattern)}
-                          className="ml-1 hover:bg-green-500/20 rounded-full p-0.5"
                         >
                           <X className="h-3 w-3" />
-                        </button>
+                        </Button>
                       </Badge>
                     ))}
                   </div>
@@ -402,9 +407,14 @@ export function SafetySettings() {
               {/* Rules List */}
               <div className="space-y-2">
                 {safetyModeSettings.rules.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    {t('noCustomRules')}
-                  </p>
+                  <Empty className="py-6 border-none">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <ShieldCheck className="h-5 w-5" />
+                      </EmptyMedia>
+                      <EmptyTitle className="text-sm">{t('noCustomRules')}</EmptyTitle>
+                    </EmptyHeader>
+                  </Empty>
                 ) : (
                   safetyModeSettings.rules.map((rule) => (
                     <div

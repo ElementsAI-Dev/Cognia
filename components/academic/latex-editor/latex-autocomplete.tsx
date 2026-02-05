@@ -7,6 +7,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import {
+  Command,
+  CommandList,
+  CommandItem,
+  CommandEmpty,
+} from '@/components/ui/command';
 import type { LaTeXSuggestion } from '@/types/latex';
 
 interface LaTeXAutocompleteProps {
@@ -70,35 +76,38 @@ export function LaTeXAutocomplete({
   return (
     <div
       className={cn(
-        'fixed z-50 min-w-[200px] max-w-[400px] max-h-[300px] overflow-auto',
-        'bg-popover border rounded-md shadow-lg',
+        'fixed z-50 min-w-[200px] max-w-[400px]',
+        'border rounded-md shadow-lg',
         className
       )}
       style={{ left: position.x, top: position.y }}
     >
-      <ul className="p-1">
-        {suggestions.map((suggestion, index) => (
-          <li
-            key={suggestion.label}
-            className={cn(
-              'flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer',
-              'text-sm',
-              index === selectedIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
-            )}
-            onClick={() => onSelect(suggestion)}
-            onMouseEnter={() => setSelectedIndex(index)}
-          >
-            <span className="font-mono text-xs bg-muted px-1 rounded">
-              {suggestion.label}
-            </span>
-            {suggestion.detail && (
-              <span className="text-muted-foreground text-xs truncate flex-1">
-                {suggestion.detail}
+      <Command className="rounded-md">
+        <CommandList>
+          <CommandEmpty>No suggestions found</CommandEmpty>
+          {suggestions.map((suggestion, index) => (
+            <CommandItem
+              key={suggestion.label}
+              value={suggestion.label}
+              onSelect={() => onSelect(suggestion)}
+              onMouseEnter={() => setSelectedIndex(index)}
+              className={cn(
+                'flex items-center gap-2 cursor-pointer',
+                index === selectedIndex && 'bg-accent text-accent-foreground'
+              )}
+            >
+              <span className="font-mono text-xs bg-muted px-1 rounded">
+                {suggestion.label}
               </span>
-            )}
-          </li>
-        ))}
-      </ul>
+              {suggestion.detail && (
+                <span className="text-muted-foreground text-xs truncate flex-1">
+                  {suggestion.detail}
+                </span>
+              )}
+            </CommandItem>
+          ))}
+        </CommandList>
+      </Command>
     </div>
   );
 }

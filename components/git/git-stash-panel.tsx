@@ -52,6 +52,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 
 interface StashEntry {
@@ -198,11 +199,16 @@ export function GitStashPanel({
 
       {/* Stash List */}
       {stashes.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <Archive className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p className="text-sm">{t('noStashes')}</p>
-          <p className="text-xs mt-1">{t('noStashesHint')}</p>
-        </div>
+        <Empty>
+          <EmptyMedia>
+            <Archive className="h-12 w-12 opacity-50" />
+          </EmptyMedia>
+          <EmptyDescription>
+            {t('noStashes')}
+            <br />
+            <span className="text-xs">{t('noStashesHint')}</span>
+          </EmptyDescription>
+        </Empty>
       ) : (
         <>
           <ScrollArea className="h-48">

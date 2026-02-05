@@ -7,7 +7,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Target, Sparkles, Lightbulb, Wand2, Plus, X, GripVertical, Loader2 } from 'lucide-react';
+import { Target, Sparkles, Lightbulb, Wand2, Plus, X, GripVertical } from 'lucide-react';
+import { Loader } from '@/components/ai-elements/loader';
 import {
   Dialog,
   DialogContent,
@@ -245,7 +246,7 @@ export function ChatGoalDialog({
                   className="h-7 text-xs gap-1.5"
                 >
                   {isPolishing ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <Loader size={12} />
                   ) : (
                     <Wand2 className="h-3 w-3" />
                   )}

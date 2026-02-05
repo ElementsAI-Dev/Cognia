@@ -59,4 +59,11 @@ describe('MarketplaceEmptyState', () => {
     expect(screen.getByText('Code analysis')).toBeInTheDocument();
     expect(screen.getByText('Themes')).toBeInTheDocument();
   });
+
+  it('calls onSearch when popular search button clicked', () => {
+    const onSearch = jest.fn();
+    render(<MarketplaceEmptyState searchQuery="" onClear={onClear} onSearch={onSearch} />);
+    fireEvent.click(screen.getByText('AI tools'));
+    expect(onSearch).toHaveBeenCalledWith('AI tools');
+  });
 });

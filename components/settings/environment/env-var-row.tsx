@@ -6,10 +6,17 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Save, Edit2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TableRow, TableCell } from '@/components/ui/table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export interface EnvVarRowProps {
   name: string;
@@ -19,6 +26,7 @@ export interface EnvVarRowProps {
 }
 
 export function EnvVarRow({ name, value, onUpdate, onDelete }: EnvVarRowProps) {
+  const t = useTranslations('envVars');
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
 
@@ -45,28 +53,45 @@ export function EnvVarRow({ name, value, onUpdate, onDelete }: EnvVarRowProps) {
         )}
       </TableCell>
       <TableCell className="text-right">
-        {isEditing ? (
-          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={handleSave}>
-            <Save className="h-3 w-3" />
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 w-6 p-0"
-            onClick={() => setIsEditing(true)}
-          >
-            <Edit2 className="h-3 w-3" />
-          </Button>
-        )}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-6 w-6 p-0 text-destructive"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <TooltipProvider>
+          {isEditing ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={handleSave}>
+                  <Save className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('save')}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Edit2 className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('edit')}</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 text-destructive"
+                onClick={onDelete}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('delete')}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </TableCell>
     </TableRow>
   );

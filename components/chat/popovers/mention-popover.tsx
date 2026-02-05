@@ -17,6 +17,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
+import { Kbd } from '@/components/ui/kbd';
 import { cn } from '@/lib/utils';
 import {
   Wrench,
@@ -517,13 +518,13 @@ export function MentionPopover({
         <div className="border-t px-3 py-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono">↑↓</kbd> Navigate
+              <Kbd>↑↓</Kbd> Navigate
             </span>
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono">Enter</kbd> Select
+              <Kbd>Enter</Kbd> Select
             </span>
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono">Esc</kbd> Close
+              <Kbd>Esc</Kbd> Close
             </span>
           </div>
         </div>

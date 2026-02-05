@@ -6,8 +6,9 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Loader } from '@/components/ai-elements/loader';
 import { cn } from '@/lib/utils';
 
 export interface MCPProgressIndicatorProps {
@@ -42,30 +43,35 @@ const stateConfig = {
     color: 'text-muted-foreground',
     bgColor: 'bg-muted/50',
     label: 'Pending',
+    useLoader: false,
   },
   running: {
-    icon: Loader2,
+    icon: null,
     color: 'text-blue-600',
     bgColor: 'bg-blue-50 dark:bg-blue-950/30',
     label: 'Running',
+    useLoader: true,
   },
   completed: {
     icon: CheckCircle,
     color: 'text-green-600',
     bgColor: 'bg-green-50 dark:bg-green-950/30',
     label: 'Completed',
+    useLoader: false,
   },
   failed: {
     icon: XCircle,
     color: 'text-red-600',
     bgColor: 'bg-red-50 dark:bg-red-950/30',
     label: 'Failed',
+    useLoader: false,
   },
   cancelled: {
     icon: XCircle,
     color: 'text-orange-600',
     bgColor: 'bg-orange-50 dark:bg-orange-950/30',
     label: 'Cancelled',
+    useLoader: false,
   },
 };
 
@@ -81,7 +87,6 @@ export function MCPProgressIndicator({
 }: MCPProgressIndicatorProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const config = stateConfig[state];
-  const Icon = config.icon;
 
   // Live elapsed time counter
   useEffect(() => {
@@ -104,18 +109,22 @@ export function MCPProgressIndicator({
     : elapsedTime;
 
   const isIndeterminate = state === 'running' && progress === undefined;
-  const isAnimated = state === 'running';
+
+  const renderIcon = () => {
+    if (config.useLoader) {
+      return <Loader size={16} variant="spin" className={config.color} />;
+    }
+    if (config.icon) {
+      const Icon = config.icon;
+      return <Icon className={cn('h-4 w-4', config.color)} />;
+    }
+    return null;
+  };
 
   if (compact) {
     return (
       <div className={cn('flex items-center gap-2', className)}>
-        <Icon
-          className={cn(
-            'h-4 w-4',
-            config.color,
-            isAnimated && 'animate-spin'
-          )}
-        />
+        {renderIcon()}
         {showElapsedTime && displayTime > 0 && (
           <span className="text-xs font-mono text-muted-foreground">
             {formatDuration(displayTime)}
@@ -129,13 +138,7 @@ export function MCPProgressIndicator({
     <div className={cn('space-y-2', className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Icon
-            className={cn(
-              'h-4 w-4',
-              config.color,
-              isAnimated && 'animate-spin'
-            )}
-          />
+          {renderIcon()}
           <span className={cn('text-sm font-medium', config.color)}>
             {config.label}
           </span>

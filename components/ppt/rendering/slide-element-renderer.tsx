@@ -1,7 +1,9 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { ChartElement } from '../elements';
 import type { SlideElementRendererProps } from '../types';
+import type { ChartData, ChartType } from '../elements';
 
 /**
  * SlideElementRenderer - Renders different slide element types
@@ -71,19 +73,49 @@ export function SlideElementRenderer({ element, theme }: SlideElementRendererPro
       );
     }
 
-    case 'chart':
-      return (
-        <div
-          style={baseStyle}
-          className="flex items-center justify-center border rounded bg-muted/20"
-        >
-          <div className="text-center text-muted-foreground">
-            <div className="text-2xl mb-2">📊</div>
-            <div className="text-sm">Chart: {element.metadata?.chartType as string || 'bar'}</div>
-            <div className="text-xs">{element.content}</div>
+    case 'chart': {
+      const chartType = (element.metadata?.chartType as ChartType) || 'bar';
+      const chartData = element.metadata?.chartData as ChartData | undefined;
+
+      // If no chart data provided, show placeholder
+      if (!chartData) {
+        return (
+          <div
+            style={baseStyle}
+            className="flex items-center justify-center border rounded bg-muted/20"
+          >
+            <div className="text-center text-muted-foreground">
+              <div className="text-2xl mb-2">📊</div>
+              <div className="text-sm">Chart: {chartType}</div>
+              <div className="text-xs">{element.content}</div>
+            </div>
           </div>
+        );
+      }
+
+      return (
+        <div style={baseStyle} className="overflow-hidden">
+          <ChartElement
+            type={chartType}
+            data={chartData}
+            options={{
+              title: element.metadata?.title as string,
+              showLegend: element.metadata?.showLegend as boolean,
+              showGrid: element.metadata?.showGrid as boolean,
+              showDataLabels: element.metadata?.showDataLabels as boolean,
+              colors: element.metadata?.colors as string[],
+            }}
+            theme={{
+              primaryColor: theme.primaryColor,
+              textColor: theme.textColor,
+              backgroundColor: theme.backgroundColor,
+            }}
+            width="100%"
+            height="100%"
+          />
         </div>
       );
+    }
 
     case 'table': {
       const tableData = element.metadata?.data as string[][] || [];

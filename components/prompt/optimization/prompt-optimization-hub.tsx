@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { usePromptOptimizer } from '@/hooks/ai/use-prompt-optimizer';
 import { PromptSelfOptimizerDialog } from './prompt-self-optimizer-dialog';
@@ -252,11 +253,13 @@ export function PromptOptimizationHub({
                   </div>
                   
                   {feedback.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                      <p>{t('noFeedback')}</p>
-                      <p className="text-sm">{t('startCollecting')}</p>
-                    </div>
+                    <Empty className="py-12">
+                      <EmptyMedia variant="icon">
+                        <MessageSquare className="h-6 w-6" />
+                      </EmptyMedia>
+                      <EmptyTitle>{t('noFeedback')}</EmptyTitle>
+                      <EmptyDescription>{t('startCollecting')}</EmptyDescription>
+                    </Empty>
                   ) : (
                     <div className="space-y-2">
                       {feedback.slice().reverse().map((fb) => (

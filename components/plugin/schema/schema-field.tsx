@@ -6,7 +6,7 @@
  * Renders individual form fields based on JSON Schema type.
  */
 
-import React, { useCallback, useId } from 'react';
+import React, { useId } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -20,8 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { TagInput } from '@/components/ui/tag-input';
 import { X, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -399,7 +401,14 @@ function renderArrayField(
 
   // Simple string array -> tag input
   if (itemSchema?.type === 'string' && !itemSchema.enum) {
-    return <TagArrayField value={arrValue} onChange={onChange} disabled={disabled} />;
+    return (
+      <TagInput
+        value={arrValue.map(String)}
+        onChange={(tags) => onChange(tags)}
+        disabled={disabled}
+        placeholder="Type and press Enter..."
+      />
+    );
   }
 
   // Enum array -> multi-select chips
@@ -511,22 +520,21 @@ function renderCustomWidget(
     case 'radio':
       if (schema.enum) {
         return (
-          <div className="flex flex-wrap gap-2">
+          <RadioGroup
+            value={String(value ?? '')}
+            onValueChange={(val) => onChange(val)}
+            disabled={disabled}
+            className="flex flex-wrap gap-4"
+          >
             {schema.enum.map((option, index) => (
-              <label key={String(option)} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name={fieldId}
-                  value={String(option)}
-                  checked={value === option}
-                  onChange={() => onChange(option)}
-                  disabled={disabled}
-                  className="accent-primary"
-                />
-                <span className="text-sm">{schema.enumNames?.[index] || String(option)}</span>
-              </label>
+              <div key={String(option)} className="flex items-center gap-2">
+                <RadioGroupItem value={String(option)} id={`${fieldId}-${option}`} />
+                <Label htmlFor={`${fieldId}-${option}`} className="text-sm cursor-pointer">
+                  {schema.enumNames?.[index] || String(option)}
+                </Label>
+              </div>
             ))}
-          </div>
+          </RadioGroup>
         );
       }
       break;
@@ -553,60 +561,6 @@ function renderCustomWidget(
 // Helper Components
 // =============================================================================
 
-function TagArrayField({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: unknown[];
-  onChange: (value: unknown[]) => void;
-  disabled: boolean;
-}) {
-  const [inputValue, setInputValue] = React.useState('');
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter' || e.key === ',') {
-        e.preventDefault();
-        const trimmed = inputValue.trim();
-        if (trimmed && !value.includes(trimmed)) {
-          onChange([...value, trimmed]);
-          setInputValue('');
-        }
-      } else if (e.key === 'Backspace' && !inputValue && value.length > 0) {
-        onChange(value.slice(0, -1));
-      }
-    },
-    [inputValue, value, onChange]
-  );
-
-  return (
-    <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-[2.5rem]">
-      {value.map((tag, index) => (
-        <Badge key={index} variant="secondary" className="gap-1">
-          {String(tag)}
-          <button
-            type="button"
-            onClick={() => onChange(value.filter((_, i) => i !== index))}
-            disabled={disabled}
-            className="ml-1 hover:text-destructive"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </Badge>
-      ))}
-      <input
-        type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        placeholder="Type and press Enter..."
-        className="flex-1 min-w-[120px] bg-transparent border-0 outline-none text-sm"
-      />
-    </div>
-  );
-}
 
 function EnumArrayField({
   value,

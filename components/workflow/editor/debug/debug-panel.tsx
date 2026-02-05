@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Collapsible,
   CollapsibleContent,
@@ -480,12 +481,12 @@ export function DebugPanel({ className }: DebugPanelProps) {
                   >
                     <Braces className="h-3.5 w-3.5 mt-0.5 text-muted-foreground" />
                     <div className="flex-1 min-w-0">
-                      <input
+                      <Input
                         type="text"
                         value={watch.expression}
                         onChange={(e) => updateWatchExpression(watch.id, e.target.value)}
                         placeholder="Enter expression..."
-                        className="w-full bg-transparent text-xs border-none focus:outline-none"
+                        className="h-6 w-full bg-transparent text-xs border-none focus:outline-none focus-visible:ring-0 px-0"
                       />
                       {watch.value !== undefined && (
                         <div className="text-xs text-muted-foreground font-mono truncate">

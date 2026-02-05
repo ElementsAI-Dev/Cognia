@@ -23,6 +23,15 @@ import * as Icons from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Empty,
+  EmptyMedia,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from '@/components/ui/empty';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -366,16 +375,27 @@ export function CustomModeSettings() {
           {/* Mode list */}
           <ScrollArea className="h-[400px]">
             {filteredModes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
-                <Bot className="h-12 w-12 mb-4 opacity-50" />
-                <p>{modesArray.length === 0 ? tCustomMode('noCustomModesYet') : tCustomMode('noModesMatchFilters')}</p>
+              <Empty className="h-[300px] border-0">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Bot className="h-6 w-6" />
+                  </EmptyMedia>
+                  <EmptyTitle>
+                    {modesArray.length === 0 ? tCustomMode('noCustomModesYet') : tCustomMode('noModesMatchFilters')}
+                  </EmptyTitle>
+                  <EmptyDescription>
+                    {modesArray.length === 0 && tCustomMode('createFirstModeDesc')}
+                  </EmptyDescription>
+                </EmptyHeader>
                 {modesArray.length === 0 && (
-                  <Button variant="outline" size="sm" className="mt-4" onClick={handleCreateNew}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    {tCustomMode('createFirstMode')}
-                  </Button>
+                  <EmptyContent>
+                    <Button variant="outline" size="sm" onClick={handleCreateNew}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      {tCustomMode('createFirstMode')}
+                    </Button>
+                  </EmptyContent>
                 )}
-              </div>
+              </Empty>
             ) : (
               <div className="space-y-2">
                 {filteredModes.map((mode) => (
@@ -387,11 +407,9 @@ export function CustomModeSettings() {
                     )}
                   >
                     {/* Selection checkbox */}
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selectedModes.has(mode.id)}
-                      onChange={() => toggleModeSelection(mode.id)}
-                      className="h-4 w-4 rounded border-gray-300"
+                      onCheckedChange={() => toggleModeSelection(mode.id)}
                     />
                     
                     {/* Icon */}

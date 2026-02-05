@@ -33,9 +33,10 @@ describe('MCPCallTimeline', () => {
     },
   ];
 
-  it('renders nothing when no steps', () => {
-    const { container } = render(<MCPCallTimeline steps={[]} />);
-    expect(container.firstChild).toBeNull();
+  it('renders empty state when no steps', () => {
+    render(<MCPCallTimeline steps={[]} />);
+    expect(screen.getByText('noMcpCalls')).toBeInTheDocument();
+    expect(screen.getByText('noMcpCallsDescription')).toBeInTheDocument();
   });
 
   it('renders all steps', () => {

@@ -15,6 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { 
   MousePointer2, 
   Languages, 
@@ -127,9 +132,8 @@ function SettingsSection({ title, description, icon: Icon, children, defaultOpen
   const [isOpen, setIsOpen] = useState(defaultOpen);
   
   return (
-    <div className="border rounded-xl overflow-hidden">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="border rounded-xl overflow-hidden">
+      <CollapsibleTrigger
         className={cn(
           "flex items-center justify-between w-full p-4",
           "hover:bg-muted/50 transition-colors",
@@ -151,14 +155,12 @@ function SettingsSection({ title, description, icon: Icon, children, defaultOpen
           "w-4 h-4 text-muted-foreground transition-transform duration-200",
           isOpen && "rotate-90"
         )} />
-      </button>
+      </CollapsibleTrigger>
       
-      {isOpen && (
-        <div className="p-4 pt-0 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
-          {children}
-        </div>
-      )}
-    </div>
+      <CollapsibleContent className="p-4 pt-0 space-y-4">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

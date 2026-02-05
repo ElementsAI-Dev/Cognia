@@ -32,6 +32,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import {
+  Empty,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
 import {
   History,
   Undo2,
@@ -158,9 +165,9 @@ export function HistoryPanel({
   );
 
   return (
-    <div className={cn('flex flex-col border rounded-lg', className)} role="region" aria-label="History Panel">
+    <Card className={cn('flex flex-col gap-0 py-0', className)} role="region" aria-label="History Panel">
       {/* Header */}
-      <div className="p-3 border-b flex items-center justify-between">
+      <CardHeader className="p-3 border-b flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <History className="h-4 w-4" aria-hidden="true" />
           <h3 className="font-medium text-sm">{t('title')}</h3>
@@ -225,18 +232,21 @@ export function HistoryPanel({
             </AlertDialogContent>
           </AlertDialog>
         </div>
-      </div>
+      </CardHeader>
 
       {/* Timeline */}
-      <ScrollArea className="flex-1 max-h-[400px]">
-        <div className="p-2">
-          {entries.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">{t('noHistory')}</p>
-              <p className="text-xs text-muted-foreground">{t('editsWillAppear')}</p>
-            </div>
-          ) : (
+      <CardContent className="flex-1 p-0">
+        <ScrollArea className="max-h-[400px]">
+          <div className="p-2">
+            {entries.length === 0 ? (
+              <Empty className="py-8 border-0">
+                <EmptyMedia variant="icon">
+                  <Clock className="h-5 w-5 opacity-50" />
+                </EmptyMedia>
+                <EmptyTitle className="text-sm">{t('noHistory')}</EmptyTitle>
+                <EmptyDescription>{t('editsWillAppear')}</EmptyDescription>
+              </Empty>
+            ) : (
             <div className="relative">
               {/* Timeline line */}
               <div className="absolute left-5 top-4 bottom-4 w-0.5 bg-border" />
@@ -312,22 +322,23 @@ export function HistoryPanel({
                 })}
               </div>
             </div>
-          )}
-        </div>
-      </ScrollArea>
+            )}
+          </div>
+        </ScrollArea>
+      </CardContent>
 
       {/* Footer - current state info */}
       {entries.length > 0 && (
-        <div className="p-2 border-t text-xs text-muted-foreground text-center">
+        <CardFooter className="p-2 border-t text-xs text-muted-foreground justify-center">
           Step {currentIndex + 1} of {entries.length}
           {currentIndex < entries.length - 1 && (
             <span className="ml-1">
               ({entries.length - currentIndex - 1} {entries.length - currentIndex - 1 === 1 ? 'step' : 'steps'} ahead)
             </span>
           )}
-        </div>
+        </CardFooter>
       )}
-    </div>
+    </Card>
   );
 }
 

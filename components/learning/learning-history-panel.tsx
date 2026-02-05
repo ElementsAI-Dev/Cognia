@@ -25,6 +25,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Empty, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { useLearningStore } from '@/stores/learning';
 import type { LearningSession, LearningAchievement } from '@/types/learning';
@@ -187,10 +188,12 @@ export const LearningHistoryPanel = memo(function LearningHistoryPanel({
         </CardHeader>
         <CardContent>
           {sortedSessions.length === 0 ? (
-            <div className="text-center py-6">
-              <BookOpen className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">{t('history.noSessions')}</p>
-            </div>
+            <Empty className="border-0 py-6">
+              <EmptyMedia variant="icon">
+                <BookOpen className="h-5 w-5" />
+              </EmptyMedia>
+              <EmptyTitle className="text-sm">{t('history.noSessions')}</EmptyTitle>
+            </Empty>
           ) : (
             <ScrollArea className="h-[300px]">
               <div className="space-y-2">

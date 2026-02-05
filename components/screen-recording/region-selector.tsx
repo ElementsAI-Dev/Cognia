@@ -13,6 +13,7 @@ import { X, Check, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Kbd } from '@/components/ui/kbd';
 import { cn } from '@/lib/utils';
 import type { RecordingRegion } from '@/lib/native/screen-recording';
 
@@ -189,9 +190,15 @@ export function RegionSelector({
               : t('clickAndDrag')
             }
           </p>
-          <p className="text-xs text-muted-foreground text-center mt-1">
-            {t('pressEscToCancel')} • {t('pressEnterToConfirm')}
-          </p>
+          <div className="flex items-center justify-center gap-3 mt-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Kbd>Esc</Kbd> {t('toCancel')}
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <Kbd>Enter</Kbd> {t('toConfirm')}
+            </span>
+          </div>
         </CardContent>
       </Card>
 

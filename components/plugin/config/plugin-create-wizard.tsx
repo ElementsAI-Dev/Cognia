@@ -35,6 +35,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   PLUGIN_TEMPLATES,
   scaffoldPlugin,
@@ -210,22 +211,22 @@ function FilePreview({ files }: { files: Map<string, string> }) {
           Files
         </div>
         <ScrollArea className="h-[360px]">
-          <div className="p-2 space-y-1">
+          <ToggleGroup
+            type="single"
+            value={selectedFile}
+            onValueChange={(value) => value && setSelectedFile(value)}
+            className="flex flex-col gap-1 p-2"
+          >
             {Array.from(files.keys()).map(path => (
-              <button
+              <ToggleGroupItem
                 key={path}
-                onClick={() => setSelectedFile(path)}
-                className={cn(
-                  'w-full text-left px-2 py-1.5 rounded text-sm font-mono truncate',
-                  selectedFile === path
-                    ? 'bg-primary/10 text-primary'
-                    : 'hover:bg-muted'
-                )}
+                value={path}
+                className="w-full justify-start px-2 py-1.5 h-auto text-sm font-mono truncate data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
               >
                 {path}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         </ScrollArea>
       </div>
       <div className="col-span-3 border rounded-lg">

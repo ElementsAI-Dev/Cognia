@@ -27,6 +27,7 @@ import {
   Search,
   Circle,
 } from 'lucide-react';
+import { Kbd } from '@/components/ui/kbd';
 import { NODE_ICONS } from '@/lib/workflow-editor/constants';
 import type { WorkflowNodeType } from '@/types/workflow/workflow-editor';
 import { NODE_TYPE_COLORS } from '@/types/workflow/workflow-editor';
@@ -146,9 +147,9 @@ export function NodeSearchPanel({ onNavigateToNode }: NodeSearchPanelProps) {
           <span className="text-xs hidden sm:inline">
             {t('searchNodes') || 'Search'}
           </span>
-          <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100">
+          <Kbd className="hidden sm:inline-flex">
             <span className="text-xs">⌘</span>⇧F
-          </kbd>
+          </Kbd>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[320px] p-0" align="start">
@@ -226,9 +227,9 @@ export function NodeSearchPanel({ onNavigateToNode }: NodeSearchPanelProps) {
           <div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center justify-between">
             <span>{nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}</span>
             <div className="flex items-center gap-2">
-              <kbd className="px-1 rounded bg-muted text-[10px]">↑↓</kbd>
+              <Kbd>↑↓</Kbd>
               <span>navigate</span>
-              <kbd className="px-1 rounded bg-muted text-[10px]">↵</kbd>
+              <Kbd>↵</Kbd>
               <span>select</span>
             </div>
           </div>

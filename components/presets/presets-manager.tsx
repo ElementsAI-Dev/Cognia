@@ -6,9 +6,21 @@
 
 import { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, RefreshCw, Trash2, Download, Upload, Sparkles } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Download, Upload, Sparkles, Search, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
 import { Input } from '@/components/ui/input';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from '@/components/ui/empty';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -276,11 +288,16 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
-          <Input
-            placeholder={t('searchPlaceholder')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <InputGroup>
+            <InputGroupAddon align="inline-start">
+              <Search className="h-4 w-4" />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder={t('searchPlaceholder')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </InputGroup>
         </div>
         <div className="flex gap-2">
           {/* Import/Export dropdown */}
@@ -329,17 +346,25 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
 
       {/* Presets Grid */}
       {filteredPresets.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-muted-foreground mb-4">
-            {search ? t('noResults') : t('noPresets')}
-          </p>
+        <Empty className="py-12">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Layers className="h-6 w-6" />
+            </EmptyMedia>
+            <EmptyTitle>
+              {search ? t('noResults') : t('noPresets')}
+            </EmptyTitle>
+            <EmptyDescription>
+              {search ? t('noResultsDesc') : t('noPresetsDesc')}
+            </EmptyDescription>
+          </EmptyHeader>
           {!search && (
             <Button onClick={() => setCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               {t('createFirst')}
             </Button>
           )}
-        </div>
+        </Empty>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredPresets.map((preset) => (

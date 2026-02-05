@@ -20,6 +20,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Dialog,
   DialogContent,
@@ -236,11 +238,13 @@ export function MarkersPanel({
       {/* Markers list */}
       <ScrollArea className="flex-1">
         {sortedMarkers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Bookmark className="h-12 w-12 mb-3 opacity-50" />
-            <p className="text-sm">{t('noMarkers')}</p>
-            <p className="text-xs mt-1">{t('noMarkersHint')}</p>
-          </div>
+          <Empty className="py-12 border-0">
+            <EmptyMedia variant="icon">
+              <Bookmark className="h-6 w-6" />
+            </EmptyMedia>
+            <EmptyTitle>{t('noMarkers')}</EmptyTitle>
+            <EmptyDescription>{t('noMarkersHint')}</EmptyDescription>
+          </Empty>
         ) : (
           <div className="p-2 space-y-1">
             {sortedMarkers.map((marker) => {
@@ -377,19 +381,24 @@ export function MarkersPanel({
             {/* Type */}
             <div className="space-y-2">
               <Label>{t('type')}</Label>
-              <div className="flex flex-wrap gap-1">
+              <ToggleGroup
+                type="single"
+                value={newMarker.type}
+                onValueChange={(value) => value && setNewMarker({ ...newMarker, type: value as MarkerType })}
+                className="flex flex-wrap gap-1"
+              >
                 {MARKER_TYPES.map((type) => (
-                  <Button
+                  <ToggleGroupItem
                     key={type.value}
-                    variant={newMarker.type === type.value ? 'secondary' : 'outline'}
+                    value={type.value}
                     size="sm"
-                    onClick={() => setNewMarker({ ...newMarker, type: type.value })}
+                    className="gap-1"
                   >
-                    <type.icon className="h-3 w-3 mr-1" />
+                    <type.icon className="h-3 w-3" />
                     {t(type.labelKey)}
-                  </Button>
+                  </ToggleGroupItem>
                 ))}
-              </div>
+              </ToggleGroup>
             </div>
 
             {/* Color */}

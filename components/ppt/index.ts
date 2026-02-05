@@ -8,6 +8,17 @@
 // Editor components
 export { PPTEditor, SlideEditor, SlideElement, SortableSlideItem, AlignmentToolbar } from './editor';
 
+// Element components
+export {
+  ChartElement,
+  type ChartElementProps,
+  type ChartType,
+  type ChartData,
+  type ChartDataset,
+  type ChartDataPoint,
+  type ChartOptions,
+} from './elements';
+
 // Preview components
 export { PPTPreview, PPTPreviewWithErrorBoundary, SingleSlideView, GridView, OutlineView } from './preview';
 

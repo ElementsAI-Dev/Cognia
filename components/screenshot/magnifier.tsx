@@ -8,6 +8,7 @@
 
 import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface MagnifierProps {
   imageData: ImageData | null;
@@ -114,9 +115,12 @@ export function Magnifier({
         height={size}
         className="w-full h-full"
       />
-      <div className="absolute bottom-0 left-0 right-0 bg-black/80 text-white text-xs text-center py-0.5">
+      <Badge
+        variant="secondary"
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 text-xs"
+      >
         {cursorX}, {cursorY}
-      </div>
+      </Badge>
     </div>
   );
 }

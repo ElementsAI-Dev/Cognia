@@ -65,12 +65,14 @@ describe('McpPromptsPanel', () => {
 
   it('shows no prompts message when prompts array is empty', () => {
     render(<McpPromptsPanel serverId="server-2" />);
-    expect(screen.getByText('No prompts exposed by this server.')).toBeInTheDocument();
+    expect(screen.getByText('No prompts available')).toBeInTheDocument();
+    expect(screen.getByText('This server does not expose any prompts.')).toBeInTheDocument();
   });
 
   it('shows select prompt message initially', () => {
     render(<McpPromptsPanel serverId="server-1" />);
-    expect(screen.getByText('Select a prompt to preview.')).toBeInTheDocument();
+    expect(screen.getByText('Select a prompt')).toBeInTheDocument();
+    expect(screen.getByText('Choose a prompt from the list to preview its content.')).toBeInTheDocument();
   });
 
   it('calls getPrompt when prompt is clicked', async () => {

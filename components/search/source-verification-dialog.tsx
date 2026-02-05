@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Empty, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -124,15 +126,16 @@ function SourceCard({
   const sourceType = verification?.sourceType || 'unknown';
 
   return (
-    <div
+    <Card
       className={cn(
-        'relative rounded-lg border p-4 transition-all',
+        'relative py-4 transition-all',
         isSelected
           ? 'border-primary bg-primary/5'
-          : 'border-border hover:border-primary/50',
+          : 'hover:border-primary/50',
         verification?.userMarked === 'blocked' && 'opacity-50'
       )}
     >
+      <CardContent className="p-0 px-4">
       <div className="flex items-start gap-3">
         <Checkbox
           checked={isSelected}
@@ -269,7 +272,8 @@ function SourceCard({
           )}
         </div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -426,92 +430,111 @@ export function SourceVerificationDialog({
             {report ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-lg border p-4">
-                    <h4 className="font-medium mb-2">可信度分布</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm flex items-center gap-2">
-                          <ShieldCheck className="h-4 w-4 text-green-500" />
-                          高可信度
-                        </span>
-                        <span className="font-medium">{report.highCredibility}</span>
+                  <Card className="py-0">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">可信度分布</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm flex items-center gap-2">
+                            <ShieldCheck className="h-4 w-4 text-green-500" />
+                            高可信度
+                          </span>
+                          <span className="font-medium">{report.highCredibility}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-yellow-500" />
+                            中等可信度
+                          </span>
+                          <span className="font-medium">{report.mediumCredibility}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm flex items-center gap-2">
+                            <ShieldAlert className="h-4 w-4 text-red-500" />
+                            低可信度
+                          </span>
+                          <span className="font-medium">{report.lowCredibility}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm flex items-center gap-2">
-                          <Shield className="h-4 w-4 text-yellow-500" />
-                          中等可信度
-                        </span>
-                        <span className="font-medium">{report.mediumCredibility}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm flex items-center gap-2">
-                          <ShieldAlert className="h-4 w-4 text-red-500" />
-                          低可信度
-                        </span>
-                        <span className="font-medium">{report.lowCredibility}</span>
-                      </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
 
-                  <div className="rounded-lg border p-4">
-                    <h4 className="font-medium mb-2">总体评估</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">平均可信度</span>
-                        <span className="font-medium">
-                          {Math.round(report.averageCredibility * 100)}%
-                        </span>
+                  <Card className="py-0">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">总体评估</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">平均可信度</span>
+                          <span className="font-medium">
+                            {Math.round(report.averageCredibility * 100)}%
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">信源总数</span>
+                          <span className="font-medium">{report.totalSources}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">信源总数</span>
-                        <span className="font-medium">{report.totalSources}</span>
-                      </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
                 {report.recommendations && report.recommendations.length > 0 && (
-                  <div className="rounded-lg border p-4">
-                    <h4 className="font-medium mb-2">建议</h4>
-                    <ul className="space-y-1">
-                      {report.recommendations.map((rec, i) => (
-                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
-                          {rec}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <Card className="py-0">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">建议</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-1">
+                        {report.recommendations.map((rec, i) => (
+                          <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                            {rec}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
                 )}
 
                 {report.crossValidation && report.crossValidation.length > 0 && (
-                  <div className="rounded-lg border p-4">
-                    <h4 className="font-medium mb-2">交叉验证</h4>
-                    <div className="space-y-3">
-                      {report.crossValidation.slice(0, 3).map((cv, i) => (
-                        <div key={i} className="text-sm">
-                          <p className="font-medium">{cv.claim}</p>
-                          <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                            <span className="text-green-500">
-                              支持: {cv.supportingSources.length}
-                            </span>
-                            <span className="text-red-500">
-                              反对: {cv.contradictingSources.length}
-                            </span>
-                            <span>
-                              共识度: {Math.round(cv.consensusScore * 100)}%
-                            </span>
+                  <Card className="py-0">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">交叉验证</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {report.crossValidation.slice(0, 3).map((cv, i) => (
+                          <div key={i} className="text-sm">
+                            <p className="font-medium">{cv.claim}</p>
+                            <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                              <span className="text-green-500">
+                                支持: {cv.supportingSources.length}
+                              </span>
+                              <span className="text-red-500">
+                                反对: {cv.contradictingSources.length}
+                              </span>
+                              <span>
+                                共识度: {Math.round(cv.consensusScore * 100)}%
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
             ) : (
-              <div className="text-center text-muted-foreground py-8">
-                暂无验证报告
-              </div>
+              <Empty className="py-8">
+                <EmptyMedia variant="icon">
+                  <ShieldQuestion className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>暂无验证报告</EmptyTitle>
+              </Empty>
             )}
           </TabsContent>
         </Tabs>

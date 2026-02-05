@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Keyboard, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 
 interface ShortcutHint {
   keys: string[];
@@ -173,19 +174,12 @@ export function ShortcutHints({
                 <span className="text-sm text-white/80">
                   {t(shortcut.descKey)}
                 </span>
-                <div className="flex items-center gap-1">
+                <KbdGroup>
                   {shortcut.keys.map((key, keyIndex) => (
                     <span key={keyIndex} className="flex items-center gap-1">
-                      <kbd
-                        className={cn(
-                          "px-2 py-1 text-xs font-medium rounded",
-                          "bg-white/10 text-white/90",
-                          "border border-white/20",
-                          "shadow-sm"
-                        )}
-                      >
+                      <Kbd className="bg-white/10 text-white/90 border-white/20">
                         {key}
-                      </kbd>
+                      </Kbd>
                       {keyIndex < shortcut.keys.length - 1 && (
                         <span className="text-white/40">+</span>
                       )}
@@ -201,7 +195,7 @@ export function ShortcutHints({
                       {t(shortcut.category)}
                     </span>
                   )}
-                </div>
+                </KbdGroup>
               </div>
             ))}
           </div>

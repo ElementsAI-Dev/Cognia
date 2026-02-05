@@ -13,8 +13,10 @@
 
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2 } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader } from '@/components/ai-elements/loader';
 import { cn } from '@/lib/utils';
 import {
   Flashcard,
@@ -91,7 +93,7 @@ const LearningToolLoading = memo(function LearningToolLoading({
   return (
     <Card className="w-full">
       <CardContent className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mr-2" />
+        <Loader size={24} className="text-muted-foreground mr-2" />
         <span className="text-muted-foreground">
           {loadingMessages[toolName as LearningToolName] || t('loading.default')}
         </span>
@@ -111,13 +113,12 @@ const LearningToolError = memo(function LearningToolError({
   const t = useTranslations('learning');
 
   return (
-    <Card className="w-full border-destructive/50">
-      <CardContent className="py-4">
-        <p className="text-sm text-destructive">
-          {errorText || t('error.default')}
-        </p>
-      </CardContent>
-    </Card>
+    <Alert variant="destructive" className="w-full">
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription>
+        {errorText || t('error.default')}
+      </AlertDescription>
+    </Alert>
   );
 });
 

@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Kbd } from "@/components/ui/kbd";
 import { Keyboard } from "lucide-react";
 
 interface Shortcut {
@@ -90,10 +91,8 @@ export function ChatWidgetShortcuts({ className }: ChatWidgetShortcutsProps) {
               </span>
               <div className="flex items-center gap-1">
                 {shortcut.keys.map((key, keyIndex) => (
-                  <span key={keyIndex}>
-                    <kbd className="px-1.5 py-0.5 text-xs font-medium bg-muted rounded border border-border">
-                      {key}
-                    </kbd>
+                  <span key={keyIndex} className="inline-flex items-center">
+                    <Kbd>{key}</Kbd>
                     {keyIndex < shortcut.keys.length - 1 && (
                       <span className="mx-0.5 text-muted-foreground">+</span>
                     )}
@@ -104,7 +103,7 @@ export function ChatWidgetShortcuts({ className }: ChatWidgetShortcutsProps) {
           ))}
         </div>
         <p className="text-xs text-muted-foreground text-center">
-          <kbd className="px-1 py-0.5 text-xs bg-muted rounded border">?</kbd> {t("openPanel")}
+          <Kbd>?</Kbd> {t("openPanel")}
         </p>
       </DialogContent>
     </Dialog>

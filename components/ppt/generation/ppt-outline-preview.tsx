@@ -12,13 +12,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { LoadingSpinner } from '@/components/ui/loading-states';
 import {
   Presentation,
   ChevronDown,
   ChevronRight,
   Edit3,
   RefreshCw,
-  Loader2,
   Sparkles,
   FileText,
   Image as ImageIcon,
@@ -239,7 +239,7 @@ export function PPTOutlinePreview({
         >
           {isGenerating ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <LoadingSpinner size="sm" className="mr-2" />
               {t('generatingSlides')}
             </>
           ) : (

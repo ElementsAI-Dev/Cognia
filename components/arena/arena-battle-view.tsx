@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -135,20 +136,18 @@ function ContestantCard({
   };
 
   return (
-    <div
+    <Card
       className={cn(
-        'flex flex-col h-full border rounded-lg overflow-hidden transition-all',
+        'flex flex-col h-full overflow-hidden transition-all py-0 gap-0',
         isWinner && 'ring-2 ring-primary border-primary',
         isError && 'border-destructive/50'
       )}
     >
-      {/* Card header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b">
+      <CardHeader className="flex flex-row items-center justify-between px-3 py-2 bg-muted/50 border-b gap-2">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs font-mono">
             {String.fromCharCode(65 + index)}
           </Badge>
-          {/* Model name with reveal animation */}
           {blindMode && !isRevealed ? (
             <span className="text-xs text-muted-foreground italic">
               {t('model')} {String.fromCharCode(65 + index)}
@@ -206,22 +205,21 @@ function ContestantCard({
             <TooltipContent>{t('copy')}</TooltipContent>
           </Tooltip>
         </div>
-      </div>
+      </CardHeader>
 
-      {/* Content */}
-      <ScrollArea className="flex-1 p-3">
-        {isError ? (
-          <p className="text-sm text-destructive">{contestant.error}</p>
-        ) : contestant.response ? (
-          <MarkdownRenderer content={contestant.response} />
-        ) : (
-          <p className="text-sm text-muted-foreground italic">{t('waiting')}</p>
-        )}
-      </ScrollArea>
+      <CardContent className="flex-1 p-0">
+        <ScrollArea className="h-full p-3">
+          {isError ? (
+            <p className="text-sm text-destructive">{contestant.error}</p>
+          ) : contestant.response ? (
+            <MarkdownRenderer content={contestant.response} />
+          ) : (
+            <p className="text-sm text-muted-foreground italic">{t('waiting')}</p>
+          )}
+        </ScrollArea>
+      </CardContent>
 
-      {/* Stats footer */}
-      <div className="flex items-center justify-between px-3 py-2 border-t bg-muted/30">
-        {/* Stats */}
+      <CardFooter className="flex items-center justify-between px-3 py-2 border-t bg-muted/30">
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
           {contestant.latencyMs && (
             <div className="flex items-center gap-1">
@@ -243,15 +241,14 @@ function ContestantCard({
           )}
         </div>
 
-        {/* Winner indicator (voting moved to unified bar) */}
         {isWinner && (
           <Badge variant="secondary" className="text-[10px] gap-1">
             <Trophy className="h-2.5 w-2.5" />
             {t('selected')}
           </Badge>
         )}
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 }
 

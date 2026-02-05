@@ -47,6 +47,7 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import { EmptyState } from "@/components/layout/empty-state";
 
 export interface Template {
   id: string;
@@ -427,10 +428,13 @@ export function TemplatesPanel({
         <ScrollArea className="flex-1 max-h-[380px]">
           <div className="p-2 space-y-1">
             {sortedTemplates.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-white/40">
-                <LayoutTemplate className="w-8 h-8 mb-2 opacity-50" />
-                <p className="text-sm">No templates found</p>
-              </div>
+              <EmptyState
+                icon={LayoutTemplate}
+                title="No templates found"
+                compact
+                className="text-white/40"
+                iconClassName="text-white/40"
+              />
             ) : (
               sortedTemplates.map((template) => {
                 const CategoryIcon =

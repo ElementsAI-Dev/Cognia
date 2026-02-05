@@ -26,6 +26,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Star, Download, User, Calendar, GitBranch, FileJson } from 'lucide-react';
+import { InlineCopyButton } from '@/components/chat/ui/copy-button';
 
 interface TemplatePreviewProps {
   template: WorkflowTemplate;
@@ -198,9 +199,13 @@ export function TemplatePreview({
             <div>
               <h4 className="font-semibold mb-2">{t('workflowSettings')}</h4>
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-4 relative">
+                  <InlineCopyButton
+                    content={JSON.stringify(template.workflow.settings, null, 2)}
+                    className="absolute top-2 right-2"
+                  />
                   <ScrollArea className="max-h-48">
-                    <pre className="text-xs overflow-x-auto">
+                    <pre className="text-xs overflow-x-auto font-mono bg-muted/50 p-2 rounded">
                       {JSON.stringify(template.workflow.settings, null, 2)}
                     </pre>
                   </ScrollArea>
@@ -213,9 +218,13 @@ export function TemplatePreview({
             <div>
               <h4 className="font-semibold mb-2">{t('fullMetadata')}</h4>
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-4 relative">
+                  <InlineCopyButton
+                    content={JSON.stringify(template.metadata, null, 2)}
+                    className="absolute top-2 right-2"
+                  />
                   <ScrollArea className="max-h-48">
-                    <pre className="text-xs overflow-x-auto">
+                    <pre className="text-xs overflow-x-auto font-mono bg-muted/50 p-2 rounded">
                       {JSON.stringify(template.metadata, null, 2)}
                     </pre>
                   </ScrollArea>
@@ -226,9 +235,25 @@ export function TemplatePreview({
             <div>
               <h4 className="font-semibold mb-2">{t('templateData')}</h4>
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-4 relative">
+                  <InlineCopyButton
+                    content={JSON.stringify(
+                      {
+                        id: template.id,
+                        name: template.name,
+                        description: template.description,
+                        category: template.category,
+                        tags: template.tags,
+                        author: template.author,
+                        version: template.version,
+                      },
+                      null,
+                      2
+                    )}
+                    className="absolute top-2 right-2"
+                  />
                   <ScrollArea className="max-h-48">
-                    <pre className="text-xs overflow-x-auto">
+                    <pre className="text-xs overflow-x-auto font-mono bg-muted/50 p-2 rounded">
                       {JSON.stringify(
                         {
                           id: template.id,

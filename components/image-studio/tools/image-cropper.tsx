@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   RotateCw,
   RotateCcw,
@@ -616,31 +617,37 @@ export function ImageCropper({
         {/* Aspect ratio presets */}
         <div className="flex items-center gap-1">
           <Label className="text-xs mr-2">{t('aspectRatio')}:</Label>
-          {ASPECT_PRESETS.map((preset) => (
-            <Tooltip key={preset.label}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={aspectRatio === preset.value ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="h-8 px-2"
-                  onClick={() => {
-                    setAspectRatio(preset.value);
-                    if (preset.value) {
-                      // Adjust crop to match aspect ratio
-                      const newHeight = crop.width / preset.value;
-                      setCrop((prev) => ({
-                        ...prev,
-                        height: Math.min(newHeight, imageSize.height - prev.y),
-                      }));
-                    }
-                  }}
-                >
-                  {preset.icon}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{preset.label}</TooltipContent>
-            </Tooltip>
-          ))}
+          <ToggleGroup
+            type="single"
+            value={String(aspectRatio)}
+            onValueChange={(value) => {
+              const preset = ASPECT_PRESETS.find((p) => String(p.value) === value);
+              if (!preset) return;
+              setAspectRatio(preset.value);
+              if (preset.value) {
+                const newHeight = crop.width / preset.value;
+                setCrop((prev) => ({
+                  ...prev,
+                  height: Math.min(newHeight, imageSize.height - prev.y),
+                }));
+              }
+            }}
+          >
+            {ASPECT_PRESETS.map((preset) => (
+              <Tooltip key={preset.label}>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem
+                    value={String(preset.value)}
+                    size="sm"
+                    className="h-8 px-2"
+                  >
+                    {preset.icon}
+                  </ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent>{preset.label}</TooltipContent>
+              </Tooltip>
+            ))}
+          </ToggleGroup>
         </div>
 
         {/* Divider */}

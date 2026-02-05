@@ -38,6 +38,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import type { ChatTemplate } from '@/types/content/template';
 import { cn } from '@/lib/utils';
 import type { ChatMode } from '@/types';
@@ -366,7 +367,7 @@ export function WelcomeState({
             )}
 
             {effectiveSectionsVisibility.templateSelector && effectiveSectionsVisibility.modeSwitcher && (
-              <div className="h-4 w-px bg-border/50" />
+              <Separator orientation="vertical" className="h-4" />
             )}
 
             {effectiveSectionsVisibility.modeSwitcher && (

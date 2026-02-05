@@ -20,6 +20,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useSettingsStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import {
@@ -62,7 +73,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
   const [isDark, setIsDark] = useState(false);
   const [colors, setColors] = useState<ThemeColors>(DEFAULT_LIGHT_COLORS);
   const [activeColor, setActiveColor] = useState<keyof ThemeColors>('primary');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'colors' | 'palettes'>('colors');
   const [isLivePreview, setIsLivePreview] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -137,7 +148,7 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
           setColors(DEFAULT_LIGHT_COLORS);
         }
         setActiveColor('primary');
-        setShowDeleteConfirm(false);
+        setDeleteDialogOpen(false);
         setActiveTab('colors');
       });
     }
@@ -558,47 +569,43 @@ export function ThemeEditor({ open, onOpenChange, editingThemeId }: ThemeEditorP
 
         <DialogFooter className="flex-col gap-2 sm:flex-row">
           {isEditing && (
-            <>
-              {showDeleteConfirm ? (
-                <div className="flex items-center gap-2 mr-auto">
-                  <span className="text-sm text-destructive">
-                    {t('confirmDelete')}
-                  </span>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleDelete}
-                  >
-                    {tc('confirm')}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDeleteConfirm(false)}
-                  >
-                    {tc('cancel')}
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 mr-auto">
+            <div className="flex items-center gap-2 mr-auto">
+              <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogTrigger asChild>
                   <Button
                     variant="ghost"
                     className="text-destructive hover:text-destructive"
-                    onClick={() => setShowDeleteConfirm(true)}
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
                     {tc('delete')}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={handleDuplicateTheme}
-                  >
-                    <Copy className="h-4 w-4 mr-1" />
-                    {t('duplicateTheme')}
-                  </Button>
-                </div>
-              )}
-            </>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('confirmDelete')}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{tc('cancel')}</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {tc('delete')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button
+                variant="ghost"
+                onClick={handleDuplicateTheme}
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                {t('duplicateTheme')}
+              </Button>
+            </div>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {tc('cancel')}

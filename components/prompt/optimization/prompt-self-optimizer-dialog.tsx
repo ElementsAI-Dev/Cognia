@@ -25,6 +25,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { Loader } from '@/components/ai-elements/loader';
 import { cn } from '@/lib/utils';
 import { usePromptOptimizer } from '@/hooks/ai/use-prompt-optimizer';
@@ -395,9 +397,9 @@ export function PromptSelfOptimizerDialog({
                 
                 {/* Error Display */}
                 {error && (
-                  <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-                    {error}
-                  </div>
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
               </div>
             </ScrollArea>
@@ -486,11 +488,13 @@ export function PromptSelfOptimizerDialog({
                   ))}
                   
                   {allSuggestions.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>{t('noSuggestions')}</p>
-                      <p className="text-sm">{t('runAnalysisFirst')}</p>
-                    </div>
+                    <Empty className="py-8">
+                      <EmptyMedia variant="icon">
+                        <Lightbulb className="h-6 w-6" />
+                      </EmptyMedia>
+                      <EmptyTitle>{t('noSuggestions')}</EmptyTitle>
+                      <EmptyDescription>{t('runAnalysisFirst')}</EmptyDescription>
+                    </Empty>
                   )}
                 </div>
               </div>

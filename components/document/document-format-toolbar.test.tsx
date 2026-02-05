@@ -194,9 +194,9 @@ describe('DocumentFormatToolbar', () => {
         />
       );
 
-      // Check that at least one button has the active class
-      const activeButtons = container.querySelectorAll('.bg-accent');
-      expect(activeButtons.length).toBeGreaterThan(0);
+      // Check that at least one toggle has the pressed state (data-state="on")
+      const activeToggles = container.querySelectorAll('[data-state="on"]');
+      expect(activeToggles.length).toBeGreaterThan(0);
     });
   });
 
@@ -309,7 +309,7 @@ describe('DocumentFormatToolbar', () => {
   });
 
   describe('Format State Active Classes', () => {
-    it('should apply active class when italic is true', () => {
+    it('should apply active state when italic is true', () => {
       const formatState: FormatState = { italic: true };
       const { container } = renderWithProviders(
         <DocumentFormatToolbar
@@ -318,11 +318,11 @@ describe('DocumentFormatToolbar', () => {
         />
       );
 
-      const activeButtons = container.querySelectorAll('.bg-accent');
-      expect(activeButtons.length).toBeGreaterThan(0);
+      const activeToggles = container.querySelectorAll('[data-state="on"]');
+      expect(activeToggles.length).toBeGreaterThan(0);
     });
 
-    it('should apply active class when underline is true', () => {
+    it('should apply active state when underline is true', () => {
       const formatState: FormatState = { underline: true };
       const { container } = renderWithProviders(
         <DocumentFormatToolbar
@@ -331,11 +331,11 @@ describe('DocumentFormatToolbar', () => {
         />
       );
 
-      const activeButtons = container.querySelectorAll('.bg-accent');
-      expect(activeButtons.length).toBeGreaterThan(0);
+      const activeToggles = container.querySelectorAll('[data-state="on"]');
+      expect(activeToggles.length).toBeGreaterThan(0);
     });
 
-    it('should apply active class when alignment is center', () => {
+    it('should apply active state when alignment is center', () => {
       const formatState: FormatState = { alignment: 'center' };
       const { container } = renderWithProviders(
         <DocumentFormatToolbar
@@ -344,11 +344,11 @@ describe('DocumentFormatToolbar', () => {
         />
       );
 
-      const activeButtons = container.querySelectorAll('.bg-accent');
-      expect(activeButtons.length).toBeGreaterThan(0);
+      const activeToggles = container.querySelectorAll('[data-state="on"]');
+      expect(activeToggles.length).toBeGreaterThan(0);
     });
 
-    it('should apply active class when listType is bullet', () => {
+    it('should apply active state when listType is bullet', () => {
       const formatState: FormatState = { listType: 'bullet' };
       const { container } = renderWithProviders(
         <DocumentFormatToolbar
@@ -357,11 +357,11 @@ describe('DocumentFormatToolbar', () => {
         />
       );
 
-      const activeButtons = container.querySelectorAll('.bg-accent');
-      expect(activeButtons.length).toBeGreaterThan(0);
+      const activeToggles = container.querySelectorAll('[data-state="on"]');
+      expect(activeToggles.length).toBeGreaterThan(0);
     });
 
-    it('should apply active class when isQuote is true', () => {
+    it('should apply active state when isQuote is true', () => {
       const formatState: FormatState = { isQuote: true };
       const { container } = renderWithProviders(
         <DocumentFormatToolbar
@@ -370,11 +370,11 @@ describe('DocumentFormatToolbar', () => {
         />
       );
 
-      const activeButtons = container.querySelectorAll('.bg-accent');
-      expect(activeButtons.length).toBeGreaterThan(0);
+      const activeToggles = container.querySelectorAll('[data-state="on"]');
+      expect(activeToggles.length).toBeGreaterThan(0);
     });
 
-    it('should apply active class when isCode is true', () => {
+    it('should apply active state when isCode is true', () => {
       const formatState: FormatState = { isCode: true };
       const { container } = renderWithProviders(
         <DocumentFormatToolbar
@@ -383,8 +383,8 @@ describe('DocumentFormatToolbar', () => {
         />
       );
 
-      const activeButtons = container.querySelectorAll('.bg-accent');
-      expect(activeButtons.length).toBeGreaterThan(0);
+      const activeToggles = container.querySelectorAll('[data-state="on"]');
+      expect(activeToggles.length).toBeGreaterThan(0);
     });
   });
 

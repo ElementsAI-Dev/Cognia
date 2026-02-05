@@ -39,6 +39,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import type {
   MarketplacePrompt,
@@ -710,21 +711,21 @@ export function PromptMarketplaceBrowser({
                       )}
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center border-2 border-dashed rounded-2xl bg-muted/20">
-                      <div className="p-4 rounded-2xl bg-muted/50 mb-4 shadow-sm">
+                    <Empty className="py-16 sm:py-24 border-2 rounded-2xl bg-muted/20">
+                      <EmptyMedia variant="icon" className="bg-muted/50">
                         <Package className="h-10 w-10 text-muted-foreground/40" />
-                      </div>
-                      <h3 className="font-semibold text-lg">{t('search.noResults')}</h3>
-                      <p className="text-muted-foreground mt-2 max-w-sm mx-auto text-sm">
-                        {t('search.noResultsDesc')}
-                      </p>
+                      </EmptyMedia>
+                      <EmptyTitle>{t('search.noResults')}</EmptyTitle>
+                      <EmptyDescription>{t('search.noResultsDesc')}</EmptyDescription>
                       {hasActiveFilters && (
-                        <Button variant="outline" className="mt-6 gap-2" onClick={clearFilters}>
-                          <RefreshCw className="h-4 w-4" />
-                          {t('search.clearFilters')}
-                        </Button>
+                        <EmptyContent>
+                          <Button variant="outline" className="gap-2" onClick={clearFilters}>
+                            <RefreshCw className="h-4 w-4" />
+                            {t('search.clearFilters')}
+                          </Button>
+                        </EmptyContent>
                       )}
-                    </div>
+                    </Empty>
                   )}
                 </section>
               </>
@@ -814,21 +815,19 @@ export function PromptMarketplaceBrowser({
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center border-2 border-dashed rounded-2xl bg-muted/20">
-                    <div className="p-4 rounded-2xl bg-green-500/10 mb-4 shadow-sm">
+                  <Empty className="py-16 sm:py-24 border-2 rounded-2xl bg-muted/20">
+                    <EmptyMedia variant="icon" className="bg-green-500/10">
                       <Download className="h-10 w-10 text-green-500/50" />
-                    </div>
-                    <h3 className="font-semibold text-lg">{t('empty.noInstalledTitle')}</h3>
-                    <p className="text-muted-foreground mt-2 text-sm max-w-sm">{t('empty.noInstalled')}</p>
-                    <Button
-                      variant="outline"
-                      className="mt-6 gap-2"
-                      onClick={() => setActiveTab('browse')}
-                    >
-                      <Package className="h-4 w-4" />
-                      {t('empty.browseMarketplace')}
-                    </Button>
-                  </div>
+                    </EmptyMedia>
+                    <EmptyTitle>{t('empty.noInstalledTitle')}</EmptyTitle>
+                    <EmptyDescription>{t('empty.noInstalled')}</EmptyDescription>
+                    <EmptyContent>
+                      <Button variant="outline" className="gap-2" onClick={() => setActiveTab('browse')}>
+                        <Package className="h-4 w-4" />
+                        {t('empty.browseMarketplace')}
+                      </Button>
+                    </EmptyContent>
+                  </Empty>
                 )}
               </section>
             )}
@@ -897,21 +896,19 @@ export function PromptMarketplaceBrowser({
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center border-2 border-dashed rounded-2xl bg-muted/20">
-                    <div className="p-4 rounded-2xl bg-red-500/10 mb-4 shadow-sm">
+                  <Empty className="py-16 sm:py-24 border-2 rounded-2xl bg-muted/20">
+                    <EmptyMedia variant="icon" className="bg-red-500/10">
                       <Heart className="h-10 w-10 text-red-500/50" />
-                    </div>
-                    <h3 className="font-semibold text-lg">{t('empty.noFavoritesTitle')}</h3>
-                    <p className="text-muted-foreground mt-2 text-sm max-w-sm">{t('empty.noFavorites')}</p>
-                    <Button
-                      variant="outline"
-                      className="mt-6 gap-2"
-                      onClick={() => setActiveTab('browse')}
-                    >
-                      <Package className="h-4 w-4" />
-                      {t('empty.browseMarketplace')}
-                    </Button>
-                  </div>
+                    </EmptyMedia>
+                    <EmptyTitle>{t('empty.noFavoritesTitle')}</EmptyTitle>
+                    <EmptyDescription>{t('empty.noFavorites')}</EmptyDescription>
+                    <EmptyContent>
+                      <Button variant="outline" className="gap-2" onClick={() => setActiveTab('browse')}>
+                        <Package className="h-4 w-4" />
+                        {t('empty.browseMarketplace')}
+                      </Button>
+                    </EmptyContent>
+                  </Empty>
                 )}
               </section>
             )}
@@ -951,13 +948,13 @@ export function PromptMarketplaceBrowser({
                     })}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center border-2 border-dashed rounded-2xl bg-muted/20">
-                    <div className="p-4 rounded-2xl bg-amber-500/10 mb-4 shadow-sm">
+                  <Empty className="py-16 sm:py-24 border-2 rounded-2xl bg-muted/20">
+                    <EmptyMedia variant="icon" className="bg-amber-500/10">
                       <FolderOpen className="h-10 w-10 text-amber-500/50" />
-                    </div>
-                    <h3 className="font-semibold text-lg">{t('empty.noCollections')}</h3>
-                    <p className="text-muted-foreground mt-2 text-sm max-w-sm">{t('collections.exploreCollections')}</p>
-                  </div>
+                    </EmptyMedia>
+                    <EmptyTitle>{t('empty.noCollections')}</EmptyTitle>
+                    <EmptyDescription>{t('collections.exploreCollections')}</EmptyDescription>
+                  </Empty>
                 )}
               </section>
             )}
@@ -1000,21 +997,19 @@ export function PromptMarketplaceBrowser({
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center border-2 border-dashed rounded-2xl bg-muted/20">
-                    <div className="p-4 rounded-2xl bg-purple-500/10 mb-4 shadow-sm">
+                  <Empty className="py-16 sm:py-24 border-2 rounded-2xl bg-muted/20">
+                    <EmptyMedia variant="icon" className="bg-purple-500/10">
                       <History className="h-10 w-10 text-purple-500/50" />
-                    </div>
-                    <h3 className="font-semibold text-lg">{t('empty.noRecentTitle')}</h3>
-                    <p className="text-muted-foreground mt-2 text-sm max-w-sm">{t('empty.noRecent')}</p>
-                    <Button
-                      variant="outline"
-                      className="mt-6 gap-2"
-                      onClick={() => setActiveTab('browse')}
-                    >
-                      <Package className="h-4 w-4" />
-                      {t('empty.browseMarketplace')}
-                    </Button>
-                  </div>
+                    </EmptyMedia>
+                    <EmptyTitle>{t('empty.noRecentTitle')}</EmptyTitle>
+                    <EmptyDescription>{t('empty.noRecent')}</EmptyDescription>
+                    <EmptyContent>
+                      <Button variant="outline" className="gap-2" onClick={() => setActiveTab('browse')}>
+                        <Package className="h-4 w-4" />
+                        {t('empty.browseMarketplace')}
+                      </Button>
+                    </EmptyContent>
+                  </Empty>
                 )}
               </section>
             )}

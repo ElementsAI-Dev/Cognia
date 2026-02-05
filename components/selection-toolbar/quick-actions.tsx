@@ -29,6 +29,7 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
 import { SelectionAction } from "@/types";
 
 interface QuickAction {
@@ -273,9 +274,9 @@ export function QuickActions({
                   <TooltipContent side="bottom">
                     <p>{action.descKey ? t(action.descKey) : t(action.labelKey)}</p>
                     {action.shortcut && (
-                      <kbd className="ml-1 text-[10px] opacity-60">
+                      <Kbd className="ml-1 opacity-60">
                         {action.shortcut}
-                      </kbd>
+                      </Kbd>
                     )}
                   </TooltipContent>
                 </Tooltip>

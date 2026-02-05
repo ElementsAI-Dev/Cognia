@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { TagInput } from '@/components/ui/tag-input';
 import {
   Select,
   SelectContent,
@@ -233,24 +233,10 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
 
       <div className="space-y-2">
         <Label>{t('tags')}</Label>
-        <div className="flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-              {tag}
-              <button
-                aria-label={`remove-${tag}`}
-                className="text-muted-foreground text-xs"
-                onClick={() => setTags(tags.filter((t) => t !== tag))}
-              >
-                ×
-              </button>
-            </Badge>
-          ))}
-        </div>
-        <Input
+        <TagInput
+          value={tags}
+          onChange={setTags}
           placeholder={t('addTagPlaceholder')}
-          onKeyDown={handleTagKeyDown}
-          aria-label="add-tag"
         />
       </div>
 

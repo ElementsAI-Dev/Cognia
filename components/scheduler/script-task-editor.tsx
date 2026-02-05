@@ -3,7 +3,9 @@
 import { AlertTriangle, Play, Settings2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -125,38 +127,42 @@ export function ScriptTaskEditor({
         />
 
         {/* Validation feedback */}
-        {validation && (
-          <div className="space-y-1">
+        {validation && (validation.errors.length > 0 || validation.warnings.length > 0) && (
+          <div className="space-y-2">
             {validation.errors.map((error, i) => (
-              <p key={`error-${i}`} className="text-destructive flex items-center gap-1 text-xs">
-                <AlertTriangle className="h-3 w-3" />
-                {error}
-              </p>
+              <Alert key={`error-${i}`} variant="destructive" className="py-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-xs">{error}</AlertDescription>
+              </Alert>
             ))}
             {validation.warnings.map((warning, i) => (
-              <p key={`warning-${i}`} className="flex items-center gap-1 text-xs text-yellow-500">
-                <AlertTriangle className="h-3 w-3" />
-                {warning}
-              </p>
+              <Alert key={`warning-${i}`} className="border-yellow-500/50 bg-yellow-500/10 py-2 [&>svg]:text-yellow-500">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-xs text-yellow-600 dark:text-yellow-400">{warning}</AlertDescription>
+              </Alert>
             ))}
           </div>
         )}
       </div>
 
       {/* Sandbox toggle */}
-      <div className="flex items-center justify-between rounded-lg border p-3">
-        <div className="space-y-0.5">
-          <Label className="text-sm font-medium">沙盒执行 / Sandbox Execution</Label>
-          <p className="text-muted-foreground text-xs">
-            在隔离环境中运行脚本（更安全）/ Run script in isolated environment (safer)
-          </p>
-        </div>
-        <Switch
-          checked={value.use_sandbox !== false}
-          onCheckedChange={(checked) => handleSettingChange('use_sandbox', checked)}
-          disabled={disabled}
-        />
-      </div>
+      <Card>
+        <CardHeader className="p-3 pb-0">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <CardTitle className="text-sm font-medium">沙盒执行 / Sandbox Execution</CardTitle>
+              <CardDescription className="text-xs">
+                在隔离环境中运行脚本（更安全）/ Run script in isolated environment (safer)
+              </CardDescription>
+            </div>
+            <Switch
+              checked={value.use_sandbox !== false}
+              onCheckedChange={(checked) => handleSettingChange('use_sandbox', checked)}
+              disabled={disabled}
+            />
+          </div>
+        </CardHeader>
+      </Card>
 
       {/* Advanced settings */}
       <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>

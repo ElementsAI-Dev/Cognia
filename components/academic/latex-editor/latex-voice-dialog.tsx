@@ -213,15 +213,17 @@ export function LatexVoiceDialog({
 
           {/* Recording Area */}
           <div className="flex flex-col items-center py-6 space-y-4">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon"
               onClick={state.isListening ? handleStopListening : handleStartListening}
               disabled={!isSupported}
               className={cn(
                 'w-24 h-24 rounded-full flex items-center justify-center transition-all',
-                'border-4 focus:outline-none focus:ring-2 focus:ring-offset-2',
+                'border-4',
                 state.isListening
-                  ? 'bg-red-500 border-red-600 text-white animate-pulse'
+                  ? 'bg-red-500 border-red-600 text-white animate-pulse hover:bg-red-600'
                   : 'bg-primary/10 border-primary text-primary hover:bg-primary/20',
                 !isSupported && 'opacity-50 cursor-not-allowed'
               )}
@@ -231,7 +233,7 @@ export function LatexVoiceDialog({
               ) : (
                 <Mic className="h-10 w-10" />
               )}
-            </button>
+            </Button>
 
             <p className="text-sm text-muted-foreground">
               {state.isListening

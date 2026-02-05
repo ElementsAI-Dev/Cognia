@@ -9,9 +9,12 @@
 
 import { memo, useMemo, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { MessageSquare } from 'lucide-react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { ColumnHeader } from '../ui/column-header';
 import { MarkdownRenderer } from '../utils';
+import { Button } from '@/components/ui/button';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import type {
   ArenaModelConfig,
@@ -158,20 +161,26 @@ export const ChatColumn = memo(function ChatColumn({
             }}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            {t('waitingForMessage')}
-          </div>
+          <Empty className="h-full border-0">
+            <EmptyMedia variant="icon">
+              <MessageSquare className="h-5 w-5" />
+            </EmptyMedia>
+            <EmptyDescription>
+              {t('waitingForMessage')}
+            </EmptyDescription>
+          </Empty>
         )}
       </div>
 
       {/* Selection button (for voting) */}
       {onSelect && (
-        <button
-          className="w-full py-2.5 text-sm font-medium border-t bg-muted/30 hover:bg-muted/50 transition-colors"
+        <Button
+          variant="ghost"
+          className="w-full py-2.5 text-sm font-medium border-t rounded-none bg-muted/30 hover:bg-muted/50"
           onClick={onSelect}
         >
           {t('selectModel', { name: model.displayName })}
-        </button>
+        </Button>
       )}
     </div>
   );

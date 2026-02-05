@@ -34,10 +34,10 @@ import {
 } from '@/components/ui/select';
 import {
   Download,
-  Loader2,
   Image as ImageIcon,
   Check,
 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-states';
 
 import type { ImageExportFormat as ExportFormat, ExportableImage } from '@/types/media/image-studio';
 
@@ -348,7 +348,7 @@ export function BatchExportDialog({
           {isExporting && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <LoadingSpinner size="sm" />
                 <span className="text-sm">{t('exporting', { current: exportedCount, total: selectedIds.size })}</span>
               </div>
               <Progress value={progress} />
@@ -360,7 +360,7 @@ export function BatchExportDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isExporting}>{tc('cancel')}</Button>
           <Button onClick={handleExport} disabled={selectedIds.size === 0 || isExporting}>
             {isExporting ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              <LoadingSpinner size="sm" className="mr-1" />
             ) : (
               <Download className="h-4 w-4 mr-1" />
             )}

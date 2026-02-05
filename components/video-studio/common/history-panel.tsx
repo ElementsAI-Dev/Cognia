@@ -18,6 +18,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  Empty,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -210,11 +216,13 @@ export function HistoryPanel({
       <ScrollArea className="flex-1">
         <div className="p-2">
           {entries.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">{t('empty')}</p>
-              <p className="text-xs mt-1">{t('emptyHint')}</p>
-            </div>
+            <Empty className="py-8 border-0">
+              <EmptyMedia variant="icon">
+                <History className="h-6 w-6" />
+              </EmptyMedia>
+              <EmptyTitle className="text-sm">{t('empty')}</EmptyTitle>
+              <EmptyDescription className="text-xs">{t('emptyHint')}</EmptyDescription>
+            </Empty>
           ) : (
             <div className="space-y-1">
               {/* Initial state marker */}

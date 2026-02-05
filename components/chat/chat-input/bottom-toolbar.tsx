@@ -2,6 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import { PresetQuickPrompts } from '@/components/presets/preset-quick-prompts';
 import { PresetQuickSwitcher } from '@/components/presets/preset-quick-switcher';
 import { TokenIndicatorInline } from '@/components/chat/utils/token-budget-indicator';
@@ -9,7 +11,6 @@ import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { Brain, Globe, Radio, Settings2, Presentation, Workflow, Wand2, Swords } from 'lucide-react';
 import { usePresetStore, useSessionStore } from '@/stores';
-import styles from './bottom-toolbar.module.css';
 
 interface BottomToolbarProps {
   modelName: string;
@@ -126,7 +127,7 @@ export function BottomToolbar({
           </Tooltip>
         )}
 
-        <div className="mx-0.5 sm:mx-1 h-3 sm:h-4 w-px bg-border" />
+        <Separator orientation="vertical" className="mx-0.5 sm:mx-1 h-3 sm:h-4" />
 
         {!hideWebSearchToggle && (
           <Tooltip>
@@ -283,7 +284,7 @@ export function BottomToolbar({
           <TooltipContent>{t('aiSettings')}</TooltipContent>
         </Tooltip>
 
-        <div className="hidden min-[400px]:block mx-0.5 sm:mx-1 h-3 sm:h-4 w-px bg-border" />
+        <Separator orientation="vertical" className="hidden min-[400px]:block mx-0.5 sm:mx-1 h-3 sm:h-4" />
 
         <div className="hidden min-[400px]:block">
           <PresetQuickSwitcher
@@ -319,14 +320,16 @@ export function BottomToolbar({
               />
             ) : (
               <div className="flex items-center gap-1 sm:gap-1.5">
-                <div className="w-10 sm:w-16 h-1 sm:h-1.5 bg-muted rounded-full overflow-hidden">
-                  <progress
-                    max={100}
-                    value={boundedPercent}
-                    className={cn(styles.usageProgress, styles[severityClass])}
-                    aria-label={t('contextWindowUsage')}
-                  />
-                </div>
+                <Progress
+                  value={boundedPercent}
+                  className="w-10 sm:w-16 h-1 sm:h-1.5"
+                  indicatorClassName={cn(
+                    severityClass === 'low' && 'bg-emerald-500',
+                    severityClass === 'medium' && 'bg-amber-500',
+                    severityClass === 'high' && 'bg-red-500'
+                  )}
+                  aria-label={t('contextWindowUsage')}
+                />
                 <span
                   className={cn(
                     'tabular-nums',

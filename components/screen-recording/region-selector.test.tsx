@@ -26,7 +26,9 @@ describe('RegionSelector', () => {
     );
 
     expect(screen.getByText('Click and drag to select recording area')).toBeInTheDocument();
-    expect(screen.getByText(/Press Esc to cancel/)).toBeInTheDocument();
+    // Using Kbd component for keyboard shortcuts
+    expect(screen.getByText('Esc')).toBeInTheDocument();
+    expect(screen.getByText('to cancel')).toBeInTheDocument();
   });
 
   it('shows cancel button', () => {

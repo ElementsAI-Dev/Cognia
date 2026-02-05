@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ColorPicker } from './color-picker';
 import type { AnnotationTool, AnnotationStyle } from '@/types/screenshot';
 
@@ -104,18 +105,18 @@ export function AnnotationToolbar({
       )}
     >
       {/* Annotation Tools */}
-      <div className="flex items-center gap-0.5">
+      <ToggleGroup
+        type="single"
+        value={currentTool}
+        onValueChange={(value) => value && onToolChange(value as AnnotationTool)}
+        className="flex items-center gap-0.5"
+      >
         {toolDefinitions.map(({ id, icon: Icon, shortcut }) => (
           <Tooltip key={id}>
             <TooltipTrigger asChild>
-              <Button
-                variant={currentTool === id ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onToolChange(id)}
-              >
+              <ToggleGroupItem value={id} size="sm" className="h-8 w-8 p-0">
                 <Icon className="h-4 w-4" />
-              </Button>
+              </ToggleGroupItem>
             </TooltipTrigger>
             <TooltipContent>
               <p>
@@ -125,7 +126,7 @@ export function AnnotationToolbar({
             </TooltipContent>
           </Tooltip>
         ))}
-      </div>
+      </ToggleGroup>
 
       <Separator orientation="vertical" className="h-6 mx-1" />
 

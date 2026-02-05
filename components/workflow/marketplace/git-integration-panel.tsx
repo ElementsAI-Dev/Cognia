@@ -51,6 +51,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  Empty,
+  EmptyMedia,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -281,11 +288,15 @@ export function GitIntegrationPanel() {
         {/* Repository List */}
         <ScrollArea className="flex-1 p-4">
           {repositories.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <GitBranch className="h-12 w-12 mb-4" />
-              <p>{t('noRepos')}</p>
-              <p className="text-sm">{t('cloneToStart')}</p>
-            </div>
+            <Empty className="h-full">
+              <EmptyHeader>
+                <EmptyMedia>
+                  <GitBranch className="h-12 w-12" />
+                </EmptyMedia>
+                <EmptyTitle>{t('noRepos')}</EmptyTitle>
+                <EmptyDescription>{t('cloneToStart')}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           ) : (
             <div className="space-y-4">
               {repositories.map((repo) => (

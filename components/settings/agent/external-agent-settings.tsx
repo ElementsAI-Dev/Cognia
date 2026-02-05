@@ -23,7 +23,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -68,6 +68,13 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Empty,
+  EmptyMedia,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
 import { useExternalAgentStore } from '@/stores/agent/external-agent-store';
 import { useExternalAgent } from '@/hooks/agent/use-external-agent';
 import type {
@@ -580,11 +587,15 @@ export function ExternalAgentSettings() {
         </CardHeader>
         <CardContent>
           {agents.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <ExternalLink className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>{t('noAgentsConfigured')}</p>
-              <p className="text-sm">{t('addAgentToStart')}</p>
-            </div>
+            <Empty className="py-8 border-0">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ExternalLink className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>{t('noAgentsConfigured')}</EmptyTitle>
+                <EmptyDescription>{t('addAgentToStart')}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           ) : (
             <ScrollArea className="max-h-[400px]">
               <div className="space-y-3">

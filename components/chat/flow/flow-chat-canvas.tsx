@@ -26,6 +26,7 @@ import { toPng, toSvg } from 'html-to-image';
 import '@xyflow/react/dist/style.css';
 import { useTranslations } from 'next-intl';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { FlowChatNode } from './flow-chat-node';
 import { FlowChatEdge } from './flow-chat-edge';
@@ -535,10 +536,12 @@ function FlowChatCanvasInner({
         {/* Empty state */}
         {messages.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 pointer-events-none">
-            <div className="text-center text-muted-foreground">
-              <p className="text-lg font-medium">{t('emptyCanvas')}</p>
-              <p className="text-sm">{t('emptyCanvasHint')}</p>
-            </div>
+            <Empty className="border-0 bg-transparent">
+              <EmptyHeader>
+                <EmptyTitle>{t('emptyCanvas')}</EmptyTitle>
+                <EmptyDescription>{t('emptyCanvasHint')}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           </div>
         )}
 

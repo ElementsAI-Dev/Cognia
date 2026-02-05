@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -90,11 +91,6 @@ export function QuotaSettings({ className }: QuotaSettingsProps) {
     return 'text-green-500';
   };
 
-  const getProgressColor = (percent: number): string => {
-    if (percent >= 100) return 'bg-destructive';
-    if (percent >= 80) return 'bg-yellow-500';
-    return 'bg-primary';
-  };
 
   return (
     <Card className={className}>
@@ -143,7 +139,6 @@ export function QuotaSettings({ className }: QuotaSettingsProps) {
             formatValue={(v) => v.toString()}
             getUsagePercent={getUsagePercent}
             getStatusColor={getStatusColor}
-            getProgressColor={getProgressColor}
           />
 
           {/* Tokens Today */}
@@ -154,7 +149,6 @@ export function QuotaSettings({ className }: QuotaSettingsProps) {
             formatValue={formatTokens}
             getUsagePercent={getUsagePercent}
             getStatusColor={getStatusColor}
-            getProgressColor={getProgressColor}
           />
 
           {/* Cost Today */}
@@ -165,7 +159,6 @@ export function QuotaSettings({ className }: QuotaSettingsProps) {
             formatValue={formatCost}
             getUsagePercent={getUsagePercent}
             getStatusColor={getStatusColor}
-            getProgressColor={getProgressColor}
           />
 
           {/* Cost This Month */}
@@ -176,7 +169,6 @@ export function QuotaSettings({ className }: QuotaSettingsProps) {
             formatValue={formatCost}
             getUsagePercent={getUsagePercent}
             getStatusColor={getStatusColor}
-            getProgressColor={getProgressColor}
           />
         </div>
 
@@ -313,7 +305,6 @@ interface QuotaProgressItemProps {
   formatValue: (value: number) => string;
   getUsagePercent: (used: number, limit: number | undefined) => number;
   getStatusColor: (percent: number) => string;
-  getProgressColor: (percent: number) => string;
 }
 
 function QuotaProgressItem({
@@ -323,7 +314,6 @@ function QuotaProgressItem({
   formatValue,
   getUsagePercent,
   getStatusColor,
-  getProgressColor,
 }: QuotaProgressItemProps) {
   const percent = getUsagePercent(used, limit);
   const hasLimit = limit !== undefined && limit > 0;
@@ -350,12 +340,7 @@ function QuotaProgressItem({
         </div>
       </div>
       {hasLimit && (
-        <div className="relative h-1.5 bg-muted rounded-full overflow-hidden">
-          <div
-            className={cn('h-full rounded-full transition-all', getProgressColor(percent))}
-            style={{ width: `${percent}%` }}
-          />
-        </div>
+        <Progress value={percent} className="h-1.5" />
       )}
     </div>
   );

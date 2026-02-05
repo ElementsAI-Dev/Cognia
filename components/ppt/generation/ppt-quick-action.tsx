@@ -13,7 +13,8 @@ import {
   Dialog,
   DialogContent,
 } from '@/components/ui/dialog';
-import { Presentation, Loader2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-states';
+import { Presentation } from 'lucide-react';
 import { PPTGenerationDialog, type PPTGenerationConfig } from './ppt-generation-dialog';
 import { PPTOutlinePreview, type PPTOutline } from './ppt-outline-preview';
 import { usePPTGeneration, type PPTOutlineData } from '@/hooks/ppt';
@@ -153,7 +154,7 @@ export function PPTQuickAction({
                   className={className}
                 >
                   {isGenerating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <LoadingSpinner size="sm" />
                   ) : (
                     <Presentation className="h-4 w-4" />
                   )}
@@ -176,7 +177,7 @@ export function PPTQuickAction({
           >
             {isGenerating ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <LoadingSpinner size="sm" className="mr-2" />
                 {progress.message}
               </>
             ) : (
@@ -193,10 +194,10 @@ export function PPTQuickAction({
           <button
             onClick={() => setDialogOpen(true)}
             disabled={isGenerating}
-            className={`flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded-sm hover:bg-accent ${className || ''}`}
+            className={`flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded-sm hover:bg-accent disabled:opacity-50 disabled:pointer-events-none ${className || ''}`}
           >
             {isGenerating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <LoadingSpinner size="sm" />
             ) : (
               <Presentation className="h-4 w-4" />
             )}

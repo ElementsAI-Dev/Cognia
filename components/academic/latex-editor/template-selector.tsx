@@ -7,6 +7,7 @@
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { LaTeXTemplate } from '@/lib/latex/templates';
 
@@ -47,37 +48,35 @@ export function TemplateSelector({
             {templates
               .filter((template) => template.category === category)
               .map((template) => (
-                <button
+                <Card
                   key={template.id}
-                  type="button"
                   onClick={() => onSelect(template.id)}
                   className={cn(
-                    'text-left rounded-lg border transition-colors',
+                    'cursor-pointer transition-colors py-0',
                     'hover:border-primary hover:bg-accent',
                     padding
                   )}
                 >
-                  <div className={cn('font-medium', variant === 'compact' ? 'text-sm' : '')}>
-                    {template.name}
-                  </div>
-                  <div
-                    className={cn(
-                      'text-muted-foreground mt-1 line-clamp-2',
-                      variant === 'compact' ? 'text-xs' : 'text-sm'
-                    )}
-                  >
-                    {template.description}
-                  </div>
+                  <CardHeader className="p-0 gap-1">
+                    <CardTitle className={cn(variant === 'compact' ? 'text-sm' : 'text-base')}>
+                      {template.name}
+                    </CardTitle>
+                    <CardDescription className={cn('line-clamp-2', variant === 'compact' ? 'text-xs' : 'text-sm')}>
+                      {template.description}
+                    </CardDescription>
+                  </CardHeader>
                   {template.tags && (
-                    <div className="flex gap-1 mt-2 flex-wrap">
-                      {template.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
+                    <CardContent className="p-0 pt-2">
+                      <div className="flex gap-1 flex-wrap">
+                        {template.tags.slice(0, 3).map((tag) => (
+                          <Badge key={tag} variant="outline" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
                   )}
-                </button>
+                </Card>
               ))}
           </div>
         </div>

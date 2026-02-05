@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PRESET_COLORS, STROKE_WIDTHS, FONT_SIZES } from '@/types/screenshot';
 
 interface ColorPickerProps {
@@ -103,17 +104,17 @@ export function ColorPicker({
               <Label className="text-sm font-medium mb-2 block">
                 {t('strokeWidth', { width: strokeWidth })}
               </Label>
-              <div className="flex gap-1">
+              <ToggleGroup
+                type="single"
+                value={String(strokeWidth)}
+                onValueChange={(value) => value && onStrokeWidthChange(Number(value))}
+                className="flex gap-1"
+              >
                 {STROKE_WIDTHS.map((width) => (
-                  <button
+                  <ToggleGroupItem
                     key={width}
-                    className={cn(
-                      'flex-1 h-8 rounded border transition-colors',
-                      strokeWidth === width
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:bg-muted'
-                    )}
-                    onClick={() => onStrokeWidthChange(width)}
+                    value={String(width)}
+                    className="flex-1 h-8"
                   >
                     <div
                       className="mx-auto rounded-full bg-foreground"
@@ -122,37 +123,30 @@ export function ColorPicker({
                         height: Math.min(width * 2, 16),
                       }}
                     />
-                  </button>
+                  </ToggleGroupItem>
                 ))}
-              </div>
+              </ToggleGroup>
             </div>
           )}
 
           {showFilledToggle && (
             <div>
               <Label className="text-sm font-medium mb-2 block">{t('fillStyle')}</Label>
-              <div className="flex gap-2">
-                <button
-                  className={cn(
-                    'flex-1 h-8 rounded border transition-colors flex items-center justify-center gap-1',
-                    !filled ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'
-                  )}
-                  onClick={() => onFilledChange?.(false)}
-                >
+              <ToggleGroup
+                type="single"
+                value={filled ? 'filled' : 'outlined'}
+                onValueChange={(value) => value && onFilledChange?.(value === 'filled')}
+                className="flex gap-2"
+              >
+                <ToggleGroupItem value="outlined" className="flex-1 h-8 gap-1">
                   <SquareDashed className="h-4 w-4" />
                   <span className="text-xs">{t('outlined')}</span>
-                </button>
-                <button
-                  className={cn(
-                    'flex-1 h-8 rounded border transition-colors flex items-center justify-center gap-1',
-                    filled ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'
-                  )}
-                  onClick={() => onFilledChange?.(true)}
-                >
+                </ToggleGroupItem>
+                <ToggleGroupItem value="filled" className="flex-1 h-8 gap-1">
                   <Square className="h-4 w-4" />
                   <span className="text-xs">{t('filled')}</span>
-                </button>
-              </div>
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
           )}
 

@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/stores';
 import { messageRepository } from '@/lib/db';
 import {
@@ -281,9 +282,10 @@ interface SessionItemProps {
 function SessionItem({ session, selected, onToggle }: SessionItemProps) {
   return (
     <div
-      className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+      className={cn(
+        'flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors',
         selected ? 'bg-primary/10' : 'hover:bg-muted'
-      }`}
+      )}
       onClick={onToggle}
     >
       <Checkbox checked={selected} onCheckedChange={onToggle} />

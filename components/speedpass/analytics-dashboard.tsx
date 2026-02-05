@@ -394,7 +394,7 @@ export function AnalyticsDashboard() {
                       </div>
                       <div>
                         <p className="text-sm font-medium">
-                          {store.tutorials[session.tutorialId]?.title || '学习记录'}
+                          {store.tutorials?.[session.tutorialId]?.title || '学习记录'}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(session.startedAt).toLocaleDateString('zh-CN', {
@@ -411,7 +411,7 @@ export function AnalyticsDashboard() {
                         {formatShortDuration(session.timeSpentMs || 0)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {session.sectionsCompleted.length} 节完成
+                        {session.sectionsCompleted?.length || 0} 节完成
                       </p>
                     </div>
                   </div>

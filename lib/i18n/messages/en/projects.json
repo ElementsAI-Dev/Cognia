@@ -246,6 +246,7 @@
     "variableValue": "Value",
     "name": "Name",
     "value": "Value",
+    "deleteProject": "Delete project configuration",
     "placeholders": {
       "variableName": "MY_VARIABLE",
       "variableValue": "value",

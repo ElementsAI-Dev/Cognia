@@ -27,6 +27,8 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Empty, EmptyMedia, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
+import { LoadingSpinner } from '@/components/ui/loading-states';
 import type { PackageInfo } from '@/types/system/environment';
 
 export interface PackagesDialogProps {
@@ -154,12 +156,19 @@ export function PackagesDialog({
           <ScrollArea className="h-[300px] border rounded-md">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <LoadingSpinner size="lg" />
               </div>
             ) : filteredPackages.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                {searchQuery ? t('noMatchingPackages') : t('noPackages')}
-              </div>
+              <Empty className="h-full border-0">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Package className="h-5 w-5" />
+                  </EmptyMedia>
+                  <EmptyTitle className="text-sm font-normal text-muted-foreground">
+                    {searchQuery ? t('noMatchingPackages') : t('noPackages')}
+                  </EmptyTitle>
+                </EmptyHeader>
+              </Empty>
             ) : (
               <div className="p-2 space-y-1">
                 {filteredPackages.map((pkg) => (

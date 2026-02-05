@@ -14,11 +14,15 @@ import {
   CheckCircle2,
   XCircle,
   ChevronDown,
-  ChevronUp,
   Copy,
   Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import type { ToolCallResult, ContentItem } from '@/types/mcp';
 import { A2UIToolOutput, hasA2UIToolOutput } from '@/components/a2ui';
 
@@ -54,7 +58,9 @@ export function ToolResultDisplay({
   };
 
   return (
-    <div
+    <Collapsible
+      open={isExpanded}
+      onOpenChange={setIsExpanded}
       className={cn(
         'rounded-lg border overflow-hidden',
         result.isError
@@ -64,55 +70,57 @@ export function ToolResultDisplay({
       )}
     >
       {/* Header */}
-      <div
-        className={cn(
-          'flex items-center justify-between px-3 py-2 cursor-pointer',
-          result.isError ? 'bg-destructive/10' : 'bg-primary/10'
-        )}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-2">
-          <Wrench className="h-4 w-4" />
-          <span className="font-medium text-sm">
-            @{serverId}:{toolName}
-          </span>
-          {result.isError ? (
-            <XCircle className="h-4 w-4 text-destructive" />
-          ) : (
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
+      <CollapsibleTrigger asChild>
+        <div
+          className={cn(
+            'flex items-center justify-between px-3 py-2 cursor-pointer',
+            result.isError ? 'bg-destructive/10' : 'bg-primary/10'
           )}
-          {isExecuting && (
-            <span className="text-xs text-muted-foreground animate-pulse">
-              {t('executing')}
+        >
+          <div className="flex items-center gap-2">
+            <Wrench className="h-4 w-4" />
+            <span className="font-medium text-sm">
+              @{serverId}:{toolName}
             </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCopy();
-            }}
-          >
-            {copied ? (
-              <Check className="h-3 w-3" />
+            {result.isError ? (
+              <XCircle className="h-4 w-4 text-destructive" />
             ) : (
-              <Copy className="h-3 w-3" />
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
             )}
-          </Button>
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+            {isExecuting && (
+              <span className="text-xs text-muted-foreground animate-pulse">
+                {t('executing')}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopy();
+              }}
+            >
+              {copied ? (
+                <Check className="h-3 w-3" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+            </Button>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 transition-transform duration-200',
+                isExpanded && 'rotate-180'
+              )}
+            />
+          </div>
         </div>
-      </div>
+      </CollapsibleTrigger>
 
       {/* Content */}
-      {isExpanded && (
+      <CollapsibleContent>
         <div className="px-3 py-2 text-sm">
           {/* Check if result contains A2UI content and render accordingly */}
           {hasA2UIToolOutput(result) ? (
@@ -127,8 +135,8 @@ export function ToolResultDisplay({
             ))
           )}
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

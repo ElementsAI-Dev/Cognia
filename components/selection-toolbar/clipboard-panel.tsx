@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { EmptyState } from "@/components/layout/empty-state";
 import {
   useClipboardMonitor,
   ClipboardContent,
@@ -294,10 +295,13 @@ export function ClipboardPanel({
         <ScrollArea className="flex-1 max-h-[300px]">
           <div className="p-2 space-y-1">
             {sortedHistory.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-white/40">
-                <Clipboard className="w-8 h-8 mb-2 opacity-50" />
-                <p className="text-sm">{t("empty")}</p>
-              </div>
+              <EmptyState
+                icon={Clipboard}
+                title={t("empty")}
+                compact
+                className="text-white/40"
+                iconClassName="text-white/40"
+              />
             ) : (
               sortedHistory.map((content, _index) => {
                 const originalIndex = history.indexOf(content);

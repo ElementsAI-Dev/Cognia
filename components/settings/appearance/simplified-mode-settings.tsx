@@ -8,6 +8,7 @@
 import { useTranslations } from 'next-intl';
 import { Sparkles, Minimize2, Focus, Leaf, RotateCcw, Info } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Kbd } from '@/components/ui/kbd';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
@@ -284,7 +285,7 @@ export function SimplifiedModeSettings() {
             <div className="space-y-1">
               <p className="text-sm font-medium">{t('shortcutHint')}</p>
               <p className="text-xs text-muted-foreground">
-                {t('shortcutValue')}: <kbd className="px-1.5 py-0.5 rounded bg-background border text-xs">{simplifiedModeSettings.toggleShortcut}</kbd>
+                {t('shortcutValue')}: <Kbd>{simplifiedModeSettings.toggleShortcut}</Kbd>
               </p>
             </div>
           </div>

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -668,12 +669,11 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">{t('args')}</Label>
-                        <input
-                          type="text"
+                        <Input
                           value={args}
                           onChange={(e) => setArgs(e.target.value)}
                           placeholder={t('argsPlaceholder')}
-                          className="w-full px-3 py-2 rounded-md border bg-background font-mono text-sm"
+                          className="font-mono text-sm"
                           disabled={executing}
                         />
                       </div>

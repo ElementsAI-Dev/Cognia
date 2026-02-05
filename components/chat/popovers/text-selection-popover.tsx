@@ -37,6 +37,7 @@ import { useQuoteStore } from '@/stores/chat';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Kbd } from '@/components/ui/kbd';
 
 /** Feature toggle configuration */
 export interface TextSelectionFeatures {
@@ -645,7 +646,7 @@ export function TextSelectionPopover({
             </TooltipTrigger>
             {!showLabels && (
               <TooltipContent side="top" className="text-xs">
-                {copied ? t('copied') : t('copy')} <kbd className="ml-1 text-[10px] opacity-60">C</kbd>
+                {copied ? t('copied') : t('copy')} <Kbd className="ml-1 text-[10px] opacity-60">C</Kbd>
               </TooltipContent>
             )}
           </Tooltip>
@@ -670,7 +671,7 @@ export function TextSelectionPopover({
             </TooltipTrigger>
             {!showLabels && (
               <TooltipContent side="top" className="text-xs">
-                {quoted ? t('quoted') : t('quote')} <kbd className="ml-1 text-[10px] opacity-60">Q</kbd>
+                {quoted ? t('quoted') : t('quote')} <Kbd className="ml-1 text-[10px] opacity-60">Q</Kbd>
               </TooltipContent>
             )}
           </Tooltip>
@@ -713,7 +714,7 @@ export function TextSelectionPopover({
             </TooltipTrigger>
             {!showLabels && (
               <TooltipContent side="top" className="text-xs">
-                {t('webSearch') || 'Search Web'} <kbd className="ml-1 text-[10px] opacity-60">G</kbd>
+                {t('webSearch') || 'Search Web'} <Kbd className="ml-1 text-[10px] opacity-60">G</Kbd>
               </TooltipContent>
             )}
           </Tooltip>
@@ -739,7 +740,7 @@ export function TextSelectionPopover({
             </TooltipTrigger>
             {!showLabels && (
               <TooltipContent side="top" className="text-xs">
-                {isSpeaking ? t('stopSpeaking') || 'Stop' : t('speak') || 'Read Aloud'} <kbd className="ml-1 text-[10px] opacity-60">R</kbd>
+                {isSpeaking ? t('stopSpeaking') || 'Stop' : t('speak') || 'Read Aloud'} <Kbd className="ml-1 text-[10px] opacity-60">R</Kbd>
               </TooltipContent>
             )}
           </Tooltip>
@@ -820,7 +821,7 @@ export function TextSelectionPopover({
                 </TooltipTrigger>
                 {!showLabels && (
                   <TooltipContent side="top" className="text-xs">
-                    {t('summarize') || 'Summarize'} <kbd className="ml-1 text-[10px] opacity-60">S</kbd>
+                    {t('summarize') || 'Summarize'} <Kbd className="ml-1 text-[10px] opacity-60">S</Kbd>
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -842,7 +843,7 @@ export function TextSelectionPopover({
                 </TooltipTrigger>
                 {!showLabels && (
                   <TooltipContent side="top" className="text-xs">
-                    {t('define') || 'Define'} <kbd className="ml-1 text-[10px] opacity-60">D</kbd>
+                    {t('define') || 'Define'} <Kbd className="ml-1 text-[10px] opacity-60">D</Kbd>
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -885,7 +886,7 @@ export function TextSelectionPopover({
                 </TooltipTrigger>
                 {!showLabels && (
                   <TooltipContent side="top" className="text-xs">
-                    {t('knowledgeMap') || 'Knowledge Map'} <kbd className="ml-1 text-[10px] opacity-60">K</kbd>
+                    {t('knowledgeMap') || 'Knowledge Map'} <Kbd className="ml-1 text-[10px] opacity-60">K</Kbd>
                   </TooltipContent>
                 )}
               </Tooltip>

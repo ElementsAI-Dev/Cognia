@@ -60,6 +60,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Empty, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { LANGUAGE_INFO, type CodeSnippet } from '@/types/system/sandbox';
 
 export interface SnippetManagerProps {
@@ -360,10 +361,12 @@ export function SnippetManager({
                 ))}
               </div>
             ) : snippets.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <BookOpen className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>{t('snippets.empty')}</p>
-              </div>
+              <Empty className="py-8 border-0">
+                <EmptyMedia variant="icon">
+                  <BookOpen className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>{t('snippets.empty')}</EmptyTitle>
+              </Empty>
             ) : (
               snippets.map((snippet) => {
                 const langInfo = getLanguageInfo(snippet.language);

@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Empty, EmptyDescription } from '@/components/ui/empty';
 import {
   getPluginProfiler,
   type ProfileEntry,
@@ -215,8 +216,10 @@ function TimelineView({ entries }: TimelineViewProps) {
   if (entries.length === 0) {
     return (
       <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          No profiling data yet. Start profiling to see the timeline.
+        <CardContent className="py-8">
+          <Empty className="border-0">
+            <EmptyDescription>No profiling data yet. Start profiling to see the timeline.</EmptyDescription>
+          </Empty>
         </CardContent>
       </Card>
     );
@@ -285,8 +288,10 @@ function HotspotsView({ hotspots }: HotspotsViewProps) {
   if (hotspots.length === 0) {
     return (
       <Card className="h-full">
-        <CardContent className="py-8 text-center text-muted-foreground">
-          No hotspot data available.
+        <CardContent className="py-8">
+          <Empty className="border-0">
+            <EmptyDescription>No hotspot data available.</EmptyDescription>
+          </Empty>
         </CardContent>
       </Card>
     );
@@ -329,8 +334,10 @@ function OperationsTable({ entries, title, showError }: OperationsTableProps) {
   if (entries.length === 0) {
     return (
       <Card className="h-full">
-        <CardContent className="py-8 text-center text-muted-foreground">
-          No operations found.
+        <CardContent className="py-8">
+          <Empty className="border-0">
+            <EmptyDescription>No operations found.</EmptyDescription>
+          </Empty>
         </CardContent>
       </Card>
     );

@@ -19,6 +19,7 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Select,
   SelectContent,
@@ -194,19 +195,23 @@ export function SpeedControls({
         </div>
 
         {/* Speed presets */}
-        <div className="flex flex-wrap gap-1">
+        <ToggleGroup
+          type="single"
+          value={settings.speed.toString()}
+          onValueChange={(value) => value && handlePresetClick(parseFloat(value))}
+          className="flex flex-wrap gap-1"
+        >
           {SPEED_PRESETS.map((preset) => (
-            <Button
+            <ToggleGroupItem
               key={preset.value}
-              variant={settings.speed === preset.value ? 'secondary' : 'outline'}
+              value={preset.value.toString()}
               size="sm"
               className="h-7 text-xs px-2"
-              onClick={() => handlePresetClick(preset.value)}
             >
               {preset.label}
-            </Button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       </div>
 
       {/* Duration info */}

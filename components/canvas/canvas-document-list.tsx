@@ -51,6 +51,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { formatRelativeDate } from '@/lib/canvas/utils';
 import type { CanvasDocument, ArtifactLanguage } from '@/types';
@@ -347,7 +348,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t('documentTitle')}</label>
+              <Label>{t('documentTitle')}</Label>
               <Input
                 value={newDocTitle}
                 onChange={(e) => setNewDocTitle(e.target.value)}
@@ -357,7 +358,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t('language')}</label>
+                <Label>{t('language')}</Label>
                 <Select value={newDocLanguage} onValueChange={(v) => setNewDocLanguage(v as ArtifactLanguage)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -372,7 +373,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t('type')}</label>
+                <Label>{t('type')}</Label>
                 <Select value={newDocType} onValueChange={(v) => setNewDocType(v as 'code' | 'text')}>
                   <SelectTrigger>
                     <SelectValue />

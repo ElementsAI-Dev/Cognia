@@ -20,6 +20,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import {
   GitBranch,
   ChevronRight,
@@ -220,19 +221,19 @@ export function PluginDependencyTree({
         {/* Tree View */}
         <ScrollArea className="flex-1 min-h-0">
           {!selectedPlugin ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <GitBranch className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                {t('emptyState.selectPlugin')}
-              </p>
-            </div>
+            <Empty className="py-8 border-0">
+              <EmptyMedia>
+                <GitBranch className="h-12 w-12 text-muted-foreground" />
+              </EmptyMedia>
+              <EmptyDescription>{t('emptyState.selectPlugin')}</EmptyDescription>
+            </Empty>
           ) : !dependencyTree ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Package className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                {t('emptyState.noDependencies')}
-              </p>
-            </div>
+            <Empty className="py-8 border-0">
+              <EmptyMedia>
+                <Package className="h-12 w-12 text-muted-foreground" />
+              </EmptyMedia>
+              <EmptyDescription>{t('emptyState.noDependencies')}</EmptyDescription>
+            </Empty>
           ) : (
             <TreeNode
               node={dependencyTree}

@@ -40,6 +40,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { formatCommitDate, formatCommitMessage } from '@/types/system/git';
 import type { GitCommitInfo, GitDiffInfo } from '@/types/system/git';
@@ -125,10 +126,12 @@ export function GitCommitHistory({
 
   if (commits.length === 0) {
     return (
-      <div className={cn('text-center py-8 text-muted-foreground', className)}>
-        <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>{t('noCommits')}</p>
-      </div>
+      <Empty className={className}>
+        <EmptyMedia>
+          <History className="h-12 w-12 opacity-50" />
+        </EmptyMedia>
+        <EmptyDescription>{t('noCommits')}</EmptyDescription>
+      </Empty>
     );
   }
 

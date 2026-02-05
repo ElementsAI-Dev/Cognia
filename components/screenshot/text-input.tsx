@@ -10,6 +10,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Kbd } from '@/components/ui/kbd';
 import { Minus, Plus } from 'lucide-react';
 import { FONT_SIZES } from '@/types/screenshot';
 
@@ -110,7 +112,9 @@ export function TextInput({
         >
           <Minus className="h-3 w-3" />
         </Button>
-        <span className="text-xs min-w-[32px] text-center">{fontSize}px</span>
+        <Badge variant="secondary" className="min-w-[40px] justify-center">
+          {fontSize}px
+        </Badge>
         <Button
           variant="ghost"
           size="icon"
@@ -141,8 +145,15 @@ export function TextInput({
         }}
         rows={1}
       />
-      <div className="text-xs text-muted-foreground mt-1 bg-background/80 px-1 rounded">
-        {t('textInputHint') || 'Enter to confirm, Shift+Enter for new line, Esc to cancel'}
+      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 bg-background/80 px-1 rounded">
+        <Kbd>Enter</Kbd>
+        <span>{t('textInputHintConfirm') || 'confirm'}</span>
+        <span className="mx-1">·</span>
+        <Kbd>Shift+Enter</Kbd>
+        <span>{t('textInputHintNewLine') || 'new line'}</span>
+        <span className="mx-1">·</span>
+        <Kbd>Esc</Kbd>
+        <span>{t('textInputHintCancel') || 'cancel'}</span>
       </div>
     </div>
   );

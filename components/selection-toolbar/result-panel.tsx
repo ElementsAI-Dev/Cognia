@@ -2,11 +2,11 @@
 
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { LoadingSpinner } from "@/components/ui/loading-states";
 import { 
   Copy, 
   Check, 
   X, 
-  Loader2, 
   ChevronDown, 
   ChevronUp,
   MessageSquare,
@@ -374,7 +374,7 @@ export function ResultPanel({
             {isLoading && !isStreaming ? (
               <div className="flex flex-col items-center justify-center py-6 gap-3">
                 <div className="relative">
-                  <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
+                  <LoadingSpinner size="md" className="text-cyan-400" />
                   <div className="absolute inset-0 bg-cyan-400/20 blur-xl rounded-full" />
                 </div>
                 <span className="text-xs text-white/50">{t("processingRequest")}</span>

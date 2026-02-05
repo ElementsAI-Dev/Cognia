@@ -37,6 +37,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import type { GitFileStatus } from '@/types/system/git';
 
@@ -354,10 +355,12 @@ export function GitFileTree({
 
   if (files.length === 0) {
     return (
-      <div className={cn('text-center py-8 text-muted-foreground', className)}>
-        <Check className="h-12 w-12 mx-auto mb-4 text-green-500 opacity-50" />
-        <p className="text-sm">{t('noChanges')}</p>
-      </div>
+      <Empty className={className}>
+        <EmptyMedia>
+          <Check className="h-12 w-12 text-green-500 opacity-50" />
+        </EmptyMedia>
+        <EmptyDescription>{t('noChanges')}</EmptyDescription>
+      </Empty>
     );
   }
 

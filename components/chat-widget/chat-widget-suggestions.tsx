@@ -5,6 +5,10 @@ import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { 
+  Suggestion, 
+  type SuggestionCategory,
+} from "@/components/ai-elements/suggestion";
 import {
   MessageSquare,
   Code,
@@ -17,11 +21,12 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-interface Suggestion {
+interface QuickSuggestion {
   icon: React.ReactNode;
   label: string;
   prompt: string;
-  category?: "common" | "advanced";
+  visibility: "common" | "advanced";
+  category: SuggestionCategory;
 }
 
 interface ChatWidgetSuggestionsProps {
@@ -36,61 +41,69 @@ export const ChatWidgetSuggestions = memo(function ChatWidgetSuggestions({
   const t = useTranslations("chatWidget.suggestions");
   const [expanded, setExpanded] = useState(false);
 
-  const QUICK_SUGGESTIONS: Suggestion[] = useMemo(() => [
+  const QUICK_SUGGESTIONS: QuickSuggestion[] = useMemo(() => [
     // Common suggestions (always visible)
     {
-      icon: <MessageSquare className="h-3 w-3" />,
+      icon: <MessageSquare className="h-3.5 w-3.5" />,
       label: t("explain"),
       prompt: t("explainPrompt"),
-      category: "common",
+      visibility: "common",
+      category: "general",
     },
     {
-      icon: <Code className="h-3 w-3" />,
+      icon: <Code className="h-3.5 w-3.5" />,
       label: t("writeCode"),
       prompt: t("writeCodePrompt"),
-      category: "common",
+      visibility: "common",
+      category: "code",
     },
     {
-      icon: <Languages className="h-3 w-3" />,
+      icon: <Languages className="h-3.5 w-3.5" />,
       label: t("translate"),
       prompt: t("translatePrompt"),
-      category: "common",
+      visibility: "common",
+      category: "write",
     },
     {
-      icon: <HelpCircle className="h-3 w-3" />,
+      icon: <HelpCircle className="h-3.5 w-3.5" />,
       label: t("howTo"),
       prompt: t("howToPrompt"),
-      category: "common",
+      visibility: "common",
+      category: "explore",
     },
     // Advanced suggestions (expandable)
     {
-      icon: <FileText className="h-3 w-3" />,
+      icon: <FileText className="h-3.5 w-3.5" />,
       label: t("summarize"),
       prompt: t("summarizePrompt"),
-      category: "advanced",
+      visibility: "advanced",
+      category: "write",
     },
     {
-      icon: <Sparkles className="h-3 w-3" />,
+      icon: <Sparkles className="h-3.5 w-3.5" />,
       label: t("optimize"),
       prompt: t("optimizePrompt"),
-      category: "advanced",
+      visibility: "advanced",
+      category: "code",
     },
     {
-      icon: <Brain className="h-3 w-3" />,
+      icon: <Brain className="h-3.5 w-3.5" />,
       label: t("brainstorm"),
       prompt: t("brainstormPrompt"),
-      category: "advanced",
+      visibility: "advanced",
+      category: "general",
     },
     {
-      icon: <CheckCircle className="h-3 w-3" />,
+      icon: <CheckCircle className="h-3.5 w-3.5" />,
       label: t("checkErrors"),
       prompt: t("checkErrorsPrompt"),
-      category: "advanced",
+      visibility: "advanced",
+      category: "code",
     },
   ], [t]);
 
-  const commonSuggestions = QUICK_SUGGESTIONS.filter(s => s.category === "common");
-  const advancedSuggestions = QUICK_SUGGESTIONS.filter(s => s.category === "advanced");
+  const commonSuggestions = QUICK_SUGGESTIONS.filter(s => s.visibility === "common");
+  const advancedSuggestions = QUICK_SUGGESTIONS.filter(s => s.visibility === "advanced");
 
   return (
     <div className={cn("px-3 py-2", className)}>
@@ -106,20 +119,16 @@ export const ChatWidgetSuggestions = memo(function ChatWidgetSuggestions({
             layout
             initial={false}
           >
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(
-                "h-auto px-2 py-1 rounded-full",
-                "text-xs font-medium",
-                "hover:bg-muted/50 hover:shadow-sm",
-                "transition-all duration-200"
-              )}
+            <Suggestion
+              suggestion={suggestion.prompt}
+              category={suggestion.category}
+              icon={suggestion.icon}
               onClick={() => onSelect(suggestion.prompt)}
+              className="h-auto px-3 py-1"
+              size="sm"
             >
-              <span className="text-primary mr-1">{suggestion.icon}</span>
-              <span>{suggestion.label}</span>
-            </Button>
+              {suggestion.label}
+            </Suggestion>
           </motion.div>
         ))}
         
@@ -138,20 +147,16 @@ export const ChatWidgetSuggestions = memo(function ChatWidgetSuggestions({
                 ease: "easeOut"
               }}
             >
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "h-auto px-2 py-1 rounded-full",
-                  "text-xs font-medium",
-                  "hover:bg-muted/50 hover:shadow-sm",
-                  "transition-all duration-200"
-                )}
+              <Suggestion
+                suggestion={suggestion.prompt}
+                category={suggestion.category}
+                icon={suggestion.icon}
                 onClick={() => onSelect(suggestion.prompt)}
+                className="h-auto px-3 py-1"
+                size="sm"
               >
-                <span className="text-primary mr-1">{suggestion.icon}</span>
-                <span>{suggestion.label}</span>
-              </Button>
+                {suggestion.label}
+              </Suggestion>
             </motion.div>
           ))}
         </AnimatePresence>

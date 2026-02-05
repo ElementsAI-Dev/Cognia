@@ -20,11 +20,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -32,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { CopyButton } from '@/components/chat/ui/copy-button';
 import { useScreenRecordingStore } from '@/stores/media';
 import { isTauri } from '@/lib/native/utils';
 import { cn } from '@/lib/utils';
@@ -84,7 +80,6 @@ interface InstallationDialogProps {
   platform: 'windows' | 'macos' | 'linux';
   isChecking: boolean;
   onCheckAgain: () => void;
-  onCopyCommand: (command: string) => void;
   t: ReturnType<typeof useTranslations<'ffmpegStatus'>>;
 }
 
@@ -94,7 +89,6 @@ function InstallationDialog({
   platform,
   isChecking,
   onCheckAgain,
-  onCopyCommand,
   t,
 }: InstallationDialogProps) {
   return (
@@ -124,37 +118,25 @@ function InstallationDialog({
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-md font-mono text-sm">
                   <Terminal className="h-4 w-4 text-muted-foreground" />
                   <code className="flex-1">{INSTALLATION_INSTRUCTIONS.windows.wingetCommand}</code>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6"
-                        onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.windows.wingetCommand)}
-                      >
-                        {t('copy')}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('copyToClipboard')}</TooltipContent>
-                  </Tooltip>
+                  <CopyButton
+                    content={INSTALLATION_INSTRUCTIONS.windows.wingetCommand}
+                    iconOnly
+                    tooltip={t('copyToClipboard')}
+                    showToast={false}
+                    saveToHistory={false}
+                  />
                 </div>
                 <p className="text-xs text-muted-foreground">{t('orChocolatey')}</p>
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-md font-mono text-sm">
                   <Terminal className="h-4 w-4 text-muted-foreground" />
                   <code className="flex-1">{INSTALLATION_INSTRUCTIONS.windows.chocoCommand}</code>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6"
-                        onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.windows.chocoCommand)}
-                      >
-                        {t('copy')}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('copyToClipboard')}</TooltipContent>
-                  </Tooltip>
+                  <CopyButton
+                    content={INSTALLATION_INSTRUCTIONS.windows.chocoCommand}
+                    iconOnly
+                    tooltip={t('copyToClipboard')}
+                    showToast={false}
+                    saveToHistory={false}
+                  />
                 </div>
               </div>
             )}
@@ -165,19 +147,13 @@ function InstallationDialog({
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-md font-mono text-sm">
                   <Terminal className="h-4 w-4 text-muted-foreground" />
                   <code className="flex-1">{INSTALLATION_INSTRUCTIONS.macos.brewCommand}</code>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6"
-                        onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.macos.brewCommand)}
-                      >
-                        {t('copy')}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('copyToClipboard')}</TooltipContent>
-                  </Tooltip>
+                  <CopyButton
+                    content={INSTALLATION_INSTRUCTIONS.macos.brewCommand}
+                    iconOnly
+                    tooltip={t('copyToClipboard')}
+                    showToast={false}
+                    saveToHistory={false}
+                  />
                 </div>
               </div>
             )}
@@ -188,19 +164,13 @@ function InstallationDialog({
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-md font-mono text-sm">
                   <Terminal className="h-4 w-4 text-muted-foreground" />
                   <code className="flex-1">{INSTALLATION_INSTRUCTIONS.linux.aptCommand}</code>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6"
-                        onClick={() => onCopyCommand(INSTALLATION_INSTRUCTIONS.linux.aptCommand)}
-                      >
-                        {t('copy')}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('copyToClipboard')}</TooltipContent>
-                  </Tooltip>
+                  <CopyButton
+                    content={INSTALLATION_INSTRUCTIONS.linux.aptCommand}
+                    iconOnly
+                    tooltip={t('copyToClipboard')}
+                    showToast={false}
+                    saveToHistory={false}
+                  />
                 </div>
               </div>
             )}
@@ -280,9 +250,6 @@ export function FFmpegStatus({
     setIsChecking(false);
   };
 
-  const handleCopyCommand = (command: string) => {
-    navigator.clipboard.writeText(command);
-  };
 
   // Don't render in web environment
   if (!isTauri()) {
@@ -329,7 +296,6 @@ export function FFmpegStatus({
           platform={platform}
           isChecking={isChecking}
           onCheckAgain={handleCheckAgain}
-          onCopyCommand={handleCopyCommand}
           t={t}
         />
       </>
@@ -395,7 +361,6 @@ export function FFmpegStatus({
         platform={platform}
         isChecking={isChecking}
         onCheckAgain={handleCheckAgain}
-        onCopyCommand={handleCopyCommand}
         t={t}
       />
     </>

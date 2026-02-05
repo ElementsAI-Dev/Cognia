@@ -14,7 +14,6 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
@@ -28,6 +27,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { ProgressBar } from '@/components/ui/loading-states';
 import {
   ZoomIn,
   Loader2,
@@ -358,24 +359,32 @@ export function ImageUpscaler({
         {/* Presets */}
         <div className="flex items-center gap-2">
           <Label className="text-sm">{t('preset')}</Label>
-          <div className="flex gap-1">
+          <ToggleGroup
+            type="single"
+            value={`${factor}-${method}`}
+            onValueChange={(value) => {
+              if (!value) return;
+              const preset = UPSCALE_PRESETS.find((p) => `${p.factor}-${p.method}` === value);
+              if (preset) applyPreset(preset);
+            }}
+            variant="outline"
+            disabled={isProcessing}
+          >
             {UPSCALE_PRESETS.map((preset) => (
               <Tooltip key={preset.name}>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant={factor === preset.factor && method === preset.method ? 'secondary' : 'outline'}
-                    size="sm"
-                    className="text-xs h-7"
-                    onClick={() => applyPreset(preset)}
-                    disabled={isProcessing}
+                  <ToggleGroupItem
+                    value={`${preset.factor}-${preset.method}`}
+                    aria-label={preset.name}
+                    className="text-xs h-7 px-2"
                   >
                     {preset.name}
-                  </Button>
+                  </ToggleGroupItem>
                 </TooltipTrigger>
                 <TooltipContent>{preset.description}</TooltipContent>
               </Tooltip>
             ))}
-          </div>
+          </ToggleGroup>
         </div>
 
         {/* Factor selector */}
@@ -425,13 +434,11 @@ export function ImageUpscaler({
 
       {/* Progress */}
       {isProcessing && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Upscaling... {progress}%</span>
-          </div>
-          <Progress value={progress} />
-        </div>
+        <ProgressBar
+          progress={progress}
+          label={t('upscaling')}
+          showPercentage
+        />
       )}
 
       {/* Preview */}

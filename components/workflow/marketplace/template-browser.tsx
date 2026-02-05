@@ -9,7 +9,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Search, Filter, Star, Download, GitBranch, Loader2, AlertCircle, Upload } from 'lucide-react';
+import { Search, Filter, Star, Download, GitBranch, AlertCircle, Upload } from 'lucide-react';
 import { useTemplateMarketStore } from '@/stores/workflow/template-market-store';
 import type { WorkflowTemplate } from '@/types/workflow/template';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,15 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Empty,
+  EmptyMedia,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from '@/components/ui/empty';
+import { PageLoading } from '@/components/ui/loading-states';
 import {
   Tooltip,
   TooltipContent,
@@ -285,28 +294,31 @@ export function TemplateBrowser() {
         {/* Templates Grid */}
         <ScrollArea className="flex-1 p-4">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <Loader2 className="h-12 w-12 mb-4 animate-spin" />
-              <p>{t('loadingTemplates')}</p>
-            </div>
+            <PageLoading title={t('loadingTemplates')} />
           ) : error ? (
-            <div className="flex flex-col items-center justify-center h-full text-destructive">
-              <AlertCircle className="h-12 w-12 mb-4" />
-              <p>{t('loadError')}</p>
-              <p className="text-sm text-muted-foreground">{error}</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => initialize()}
-              >
-                {t('retry')}
-              </Button>
-            </div>
+            <Empty className="h-full">
+              <EmptyHeader>
+                <EmptyMedia>
+                  <AlertCircle className="h-12 w-12 text-destructive" />
+                </EmptyMedia>
+                <EmptyTitle>{t('loadError')}</EmptyTitle>
+                <EmptyDescription>{error}</EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button variant="outline" onClick={() => initialize()}>
+                  {t('retry')}
+                </Button>
+              </EmptyContent>
+            </Empty>
           ) : templates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <Filter className="h-12 w-12 mb-4" />
-              <p>{t('noTemplates')}</p>
-            </div>
+            <Empty className="h-full">
+              <EmptyHeader>
+                <EmptyMedia>
+                  <Filter className="h-12 w-12" />
+                </EmptyMedia>
+                <EmptyTitle>{t('noTemplates')}</EmptyTitle>
+              </EmptyHeader>
+            </Empty>
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

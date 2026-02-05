@@ -15,6 +15,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Tooltip,
   TooltipContent,
@@ -211,12 +212,14 @@ export function SessionStatsCard({
   }, [messages, sessionCreatedAt]);
 
   return (
-    <div className={cn('rounded-lg border bg-card p-4', className)}>
-      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-        <TrendingUp className="h-4 w-4" />
-        Session Statistics
-      </h3>
-      <div className="grid grid-cols-2 gap-3">
+    <Card className={className}>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" />
+          Session Statistics
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <MessageSquare className="h-3.5 w-3.5" />
@@ -246,8 +249,8 @@ export function SessionStatsCard({
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -57,6 +57,7 @@ import { useSelectionStore, selectToolbarMode, selectQuickActions } from "@/stor
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Kbd } from "@/components/ui/kbd";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -1177,7 +1178,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                                 <Icon className="w-5 h-5" />
                                 <span className="text-[11px] font-medium">{t(labelKey)}</span>
                                 {shortcut && (
-                                  <kbd className="text-[9px] text-white/40">{shortcut}</kbd>
+                                  <Kbd className="text-[9px] text-white/40 bg-transparent border-none">{shortcut}</Kbd>
                                 )}
                               </Button>
                             ))}
@@ -1409,9 +1410,9 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                               </div>
                             </div>
                             {action.shortcut && (
-                              <kbd className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded">
+                              <Kbd className="ml-auto">
                                 {action.shortcut}
-                              </kbd>
+                              </Kbd>
                             )}
                           </Button>
                         );

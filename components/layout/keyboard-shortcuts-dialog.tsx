@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Kbd } from '@/components/ui/kbd';
 import { useKeyboardShortcuts, formatShortcut } from '@/hooks/ui';
 import { useUIStore } from '@/stores';
 
@@ -86,7 +87,7 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
                       <span className="text-sm text-muted-foreground">
                         {shortcut.description}
                       </span>
-                      <kbd className="inline-flex items-center gap-1 rounded border bg-muted px-2 py-1 font-mono text-xs">
+                      <Kbd className="px-2 py-1">
                         {formatShortcut({
                           key: shortcut.key,
                           ctrl: shortcut.ctrl,
@@ -94,7 +95,7 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
                           alt: shortcut.alt,
                           meta: shortcut.meta,
                         })}
-                      </kbd>
+                      </Kbd>
                     </div>
                   ))}
                 </div>
@@ -149,7 +150,7 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
                     <span className="text-sm text-muted-foreground">
                       {shortcut.description}
                     </span>
-                    <kbd className="inline-flex items-center gap-1 rounded border bg-muted px-2 py-1 font-mono text-xs">
+                    <Kbd className="px-2 py-1">
                       {formatShortcut({
                         key: shortcut.key,
                         ctrl: shortcut.ctrl,
@@ -157,7 +158,7 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
                         alt: shortcut.alt,
                         meta: shortcut.meta,
                       })}
-                    </kbd>
+                    </Kbd>
                   </div>
                 ))}
               </div>
@@ -168,9 +169,9 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
         <div className="mt-4 rounded-lg bg-muted p-3 text-sm">
           <p className="text-muted-foreground">
             <strong>{t('tip')}</strong> Press{' '}
-            <kbd className="mx-1 rounded border bg-background px-1.5 py-0.5 font-mono text-xs">
+            <Kbd className="mx-1">
               {typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl'}+K
-            </kbd>{' '}
+            </Kbd>{' '}
             {t('commandPaletteHint')}
           </p>
         </div>

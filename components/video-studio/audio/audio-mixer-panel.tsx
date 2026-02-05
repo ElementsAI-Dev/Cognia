@@ -19,6 +19,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import {
   Tooltip,
   TooltipContent,
@@ -119,10 +121,12 @@ export function AudioMixerPanel({
       <ScrollArea className="flex-1">
         <div className="p-3 space-y-3">
           {tracks.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Music className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">{t('noTracks')}</p>
-            </div>
+            <Empty className="py-8 border-0">
+              <EmptyMedia variant="icon">
+                <Music className="h-5 w-5" />
+              </EmptyMedia>
+              <EmptyDescription>{t('noTracks')}</EmptyDescription>
+            </Empty>
           ) : (
             tracks.map((track) => {
               const Icon = TRACK_TYPE_ICONS[track.type] || Volume2;
@@ -200,15 +204,14 @@ export function AudioMixerPanel({
                   </div>
 
                   {/* Level meter */}
-                  <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={cn(
-                        'h-full transition-all duration-75',
-                        track.level > 0.9 ? 'bg-red-500' : track.level > 0.7 ? 'bg-yellow-500' : 'bg-green-500'
-                      )}
-                      style={{ width: `${track.level * 100}%` }}
-                    />
-                  </div>
+                  <Progress
+                    value={track.level * 100}
+                    className="mt-2 h-1.5"
+                    indicatorClassName={cn(
+                      'transition-all duration-75',
+                      track.level > 0.9 ? 'bg-red-500' : track.level > 0.7 ? 'bg-yellow-500' : 'bg-green-500'
+                    )}
+                  />
 
                   {/* Expanded controls */}
                   {isExpanded && (

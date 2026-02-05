@@ -21,6 +21,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Bot,
   MessageSquare,
@@ -324,9 +325,9 @@ function ChatWidgetSettingsContent({
               <span>{t("shortcuts")}</span>
             </div>
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <kbd className="px-2.5 py-1 bg-muted rounded-md text-xs font-mono border border-border/50">
+              <Kbd className="px-2 py-1">
                 {localConfig.shortcut.replace("CommandOrControl", "Ctrl")}
-              </kbd>
+              </Kbd>
               <span>{t("toggleAssistant")}</span>
             </div>
           </div>

@@ -61,6 +61,25 @@ jest.mock('@/components/ui/badge', () => ({
   Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span>,
 }));
 
+jest.mock('@/components/ui/hover-card', () => ({
+  HoverCard: ({ children }: { children: React.ReactNode }) => <div data-testid="hover-card">{children}</div>,
+  HoverCardTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => (
+    <div data-testid="hover-card-trigger">{children}</div>
+  ),
+  HoverCardContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="hover-card-content">{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/avatar', () => ({
+  Avatar: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="avatar" className={className}>{children}</div>
+  ),
+  AvatarFallback: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <span data-testid="avatar-fallback" className={className}>{children}</span>
+  ),
+}));
+
 const createMockSource = (id: string, title: string, url: string, score: number): WebSource => ({
   id,
   title,
@@ -94,12 +113,12 @@ describe('SourcesDisplay', () => {
 
   it('displays correct source count', () => {
     render(<SourcesDisplay sources={mockSources} />);
-    expect(screen.getByText('3 sources used')).toBeInTheDocument();
+    expect(screen.getByTestId('sources-trigger')).toHaveAttribute('data-count', '3');
   });
 
   it('displays singular "source" for single source', () => {
     render(<SourcesDisplay sources={[mockSources[0]]} />);
-    expect(screen.getByText('1 source used')).toBeInTheDocument();
+    expect(screen.getByTestId('sources-trigger')).toHaveAttribute('data-count', '1');
   });
 
   it('renders all source items', () => {
@@ -109,19 +128,22 @@ describe('SourcesDisplay', () => {
 
   it('displays source titles', () => {
     render(<SourcesDisplay sources={mockSources} />);
-    expect(screen.getByText('Source One')).toBeInTheDocument();
-    expect(screen.getByText('Source Two')).toBeInTheDocument();
-    expect(screen.getByText('Source Three')).toBeInTheDocument();
+    // Titles appear in both trigger and hover card content
+    expect(screen.getAllByText('Source One').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Source Two').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Source Three').length).toBeGreaterThan(0);
   });
 
-  it('displays relevance scores as percentages', () => {
+  it('displays relevance scores in hover card', () => {
     render(<SourcesDisplay sources={mockSources} />);
-    expect(screen.getByText('95% relevant')).toBeInTheDocument();
-    expect(screen.getByText('85% relevant')).toBeInTheDocument();
+    // Relevance scores are now in hover card content
+    expect(screen.getAllByText('95% relevant').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('85% relevant').length).toBeGreaterThan(0);
   });
 
-  it('displays source content preview', () => {
+  it('displays source content preview in hover card', () => {
     render(<SourcesDisplay sources={mockSources} />);
+    // Content is now in hover card content
     expect(screen.getByText('Content for Source One')).toBeInTheDocument();
   });
 
@@ -130,8 +152,10 @@ describe('SourcesDisplay', () => {
     expect(screen.getByTestId('sources')).toHaveClass('custom-class');
   });
 
-  it('displays source index numbers', () => {
+  it('displays source index numbers in avatars', () => {
     render(<SourcesDisplay sources={mockSources} />);
+    // Index numbers are in avatar fallback
+    expect(screen.getAllByTestId('avatar-fallback').length).toBe(3);
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();

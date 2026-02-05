@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import {
   pluginAnalyticsStore,
   getPluginInsights,
@@ -305,10 +306,12 @@ export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
             <CardContent className="p-3 sm:p-4 pt-0 flex-1 min-h-0">
               <ScrollArea className="h-full pr-2 sm:pr-4">
                 {insights.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                    <Lightbulb className="h-6 w-6 sm:h-8 sm:w-8 mb-2" />
-                    <p className="text-sm">{t('insights.noInsights')}</p>
-                  </div>
+                  <Empty className="h-full border-0">
+                    <EmptyMedia>
+                      <Lightbulb className="h-6 w-6 sm:h-8 sm:w-8" />
+                    </EmptyMedia>
+                    <EmptyDescription>{t('insights.noInsights')}</EmptyDescription>
+                  </Empty>
                 ) : (
                   <div className="space-y-2 sm:space-y-3">
                     {insights.map((insight, i) => (

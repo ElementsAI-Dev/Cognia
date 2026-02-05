@@ -37,6 +37,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import type { GitDiffInfo, GitFileStatus } from '@/types/system/git';
 
@@ -159,10 +160,12 @@ export function GitDiffViewer({
 
   if (diffs.length === 0) {
     return (
-      <div className={cn('text-center py-8 text-muted-foreground', className)}>
-        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>{t('noChanges')}</p>
-      </div>
+      <Empty className={className}>
+        <EmptyMedia>
+          <FileText className="h-12 w-12 opacity-50" />
+        </EmptyMedia>
+        <EmptyDescription>{t('noChanges')}</EmptyDescription>
+      </Empty>
     );
   }
 
