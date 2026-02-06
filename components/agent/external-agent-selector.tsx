@@ -29,11 +29,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useExternalAgentStore } from '@/stores/agent/external-agent-store';
@@ -74,8 +70,17 @@ function ConnectionStatusIcon({ status }: { status: ExternalAgentConnectionStatu
   }
 }
 
-function ConnectionStatusBadge({ status, t }: { status: ExternalAgentConnectionStatus; t: ReturnType<typeof useTranslations> }) {
-  const statusConfig: Record<ExternalAgentConnectionStatus, { labelKey: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+function ConnectionStatusBadge({
+  status,
+  t,
+}: {
+  status: ExternalAgentConnectionStatus;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const statusConfig: Record<
+    ExternalAgentConnectionStatus,
+    { labelKey: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }
+  > = {
     disconnected: { labelKey: 'statusDisconnected', variant: 'outline' },
     connecting: { labelKey: 'statusConnecting', variant: 'secondary' },
     connected: { labelKey: 'statusConnected', variant: 'default' },
@@ -157,18 +162,12 @@ export function ExternalAgentSelector({
           variant="outline"
           size="sm"
           disabled={disabled}
-          className={cn(
-            'gap-2',
-            selectedAgent && 'border-primary/50',
-            className
-          )}
+          className={cn('gap-2', selectedAgent && 'border-primary/50', className)}
         >
           {selectedAgent ? (
             <>
               <ConnectionStatusIcon status={getConnectionStatus(selectedAgent.id)} />
-              <span className="hidden sm:inline max-w-[100px] truncate">
-                {selectedAgent.name}
-              </span>
+              <span className="hidden sm:inline max-w-[100px] truncate">{selectedAgent.name}</span>
             </>
           ) : (
             <>

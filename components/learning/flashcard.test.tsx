@@ -83,27 +83,13 @@ describe('Flashcard', () => {
     });
 
     it('renders difficulty badge when provided', () => {
-      render(
-        <Flashcard 
-          flashcard={mockFlashcard} 
-          currentIndex={0} 
-          totalCards={1} 
-        />,
-        { wrapper }
-      );
+      render(<Flashcard flashcard={mockFlashcard} currentIndex={0} totalCards={1} />, { wrapper });
       // Card should render with difficulty
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
 
     it('renders card position indicator', () => {
-      render(
-        <Flashcard 
-          flashcard={mockFlashcard} 
-          currentIndex={0} 
-          totalCards={5} 
-        />,
-        { wrapper }
-      );
+      render(<Flashcard flashcard={mockFlashcard} currentIndex={0} totalCards={5} />, { wrapper });
       // Card should render with position
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
@@ -135,15 +121,17 @@ describe('Flashcard', () => {
     it('shows back content after clicking', async () => {
       const user = userEvent.setup();
       render(<Flashcard flashcard={mockFlashcard} />, { wrapper });
-      
+
       // Click the card to flip
       const card = screen.getByText('What is React?').closest('.perspective-1000');
       if (card) {
         await user.click(card);
       }
-      
+
       // Back content should be visible
-      expect(screen.getByText('A JavaScript library for building user interfaces')).toBeInTheDocument();
+      expect(
+        screen.getByText('A JavaScript library for building user interfaces')
+      ).toBeInTheDocument();
     });
   });
 
@@ -162,14 +150,14 @@ describe('Flashcard', () => {
 
     it('shows hint after clicking show hint button', () => {
       render(<Flashcard flashcard={mockFlashcard} />, { wrapper });
-      
+
       // Card should render
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
 
     it('hides show hint button after hint is shown', () => {
       render(<Flashcard flashcard={mockFlashcard} />, { wrapper });
-      
+
       // Card should render
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
@@ -179,13 +167,13 @@ describe('Flashcard', () => {
     it('shows rating buttons after flipping', async () => {
       const user = userEvent.setup();
       render(<Flashcard flashcard={mockFlashcard} />, { wrapper });
-      
+
       // Flip the card
       const card = screen.getByText('What is React?').closest('.perspective-1000');
       if (card) {
         await user.click(card);
       }
-      
+
       // Rating buttons should be present after flip
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -193,9 +181,9 @@ describe('Flashcard', () => {
 
     it('calls onRate with correct rating', () => {
       const onRate = jest.fn();
-      
+
       render(<Flashcard flashcard={mockFlashcard} onRate={onRate} />, { wrapper });
-      
+
       // Card should render
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
@@ -207,22 +195,16 @@ describe('Flashcard', () => {
         updateReviewItem: mockUpdateReviewItem,
         recordAnswer: mockRecordAnswer,
       });
-      
-      render(
-        <Flashcard 
-          flashcard={mockFlashcard} 
-          sessionId="session-1" 
-        />,
-        { wrapper }
-      );
-      
+
+      render(<Flashcard flashcard={mockFlashcard} sessionId="session-1" />, { wrapper });
+
       // Card should render with session
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
 
     it('hides rating buttons after rating', () => {
       render(<Flashcard flashcard={mockFlashcard} />, { wrapper });
-      
+
       // Card should render
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
@@ -231,8 +213,8 @@ describe('Flashcard', () => {
   describe('Navigation', () => {
     it('renders navigation buttons when callbacks provided', () => {
       render(
-        <Flashcard 
-          flashcard={mockFlashcard} 
+        <Flashcard
+          flashcard={mockFlashcard}
           onNext={() => {}}
           onPrevious={() => {}}
           currentIndex={1}
@@ -240,7 +222,7 @@ describe('Flashcard', () => {
         />,
         { wrapper }
       );
-      
+
       // Navigation buttons should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThanOrEqual(3);
@@ -248,8 +230,8 @@ describe('Flashcard', () => {
 
     it('disables previous button on first card', () => {
       render(
-        <Flashcard 
-          flashcard={mockFlashcard} 
+        <Flashcard
+          flashcard={mockFlashcard}
           onNext={() => {}}
           onPrevious={() => {}}
           currentIndex={0}
@@ -257,7 +239,7 @@ describe('Flashcard', () => {
         />,
         { wrapper }
       );
-      
+
       // Navigation buttons should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -265,8 +247,8 @@ describe('Flashcard', () => {
 
     it('disables next button on last card', () => {
       render(
-        <Flashcard 
-          flashcard={mockFlashcard} 
+        <Flashcard
+          flashcard={mockFlashcard}
           onNext={() => {}}
           onPrevious={() => {}}
           currentIndex={2}
@@ -274,7 +256,7 @@ describe('Flashcard', () => {
         />,
         { wrapper }
       );
-      
+
       // Navigation buttons should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -282,10 +264,10 @@ describe('Flashcard', () => {
 
     it('calls onNext when next clicked', () => {
       const onNext = jest.fn();
-      
+
       render(
-        <Flashcard 
-          flashcard={mockFlashcard} 
+        <Flashcard
+          flashcard={mockFlashcard}
           onNext={onNext}
           onPrevious={() => {}}
           currentIndex={0}
@@ -293,7 +275,7 @@ describe('Flashcard', () => {
         />,
         { wrapper }
       );
-      
+
       // Navigation buttons should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -301,10 +283,10 @@ describe('Flashcard', () => {
 
     it('calls onPrevious when previous clicked', () => {
       const onPrevious = jest.fn();
-      
+
       render(
-        <Flashcard 
-          flashcard={mockFlashcard} 
+        <Flashcard
+          flashcard={mockFlashcard}
           onNext={() => {}}
           onPrevious={onPrevious}
           currentIndex={1}
@@ -312,7 +294,7 @@ describe('Flashcard', () => {
         />,
         { wrapper }
       );
-      
+
       // Navigation buttons should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -320,8 +302,8 @@ describe('Flashcard', () => {
 
     it('resets card state on reset button click', () => {
       render(
-        <Flashcard 
-          flashcard={mockFlashcard} 
+        <Flashcard
+          flashcard={mockFlashcard}
           onNext={() => {}}
           onPrevious={() => {}}
           currentIndex={0}
@@ -329,7 +311,7 @@ describe('Flashcard', () => {
         />,
         { wrapper }
       );
-      
+
       // Card should render
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
@@ -341,7 +323,7 @@ describe('Flashcard', () => {
         <Flashcard flashcard={mockFlashcard} className="custom-class" />,
         { wrapper }
       );
-      
+
       expect(container.querySelector('.custom-class')).toBeInTheDocument();
     });
   });
@@ -355,44 +337,33 @@ describe('FlashcardDeck', () => {
   describe('Rendering', () => {
     it('renders title and description', () => {
       render(
-        <FlashcardDeck 
-          title="Test Deck" 
+        <FlashcardDeck
+          title="Test Deck"
           description="A test flashcard deck"
-          flashcards={mockFlashcards} 
+          flashcards={mockFlashcards}
         />,
         { wrapper }
       );
-      
+
       expect(screen.getByText('Test Deck')).toBeInTheDocument();
       expect(screen.getByText('A test flashcard deck')).toBeInTheDocument();
     });
 
     it('renders first flashcard initially', () => {
-      render(
-        <FlashcardDeck 
-          title="Test Deck" 
-          flashcards={mockFlashcards} 
-        />,
-        { wrapper }
-      );
-      
+      render(<FlashcardDeck title="Test Deck" flashcards={mockFlashcards} />, { wrapper });
+
       expect(screen.getByText('Question 1')).toBeInTheDocument();
     });
 
     it('shuffles cards when shuffled prop is true', () => {
       // Since shuffle is random, we just verify it renders
-      render(
-        <FlashcardDeck 
-          title="Test Deck" 
-          flashcards={mockFlashcards} 
-          shuffled={true}
-        />,
-        { wrapper }
-      );
-      
+      render(<FlashcardDeck title="Test Deck" flashcards={mockFlashcards} shuffled={true} />, {
+        wrapper,
+      });
+
       // One of the questions should be visible
-      const hasQuestion = ['Question 1', 'Question 2', 'Question 3'].some(
-        q => screen.queryByText(q)
+      const hasQuestion = ['Question 1', 'Question 2', 'Question 3'].some((q) =>
+        screen.queryByText(q)
       );
       expect(hasQuestion).toBe(true);
     });
@@ -401,81 +372,55 @@ describe('FlashcardDeck', () => {
   describe('Completion', () => {
     it('shows completion screen when deck is finished', () => {
       const onComplete = jest.fn();
-      
+
       const singleCardDeck = [{ id: 'fc-1', front: 'Q1', back: 'A1' }];
-      
+
       render(
-        <FlashcardDeck 
-          title="Test Deck" 
-          flashcards={singleCardDeck} 
-          onComplete={onComplete}
-        />,
+        <FlashcardDeck title="Test Deck" flashcards={singleCardDeck} onComplete={onComplete} />,
         { wrapper }
       );
-      
+
       // Deck should render with card
       expect(screen.getByText('Q1')).toBeInTheDocument();
     });
 
     it('calls onComplete with results', () => {
       const onComplete = jest.fn();
-      
+
       const singleCardDeck = [{ id: 'fc-1', front: 'Q1', back: 'A1' }];
-      
+
       render(
-        <FlashcardDeck 
-          title="Test Deck" 
-          flashcards={singleCardDeck} 
-          onComplete={onComplete}
-        />,
+        <FlashcardDeck title="Test Deck" flashcards={singleCardDeck} onComplete={onComplete} />,
         { wrapper }
       );
-      
+
       // Deck should render
       expect(screen.getByText('Q1')).toBeInTheDocument();
     });
 
     it('shows accuracy percentage on completion', () => {
       const singleCardDeck = [{ id: 'fc-1', front: 'Q1', back: 'A1' }];
-      
-      render(
-        <FlashcardDeck 
-          title="Test Deck" 
-          flashcards={singleCardDeck} 
-        />,
-        { wrapper }
-      );
-      
+
+      render(<FlashcardDeck title="Test Deck" flashcards={singleCardDeck} />, { wrapper });
+
       // Deck should render
       expect(screen.getByText('Q1')).toBeInTheDocument();
     });
 
     it('allows restart after completion', () => {
       const singleCardDeck = [{ id: 'fc-1', front: 'Q1', back: 'A1' }];
-      
-      render(
-        <FlashcardDeck 
-          title="Test Deck" 
-          flashcards={singleCardDeck} 
-        />,
-        { wrapper }
-      );
-      
+
+      render(<FlashcardDeck title="Test Deck" flashcards={singleCardDeck} />, { wrapper });
+
       // Deck should render with card content
       expect(screen.getByText('Q1')).toBeInTheDocument();
     });
 
     it('allows shuffle and restart after completion', () => {
       const singleCardDeck = [{ id: 'fc-1', front: 'Q1', back: 'A1' }];
-      
-      render(
-        <FlashcardDeck 
-          title="Test Deck" 
-          flashcards={singleCardDeck} 
-        />,
-        { wrapper }
-      );
-      
+
+      render(<FlashcardDeck title="Test Deck" flashcards={singleCardDeck} />, { wrapper });
+
       // Deck should render with card
       expect(screen.getByText('Q1')).toBeInTheDocument();
     });
@@ -484,14 +429,14 @@ describe('FlashcardDeck', () => {
   describe('Styling', () => {
     it('applies custom className', () => {
       const { container } = render(
-        <FlashcardDeck 
-          title="Test Deck" 
-          flashcards={mockFlashcards} 
+        <FlashcardDeck
+          title="Test Deck"
+          flashcards={mockFlashcards}
           className="custom-deck-class"
         />,
         { wrapper }
       );
-      
+
       expect(container.querySelector('.custom-deck-class')).toBeInTheDocument();
     });
   });
@@ -506,9 +451,9 @@ describe('FlashcardFromTool', () => {
       showHint: false,
       timestamp: new Date().toISOString(),
     };
-    
+
     render(<FlashcardFromTool output={output} />, { wrapper });
-    
+
     expect(screen.getByText('What is React?')).toBeInTheDocument();
   });
 
@@ -520,15 +465,15 @@ describe('FlashcardFromTool', () => {
       showHint: true,
       timestamp: new Date().toISOString(),
     };
-    
+
     render(<FlashcardFromTool output={output} />, { wrapper });
-    
+
     expect(screen.getByText('Think of UI components')).toBeInTheDocument();
   });
 
   it('passes onRate callback', () => {
     const onRate = jest.fn();
-    
+
     const output = {
       type: 'flashcard' as const,
       flashcard: mockFlashcard,
@@ -536,9 +481,9 @@ describe('FlashcardFromTool', () => {
       showHint: false,
       timestamp: new Date().toISOString(),
     };
-    
+
     render(<FlashcardFromTool output={output} onRate={onRate} />, { wrapper });
-    
+
     // Flashcard should be rendered
     expect(screen.getByText('What is React?')).toBeInTheDocument();
   });
@@ -555,16 +500,16 @@ describe('FlashcardDeckFromTool', () => {
       sessionId: 'session-1',
       timestamp: new Date().toISOString(),
     };
-    
+
     render(<FlashcardDeckFromTool output={output} />, { wrapper });
-    
+
     expect(screen.getByText('Tool Deck')).toBeInTheDocument();
     expect(screen.getByText('From tool')).toBeInTheDocument();
   });
 
   it('passes onComplete callback', () => {
     const onComplete = jest.fn();
-    
+
     const output = {
       type: 'flashcard_deck' as const,
       title: 'Tool Deck',
@@ -573,9 +518,9 @@ describe('FlashcardDeckFromTool', () => {
       sessionId: 'session-1',
       timestamp: new Date().toISOString(),
     };
-    
+
     render(<FlashcardDeckFromTool output={output} onComplete={onComplete} />, { wrapper });
-    
+
     // Deck should be rendered
     expect(screen.getByText('Q')).toBeInTheDocument();
   });

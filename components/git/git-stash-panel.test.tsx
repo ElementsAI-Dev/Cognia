@@ -148,10 +148,10 @@ describe('GitStashPanel', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     const saveButton = screen.getByText('save');
     fireEvent.click(saveButton);
-    
+
     await waitFor(() => {
       // Dialog opens with saveStash title and button, use getAllByText
       const saveStashElements = screen.getAllByText('saveStash');
@@ -173,29 +173,29 @@ describe('GitStashPanel', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // Open dialog
     const saveButton = screen.getByText('save');
     fireEvent.click(saveButton);
-    
+
     await waitFor(() => {
       const saveStashElements = screen.getAllByText('saveStash');
       expect(saveStashElements.length).toBeGreaterThan(0);
     });
-    
+
     // Fill message
     const messageInput = screen.getByPlaceholderText('messagePlaceholder');
     fireEvent.change(messageInput, { target: { value: 'My stash message' } });
-    
+
     // Click the save button in dialog (the one that's a button element)
     const saveStashButtons = screen.getAllByText('saveStash');
     const buttonElement = saveStashButtons.find(
-      el => el.tagName === 'BUTTON' || el.closest('button')
+      (el) => el.tagName === 'BUTTON' || el.closest('button')
     );
     if (buttonElement) {
       fireEvent.click(buttonElement.closest('button') || buttonElement);
     }
-    
+
     await waitFor(() => {
       expect(mockOnStashSave).toHaveBeenCalledWith('My stash message', false);
     });
@@ -228,11 +228,11 @@ describe('GitStashPanel', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
-    const refreshButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('svg.lucide-refresh-cw')
-    );
-    
+
+    const refreshButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.querySelector('svg.lucide-refresh-cw'));
+
     if (refreshButton) {
       fireEvent.click(refreshButton);
       expect(mockOnRefresh).toHaveBeenCalled();
@@ -252,7 +252,7 @@ describe('GitStashPanel', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(container).toBeInTheDocument();
   });
 
@@ -268,7 +268,7 @@ describe('GitStashPanel', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // All stash entries should be rendered
     expect(screen.getByText('WIP on main: working on feature')).toBeInTheDocument();
     expect(screen.getByText('WIP on develop: bug fix')).toBeInTheDocument();
@@ -286,7 +286,7 @@ describe('GitStashPanel', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(container).toBeInTheDocument();
   });
 
@@ -302,7 +302,7 @@ describe('GitStashPanel', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(container).toBeInTheDocument();
   });
 
@@ -318,7 +318,7 @@ describe('GitStashPanel', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('clearAll')).toBeInTheDocument();
   });
 

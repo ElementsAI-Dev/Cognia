@@ -66,9 +66,27 @@ const mockLearningPaths = [
     startedAt: new Date('2024-01-01'),
     targetCompletionDate: new Date('2024-04-01'),
     milestones: [
-      { id: 'm1', title: 'Basics', description: 'Learn basics', progress: 100, status: 'completed' },
-      { id: 'm2', title: 'Hooks', description: 'Master hooks', progress: 50, status: 'in_progress' },
-      { id: 'm3', title: 'Advanced', description: 'Advanced patterns', progress: 0, status: 'not_started' },
+      {
+        id: 'm1',
+        title: 'Basics',
+        description: 'Learn basics',
+        progress: 100,
+        status: 'completed',
+      },
+      {
+        id: 'm2',
+        title: 'Hooks',
+        description: 'Master hooks',
+        progress: 50,
+        status: 'in_progress',
+      },
+      {
+        id: 'm3',
+        title: 'Advanced',
+        description: 'Advanced patterns',
+        progress: 0,
+        status: 'not_started',
+      },
     ],
     sessions: [],
     currentMilestoneId: 'm2',
@@ -104,9 +122,9 @@ describe('LearningPathDashboard', () => {
       learningPaths: {},
       activeLearningPathId: null,
       globalStats: mockGlobalStats,
-      getActivePaths: () => mockLearningPaths.filter(p => p.status === 'in_progress'),
+      getActivePaths: () => mockLearningPaths.filter((p) => p.status === 'in_progress'),
       getAllPaths: () => mockLearningPaths,
-      getCompletedPaths: () => mockLearningPaths.filter(p => p.status === 'completed'),
+      getCompletedPaths: () => mockLearningPaths.filter((p) => p.status === 'completed'),
     });
   });
 
@@ -147,7 +165,7 @@ describe('LearningPathDashboard', () => {
         getAllPaths: () => [],
         getCompletedPaths: () => [],
       });
-      
+
       render(<LearningPathDashboard />, { wrapper });
       // Stats cards should still be rendered
       expect(screen.getByText('Active Paths')).toBeInTheDocument();
@@ -174,11 +192,10 @@ describe('LearningPathDashboard', () => {
 
   describe('Styling', () => {
     it('applies custom className', () => {
-      const { container } = render(
-        <LearningPathDashboard className="custom-dashboard" />,
-        { wrapper }
-      );
-      
+      const { container } = render(<LearningPathDashboard className="custom-dashboard" />, {
+        wrapper,
+      });
+
       expect(container.querySelector('.custom-dashboard')).toBeInTheDocument();
     });
   });

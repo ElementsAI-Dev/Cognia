@@ -184,9 +184,7 @@ describe('CitationGraph', () => {
     const onPaperClick = jest.fn();
     mockBuildCitationNetwork.mockResolvedValueOnce(createMockCitationNetwork());
 
-    render(
-      <CitationGraph paper={createMockPaper('paper-1')} onPaperClick={onPaperClick} />
-    );
+    render(<CitationGraph paper={createMockPaper('paper-1')} onPaperClick={onPaperClick} />);
 
     await waitFor(() => {
       expect(screen.getByText(/100/)).toBeInTheDocument();

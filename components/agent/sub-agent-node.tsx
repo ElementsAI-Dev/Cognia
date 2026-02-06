@@ -6,28 +6,14 @@
  */
 
 import { useState, useMemo } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Play,
-  StopCircle,
-  Trash2,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, Play, StopCircle, Trash2 } from 'lucide-react';
 import { cn, formatDurationShort } from '@/lib/utils';
 import { SUB_AGENT_STATUS_CONFIG } from '@/lib/agent';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { SubAgent } from '@/types/agent/sub-agent';
 
 export interface SubAgentNodeProps {
@@ -87,11 +73,13 @@ export function SubAgentNode({
           onClick={() => onClick?.(subAgent)}
         >
           {/* Status icon */}
-          <div className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2',
-            config.bgColor,
-            subAgent.status === 'running' && 'border-primary'
-          )}>
+          <div
+            className={cn(
+              'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2',
+              config.bgColor,
+              subAgent.status === 'running' && 'border-primary'
+            )}
+          >
             <Icon className={cn('h-4 w-4', config.color, config.animate && 'animate-spin')} />
           </div>
 
@@ -104,7 +92,7 @@ export function SubAgentNode({
                   {subAgent.status}
                 </Badge>
               </div>
-              
+
               <div className="flex items-center gap-1 shrink-0">
                 {/* Action buttons */}
                 {showActions && (
@@ -127,7 +115,7 @@ export function SubAgentNode({
                         <TooltipContent>Execute</TooltipContent>
                       </Tooltip>
                     )}
-                    
+
                     {canCancel && onCancel && (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -146,7 +134,7 @@ export function SubAgentNode({
                         <TooltipContent>Cancel</TooltipContent>
                       </Tooltip>
                     )}
-                    
+
                     {canDelete && onDelete && (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -167,7 +155,7 @@ export function SubAgentNode({
                     )}
                   </>
                 )}
-                
+
                 <CollapsibleTrigger asChild>
                   <Button
                     variant="ghost"
@@ -219,9 +207,9 @@ export function SubAgentNode({
               </p>
               {subAgent.result.tokenUsage && (
                 <div className="mt-2 text-muted-foreground">
-                  Tokens: {subAgent.result.tokenUsage.totalTokens} 
-                  (prompt: {subAgent.result.tokenUsage.promptTokens}, 
-                  completion: {subAgent.result.tokenUsage.completionTokens})
+                  Tokens: {subAgent.result.tokenUsage.totalTokens}
+                  (prompt: {subAgent.result.tokenUsage.promptTokens}, completion:{' '}
+                  {subAgent.result.tokenUsage.completionTokens})
                 </div>
               )}
             </div>

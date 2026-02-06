@@ -308,13 +308,7 @@ describe('CustomThemeEditor', () => {
       updatedAt: new Date(),
     });
 
-    render(
-      <CustomThemeEditor
-        {...defaultProps}
-        editingThemeId="existing-id"
-        onSave={onSave}
-      />
-    );
+    render(<CustomThemeEditor {...defaultProps} editingThemeId="existing-id" onSave={onSave} />);
 
     const input = screen.getByLabelText('Theme Name');
     await user.clear(input);

@@ -31,11 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -83,7 +79,15 @@ function getTrendIcon(rating: ArenaModelRating) {
   return <Minus className="h-3 w-3 text-muted-foreground" />;
 }
 
-function ConfidenceBar({ rating, ci95Lower, ci95Upper }: { rating: number; ci95Lower?: number; ci95Upper?: number }) {
+function ConfidenceBar({
+  rating,
+  ci95Lower,
+  ci95Upper,
+}: {
+  rating: number;
+  ci95Lower?: number;
+  ci95Upper?: number;
+}) {
   const lower = ci95Lower || rating - 50;
   const upper = ci95Upper || rating + 50;
   const range = upper - lower;
@@ -145,8 +149,14 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
 
       switch (sortField) {
         case 'rating':
-          aValue = activeCategory === 'all' ? a.rating : (a.categoryRatings[activeCategory as TaskCategory] || a.rating);
-          bValue = activeCategory === 'all' ? b.rating : (b.categoryRatings[activeCategory as TaskCategory] || b.rating);
+          aValue =
+            activeCategory === 'all'
+              ? a.rating
+              : a.categoryRatings[activeCategory as TaskCategory] || a.rating;
+          bValue =
+            activeCategory === 'all'
+              ? b.rating
+              : b.categoryRatings[activeCategory as TaskCategory] || b.rating;
           break;
         case 'winRate':
           aValue = a.winRate || 0;
@@ -212,9 +222,12 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
       onClick={() => handleSort(field)}
     >
       {children}
-      {sortField === field && (
-        sortDirection === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
-      )}
+      {sortField === field &&
+        (sortDirection === 'desc' ? (
+          <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronUp className="h-3 w-3" />
+        ))}
     </button>
   );
 
@@ -279,7 +292,10 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
       </div>
 
       {/* Category tabs */}
-      <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as TaskCategory | 'all')}>
+      <Tabs
+        value={activeCategory}
+        onValueChange={(v) => setActiveCategory(v as TaskCategory | 'all')}
+      >
         <TabsList className="w-full justify-start overflow-x-auto">
           {CATEGORY_IDS.map((catId) => (
             <TabsTrigger key={catId} value={catId} className="text-xs">
@@ -329,9 +345,10 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
                 </TableHeader>
                 <TableBody>
                   {sortedRatings.map((rating, index) => {
-                    const displayRating = catId === 'all'
-                      ? rating.rating
-                      : (rating.categoryRatings[catId as TaskCategory] || rating.rating);
+                    const displayRating =
+                      catId === 'all'
+                        ? rating.rating
+                        : rating.categoryRatings[catId as TaskCategory] || rating.rating;
 
                     return (
                       <TableRow key={rating.modelId}>
@@ -367,17 +384,15 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
                                 ci95Upper={rating.ci95Upper}
                               />
                               <div className="text-[10px] text-muted-foreground text-center">
-                                {rating.ci95Lower ? Math.round(rating.ci95Lower) : '-'} - {rating.ci95Upper ? Math.round(rating.ci95Upper) : '-'}
+                                {rating.ci95Lower ? Math.round(rating.ci95Lower) : '-'} -{' '}
+                                {rating.ci95Upper ? Math.round(rating.ci95Upper) : '-'}
                               </div>
                             </div>
                           </TableCell>
                         )}
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Progress
-                              value={(rating.winRate || 0) * 100}
-                              className="w-12 h-1.5"
-                            />
+                            <Progress value={(rating.winRate || 0) * 100} className="w-12 h-1.5" />
                             <span className="text-xs font-mono w-10">
                               {rating.winRate ? `${(rating.winRate * 100).toFixed(0)}%` : '-'}
                             </span>
@@ -395,11 +410,14 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
                               variant="outline"
                               className={cn(
                                 'text-[10px]',
-                                (rating.stabilityScore || 0) > 0.7 && 'text-green-600 border-green-300',
+                                (rating.stabilityScore || 0) > 0.7 &&
+                                  'text-green-600 border-green-300',
                                 (rating.stabilityScore || 0) < 0.3 && 'text-red-600 border-red-300'
                               )}
                             >
-                              {rating.stabilityScore ? `${(rating.stabilityScore * 100).toFixed(0)}%` : '-'}
+                              {rating.stabilityScore
+                                ? `${(rating.stabilityScore * 100).toFixed(0)}%`
+                                : '-'}
                             </Badge>
                           </TableCell>
                         )}

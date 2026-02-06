@@ -13,16 +13,8 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { AcpAvailableCommand } from '@/types/agent/external-agent';
 
@@ -72,9 +64,7 @@ function CommandItem({ command, onExecute, isExecuting }: CommandItemProps) {
             </Badge>
           )}
         </div>
-        <p className="text-xs text-muted-foreground truncate">
-          {command.description}
-        </p>
+        <p className="text-xs text-muted-foreground truncate">{command.description}</p>
       </div>
       <Button
         variant="ghost"
@@ -125,16 +115,12 @@ export function ExternalAgentCommands({
             </Button>
           </PopoverTrigger>
         </TooltipTrigger>
-        <TooltipContent>
-          {t('commandsTooltip')}
-        </TooltipContent>
+        <TooltipContent>{t('commandsTooltip')}</TooltipContent>
       </Tooltip>
       <PopoverContent className="w-80 p-0" align="start">
         <div className="p-3 border-b">
           <h4 className="font-medium text-sm">{t('availableCommands')}</h4>
-          <p className="text-xs text-muted-foreground mt-1">
-            {t('commandsDescription')}
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">{t('commandsDescription')}</p>
         </div>
         <ScrollArea className="h-[280px]">
           <div className="p-2 space-y-1">

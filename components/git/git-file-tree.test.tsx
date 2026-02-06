@@ -73,7 +73,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // Use getAllByText since "staged" appears in both "staged" and "unstaged"
     const stagedElements = screen.getAllByText(/staged/i);
     expect(stagedElements.length).toBeGreaterThanOrEqual(2); // staged and unstaged sections
@@ -89,7 +89,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // Files appear in staged section and/or tree, so use getAllByText
     expect(screen.getByText('src/app.tsx')).toBeInTheDocument();
     const readmeElements = screen.getAllByText('README.md');
@@ -106,7 +106,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('selectAll')).toBeInTheDocument();
     expect(screen.getByText('stageAll')).toBeInTheDocument();
     expect(screen.getByText('unstageAll')).toBeInTheDocument();
@@ -122,10 +122,10 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     const stageAllButton = screen.getByText('stageAll');
     fireEvent.click(stageAllButton);
-    
+
     await waitFor(() => {
       expect(mockOnStageFiles).toHaveBeenCalled();
     });
@@ -141,10 +141,10 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     const unstageAllButton = screen.getByText('unstageAll');
     fireEvent.click(unstageAllButton);
-    
+
     await waitFor(() => {
       expect(mockOnUnstageFiles).toHaveBeenCalled();
     });
@@ -160,7 +160,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('src/app.tsx')).toBeInTheDocument();
   });
 
@@ -174,7 +174,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('selectAll')).toBeInTheDocument();
   });
 
@@ -188,11 +188,11 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
-    const refreshButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('svg.lucide-refresh-cw')
-    );
-    
+
+    const refreshButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.querySelector('svg.lucide-refresh-cw'));
+
     if (refreshButton) {
       fireEvent.click(refreshButton);
       expect(mockOnRefresh).toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(container).toBeInTheDocument();
   });
 
@@ -224,7 +224,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // Files appear in staged section and/or tree, so use getAllByText
     expect(screen.getByText('src/app.tsx')).toBeInTheDocument();
     const readmeElements = screen.getAllByText('README.md');
@@ -241,7 +241,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // Files appear in staged section and/or tree, so use getAllByText
     expect(screen.getByText('src/app.tsx')).toBeInTheDocument();
     const readmeElements = screen.getAllByText('README.md');
@@ -258,7 +258,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('unstageAll')).toBeInTheDocument();
   });
 
@@ -272,7 +272,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('stageAll')).toBeInTheDocument();
   });
 
@@ -286,7 +286,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('title')).toBeInTheDocument();
   });
 
@@ -300,7 +300,7 @@ describe('GitFileTree', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(container).toBeInTheDocument();
   });
 });

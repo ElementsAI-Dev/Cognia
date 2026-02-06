@@ -6,14 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Play,
-  Pause,
-  Trash2,
-  Clock,
-  Monitor,
-  BarChart3,
-} from 'lucide-react';
+import { Play, Pause, Trash2, Clock, Monitor, BarChart3 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmptyState } from '@/components/layout/empty-state';
 import { cn, formatTime } from '@/lib/utils';
@@ -49,7 +42,6 @@ export function FocusTrackerPanel({ className }: FocusTrackerPanelProps) {
     return `${seconds}s`;
   };
 
-
   const totalTodayMs = todaySummary?.total_active_ms ?? 0;
 
   return (
@@ -57,11 +49,15 @@ export function FocusTrackerPanel({ className }: FocusTrackerPanelProps) {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b bg-muted/30 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className={cn(
-            'flex items-center justify-center h-8 w-8 rounded-lg',
-            isTracking ? 'bg-green-500/10' : 'bg-muted'
-          )}>
-            <Monitor className={cn('h-4 w-4', isTracking ? 'text-green-500' : 'text-muted-foreground')} />
+          <div
+            className={cn(
+              'flex items-center justify-center h-8 w-8 rounded-lg',
+              isTracking ? 'bg-green-500/10' : 'bg-muted'
+            )}
+          >
+            <Monitor
+              className={cn('h-4 w-4', isTracking ? 'text-green-500' : 'text-muted-foreground')}
+            />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -107,14 +103,18 @@ export function FocusTrackerPanel({ className }: FocusTrackerPanelProps) {
 
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-4">
-          {!isTracking && !currentFocus && !todaySummary && appStats.length === 0 && recentSessions.length === 0 && (
-            <EmptyState
-              icon={Monitor}
-              title={t('noTrackingData')}
-              description={t('startTrackingHint')}
-              compact
-            />
-          )}
+          {!isTracking &&
+            !currentFocus &&
+            !todaySummary &&
+            appStats.length === 0 &&
+            recentSessions.length === 0 && (
+              <EmptyState
+                icon={Monitor}
+                title={t('noTrackingData')}
+                description={t('startTrackingHint')}
+                compact
+              />
+            )}
 
           {currentFocus && (
             <Card>
@@ -149,9 +149,7 @@ export function FocusTrackerPanel({ className }: FocusTrackerPanelProps) {
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>{t('totalActiveTime')}</span>
-                    <span className="font-medium">
-                      {formatDuration(totalTodayMs)}
-                    </span>
+                    <span className="font-medium">{formatDuration(totalTodayMs)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {todaySummary.switch_count} {t('appSwitches')}
@@ -160,9 +158,7 @@ export function FocusTrackerPanel({ className }: FocusTrackerPanelProps) {
 
                 {todaySummary.top_apps.length > 0 && (
                   <div className="space-y-2">
-                    <div className="text-xs font-medium text-muted-foreground">
-                      {t('topApps')}
-                    </div>
+                    <div className="text-xs font-medium text-muted-foreground">{t('topApps')}</div>
                     {todaySummary.top_apps.slice(0, 5).map(([app, time]) => (
                       <div key={app} className="space-y-1">
                         <div className="flex justify-between text-xs">
@@ -274,9 +270,7 @@ function SessionItem({
     <div className="flex items-center gap-2 text-sm">
       <div className="min-w-0 flex-1">
         <p className="font-medium truncate">{session.app_name}</p>
-        <p className="text-xs text-muted-foreground truncate">
-          {session.window_title}
-        </p>
+        <p className="text-xs text-muted-foreground truncate">{session.window_title}</p>
       </div>
       <div className="text-right text-xs text-muted-foreground whitespace-nowrap">
         <p>{formatTime(session.start_time)}</p>

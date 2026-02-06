@@ -135,7 +135,17 @@ Best,
 - OS: {{os}}
 - Browser: {{browser}}
 - Version: {{version}}`,
-    variables: ['description', 'step1', 'step2', 'step3', 'expected', 'actual', 'os', 'browser', 'version'],
+    variables: [
+      'description',
+      'step1',
+      'step2',
+      'step3',
+      'expected',
+      'actual',
+      'os',
+      'browser',
+      'version',
+    ],
     category: 'documentation',
     tags: ['bug', 'report', 'template'],
   },
@@ -150,14 +160,8 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
   const [applyingTemplate, setApplyingTemplate] = useState<ClipboardTemplate | null>(null);
   const [variableValues, setVariableValues] = useState<Record<string, string>>({});
 
-  const {
-    templates,
-    addTemplate,
-    removeTemplate,
-    updateTemplate,
-    applyTemplate,
-    searchTemplates,
-  } = useClipboardContext();
+  const { templates, addTemplate, removeTemplate, updateTemplate, applyTemplate, searchTemplates } =
+    useClipboardContext();
 
   const [formData, setFormData] = useState<TemplateFormData>({
     name: '',
@@ -205,7 +209,10 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
   // Handle form submission
   const handleSubmit = () => {
     const variables = extractVariables(formData.content);
-    const tags = formData.tags.split(',').map((t) => t.trim()).filter(Boolean);
+    const tags = formData.tags
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
 
     if (editingTemplate) {
       updateTemplate(editingTemplate.id, {
@@ -287,12 +294,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
         </div>
         <div className="flex items-center gap-1">
           {templates.length === 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={initializeDefaults}
-              className="text-xs"
-            >
+            <Button variant="outline" size="sm" onClick={initializeDefaults} className="text-xs">
               {t('loadDefaults')}
             </Button>
           )}
@@ -312,9 +314,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
                 <DialogTitle>
                   {editingTemplate ? t('editTemplate') : t('createTemplate')}
                 </DialogTitle>
-                <DialogDescription>
-                  {t('description')}
-                </DialogDescription>
+                <DialogDescription>{t('description')}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
@@ -422,7 +422,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
                 variant={selectedCategory === cat ? 'secondary' : 'ghost'}
                 size="sm"
                 className="h-6 text-xs"
-                onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat ?? null)}
+                onClick={() => setSelectedCategory(cat === selectedCategory ? null : (cat ?? null))}
               >
                 <FolderOpen className="h-3 w-3 mr-1" />
                 {cat}
@@ -476,9 +476,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
                 </CardHeader>
                 <CardContent className="p-3 pt-0 space-y-2">
                   {template.description && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {template.description}
-                    </p>
+                    <p className="text-xs text-muted-foreground truncate">{template.description}</p>
                   )}
                   <div className="p-2 rounded bg-muted/50 text-xs font-mono max-h-20 overflow-hidden">
                     {template.content.slice(0, 150)}
@@ -516,7 +514,9 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
             <EmptyState
               icon={FileText}
               title={t('noTemplates')}
-              description={templates.length === 0 ? t('createTemplatesHint') : t('noMatchingTemplates')}
+              description={
+                templates.length === 0 ? t('createTemplatesHint') : t('noMatchingTemplates')
+              }
               compact
             />
           )}
@@ -527,9 +527,7 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>{t('applyTemplate')}</DialogTitle>
-            <DialogDescription>
-              {t('fillVariables')}
-            </DialogDescription>
+            <DialogDescription>{t('fillVariables')}</DialogDescription>
           </DialogHeader>
           {applyingTemplate && (
             <div className="grid gap-3 py-4 max-h-[300px] overflow-auto">

@@ -2,7 +2,7 @@
 
 /**
  * Learning Mode Panel
- * 
+ *
  * Side panel showing learning progress, phases, and sub-questions
  * for the Socratic Method-based learning mode.
  */
@@ -32,18 +32,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useLearningMode } from '@/hooks/ui';
@@ -107,19 +97,12 @@ export const LearningModePanel = memo(function LearningModePanel({
     return (
       <Card className={cn('flex flex-col items-center justify-center p-6 relative', className)}>
         {onClose && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="absolute top-2 right-2"
-          >
+          <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-2 right-2">
             <X className="h-4 w-4" />
           </Button>
         )}
         <GraduationCap className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground text-center">
-          {t('noActiveSession')}
-        </p>
+        <p className="text-muted-foreground text-center">{t('noActiveSession')}</p>
       </Card>
     );
   }
@@ -138,17 +121,16 @@ export const LearningModePanel = memo(function LearningModePanel({
             </Button>
           )}
         </div>
-        <CardDescription className="line-clamp-2">
-          {learningSession.topic}
-        </CardDescription>
-        <p className="text-xs text-muted-foreground mt-1">
-          {getStatusLine()}
-        </p>
+        <CardDescription className="line-clamp-2">{learningSession.topic}</CardDescription>
+        <p className="text-xs text-muted-foreground mt-1">{getStatusLine()}</p>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col gap-2 overflow-hidden p-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-4 mx-4 mt-2" style={{ width: 'calc(100% - 2rem)' }}>
+          <TabsList
+            className="grid w-full grid-cols-4 mx-4 mt-2"
+            style={{ width: 'calc(100% - 2rem)' }}
+          >
             <TabsTrigger value="progress" className="text-xs">
               <GraduationCap className="h-3 w-3 mr-1" />
               {t('tabs.progress')}
@@ -168,7 +150,10 @@ export const LearningModePanel = memo(function LearningModePanel({
           </TabsList>
 
           <div className="flex-1 overflow-hidden px-4 pb-4">
-            <TabsContent value="progress" className="h-full mt-2 data-[state=active]:flex data-[state=active]:flex-col">
+            <TabsContent
+              value="progress"
+              className="h-full mt-2 data-[state=active]:flex data-[state=active]:flex-col"
+            >
               {/* Progress */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -207,11 +192,7 @@ export const LearningModePanel = memo(function LearningModePanel({
                             isFuture && 'border-muted-foreground/30 text-muted-foreground/50'
                           )}
                         >
-                          {isPast ? (
-                            <CheckCircle2 className="h-4 w-4" />
-                          ) : (
-                            PHASE_ICONS[phase]
-                          )}
+                          {isPast ? <CheckCircle2 className="h-4 w-4" /> : PHASE_ICONS[phase]}
                         </div>
                         {index < PHASE_ORDER.length - 1 && (
                           <div
@@ -250,13 +231,9 @@ export const LearningModePanel = memo(function LearningModePanel({
                     </CollapsibleTrigger>
                     <CollapsibleContent className="space-y-2 pt-2">
                       {learningGoals.length === 0 ? (
-                        <p className="text-xs text-muted-foreground italic">
-                          {t('noGoalsYet')}
-                        </p>
+                        <p className="text-xs text-muted-foreground italic">{t('noGoalsYet')}</p>
                       ) : (
-                        learningGoals.map((goal) => (
-                          <GoalItem key={goal.id} goal={goal} />
-                        ))
+                        learningGoals.map((goal) => <GoalItem key={goal.id} goal={goal} />)
                       )}
                     </CollapsibleContent>
                   </Collapsible>
@@ -268,7 +245,8 @@ export const LearningModePanel = memo(function LearningModePanel({
                         <MessageCircleQuestion className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">{t('subQuestions')}</span>
                         <Badge variant="secondary" className="text-xs">
-                          {subQuestions.filter((sq) => sq.status === 'resolved').length}/{subQuestions.length}
+                          {subQuestions.filter((sq) => sq.status === 'resolved').length}/
+                          {subQuestions.length}
                         </Badge>
                       </div>
                       {isQuestionsExpanded ? (
@@ -299,21 +277,12 @@ export const LearningModePanel = memo(function LearningModePanel({
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t mt-auto">
                 {currentPhase !== 'summary' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={advancePhase}
-                  >
+                  <Button variant="outline" size="sm" className="flex-1" onClick={advancePhase}>
                     <Play className="h-3 w-3 mr-1" />
                     {t('nextPhase')}
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleEndLearning}
-                >
+                <Button variant="ghost" size="sm" onClick={handleEndLearning}>
                   <Pause className="h-3 w-3 mr-1" />
                   {t('endSession')}
                 </Button>
@@ -322,10 +291,7 @@ export const LearningModePanel = memo(function LearningModePanel({
 
             <TabsContent value="stats" className="h-full mt-2 overflow-auto">
               <ScrollArea className="h-full">
-                <LearningStatisticsPanel
-                  session={learningSession}
-                  achievements={achievements}
-                />
+                <LearningStatisticsPanel session={learningSession} achievements={achievements} />
               </ScrollArea>
             </TabsContent>
 
@@ -361,12 +327,7 @@ const GoalItem = memo(function GoalItem({ goal }: GoalItemProps) {
       ) : (
         <Circle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
       )}
-      <span
-        className={cn(
-          'text-sm',
-          goal.achieved && 'line-through text-muted-foreground'
-        )}
-      >
+      <span className={cn('text-sm', goal.achieved && 'line-through text-muted-foreground')}>
         {goal.description}
       </span>
     </div>

@@ -1,26 +1,26 @@
-"use client";
+'use client';
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { CopyButton } from "@/components/chat/ui/copy-button";
-import { cn } from "@/lib/utils";
-import { 
-  PanelRightOpen, 
-  Download, 
-  Play, 
-  Loader2, 
-  CheckCircle, 
-  XCircle, 
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { CopyButton } from '@/components/chat/ui/copy-button';
+import { cn } from '@/lib/utils';
+import {
+  PanelRightOpen,
+  Download,
+  Play,
+  Loader2,
+  CheckCircle,
+  XCircle,
   Clock,
   BookmarkPlus,
   Check,
   ChevronDown,
   ChevronUp,
-} from "lucide-react";
-import { useArtifactStore } from "@/stores";
-import { ArtifactCreateButton } from "@/components/artifacts/artifact-create-button";
+} from 'lucide-react';
+import { useArtifactStore } from '@/stores';
+import { ArtifactCreateButton } from '@/components/artifacts/artifact-create-button';
 import {
   type ComponentProps,
   createContext,
@@ -28,15 +28,11 @@ import {
   useContext,
   useEffect,
   useRef,
-} from "react";
-import { type BundledLanguage, codeToHtml, type ShikiTransformer } from "shiki";
-import { useSandbox, useCodeExecution, useSnippets } from "@/hooks/sandbox";
-import { isValidLanguage } from "@/types/system/sandbox";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from 'react';
+import { type BundledLanguage, codeToHtml, type ShikiTransformer } from 'shiki';
+import { useSandbox, useCodeExecution, useSnippets } from '@/hooks/sandbox';
+import { isValidLanguage } from '@/types/system/sandbox';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   code: string;
@@ -52,26 +48,26 @@ type CodeBlockContextType = {
 };
 
 const CodeBlockContext = createContext<CodeBlockContextType>({
-  code: "",
+  code: '',
 });
 
 const lineNumberTransformer: ShikiTransformer = {
-  name: "line-numbers",
+  name: 'line-numbers',
   line(node, line) {
     node.children.unshift({
-      type: "element",
-      tagName: "span",
+      type: 'element',
+      tagName: 'span',
       properties: {
         className: [
-          "inline-block",
-          "min-w-10",
-          "mr-4",
-          "text-right",
-          "select-none",
-          "text-muted-foreground",
+          'inline-block',
+          'min-w-10',
+          'mr-4',
+          'text-right',
+          'select-none',
+          'text-muted-foreground',
         ],
       },
-      children: [{ type: "text", value: String(line) }],
+      children: [{ type: 'text', value: String(line) }],
     });
   },
 };
@@ -81,19 +77,17 @@ export async function highlightCode(
   language: BundledLanguage,
   showLineNumbers = false
 ) {
-  const transformers: ShikiTransformer[] = showLineNumbers
-    ? [lineNumberTransformer]
-    : [];
+  const transformers: ShikiTransformer[] = showLineNumbers ? [lineNumberTransformer] : [];
 
   return await Promise.all([
     codeToHtml(code, {
       lang: language,
-      theme: "one-light",
+      theme: 'one-light',
       transformers,
     }),
     codeToHtml(code, {
       lang: language,
-      theme: "one-dark-pro",
+      theme: 'one-dark-pro',
       transformers,
     }),
   ]);
@@ -111,12 +105,12 @@ export const CodeBlock = ({
   ...props
 }: CodeBlockProps) => {
   const t = useTranslations('renderer');
-  const [html, setHtml] = useState<string>("");
-  const [darkHtml, setDarkHtml] = useState<string>("");
+  const [html, setHtml] = useState<string>('');
+  const [darkHtml, setDarkHtml] = useState<string>('');
   const [showResult, setShowResult] = useState(false);
   const [savedAsSnippet, setSavedAsSnippet] = useState(false);
   const mounted = useRef(false);
-  
+
   const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
   const openPanel = useArtifactStore((state) => state.openPanel);
 
@@ -212,7 +206,7 @@ export const CodeBlock = ({
     <CodeBlockContext.Provider value={{ code }}>
       <div
         className={cn(
-          "group relative w-full overflow-hidden rounded-md border bg-background text-foreground",
+          'group relative w-full overflow-hidden rounded-md border bg-background text-foreground',
           className
         )}
         {...props}
@@ -400,9 +394,8 @@ export const CodeBlockCopyButton = ({
       successDuration={timeout}
       onCopySuccess={onCopy}
       onCopyError={onError}
-      className={cn("shrink-0", className)}
+      className={cn('shrink-0', className)}
       {...props}
     />
   );
 };
-

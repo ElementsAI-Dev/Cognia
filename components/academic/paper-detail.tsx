@@ -113,7 +113,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
-  
+
   // Get analysis history for this paper
   const analysisHistory = paper ? getAnalysisHistory(paper.id) : [];
 
@@ -147,7 +147,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
     try {
       const result = await analyzePaper(paper.id, selectedAnalysisType);
       setAnalysisResult(result);
-      
+
       // Save analysis result to history
       const analysisResultObj: PaperAnalysisResult = {
         paperId: paper.id,
@@ -447,14 +447,16 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                   </h4>
                   <div className="flex flex-wrap gap-1">
                     {paper.tags?.map((tag, idx) => (
-                      <Badge 
-                        key={idx} 
-                        variant="outline" 
+                      <Badge
+                        key={idx}
+                        variant="outline"
                         className="text-xs cursor-pointer hover:bg-destructive/10 group"
                         onClick={() => removeTag(paper.id, tag)}
                       >
                         {tag}
-                        <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">×</span>
+                        <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          ×
+                        </span>
                       </Badge>
                     ))}
                     <div className="flex items-center gap-1">
@@ -499,9 +501,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     <Brain className="h-4 w-4" />
                     {t('aiAnalysis')}
                   </h4>
-                  <p className="text-sm text-muted-foreground">
-                    {t('aiAnalysisDescription')}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t('aiAnalysisDescription')}</p>
 
                   <div className="flex gap-2">
                     <Select
@@ -534,7 +534,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                       <pre className="text-sm whitespace-pre-wrap">{analysisResult}</pre>
                     </div>
                   )}
-                  
+
                   {/* Analysis History */}
                   {analysisHistory.length > 0 && (
                     <div className="mt-4 space-y-2">
@@ -544,14 +544,16 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                         onClick={() => setShowAnalysisHistory(!showAnalysisHistory)}
                         className="w-full justify-between"
                       >
-                        <span className="text-sm font-medium">{t('analysisHistory')} ({analysisHistory.length})</span>
+                        <span className="text-sm font-medium">
+                          {t('analysisHistory')} ({analysisHistory.length})
+                        </span>
                         {showAnalysisHistory ? (
                           <ChevronUp className="h-4 w-4" />
                         ) : (
                           <ChevronDown className="h-4 w-4" />
                         )}
                       </Button>
-                      
+
                       {showAnalysisHistory && (
                         <div className="space-y-2 max-h-60 overflow-y-auto">
                           {analysisHistory.map((item, idx) => (
@@ -581,7 +583,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
               </TabsContent>
 
               <TabsContent value="citations" className="space-y-4 mt-4">
-                <CitationGraph 
+                <CitationGraph
                   paper={paper}
                   onPaperClick={(paperId: string, title: string) => {
                     console.log('View paper:', paperId, title);

@@ -26,16 +26,8 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -97,26 +89,38 @@ export function AgentFlowVisualizer({
     }
   }, [executeAll, executionMode]);
 
-  const handleExecuteOne = useCallback(async (subAgent: SubAgent) => {
-    try {
-      await executeOne(subAgent.id);
-    } catch (error) {
-      console.error('Failed to execute sub-agent:', error);
-    }
-  }, [executeOne]);
-  
-  const handleCancelOne = useCallback((subAgent: SubAgent) => {
-    cancelOne(subAgent.id);
-  }, [cancelOne]);
-  
-  const handleDeleteOne = useCallback((subAgent: SubAgent) => {
-    deleteSubAgent(subAgent.id);
-  }, [deleteSubAgent]);
-  
-  const handleCreateFromTemplate = useCallback((templateId: string, variables: Record<string, string>) => {
-    createFromTemplate(templateId, variables);
-    setShowTemplates(false);
-  }, [createFromTemplate]);
+  const handleExecuteOne = useCallback(
+    async (subAgent: SubAgent) => {
+      try {
+        await executeOne(subAgent.id);
+      } catch (error) {
+        console.error('Failed to execute sub-agent:', error);
+      }
+    },
+    [executeOne]
+  );
+
+  const handleCancelOne = useCallback(
+    (subAgent: SubAgent) => {
+      cancelOne(subAgent.id);
+    },
+    [cancelOne]
+  );
+
+  const handleDeleteOne = useCallback(
+    (subAgent: SubAgent) => {
+      deleteSubAgent(subAgent.id);
+    },
+    [deleteSubAgent]
+  );
+
+  const handleCreateFromTemplate = useCallback(
+    (templateId: string, variables: Record<string, string>) => {
+      createFromTemplate(templateId, variables);
+      setShowTemplates(false);
+    },
+    [createFromTemplate]
+  );
 
   const handleCancelAll = useCallback(() => {
     cancelAll();
@@ -129,25 +133,31 @@ export function AgentFlowVisualizer({
   const parentConfig = getSubAgentStatusConfig(agent.status);
   const ParentIcon = parentConfig.icon;
 
-  const completedSubAgents = displaySubAgents.filter(sa => sa.status === 'completed').length;
+  const completedSubAgents = displaySubAgents.filter((sa) => sa.status === 'completed').length;
   const totalSubAgents = displaySubAgents.length;
-  const pendingSubAgents = displaySubAgents.filter(sa => sa.status === 'pending' || sa.status === 'queued').length;
+  const pendingSubAgents = displaySubAgents.filter(
+    (sa) => sa.status === 'pending' || sa.status === 'queued'
+  ).length;
 
   return (
     <div className={cn('space-y-4', className)}>
       {/* Parent Agent Header */}
-      <div className={cn(
-        'rounded-xl border-2 p-4',
-        agent.status === 'running' && 'border-primary shadow-lg shadow-primary/10',
-        agent.status === 'completed' && 'border-green-500',
-        agent.status === 'failed' && 'border-destructive'
-      )}>
+      <div
+        className={cn(
+          'rounded-xl border-2 p-4',
+          agent.status === 'running' && 'border-primary shadow-lg shadow-primary/10',
+          agent.status === 'completed' && 'border-green-500',
+          agent.status === 'failed' && 'border-destructive'
+        )}
+      >
         <div className="flex items-start gap-4">
           {/* Main icon */}
-          <div className={cn(
-            'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
-            parentConfig.bgColor
-          )}>
+          <div
+            className={cn(
+              'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+              parentConfig.bgColor
+            )}
+          >
             <Bot className={cn('h-6 w-6', parentConfig.color)} />
           </div>
 
@@ -165,7 +175,9 @@ export function AgentFlowVisualizer({
                   agent.status === 'failed' && 'bg-destructive'
                 )}
               >
-                <ParentIcon className={cn('h-3 w-3 mr-1', parentConfig.animate && 'animate-spin')} />
+                <ParentIcon
+                  className={cn('h-3 w-3 mr-1', parentConfig.animate && 'animate-spin')}
+                />
                 {agent.status}
               </Badge>
             </div>
@@ -183,11 +195,15 @@ export function AgentFlowVisualizer({
             <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <GitBranch className="h-3 w-3" />
-                <span>{completedSubAgents}/{totalSubAgents} {t('subAgents')}</span>
+                <span>
+                  {completedSubAgents}/{totalSubAgents} {t('subAgents')}
+                </span>
               </div>
               <div className="flex items-center gap-1">
                 <Zap className="h-3 w-3" />
-                <span>{agent.steps.length} {t('steps')}</span>
+                <span>
+                  {agent.steps.length} {t('steps')}
+                </span>
               </div>
               {agent.startedAt && (
                 <div className="flex items-center gap-1">
@@ -213,7 +229,11 @@ export function AgentFlowVisualizer({
                 <Zap className="h-4 w-4" />
                 {t('executionSteps')} ({agent.steps.length})
               </span>
-              {showSteps ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {showSteps ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -234,7 +254,13 @@ export function AgentFlowVisualizer({
                       onClick={() => onStepClick?.(step)}
                     >
                       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-background">
-                        <StepIcon className={cn('h-3 w-3', stepConfig.color, stepConfig.animate && 'animate-spin')} />
+                        <StepIcon
+                          className={cn(
+                            'h-3 w-3',
+                            stepConfig.color,
+                            stepConfig.animate && 'animate-spin'
+                          )}
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -244,7 +270,9 @@ export function AgentFlowVisualizer({
                           </span>
                         </div>
                         {step.description && (
-                          <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {step.description}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -271,7 +299,11 @@ export function AgentFlowVisualizer({
                   </Badge>
                 )}
               </span>
-              {showSubAgents ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {showSubAgents ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -291,9 +323,11 @@ export function AgentFlowVisualizer({
                       <span className="text-xs">{t('addFromTemplate') || 'Template'}</span>
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{t('addFromTemplateTooltip') || 'Create sub-agent from template'}</TooltipContent>
+                  <TooltipContent>
+                    {t('addFromTemplateTooltip') || 'Create sub-agent from template'}
+                  </TooltipContent>
                 </Tooltip>
-                
+
                 {/* Execution Mode Selector */}
                 <Select
                   value={executionMode}
@@ -323,7 +357,9 @@ export function AgentFlowVisualizer({
                         <span className="text-xs">{t('runAll')}</span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>{t('executeAllTooltip', { mode: executionMode })}</TooltipContent>
+                    <TooltipContent>
+                      {t('executeAllTooltip', { mode: executionMode })}
+                    </TooltipContent>
                   </Tooltip>
                 )}
 

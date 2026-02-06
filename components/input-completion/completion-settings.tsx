@@ -5,12 +5,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, Trash2, RotateCcw } from 'lucide-react';
 import { useInputCompletion } from '@/hooks/input-completion';
-import type { CompletionConfig, CompletionProvider, CompletionStats } from '@/types/input-completion';
+import type {
+  CompletionConfig,
+  CompletionProvider,
+  CompletionStats,
+} from '@/types/input-completion';
 import { DEFAULT_COMPLETION_CONFIG } from '@/types/input-completion';
 
 export interface CompletionSettingsProps {
@@ -19,7 +29,18 @@ export interface CompletionSettingsProps {
 }
 
 export function CompletionSettings({ onSave, className }: CompletionSettingsProps) {
-  const { config, updateConfig, isRunning, start, stop, getStats, resetStats, clearCache, testConnection, isLoading } = useInputCompletion();
+  const {
+    config,
+    updateConfig,
+    isRunning,
+    start,
+    stop,
+    getStats,
+    resetStats,
+    clearCache,
+    testConnection,
+    isLoading,
+  } = useInputCompletion();
   const [localConfig, setLocalConfig] = useState<CompletionConfig>(config);
   const [hasChanges, setHasChanges] = useState(false);
   const [stats, setStats] = useState<CompletionStats | null>(null);
@@ -81,29 +102,21 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
       <Card>
         <CardHeader>
           <CardTitle>Input Completion</CardTitle>
-          <CardDescription>
-            AI-powered real-time text completion (Tab to accept)
-          </CardDescription>
+          <CardDescription>AI-powered real-time text completion (Tab to accept)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Enable/Disable and Status */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label>Enable Completion</Label>
-              <p className="text-sm text-muted-foreground">
-                {isRunning ? 'Running' : 'Stopped'}
-              </p>
+              <p className="text-sm text-muted-foreground">{isRunning ? 'Running' : 'Stopped'}</p>
             </div>
             <div className="flex items-center gap-2">
               <Switch
                 checked={localConfig.enabled}
                 onCheckedChange={(enabled) => updateLocalConfig({ enabled })}
               />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => (isRunning ? stop() : start())}
-              >
+              <Button variant="outline" size="sm" onClick={() => (isRunning ? stop() : start())}>
                 {isRunning ? 'Stop' : 'Start'}
               </Button>
             </div>
@@ -220,9 +233,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
             </div>
 
             <div className="space-y-2">
-              <Label>
-                Min Context Length: {localConfig.trigger.min_context_length} chars
-              </Label>
+              <Label>Min Context Length: {localConfig.trigger.min_context_length} chars</Label>
               <Slider
                 value={[localConfig.trigger.min_context_length]}
                 min={1}
@@ -316,7 +327,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
           {/* Statistics */}
           <div className="space-y-4">
             <h4 className="font-medium">Statistics</h4>
-            
+
             {stats ? (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -325,7 +336,9 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
                 </div>
                 <div>
                   <span className="text-muted-foreground">Successful:</span>
-                  <span className="ml-2 font-medium text-green-600">{stats.successful_completions}</span>
+                  <span className="ml-2 font-medium text-green-600">
+                    {stats.successful_completions}
+                  </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Failed:</span>
@@ -337,13 +350,15 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
                 </div>
                 <div>
                   <span className="text-muted-foreground">Cache Hit Rate:</span>
-                  <span className="ml-2 font-medium">{(stats.cache_hit_rate * 100).toFixed(1)}%</span>
+                  <span className="ml-2 font-medium">
+                    {(stats.cache_hit_rate * 100).toFixed(1)}%
+                  </span>
                 </div>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No statistics available</p>
             )}
-            
+
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleResetStats}>
                 <RotateCcw className="mr-1 h-3 w-3" />
@@ -359,27 +374,25 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
           {/* Connection Test */}
           <div className="space-y-4">
             <h4 className="font-medium">Connection Test</h4>
-            
+
             <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleTestConnection}
                 disabled={isLoading}
               >
-                {isLoading ? (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                ) : null}
+                {isLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
                 Test Connection
               </Button>
-              
+
               {testResult === 'success' && (
                 <div className="flex items-center text-sm text-green-600">
                   <CheckCircle className="mr-1 h-4 w-4" />
                   Success {testLatency !== null && `(${testLatency}ms)`}
                 </div>
               )}
-              
+
               {testResult === 'error' && (
                 <div className="flex items-center text-sm text-red-600">
                   <XCircle className="mr-1 h-4 w-4" />

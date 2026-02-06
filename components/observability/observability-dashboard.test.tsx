@@ -45,21 +45,21 @@ describe('ObservabilityDashboard', () => {
 
   it('should render dashboard with tabs', () => {
     render(<ObservabilityDashboard />);
-    
+
     // Dashboard renders with tabs
     expect(screen.getAllByRole('tab').length).toBeGreaterThan(0);
   });
 
   it('should render time range selector', () => {
     render(<ObservabilityDashboard />);
-    
+
     // Time range options should be present
     expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
   it('should render refresh button', () => {
     render(<ObservabilityDashboard />);
-    
+
     // Refresh button should be present
     const refreshButton = screen.getByRole('button', { name: '' });
     expect(refreshButton).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe('ObservabilityDashboard', () => {
 
   it('should switch between tabs', async () => {
     render(<ObservabilityDashboard />);
-    
+
     // Dashboard renders with tabs
     const tabs = screen.getAllByRole('tab');
     expect(tabs.length).toBe(3); // traces, metrics, costs
@@ -76,21 +76,21 @@ describe('ObservabilityDashboard', () => {
   it('should call onClose when provided', () => {
     const onClose = jest.fn();
     render(<ObservabilityDashboard onClose={onClose} />);
-    
+
     // Close button should be rendered
     expect(screen.getByText(/close/i)).toBeInTheDocument();
   });
 
   it('should render without crashing', () => {
     render(<ObservabilityDashboard />);
-    
+
     // Dashboard should render without crashing
     expect(screen.getByText(/observability/i)).toBeInTheDocument();
   });
 
   it('should render summary cards', () => {
     render(<ObservabilityDashboard />);
-    
+
     // Summary cards should be present
     expect(screen.getByText(/total requests/i)).toBeInTheDocument();
     expect(screen.getByText(/avg latency/i)).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe('ObservabilityDashboard', () => {
 
   it('should show no traces message when empty', () => {
     render(<ObservabilityDashboard />);
-    
+
     expect(screen.getByText(/no traces/i)).toBeInTheDocument();
   });
 });
@@ -120,7 +120,7 @@ describe('ObservabilityDashboard when disabled', () => {
 
   it('should show disabled alert when observability is disabled', () => {
     render(<ObservabilityDashboard />);
-    
+
     // The alert title is "Observability Disabled"
     expect(screen.getByText(/observability disabled/i)).toBeInTheDocument();
   });

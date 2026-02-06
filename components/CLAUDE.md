@@ -166,6 +166,7 @@ pnpm dlx shadcn@latest add <component>
 ## Changelog
 
 ### 2025-01-14
+
 - Initial module documentation created
 - Indexed 50+ component directories
 - Documented component patterns

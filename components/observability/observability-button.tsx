@@ -36,9 +36,7 @@ export function ObservabilityButton({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <DialogTrigger asChild>
-            {button}
-          </DialogTrigger>
+          <DialogTrigger asChild>{button}</DialogTrigger>
         </TooltipTrigger>
         <TooltipContent side="right">
           <p>{t('tooltipTitle')}</p>

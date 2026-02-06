@@ -73,9 +73,7 @@ function SpanTree({ span, depth = 0, t }: SpanTreeProps) {
 
         <span className="font-medium text-sm truncate flex-1">{span.name}</span>
 
-        <span className={`text-xs ${getStatusColor(span.status)}`}>
-          {span.status}
-        </span>
+        <span className={`text-xs ${getStatusColor(span.status)}`}>{span.status}</span>
 
         {span.duration && (
           <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -99,7 +97,9 @@ function SpanTree({ span, depth = 0, t }: SpanTreeProps) {
             <div className="p-2 bg-muted rounded">
               <div className="font-medium text-muted-foreground mb-1">{t('input')}</div>
               <pre className="whitespace-pre-wrap overflow-x-auto">
-                {String(typeof span.input === 'string' ? span.input : JSON.stringify(span.input, null, 2))}
+                {String(
+                  typeof span.input === 'string' ? span.input : JSON.stringify(span.input, null, 2)
+                )}
               </pre>
             </div>
           )}
@@ -107,7 +107,11 @@ function SpanTree({ span, depth = 0, t }: SpanTreeProps) {
             <div className="p-2 bg-muted rounded">
               <div className="font-medium text-muted-foreground mb-1">{t('output')}</div>
               <pre className="whitespace-pre-wrap overflow-x-auto">
-                {String(typeof span.output === 'string' ? span.output : JSON.stringify(span.output, null, 2))}
+                {String(
+                  typeof span.output === 'string'
+                    ? span.output
+                    : JSON.stringify(span.output, null, 2)
+                )}
               </pre>
             </div>
           )}
@@ -135,8 +139,8 @@ export function TraceViewer({ trace }: TraceViewerProps) {
               trace.status === 'success'
                 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                 : trace.status === 'error'
-                ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                  : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
             }
           >
             {trace.status}
@@ -149,9 +153,7 @@ export function TraceViewer({ trace }: TraceViewerProps) {
           <div className="flex items-center gap-2">
             <Hash className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">{t('traceId')}</span>
-            <code className="text-xs bg-muted px-1 py-0.5 rounded truncate">
-              {trace.id}
-            </code>
+            <code className="text-xs bg-muted px-1 py-0.5 rounded truncate">{trace.id}</code>
           </div>
 
           {trace.sessionId && (
@@ -220,9 +222,7 @@ export function TraceViewer({ trace }: TraceViewerProps) {
           <h4 className="font-medium mb-2">{t('spanTree')}</h4>
           <ScrollArea className="border rounded-lg p-2 max-h-64">
             {trace.spans.length === 0 ? (
-              <div className="text-center text-muted-foreground py-4">
-                {t('noSpans')}
-              </div>
+              <div className="text-center text-muted-foreground py-4">{t('noSpans')}</div>
             ) : (
               trace.spans.map((span) => <SpanTree key={span.id} span={span} t={t} />)
             )}

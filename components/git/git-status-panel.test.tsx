@@ -104,14 +104,22 @@ jest.mock('@/hooks/native/use-git', () => ({
 jest.mock('@/types/system/git', () => ({
   getGitStatusColor: jest.fn((status) => {
     switch (status) {
-      case 'clean': return 'green';
-      case 'dirty': return 'yellow';
-      case 'ahead': return 'blue';
-      case 'behind': return 'orange';
-      case 'diverged': return 'red';
-      case 'not_initialized': return 'gray';
-      case 'error': return 'red';
-      default: return 'gray';
+      case 'clean':
+        return 'green';
+      case 'dirty':
+        return 'yellow';
+      case 'ahead':
+        return 'blue';
+      case 'behind':
+        return 'orange';
+      case 'diverged':
+        return 'red';
+      case 'not_initialized':
+        return 'gray';
+      case 'error':
+        return 'red';
+      default:
+        return 'gray';
     }
   }),
   formatCommitDate: jest.fn((_date) => '2h ago'),
@@ -120,49 +128,60 @@ jest.mock('@/types/system/git', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, 'data-testid': dataTestId }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    'data-testid': dataTestId,
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
     children: React.ReactNode;
     'data-testid'?: string;
   }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      data-testid={dataTestId || 'button'}
-    >
+    <button onClick={onClick} disabled={disabled} data-testid={dataTestId || 'button'}>
       {children}
     </button>
   ),
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children, className }: {
-    children: React.ReactNode;
-    className?: string;
-  }) => (
-    <span className={className} data-testid="badge">{children}</span>
+  Badge: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <span className={className} data-testid="badge">
+      {children}
+    </span>
   ),
 }));
 
 jest.mock('@/components/ui/card', () => ({
   Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,
-  CardContent: ({ children }: { children: React.ReactNode }) => <div data-testid="card-content">{children}</div>,
-  CardDescription: ({ children }: { children: React.ReactNode }) => <p data-testid="card-description">{children}</p>,
-  CardHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="card-header">{children}</div>,
-  CardTitle: ({ children }: { children: React.ReactNode }) => <h3 data-testid="card-title">{children}</h3>,
+  CardContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="card-content">{children}</div>
+  ),
+  CardDescription: ({ children }: { children: React.ReactNode }) => (
+    <p data-testid="card-description">{children}</p>
+  ),
+  CardHeader: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="card-header">{children}</div>
+  ),
+  CardTitle: ({ children }: { children: React.ReactNode }) => (
+    <h3 data-testid="card-title">{children}</h3>
+  ),
 }));
 
 jest.mock('@/components/ui/alert', () => ({
-  Alert: ({ children, variant }: {
-    children: React.ReactNode;
-    variant?: string;
-  }) => (
-    <div role="alert" data-variant={variant}>{children}</div>
+  Alert: ({ children, variant }: { children: React.ReactNode; variant?: string }) => (
+    <div role="alert" data-variant={variant}>
+      {children}
+    </div>
   ),
-  AlertDescription: ({ children }: { children: React.ReactNode }) => <div data-testid="alert-description">{children}</div>,
+  AlertDescription: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="alert-description">{children}</div>
+  ),
 }));
 
 jest.mock('@/components/ui/skeleton', () => ({
-  Skeleton: ({ className }: { className?: string }) => <div className={className} data-testid="skeleton" />,
+  Skeleton: ({ className }: { className?: string }) => (
+    <div className={className} data-testid="skeleton" />
+  ),
 }));
 
 describe('GitStatusPanel', () => {
@@ -344,7 +363,9 @@ describe('GitStatusPanel', () => {
       render(<GitStatusPanel />);
 
       const refreshButtons = screen.getAllByRole('button');
-      const refreshButton = refreshButtons.find((btn) => btn.getAttribute('data-testid') === 'button');
+      const refreshButton = refreshButtons.find(
+        (btn) => btn.getAttribute('data-testid') === 'button'
+      );
       if (refreshButton) {
         fireEvent.click(refreshButton);
         expect(mockCheckGitInstalled).toHaveBeenCalledTimes(1);
@@ -549,7 +570,9 @@ describe('GitStatusPanel', () => {
 
       render(<GitStatusPanel />);
 
-      expect(screen.getByText((content) => content.includes('Branches') && content.includes('4'))).toBeInTheDocument();
+      expect(
+        screen.getByText((content) => content.includes('Branches') && content.includes('4'))
+      ).toBeInTheDocument();
       // Check for branch names in badges
       const badges = screen.getAllByTestId('badge');
       const branchNames = badges.map((b) => b.textContent);
@@ -613,7 +636,9 @@ describe('GitStatusPanel', () => {
 
       render(<GitStatusPanel repoPath="/test/path" />);
 
-      expect(screen.getByText((content) => content.includes('Not a Git repository'))).toBeInTheDocument();
+      expect(
+        screen.getByText((content) => content.includes('Not a Git repository'))
+      ).toBeInTheDocument();
     });
 
     it('does not display not a git repository message when repoPath is not provided', () => {
@@ -622,7 +647,9 @@ describe('GitStatusPanel', () => {
 
       render(<GitStatusPanel />);
 
-      expect(screen.queryByText((content) => content.includes('Not a Git repository'))).not.toBeInTheDocument();
+      expect(
+        screen.queryByText((content) => content.includes('Not a Git repository'))
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -686,9 +713,7 @@ describe('GitStatusPanel', () => {
     });
 
     it('displays added files with green color', () => {
-      mockUseGitReturnValue.fileStatus = [
-        { path: 'new.txt', status: 'added', staged: false },
-      ];
+      mockUseGitReturnValue.fileStatus = [{ path: 'new.txt', status: 'added', staged: false }];
 
       render(<GitStatusPanel />);
 
@@ -697,9 +722,7 @@ describe('GitStatusPanel', () => {
     });
 
     it('displays deleted files with red color', () => {
-      mockUseGitReturnValue.fileStatus = [
-        { path: 'old.txt', status: 'deleted', staged: false },
-      ];
+      mockUseGitReturnValue.fileStatus = [{ path: 'old.txt', status: 'deleted', staged: false }];
 
       render(<GitStatusPanel />);
 

@@ -2,7 +2,7 @@
 
 /**
  * Review Session Component - Combined flashcard and quiz review
- * 
+ *
  * Provides an interactive review session that combines flashcards and
  * quiz questions with spaced repetition support.
  */
@@ -76,31 +76,43 @@ export const ReviewSession = memo(function ReviewSession({
 
   const currentItem = session.items[currentIndex];
 
-  const handleFlashcardRate = useCallback((rating: RecallRating, flashcardId: string) => {
-    const timeSpentMs = Date.now() - itemStartTime;
-    const correct = rating !== 'forgot';
-    
-    setResults((prev) => [...prev, {
-      itemId: flashcardId,
-      type: 'flashcard',
-      correct,
-      rating,
-      timeSpentMs,
-    }]);
+  const handleFlashcardRate = useCallback(
+    (rating: RecallRating, flashcardId: string) => {
+      const timeSpentMs = Date.now() - itemStartTime;
+      const correct = rating !== 'forgot';
 
-    if (learningSessionId) {
-      learningStore.recordAnswer(learningSessionId, correct, timeSpentMs);
-    }
-  }, [itemStartTime, learningSessionId, learningStore]);
+      setResults((prev) => [
+        ...prev,
+        {
+          itemId: flashcardId,
+          type: 'flashcard',
+          correct,
+          rating,
+          timeSpentMs,
+        },
+      ]);
 
-  const handleQuizAnswer = useCallback((result: { questionId: string; correct: boolean; timeSpentMs: number }) => {
-    setResults((prev) => [...prev, {
-      itemId: result.questionId,
-      type: 'quiz_question',
-      correct: result.correct,
-      timeSpentMs: result.timeSpentMs,
-    }]);
-  }, []);
+      if (learningSessionId) {
+        learningStore.recordAnswer(learningSessionId, correct, timeSpentMs);
+      }
+    },
+    [itemStartTime, learningSessionId, learningStore]
+  );
+
+  const handleQuizAnswer = useCallback(
+    (result: { questionId: string; correct: boolean; timeSpentMs: number }) => {
+      setResults((prev) => [
+        ...prev,
+        {
+          itemId: result.questionId,
+          type: 'quiz_question',
+          correct: result.correct,
+          timeSpentMs: result.timeSpentMs,
+        },
+      ]);
+    },
+    []
+  );
 
   const handleNext = useCallback(() => {
     if (currentIndex < session.items.length - 1) {
@@ -109,12 +121,10 @@ export const ReviewSession = memo(function ReviewSession({
     } else {
       // Complete the session
       setIsComplete(true);
-      
+
       const totalTimeSpentMs = Date.now() - startTime;
       const correctCount = results.filter((r) => r.correct).length;
-      const accuracy = results.length > 0 
-        ? Math.round((correctCount / results.length) * 100) 
-        : 0;
+      const accuracy = results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0;
 
       onComplete?.({
         totalItems: session.items.length,
@@ -140,40 +150,41 @@ export const ReviewSession = memo(function ReviewSession({
     setItemStartTime(Date.now());
   }, []);
 
-  const progress = ((currentIndex) / session.items.length) * 100;
+  const progress = (currentIndex / session.items.length) * 100;
 
   if (isComplete) {
     const correctCount = results.filter((r) => r.correct).length;
-    const accuracy = results.length > 0
-      ? Math.round((correctCount / results.length) * 100)
-      : 0;
+    const accuracy = results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0;
     const passed = session.targetAccuracy ? accuracy >= session.targetAccuracy : true;
 
     return (
       <Card className={cn('p-6', className)}>
         <div className="text-center space-y-4">
-          <div className={cn(
-            'mx-auto w-16 h-16 rounded-full flex items-center justify-center',
-            passed ? 'bg-green-100 dark:bg-green-900/30' : 'bg-yellow-100 dark:bg-yellow-900/30'
-          )}>
+          <div
+            className={cn(
+              'mx-auto w-16 h-16 rounded-full flex items-center justify-center',
+              passed ? 'bg-green-100 dark:bg-green-900/30' : 'bg-yellow-100 dark:bg-yellow-900/30'
+            )}
+          >
             {passed ? (
               <Trophy className="h-8 w-8 text-green-600 dark:text-green-400" />
             ) : (
               <Target className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
             )}
           </div>
-          
+
           <h3 className="text-xl font-semibold">{t('review.sessionComplete')}</h3>
-          
+
           <div className="text-4xl font-bold text-primary">{accuracy}%</div>
-          
+
           <div className="text-muted-foreground">
             <p>{t('review.correctCount', { correct: correctCount, total: results.length })}</p>
           </div>
 
           {session.targetAccuracy && (
             <Badge variant={passed ? 'default' : 'destructive'}>
-              {passed ? t('review.targetMet') : t('review.targetNotMet')} ({t('review.target')}: {session.targetAccuracy}%)
+              {passed ? t('review.targetMet') : t('review.targetNotMet')} ({t('review.target')}:{' '}
+              {session.targetAccuracy}%)
             </Badge>
           )}
 
@@ -198,11 +209,7 @@ export const ReviewSession = memo(function ReviewSession({
               <BookOpen className="h-5 w-5 text-primary" />
               <CardTitle className="text-lg">{session.title}</CardTitle>
             </div>
-            {session.mode && (
-              <Badge variant="outline">
-                {t(`review.mode.${session.mode}`)}
-              </Badge>
-            )}
+            {session.mode && <Badge variant="outline">{t(`review.mode.${session.mode}`)}</Badge>}
           </div>
         </CardHeader>
       </Card>
@@ -237,12 +244,7 @@ export const ReviewSession = memo(function ReviewSession({
 
       {/* Navigation */}
       <div className="flex justify-between">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handlePrevious}
-          disabled={currentIndex === 0}
-        >
+        <Button variant="ghost" size="sm" onClick={handlePrevious} disabled={currentIndex === 0}>
           <ChevronLeft className="h-4 w-4 mr-1" />
           {t('previous')}
         </Button>
@@ -279,9 +281,8 @@ export const ProgressSummary = memo(function ProgressSummary({
 }: ProgressSummaryProps) {
   const t = useTranslations('learning');
 
-  const masteryPercentage = stats.totalConcepts > 0
-    ? Math.round((stats.masteredConcepts / stats.totalConcepts) * 100)
-    : 0;
+  const masteryPercentage =
+    stats.totalConcepts > 0 ? Math.round((stats.masteredConcepts / stats.totalConcepts) * 100) : 0;
 
   return (
     <Card className={cn('', className)}>
@@ -329,10 +330,15 @@ export const ProgressSummary = memo(function ProgressSummary({
             <h4 className="text-sm font-medium">{t('progress.recentActivity')}</h4>
             <div className="space-y-1">
               {recentActivity.slice(0, 5).map((activity, index) => (
-                <div key={index} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
+                <div
+                  key={index}
+                  className="flex items-center justify-between text-sm py-1 border-b last:border-0"
+                >
                   <span className="text-muted-foreground">{activity.date}</span>
                   <div className="flex items-center gap-4">
-                    <span>{activity.conceptsReviewed} {t('progress.reviewed')}</span>
+                    <span>
+                      {activity.conceptsReviewed} {t('progress.reviewed')}
+                    </span>
                     <Badge variant={activity.accuracy >= 80 ? 'default' : 'secondary'}>
                       {activity.accuracy}%
                     </Badge>

@@ -18,7 +18,7 @@ export function ObservabilityInitializer() {
     const initObservability = async () => {
       try {
         const { initializeObservability } = await import('@/lib/ai/observability');
-        
+
         await initializeObservability({
           langfuse: {
             publicKey: observabilitySettings.langfusePublicKey || undefined,

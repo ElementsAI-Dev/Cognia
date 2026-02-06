@@ -32,7 +32,12 @@ let mockModelRatings: ArenaModelRating[] = [];
 let mockRecommended: { modelA: string; modelB: string; reason: string } | null = null;
 
 jest.mock('@/stores/arena', () => ({
-  useArenaStore: (selector: (state: { modelRatings: ArenaModelRating[]; getRecommendedMatchup: () => typeof mockRecommended }) => unknown) => {
+  useArenaStore: (
+    selector: (state: {
+      modelRatings: ArenaModelRating[];
+      getRecommendedMatchup: () => typeof mockRecommended;
+    }) => unknown
+  ) => {
     const state = {
       modelRatings: mockModelRatings,
       getRecommendedMatchup: () => mockRecommended,
@@ -42,7 +47,12 @@ jest.mock('@/stores/arena', () => ({
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button type="button" onClick={onClick} disabled={disabled} {...props}>
       {children}
     </button>
@@ -66,7 +76,15 @@ jest.mock('@/components/ui/tooltip', () => ({
 }));
 
 jest.mock('@/components/ui/switch', () => ({
-  Switch: ({ checked, onCheckedChange, id }: { checked?: boolean; onCheckedChange?: (v: boolean) => void; id?: string }) => (
+  Switch: ({
+    checked,
+    onCheckedChange,
+    id,
+  }: {
+    checked?: boolean;
+    onCheckedChange?: (v: boolean) => void;
+    id?: string;
+  }) => (
     <input
       id={id}
       type="checkbox"
@@ -115,7 +133,9 @@ describe('ArenaQuickBattle', () => {
   });
 
   it('renders null when fewer than two models are available', () => {
-    mockAvailableModels = [{ provider: 'openai', model: 'gpt-4o-mini', displayName: 'GPT-4o mini' }];
+    mockAvailableModels = [
+      { provider: 'openai', model: 'gpt-4o-mini', displayName: 'GPT-4o mini' },
+    ];
 
     const { container } = render(<ArenaQuickBattle prompt="hello" />);
     expect(container.firstChild).toBeNull();

@@ -110,7 +110,7 @@ describe('ImageExportDialog', () => {
 
   it('should render trigger button', () => {
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     expect(screen.getByRole('button')).toBeInTheDocument();
     expect(screen.getByText('Export as Image')).toBeInTheDocument();
   });
@@ -122,15 +122,15 @@ describe('ImageExportDialog', () => {
         trigger={<button data-testid="custom-trigger">Custom Export</button>}
       />
     );
-    
+
     expect(screen.getByTestId('custom-trigger')).toBeInTheDocument();
   });
 
   it('should open dialog when trigger is clicked', async () => {
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       // Dialog should open with description text
       expect(screen.getByText('Export conversation as image for social media')).toBeInTheDocument();
@@ -139,9 +139,9 @@ describe('ImageExportDialog', () => {
 
   it('should display format options', async () => {
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('PNG')).toBeInTheDocument();
       expect(screen.getByText('JPG')).toBeInTheDocument();
@@ -151,9 +151,9 @@ describe('ImageExportDialog', () => {
 
   it('should display theme options', async () => {
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Light')).toBeInTheDocument();
       expect(screen.getByText('Dark')).toBeInTheDocument();
@@ -163,9 +163,9 @@ describe('ImageExportDialog', () => {
 
   it('should display resolution options', async () => {
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('1x (Standard)')).toBeInTheDocument();
       expect(screen.getByText('2x (HD)')).toBeInTheDocument();
@@ -175,9 +175,9 @@ describe('ImageExportDialog', () => {
 
   it('should display export options', async () => {
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Include Header')).toBeInTheDocument();
       expect(screen.getByText('Include Footer')).toBeInTheDocument();
@@ -188,9 +188,9 @@ describe('ImageExportDialog', () => {
 
   it('should display estimated size', async () => {
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       // Badge shows estimated size
       expect(screen.getByText(/150 KB/)).toBeInTheDocument();
@@ -199,9 +199,9 @@ describe('ImageExportDialog', () => {
 
   it('should display action buttons', async () => {
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Copy Image')).toBeInTheDocument();
       expect(screen.getByText(/Download/)).toBeInTheDocument();
@@ -210,17 +210,17 @@ describe('ImageExportDialog', () => {
 
   it('should call downloadAsImage when download button is clicked', async () => {
     const imageExport = await import('@/lib/export/image/image-export');
-    
+
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText(/Download PNG/)).toBeInTheDocument();
     });
-    
+
     fireEvent.click(screen.getByText(/Download PNG/));
-    
+
     await waitFor(() => {
       expect(imageExport.downloadAsImage).toHaveBeenCalled();
     });
@@ -228,17 +228,17 @@ describe('ImageExportDialog', () => {
 
   it('should call copyImageToClipboard when copy button is clicked', async () => {
     const imageExport = await import('@/lib/export/image/image-export');
-    
+
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Copy Image')).toBeInTheDocument();
     });
-    
+
     fireEvent.click(screen.getByText('Copy Image'));
-    
+
     await waitFor(() => {
       expect(imageExport.copyImageToClipboard).toHaveBeenCalled();
     });
@@ -246,9 +246,9 @@ describe('ImageExportDialog', () => {
 
   it('should display preview section', async () => {
     renderWithProviders(<ImageExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Preview')).toBeInTheDocument();
     });

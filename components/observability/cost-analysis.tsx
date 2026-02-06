@@ -5,7 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { DollarSign, TrendingUp, TrendingDown, PieChart, AlertCircle, Calendar, Target } from 'lucide-react';
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  PieChart,
+  AlertCircle,
+  Calendar,
+  Target,
+} from 'lucide-react';
 import { ProviderChart, UsageTrendChart } from './charts';
 import type { MetricsData, TimeRange } from './observability-dashboard';
 import type { TimeSeriesDataPoint } from '@/lib/ai/usage-analytics';
@@ -22,13 +30,15 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
   const tTime = useTranslations('observability.timeRange');
 
   // Convert metrics data to chart-compatible format
-  const providerCostData = Object.entries(metrics?.costByProvider || {}).map(([provider, cost]) => ({
-    provider,
-    requests: metrics?.requestsByProvider?.[provider] || 0,
-    tokens: metrics?.tokensByProvider?.[provider] || 0,
-    cost,
-    percentage: metrics?.totalCost ? (cost / metrics.totalCost) * 100 : 0,
-  }));
+  const providerCostData = Object.entries(metrics?.costByProvider || {}).map(
+    ([provider, cost]) => ({
+      provider,
+      requests: metrics?.requestsByProvider?.[provider] || 0,
+      tokens: metrics?.tokensByProvider?.[provider] || 0,
+      cost,
+      percentage: metrics?.totalCost ? (cost / metrics.totalCost) * 100 : 0,
+    })
+  );
 
   if (!metrics) {
     return (
@@ -42,20 +52,20 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
 
   const getTimeRangeLabel = (range: TimeRange) => {
     switch (range) {
-      case '1h': return tTime('lastHour');
-      case '24h': return tTime('last24Hours');
-      case '7d': return tTime('last7Days');
-      case '30d': return tTime('last30Days');
+      case '1h':
+        return tTime('lastHour');
+      case '24h':
+        return tTime('last24Hours');
+      case '7d':
+        return tTime('last7Days');
+      case '30d':
+        return tTime('last30Days');
     }
   };
 
-  const costPerRequest = metrics.totalRequests > 0 
-    ? metrics.totalCost / metrics.totalRequests 
-    : 0;
+  const costPerRequest = metrics.totalRequests > 0 ? metrics.totalCost / metrics.totalRequests : 0;
 
-  const costPerToken = metrics.totalTokens > 0 
-    ? metrics.totalCost / metrics.totalTokens 
-    : 0;
+  const costPerToken = metrics.totalTokens > 0 ? metrics.totalCost / metrics.totalTokens : 0;
 
   const totalProviderCost = Object.values(metrics.costByProvider).reduce((a, b) => a + b, 0);
 
@@ -157,7 +167,8 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
                   Object.entries(metrics.costByProvider)
                     .sort((a, b) => b[1] - a[1])
                     .map(([provider, cost]) => {
-                      const percentage = totalProviderCost > 0 ? (cost / totalProviderCost) * 100 : 0;
+                      const percentage =
+                        totalProviderCost > 0 ? (cost / totalProviderCost) * 100 : 0;
                       return (
                         <div key={provider} className="space-y-2">
                           <div className="flex items-center justify-between">
@@ -195,10 +206,14 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
           <CardContent>
             <div className="space-y-4">
               {/* Main cost display */}
-              <div className={cn(
-                'p-4 rounded-lg border-2 text-center',
-                metrics.totalCost > 1 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : 'border-green-200 bg-green-50 dark:bg-green-950/20'
-              )}>
+              <div
+                className={cn(
+                  'p-4 rounded-lg border-2 text-center',
+                  metrics.totalCost > 1
+                    ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20'
+                    : 'border-green-200 bg-green-50 dark:bg-green-950/20'
+                )}
+              >
                 <div className="text-3xl font-bold">${metrics.totalCost.toFixed(4)}</div>
                 <div className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
                   {costTrend > 0 ? (
@@ -213,12 +228,16 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
               {/* Stats grid */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 bg-muted/50 rounded-lg">
-                  <div className="text-lg font-semibold">{metrics.totalRequests.toLocaleString()}</div>
+                  <div className="text-lg font-semibold">
+                    {metrics.totalRequests.toLocaleString()}
+                  </div>
                   <div className="text-xs text-muted-foreground">{t('totalRequests')}</div>
                 </div>
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <div className="text-lg font-semibold">
-                    {metrics.totalTokens >= 1000 ? `${(metrics.totalTokens / 1000).toFixed(1)}K` : metrics.totalTokens}
+                    {metrics.totalTokens >= 1000
+                      ? `${(metrics.totalTokens / 1000).toFixed(1)}K`
+                      : metrics.totalTokens}
                   </div>
                   <div className="text-xs text-muted-foreground">{t('totalTokens')}</div>
                 </div>
@@ -245,10 +264,15 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
 
 function getMultiplier(timeRange: TimeRange): number {
   switch (timeRange) {
-    case '1h': return 24 * 30; // 1 hour to 1 month
-    case '24h': return 30; // 1 day to 1 month
-    case '7d': return 4.3; // 1 week to 1 month
-    case '30d': return 1; // Already 1 month
-    default: return 1;
+    case '1h':
+      return 24 * 30; // 1 hour to 1 month
+    case '24h':
+      return 30; // 1 day to 1 month
+    case '7d':
+      return 4.3; // 1 week to 1 month
+    case '30d':
+      return 1; // Already 1 month
+    default:
+      return 1;
   }
 }

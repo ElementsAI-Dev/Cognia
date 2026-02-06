@@ -37,11 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Dialog,
   DialogContent,
@@ -50,11 +46,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useArena } from '@/hooks/arena';
 import { useArenaStore } from '@/stores/arena';
@@ -114,13 +106,9 @@ export function ArenaDialog({
   // Toggle model selection
   const toggleModel = useCallback((model: ModelOption) => {
     setSelectedModels((prev) => {
-      const exists = prev.some(
-        (m) => m.provider === model.provider && m.model === model.model
-      );
+      const exists = prev.some((m) => m.provider === model.provider && m.model === model.model);
       if (exists) {
-        return prev.filter(
-          (m) => !(m.provider === model.provider && m.model === model.model)
-        );
+        return prev.filter((m) => !(m.provider === model.provider && m.model === model.model));
       }
       return [...prev, model];
     });
@@ -129,9 +117,7 @@ export function ArenaDialog({
   // Check if model is selected
   const isSelected = useCallback(
     (model: ModelOption) => {
-      return selectedModels.some(
-        (m) => m.provider === model.provider && m.model === model.model
-      );
+      return selectedModels.some((m) => m.provider === model.provider && m.model === model.model);
     },
     [selectedModels]
   );
@@ -437,10 +423,18 @@ export function ArenaDialog({
                       <SelectItem value="auto">{t('autoDetect')}</SelectItem>
                       <SelectItem value="coding">{t('leaderboard.categories.coding')}</SelectItem>
                       <SelectItem value="math">{t('leaderboard.categories.math')}</SelectItem>
-                      <SelectItem value="analysis">{t('leaderboard.categories.analysis')}</SelectItem>
-                      <SelectItem value="creative">{t('leaderboard.categories.creative')}</SelectItem>
-                      <SelectItem value="research">{t('leaderboard.categories.research')}</SelectItem>
-                      <SelectItem value="translation">{t('leaderboard.categories.translation')}</SelectItem>
+                      <SelectItem value="analysis">
+                        {t('leaderboard.categories.analysis')}
+                      </SelectItem>
+                      <SelectItem value="creative">
+                        {t('leaderboard.categories.creative')}
+                      </SelectItem>
+                      <SelectItem value="research">
+                        {t('leaderboard.categories.research')}
+                      </SelectItem>
+                      <SelectItem value="translation">
+                        {t('leaderboard.categories.translation')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -457,7 +451,9 @@ export function ArenaDialog({
                       <span className="text-sm">{t('temperature')}</span>
                       <p className="text-xs text-muted-foreground">{t('temperatureDescription')}</p>
                     </div>
-                    <span className="text-sm font-medium w-12 text-right">{temperature.toFixed(1)}</span>
+                    <span className="text-sm font-medium w-12 text-right">
+                      {temperature.toFixed(1)}
+                    </span>
                   </div>
                   <Slider
                     value={[temperature]}

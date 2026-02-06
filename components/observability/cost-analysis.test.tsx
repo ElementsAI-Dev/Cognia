@@ -10,7 +10,7 @@ import type { MetricsData, TimeRange } from './observability-dashboard';
 const mockMetrics: MetricsData = {
   totalRequests: 100,
   totalTokens: 50000,
-  totalCost: 5.50,
+  totalCost: 5.5,
   averageLatency: 1200,
   errorRate: 0.01,
   requestsByProvider: {
@@ -27,8 +27,8 @@ const mockMetrics: MetricsData = {
     anthropic: 20000,
   },
   costByProvider: {
-    openai: 3.50,
-    anthropic: 2.00,
+    openai: 3.5,
+    anthropic: 2.0,
   },
   latencyPercentiles: {
     p50: 1000,

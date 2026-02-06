@@ -67,7 +67,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 
 describe('LearningStartDialog', () => {
   const mockStartLearning = jest.fn();
-  
+
   beforeEach(() => {
     jest.clearAllMocks();
     (useLearningMode as jest.Mock).mockReturnValue({
@@ -121,14 +121,14 @@ describe('LearningStartDialog', () => {
   describe('Topic Input', () => {
     it('allows entering topic', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
-      
+
       // Dialog should render
       expect(screen.getByText('Start Learning')).toBeInTheDocument();
     });
 
     it('disables start button when topic is empty', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
-      
+
       // Dialog should render
       expect(screen.getByText('Start Learning')).toBeInTheDocument();
     });
@@ -137,14 +137,14 @@ describe('LearningStartDialog', () => {
   describe('Goals Management', () => {
     it('allows adding learning goals', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
-      
+
       // Dialog should render
       expect(screen.getByText('Start Learning')).toBeInTheDocument();
     });
 
     it('clears goal input after adding', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
-      
+
       // Dialog should render
       expect(screen.getByText('Start Learning')).toBeInTheDocument();
     });
@@ -153,7 +153,7 @@ describe('LearningStartDialog', () => {
   describe('Difficulty Selection', () => {
     it('selects difficulty level', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
-      
+
       // Dialog should render
       expect(screen.getByText('Start Learning')).toBeInTheDocument();
     });
@@ -162,7 +162,7 @@ describe('LearningStartDialog', () => {
   describe('Learning Type Selection', () => {
     it('toggles between quick and journey', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
-      
+
       // Dialog should render
       expect(screen.getByText('Start Learning')).toBeInTheDocument();
     });
@@ -171,7 +171,7 @@ describe('LearningStartDialog', () => {
   describe('Form Submission', () => {
     it('calls startLearning with form data', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
-      
+
       // Dialog should render
       expect(screen.getByText('Start Learning')).toBeInTheDocument();
     });
@@ -180,9 +180,9 @@ describe('LearningStartDialog', () => {
   describe('Cancel', () => {
     it('calls onOpenChange with false when cancelled', () => {
       const onOpenChange = jest.fn();
-      
+
       render(<LearningStartDialog open={true} onOpenChange={onOpenChange} />, { wrapper });
-      
+
       // Dialog should render
       expect(screen.getByText('Start Learning')).toBeInTheDocument();
     });
@@ -190,14 +190,8 @@ describe('LearningStartDialog', () => {
 
   describe('Styling', () => {
     it('renders dialog content when open', () => {
-      render(
-        <LearningStartDialog 
-          open={true} 
-          onOpenChange={() => {}}
-        />,
-        { wrapper }
-      );
-      
+      render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
+
       // Dialog should have content visible
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });

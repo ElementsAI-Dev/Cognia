@@ -4,7 +4,13 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -47,7 +53,11 @@ import {
 import { useSettingsStore, useUsageStore } from '@/stores';
 import { useObservabilityData } from '@/hooks/observability';
 import { getTopSessionsByUsage } from '@/lib/ai/usage-analytics';
-import { downloadRecordsAsCSV, downloadRecordsAsJSON, downloadTimeSeriesAsCSV } from '@/lib/ai/usage-export';
+import {
+  downloadRecordsAsCSV,
+  downloadRecordsAsJSON,
+  downloadTimeSeriesAsCSV,
+} from '@/lib/ai/usage-export';
 import { cn } from '@/lib/utils';
 
 export interface TraceData {
@@ -320,7 +330,11 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
         />
         <StatCard
           title={t('totalTokens')}
-          value={statistics.totalTokens >= 1000 ? `${(statistics.totalTokens / 1000).toFixed(1)}K` : statistics.totalTokens.toString()}
+          value={
+            statistics.totalTokens >= 1000
+              ? `${(statistics.totalTokens / 1000).toFixed(1)}K`
+              : statistics.totalTokens.toString()
+          }
           icon={<Zap className="h-4 w-4 text-yellow-500" />}
           subtitle={`${t('avgPerRequest')}: ${Math.round(statistics.averageTokensPerRequest)}`}
           animated
@@ -341,7 +355,11 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
         />
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 px-4 pb-4 overflow-hidden">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex-1 px-4 pb-4 overflow-hidden"
+      >
         <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
           <TabsTrigger value="overview" className="gap-1">
             <LineChart className="h-3.5 w-3.5 hidden sm:inline" />
@@ -431,9 +449,7 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
               <CardContent className="p-0">
                 <ScrollArea className="max-h-96">
                   <div className="divide-y">
-                    <div className="p-4 text-center text-muted-foreground">
-                      {t('noTraces')}
-                    </div>
+                    <div className="p-4 text-center text-muted-foreground">{t('noTraces')}</div>
                   </div>
                 </ScrollArea>
               </CardContent>

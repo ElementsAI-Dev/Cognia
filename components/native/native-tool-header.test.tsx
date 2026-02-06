@@ -22,12 +22,7 @@ describe('NativeToolHeader', () => {
   });
 
   it('renders description when provided', () => {
-    render(
-      <NativeToolHeader
-        title="Screenshot"
-        description="Capture your screen"
-      />
-    );
+    render(<NativeToolHeader title="Screenshot" description="Capture your screen" />);
 
     expect(screen.getByText('Capture your screen')).toBeInTheDocument();
   });
@@ -40,10 +35,7 @@ describe('NativeToolHeader', () => {
 
   it('renders custom badge element', () => {
     render(
-      <NativeToolHeader
-        title="Screenshot"
-        badge={<span data-testid="custom-badge">Custom</span>}
-      />
+      <NativeToolHeader title="Screenshot" badge={<span data-testid="custom-badge">Custom</span>} />
     );
 
     expect(screen.getByTestId('custom-badge')).toBeInTheDocument();
@@ -63,11 +55,7 @@ describe('NativeToolHeader', () => {
   it('renders refresh button and calls onRefresh', () => {
     const mockOnRefresh = jest.fn();
     render(
-      <NativeToolHeader
-        title="Screenshot"
-        onRefresh={mockOnRefresh}
-        refreshLabel="Refresh data"
-      />
+      <NativeToolHeader title="Screenshot" onRefresh={mockOnRefresh} refreshLabel="Refresh data" />
     );
 
     const refreshButton = screen.getByRole('button');
@@ -77,22 +65,14 @@ describe('NativeToolHeader', () => {
   });
 
   it('shows spinning animation when isRefreshing is true', () => {
-    render(
-      <NativeToolHeader
-        title="Screenshot"
-        onRefresh={() => {}}
-        isRefreshing
-      />
-    );
+    render(<NativeToolHeader title="Screenshot" onRefresh={() => {}} isRefreshing />);
 
     const refreshButton = screen.getByRole('button');
     expect(refreshButton).toBeDisabled();
   });
 
   it('applies custom className', () => {
-    render(
-      <NativeToolHeader title="Screenshot" className="custom-header-class" />
-    );
+    render(<NativeToolHeader title="Screenshot" className="custom-header-class" />);
 
     const header = screen.getByRole('banner');
     expect(header).toHaveClass('custom-header-class');

@@ -1,13 +1,13 @@
 /**
  * Property-Based Test: Window Content Visibility
- * 
+ *
  * **Feature: floating-window-fixes, Property 1: Window Content Visibility**
  * **Validates: Requirements 1.1, 1.2, 1.3**
- * 
+ *
  * Property: For any floating window configuration, when the window is shown,
  * all React components should render with full opacity and proper styling
  * without requiring window resize or manual intervention.
- * 
+ *
  * @jest-environment jsdom
  */
 
@@ -107,7 +107,11 @@ jest.mock('./chat-widget-messages', () => ({
 
 jest.mock('./chat-widget-input', () => ({
   ChatWidgetInput: React.forwardRef<HTMLTextAreaElement>(function ChatWidgetInput(_, ref) {
-    return <div data-testid="chat-widget-input" ref={ref as React.Ref<HTMLDivElement>}>Input</div>;
+    return (
+      <div data-testid="chat-widget-input" ref={ref as React.Ref<HTMLDivElement>}>
+        Input
+      </div>
+    );
   }),
 }));
 
@@ -120,11 +124,16 @@ jest.mock('./chat-widget-suggestions', () => ({
 }));
 
 // Arbitrary generators for window configuration
-const hexColorArbitrary = fc.tuple(
-  fc.integer({ min: 0, max: 255 }),
-  fc.integer({ min: 0, max: 255 }),
-  fc.integer({ min: 0, max: 255 })
-).map(([r, g, b]) => `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`);
+const hexColorArbitrary = fc
+  .tuple(
+    fc.integer({ min: 0, max: 255 }),
+    fc.integer({ min: 0, max: 255 }),
+    fc.integer({ min: 0, max: 255 })
+  )
+  .map(
+    ([r, g, b]) =>
+      `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+  );
 
 const windowConfigArbitrary = fc.record({
   isVisible: fc.boolean(),
@@ -153,10 +162,10 @@ describe('Property Test: Window Content Visibility', () => {
 
   /**
    * Property 1: Window Content Visibility
-   * 
+   *
    * For any floating window configuration, when the window is shown,
    * all React components should render with full opacity and proper styling.
-   * 
+   *
    * **Validates: Requirements 1.1, 1.2, 1.3**
    */
   it('should render all components with proper visibility for any valid configuration', () => {
@@ -171,17 +180,17 @@ describe('Property Test: Window Content Visibility', () => {
         // Property 1.1: Container should exist and be visible
         const chatContainer = container.firstChild as HTMLElement;
         expect(chatContainer).toBeTruthy();
-        
+
         // Property 1.2: Container should have opaque background class (bg-background, not bg-background/95)
         expect(chatContainer.className).toContain('bg-background');
         expect(chatContainer.className).not.toContain('backdrop-blur');
-        
+
         // Property 1.3: Container should have proper text color for contrast
         expect(chatContainer.className).toContain('text-foreground');
-        
+
         // Property 1.4: Container should have data attribute for content validation
         expect(chatContainer.getAttribute('data-chat-widget-container')).toBeDefined();
-        
+
         // Property 1.5: Core components should be rendered
         expect(screen.getByTestId('chat-widget-header')).toBeInTheDocument();
         expect(screen.getByTestId('chat-widget-messages')).toBeInTheDocument();
@@ -196,51 +205,48 @@ describe('Property Test: Window Content Visibility', () => {
 
   /**
    * Property: Background color should always be valid hex format
-   * 
+   *
    * For any generated background color, it should be a valid hex color.
    */
   it('should accept any valid hex background color', () => {
     fc.assert(
-      fc.property(
-        hexColorArbitrary,
-        (backgroundColor) => {
-          // Verify the background color is a valid hex format
-          const hexRegex = /^#[0-9a-fA-F]{6}$/;
-          expect(hexRegex.test(backgroundColor)).toBe(true);
-          
-          // Update mock with the background color
-          currentMockConfig = createMockUseChatWidget({
-            isVisible: true,
-            isLoading: false,
-            error: null,
-            messages: [],
-            inputValue: '',
-            opacity: 1.0,
-            pinned: false,
-            width: 420,
-            height: 600,
-            backgroundColor,
-          });
+      fc.property(hexColorArbitrary, (backgroundColor) => {
+        // Verify the background color is a valid hex format
+        const hexRegex = /^#[0-9a-fA-F]{6}$/;
+        expect(hexRegex.test(backgroundColor)).toBe(true);
 
-          // Render should succeed without errors
-          const { unmount } = render(<ChatWidget />);
-          unmount();
-        }
-      ),
+        // Update mock with the background color
+        currentMockConfig = createMockUseChatWidget({
+          isVisible: true,
+          isLoading: false,
+          error: null,
+          messages: [],
+          inputValue: '',
+          opacity: 1.0,
+          pinned: false,
+          width: 420,
+          height: 600,
+          backgroundColor,
+        });
+
+        // Render should succeed without errors
+        const { unmount } = render(<ChatWidget />);
+        unmount();
+      }),
       { numRuns: 100 }
     );
   });
 
   /**
    * Property: Window dimensions should not affect content visibility
-   * 
+   *
    * For any valid window dimensions within constraints, content should render properly.
    */
   it('should render content properly for any valid window dimensions', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 320, max: 1200 }), // width
-        fc.integer({ min: 400, max: 900 }),  // height
+        fc.integer({ min: 400, max: 900 }), // height
         (width, height) => {
           currentMockConfig = createMockUseChatWidget({
             isVisible: true,
@@ -256,11 +262,11 @@ describe('Property Test: Window Content Visibility', () => {
           });
 
           const { container, unmount } = render(<ChatWidget />);
-          
+
           // Container should render regardless of dimensions
           const chatContainer = container.firstChild as HTMLElement;
           expect(chatContainer).toBeTruthy();
-          
+
           // Should have full height styling
           expect(chatContainer.className).toContain('h-screen');
           expect(chatContainer.className).toContain('w-full');

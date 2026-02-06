@@ -30,25 +30,54 @@ jest.mock('next-intl', () => ({
 
 // Minimal UI component mocks
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode }) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode }) => (
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => open ? <div data-testid="dialog">{children}</div> : null,
-  DialogContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-content">{children}</div>,
-  DialogDescription: ({ children }: { children: React.ReactNode }) => <p data-testid="dialog-description">{children}</p>,
-  DialogHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-header">{children}</div>,
-  DialogTitle: ({ children }: { children: React.ReactNode }) => <h2 data-testid="dialog-title">{children}</h2>,
-  DialogFooter: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-footer">{children}</div>,
+  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
+    open ? <div data-testid="dialog">{children}</div> : null,
+  DialogContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-content">{children}</div>
+  ),
+  DialogDescription: ({ children }: { children: React.ReactNode }) => (
+    <p data-testid="dialog-description">{children}</p>
+  ),
+  DialogHeader: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-header">{children}</div>
+  ),
+  DialogTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2 data-testid="dialog-title">{children}</h2>
+  ),
+  DialogFooter: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-footer">{children}</div>
+  ),
 }));
 
 jest.mock('@/components/ui/tabs', () => ({
   Tabs: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs">{children}</div>,
-  TabsList: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs-list">{children}</div>,
-  TabsTrigger: ({ children, value, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode; value?: string }) => (
-    <button role="tab" data-value={value} {...props}>{children}</button>
+  TabsList: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="tabs-list">{children}</div>
+  ),
+  TabsTrigger: ({
+    children,
+    value,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    children: React.ReactNode;
+    value?: string;
+  }) => (
+    <button role="tab" data-value={value} {...props}>
+      {children}
+    </button>
   ),
   TabsContent: ({ children, value }: { children: React.ReactNode; value?: string }) => (
     <div data-testid={`tabs-content-${value}`}>{children}</div>
@@ -56,11 +85,15 @@ jest.mock('@/components/ui/tabs', () => ({
 }));
 
 jest.mock('@/components/ui/input', () => ({
-  Input: (props: React.InputHTMLAttributes<HTMLInputElement> & { id?: string }) => <input data-testid={`input-${props.id || ''}`} {...props} />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement> & { id?: string }) => (
+    <input data-testid={`input-${props.id || ''}`} {...props} />
+  ),
 }));
 
 jest.mock('@/components/ui/textarea', () => ({
-  Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { id?: string }) => <textarea data-testid={`textarea-${props.id || ''}`} {...props} />,
+  Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { id?: string }) => (
+    <textarea data-testid={`textarea-${props.id || ''}`} {...props} />
+  ),
 }));
 
 jest.mock('@/components/ui/label', () => ({
@@ -249,23 +282,14 @@ describe('CustomModeEditor - Save & Create', () => {
     const user = userEvent.setup();
     const onSave = jest.fn();
 
-    render(
-      <CustomModeEditor
-        {...defaultProps}
-        mode={mockCustomMode}
-        onSave={onSave}
-      />
-    );
+    render(<CustomModeEditor {...defaultProps} mode={mockCustomMode} onSave={onSave} />);
 
     // Click save
     const saveButton = screen.getByText('save');
     await user.click(saveButton);
 
     await waitFor(() => {
-      expect(mockUpdateMode).toHaveBeenCalledWith(
-        mockCustomMode.id,
-        expect.any(Object)
-      );
+      expect(mockUpdateMode).toHaveBeenCalledWith(mockCustomMode.id, expect.any(Object));
     });
   });
 
@@ -349,7 +373,7 @@ describe('CustomModeEditor - AI Generation', () => {
 
     // Generate button should be present
     const buttons = screen.getAllByRole('button');
-    const generateButton = buttons.find(btn => btn.textContent === 'generate');
+    const generateButton = buttons.find((btn) => btn.textContent === 'generate');
     expect(generateButton).toBeInTheDocument();
   });
 });
@@ -358,9 +382,7 @@ describe('CustomModeEditor - Tool Availability', () => {
   it('shows warning when tools require configuration', () => {
     (checkToolAvailability as jest.Mock).mockReturnValue({
       available: ['calculator'],
-      unavailable: [
-        { tool: 'web_search', reason: 'Requires Tavily API key' },
-      ],
+      unavailable: [{ tool: 'web_search', reason: 'Requires Tavily API key' }],
     });
 
     const modeWithUnavailableTools = {
@@ -478,9 +500,7 @@ describe('CustomModeEditor - Edge Cases', () => {
   });
 
   it('handles generation error gracefully', async () => {
-    mockGenerateModeFromDescription.mockRejectedValue(
-      new Error('Generation failed')
-    );
+    mockGenerateModeFromDescription.mockRejectedValue(new Error('Generation failed'));
 
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 

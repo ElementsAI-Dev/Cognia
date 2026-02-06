@@ -169,7 +169,12 @@ describe('AgentSteps', () => {
 
   it('renders completed steps', () => {
     const steps = [
-      { id: 'step-1', name: 'WebSearch', status: 'completed' as const, description: 'Search completed' },
+      {
+        id: 'step-1',
+        name: 'WebSearch',
+        status: 'completed' as const,
+        description: 'Search completed',
+      },
     ];
     render(<AgentSteps steps={steps} />);
     expect(screen.getByText('WebSearch')).toBeInTheDocument();

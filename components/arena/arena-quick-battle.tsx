@@ -10,16 +10,8 @@ import { useTranslations } from 'next-intl';
 import { Zap, Shuffle, Settings2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -84,8 +76,10 @@ function ArenaQuickBattleComponent({
     // Fallback: select top 2 rated models from different providers
     if (availableModels.length >= 2) {
       const sortedByRating = [...availableModels].sort((a, b) => {
-        const ratingA = modelRatings.find((r) => r.modelId === `${a.provider}:${a.model}`)?.rating || 1500;
-        const ratingB = modelRatings.find((r) => r.modelId === `${b.provider}:${b.model}`)?.rating || 1500;
+        const ratingA =
+          modelRatings.find((r) => r.modelId === `${a.provider}:${a.model}`)?.rating || 1500;
+        const ratingB =
+          modelRatings.find((r) => r.modelId === `${b.provider}:${b.model}`)?.rating || 1500;
         return ratingB - ratingA;
       });
 
@@ -122,7 +116,17 @@ function ArenaQuickBattleComponent({
         maxTurns: 5,
       }
     );
-  }, [prompt, isExecuting, disabled, getSmartModelPair, startBattle, sessionId, systemPrompt, blindMode, multiTurn]);
+  }, [
+    prompt,
+    isExecuting,
+    disabled,
+    getSmartModelPair,
+    startBattle,
+    sessionId,
+    systemPrompt,
+    blindMode,
+    multiTurn,
+  ]);
 
   const selectedModels = useMemo(() => getSmartModelPair(), [getSmartModelPair]);
 
@@ -162,11 +166,7 @@ function ArenaQuickBattleComponent({
         disabled={disabled || isExecuting || !prompt.trim()}
         className="gap-2"
       >
-        {isExecuting ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Zap className="h-4 w-4" />
-        )}
+        {isExecuting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
         {t('quickBattle.title')}
       </Button>
 
@@ -219,28 +219,18 @@ function ArenaQuickBattleComponent({
                 <Label htmlFor="blind-mode" className="text-sm">
                   {t('quickBattle.blindMode')}
                 </Label>
-                <Switch
-                  id="blind-mode"
-                  checked={blindMode}
-                  onCheckedChange={setBlindMode}
-                />
+                <Switch id="blind-mode" checked={blindMode} onCheckedChange={setBlindMode} />
               </div>
 
               <div className="flex items-center justify-between">
                 <Label htmlFor="multi-turn" className="text-sm">
                   {t('quickBattle.multiTurn')}
                 </Label>
-                <Switch
-                  id="multi-turn"
-                  checked={multiTurn}
-                  onCheckedChange={setMultiTurn}
-                />
+                <Switch id="multi-turn" checked={multiTurn} onCheckedChange={setMultiTurn} />
               </div>
             </div>
 
-            {error && (
-              <p className="text-xs text-destructive">{error}</p>
-            )}
+            {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
         </PopoverContent>
       </Popover>

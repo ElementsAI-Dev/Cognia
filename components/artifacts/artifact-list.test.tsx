@@ -7,7 +7,8 @@ import { ArtifactList, ArtifactListCompact } from './artifact-list';
 
 // Mock artifact-icons
 jest.mock('./artifact-icons', () => ({
-  getArtifactTypeIcon: (type: string) => React.createElement('span', { 'data-testid': `icon-${type}` }, type),
+  getArtifactTypeIcon: (type: string) =>
+    React.createElement('span', { 'data-testid': `icon-${type}` }, type),
   ARTIFACT_TYPE_ICONS: {},
 }));
 
@@ -81,28 +82,52 @@ jest.mock('@/stores', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, className, variant, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string; variant?: string }) => (
-    <button onClick={onClick} className={className} data-variant={variant} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    className,
+    variant,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string; variant?: string }) => (
+    <button onClick={onClick} className={className} data-variant={variant} {...props}>
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="scroll-area" className={className}>{children}</div>
+    <div data-testid="scroll-area" className={className}>
+      {children}
+    </div>
   ),
 }));
 
 jest.mock('@/components/ui/badge', () => ({
   Badge: ({ children, variant }: { children: React.ReactNode; variant?: string }) => (
-    <span data-testid="badge" data-variant={variant}>{children}</span>
+    <span data-testid="badge" data-variant={variant}>
+      {children}
+    </span>
   ),
 }));
 
 jest.mock('@/components/ui/context-menu', () => ({
   ContextMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  ContextMenuContent: ({ children }: { children: React.ReactNode }) => <div data-testid="context-menu">{children}</div>,
-  ContextMenuItem: ({ children, onClick, className }: { children: React.ReactNode; onClick?: (e: React.MouseEvent) => void; className?: string }) => (
-    <button onClick={onClick} className={className}>{children}</button>
+  ContextMenuContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="context-menu">{children}</div>
+  ),
+  ContextMenuItem: ({
+    children,
+    onClick,
+    className,
+  }: {
+    children: React.ReactNode;
+    onClick?: (e: React.MouseEvent) => void;
+    className?: string;
+  }) => (
+    <button onClick={onClick} className={className}>
+      {children}
+    </button>
   ),
   ContextMenuTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));

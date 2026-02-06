@@ -1,22 +1,17 @@
-"use client";
+'use client';
 
-import { useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   X,
   MoreVertical,
@@ -29,11 +24,11 @@ import {
   GripHorizontal,
   Download,
   Maximize2,
-} from "lucide-react";
-import type { ChatWidgetConfig, ChatWidgetMessage } from "@/stores/chat";
-import type { ProviderName } from "@/types";
-import { ChatWidgetShortcuts } from "./chat-widget-shortcuts";
-import { ChatWidgetModelSelector } from "./chat-widget-model-selector";
+} from 'lucide-react';
+import type { ChatWidgetConfig, ChatWidgetMessage } from '@/stores/chat';
+import type { ProviderName } from '@/types';
+import { ChatWidgetShortcuts } from './chat-widget-shortcuts';
+import { ChatWidgetModelSelector } from './chat-widget-model-selector';
 
 interface ChatWidgetHeaderProps {
   config: ChatWidgetConfig;
@@ -64,15 +59,15 @@ export function ChatWidgetHeader({
   onModelChange,
   className,
 }: ChatWidgetHeaderProps) {
-  const t = useTranslations("chatWidget.header");
+  const t = useTranslations('chatWidget.header');
 
   return (
     <div
       className={cn(
-        "flex items-center justify-between",
-        "px-3 py-2 h-12",
-        "bg-muted/50 border-b border-border/50",
-        "select-none",
+        'flex items-center justify-between',
+        'px-3 py-2 h-12',
+        'bg-muted/50 border-b border-border/50',
+        'select-none',
         className
       )}
     >
@@ -98,9 +93,7 @@ export function ChatWidgetHeader({
             </Badge>
           )}
         </div>
-        {config.pinned && (
-          <Pin className="h-3 w-3 text-muted-foreground ml-1" />
-        )}
+        {config.pinned && <Pin className="h-3 w-3 text-muted-foreground ml-1" />}
       </div>
 
       {/* Model selector */}
@@ -120,30 +113,18 @@ export function ChatWidgetHeader({
           {onExpandToFull && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={onExpandToFull}
-                >
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onExpandToFull}>
                   <Maximize2 className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {t("expandToFull")}
-              </TooltipContent>
+              <TooltipContent side="bottom">{t('expandToFull')}</TooltipContent>
             </Tooltip>
           )}
 
           {/* Pin toggle */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={onTogglePin}
-              >
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onTogglePin}>
                 {config.pinned ? (
                   <PinOff className="h-3.5 w-3.5" />
                 ) : (
@@ -151,9 +132,7 @@ export function ChatWidgetHeader({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {config.pinned ? t("unpin") : t("pin")}
-            </TooltipContent>
+            <TooltipContent side="bottom">{config.pinned ? t('unpin') : t('pin')}</TooltipContent>
           </Tooltip>
 
           {/* More menu */}
@@ -166,16 +145,16 @@ export function ChatWidgetHeader({
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={onNewSession}>
                 <RotateCcw className="h-4 w-4 mr-2" />
-                {t("newSession")}
+                {t('newSession')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onClearMessages}>
                 <Trash2 className="h-4 w-4 mr-2" />
-                {t("clearMessages")}
+                {t('clearMessages')}
               </DropdownMenuItem>
               {onExport && messages && messages.length > 0 && (
                 <DropdownMenuItem onClick={onExport}>
                   <Download className="h-4 w-4 mr-2" />
-                  {t("exportChat")}
+                  {t('exportChat')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
@@ -183,7 +162,7 @@ export function ChatWidgetHeader({
               {onSettings && (
                 <DropdownMenuItem onClick={onSettings}>
                   <Settings className="h-4 w-4 mr-2" />
-                  {t("settings")}
+                  {t('settings')}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -199,7 +178,7 @@ export function ChatWidgetHeader({
               e.stopPropagation();
               onClose();
             }}
-            title={t("close")}
+            title={t('close')}
           >
             <X className="h-3.5 w-3.5" />
           </Button>

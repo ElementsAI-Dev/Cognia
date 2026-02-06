@@ -47,7 +47,9 @@ export function LaTeXExportDialog({
   const [format, setFormat] = useState<ExportFormat>('html');
   const [fileName, setFileName] = useState('document');
   const [includeMathJax, setIncludeMathJax] = useState(true);
-  const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
+  const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>(
+    'idle'
+  );
 
   const { exportToFormat, isExporting } = useLatex();
 
@@ -58,16 +60,16 @@ export function LaTeXExportDialog({
     setExportStatus('exporting');
     try {
       const result = await exportToFormat(content, format);
-      
+
       // Generate file extension based on format
       const extensions: Record<ExportFormat, string> = {
         html: 'html',
         markdown: 'md',
         plaintext: 'txt',
       };
-      
+
       const fullFileName = `${fileName}.${extensions[format]}`;
-      
+
       // Create blob and download
       const blob = new Blob([result], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -78,10 +80,10 @@ export function LaTeXExportDialog({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
       setExportStatus('success');
       onExportComplete?.(format, result);
-      
+
       // Reset status after 2 seconds
       setTimeout(() => {
         setExportStatus('idle');
@@ -156,9 +158,7 @@ export function LaTeXExportDialog({
                   key={option.value}
                   className={cn(
                     'flex items-start space-x-3 rounded-lg border p-3 cursor-pointer transition-colors',
-                    format === option.value
-                      ? 'border-primary bg-primary/5'
-                      : 'hover:bg-accent/50'
+                    format === option.value ? 'border-primary bg-primary/5' : 'hover:bg-accent/50'
                   )}
                   onClick={() => setFormat(option.value)}
                 >
@@ -190,7 +190,9 @@ export function LaTeXExportDialog({
                     onCheckedChange={(checked) => setIncludeMathJax(checked === true)}
                   />
                   <Label htmlFor="includeMathJax" className="text-sm font-normal cursor-pointer">
-                    {t('includeMathJax', { defaultValue: 'Include MathJax script for math rendering' })}
+                    {t('includeMathJax', {
+                      defaultValue: 'Include MathJax script for math rendering',
+                    })}
                   </Label>
                 </div>
               </div>

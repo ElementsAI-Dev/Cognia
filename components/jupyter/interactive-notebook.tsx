@@ -1,9 +1,8 @@
-
 'use client';
 
 /**
  * InteractiveNotebook - Jupyter notebook with kernel integration
- * 
+ *
  * Enhanced version of JupyterRenderer with:
  * - Real code execution via kernel
  * - Variable inspection
@@ -24,12 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertCircle } from 'lucide-react';
 import { JupyterRenderer } from '@/components/artifacts/jupyter-renderer';
 import { KernelStatus } from './kernel-status';
@@ -169,7 +163,7 @@ export function InteractiveNotebook({
           ? absoluteCell
           : hasMeaningfulResult(ordinalCell)
             ? ordinalCell
-            : absoluteCell ?? ordinalCell;
+            : (absoluteCell ?? ordinalCell);
 
         if (!chosen) continue;
 
@@ -243,7 +237,9 @@ export function InteractiveNotebook({
     try {
       // Parse notebook and extract code cells
       const notebook = JSON.parse(content);
-      const codeCells = (notebook.cells as Array<{ cell_type: string; source: string | string[] }> | undefined)
+      const codeCells = (
+        notebook.cells as Array<{ cell_type: string; source: string | string[] }> | undefined
+      )
         ?.map((cell, index) => ({ cell, index }))
         ?.filter(({ cell }) => cell.cell_type === 'code')
         ?.map(({ cell, index }) => ({
@@ -303,10 +299,7 @@ export function InteractiveNotebook({
       <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
         {/* Environment selector */}
         {!activeSession && (
-          <Select
-            value={selectedEnvPath || ''}
-            onValueChange={setSelectedEnvPath}
-          >
+          <Select value={selectedEnvPath || ''} onValueChange={setSelectedEnvPath}>
             <SelectTrigger className="w-[200px] h-8 text-xs">
               <SelectValue placeholder={t('selectEnvironment')} />
             </SelectTrigger>

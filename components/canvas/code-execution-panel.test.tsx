@@ -41,8 +41,22 @@ jest.mock('@/hooks/ui', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, className, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { disabled?: boolean }) => (
-    <button onClick={onClick} className={className} disabled={disabled} data-testid={className?.includes('h-9') ? 'touch-target-button' : ''} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    className,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { disabled?: boolean }) => (
+    <button
+      onClick={onClick}
+      className={className}
+      disabled={disabled}
+      data-testid={className?.includes('h-9') ? 'touch-target-button' : ''}
+      {...props}
+    >
+      {children}
+    </button>
   ),
 }));
 
@@ -118,12 +132,7 @@ describe('CodeExecutionPanel', () => {
 
   it('renders when executing', () => {
     render(
-      <CodeExecutionPanel
-        result={null}
-        isExecuting={true}
-        language="python"
-        {...mockHandlers}
-      />
+      <CodeExecutionPanel result={null} isExecuting={true} language="python" {...mockHandlers} />
     );
     // Check for executing state indicators
     expect(screen.getByText('executingCode')).toBeInTheDocument();

@@ -25,16 +25,35 @@ jest.mock('next-intl', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-menu">{children}</div>,
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-content">{children}</div>,
-  DropdownMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
-    <div data-testid="dropdown-item" onClick={onClick}>{children}</div>
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown-menu">{children}</div>
+  ),
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown-content">{children}</div>
+  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => (
+    <div data-testid="dropdown-item" onClick={onClick}>
+      {children}
+    </div>
   ),
   DropdownMenuSeparator: () => <hr />,
   DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -91,7 +110,7 @@ describe('ChatWidgetHeader', () => {
     render(<ChatWidgetHeader {...defaultProps} />);
     const buttons = screen.getAllByRole('button');
     const closeButton = buttons[buttons.length - 1]; // Last button is close
-    
+
     fireEvent.click(closeButton);
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
@@ -100,21 +119,25 @@ describe('ChatWidgetHeader', () => {
     render(<ChatWidgetHeader {...defaultProps} />);
     const buttons = screen.getAllByRole('button');
     const pinButton = buttons[0]; // First button is pin
-    
+
     fireEvent.click(pinButton);
     expect(defaultProps.onTogglePin).toHaveBeenCalled();
   });
 
   it('displays pin icon when pinned is false', () => {
     render(<ChatWidgetHeader {...defaultProps} config={{ ...defaultConfig, pinned: false }} />);
-    const { container } = render(<ChatWidgetHeader {...defaultProps} config={{ ...defaultConfig, pinned: false }} />);
+    const { container } = render(
+      <ChatWidgetHeader {...defaultProps} config={{ ...defaultConfig, pinned: false }} />
+    );
     // Pin icon should be present
     const svgIcons = container.querySelectorAll('svg');
     expect(svgIcons.length).toBeGreaterThan(0);
   });
 
   it('displays pinned indicator when pinned is true', () => {
-    const { container } = render(<ChatWidgetHeader {...defaultProps} config={{ ...defaultConfig, pinned: true }} />);
+    const { container } = render(
+      <ChatWidgetHeader {...defaultProps} config={{ ...defaultConfig, pinned: true }} />
+    );
     // PinOff icon and small Pin indicator should be present
     const svgIcons = container.querySelectorAll('svg');
     expect(svgIcons.length).toBeGreaterThan(0);
@@ -125,7 +148,7 @@ describe('ChatWidgetHeader', () => {
       { id: '1', role: 'user', content: 'Hello', timestamp: new Date() },
       { id: '2', role: 'assistant', content: 'Hi', timestamp: new Date() },
     ];
-    
+
     render(<ChatWidgetHeader {...defaultProps} messages={messages} />);
     expect(screen.getByText('2')).toBeInTheDocument();
   });
@@ -143,8 +166,8 @@ describe('ChatWidgetHeader', () => {
   it('calls onNewSession when new session option is clicked', () => {
     render(<ChatWidgetHeader {...defaultProps} />);
     const menuItems = screen.getAllByTestId('dropdown-item');
-    const newSessionItem = menuItems.find(item => item.textContent?.includes('新会话'));
-    
+    const newSessionItem = menuItems.find((item) => item.textContent?.includes('新会话'));
+
     if (newSessionItem) {
       fireEvent.click(newSessionItem);
       expect(defaultProps.onNewSession).toHaveBeenCalled();
@@ -154,8 +177,8 @@ describe('ChatWidgetHeader', () => {
   it('calls onClearMessages when clear messages option is clicked', () => {
     render(<ChatWidgetHeader {...defaultProps} />);
     const menuItems = screen.getAllByTestId('dropdown-item');
-    const clearItem = menuItems.find(item => item.textContent?.includes('清空消息'));
-    
+    const clearItem = menuItems.find((item) => item.textContent?.includes('清空消息'));
+
     if (clearItem) {
       fireEvent.click(clearItem);
       expect(defaultProps.onClearMessages).toHaveBeenCalled();
@@ -167,11 +190,11 @@ describe('ChatWidgetHeader', () => {
       { id: '1', role: 'user', content: 'Hello', timestamp: new Date() },
     ];
     const onExport = jest.fn();
-    
+
     render(<ChatWidgetHeader {...defaultProps} messages={messages} onExport={onExport} />);
     const menuItems = screen.getAllByTestId('dropdown-item');
-    const exportItem = menuItems.find(item => item.textContent?.includes('导出对话'));
-    
+    const exportItem = menuItems.find((item) => item.textContent?.includes('导出对话'));
+
     expect(exportItem).toBeDefined();
   });
 
@@ -180,11 +203,11 @@ describe('ChatWidgetHeader', () => {
       { id: '1', role: 'user', content: 'Hello', timestamp: new Date() },
     ];
     const onExport = jest.fn();
-    
+
     render(<ChatWidgetHeader {...defaultProps} messages={messages} onExport={onExport} />);
     const menuItems = screen.getAllByTestId('dropdown-item');
-    const exportItem = menuItems.find(item => item.textContent?.includes('导出对话'));
-    
+    const exportItem = menuItems.find((item) => item.textContent?.includes('导出对话'));
+
     if (exportItem) {
       fireEvent.click(exportItem);
       expect(onExport).toHaveBeenCalled();
@@ -193,21 +216,21 @@ describe('ChatWidgetHeader', () => {
 
   it('displays settings option when onSettings is provided', () => {
     const onSettings = jest.fn();
-    
+
     render(<ChatWidgetHeader {...defaultProps} onSettings={onSettings} />);
     const menuItems = screen.getAllByTestId('dropdown-item');
-    const settingsItem = menuItems.find(item => item.textContent?.includes('设置'));
-    
+    const settingsItem = menuItems.find((item) => item.textContent?.includes('设置'));
+
     expect(settingsItem).toBeDefined();
   });
 
   it('calls onSettings when settings option is clicked', () => {
     const onSettings = jest.fn();
-    
+
     render(<ChatWidgetHeader {...defaultProps} onSettings={onSettings} />);
     const menuItems = screen.getAllByTestId('dropdown-item');
-    const settingsItem = menuItems.find(item => item.textContent?.includes('设置'));
-    
+    const settingsItem = menuItems.find((item) => item.textContent?.includes('设置'));
+
     if (settingsItem) {
       fireEvent.click(settingsItem);
       expect(onSettings).toHaveBeenCalled();
@@ -244,7 +267,7 @@ describe('ChatWidgetHeader', () => {
     const buttons = screen.getAllByRole('button');
     // First button should be expand when onExpandToFull is provided
     const expandButton = buttons[0];
-    
+
     fireEvent.click(expandButton);
     expect(onExpandToFull).toHaveBeenCalled();
   });

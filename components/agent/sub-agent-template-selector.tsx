@@ -5,15 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import {
-  Search,
-  Code,
-  FileText,
-  BarChart,
-  Sparkles,
-  Plus,
-  ChevronRight,
-} from 'lucide-react';
+import { Search, Code, FileText, BarChart, Sparkles, Plus, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -37,15 +29,22 @@ export interface SubAgentTemplateSelectorProps {
   className?: string;
 }
 
-const categoryConfig: Record<SubAgentTemplate['category'], {
-  icon: React.ElementType;
-  color: string;
-  bgColor: string;
-}> = {
+const categoryConfig: Record<
+  SubAgentTemplate['category'],
+  {
+    icon: React.ElementType;
+    color: string;
+    bgColor: string;
+  }
+> = {
   research: { icon: Search, color: 'text-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-950' },
   coding: { icon: Code, color: 'text-green-500', bgColor: 'bg-green-50 dark:bg-green-950' },
   writing: { icon: FileText, color: 'text-purple-500', bgColor: 'bg-purple-50 dark:bg-purple-950' },
-  analysis: { icon: BarChart, color: 'text-orange-500', bgColor: 'bg-orange-50 dark:bg-orange-950' },
+  analysis: {
+    icon: BarChart,
+    color: 'text-orange-500',
+    bgColor: 'bg-orange-50 dark:bg-orange-950',
+  },
   general: { icon: Sparkles, color: 'text-primary', bgColor: 'bg-primary/10' },
 };
 
@@ -67,21 +66,21 @@ function TemplateCard({ template, onSelect }: TemplateCardProps) {
       )}
       onClick={onSelect}
     >
-      <div className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-        'bg-background border'
-      )}>
+      <div
+        className={cn(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
+          'bg-background border'
+        )}
+      >
         <Icon className={cn('h-5 w-5', config.color)} />
       </div>
-      
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <h4 className="font-medium text-sm">{template.name}</h4>
           <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-          {template.description}
-        </p>
+        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{template.description}</p>
         <div className="flex items-center gap-2 mt-2">
           <Badge variant="secondary" className="text-[10px]">
             {template.category}
@@ -104,12 +103,7 @@ interface VariableInputDialogProps {
   onSubmit: (variables: Record<string, string>) => void;
 }
 
-function VariableInputDialog({
-  template,
-  open,
-  onOpenChange,
-  onSubmit,
-}: VariableInputDialogProps) {
+function VariableInputDialog({ template, open, onOpenChange, onSubmit }: VariableInputDialogProps) {
   const [variables, setVariables] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     template.variables?.forEach((v) => {
@@ -123,20 +117,17 @@ function VariableInputDialog({
     onOpenChange(false);
   };
 
-  const isValid = template.variables?.every(
-    (v) => !v.required || variables[v.name]?.trim()
-  ) ?? true;
+  const isValid =
+    template.variables?.every((v) => !v.required || variables[v.name]?.trim()) ?? true;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Configure {template.name}</DialogTitle>
-          <DialogDescription>
-            {template.description}
-          </DialogDescription>
+          <DialogDescription>{template.description}</DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           {template.variables?.map((v) => (
             <div key={v.name} className="space-y-2">
@@ -148,16 +139,14 @@ function VariableInputDialog({
                 id={v.name}
                 placeholder={v.description}
                 value={variables[v.name] || ''}
-                onChange={(e) =>
-                  setVariables((prev) => ({ ...prev, [v.name]: e.target.value }))
-                }
+                onChange={(e) => setVariables((prev) => ({ ...prev, [v.name]: e.target.value }))}
                 className="min-h-[80px]"
               />
               <p className="text-xs text-muted-foreground">{v.description}</p>
             </div>
           ))}
         </div>
-        
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
@@ -229,7 +218,7 @@ export function SubAgentTemplateSelector({
             className="pl-9"
           />
         </div>
-        
+
         {/* Category filters */}
         <div className="flex flex-wrap gap-2">
           <Button
@@ -263,9 +252,7 @@ export function SubAgentTemplateSelector({
       <ScrollArea className="h-[300px]">
         <div className="space-y-2 pr-4">
           {filteredTemplates.length === 0 ? (
-            <div className="text-center text-sm text-muted-foreground py-8">
-              No templates found
-            </div>
+            <div className="text-center text-sm text-muted-foreground py-8">No templates found</div>
           ) : (
             filteredTemplates.map((template) => (
               <TemplateCard

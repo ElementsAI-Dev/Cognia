@@ -16,7 +16,10 @@ function resolveBackgroundValue(layer: BackgroundLayerSettings): string {
 
   if (layer.source === 'url' || layer.source === 'local') {
     if (!layer.imageUrl) return '';
-    if (layer.imageUrl.startsWith('linear-gradient') || layer.imageUrl.startsWith('radial-gradient')) {
+    if (
+      layer.imageUrl.startsWith('linear-gradient') ||
+      layer.imageUrl.startsWith('radial-gradient')
+    ) {
       return layer.imageUrl;
     }
     return `url("${layer.imageUrl}")`;
@@ -101,7 +104,13 @@ export function BackgroundRenderer() {
       stopTimer();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [backgroundSettings.enabled, backgroundSettings.slideshow.intervalMs, backgroundSettings.slideshow.shuffle, backgroundSettings.slideshow.slides, rendererMode]);
+  }, [
+    backgroundSettings.enabled,
+    backgroundSettings.slideshow.intervalMs,
+    backgroundSettings.slideshow.shuffle,
+    backgroundSettings.slideshow.slides,
+    rendererMode,
+  ]);
 
   const layersToRender = useMemo(() => {
     if (!backgroundSettings.enabled) return [];
@@ -118,35 +127,44 @@ export function BackgroundRenderer() {
     }
 
     return [];
-  }, [backgroundSettings.enabled, backgroundSettings.layers, backgroundSettings.slideshow.slides, rendererMode, slideshowIndex]);
+  }, [
+    backgroundSettings.enabled,
+    backgroundSettings.layers,
+    backgroundSettings.slideshow.slides,
+    rendererMode,
+    slideshowIndex,
+  ]);
 
   // Preload next slideshow image to prevent white flash during transitions
   useEffect(() => {
     if (rendererMode !== 'slideshow') return;
     if (!backgroundSettings.enabled) return;
-    
+
     const slides = backgroundSettings.slideshow.slides;
     if (!slides || slides.length <= 1) return;
-    
+
     const nextIndex = (slideshowIndex + 1) % slides.length;
     const nextSlide = slides[nextIndex];
-    
+
     if (!nextSlide) return;
-    
+
     // Preload URL-based images
     if (nextSlide.source === 'url' && nextSlide.imageUrl) {
       // Skip gradient strings
-      if (nextSlide.imageUrl.startsWith('linear-gradient') || nextSlide.imageUrl.startsWith('radial-gradient')) {
+      if (
+        nextSlide.imageUrl.startsWith('linear-gradient') ||
+        nextSlide.imageUrl.startsWith('radial-gradient')
+      ) {
         return;
       }
-      
+
       // Create a prefetch link
       const link = document.createElement('link');
       link.rel = 'prefetch';
       link.as = 'image';
       link.href = nextSlide.imageUrl;
       document.head.appendChild(link);
-      
+
       return () => {
         try {
           if (link.parentNode) {
@@ -157,17 +175,21 @@ export function BackgroundRenderer() {
         }
       };
     }
-    
+
     // Preload preset images
     if (nextSlide.source === 'preset' && nextSlide.presetId) {
       const preset = BACKGROUND_PRESETS.find((p) => p.id === nextSlide.presetId);
-      if (preset && !preset.url.startsWith('linear-gradient') && !preset.url.startsWith('radial-gradient')) {
+      if (
+        preset &&
+        !preset.url.startsWith('linear-gradient') &&
+        !preset.url.startsWith('radial-gradient')
+      ) {
         const link = document.createElement('link');
         link.rel = 'prefetch';
         link.as = 'image';
         link.href = preset.url;
         document.head.appendChild(link);
-        
+
         return () => {
           try {
             if (link.parentNode) {
@@ -179,7 +201,12 @@ export function BackgroundRenderer() {
         };
       }
     }
-  }, [backgroundSettings.enabled, backgroundSettings.slideshow.slides, rendererMode, slideshowIndex]);
+  }, [
+    backgroundSettings.enabled,
+    backgroundSettings.slideshow.slides,
+    rendererMode,
+    slideshowIndex,
+  ]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -250,7 +277,8 @@ export function BackgroundRenderer() {
     };
   }, []);
 
-  const containerEnabled = backgroundSettings.enabled && (rendererMode === 'layers' || rendererMode === 'slideshow');
+  const containerEnabled =
+    backgroundSettings.enabled && (rendererMode === 'layers' || rendererMode === 'slideshow');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -267,16 +295,17 @@ export function BackgroundRenderer() {
 
   if (!containerEnabled) return null;
 
-  const transitionMs = rendererMode === 'slideshow' ? Math.max(0, backgroundSettings.slideshow.transitionMs) : 0;
+  const transitionMs =
+    rendererMode === 'slideshow' ? Math.max(0, backgroundSettings.slideshow.transitionMs) : 0;
 
   return (
-    <div
-      aria-hidden
-      style={{ position: 'fixed', inset: 0, zIndex: -2, pointerEvents: 'none' }}
-    >
+    <div aria-hidden style={{ position: 'fixed', inset: 0, zIndex: -2, pointerEvents: 'none' }}>
       {layersToRender.map((layer) => {
         const effectiveLayer: BackgroundLayerSettings =
-          !isTauriEnv && layer.source === 'local' && layer.localAssetId && localUrlMap[layer.localAssetId]
+          !isTauriEnv &&
+          layer.source === 'local' &&
+          layer.localAssetId &&
+          localUrlMap[layer.localAssetId]
             ? { ...layer, imageUrl: localUrlMap[layer.localAssetId] }
             : layer;
 
@@ -309,21 +338,24 @@ export function BackgroundRenderer() {
         };
 
         const durationSec = (11 - Math.min(10, Math.max(1, layer.animationSpeed))) * 5;
-        const animationName = layer.animation === 'kenburns'
-          ? 'bg-kenburns'
-          : layer.animation === 'gradient-shift'
-            ? 'bg-gradient-shift'
-            : 'none';
+        const animationName =
+          layer.animation === 'kenburns'
+            ? 'bg-kenburns'
+            : layer.animation === 'gradient-shift'
+              ? 'bg-gradient-shift'
+              : 'none';
 
-        const animation = animationName === 'none'
-          ? undefined
-          : `${animationName} ${durationSec}s ease-in-out infinite`;
+        const animation =
+          animationName === 'none'
+            ? undefined
+            : `${animationName} ${durationSec}s ease-in-out infinite`;
 
-        const transform = layer.animation === 'parallax'
-          ? 'translateZ(-1px) scale(1.5)'
-          : undefined;
+        const transform =
+          layer.animation === 'parallax' ? 'translateZ(-1px) scale(1.5)' : undefined;
 
-        const isGradient = backgroundValue.startsWith('linear-gradient') || backgroundValue.startsWith('radial-gradient');
+        const isGradient =
+          backgroundValue.startsWith('linear-gradient') ||
+          backgroundValue.startsWith('radial-gradient');
 
         const backgroundSize = isGradient ? undefined : (sizeMap[layer.fit] ?? 'cover');
         const backgroundRepeat = layer.fit === 'tile' ? 'repeat' : 'no-repeat';

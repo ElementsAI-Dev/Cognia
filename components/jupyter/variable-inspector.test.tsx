@@ -228,8 +228,7 @@ describe('VariableInspector', () => {
       const buttons = screen.getAllByRole('button');
       const collapseButton = buttons.find(
         (btn) =>
-          btn.querySelector('.lucide-chevron-down') ||
-          btn.querySelector('.lucide-chevron-right')
+          btn.querySelector('.lucide-chevron-down') || btn.querySelector('.lucide-chevron-right')
       );
 
       if (collapseButton) {
@@ -248,9 +247,7 @@ describe('VariableInspector', () => {
       renderWithIntl(<VariableInspector variables={[]} onRefresh={onRefresh} />);
 
       const buttons = screen.getAllByRole('button');
-      const refreshButton = buttons.find((btn) =>
-        btn.querySelector('.lucide-refresh-cw')
-      );
+      const refreshButton = buttons.find((btn) => btn.querySelector('.lucide-refresh-cw'));
       expect(refreshButton).toBeInTheDocument();
     });
 
@@ -258,9 +255,7 @@ describe('VariableInspector', () => {
       renderWithIntl(<VariableInspector variables={[]} />);
 
       const buttons = screen.queryAllByRole('button');
-      const refreshButton = buttons.find((btn) =>
-        btn.querySelector('.lucide-refresh-cw')
-      );
+      const refreshButton = buttons.find((btn) => btn.querySelector('.lucide-refresh-cw'));
       expect(refreshButton).toBeUndefined();
     });
 
@@ -269,9 +264,7 @@ describe('VariableInspector', () => {
       renderWithIntl(<VariableInspector variables={[]} onRefresh={onRefresh} />);
 
       const buttons = screen.getAllByRole('button');
-      const refreshButton = buttons.find((btn) =>
-        btn.querySelector('.lucide-refresh-cw')
-      );
+      const refreshButton = buttons.find((btn) => btn.querySelector('.lucide-refresh-cw'));
       if (refreshButton) {
         fireEvent.click(refreshButton);
       }
@@ -281,9 +274,7 @@ describe('VariableInspector', () => {
 
     it('should disable refresh button when loading', () => {
       const onRefresh = jest.fn();
-      renderWithIntl(
-        <VariableInspector variables={[]} onRefresh={onRefresh} isLoading={true} />
-      );
+      renderWithIntl(<VariableInspector variables={[]} onRefresh={onRefresh} isLoading={true} />);
 
       // When loading, the button should be disabled
       const buttons = screen.getAllByRole('button');
@@ -294,9 +285,7 @@ describe('VariableInspector', () => {
 
     it('should show loading spinner when isLoading is true', () => {
       const onRefresh = jest.fn();
-      renderWithIntl(
-        <VariableInspector variables={[]} onRefresh={onRefresh} isLoading={true} />
-      );
+      renderWithIntl(<VariableInspector variables={[]} onRefresh={onRefresh} isLoading={true} />);
 
       // Spinner should be present - check for animate-spin class on any element
       const spinner = document.querySelector('.animate-spin');

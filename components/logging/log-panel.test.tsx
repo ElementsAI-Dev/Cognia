@@ -98,7 +98,7 @@ describe('LogPanel', () => {
   describe('Rendering', () => {
     it('renders the log panel with toolbar', () => {
       render(<LogPanel />);
-      
+
       expect(screen.getByPlaceholderText('Search logs...')).toBeInTheDocument();
       expect(screen.getByText('All Levels')).toBeInTheDocument();
       expect(screen.getByText('All Modules')).toBeInTheDocument();
@@ -106,7 +106,7 @@ describe('LogPanel', () => {
 
     it('renders empty state when no logs', () => {
       render(<LogPanel />);
-      
+
       expect(screen.getByText('No logs yet')).toBeInTheDocument();
     });
 
@@ -117,7 +117,7 @@ describe('LogPanel', () => {
       });
 
       render(<LogPanel />);
-      
+
       expect(screen.getByText('Loading logs...')).toBeInTheDocument();
     });
 
@@ -128,7 +128,7 @@ describe('LogPanel', () => {
       });
 
       render(<LogPanel />);
-      
+
       expect(screen.getByText('Failed to load logs')).toBeInTheDocument();
     });
 
@@ -141,32 +141,40 @@ describe('LogPanel', () => {
       mockUseLogStream.mockReturnValue({
         ...defaultMockHookReturn,
         logs,
-        stats: { ...defaultMockHookReturn.stats, total: 2, byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1, warn: 1 } },
+        stats: {
+          ...defaultMockHookReturn.stats,
+          total: 2,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1, warn: 1 },
+        },
       });
 
       render(<LogPanel />);
-      
+
       expect(screen.getByText('First log')).toBeInTheDocument();
       expect(screen.getByText('Second log')).toBeInTheDocument();
     });
 
     it('renders stats bar when showStats is true', () => {
       const logs = [createMockLog({ level: 'error' })];
-      
+
       mockUseLogStream.mockReturnValue({
         ...defaultMockHookReturn,
         logs,
-        stats: { total: 1, byLevel: { ...defaultMockHookReturn.stats.byLevel, error: 1 }, byModule: {} },
+        stats: {
+          total: 1,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, error: 1 },
+          byModule: {},
+        },
       });
 
       render(<LogPanel showStats={true} />);
-      
+
       expect(screen.getByText('Total:')).toBeInTheDocument();
     });
 
     it('hides stats bar when showStats is false', () => {
       render(<LogPanel showStats={false} />);
-      
+
       expect(screen.queryByText('Total:')).not.toBeInTheDocument();
     });
   });
@@ -175,7 +183,7 @@ describe('LogPanel', () => {
     it('calls useLogStream with search query when typing', async () => {
       const user = userEvent.setup();
       render(<LogPanel />);
-      
+
       const searchInput = screen.getByPlaceholderText('Search logs...');
       await user.type(searchInput, 'error');
 
@@ -190,10 +198,10 @@ describe('LogPanel', () => {
 
     it('renders level filter dropdown', () => {
       render(<LogPanel />);
-      
+
       // Verify level filter exists
       expect(screen.getByText('All Levels')).toBeInTheDocument();
-      
+
       // useLogStream should be called with default level
       expect(mockUseLogStream).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -206,7 +214,7 @@ describe('LogPanel', () => {
   describe('Actions', () => {
     it('renders action buttons', () => {
       render(<LogPanel />);
-      
+
       // Verify toolbar buttons exist
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -214,7 +222,7 @@ describe('LogPanel', () => {
 
     it('initializes with defaultAutoRefresh prop', () => {
       render(<LogPanel defaultAutoRefresh={true} />);
-      
+
       expect(mockUseLogStream).toHaveBeenCalledWith(
         expect.objectContaining({
           autoRefresh: true,
@@ -224,7 +232,7 @@ describe('LogPanel', () => {
 
     it('initializes with autoRefresh false by default', () => {
       render(<LogPanel />);
-      
+
       expect(mockUseLogStream).toHaveBeenCalledWith(
         expect.objectContaining({
           autoRefresh: false,
@@ -245,11 +253,15 @@ describe('LogPanel', () => {
       mockUseLogStream.mockReturnValue({
         ...defaultMockHookReturn,
         logs,
-        stats: { total: 1, byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1 }, byModule: {} },
+        stats: {
+          total: 1,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1 },
+          byModule: {},
+        },
       });
 
       render(<LogPanel />);
-      
+
       expect(screen.getByText('Log with data')).toBeInTheDocument();
     });
 
@@ -265,11 +277,15 @@ describe('LogPanel', () => {
       mockUseLogStream.mockReturnValue({
         ...defaultMockHookReturn,
         logs,
-        stats: { total: 1, byLevel: { ...defaultMockHookReturn.stats.byLevel, error: 1 }, byModule: {} },
+        stats: {
+          total: 1,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, error: 1 },
+          byModule: {},
+        },
       });
 
       render(<LogPanel />);
-      
+
       expect(screen.getByText('Error log message')).toBeInTheDocument();
     });
 
@@ -284,11 +300,15 @@ describe('LogPanel', () => {
       mockUseLogStream.mockReturnValue({
         ...defaultMockHookReturn,
         logs,
-        stats: { total: 1, byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1 }, byModule: {} },
+        stats: {
+          total: 1,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1 },
+          byModule: {},
+        },
       });
 
       render(<LogPanel />);
-      
+
       expect(screen.getByText('test-module')).toBeInTheDocument();
     });
   });
@@ -300,16 +320,20 @@ describe('LogPanel', () => {
       mockUseLogStream.mockReturnValue({
         ...defaultMockHookReturn,
         logs,
-        stats: { total: 1, byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1 }, byModule: {} },
+        stats: {
+          total: 1,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 1 },
+          byModule: {},
+        },
       });
 
       render(<LogPanel />);
-      
+
       // Find copy button - verify it exists
-      const copyButtons = screen.getAllByRole('button').filter(btn => 
-        btn.querySelector('svg.lucide-copy')
-      );
-      
+      const copyButtons = screen
+        .getAllByRole('button')
+        .filter((btn) => btn.querySelector('svg.lucide-copy'));
+
       expect(copyButtons.length).toBeGreaterThan(0);
     });
   });
@@ -327,7 +351,7 @@ describe('LogPanel', () => {
 
     it('uses custom refreshInterval', () => {
       render(<LogPanel refreshInterval={5000} />);
-      
+
       expect(mockUseLogStream).toHaveBeenCalledWith(
         expect.objectContaining({
           refreshInterval: 5000,
@@ -337,7 +361,7 @@ describe('LogPanel', () => {
 
     it('enables groupByTraceId when prop is true', () => {
       render(<LogPanel groupByTraceId={true} />);
-      
+
       expect(mockUseLogStream).toHaveBeenCalledWith(
         expect.objectContaining({
           groupByTraceId: true,
@@ -349,21 +373,28 @@ describe('LogPanel', () => {
   describe('Trace Grouping', () => {
     it('renders trace groups when groupByTraceId is enabled', () => {
       const groupedLogs = new Map([
-        ['trace-1', [
-          createMockLog({ traceId: 'trace-1', message: 'Log 1' }),
-          createMockLog({ traceId: 'trace-1', message: 'Log 2' }),
-        ]],
+        [
+          'trace-1',
+          [
+            createMockLog({ traceId: 'trace-1', message: 'Log 1' }),
+            createMockLog({ traceId: 'trace-1', message: 'Log 2' }),
+          ],
+        ],
       ]);
 
       mockUseLogStream.mockReturnValue({
         ...defaultMockHookReturn,
         logs: [...groupedLogs.values()].flat(),
         groupedLogs,
-        stats: { total: 2, byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 2 }, byModule: {} },
+        stats: {
+          total: 2,
+          byLevel: { ...defaultMockHookReturn.stats.byLevel, info: 2 },
+          byModule: {},
+        },
       });
 
       render(<LogPanel groupByTraceId={true} />);
-      
+
       // Should show trace group (multiple elements may exist with same text)
       const traceElements = screen.getAllByText('trace-1');
       expect(traceElements.length).toBeGreaterThan(0);
@@ -373,7 +404,7 @@ describe('LogPanel', () => {
   describe('Accessibility', () => {
     it('has accessible search input', () => {
       render(<LogPanel />);
-      
+
       const searchInput = screen.getByPlaceholderText('Search logs...');
       expect(searchInput).toBeInTheDocument();
       expect(searchInput.tagName).toBe('INPUT');
@@ -381,7 +412,7 @@ describe('LogPanel', () => {
 
     it('buttons have tooltips', () => {
       render(<LogPanel />);
-      
+
       // Tooltips are rendered but may need hover to show
       // Just verify buttons exist
       const buttons = screen.getAllByRole('button');

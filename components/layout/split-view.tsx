@@ -63,25 +63,31 @@ export function SplitView({
     }
   }, [ratio]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    startPos.current = direction === 'horizontal' ? e.clientX : e.clientY;
-    startRatio.current = ratio;
-  }, [direction, ratio]);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsResizing(true);
+      startPos.current = direction === 'horizontal' ? e.clientX : e.clientY;
+      startRatio.current = ratio;
+    },
+    [direction, ratio]
+  );
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing || !containerRef.current) return;
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const size = direction === 'horizontal' ? rect.width : rect.height;
-    const pos = direction === 'horizontal' ? e.clientX : e.clientY;
-    const start = direction === 'horizontal' ? rect.left : rect.top;
+      const rect = containerRef.current.getBoundingClientRect();
+      const size = direction === 'horizontal' ? rect.width : rect.height;
+      const pos = direction === 'horizontal' ? e.clientX : e.clientY;
+      const start = direction === 'horizontal' ? rect.left : rect.top;
 
-    const newRatio = (pos - start) / size;
-    const clampedRatio = Math.min(maxRatio, Math.max(minRatio, newRatio));
-    setRatio(clampedRatio);
-  }, [isResizing, direction, minRatio, maxRatio]);
+      const newRatio = (pos - start) / size;
+      const clampedRatio = Math.min(maxRatio, Math.max(minRatio, newRatio));
+      setRatio(clampedRatio);
+    },
+    [isResizing, direction, minRatio, maxRatio]
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsResizing(false);
@@ -107,18 +113,21 @@ export function SplitView({
     setRatio(0.5);
   }, []);
 
-  const handleLayoutChange = useCallback((newLayout: SplitLayout) => {
-    setLayout(newLayout);
-    onLayoutChange?.(newLayout);
-    
-    if (newLayout === 'split-left') {
-      setRatio(0.3);
-    } else if (newLayout === 'split-right') {
-      setRatio(0.7);
-    } else if (newLayout === 'split-equal') {
-      setRatio(0.5);
-    }
-  }, [onLayoutChange]);
+  const handleLayoutChange = useCallback(
+    (newLayout: SplitLayout) => {
+      setLayout(newLayout);
+      onLayoutChange?.(newLayout);
+
+      if (newLayout === 'split-left') {
+        setRatio(0.3);
+      } else if (newLayout === 'split-right') {
+        setRatio(0.7);
+      } else if (newLayout === 'split-equal') {
+        setRatio(0.5);
+      }
+    },
+    [onLayoutChange]
+  );
 
   const showSecondary = secondary && layout !== 'single';
   const actualRatio = layout === 'single' ? 1 : ratio;

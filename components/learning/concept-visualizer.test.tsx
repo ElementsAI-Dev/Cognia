@@ -10,9 +10,17 @@ import { ConceptVisualizer, type ConceptData, type ConceptNode } from './concept
 // Mock framer-motion - filter out motion-specific props
 jest.mock('motion/react', () => ({
   motion: {
-    div: ({ children, whileHover: _wh, whileTap: _wt, initial: _i, animate: _a, exit: _e, variants: _v, transition: _tr, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
-      <div {...props}>{children}</div>
-    ),
+    div: ({
+      children,
+      whileHover: _wh,
+      whileTap: _wt,
+      initial: _i,
+      animate: _a,
+      exit: _e,
+      variants: _v,
+      transition: _tr,
+      ...props
+    }: React.PropsWithChildren<Record<string, unknown>>) => <div {...props}>{children}</div>,
   },
   AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,
   useReducedMotion: () => false,
@@ -154,21 +162,21 @@ describe('ConceptVisualizer', () => {
 
     it('increases zoom on zoom in click', () => {
       render(<ConceptVisualizer data={mockFlowData} zoomable={true} />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Test Flow Diagram')).toBeInTheDocument();
     });
 
     it('decreases zoom on zoom out click', () => {
       render(<ConceptVisualizer data={mockFlowData} zoomable={true} />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Test Flow Diagram')).toBeInTheDocument();
     });
 
     it('resets zoom on reset button click', () => {
       render(<ConceptVisualizer data={mockFlowData} zoomable={true} />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Test Flow Diagram')).toBeInTheDocument();
     });
@@ -183,34 +191,27 @@ describe('ConceptVisualizer', () => {
   describe('Node Interactions', () => {
     it('calls onNodeClick when node is clicked', () => {
       const onNodeClick = jest.fn();
-      
-      render(
-        <ConceptVisualizer data={mockFlowData} onNodeClick={onNodeClick} />,
-        { wrapper }
-      );
-      
+
+      render(<ConceptVisualizer data={mockFlowData} onNodeClick={onNodeClick} />, { wrapper });
+
       // Diagram should render
       expect(screen.getByText('Test Flow Diagram')).toBeInTheDocument();
     });
 
     it('calls onNodeHover on mouse enter and leave', () => {
       const onNodeHover = jest.fn();
-      
-      render(
-        <ConceptVisualizer data={mockFlowData} onNodeHover={onNodeHover} />,
-        { wrapper }
-      );
-      
+
+      render(<ConceptVisualizer data={mockFlowData} onNodeHover={onNodeHover} />, { wrapper });
+
       // Diagram should render
       expect(screen.getByText('Test Flow Diagram')).toBeInTheDocument();
     });
 
     it('selects and deselects node on click', () => {
-      render(
-        <ConceptVisualizer data={mockFlowData} showDetails={true} interactive={true} />,
-        { wrapper }
-      );
-      
+      render(<ConceptVisualizer data={mockFlowData} showDetails={true} interactive={true} />, {
+        wrapper,
+      });
+
       // Diagram should render
       expect(screen.getByText('Test Flow Diagram')).toBeInTheDocument();
     });
@@ -219,42 +220,42 @@ describe('ConceptVisualizer', () => {
   describe('Node Details Panel', () => {
     it('shows node details when selected', () => {
       render(
-        <ConceptVisualizer 
-          data={mockDataWithAnnotatedNode} 
-          showDetails={true} 
-          interactive={true} 
+        <ConceptVisualizer
+          data={mockDataWithAnnotatedNode}
+          showDetails={true}
+          interactive={true}
         />,
         { wrapper }
       );
-      
+
       // Diagram should render
       expect(screen.getByText('Annotated Diagram')).toBeInTheDocument();
     });
 
     it('shows annotations when node is selected', () => {
       render(
-        <ConceptVisualizer 
-          data={mockDataWithAnnotatedNode} 
-          showDetails={true} 
-          interactive={true} 
+        <ConceptVisualizer
+          data={mockDataWithAnnotatedNode}
+          showDetails={true}
+          interactive={true}
         />,
         { wrapper }
       );
-      
+
       // Diagram should render
       expect(screen.getByText('Annotated Diagram')).toBeInTheDocument();
     });
 
     it('closes details panel on close button click', () => {
       render(
-        <ConceptVisualizer 
-          data={mockDataWithAnnotatedNode} 
-          showDetails={true} 
-          interactive={true} 
+        <ConceptVisualizer
+          data={mockDataWithAnnotatedNode}
+          showDetails={true}
+          interactive={true}
         />,
         { wrapper }
       );
-      
+
       // Diagram should render
       expect(screen.getByText('Annotated Diagram')).toBeInTheDocument();
     });
@@ -284,9 +285,9 @@ describe('ConceptVisualizer', () => {
           { id: '6', label: 'Default', type: 'default' },
         ],
       };
-      
+
       render(<ConceptVisualizer data={dataWithTypes} />, { wrapper });
-      
+
       expect(screen.getByText('Input')).toBeInTheDocument();
       expect(screen.getByText('Output')).toBeInTheDocument();
       expect(screen.getByText('Process')).toBeInTheDocument();
@@ -306,13 +307,11 @@ describe('ConceptVisualizer', () => {
           { id: '1', label: 'Node A' },
           { id: '2', label: 'Node B' },
         ],
-        connections: [
-          { id: 'c1', sourceId: '1', targetId: '2' },
-        ],
+        connections: [{ id: 'c1', sourceId: '1', targetId: '2' }],
       };
-      
+
       render(<ConceptVisualizer data={networkData} />, { wrapper });
-      
+
       expect(screen.getByText('Node A')).toBeInTheDocument();
       expect(screen.getByText('Node B')).toBeInTheDocument();
     });
@@ -330,9 +329,9 @@ describe('ConceptVisualizer', () => {
           { id: '3', label: 'Step 3' },
         ],
       };
-      
+
       render(<ConceptVisualizer data={sequenceData} />, { wrapper });
-      
+
       expect(screen.getByText('Step 1')).toBeInTheDocument();
       expect(screen.getByText('Step 2')).toBeInTheDocument();
       expect(screen.getByText('Step 3')).toBeInTheDocument();
@@ -345,7 +344,7 @@ describe('ConceptVisualizer', () => {
         <ConceptVisualizer data={mockFlowData} className="custom-class" />,
         { wrapper }
       );
-      
+
       expect(container.querySelector('.custom-class')).toBeInTheDocument();
     });
 

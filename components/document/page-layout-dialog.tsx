@@ -8,13 +8,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  FileText,
-  RotateCcw,
-  Ruler,
-  Settings2,
-  Check,
-} from 'lucide-react';
+import { FileText, RotateCcw, Ruler, Settings2, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -38,12 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import {
   type PageSize,
@@ -107,7 +96,7 @@ export function PageLayoutDialog({
   }, []);
 
   const updateMargins = useCallback((key: keyof PageMargins, value: number) => {
-    setLocalSettings(prev => ({
+    setLocalSettings((prev) => ({
       ...prev,
       margins: {
         ...prev.margins,
@@ -119,7 +108,7 @@ export function PageLayoutDialog({
 
   const applyMarginPreset = useCallback((preset: string) => {
     if (preset in MARGIN_PRESETS) {
-      setLocalSettings(prev => ({
+      setLocalSettings((prev) => ({
         ...prev,
         margins: MARGIN_PRESETS[preset as keyof typeof MARGIN_PRESETS],
       }));
@@ -127,13 +116,15 @@ export function PageLayoutDialog({
     }
   }, []);
 
-  const pageDimensions = localSettings.pageSize === 'custom'
-    ? { width: localSettings.customWidth || 210, height: localSettings.customHeight || 297 }
-    : PAGE_SIZES[localSettings.pageSize];
+  const pageDimensions =
+    localSettings.pageSize === 'custom'
+      ? { width: localSettings.customWidth || 210, height: localSettings.customHeight || 297 }
+      : PAGE_SIZES[localSettings.pageSize];
 
-  const displayDimensions = localSettings.orientation === 'landscape'
-    ? { width: pageDimensions.height, height: pageDimensions.width }
-    : pageDimensions;
+  const displayDimensions =
+    localSettings.orientation === 'landscape'
+      ? { width: pageDimensions.height, height: pageDimensions.width }
+      : pageDimensions;
 
   // Calculate responsive preview scale
   const previewScale = isDesktop ? 0.5 : 0.35;
@@ -150,7 +141,9 @@ export function PageLayoutDialog({
         </TabsTrigger>
         <TabsTrigger value="headerFooter" className="text-xs sm:text-sm py-2 whitespace-nowrap">
           <span className="hidden sm:inline">{t('headerFooter')}</span>
-          <span className="sm:hidden">{t('header')}/{t('footer')}</span>
+          <span className="sm:hidden">
+            {t('header')}/{t('footer')}
+          </span>
         </TabsTrigger>
       </TabsList>
 
@@ -161,10 +154,12 @@ export function PageLayoutDialog({
           <Label className="text-sm">{t('pageSize')}</Label>
           <Select
             value={localSettings.pageSize}
-            onValueChange={(value) => setLocalSettings(prev => ({ 
-              ...prev, 
-              pageSize: value as PageSize 
-            }))}
+            onValueChange={(value) =>
+              setLocalSettings((prev) => ({
+                ...prev,
+                pageSize: value as PageSize,
+              }))
+            }
           >
             <SelectTrigger className="h-9 sm:h-10">
               <SelectValue />
@@ -188,10 +183,12 @@ export function PageLayoutDialog({
               <Input
                 type="number"
                 value={localSettings.customWidth || 210}
-                onChange={(e) => setLocalSettings(prev => ({
-                  ...prev,
-                  customWidth: Number(e.target.value),
-                }))}
+                onChange={(e) =>
+                  setLocalSettings((prev) => ({
+                    ...prev,
+                    customWidth: Number(e.target.value),
+                  }))
+                }
                 min={50}
                 max={500}
                 className="h-9 sm:h-10"
@@ -202,10 +199,12 @@ export function PageLayoutDialog({
               <Input
                 type="number"
                 value={localSettings.customHeight || 297}
-                onChange={(e) => setLocalSettings(prev => ({
-                  ...prev,
-                  customHeight: Number(e.target.value),
-                }))}
+                onChange={(e) =>
+                  setLocalSettings((prev) => ({
+                    ...prev,
+                    customHeight: Number(e.target.value),
+                  }))
+                }
                 min={50}
                 max={500}
                 className="h-9 sm:h-10"
@@ -219,10 +218,12 @@ export function PageLayoutDialog({
           <Label className="text-sm">{t('orientation')}</Label>
           <RadioGroup
             value={localSettings.orientation}
-            onValueChange={(value) => setLocalSettings(prev => ({
-              ...prev,
-              orientation: value as PageOrientation,
-            }))}
+            onValueChange={(value) =>
+              setLocalSettings((prev) => ({
+                ...prev,
+                orientation: value as PageOrientation,
+              }))
+            }
             className="flex flex-wrap gap-3 sm:gap-4"
           >
             <div className="flex items-center space-x-2">
@@ -244,7 +245,7 @@ export function PageLayoutDialog({
 
         {/* Preview */}
         <div className="flex justify-center pt-2 sm:pt-4">
-          <div 
+          <div
             className="border-2 border-dashed border-muted-foreground/30 rounded bg-white dark:bg-gray-100 relative transition-all"
             style={{
               width: displayDimensions.width * previewScale,
@@ -274,8 +275,8 @@ export function PageLayoutDialog({
                 size="sm"
                 onClick={() => applyMarginPreset(key)}
                 className={cn(
-                  "capitalize text-xs sm:text-sm h-8 sm:h-9 touch-manipulation",
-                  marginPreset === key && "ring-2 ring-primary ring-offset-1"
+                  'capitalize text-xs sm:text-sm h-8 sm:h-9 touch-manipulation',
+                  marginPreset === key && 'ring-2 ring-primary ring-offset-1'
                 )}
               >
                 {marginPreset === key && <Check className="h-3 w-3 mr-1" />}
@@ -351,14 +352,14 @@ export function PageLayoutDialog({
 
         {/* Margin Preview */}
         <div className="flex justify-center pt-2 sm:pt-4">
-          <div 
+          <div
             className="border border-border rounded bg-white dark:bg-gray-100 relative transition-all"
-            style={{ 
-              width: isDesktop ? 150 : 120, 
-              height: isDesktop ? 200 : 160 
+            style={{
+              width: isDesktop ? 150 : 120,
+              height: isDesktop ? 200 : 160,
             }}
           >
-            <div 
+            <div
               className="absolute bg-primary/10 border border-primary/30 transition-all"
               style={{
                 top: Math.min(localSettings.margins.top * (isDesktop ? 0.5 : 0.4), 40),
@@ -380,10 +381,12 @@ export function PageLayoutDialog({
               <Label className="text-sm sm:text-base font-medium">{t('header')}</Label>
               <Switch
                 checked={localSettings.headerEnabled}
-                onCheckedChange={(checked) => setLocalSettings(prev => ({
-                  ...prev,
-                  headerEnabled: checked,
-                }))}
+                onCheckedChange={(checked) =>
+                  setLocalSettings((prev) => ({
+                    ...prev,
+                    headerEnabled: checked,
+                  }))
+                }
                 className="touch-manipulation"
               />
             </div>
@@ -391,10 +394,12 @@ export function PageLayoutDialog({
               <Input
                 placeholder={t('headerContentPlaceholder')}
                 value={localSettings.headerContent || ''}
-                onChange={(e) => setLocalSettings(prev => ({
-                  ...prev,
-                  headerContent: e.target.value,
-                }))}
+                onChange={(e) =>
+                  setLocalSettings((prev) => ({
+                    ...prev,
+                    headerContent: e.target.value,
+                  }))
+                }
                 className="h-9 sm:h-10"
               />
             )}
@@ -408,10 +413,12 @@ export function PageLayoutDialog({
               <Label className="text-sm sm:text-base font-medium">{t('footer')}</Label>
               <Switch
                 checked={localSettings.footerEnabled}
-                onCheckedChange={(checked) => setLocalSettings(prev => ({
-                  ...prev,
-                  footerEnabled: checked,
-                }))}
+                onCheckedChange={(checked) =>
+                  setLocalSettings((prev) => ({
+                    ...prev,
+                    footerEnabled: checked,
+                  }))
+                }
                 className="touch-manipulation"
               />
             </div>
@@ -420,20 +427,24 @@ export function PageLayoutDialog({
                 <Input
                   placeholder={t('footerContentPlaceholder')}
                   value={localSettings.footerContent || ''}
-                  onChange={(e) => setLocalSettings(prev => ({
-                    ...prev,
-                    footerContent: e.target.value,
-                  }))}
+                  onChange={(e) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      footerContent: e.target.value,
+                    }))
+                  }
                   className="h-9 sm:h-10"
                 />
                 <div className="flex items-center gap-2">
                   <Switch
                     id="showPageNumbers"
                     checked={localSettings.showPageNumbers}
-                    onCheckedChange={(checked) => setLocalSettings(prev => ({
-                      ...prev,
-                      showPageNumbers: checked,
-                    }))}
+                    onCheckedChange={(checked) =>
+                      setLocalSettings((prev) => ({
+                        ...prev,
+                        showPageNumbers: checked,
+                      }))
+                    }
                     className="touch-manipulation"
                   />
                   <Label htmlFor="showPageNumbers" className="text-xs sm:text-sm cursor-pointer">
@@ -450,18 +461,15 @@ export function PageLayoutDialog({
 
   const footerContent = (
     <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 w-full">
-      <Button 
-        variant="outline" 
+      <Button
+        variant="outline"
         onClick={handleReset}
         className="flex-1 sm:flex-none h-10 sm:h-9 touch-manipulation"
       >
         <RotateCcw className="h-4 w-4 mr-2" />
         {t('reset')}
       </Button>
-      <Button 
-        onClick={handleSave}
-        className="flex-1 sm:flex-none h-10 sm:h-9 touch-manipulation"
-      >
+      <Button onClick={handleSave} className="flex-1 sm:flex-none h-10 sm:h-9 touch-manipulation">
         {t('apply')}
       </Button>
     </div>
@@ -478,14 +486,14 @@ export function PageLayoutDialog({
   // Single responsive Dialog for both mobile and desktop
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        {triggerButton}
-      </DialogTrigger>
-      <DialogContent className={cn(
-        "max-h-[90vh] overflow-hidden flex flex-col",
-        "w-[95vw] max-w-[550px]", // Responsive width
-        "p-4 sm:p-6", // Responsive padding
-      )}>
+      <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+      <DialogContent
+        className={cn(
+          'max-h-[90vh] overflow-hidden flex flex-col',
+          'w-[95vw] max-w-[550px]', // Responsive width
+          'p-4 sm:p-6' // Responsive padding
+        )}
+      >
         <DialogHeader className="pb-2 sm:pb-4">
           <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
             <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -495,12 +503,13 @@ export function PageLayoutDialog({
             {t('pageLayoutDescription')}
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-1 -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+        <ScrollArea
+          className="flex-1 -mx-4 px-4 sm:-mx-6 sm:px-6"
+          style={{ maxHeight: 'calc(90vh - 200px)' }}
+        >
           {dialogContent}
         </ScrollArea>
-        <DialogFooter className="mt-4 sm:mt-6 pt-4 border-t">
-          {footerContent}
-        </DialogFooter>
+        <DialogFooter className="mt-4 sm:mt-6 pt-4 border-t">{footerContent}</DialogFooter>
       </DialogContent>
     </Dialog>
   );

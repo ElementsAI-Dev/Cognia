@@ -54,7 +54,9 @@ jest.mock('streamdown', () => ({
 // Mock copy button
 jest.mock('@/components/chat/ui/copy-button', () => ({
   InlineCopyButton: ({ content }: { content: string }) => (
-    <button data-testid="copy-button" data-content={content}>Copy</button>
+    <button data-testid="copy-button" data-content={content}>
+      Copy
+    </button>
   ),
 }));
 
@@ -77,25 +79,40 @@ jest.mock('@/components/layout/empty-state', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: React.forwardRef<HTMLDivElement, { children: React.ReactNode; className?: string }>(
     function ScrollArea({ children, className }, ref) {
-      return <div ref={ref} className={className} data-testid="scroll-area">{children}</div>;
+      return (
+        <div ref={ref} className={className} data-testid="scroll-area">
+          {children}
+        </div>
+      );
     }
   ),
 }));
 
 jest.mock('@/components/ui/avatar', () => ({
   Avatar: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={className} data-testid="avatar">{children}</div>
+    <div className={className} data-testid="avatar">
+      {children}
+    </div>
   ),
   AvatarFallback: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={className} data-testid="avatar-fallback">{children}</div>
+    <div className={className} data-testid="avatar-fallback">
+      {children}
+    </div>
   ),
 }));
 
@@ -196,9 +213,7 @@ describe('ChatWidgetMessages', () => {
   });
 
   it('does not display continue button when last message is from user', () => {
-    const messages = [
-      createMessage({ id: '1', role: 'user', content: 'Hello' }),
-    ];
+    const messages = [createMessage({ id: '1', role: 'user', content: 'Hello' })];
     render(<ChatWidgetMessages {...defaultProps} messages={messages} />);
     expect(screen.queryByText('继续生成')).not.toBeInTheDocument();
   });
@@ -209,7 +224,7 @@ describe('ChatWidgetMessages', () => {
       createMessage({ id: '2', role: 'assistant', content: 'Hi there' }),
     ];
     render(<ChatWidgetMessages {...defaultProps} messages={messages} />);
-    
+
     fireEvent.click(screen.getByText('继续生成'));
     expect(defaultProps.onContinue).toHaveBeenCalled();
   });
@@ -244,7 +259,7 @@ describe('ChatWidgetMessages', () => {
       createMessage({ id: '3', role: 'user', content: 'Third' }),
     ];
     render(<ChatWidgetMessages {...defaultProps} messages={messages} />);
-    
+
     expect(screen.getByText('First')).toBeInTheDocument();
     expect(screen.getByText('Second')).toBeInTheDocument();
     expect(screen.getByText('Third')).toBeInTheDocument();
@@ -262,7 +277,9 @@ describe('ChatWidgetMessages', () => {
   });
 
   it('displays streaming indicator for streaming messages', () => {
-    const messages = [createMessage({ role: 'assistant', isStreaming: true, content: 'Typing...' })];
+    const messages = [
+      createMessage({ role: 'assistant', isStreaming: true, content: 'Typing...' }),
+    ];
     const { container } = render(<ChatWidgetMessages {...defaultProps} messages={messages} />);
     // Streaming message should have animate-pulse class
     const messageElement = container.querySelector('.animate-pulse');

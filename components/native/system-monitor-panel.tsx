@@ -30,11 +30,7 @@ interface SystemMonitorPanelProps {
 
 export function SystemMonitorPanel({ className }: SystemMonitorPanelProps) {
   const t = useTranslations('systemMonitor');
-  const {
-    systemState,
-    isLoading,
-    fetchSystemState,
-  } = useAwareness();
+  const { systemState, isLoading, fetchSystemState } = useAwareness();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -119,14 +115,13 @@ export function SystemMonitorPanel({ className }: SystemMonitorPanelProps) {
                 <CardContent className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">{t('usage')}</span>
-                    <span className={cn('text-sm font-medium', getUsageColor(systemState.cpu_usage))}>
+                    <span
+                      className={cn('text-sm font-medium', getUsageColor(systemState.cpu_usage))}
+                    >
                       {systemState.cpu_usage.toFixed(1)}%
                     </span>
                   </div>
-                  <Progress
-                    value={systemState.cpu_usage}
-                    className="h-2"
-                  />
+                  <Progress value={systemState.cpu_usage} className="h-2" />
                 </CardContent>
               </Card>
 
@@ -141,15 +136,15 @@ export function SystemMonitorPanel({ className }: SystemMonitorPanelProps) {
                   <div className="flex items-center justify-between text-sm">
                     <span>{t('used')}</span>
                     <span className={cn('font-medium', getUsageColor(systemState.memory_usage))}>
-                      {formatBytes(systemState.memory_total - systemState.memory_available)} / {formatBytes(systemState.memory_total)}
+                      {formatBytes(systemState.memory_total - systemState.memory_available)} /{' '}
+                      {formatBytes(systemState.memory_total)}
                     </span>
                   </div>
-                  <Progress
-                    value={systemState.memory_usage}
-                    className="h-2"
-                  />
+                  <Progress value={systemState.memory_usage} className="h-2" />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{t('available')}: {formatBytes(systemState.memory_available)}</span>
+                    <span>
+                      {t('available')}: {formatBytes(systemState.memory_available)}
+                    </span>
                     <span>{systemState.memory_usage.toFixed(1)}%</span>
                   </div>
                 </CardContent>
@@ -166,15 +161,15 @@ export function SystemMonitorPanel({ className }: SystemMonitorPanelProps) {
                   <div className="flex items-center justify-between text-sm">
                     <span>{t('used')}</span>
                     <span className={cn('font-medium', getUsageColor(systemState.disk_usage))}>
-                      {formatBytes(systemState.disk_total - systemState.disk_available)} / {formatBytes(systemState.disk_total)}
+                      {formatBytes(systemState.disk_total - systemState.disk_available)} /{' '}
+                      {formatBytes(systemState.disk_total)}
                     </span>
                   </div>
-                  <Progress
-                    value={systemState.disk_usage}
-                    className="h-2"
-                  />
+                  <Progress value={systemState.disk_usage} className="h-2" />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{t('free')}: {formatBytes(systemState.disk_available)}</span>
+                    <span>
+                      {t('free')}: {formatBytes(systemState.disk_available)}
+                    </span>
                     <span>{systemState.disk_usage.toFixed(1)}%</span>
                   </div>
                 </CardContent>
@@ -192,18 +187,18 @@ export function SystemMonitorPanel({ className }: SystemMonitorPanelProps) {
                     <div className="flex items-center justify-between">
                       <span className="text-sm">{t('level')}</span>
                       <div className="flex items-center gap-2">
-                        {systemState.is_charging && (
-                          <Zap className="h-3 w-3 text-yellow-500" />
-                        )}
-                        <span className={cn('text-sm font-medium', getUsageColor(100 - systemState.battery_level))}>
+                        {systemState.is_charging && <Zap className="h-3 w-3 text-yellow-500" />}
+                        <span
+                          className={cn(
+                            'text-sm font-medium',
+                            getUsageColor(100 - systemState.battery_level)
+                          )}
+                        >
                           {systemState.battery_level}%
                         </span>
                       </div>
                     </div>
-                    <Progress
-                      value={systemState.battery_level}
-                      className="h-2"
-                    />
+                    <Progress value={systemState.battery_level} className="h-2" />
                     {systemState.is_charging && (
                       <p className="text-xs text-muted-foreground">{t('charging')}</p>
                     )}
@@ -241,7 +236,10 @@ export function SystemMonitorPanel({ className }: SystemMonitorPanelProps) {
                       )}
                       <span>{t('network')}</span>
                     </div>
-                    <Badge variant={systemState.network_connected ? 'default' : 'destructive'} className="text-xs">
+                    <Badge
+                      variant={systemState.network_connected ? 'default' : 'destructive'}
+                      className="text-xs"
+                    >
                       {systemState.network_connected ? t('connected') : t('disconnected')}
                     </Badge>
                   </div>

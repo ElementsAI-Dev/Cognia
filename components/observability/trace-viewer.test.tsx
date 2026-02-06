@@ -44,56 +44,58 @@ const mockTrace: TraceData = {
 describe('TraceViewer', () => {
   it('should display trace details', () => {
     render(<TraceViewer trace={mockTrace} />);
-    
+
     // Component renders without crashing
     expect(screen.getAllByText(/test/i).length).toBeGreaterThan(0);
   });
 
   it('should display trace ID', () => {
     render(<TraceViewer trace={mockTrace} />);
-    
+
     // Component renders without crashing
     expect(screen.getAllByText(/trace/i).length).toBeGreaterThan(0);
   });
 
   it('should display session ID', () => {
     render(<TraceViewer trace={mockTrace} />);
-    
+
     // Component renders without crashing
     expect(screen.getAllByText(/session/i).length).toBeGreaterThan(0);
   });
 
   it('should display model and provider', () => {
     render(<TraceViewer trace={mockTrace} />);
-    
+
     // Component renders without crashing
-    expect(screen.getAllByText(/gpt/i).length + screen.getAllByText(/openai/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/gpt/i).length + screen.getAllByText(/openai/i).length
+    ).toBeGreaterThan(0);
   });
 
   it('should display token usage', () => {
     render(<TraceViewer trace={mockTrace} />);
-    
+
     // Component renders without crashing
     expect(screen.getAllByText(/150/i).length).toBeGreaterThan(0);
   });
 
   it('should display status badge', () => {
     render(<TraceViewer trace={mockTrace} />);
-    
+
     // Component renders without crashing
     expect(screen.getAllByText(/success/i).length).toBeGreaterThan(0);
   });
 
   it('should display duration', () => {
     render(<TraceViewer trace={mockTrace} />);
-    
+
     // Component renders without crashing
     expect(screen.getAllByText(/duration/i).length).toBeGreaterThan(0);
   });
 
   it('should render spans', () => {
     render(<TraceViewer trace={mockTrace} />);
-    
+
     // Component renders without crashing
     expect(screen.getAllByText(/span/i).length).toBeGreaterThan(0);
   });
@@ -103,9 +105,9 @@ describe('TraceViewer', () => {
       ...mockTrace,
       status: 'error',
     };
-    
+
     render(<TraceViewer trace={errorTrace} />);
-    
+
     // Component renders without crashing
     expect(screen.getAllByText(/error/i).length).toBeGreaterThan(0);
   });
@@ -118,25 +120,27 @@ describe('TraceViewer', () => {
       status: 'success',
       spans: [],
     };
-    
+
     render(<TraceViewer trace={minimalTrace} />);
-    
+
     // Component renders without crashing
     expect(screen.getAllByText(/minimal/i).length).toBeGreaterThan(0);
   });
 
   it('should expand/collapse span details', () => {
     render(<TraceViewer trace={mockTrace} />);
-    
+
     // Component renders without crashing
     expect(screen.getAllByText(/span/i).length).toBeGreaterThan(0);
   });
 
   it('should display cost when available', () => {
     render(<TraceViewer trace={mockTrace} />);
-    
+
     // Component renders without crashing
-    expect(screen.getAllByText(/cost/i).length + screen.getAllByText(/0/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/cost/i).length + screen.getAllByText(/0/i).length).toBeGreaterThan(
+      0
+    );
   });
 });
 
@@ -156,14 +160,14 @@ describe('TraceViewer with nested spans', () => {
         },
       ],
     };
-    
+
     const traceWithNested: TraceData = {
       ...mockTrace,
       spans: [nestedSpan],
     };
-    
+
     render(<TraceViewer trace={traceWithNested} />);
-    
+
     expect(screen.getByText('child-span')).toBeInTheDocument();
   });
 });

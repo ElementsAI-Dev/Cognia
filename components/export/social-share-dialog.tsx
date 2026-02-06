@@ -2,7 +2,7 @@
 
 /**
  * SocialShareDialog - Share chat conversations to social media platforms
- * 
+ *
  * Supports: Twitter/X, LinkedIn, Reddit, WeChat, Weibo, Telegram, Facebook, Email
  */
 
@@ -77,7 +77,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
   const [copied, setCopied] = useState(false);
   const [wechatQR, setWechatQR] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  
+
   // Share options
   const [includeTitle, setIncludeTitle] = useState(true);
   const [includeTimestamps, setIncludeTimestamps] = useState(false);
@@ -98,7 +98,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
   // Generate share content
   const shareContent = useCallback(() => {
     if (messages.length === 0) return null;
-    
+
     return generateShareContent(session, messages, {
       maxMessages,
       includeTimestamps,
@@ -107,30 +107,33 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
   }, [session, messages, maxMessages, includeTimestamps, includeModel]);
 
   // Handle platform share
-  const handlePlatformShare = useCallback(async (platform: SocialPlatform) => {
-    const content = shareContent();
-    if (!content) return;
+  const handlePlatformShare = useCallback(
+    async (platform: SocialPlatform) => {
+      const content = shareContent();
+      if (!content) return;
 
-    if (platform === 'wechat') {
-      // Generate QR code for WeChat
-      try {
-        const qrCode = await generateWeChatQRCode(content.text, { width: 256 });
-        setWechatQR(qrCode);
-      } catch (error) {
-        console.error('Failed to generate QR code:', error);
-        toast.error(t('qrCodeFailed'));
+      if (platform === 'wechat') {
+        // Generate QR code for WeChat
+        try {
+          const qrCode = await generateWeChatQRCode(content.text, { width: 256 });
+          setWechatQR(qrCode);
+        } catch (error) {
+          console.error('Failed to generate QR code:', error);
+          toast.error(t('qrCodeFailed'));
+        }
+        return;
       }
-      return;
-    }
 
-    const shareUrl = window.location.href;
-    openSharePopup(platform, {
-      title: content.title,
-      description: content.summary,
-      url: shareUrl,
-      hashtags: ['AI', 'Cognia'],
-    });
-  }, [shareContent, t]);
+      const shareUrl = window.location.href;
+      openSharePopup(platform, {
+        title: content.title,
+        description: content.summary,
+        url: shareUrl,
+        hashtags: ['AI', 'Cognia'],
+      });
+    },
+    [shareContent, t]
+  );
 
   // Handle native share
   const handleNativeShare = useCallback(async () => {
@@ -154,7 +157,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
     if (!content) return;
 
     let textToCopy: string;
-    
+
     switch (shareFormat) {
       case 'markdown':
         textToCopy = generateShareableMarkdown(session, messages, {
@@ -233,9 +236,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
             <Share2 className="h-5 w-5" />
             {t('shareConversation')}
           </DialogTitle>
-          <DialogDescription>
-            {t('shareConversationDesc')}
-          </DialogDescription>
+          <DialogDescription>{t('shareConversationDesc')}</DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
@@ -248,7 +249,9 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
             {wechatQR && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                 <div className="bg-background rounded-lg p-6 shadow-xl max-w-sm w-full mx-4">
-                  <h3 className="text-lg font-semibold mb-4 text-center">{t('wechatScanToShare')}</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-center">
+                    {t('wechatScanToShare')}
+                  </h3>
                   <div className="flex justify-center mb-4">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={wechatQR} alt="WeChat QR Code" className="w-48 h-48" />
@@ -319,9 +322,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
 
               <TabsContent value="text" className="space-y-3">
                 <ScrollArea className="h-[120px] rounded-md border p-3">
-                  <pre className="text-sm whitespace-pre-wrap">
-                    {content?.text || t('loading')}
-                  </pre>
+                  <pre className="text-sm whitespace-pre-wrap">{content?.text || t('loading')}</pre>
                 </ScrollArea>
                 <Button onClick={handleCopy} className="w-full">
                   {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
@@ -348,15 +349,9 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
               <TabsContent value="image" className="space-y-3">
                 <div className="rounded-md border p-4 text-center">
                   <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    {t('exportImageDescription')}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t('exportImageDescription')}</p>
                 </div>
-                <Button
-                  onClick={handleImageExport}
-                  className="w-full"
-                  disabled={isGeneratingImage}
-                >
+                <Button onClick={handleImageExport} className="w-full" disabled={isGeneratingImage}>
                   {isGeneratingImage ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
@@ -378,9 +373,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
               </TabsContent>
 
               <TabsContent value="qrcode" className="space-y-3">
-                <p className="text-sm text-muted-foreground text-center">
-                  {t('qrContentDesc')}
-                </p>
+                <p className="text-sm text-muted-foreground text-center">{t('qrContentDesc')}</p>
                 <QRCodeGenerator
                   data={window.location.href}
                   defaultPreset="cognia"

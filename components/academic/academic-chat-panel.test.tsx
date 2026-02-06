@@ -18,9 +18,7 @@ jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-const mockUseAcademic = useAcademic as jest.MockedFunction<
-  typeof useAcademic
->;
+const mockUseAcademic = useAcademic as jest.MockedFunction<typeof useAcademic>;
 
 // Mock paper data
 const createMockPaper = (id: string): Paper => ({
@@ -159,9 +157,7 @@ describe('AcademicChatPanel', () => {
     it('should render input textarea', () => {
       render(<AcademicChatPanel />);
 
-      expect(
-        screen.getByPlaceholderText('placeholder')
-      ).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('placeholder')).toBeInTheDocument();
     });
 
     it('should apply custom className', () => {
@@ -173,9 +169,7 @@ describe('AcademicChatPanel', () => {
     it('should use initialQuery if provided', () => {
       render(<AcademicChatPanel initialQuery="machine learning" />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       expect(textarea).toHaveValue('machine learning');
     });
   });
@@ -187,9 +181,7 @@ describe('AcademicChatPanel', () => {
 
       await user.click(screen.getByText('actions.search'));
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       expect(textarea).toHaveValue('prompts.search');
     });
 
@@ -199,9 +191,7 @@ describe('AcademicChatPanel', () => {
 
       await user.click(screen.getByText('actions.summarize'));
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       expect(textarea).toHaveValue('prompts.summarize');
     });
   });
@@ -213,9 +203,7 @@ describe('AcademicChatPanel', () => {
 
       await user.click(screen.getByText('Find recent papers on transformer architectures'));
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       expect(textarea).toHaveValue('Find recent papers on transformer architectures');
     });
   });
@@ -230,9 +218,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'machine learning papers');
       await user.keyboard('{Enter}');
 
@@ -256,9 +242,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'find papers about AI');
       await user.keyboard('{Enter}');
 
@@ -276,9 +260,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'search unknown topic xyz');
       await user.keyboard('{Enter}');
 
@@ -293,9 +275,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'find papers');
       await user.keyboard('{Enter}');
 
@@ -320,9 +300,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'first search');
       await user.keyboard('{Enter}');
 
@@ -344,9 +322,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'test search');
       await user.keyboard('{Enter}');
 
@@ -378,9 +354,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel onPaperSelect={mockOnPaperSelect} />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'find papers');
       await user.keyboard('{Enter}');
 
@@ -401,9 +375,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'find papers about machine learning');
       await user.keyboard('{Enter}');
 
@@ -439,9 +411,7 @@ describe('AcademicChatPanel', () => {
       render(<AcademicChatPanel />);
 
       // First need to select a paper, then analyze
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'summarize this paper');
       await user.keyboard('{Enter}');
 
@@ -470,9 +440,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'test query');
       await user.keyboard('{Enter}');
 
@@ -485,9 +453,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'test query');
       await user.keyboard('{Shift>}{Enter}{/Shift}');
 
@@ -505,9 +471,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'My search query');
       await user.keyboard('{Enter}');
 
@@ -528,9 +492,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'find something');
       await user.keyboard('{Enter}');
 
@@ -553,9 +515,7 @@ describe('AcademicChatPanel', () => {
       const user = userEvent.setup();
       render(<AcademicChatPanel />);
 
-      const textarea = screen.getByPlaceholderText(
-        'placeholder'
-      );
+      const textarea = screen.getByPlaceholderText('placeholder');
       await user.type(textarea, 'test query');
       await user.keyboard('{Enter}');
 

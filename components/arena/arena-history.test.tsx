@@ -24,7 +24,12 @@ jest.mock('@/stores/arena', () => ({
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button type="button" onClick={onClick} disabled={disabled} {...props}>
       {children}
     </button>
@@ -36,7 +41,7 @@ jest.mock('@/components/ui/badge', () => ({
 }));
 
 jest.mock('@/components/ui/input', () => ({
-  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />, 
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
 }));
 
 jest.mock('@/components/ui/scroll-area', () => ({
@@ -46,10 +51,16 @@ jest.mock('@/components/ui/scroll-area', () => ({
 const SelectContext = React.createContext<{ onValueChange?: (v: string) => void } | null>(null);
 
 jest.mock('@/components/ui/select', () => ({
-  Select: ({ children, onValueChange }: { children: React.ReactNode; onValueChange?: (v: string) => void }) => (
-    <SelectContext.Provider value={{ onValueChange }}>{children}</SelectContext.Provider>
+  Select: ({
+    children,
+    onValueChange,
+  }: {
+    children: React.ReactNode;
+    onValueChange?: (v: string) => void;
+  }) => <SelectContext.Provider value={{ onValueChange }}>{children}</SelectContext.Provider>,
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
   ),
-  SelectTrigger: ({ children }: { children: React.ReactNode }) => <button type="button">{children}</button>,
   SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
   SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => {
@@ -68,8 +79,18 @@ const CollapsibleContext = React.createContext<{
 } | null>(null);
 
 jest.mock('@/components/ui/collapsible', () => ({
-  Collapsible: ({ children, open, onOpenChange }: { children: React.ReactNode; open: boolean; onOpenChange?: (open: boolean) => void }) => (
-    <CollapsibleContext.Provider value={{ open, onOpenChange }}>{children}</CollapsibleContext.Provider>
+  Collapsible: ({
+    children,
+    open,
+    onOpenChange,
+  }: {
+    children: React.ReactNode;
+    open: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) => (
+    <CollapsibleContext.Provider value={{ open, onOpenChange }}>
+      {children}
+    </CollapsibleContext.Provider>
   ),
   CollapsibleTrigger: ({ children }: { children: React.ReactNode }) => {
     const ctx = React.useContext(CollapsibleContext);
@@ -102,8 +123,16 @@ jest.mock('@/components/ui/alert-dialog', () => ({
   AlertDialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  AlertDialogCancel: ({ children }: { children: React.ReactNode }) => <button type="button">{children}</button>,
-  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+  AlertDialogCancel: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  AlertDialogAction: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => (
     <button type="button" onClick={onClick}>
       {children}
     </button>
@@ -140,7 +169,10 @@ function makeBattle(overrides?: Partial<ArenaBattle>): ArenaBattle {
   return {
     id: 'battle-1',
     prompt: 'Prompt one',
-    contestants: [makeContestant('a'), makeContestant('b', { provider: 'anthropic', model: 'claude-3-5-sonnet' })],
+    contestants: [
+      makeContestant('a'),
+      makeContestant('b', { provider: 'anthropic', model: 'claude-3-5-sonnet' }),
+    ],
     mode: 'normal',
     conversationMode: 'single',
     createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -221,15 +253,27 @@ describe('ArenaHistory', () => {
         prompt: 'First',
         contestants: [
           makeContestant('a', { provider: 'openai', model: 'gpt-4o-mini', displayName: 'GPT' }),
-          makeContestant('b', { provider: 'anthropic', model: 'claude-3-5-sonnet', displayName: 'Claude' }),
+          makeContestant('b', {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet',
+            displayName: 'Claude',
+          }),
         ],
       }),
       makeBattle({
         id: 'b2',
         prompt: 'Second',
         contestants: [
-          makeContestant('c', { provider: 'google', model: 'gemini-1.5-pro', displayName: 'Gemini' }),
-          makeContestant('d', { provider: 'anthropic', model: 'claude-3-5-sonnet', displayName: 'Claude' }),
+          makeContestant('c', {
+            provider: 'google',
+            model: 'gemini-1.5-pro',
+            displayName: 'Gemini',
+          }),
+          makeContestant('d', {
+            provider: 'anthropic',
+            model: 'claude-3-5-sonnet',
+            displayName: 'Claude',
+          }),
         ],
       }),
     ];
@@ -241,9 +285,9 @@ describe('ArenaHistory', () => {
     expect(screen.getByText('First')).toBeInTheDocument();
     expect(screen.queryByText('Second')).not.toBeInTheDocument();
 
-    const expandButton = screen.getAllByRole('button').find((b) =>
-      b.querySelector('[data-testid="icon-chevron-down"]')
-    );
+    const expandButton = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('[data-testid="icon-chevron-down"]'));
 
     expect(expandButton).toBeDefined();
     if (expandButton) {
@@ -261,7 +305,9 @@ describe('ArenaHistory', () => {
 
     render(<ArenaHistory onViewBattle={onViewBattle} />);
 
-    const viewButton = screen.getAllByRole('button').find((b) => b.querySelector('[data-testid="icon-eye"]'));
+    const viewButton = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('[data-testid="icon-eye"]'));
     expect(viewButton).toBeDefined();
 
     if (viewButton) {

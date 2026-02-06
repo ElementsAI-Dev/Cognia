@@ -55,18 +55,70 @@ export interface MCPLogViewerProps {
   className?: string;
 }
 
-const levelConfig: Record<LogLevel, { icon: React.ElementType; color: string; bgColor: string; priority: number }> = {
-  debug: { icon: Bug, color: 'text-gray-500', bgColor: 'bg-gray-100 dark:bg-gray-800', priority: 0 },
-  info: { icon: Info, color: 'text-blue-500', bgColor: 'bg-blue-100 dark:bg-blue-900/30', priority: 1 },
-  notice: { icon: Info, color: 'text-cyan-500', bgColor: 'bg-cyan-100 dark:bg-cyan-900/30', priority: 2 },
-  warning: { icon: AlertTriangle, color: 'text-yellow-500', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30', priority: 3 },
-  error: { icon: AlertCircle, color: 'text-red-500', bgColor: 'bg-red-100 dark:bg-red-900/30', priority: 4 },
-  critical: { icon: AlertCircle, color: 'text-red-600', bgColor: 'bg-red-200 dark:bg-red-900/50', priority: 5 },
-  alert: { icon: AlertCircle, color: 'text-orange-600', bgColor: 'bg-orange-200 dark:bg-orange-900/50', priority: 6 },
-  emergency: { icon: AlertCircle, color: 'text-red-700', bgColor: 'bg-red-300 dark:bg-red-900/70', priority: 7 },
+const levelConfig: Record<
+  LogLevel,
+  { icon: React.ElementType; color: string; bgColor: string; priority: number }
+> = {
+  debug: {
+    icon: Bug,
+    color: 'text-gray-500',
+    bgColor: 'bg-gray-100 dark:bg-gray-800',
+    priority: 0,
+  },
+  info: {
+    icon: Info,
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+    priority: 1,
+  },
+  notice: {
+    icon: Info,
+    color: 'text-cyan-500',
+    bgColor: 'bg-cyan-100 dark:bg-cyan-900/30',
+    priority: 2,
+  },
+  warning: {
+    icon: AlertTriangle,
+    color: 'text-yellow-500',
+    bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
+    priority: 3,
+  },
+  error: {
+    icon: AlertCircle,
+    color: 'text-red-500',
+    bgColor: 'bg-red-100 dark:bg-red-900/30',
+    priority: 4,
+  },
+  critical: {
+    icon: AlertCircle,
+    color: 'text-red-600',
+    bgColor: 'bg-red-200 dark:bg-red-900/50',
+    priority: 5,
+  },
+  alert: {
+    icon: AlertCircle,
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-200 dark:bg-orange-900/50',
+    priority: 6,
+  },
+  emergency: {
+    icon: AlertCircle,
+    color: 'text-red-700',
+    bgColor: 'bg-red-300 dark:bg-red-900/70',
+    priority: 7,
+  },
 };
 
-const allLevels: LogLevel[] = ['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'];
+const allLevels: LogLevel[] = [
+  'debug',
+  'info',
+  'notice',
+  'warning',
+  'error',
+  'critical',
+  'alert',
+  'emergency',
+];
 
 function formatTimestamp(date: Date): string {
   return date.toLocaleTimeString('en-US', {
@@ -152,9 +204,12 @@ export function MCPLogViewer({
 
   const handleExport = () => {
     const content = filteredLogs
-      .map((log) => `[${formatTimestamp(log.timestamp)}] [${log.level.toUpperCase()}] ${log.serverName || log.serverId || ''}: ${log.message}`)
+      .map(
+        (log) =>
+          `[${formatTimestamp(log.timestamp)}] [${log.level.toUpperCase()}] ${log.serverName || log.serverId || ''}: ${log.message}`
+      )
       .join('\n');
-    
+
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -164,14 +219,21 @@ export function MCPLogViewer({
     URL.revokeObjectURL(url);
   };
 
-  const hasErrors = (levelCounts.error || 0) + (levelCounts.critical || 0) + (levelCounts.alert || 0) + (levelCounts.emergency || 0) > 0;
+  const hasErrors =
+    (levelCounts.error || 0) +
+      (levelCounts.critical || 0) +
+      (levelCounts.alert || 0) +
+      (levelCounts.emergency || 0) >
+    0;
 
   return (
-    <div className={cn(
-      'rounded-xl border bg-card overflow-hidden',
-      hasErrors && 'border-red-300 dark:border-red-800',
-      className
-    )}>
+    <div
+      className={cn(
+        'rounded-xl border bg-card overflow-hidden',
+        hasErrors && 'border-red-300 dark:border-red-800',
+        className
+      )}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b bg-muted/30">
         <button
@@ -275,9 +337,7 @@ export function MCPLogViewer({
                 <EmptyMedia variant="icon">
                   <Info className="h-6 w-6" />
                 </EmptyMedia>
-                <EmptyTitle>
-                  {logs.length === 0 ? t('noLogs') : t('noMatchingLogs')}
-                </EmptyTitle>
+                <EmptyTitle>{logs.length === 0 ? t('noLogs') : t('noMatchingLogs')}</EmptyTitle>
                 <EmptyDescription>
                   {logs.length === 0 ? t('noLogsDescription') : t('noMatchingLogsDescription')}
                 </EmptyDescription>
@@ -322,9 +382,7 @@ export function MCPLogViewer({
 
                         {/* Logger */}
                         {log.logger && (
-                          <span className="text-muted-foreground shrink-0">
-                            [{log.logger}]
-                          </span>
+                          <span className="text-muted-foreground shrink-0">[{log.logger}]</span>
                         )}
 
                         {/* Message */}

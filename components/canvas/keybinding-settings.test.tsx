@@ -87,70 +87,70 @@ describe('KeybindingSettings', () => {
 
   it('should open dialog when button is clicked', async () => {
     render(<KeybindingSettings />);
-    
+
     const button = screen.getByText('Keybindings');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
   });
 
   it('should show search input', async () => {
     render(<KeybindingSettings />);
-    
+
     const button = screen.getByText('Keybindings');
     await userEvent.click(button);
-    
+
     expect(screen.getByPlaceholderText('Search shortcuts...')).toBeInTheDocument();
   });
 
   it('should show category headers', async () => {
     render(<KeybindingSettings />);
-    
+
     const button = screen.getByText('Keybindings');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('Canvas')).toBeInTheDocument();
   });
 
   it('should close dialog when close button is clicked', async () => {
     render(<KeybindingSettings />);
-    
+
     const openButton = screen.getByText('Keybindings');
     await userEvent.click(openButton);
-    
+
     const closeButton = screen.getByText('Close');
     await userEvent.click(closeButton);
-    
+
     // Dialog should be closed (title no longer visible)
     expect(screen.queryByText('Keyboard Shortcuts')).not.toBeInTheDocument();
   });
 
   it('should filter keybindings based on search', async () => {
     render(<KeybindingSettings />);
-    
+
     const openButton = screen.getByText('Keybindings');
     await userEvent.click(openButton);
-    
+
     const searchInput = screen.getByPlaceholderText('Search shortcuts...');
     await userEvent.type(searchInput, 'save');
-    
+
     // Should show save-related actions
     expect(screen.getByText('save')).toBeInTheDocument();
   });
 
   it('should render custom trigger if provided', () => {
     render(<KeybindingSettings trigger={<button>Custom Trigger</button>} />);
-    
+
     expect(screen.getByText('Custom Trigger')).toBeInTheDocument();
     expect(screen.queryByText('Keybindings')).not.toBeInTheDocument();
   });
 
   it('should show reset confirmation dialog', async () => {
     render(<KeybindingSettings />);
-    
+
     const openButton = screen.getByText('Keybindings');
     await userEvent.click(openButton);
-    
+
     // Find and click the reset button (icon button)
     const resetButtons = screen.getAllByRole('button');
     // Verify reset buttons exist and checkConflicts is called
@@ -166,10 +166,10 @@ describe('KeybindingSettings', () => {
     global.URL.revokeObjectURL = mockRevokeObjectURL;
 
     render(<KeybindingSettings />);
-    
+
     const openButton = screen.getByText('Keybindings');
     await userEvent.click(openButton);
-    
+
     // The export button has a Download icon
     // We can verify the export function is available
     expect(mockExportBindings).toBeDefined();
@@ -186,10 +186,10 @@ describe('KeybindingSettings with conflicts', () => {
 
   it('should show conflict warning when conflicts exist', async () => {
     render(<KeybindingSettings />);
-    
+
     const button = screen.getByText('Keybindings');
     await userEvent.click(button);
-    
+
     // Warning should be shown for conflicts
     expect(mockCheckConflicts).toHaveBeenCalled();
   });
@@ -203,10 +203,10 @@ describe('KeybindingSettings editing', () => {
 
   it('should show modified badge for changed keybindings', async () => {
     render(<KeybindingSettings />);
-    
+
     const button = screen.getByText('Keybindings');
     await userEvent.click(button);
-    
+
     // Modified keybindings should show a badge
     expect(mockIsModified).toHaveBeenCalled();
   });

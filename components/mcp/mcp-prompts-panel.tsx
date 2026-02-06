@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useMemo } from 'react';
 import { Loader2, Sparkles, FileText } from 'lucide-react';

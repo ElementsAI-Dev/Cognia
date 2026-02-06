@@ -62,7 +62,9 @@ jest.mock('@/lib/db', () => ({
 
 // Mock export utilities
 jest.mock('@/lib/export', () => ({
-  exportSessionsToZip: jest.fn().mockResolvedValue({ success: true, blob: new Blob(), filename: 'test.zip' }),
+  exportSessionsToZip: jest
+    .fn()
+    .mockResolvedValue({ success: true, blob: new Blob(), filename: 'test.zip' }),
   downloadZip: jest.fn(),
   estimateExportSize: jest.fn().mockReturnValue(100),
 }));
@@ -83,12 +85,12 @@ describe('BatchExportDialog', () => {
     await act(async () => {
       render(<BatchExportDialog />);
     });
-    
+
     const triggerButton = screen.getByText('Batch Export');
     await act(async () => {
       fireEvent.click(triggerButton);
     });
-    
+
     expect(screen.getByText('Export Sessions')).toBeInTheDocument();
   });
 
@@ -96,12 +98,12 @@ describe('BatchExportDialog', () => {
     await act(async () => {
       render(<BatchExportDialog />);
     });
-    
+
     const triggerButton = screen.getByText('Batch Export');
     await act(async () => {
       fireEvent.click(triggerButton);
     });
-    
+
     expect(screen.getByText('Select sessions to export as a ZIP file')).toBeInTheDocument();
   });
 
@@ -109,12 +111,12 @@ describe('BatchExportDialog', () => {
     await act(async () => {
       render(<BatchExportDialog />);
     });
-    
+
     const triggerButton = screen.getByText('Batch Export');
     await act(async () => {
       fireEvent.click(triggerButton);
     });
-    
+
     expect(screen.getByText('Export Format')).toBeInTheDocument();
   });
 
@@ -122,12 +124,12 @@ describe('BatchExportDialog', () => {
     await act(async () => {
       render(<BatchExportDialog />);
     });
-    
+
     const triggerButton = screen.getByText('Batch Export');
     await act(async () => {
       fireEvent.click(triggerButton);
     });
-    
+
     expect(screen.getByText('Session 1')).toBeInTheDocument();
     expect(screen.getByText('Session 2')).toBeInTheDocument();
   });
@@ -136,12 +138,12 @@ describe('BatchExportDialog', () => {
     await act(async () => {
       render(<BatchExportDialog />);
     });
-    
+
     const triggerButton = screen.getByText('Batch Export');
     await act(async () => {
       fireEvent.click(triggerButton);
     });
-    
+
     expect(screen.getByText('All')).toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
   });
@@ -150,22 +152,22 @@ describe('BatchExportDialog', () => {
     await act(async () => {
       render(<BatchExportDialog />);
     });
-    
+
     const triggerButton = screen.getByText('Batch Export');
     await act(async () => {
       fireEvent.click(triggerButton);
     });
-    
+
     expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 
   it('accepts custom trigger', async () => {
     const customTrigger = <button data-testid="custom-trigger">Custom Export</button>;
-    
+
     await act(async () => {
       render(<BatchExportDialog trigger={customTrigger} />);
     });
-    
+
     expect(screen.getByTestId('custom-trigger')).toBeInTheDocument();
   });
 });
@@ -175,12 +177,12 @@ describe('BatchExportDialog - Session Selection', () => {
     await act(async () => {
       render(<BatchExportDialog />);
     });
-    
+
     const triggerButton = screen.getByText('Batch Export');
     await act(async () => {
       fireEvent.click(triggerButton);
     });
-    
+
     expect(screen.getByText('chat')).toBeInTheDocument();
     expect(screen.getByText('agent')).toBeInTheDocument();
   });

@@ -19,16 +19,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { CodeBlock } from '@/components/ai-elements/code-block';
@@ -94,15 +86,44 @@ function formatDuration(ms: number): string {
   return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
 }
 
-const stateConfig: Record<ToolState, { icon: React.ElementType; color: string; bgColor: string }> = {
-  'input-streaming': { icon: Loader2, color: 'text-blue-600', bgColor: 'border-blue-300 bg-blue-50 dark:bg-blue-950/30' },
-  'input-available': { icon: Loader2, color: 'text-blue-600', bgColor: 'border-blue-300 bg-blue-50 dark:bg-blue-950/30' },
-  'approval-requested': { icon: AlertTriangle, color: 'text-yellow-600', bgColor: 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30' },
-  'approval-responded': { icon: Clock, color: 'text-blue-600', bgColor: 'border-blue-300 bg-blue-50 dark:bg-blue-950/30' },
-  'output-available': { icon: CheckCircle, color: 'text-green-600', bgColor: 'border-green-300 bg-green-50 dark:bg-green-950/30' },
-  'output-error': { icon: XCircle, color: 'text-red-600', bgColor: 'border-red-300 bg-red-50 dark:bg-red-950/30' },
-  'output-denied': { icon: XCircle, color: 'text-orange-600', bgColor: 'border-orange-300 bg-orange-50 dark:bg-orange-950/30' },
-};
+const stateConfig: Record<ToolState, { icon: React.ElementType; color: string; bgColor: string }> =
+  {
+    'input-streaming': {
+      icon: Loader2,
+      color: 'text-blue-600',
+      bgColor: 'border-blue-300 bg-blue-50 dark:bg-blue-950/30',
+    },
+    'input-available': {
+      icon: Loader2,
+      color: 'text-blue-600',
+      bgColor: 'border-blue-300 bg-blue-50 dark:bg-blue-950/30',
+    },
+    'approval-requested': {
+      icon: AlertTriangle,
+      color: 'text-yellow-600',
+      bgColor: 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30',
+    },
+    'approval-responded': {
+      icon: Clock,
+      color: 'text-blue-600',
+      bgColor: 'border-blue-300 bg-blue-50 dark:bg-blue-950/30',
+    },
+    'output-available': {
+      icon: CheckCircle,
+      color: 'text-green-600',
+      bgColor: 'border-green-300 bg-green-50 dark:bg-green-950/30',
+    },
+    'output-error': {
+      icon: XCircle,
+      color: 'text-red-600',
+      bgColor: 'border-red-300 bg-red-50 dark:bg-red-950/30',
+    },
+    'output-denied': {
+      icon: XCircle,
+      color: 'text-orange-600',
+      bgColor: 'border-orange-300 bg-orange-50 dark:bg-orange-950/30',
+    },
+  };
 
 const riskColors = {
   low: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -154,14 +175,21 @@ export function MCPToolCallCard({
   // Format result for display
   const formattedResult = useMemo(() => {
     if (!result) return null;
-    
+
     // Check if it's a ToolCallResult with content array
-    if (typeof result === 'object' && 'content' in result && Array.isArray((result as ToolCallResult).content)) {
+    if (
+      typeof result === 'object' &&
+      'content' in result &&
+      Array.isArray((result as ToolCallResult).content)
+    ) {
       return result as ToolCallResult;
     }
-    
+
     // Otherwise, treat as raw result
-    return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }], isError: false };
+    return {
+      content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+      isError: false,
+    };
   }, [result]);
 
   // Prepare copy content
@@ -184,19 +212,19 @@ export function MCPToolCallCard({
         <div className="flex items-center justify-between gap-3 p-3 hover:bg-accent/30 transition-colors">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {/* Icon */}
-            <div className={cn(
-              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-              'bg-background/80 border shadow-sm'
-            )}>
+            <div
+              className={cn(
+                'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                'bg-background/80 border shadow-sm'
+              )}
+            >
               <Wrench className="h-4 w-4" />
             </div>
 
             {/* Tool info */}
             <div className="flex flex-col items-start min-w-0 gap-0.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-sm truncate">
-                  {formatToolName(toolName)}
-                </span>
+                <span className="font-semibold text-sm truncate">{formatToolName(toolName)}</span>
                 <MCPServerBadge
                   serverId={serverId}
                   serverName={serverName}
@@ -228,10 +256,12 @@ export function MCPToolCallCard({
             <div className={cn('flex items-center gap-1', config.color)}>
               <Icon className={cn('h-4 w-4', isRunning && 'animate-spin')} />
             </div>
-            <ChevronDown className={cn(
-              'h-4 w-4 text-muted-foreground transition-transform',
-              isOpen && 'rotate-180'
-            )} />
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 text-muted-foreground transition-transform',
+                isOpen && 'rotate-180'
+              )}
+            />
           </div>
         </div>
       </CollapsibleTrigger>
@@ -287,8 +317,8 @@ export function MCPToolCallCard({
                 <TabsTrigger value="params" className="text-xs px-3 py-1">
                   {t('parameters')}
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="result" 
+                <TabsTrigger
+                  value="result"
                   className="text-xs px-3 py-1"
                   disabled={!isCompleted && !isError}
                 >

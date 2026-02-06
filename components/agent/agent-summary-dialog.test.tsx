@@ -24,37 +24,37 @@ jest.mock('langfuse', () => ({
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
     const translations: Record<string, string> = {
-      'title': 'Agent Summary',
-      'steps': 'steps',
-      'subAgents': 'sub-agents',
-      'tools': 'tools',
-      'options': 'Options',
-      'diagramType': 'Diagram Type',
-      'includeSubAgents': 'Include Sub-Agents',
-      'includeToolCalls': 'Include Tool Calls',
-      'includeTiming': 'Include Timing',
-      'summaryTab': 'Summary',
-      'diagramTab': 'Diagram',
-      'stepsTab': 'Steps',
-      'subAgentResults': 'Sub-Agent Results',
-      'toolsUsed': 'Tools Used',
-      'noSummaryYet': 'No summary generated yet',
-      'noDiagramYet': 'No diagram generated yet',
-      'generateSummary': 'Generate Summary',
-      'copySummary': 'Copy Summary',
-      'copyDiagram': 'Copy Diagram',
-      'export': 'Export',
-      'regenerate': 'Regenerate',
-      'generateBoth': 'Generate Both',
-      'summaryGenerated': 'Summary generated successfully',
-      'diagramGenerated': 'Diagram generated successfully',
-      'generationComplete': 'Summary and diagram generated',
-      'summaryFailed': 'Failed to generate summary',
-      'diagramFailed': 'Failed to generate diagram',
-      'generationFailed': 'Generation failed',
-      'summaryCopied': 'Summary copied to clipboard',
-      'diagramCopied': 'Diagram code copied to clipboard',
-      'exported': `Exported as ${params?.format || 'unknown'}`,
+      title: 'Agent Summary',
+      steps: 'steps',
+      subAgents: 'sub-agents',
+      tools: 'tools',
+      options: 'Options',
+      diagramType: 'Diagram Type',
+      includeSubAgents: 'Include Sub-Agents',
+      includeToolCalls: 'Include Tool Calls',
+      includeTiming: 'Include Timing',
+      summaryTab: 'Summary',
+      diagramTab: 'Diagram',
+      stepsTab: 'Steps',
+      subAgentResults: 'Sub-Agent Results',
+      toolsUsed: 'Tools Used',
+      noSummaryYet: 'No summary generated yet',
+      noDiagramYet: 'No diagram generated yet',
+      generateSummary: 'Generate Summary',
+      copySummary: 'Copy Summary',
+      copyDiagram: 'Copy Diagram',
+      export: 'Export',
+      regenerate: 'Regenerate',
+      generateBoth: 'Generate Both',
+      summaryGenerated: 'Summary generated successfully',
+      diagramGenerated: 'Diagram generated successfully',
+      generationComplete: 'Summary and diagram generated',
+      summaryFailed: 'Failed to generate summary',
+      diagramFailed: 'Failed to generate diagram',
+      generationFailed: 'Generation failed',
+      summaryCopied: 'Summary copied to clipboard',
+      diagramCopied: 'Diagram code copied to clipboard',
+      exported: `Exported as ${params?.format || 'unknown'}`,
     };
     return translations[key] || key;
   },
@@ -219,44 +219,44 @@ describe('AgentSummaryDialog', () => {
   describe('rendering', () => {
     it('should render dialog when open', () => {
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       expect(screen.getByText(/Agent Summary/i)).toBeInTheDocument();
     });
 
     it('should not render when closed', () => {
       render(<AgentSummaryDialog {...defaultProps} open={false} />);
-      
+
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('should display agent name', () => {
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       // Agent name is in the title with "Agent Summary : Test Agent" format
       expect(screen.getByText(/Test Agent/i)).toBeInTheDocument();
     });
 
     it('should display step count badge', () => {
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       expect(screen.getByText(/3\s*steps/i)).toBeInTheDocument();
     });
 
     it('should display sub-agents count when present', () => {
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       expect(screen.getByText(/1\s*sub-agents/i)).toBeInTheDocument();
     });
 
     it('should display tools count when tools are used', () => {
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       expect(screen.getByText(/1\s*tools/i)).toBeInTheDocument();
     });
 
     it('should display agent status', () => {
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       // Status badge should be visible
       expect(screen.getByText('completed')).toBeInTheDocument();
     });
@@ -265,7 +265,7 @@ describe('AgentSummaryDialog', () => {
   describe('tabs', () => {
     it('should have Summary, Diagram, and Steps tabs', () => {
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       expect(screen.getByRole('tab', { name: /summary/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /diagram/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /steps/i })).toBeInTheDocument();
@@ -273,25 +273,25 @@ describe('AgentSummaryDialog', () => {
 
     it('should show summary tab content by default', () => {
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       expect(screen.getByText('No summary generated yet')).toBeInTheDocument();
     });
 
     it('should switch to diagram tab on click', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       await user.click(screen.getByRole('tab', { name: /diagram/i }));
-      
+
       expect(screen.getByText('No diagram generated yet')).toBeInTheDocument();
     });
 
     it('should switch to steps tab on click', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       await user.click(screen.getByRole('tab', { name: /steps/i }));
-      
+
       // Should show step details - use regex for flexible matching
       expect(screen.getByText(/Planning/i)).toBeInTheDocument();
     });
@@ -301,37 +301,37 @@ describe('AgentSummaryDialog', () => {
     it('should toggle options panel', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       const optionsButton = screen.getByText('Options');
       await user.click(optionsButton);
-      
+
       expect(screen.getByText('Diagram Type')).toBeInTheDocument();
     });
 
     it('should have include sub-agents toggle', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       await user.click(screen.getByText('Options'));
-      
+
       expect(screen.getByText('Include Sub-Agents')).toBeInTheDocument();
     });
 
     it('should have include tool calls toggle', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       await user.click(screen.getByText('Options'));
-      
+
       expect(screen.getByText('Include Tool Calls')).toBeInTheDocument();
     });
 
     it('should have include timing toggle', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       await user.click(screen.getByText('Options'));
-      
+
       expect(screen.getByText('Include Timing')).toBeInTheDocument();
     });
   });
@@ -340,9 +340,9 @@ describe('AgentSummaryDialog', () => {
     it('should call generateAgentSummary when Generate Summary clicked', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       await user.click(screen.getByText('Generate Summary'));
-      
+
       expect(mockGenerateAgentSummary).toHaveBeenCalledWith(
         mockAgent,
         expect.objectContaining({
@@ -357,9 +357,9 @@ describe('AgentSummaryDialog', () => {
     it('should call generateAgentSummaryWithDiagram when Generate Both clicked', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       await user.click(screen.getByText('Generate Both'));
-      
+
       expect(mockGenerateAgentSummaryWithDiagram).toHaveBeenCalled();
     });
   });
@@ -368,9 +368,9 @@ describe('AgentSummaryDialog', () => {
     it('should display all steps with details', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       await user.click(screen.getByRole('tab', { name: /steps/i }));
-      
+
       // Use regex for flexible matching
       expect(screen.getByText(/Planning/i)).toBeInTheDocument();
     });
@@ -378,9 +378,9 @@ describe('AgentSummaryDialog', () => {
     it('should show step status icons', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       await user.click(screen.getByRole('tab', { name: /steps/i }));
-      
+
       // Completed steps should have check icons or status indicators
       const steps = screen.getAllByText(/completed/i);
       expect(steps.length).toBeGreaterThan(0);
@@ -389,9 +389,9 @@ describe('AgentSummaryDialog', () => {
     it('should render steps tab without errors', async () => {
       const user = userEvent.setup();
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       await user.click(screen.getByRole('tab', { name: /steps/i }));
-      
+
       // Steps tab should be visible and clickable
       expect(screen.getByRole('tabpanel')).toBeInTheDocument();
     });
@@ -403,9 +403,9 @@ describe('AgentSummaryDialog', () => {
         ...mockAgent,
         subAgents: [],
       } as unknown as BackgroundAgent;
-      
+
       render(<AgentSummaryDialog {...defaultProps} agent={agentNoSub} />);
-      
+
       expect(screen.queryByText(/sub-agents/)).not.toBeInTheDocument();
     });
   });
@@ -417,9 +417,9 @@ describe('AgentSummaryDialog', () => {
         status: 'failed',
         error: 'Connection timeout',
       } as unknown as BackgroundAgent;
-      
+
       render(<AgentSummaryDialog {...defaultProps} agent={failedAgent} />);
-      
+
       expect(screen.getByText('failed')).toBeInTheDocument();
     });
   });
@@ -427,7 +427,7 @@ describe('AgentSummaryDialog', () => {
   describe('error handling', () => {
     it('should handle generation errors gracefully', () => {
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       // Component should render without crashing - dialog role exists
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
@@ -436,7 +436,7 @@ describe('AgentSummaryDialog', () => {
   describe('footer actions', () => {
     it('should have action buttons in footer', () => {
       render(<AgentSummaryDialog {...defaultProps} />);
-      
+
       // Dialog footer should have Generate Summary button
       expect(screen.getByText('Generate Summary')).toBeInTheDocument();
     });

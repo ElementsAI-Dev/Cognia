@@ -2,7 +2,7 @@
 
 /**
  * ImageExportDialog - Export chat conversations as images
- * 
+ *
  * Supports: PNG, JPG, WebP with customization options
  */
 
@@ -75,7 +75,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
   const [copied, setCopied] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
-  
+
   // Export options
   const [format, setFormat] = useState<FormatOption>('png');
   const [theme, setTheme] = useState<ThemeOption>('light');
@@ -147,7 +147,20 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
     } finally {
       setIsExporting(false);
     }
-  }, [session, messages, maxMessages, format, theme, scale, quality, includeHeader, includeFooter, showTimestamps, showModel, t]);
+  }, [
+    session,
+    messages,
+    maxMessages,
+    format,
+    theme,
+    scale,
+    quality,
+    includeHeader,
+    includeFooter,
+    showTimestamps,
+    showModel,
+    t,
+  ]);
 
   // Handle copy to clipboard
   const handleCopy = useCallback(async () => {
@@ -177,7 +190,18 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
     } finally {
       setIsCopying(false);
     }
-  }, [session, messages, maxMessages, theme, scale, includeHeader, includeFooter, showTimestamps, showModel, t]);
+  }, [
+    session,
+    messages,
+    maxMessages,
+    theme,
+    scale,
+    includeHeader,
+    includeFooter,
+    showTimestamps,
+    showModel,
+    t,
+  ]);
 
   const estimatedSize = estimateImageSize(Math.min(messages.length, maxMessages), {
     format,
@@ -201,9 +225,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
             <ImageIcon className="h-5 w-5" />
             {t('exportAsImage')}
           </DialogTitle>
-          <DialogDescription>
-            {t('exportImageDescription')}
-          </DialogDescription>
+          <DialogDescription>{t('exportImageDescription')}</DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
@@ -271,7 +293,11 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                 >
                   {THEME_OPTIONS.map((themeOpt) => (
                     <div key={themeOpt.value} className="flex items-center">
-                      <RadioGroupItem value={themeOpt.value} id={`theme-${themeOpt.value}`} className="peer sr-only" />
+                      <RadioGroupItem
+                        value={themeOpt.value}
+                        id={`theme-${themeOpt.value}`}
+                        className="peer sr-only"
+                      />
                       <Label
                         htmlFor={`theme-${themeOpt.value}`}
                         className={cn(
@@ -299,7 +325,11 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
               >
                 {SCALE_OPTIONS.map((s) => (
                   <div key={s.value} className="flex items-center">
-                    <RadioGroupItem value={String(s.value)} id={`scale-${s.value}`} className="peer sr-only" />
+                    <RadioGroupItem
+                      value={String(s.value)}
+                      id={`scale-${s.value}`}
+                      className="peer sr-only"
+                    />
                     <Label
                       htmlFor={`scale-${s.value}`}
                       className={cn(
@@ -368,18 +398,16 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                 <Label htmlFor="show-model" className="text-sm font-normal">
                   {t('showModelOption')}
                 </Label>
-                <Switch
-                  id="show-model"
-                  checked={showModel}
-                  onCheckedChange={setShowModel}
-                />
+                <Switch id="show-model" checked={showModel} onCheckedChange={setShowModel} />
               </div>
             </div>
 
             {/* Info */}
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span>{t('messageCountLimit', { count: messages.length, max: maxMessages })}</span>
-              <Badge variant="outline">{t('estimatedSize')}: {estimatedSize}</Badge>
+              <Badge variant="outline">
+                {t('estimatedSize')}: {estimatedSize}
+              </Badge>
             </div>
 
             {/* Actions */}
@@ -409,7 +437,9 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                 ) : (
                   <Download className="h-4 w-4 mr-2" />
                 )}
-                {isExporting ? t('exportingImage') : t('downloadFormat', { format: format.toUpperCase() })}
+                {isExporting
+                  ? t('exportingImage')
+                  : t('downloadFormat', { format: format.toUpperCase() })}
               </Button>
             </div>
           </div>

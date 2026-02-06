@@ -8,7 +8,16 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Plus, RefreshCw, Settings, Power, PowerOff, Trash2, Activity, AlertCircle } from 'lucide-react';
+import {
+  Plus,
+  RefreshCw,
+  Settings,
+  Power,
+  PowerOff,
+  Trash2,
+  Activity,
+  AlertCircle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,13 +40,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Tooltip, TooltipContent, TooltipTrigger
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useExternalAgent } from '@/hooks/agent';
 import { ExternalAgentCommands } from './external-agent-commands';
 import { ExternalAgentPlan } from './external-agent-plan';
-import type { ExternalAgentConfig, ExternalAgentConnectionStatus } from '@/types/agent/external-agent';
+import type {
+  ExternalAgentConfig,
+  ExternalAgentConnectionStatus,
+} from '@/types/agent/external-agent';
 import {
   EXTERNAL_AGENT_PRESETS,
   getAvailablePresets,
@@ -62,7 +73,10 @@ interface AddAgentFormData {
 // ============================================================================
 
 function ConnectionStatusBadge({ status }: { status: ExternalAgentConnectionStatus }) {
-  const statusConfig: Record<ExternalAgentConnectionStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  const statusConfig: Record<
+    ExternalAgentConnectionStatus,
+    { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }
+  > = {
     connected: { label: 'Connected', variant: 'default' },
     connecting: { label: 'Connecting...', variant: 'secondary' },
     disconnected: { label: 'Disconnected', variant: 'outline' },
@@ -148,15 +162,14 @@ function AgentCard({
                     }
                   }}
                 >
-                  {isConnected ? 
-                    <PowerOff className="h-4 w-4 text-destructive" /> : 
+                  {isConnected ? (
+                    <PowerOff className="h-4 w-4 text-destructive" />
+                  ) : (
                     <Power className="h-4 w-4 text-green-600" />
-                  }
+                  )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                {isConnected ? 'Disconnect' : 'Connect'}
-              </TooltipContent>
+              <TooltipContent>{isConnected ? 'Disconnect' : 'Connect'}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -235,7 +248,9 @@ function AddAgentDialog({ open, onOpenChange, onAdd }: AddAgentDialogProps) {
   };
 
   const isStdio = formData.transport === 'stdio';
-  const currentPreset = selectedPreset ? EXTERNAL_AGENT_PRESETS[selectedPreset as ExternalAgentPresetId] : null;
+  const currentPreset = selectedPreset
+    ? EXTERNAL_AGENT_PRESETS[selectedPreset as ExternalAgentPresetId]
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -243,9 +258,7 @@ function AddAgentDialog({ open, onOpenChange, onAdd }: AddAgentDialogProps) {
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Add External Agent</DialogTitle>
-            <DialogDescription>
-              Configure a new external agent connection.
-            </DialogDescription>
+            <DialogDescription>Configure a new external agent connection.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             {/* Preset Selector */}
@@ -473,19 +486,12 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">External Agents</h3>
-          <p className="text-sm text-muted-foreground">
-            Manage connections to external AI agents
-          </p>
+          <p className="text-sm text-muted-foreground">Manage connections to external AI agents</p>
         </div>
         <div className="flex gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={refresh}
-                disabled={isLoading}
-              >
+              <Button variant="outline" size="icon" onClick={refresh} disabled={isLoading}>
                 <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
               </Button>
             </TooltipTrigger>
@@ -558,11 +564,7 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
       )}
 
       {/* Add Agent Dialog */}
-      <AddAgentDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
-        onAdd={handleAddAgent}
-      />
+      <AddAgentDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} onAdd={handleAddAgent} />
     </div>
   );
 }

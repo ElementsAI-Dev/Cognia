@@ -11,11 +11,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { isTauri } from '@/lib/native/utils';
 import { cn } from '@/lib/utils';
@@ -29,9 +25,9 @@ export function detectPlatform(): Platform {
   if (typeof window === 'undefined') {
     return 'unknown';
   }
-  
+
   const userAgent = window.navigator.userAgent.toLowerCase();
-  
+
   if (userAgent.includes('win')) {
     return 'windows';
   } else if (userAgent.includes('mac')) {
@@ -39,7 +35,7 @@ export function detectPlatform(): Platform {
   } else if (userAgent.includes('linux')) {
     return 'linux';
   }
-  
+
   return 'unknown';
 }
 
@@ -49,7 +45,7 @@ export function detectPlatform(): Platform {
 export function usePlatform(): Platform {
   // Initialize with the detected platform to avoid setState in effect
   const [platform] = useState<Platform>(() => detectPlatform());
-  
+
   return platform;
 }
 
@@ -78,35 +74,35 @@ export function PlatformWarning({
 }: PlatformWarningProps) {
   const t = useTranslations('platformWarning');
   const platform = usePlatform();
-  
+
   // Don't render in web environment
   if (!isTauri()) {
     return mode === 'tooltip' ? <>{children}</> : null;
   }
-  
+
   // Check if current platform is supported
   const isSupported = supportedPlatforms.includes(platform) || platform === 'unknown';
-  
+
   // If supported, don't show warning (or just render children for tooltip mode)
   if (isSupported) {
     return mode === 'tooltip' ? <>{children}</> : null;
   }
-  
+
   const platformNames: Record<Platform, string> = {
     windows: 'Windows',
     macos: 'macOS',
     linux: 'Linux',
     unknown: 'Unknown',
   };
-  
-  const supportedList = supportedPlatforms
-    .map(p => platformNames[p])
-    .join(', ');
-  
-  const warningMessage = message || t('notSupported', { 
-    feature: featureName, 
-    platforms: supportedList 
-  });
+
+  const supportedList = supportedPlatforms.map((p) => platformNames[p]).join(', ');
+
+  const warningMessage =
+    message ||
+    t('notSupported', {
+      feature: featureName,
+      platforms: supportedList,
+    });
 
   switch (mode) {
     case 'badge':
@@ -116,7 +112,7 @@ export function PlatformWarning({
           {supportedList} only
         </Badge>
       );
-      
+
     case 'inline':
       return (
         <span className={cn('inline-flex items-center gap-1 text-xs text-yellow-600', className)}>
@@ -124,7 +120,7 @@ export function PlatformWarning({
           {warningMessage}
         </span>
       );
-      
+
     case 'tooltip':
       return (
         <Tooltip>
@@ -139,11 +135,14 @@ export function PlatformWarning({
           </TooltipContent>
         </Tooltip>
       );
-      
+
     case 'alert':
     default:
       return (
-        <Alert variant="default" className={cn('border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20', className)}>
+        <Alert
+          variant="default"
+          className={cn('border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20', className)}
+        >
           <AlertTriangle className="h-4 w-4 text-yellow-600" />
           <AlertTitle className="text-yellow-700 dark:text-yellow-500">
             {t('limitedSupport')}
@@ -166,19 +165,21 @@ interface PlatformBadgeProps {
  */
 export function PlatformBadge({ platform, className }: PlatformBadgeProps) {
   const platforms = Array.isArray(platform) ? platform : [platform];
-  
+
   const platformIcons: Record<Platform, string> = {
     windows: '🪟',
     macos: '🍎',
     linux: '🐧',
     unknown: '❓',
   };
-  
+
   return (
     <Badge variant="secondary" className={cn('text-xs', className)}>
-      {platforms.map(p => platformIcons[p]).join(' ')}
+      {platforms.map((p) => platformIcons[p]).join(' ')}
       <span className="ml-1">
-        {platforms.map(p => p === 'windows' ? 'Win' : p === 'macos' ? 'Mac' : 'Linux').join('/')}
+        {platforms
+          .map((p) => (p === 'windows' ? 'Win' : p === 'macos' ? 'Mac' : 'Linux'))
+          .join('/')}
       </span>
     </Badge>
   );
@@ -195,22 +196,20 @@ interface DesktopOnlyProps {
  */
 export function DesktopOnly({ children, fallback, className }: DesktopOnlyProps) {
   const t = useTranslations('platformWarning');
-  
+
   if (!isTauri()) {
     if (fallback) {
       return <>{fallback}</>;
     }
-    
+
     return (
       <div className={cn('flex flex-col items-center justify-center p-4 text-center', className)}>
         <Info className="h-8 w-8 text-muted-foreground mb-2" />
-        <p className="text-sm text-muted-foreground">
-          {t('desktopOnly')}
-        </p>
+        <p className="text-sm text-muted-foreground">{t('desktopOnly')}</p>
       </div>
     );
   }
-  
+
   return <>{children}</>;
 }
 

@@ -35,59 +35,59 @@ describe('ObservabilitySettings', () => {
 
   it('should render settings form', () => {
     render(<ObservabilitySettings />);
-    
+
     expect(screen.getByText(/observability/i)).toBeInTheDocument();
   });
 
   it('should render enable toggle', () => {
     render(<ObservabilitySettings />);
-    
+
     expect(screen.getByRole('switch') || screen.getByLabelText(/enable/i)).toBeInTheDocument();
   });
 
   it('should render Langfuse settings section', () => {
     render(<ObservabilitySettings />);
-    
+
     expect(screen.getByText(/langfuse/i)).toBeInTheDocument();
   });
 
   it('should render OpenTelemetry settings section', () => {
     render(<ObservabilitySettings />);
-    
+
     expect(screen.getByText(/opentelemetry|otel/i)).toBeInTheDocument();
   });
 
   it('should render API key inputs', () => {
     render(<ObservabilitySettings />);
-    
+
     // Component renders without crashing
     expect(screen.getByText(/observability/i)).toBeInTheDocument();
   });
 
   it('should render host input', () => {
     render(<ObservabilitySettings />);
-    
+
     // Component renders settings form
     expect(screen.getByText(/observability/i)).toBeInTheDocument();
   });
 
   it('should render service name input', () => {
     render(<ObservabilitySettings />);
-    
+
     // Component renders settings form
     expect(screen.getByText(/observability/i)).toBeInTheDocument();
   });
 
   it('should call setObservabilitySettings on toggle', async () => {
     render(<ObservabilitySettings />);
-    
+
     // Component renders without crashing
     expect(screen.getByText(/observability/i)).toBeInTheDocument();
   });
 
   it('should show description text', () => {
     render(<ObservabilitySettings />);
-    
+
     expect(screen.getByText(/trace|monitor|metrics/i)).toBeInTheDocument();
   });
 });
@@ -115,13 +115,15 @@ describe('ObservabilitySettings when enabled', () => {
 
   it('should display configured values', () => {
     render(<ObservabilitySettings />);
-    
-    expect(screen.getByDisplayValue('pk-test-key') || screen.getByText(/pk-test/i) || true).toBeTruthy();
+
+    expect(
+      screen.getByDisplayValue('pk-test-key') || screen.getByText(/pk-test/i) || true
+    ).toBeTruthy();
   });
 
   it('should show enabled state', () => {
     render(<ObservabilitySettings />);
-    
+
     // Component should render in enabled state
     expect(screen.getAllByText(/observability/i).length).toBeGreaterThan(0);
   });
@@ -130,7 +132,7 @@ describe('ObservabilitySettings when enabled', () => {
 describe('ObservabilitySettings validation', () => {
   it('should handle empty API key gracefully', () => {
     render(<ObservabilitySettings />);
-    
+
     // Component should render without validation errors initially
     expect(screen.queryByText(/required|invalid/i)).toBeNull();
   });
@@ -164,13 +166,13 @@ describe('ObservabilitySettings test connection', () => {
 
   it('should render test connection button when langfuse is enabled', () => {
     render(<ObservabilitySettings />);
-    
+
     expect(screen.getByText(/test connection/i)).toBeInTheDocument();
   });
 
   it('should render external link to get API keys', () => {
     render(<ObservabilitySettings />);
-    
+
     expect(screen.getByText(/get api keys/i)).toBeInTheDocument();
   });
 });
@@ -198,13 +200,13 @@ describe('ObservabilitySettings OpenTelemetry section', () => {
 
   it('should display OpenTelemetry endpoint input when enabled', () => {
     render(<ObservabilitySettings />);
-    
+
     expect(screen.getByDisplayValue('http://localhost:4318/v1/traces')).toBeInTheDocument();
   });
 
   it('should display service name input when OTel is enabled', () => {
     render(<ObservabilitySettings />);
-    
+
     expect(screen.getByDisplayValue('my-service')).toBeInTheDocument();
   });
 });

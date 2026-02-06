@@ -11,16 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -51,9 +43,9 @@ export class CanvasErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     this.setState({ errorInfo });
-    
+
     console.error('Canvas error:', error, errorInfo);
-    
+
     this.props.onError?.(error, errorInfo);
   }
 
@@ -87,11 +79,7 @@ interface ErrorFallbackProps {
   onReset: () => void;
 }
 
-function CanvasErrorFallbackContent({ 
-  error, 
-  errorInfo, 
-  onReset 
-}: ErrorFallbackProps) {
+function CanvasErrorFallbackContent({ error, errorInfo, onReset }: ErrorFallbackProps) {
   const t = useTranslations('canvas');
   const [copied, setCopied] = React.useState(false);
   const [showDetails, setShowDetails] = React.useState(false);
@@ -129,7 +117,7 @@ function CanvasErrorFallbackContent({
             <AlertTitle className="text-lg">{t('errorTitle')}</AlertTitle>
             <AlertDescription className="mt-2">
               <p className="mb-4 text-muted-foreground">{t('errorDescription')}</p>
-              
+
               <div className="flex gap-2 mb-4">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -142,12 +130,7 @@ function CanvasErrorFallbackContent({
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      onClick={handleCopy} 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-2"
-                    >
+                    <Button onClick={handleCopy} variant="outline" size="sm" className="gap-2">
                       {copied ? (
                         <>
                           <Check className="h-4 w-4 text-green-500" />

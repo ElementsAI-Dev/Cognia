@@ -31,7 +31,9 @@ export function ObservabilitySettings() {
   const [testMessage, setTestMessage] = useState('');
 
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
-  const updateObservabilitySettings = useSettingsStore((state) => state.updateObservabilitySettings);
+  const updateObservabilitySettings = useSettingsStore(
+    (state) => state.updateObservabilitySettings
+  );
 
   const settings: ObservabilitySettingsData = observabilitySettings ?? {
     enabled: false,
@@ -58,7 +60,7 @@ export function ObservabilitySettings() {
     try {
       // In a real implementation, this would test the Langfuse connection
       // For now, we'll simulate a test
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       if (settings.langfusePublicKey && settings.langfuseSecretKey) {
         setTestStatus('success');
@@ -159,9 +161,7 @@ export function ObservabilitySettings() {
                   {testStatus === 'success' && (
                     <Alert variant="default" className="py-2 px-3 flex-1">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <AlertDescription className="text-green-600">
-                        {testMessage}
-                      </AlertDescription>
+                      <AlertDescription className="text-green-600">{testMessage}</AlertDescription>
                     </Alert>
                   )}
 
@@ -192,7 +192,9 @@ export function ObservabilitySettings() {
                 </div>
                 <Switch
                   checked={settings.openTelemetryEnabled}
-                  onCheckedChange={(checked) => handleSettingChange('openTelemetryEnabled', checked)}
+                  onCheckedChange={(checked) =>
+                    handleSettingChange('openTelemetryEnabled', checked)
+                  }
                 />
               </div>
             </CardHeader>

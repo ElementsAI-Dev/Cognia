@@ -4,11 +4,7 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import {
-  A2UIToolOutput,
-  A2UIStructuredOutput,
-  hasA2UIToolOutput,
-} from './a2ui-tool-output';
+import { A2UIToolOutput, A2UIStructuredOutput, hasA2UIToolOutput } from './a2ui-tool-output';
 
 // Mock useA2UI hook
 const mockProcessMessages = jest.fn();
@@ -57,13 +53,7 @@ describe('A2UIToolOutput', () => {
   it('should render A2UI surface from object output', () => {
     const output = [{ type: 'createSurface', surfaceId: 'tool-surface' }];
 
-    render(
-      <A2UIToolOutput
-        toolId="tool1"
-        toolName="TestTool"
-        output={output}
-      />
-    );
+    render(<A2UIToolOutput toolId="tool1" toolName="TestTool" output={output} />);
 
     expect(screen.getByTestId('a2ui-surface')).toBeInTheDocument();
     expect(screen.getByText('TestTool')).toBeInTheDocument();
@@ -72,13 +62,7 @@ describe('A2UIToolOutput', () => {
   it('should render A2UI surface from string output', () => {
     const output = JSON.stringify([{ type: 'createSurface', surfaceId: 'string-surface' }]);
 
-    render(
-      <A2UIToolOutput
-        toolId="tool2"
-        toolName="StringTool"
-        output={output}
-      />
-    );
+    render(<A2UIToolOutput toolId="tool2" toolName="StringTool" output={output} />);
 
     expect(screen.getByTestId('a2ui-surface')).toBeInTheDocument();
   });
@@ -88,11 +72,7 @@ describe('A2UIToolOutput', () => {
     const output = 'Regular string output';
 
     const { container } = render(
-      <A2UIToolOutput
-        toolId="tool3"
-        toolName="RegularTool"
-        output={output}
-      />
+      <A2UIToolOutput toolId="tool3" toolName="RegularTool" output={output} />
     );
 
     expect(container.firstChild).toBeNull();
@@ -101,13 +81,7 @@ describe('A2UIToolOutput', () => {
   it('should call processMessages with parsed messages', () => {
     const output = [{ type: 'createSurface', surfaceId: 'test' }];
 
-    render(
-      <A2UIToolOutput
-        toolId="tool4"
-        toolName="TestTool"
-        output={output}
-      />
-    );
+    render(<A2UIToolOutput toolId="tool4" toolName="TestTool" output={output} />);
 
     expect(mockProcessMessages).toHaveBeenCalled();
   });
@@ -116,12 +90,7 @@ describe('A2UIToolOutput', () => {
     const output = [{ type: 'createSurface', surfaceId: 'test' }];
 
     const { container } = render(
-      <A2UIToolOutput
-        toolId="tool5"
-        toolName="TestTool"
-        output={output}
-        className="custom-class"
-      />
+      <A2UIToolOutput toolId="tool5" toolName="TestTool" output={output} className="custom-class" />
     );
 
     expect(container.firstChild).toHaveClass('custom-class');
@@ -130,13 +99,7 @@ describe('A2UIToolOutput', () => {
   it('should display tool name', () => {
     const output = [{ type: 'createSurface', surfaceId: 'test' }];
 
-    render(
-      <A2UIToolOutput
-        toolId="tool6"
-        toolName="MyCustomTool"
-        output={output}
-      />
-    );
+    render(<A2UIToolOutput toolId="tool6" toolName="MyCustomTool" output={output} />);
 
     expect(screen.getByText('MyCustomTool')).toBeInTheDocument();
     expect(screen.getByText('output')).toBeInTheDocument();
@@ -144,17 +107,11 @@ describe('A2UIToolOutput', () => {
 
   it('should use toolId as fallback surfaceId', () => {
     const output = [{ type: 'createSurface' }]; // No surfaceId in message
-    mockGetSurface.mockImplementation((id) => 
+    mockGetSurface.mockImplementation((id) =>
       id === 'tool-fallback' ? { id: 'tool-fallback', ready: true } : null
     );
 
-    render(
-      <A2UIToolOutput
-        toolId="fallback"
-        toolName="FallbackTool"
-        output={output}
-      />
-    );
+    render(<A2UIToolOutput toolId="fallback" toolName="FallbackTool" output={output} />);
 
     expect(mockGetSurface).toHaveBeenCalled();
   });
@@ -164,11 +121,7 @@ describe('A2UIToolOutput', () => {
     const output = 'not valid json {{{';
 
     const { container } = render(
-      <A2UIToolOutput
-        toolId="tool7"
-        toolName="InvalidTool"
-        output={output}
-      />
+      <A2UIToolOutput toolId="tool7" toolName="InvalidTool" output={output} />
     );
 
     expect(container.firstChild).toBeNull();
@@ -216,12 +169,7 @@ describe('A2UIStructuredOutput', () => {
   it('should render A2UI surface from messages', () => {
     const messages = [{ type: 'createSurface', surfaceId: 'structured-surface' }];
 
-    render(
-      <A2UIStructuredOutput
-        id="output1"
-        messages={messages as never}
-      />
-    );
+    render(<A2UIStructuredOutput id="output1" messages={messages as never} />);
 
     expect(screen.getByTestId('a2ui-surface')).toBeInTheDocument();
   });
@@ -229,13 +177,7 @@ describe('A2UIStructuredOutput', () => {
   it('should display title when provided', () => {
     const messages = [{ type: 'createSurface', surfaceId: 'test' }];
 
-    render(
-      <A2UIStructuredOutput
-        id="output2"
-        messages={messages as never}
-        title="My Output"
-      />
-    );
+    render(<A2UIStructuredOutput id="output2" messages={messages as never} title="My Output" />);
 
     expect(screen.getByText('My Output')).toBeInTheDocument();
   });
@@ -243,12 +185,7 @@ describe('A2UIStructuredOutput', () => {
   it('should not display title when not provided', () => {
     const messages = [{ type: 'createSurface', surfaceId: 'test' }];
 
-    render(
-      <A2UIStructuredOutput
-        id="output3"
-        messages={messages as never}
-      />
-    );
+    render(<A2UIStructuredOutput id="output3" messages={messages as never} />);
 
     expect(screen.queryByRole('heading')).toBeNull();
   });
@@ -256,12 +193,7 @@ describe('A2UIStructuredOutput', () => {
   it('should call processMessages with provided messages', () => {
     const messages = [{ type: 'createSurface', surfaceId: 'test' }];
 
-    render(
-      <A2UIStructuredOutput
-        id="output4"
-        messages={messages as never}
-      />
-    );
+    render(<A2UIStructuredOutput id="output4" messages={messages as never} />);
 
     expect(mockProcessMessages).toHaveBeenCalledWith(messages);
   });
@@ -272,12 +204,7 @@ describe('A2UIStructuredOutput', () => {
       id === 'output-fallback' ? { id: 'output-fallback', ready: true } : null
     );
 
-    render(
-      <A2UIStructuredOutput
-        id="fallback"
-        messages={messages as never}
-      />
-    );
+    render(<A2UIStructuredOutput id="fallback" messages={messages as never} />);
 
     expect(mockGetSurface).toHaveBeenCalledWith('output-fallback');
   });
@@ -287,10 +214,7 @@ describe('A2UIStructuredOutput', () => {
     const messages = [{ type: 'createSurface' }];
 
     const { container } = render(
-      <A2UIStructuredOutput
-        id="output5"
-        messages={messages as never}
-      />
+      <A2UIStructuredOutput id="output5" messages={messages as never} />
     );
 
     expect(container.firstChild).toBeNull();
@@ -300,11 +224,7 @@ describe('A2UIStructuredOutput', () => {
     const messages = [{ type: 'createSurface', surfaceId: 'test' }];
 
     const { container } = render(
-      <A2UIStructuredOutput
-        id="output6"
-        messages={messages as never}
-        className="my-output-class"
-      />
+      <A2UIStructuredOutput id="output6" messages={messages as never} className="my-output-class" />
     );
 
     expect(container.firstChild).toHaveClass('my-output-class');

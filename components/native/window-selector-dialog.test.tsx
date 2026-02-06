@@ -99,12 +99,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('renders dialog when open', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Select Window')).toBeInTheDocument();
@@ -113,23 +108,13 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('does not render when closed', () => {
-    render(
-      <WindowSelectorDialog
-        open={false}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={false} onOpenChange={mockOnOpenChange} />);
 
     expect(screen.queryByText('Select Window')).not.toBeInTheDocument();
   });
 
   it('fetches windows on open', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(mockGetWindowsWithThumbnails).toHaveBeenCalledWith(160);
@@ -137,12 +122,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('displays window list', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Window 1')).toBeInTheDocument();
@@ -152,12 +132,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('displays process names', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('test.exe')).toBeInTheDocument();
@@ -167,12 +142,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('displays window dimensions', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('1920×1080')).toBeInTheDocument();
@@ -182,12 +152,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('displays window count in footer', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('3 windows')).toBeInTheDocument();
@@ -195,12 +160,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('renders search input', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search windows...')).toBeInTheDocument();
@@ -208,12 +168,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('filters windows by title', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Window 1')).toBeInTheDocument();
@@ -230,12 +185,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('filters windows by process name', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Window 1')).toBeInTheDocument();
@@ -251,12 +201,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('shows no results message when search has no matches', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Window 1')).toBeInTheDocument();
@@ -271,12 +216,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('selects window on click', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Window 1')).toBeInTheDocument();
@@ -317,12 +257,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('calls captureWindowByHwnd on double click without onCaptureWindow', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Window 1')).toBeInTheDocument();
@@ -340,12 +275,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('closes dialog on cancel button click', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Cancel')).toBeInTheDocument();
@@ -356,12 +286,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('capture button is disabled when no window selected', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Capture')).toBeInTheDocument();
@@ -401,12 +326,7 @@ describe('WindowSelectorDialog', () => {
   });
 
   it('has refresh button that is clickable', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     // Wait for windows to load
     await waitFor(() => {
@@ -415,41 +335,31 @@ describe('WindowSelectorDialog', () => {
 
     // Find refresh button (the icon button with RefreshCw)
     const buttons = screen.getAllByRole('button');
-    const refreshButton = buttons.find(btn => {
+    const refreshButton = buttons.find((btn) => {
       const svg = btn.querySelector('svg');
       return svg && svg.classList.contains('lucide-refresh-cw');
     });
-    
+
     expect(refreshButton).toBeInTheDocument();
     expect(refreshButton).not.toBeDisabled();
   });
 
   it('displays thumbnail when available', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Window 1')).toBeInTheDocument();
     });
 
     const images = screen.getAllByRole('img');
-    const thumbnailImage = images.find(img => 
+    const thumbnailImage = images.find((img) =>
       img.getAttribute('src')?.includes('data:image/png;base64')
     );
     expect(thumbnailImage).toBeInTheDocument();
   });
 
   it('displays placeholder when no thumbnail', async () => {
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test Window 2')).toBeInTheDocument();
@@ -469,12 +379,7 @@ describe('WindowSelectorDialog', () => {
     ];
     mockGetWindowsWithThumbnails.mockResolvedValueOnce(windowsWithNoTitle);
 
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       expect(screen.getByText('Untitled')).toBeInTheDocument();
@@ -483,10 +388,7 @@ describe('WindowSelectorDialog', () => {
 
   it('resets state when dialog reopens', async () => {
     const { rerender } = render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
+      <WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />
     );
 
     await waitFor(() => {
@@ -498,19 +400,9 @@ describe('WindowSelectorDialog', () => {
     fireEvent.change(searchInput, { target: { value: 'Browser' } });
 
     // Close and reopen
-    rerender(
-      <WindowSelectorDialog
-        open={false}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    rerender(<WindowSelectorDialog open={false} onOpenChange={mockOnOpenChange} />);
 
-    rerender(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
-    );
+    rerender(<WindowSelectorDialog open={true} onOpenChange={mockOnOpenChange} />);
 
     await waitFor(() => {
       const newSearchInput = screen.getByPlaceholderText('Search windows...');
@@ -527,21 +419,16 @@ describe('WindowSelectorDialog - Loading State', () => {
   it('shows loading state while fetching', async () => {
     // Create a promise that we can control
     let resolvePromise: (value: typeof mockWindows) => void;
-    const pendingPromise = new Promise<typeof mockWindows>(resolve => {
+    const pendingPromise = new Promise<typeof mockWindows>((resolve) => {
       resolvePromise = resolve;
     });
     mockGetWindowsWithThumbnails.mockReturnValueOnce(pendingPromise);
 
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={jest.fn()}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={jest.fn()} />);
 
     // While loading, the refresh button should be disabled
     const buttons = screen.getAllByRole('button');
-    const refreshButton = buttons.find(btn => {
+    const refreshButton = buttons.find((btn) => {
       const svg = btn.querySelector('svg');
       return svg && svg.classList.contains('lucide-refresh-cw');
     });
@@ -549,7 +436,7 @@ describe('WindowSelectorDialog - Loading State', () => {
 
     // Resolve the promise
     resolvePromise!(mockWindows);
-    
+
     await waitFor(() => {
       expect(screen.getByText('Test Window 1')).toBeInTheDocument();
     });
@@ -564,12 +451,7 @@ describe('WindowSelectorDialog - Empty State', () => {
   it('shows no windows message when list is empty', async () => {
     mockGetWindowsWithThumbnails.mockResolvedValueOnce([]);
 
-    render(
-      <WindowSelectorDialog
-        open={true}
-        onOpenChange={jest.fn()}
-      />
-    );
+    render(<WindowSelectorDialog open={true} onOpenChange={jest.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('No windows available')).toBeInTheDocument();

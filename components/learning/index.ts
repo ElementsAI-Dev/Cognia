@@ -1,6 +1,6 @@
 /**
  * Learning Mode Components
- * 
+ *
  * Components for the Socratic Method-based learning mode.
  */
 

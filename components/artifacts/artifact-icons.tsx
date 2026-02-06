@@ -30,7 +30,7 @@ export function getArtifactTypeIcon(type: ArtifactType, className = 'h-4 w-4') {
     math: <Calculator className={className} />,
     jupyter: <BookOpen className={className} />,
   };
-  
+
   return icons[type] || <Code className={className} />;
 }
 

@@ -86,12 +86,9 @@ export function A2UISurface({
   }, [surfaceId, onAction, onDataChange]);
 
   // Render component callback for provider
-  const renderComponent = useCallback(
-    (component: A2UIComponent) => {
-      return <A2UIRenderer key={component.id} component={component} />;
-    },
-    []
-  );
+  const renderComponent = useCallback((component: A2UIComponent) => {
+    return <A2UIRenderer key={component.id} component={component} />;
+  }, []);
 
   // Surface not found
   if (!surface) {
@@ -103,9 +100,7 @@ export function A2UISurface({
     return (
       <div className={cn('flex items-center justify-center p-8', className)}>
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        {loadingText && (
-          <span className="ml-2 text-sm text-muted-foreground">{loadingText}</span>
-        )}
+        {loadingText && <span className="ml-2 text-sm text-muted-foreground">{loadingText}</span>}
       </div>
     );
   }
@@ -197,16 +192,9 @@ export function A2UIDialogSurface({
   );
 
   return (
-    <div
-      className={cn(surfaceStyles.dialog, className)}
-      onClick={handleBackdropClick}
-    >
+    <div className={cn(surfaceStyles.dialog, className)} onClick={handleBackdropClick}>
       <div className={contentStyles.dialog}>
-        <A2UISurface
-          surfaceId={surfaceId}
-          onAction={onAction}
-          onDataChange={onDataChange}
-        />
+        <A2UISurface surfaceId={surfaceId} onAction={onAction} onDataChange={onDataChange} />
       </div>
     </div>
   );

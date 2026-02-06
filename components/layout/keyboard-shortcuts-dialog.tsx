@@ -65,9 +65,7 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
               <Keyboard className="h-5 w-5" />
               {t('title')}
             </DialogTitle>
-            <DialogDescription>
-              {t('description')}
-            </DialogDescription>
+            <DialogDescription>{t('description')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
@@ -80,13 +78,8 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
                 </h3>
                 <div className="space-y-2">
                   {categoryShortcuts.map((shortcut, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between py-1.5"
-                    >
-                      <span className="text-sm text-muted-foreground">
-                        {shortcut.description}
-                      </span>
+                    <div key={index} className="flex items-center justify-between py-1.5">
+                      <span className="text-sm text-muted-foreground">{shortcut.description}</span>
                       <Kbd className="px-2 py-1">
                         {formatShortcut({
                           key: shortcut.key,
@@ -107,7 +100,11 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
             <p className="text-muted-foreground">
               <strong>{t('tip')}</strong> Press{' '}
               <kbd className="mx-1 rounded border bg-background px-1.5 py-0.5 font-mono text-xs">
-                {typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl'}+K
+                {typeof navigator !== 'undefined' &&
+                navigator.platform.toUpperCase().indexOf('MAC') >= 0
+                  ? '⌘'
+                  : 'Ctrl'}
+                +K
               </kbd>{' '}
               {t('commandPaletteHint')}
             </p>
@@ -119,18 +116,14 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger}
-      </DialogTrigger>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Keyboard className="h-5 w-5" />
             {t('title')}
           </DialogTitle>
-          <DialogDescription>
-            {t('description')}
-          </DialogDescription>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -143,13 +136,8 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
               </h3>
               <div className="space-y-2">
                 {categoryShortcuts.map((shortcut, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between py-1.5"
-                  >
-                    <span className="text-sm text-muted-foreground">
-                      {shortcut.description}
-                    </span>
+                  <div key={index} className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-muted-foreground">{shortcut.description}</span>
                     <Kbd className="px-2 py-1">
                       {formatShortcut({
                         key: shortcut.key,
@@ -170,7 +158,11 @@ export function KeyboardShortcutsDialog({ trigger }: KeyboardShortcutsDialogProp
           <p className="text-muted-foreground">
             <strong>{t('tip')}</strong> Press{' '}
             <Kbd className="mx-1">
-              {typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl'}+K
+              {typeof navigator !== 'undefined' &&
+              navigator.platform.toUpperCase().indexOf('MAC') >= 0
+                ? '⌘'
+                : 'Ctrl'}
+              +K
             </Kbd>{' '}
             {t('commandPaletteHint')}
           </p>

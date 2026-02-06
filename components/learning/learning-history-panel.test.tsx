@@ -61,8 +61,24 @@ const mockSession: LearningSession = {
   consecutiveCorrect: 5,
   consecutiveIncorrect: 0,
   concepts: [
-    { id: 'c1', name: 'useState', masteryScore: 100, masteryStatus: 'mastered', reviewCount: 3, correctAnswers: 10, totalAttempts: 10 },
-    { id: 'c2', name: 'useEffect', masteryScore: 80, masteryStatus: 'learning', reviewCount: 2, correctAnswers: 8, totalAttempts: 10 },
+    {
+      id: 'c1',
+      name: 'useState',
+      masteryScore: 100,
+      masteryStatus: 'mastered',
+      reviewCount: 3,
+      correctAnswers: 10,
+      totalAttempts: 10,
+    },
+    {
+      id: 'c2',
+      name: 'useEffect',
+      masteryScore: 80,
+      masteryStatus: 'learning',
+      reviewCount: 2,
+      correctAnswers: 8,
+      totalAttempts: 10,
+    },
   ],
   subQuestions: [],
   notes: [],
@@ -203,7 +219,7 @@ describe('LearningHistoryPanel', () => {
         getAchievements: () => [],
         globalStats: mockGlobalStats,
       });
-      
+
       render(<LearningHistoryPanel />, { wrapper });
       expect(screen.queryByText('Achievements')).not.toBeInTheDocument();
     });
@@ -227,14 +243,14 @@ describe('LearningHistoryPanel', () => {
         getAchievements: () => [],
         globalStats: { ...mockGlobalStats, currentStreak: 0, longestStreak: 0 },
       });
-      
+
       render(<LearningHistoryPanel />, { wrapper });
       expect(screen.getByText(/No.*sessions/i)).toBeInTheDocument();
     });
 
     it('sorts sessions by completion date (newest first)', () => {
       render(<LearningHistoryPanel />, { wrapper });
-      
+
       const sessions = screen.getAllByText(/React Hooks|TypeScript Basics/);
       // React Hooks (Jan 15) should appear before TypeScript Basics (Jan 14)
       expect(sessions[0]).toHaveTextContent('React Hooks');
@@ -245,11 +261,11 @@ describe('LearningHistoryPanel', () => {
     it('calls onSelectSession when session is clicked', async () => {
       const onSelectSession = jest.fn();
       const user = userEvent.setup();
-      
+
       render(<LearningHistoryPanel onSelectSession={onSelectSession} />, { wrapper });
-      
+
       await user.click(screen.getByText('React Hooks'));
-      
+
       expect(onSelectSession).toHaveBeenCalledWith('session-1');
     });
   });
@@ -276,11 +292,10 @@ describe('LearningHistoryPanel', () => {
 
   describe('Styling', () => {
     it('applies custom className', () => {
-      const { container } = render(
-        <LearningHistoryPanel className="custom-history" />,
-        { wrapper }
-      );
-      
+      const { container } = render(<LearningHistoryPanel className="custom-history" />, {
+        wrapper,
+      });
+
       expect(container.querySelector('.custom-history')).toBeInTheDocument();
     });
   });

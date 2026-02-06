@@ -20,23 +20,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import type { GitDiffInfo, GitFileStatus } from '@/types/system/git';
@@ -98,7 +84,7 @@ export function GitDiffViewer({
 
   const parseDiffContent = (content: string): DiffLine[] => {
     if (!content) return [];
-    
+
     const lines = content.split('\n');
     const result: DiffLine[] = [];
     let oldLine = 0;
@@ -125,8 +111,12 @@ export function GitDiffViewer({
           content: line.slice(1),
           oldLineNumber: oldLine++,
         });
-      } else if (!line.startsWith('diff ') && !line.startsWith('index ') && 
-                 !line.startsWith('---') && !line.startsWith('+++')) {
+      } else if (
+        !line.startsWith('diff ') &&
+        !line.startsWith('index ') &&
+        !line.startsWith('---') &&
+        !line.startsWith('+++')
+      ) {
         result.push({
           type: 'context',
           content: line.startsWith(' ') ? line.slice(1) : line,
@@ -222,9 +212,7 @@ export function GitDiffViewer({
                         <ChevronRight className="h-4 w-4" />
                       )}
                       <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1 text-left text-sm truncate">
-                        {diff.path}
-                      </span>
+                      <span className="flex-1 text-left text-sm truncate">{diff.path}</span>
                       {status && (
                         <Badge
                           variant="outline"

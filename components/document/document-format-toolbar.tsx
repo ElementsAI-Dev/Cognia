@@ -50,11 +50,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import {
   Select,
@@ -69,16 +65,31 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { FONT_FAMILIES, FONT_SIZES } from '@/types/document/document-formatting';
 
-export type FormatAction = 
-  | 'bold' | 'italic' | 'underline' | 'strikethrough'
-  | 'alignLeft' | 'alignCenter' | 'alignRight' | 'alignJustify'
-  | 'bulletList' | 'numberedList'
-  | 'heading1' | 'heading2' | 'heading3'
-  | 'quote' | 'codeBlock'
-  | 'link' | 'image' | 'table'
-  | 'horizontalRule' | 'pageBreak'
-  | 'undo' | 'redo'
-  | 'indentIncrease' | 'indentDecrease'
+export type FormatAction =
+  | 'bold'
+  | 'italic'
+  | 'underline'
+  | 'strikethrough'
+  | 'alignLeft'
+  | 'alignCenter'
+  | 'alignRight'
+  | 'alignJustify'
+  | 'bulletList'
+  | 'numberedList'
+  | 'heading1'
+  | 'heading2'
+  | 'heading3'
+  | 'quote'
+  | 'codeBlock'
+  | 'link'
+  | 'image'
+  | 'table'
+  | 'horizontalRule'
+  | 'pageBreak'
+  | 'undo'
+  | 'redo'
+  | 'indentIncrease'
+  | 'indentDecrease'
   | 'clearFormatting';
 
 export interface FormatState {
@@ -147,10 +158,10 @@ interface ToolbarToggleProps {
   onClick: (action: FormatAction) => void;
 }
 
-function ToolbarToggle({ 
-  action, 
-  icon: Icon, 
-  tooltip, 
+function ToolbarToggle({
+  action,
+  icon: Icon,
+  tooltip,
   active,
   shortcut,
   disabled,
@@ -170,7 +181,10 @@ function ToolbarToggle({
         </Toggle>
       </TooltipTrigger>
       <TooltipContent side="bottom">
-        <p>{tooltip}{shortcut && <span className="ml-2 text-muted-foreground">{shortcut}</span>}</p>
+        <p>
+          {tooltip}
+          {shortcut && <span className="ml-2 text-muted-foreground">{shortcut}</span>}
+        </p>
       </TooltipContent>
     </Tooltip>
   );
@@ -192,29 +206,32 @@ export function DocumentFormatToolbar({
   const t = useTranslations('document');
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
-  const handleAction = useCallback((action: FormatAction) => {
-    if (!disabled) {
-      onFormatAction(action);
-    }
-  }, [disabled, onFormatAction]);
+  const handleAction = useCallback(
+    (action: FormatAction) => {
+      if (!disabled) {
+        onFormatAction(action);
+      }
+    },
+    [disabled, onFormatAction]
+  );
 
   // Toolbar content - rendered inline to avoid component-in-render issues
   const toolbarContent = (
     <>
       {/* Undo/Redo */}
       <div className="flex items-center shrink-0">
-        <ToolbarToggle 
-          action="undo" 
-          icon={Undo} 
-          tooltip={t('undo')} 
+        <ToolbarToggle
+          action="undo"
+          icon={Undo}
+          tooltip={t('undo')}
           shortcut="Ctrl+Z"
           disabled={disabled}
           onClick={handleAction}
         />
-        <ToolbarToggle 
-          action="redo" 
-          icon={Redo} 
-          tooltip={t('redo')} 
+        <ToolbarToggle
+          action="redo"
+          icon={Redo}
+          tooltip={t('redo')}
           shortcut="Ctrl+Y"
           disabled={disabled}
           onClick={handleAction}
@@ -265,38 +282,38 @@ export function DocumentFormatToolbar({
 
       {/* Text Formatting */}
       <div className="flex items-center shrink-0">
-        <ToolbarToggle 
-          action="bold" 
-          icon={Bold} 
-          tooltip={t('bold')} 
+        <ToolbarToggle
+          action="bold"
+          icon={Bold}
+          tooltip={t('bold')}
           active={formatState.bold}
           shortcut="Ctrl+B"
           disabled={disabled}
           onClick={handleAction}
         />
-        <ToolbarToggle 
-          action="italic" 
-          icon={Italic} 
-          tooltip={t('italic')} 
+        <ToolbarToggle
+          action="italic"
+          icon={Italic}
+          tooltip={t('italic')}
           active={formatState.italic}
           shortcut="Ctrl+I"
           disabled={disabled}
           onClick={handleAction}
         />
-        <ToolbarToggle 
-          action="underline" 
-          icon={Underline} 
-          tooltip={t('underline')} 
+        <ToolbarToggle
+          action="underline"
+          icon={Underline}
+          tooltip={t('underline')}
           active={formatState.underline}
           shortcut="Ctrl+U"
           disabled={disabled}
           onClick={handleAction}
         />
         <span className="hidden sm:inline-flex">
-          <ToolbarToggle 
-            action="strikethrough" 
-            icon={Strikethrough} 
-            tooltip={t('strikethrough')} 
+          <ToolbarToggle
+            action="strikethrough"
+            icon={Strikethrough}
+            tooltip={t('strikethrough')}
             active={formatState.strikethrough}
             disabled={disabled}
             onClick={handleAction}
@@ -311,8 +328,8 @@ export function DocumentFormatToolbar({
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" disabled={disabled}>
               <div className="flex flex-col items-center">
                 <Type className="h-3 w-3" />
-                <div 
-                  className="h-1 w-4 rounded-sm mt-0.5" 
+                <div
+                  className="h-1 w-4 rounded-sm mt-0.5"
                   style={{ backgroundColor: formatState.fontColor || '#000000' }}
                 />
               </div>
@@ -346,8 +363,8 @@ export function DocumentFormatToolbar({
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" disabled={disabled}>
               <div className="flex flex-col items-center">
                 <Highlighter className="h-3 w-3" />
-                <div 
-                  className="h-1 w-4 rounded-sm mt-0.5" 
+                <div
+                  className="h-1 w-4 rounded-sm mt-0.5"
                   style={{ backgroundColor: formatState.highlightColor || '#FEF08A' }}
                 />
               </div>
@@ -371,7 +388,9 @@ export function DocumentFormatToolbar({
                     title={t(`colors.${color.nameKey}`)}
                   >
                     {!color.value && (
-                      <span className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">✕</span>
+                      <span className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+                        ✕
+                      </span>
                     )}
                   </button>
                 ))}
@@ -384,8 +403,8 @@ export function DocumentFormatToolbar({
       <Separator orientation="vertical" className="mx-1 h-6 hidden md:block" />
 
       {/* Alignment - Hidden on mobile, shown in More menu */}
-      <ToggleGroup 
-        type="single" 
+      <ToggleGroup
+        type="single"
         value={formatState.alignment || 'left'}
         onValueChange={(value) => {
           if (value) {
@@ -433,8 +452,8 @@ export function DocumentFormatToolbar({
 
       {/* Lists - Hidden on smaller screens */}
       <div className="hidden lg:flex items-center gap-0.5 shrink-0">
-        <ToggleGroup 
-          type="single" 
+        <ToggleGroup
+          type="single"
           value={formatState.listType || ''}
           onValueChange={(value) => {
             if (value === 'bullet') handleAction('bulletList');
@@ -459,16 +478,16 @@ export function DocumentFormatToolbar({
             <TooltipContent side="bottom">{t('numberedList')}</TooltipContent>
           </Tooltip>
         </ToggleGroup>
-        <ToolbarToggle 
-          action="indentDecrease" 
-          icon={IndentDecrease} 
+        <ToolbarToggle
+          action="indentDecrease"
+          icon={IndentDecrease}
           tooltip={t('decreaseIndent')}
           disabled={disabled}
           onClick={handleAction}
         />
-        <ToolbarToggle 
-          action="indentIncrease" 
-          icon={IndentIncrease} 
+        <ToolbarToggle
+          action="indentIncrease"
+          icon={IndentIncrease}
           tooltip={t('increaseIndent')}
           disabled={disabled}
           onClick={handleAction}
@@ -481,7 +500,12 @@ export function DocumentFormatToolbar({
       <span className="hidden xl:inline-flex">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 shrink-0" disabled={disabled}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 gap-1 shrink-0"
+              disabled={disabled}
+            >
               <Heading1 className="h-4 w-4" />
               <ChevronDown className="h-3 w-3" />
             </Button>
@@ -508,18 +532,18 @@ export function DocumentFormatToolbar({
         </DropdownMenu>
 
         {/* Quote & Code */}
-        <ToolbarToggle 
-          action="quote" 
-          icon={Quote} 
-          tooltip={t('quote')} 
+        <ToolbarToggle
+          action="quote"
+          icon={Quote}
+          tooltip={t('quote')}
           active={formatState.isQuote}
           disabled={disabled}
           onClick={handleAction}
         />
-        <ToolbarToggle 
-          action="codeBlock" 
-          icon={Code} 
-          tooltip={t('codeBlock')} 
+        <ToolbarToggle
+          action="codeBlock"
+          icon={Code}
+          tooltip={t('codeBlock')}
           active={formatState.isCode}
           disabled={disabled}
           onClick={handleAction}
@@ -532,7 +556,12 @@ export function DocumentFormatToolbar({
       <span className="hidden xl:inline-flex">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 shrink-0" disabled={disabled}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 gap-1 shrink-0"
+              disabled={disabled}
+            >
               <LayoutGrid className="h-4 w-4" />
               <span className="text-xs hidden 2xl:inline">{t('insert')}</span>
               <ChevronDown className="h-3 w-3" />
@@ -567,7 +596,12 @@ export function DocumentFormatToolbar({
       {/* More Menu - Shown on smaller screens for hidden items */}
       <DropdownMenu open={isMoreOpen} onOpenChange={setIsMoreOpen}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 xl:hidden shrink-0" disabled={disabled}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 xl:hidden shrink-0"
+            disabled={disabled}
+          >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -608,38 +642,50 @@ export function DocumentFormatToolbar({
             {t('alignLeft').replace('Left', '')}
           </DropdownMenuLabel>
           <div className="flex items-center justify-center gap-1 px-2 pb-2 md:hidden">
-            <Button 
-              variant={formatState.alignment === 'left' ? 'default' : 'ghost'} 
-              size="sm" 
+            <Button
+              variant={formatState.alignment === 'left' ? 'default' : 'ghost'}
+              size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => { handleAction('alignLeft'); setIsMoreOpen(false); }}
+              onClick={() => {
+                handleAction('alignLeft');
+                setIsMoreOpen(false);
+              }}
               disabled={disabled}
             >
               <AlignLeft className="h-4 w-4" />
             </Button>
-            <Button 
-              variant={formatState.alignment === 'center' ? 'default' : 'ghost'} 
-              size="sm" 
+            <Button
+              variant={formatState.alignment === 'center' ? 'default' : 'ghost'}
+              size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => { handleAction('alignCenter'); setIsMoreOpen(false); }}
+              onClick={() => {
+                handleAction('alignCenter');
+                setIsMoreOpen(false);
+              }}
               disabled={disabled}
             >
               <AlignCenter className="h-4 w-4" />
             </Button>
-            <Button 
-              variant={formatState.alignment === 'right' ? 'default' : 'ghost'} 
-              size="sm" 
+            <Button
+              variant={formatState.alignment === 'right' ? 'default' : 'ghost'}
+              size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => { handleAction('alignRight'); setIsMoreOpen(false); }}
+              onClick={() => {
+                handleAction('alignRight');
+                setIsMoreOpen(false);
+              }}
               disabled={disabled}
             >
               <AlignRight className="h-4 w-4" />
             </Button>
-            <Button 
-              variant={formatState.alignment === 'justify' ? 'default' : 'ghost'} 
-              size="sm" 
+            <Button
+              variant={formatState.alignment === 'justify' ? 'default' : 'ghost'}
+              size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => { handleAction('alignJustify'); setIsMoreOpen(false); }}
+              onClick={() => {
+                handleAction('alignJustify');
+                setIsMoreOpen(false);
+              }}
               disabled={disabled}
             >
               <AlignJustify className="h-4 w-4" />
@@ -652,38 +698,50 @@ export function DocumentFormatToolbar({
             {t('bulletList').replace('Bullet ', '')}
           </DropdownMenuLabel>
           <div className="flex items-center justify-center gap-1 px-2 pb-2 lg:hidden">
-            <Button 
-              variant={formatState.listType === 'bullet' ? 'default' : 'ghost'} 
-              size="sm" 
+            <Button
+              variant={formatState.listType === 'bullet' ? 'default' : 'ghost'}
+              size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => { handleAction('bulletList'); setIsMoreOpen(false); }}
+              onClick={() => {
+                handleAction('bulletList');
+                setIsMoreOpen(false);
+              }}
               disabled={disabled}
             >
               <List className="h-4 w-4" />
             </Button>
-            <Button 
-              variant={formatState.listType === 'numbered' ? 'default' : 'ghost'} 
-              size="sm" 
+            <Button
+              variant={formatState.listType === 'numbered' ? 'default' : 'ghost'}
+              size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => { handleAction('numberedList'); setIsMoreOpen(false); }}
+              onClick={() => {
+                handleAction('numberedList');
+                setIsMoreOpen(false);
+              }}
               disabled={disabled}
             >
               <ListOrdered className="h-4 w-4" />
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => { handleAction('indentDecrease'); setIsMoreOpen(false); }}
+              onClick={() => {
+                handleAction('indentDecrease');
+                setIsMoreOpen(false);
+              }}
               disabled={disabled}
             >
               <IndentDecrease className="h-4 w-4" />
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => { handleAction('indentIncrease'); setIsMoreOpen(false); }}
+              onClick={() => {
+                handleAction('indentIncrease');
+                setIsMoreOpen(false);
+              }}
               disabled={disabled}
             >
               <IndentIncrease className="h-4 w-4" />
@@ -701,31 +759,63 @@ export function DocumentFormatToolbar({
               {t('heading1').replace('1', '')}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => { handleAction('heading1'); setIsMoreOpen(false); }}>
+              <DropdownMenuItem
+                onClick={() => {
+                  handleAction('heading1');
+                  setIsMoreOpen(false);
+                }}
+              >
                 <Heading1 className="h-4 w-4 mr-2" />
                 {t('heading1')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { handleAction('heading2'); setIsMoreOpen(false); }}>
+              <DropdownMenuItem
+                onClick={() => {
+                  handleAction('heading2');
+                  setIsMoreOpen(false);
+                }}
+              >
                 <Heading2 className="h-4 w-4 mr-2" />
                 {t('heading2')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { handleAction('heading3'); setIsMoreOpen(false); }}>
+              <DropdownMenuItem
+                onClick={() => {
+                  handleAction('heading3');
+                  setIsMoreOpen(false);
+                }}
+              >
                 <Heading3 className="h-4 w-4 mr-2" />
                 {t('heading3')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => { handleAction('clearFormatting'); setIsMoreOpen(false); }}>
+              <DropdownMenuItem
+                onClick={() => {
+                  handleAction('clearFormatting');
+                  setIsMoreOpen(false);
+                }}
+              >
                 <Type className="h-4 w-4 mr-2" />
                 {t('normalText')}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 
-          <DropdownMenuItem className="xl:hidden" onClick={() => { handleAction('quote'); setIsMoreOpen(false); }}>
+          <DropdownMenuItem
+            className="xl:hidden"
+            onClick={() => {
+              handleAction('quote');
+              setIsMoreOpen(false);
+            }}
+          >
             <Quote className="h-4 w-4 mr-2" />
             {t('quote')}
           </DropdownMenuItem>
-          <DropdownMenuItem className="xl:hidden" onClick={() => { handleAction('codeBlock'); setIsMoreOpen(false); }}>
+          <DropdownMenuItem
+            className="xl:hidden"
+            onClick={() => {
+              handleAction('codeBlock');
+              setIsMoreOpen(false);
+            }}
+          >
             <Code className="h-4 w-4 mr-2" />
             {t('codeBlock')}
           </DropdownMenuItem>
@@ -736,24 +826,54 @@ export function DocumentFormatToolbar({
           <DropdownMenuLabel className="text-xs text-muted-foreground xl:hidden">
             {t('insert')}
           </DropdownMenuLabel>
-          <DropdownMenuItem className="xl:hidden" onClick={() => { handleAction('link'); setIsMoreOpen(false); }}>
+          <DropdownMenuItem
+            className="xl:hidden"
+            onClick={() => {
+              handleAction('link');
+              setIsMoreOpen(false);
+            }}
+          >
             <Link className="h-4 w-4 mr-2" />
             {t('insertLink')}
           </DropdownMenuItem>
-          <DropdownMenuItem className="xl:hidden" onClick={() => { handleAction('image'); setIsMoreOpen(false); }}>
+          <DropdownMenuItem
+            className="xl:hidden"
+            onClick={() => {
+              handleAction('image');
+              setIsMoreOpen(false);
+            }}
+          >
             <ImageIcon className="h-4 w-4 mr-2" />
             {t('insertImage')}
           </DropdownMenuItem>
-          <DropdownMenuItem className="xl:hidden" onClick={() => { handleAction('table'); setIsMoreOpen(false); }}>
+          <DropdownMenuItem
+            className="xl:hidden"
+            onClick={() => {
+              handleAction('table');
+              setIsMoreOpen(false);
+            }}
+          >
             <Table className="h-4 w-4 mr-2" />
             {t('insertTable')}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="xl:hidden" />
-          <DropdownMenuItem className="xl:hidden" onClick={() => { handleAction('horizontalRule'); setIsMoreOpen(false); }}>
+          <DropdownMenuItem
+            className="xl:hidden"
+            onClick={() => {
+              handleAction('horizontalRule');
+              setIsMoreOpen(false);
+            }}
+          >
             <Minus className="h-4 w-4 mr-2" />
             {t('horizontalLine')}
           </DropdownMenuItem>
-          <DropdownMenuItem className="xl:hidden" onClick={() => { handleAction('pageBreak'); setIsMoreOpen(false); }}>
+          <DropdownMenuItem
+            className="xl:hidden"
+            onClick={() => {
+              handleAction('pageBreak');
+              setIsMoreOpen(false);
+            }}
+          >
             <FileText className="h-4 w-4 mr-2" />
             {t('pageBreak')}
           </DropdownMenuItem>
@@ -763,7 +883,13 @@ export function DocumentFormatToolbar({
           <DropdownMenuLabel className="text-xs text-muted-foreground sm:hidden">
             {t('strikethrough')}
           </DropdownMenuLabel>
-          <DropdownMenuItem className="sm:hidden" onClick={() => { handleAction('strikethrough'); setIsMoreOpen(false); }}>
+          <DropdownMenuItem
+            className="sm:hidden"
+            onClick={() => {
+              handleAction('strikethrough');
+              setIsMoreOpen(false);
+            }}
+          >
             <Strikethrough className="h-4 w-4 mr-2" />
             {t('strikethrough')}
           </DropdownMenuItem>
@@ -784,7 +910,10 @@ export function DocumentFormatToolbar({
                     formatState.fontColor === color.value && 'ring-2 ring-primary'
                   )}
                   style={{ backgroundColor: color.value }}
-                  onClick={() => { onFontColorChange?.(color.value); setIsMoreOpen(false); }}
+                  onClick={() => {
+                    onFontColorChange?.(color.value);
+                    setIsMoreOpen(false);
+                  }}
                   title={t(`colors.${color.nameKey}`)}
                 />
               ))}
@@ -805,11 +934,16 @@ export function DocumentFormatToolbar({
                     !color.value && 'relative'
                   )}
                   style={{ backgroundColor: color.value || '#ffffff' }}
-                  onClick={() => { onHighlightColorChange?.(color.value); setIsMoreOpen(false); }}
+                  onClick={() => {
+                    onHighlightColorChange?.(color.value);
+                    setIsMoreOpen(false);
+                  }}
                   title={t(`colors.${color.nameKey}`)}
                 >
                   {!color.value && (
-                    <span className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">✕</span>
+                    <span className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+                      ✕
+                    </span>
                   )}
                 </button>
               ))}
@@ -821,16 +955,15 @@ export function DocumentFormatToolbar({
   );
 
   return (
-    <div className={cn(
-      'relative',
-      className
-    )}>
+    <div className={cn('relative', className)}>
       {/* Scrollable container for mobile */}
       <ScrollArea className="w-full">
-        <div className={cn(
-          'flex items-center gap-0.5 p-1',
-          'min-w-max', // Prevent wrapping, allow horizontal scroll
-        )}>
+        <div
+          className={cn(
+            'flex items-center gap-0.5 p-1',
+            'min-w-max' // Prevent wrapping, allow horizontal scroll
+          )}
+        >
           {toolbarContent}
         </div>
         <ScrollBar orientation="horizontal" className="h-2" />

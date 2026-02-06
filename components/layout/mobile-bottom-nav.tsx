@@ -16,11 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useSessionStore, useUIStore } from '@/stores';
 
 interface NavItem {
@@ -170,13 +166,9 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                     <span className="text-[10px] font-medium">{item.label}</span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent
-                  side="top"
-                  align="end"
-                  className="w-48 p-2"
-                >
+                <PopoverContent side="top" align="end" className="w-48 p-2">
                   <div className="grid gap-1">
-                    {moreNavItems.map((moreItem) => (
+                    {moreNavItems.map((moreItem) =>
                       moreItem.href ? (
                         <Link key={moreItem.id} href={moreItem.href}>
                           <Button
@@ -199,7 +191,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                           <span>{moreItem.label}</span>
                         </Button>
                       )
-                    ))}
+                    )}
                   </div>
                 </PopoverContent>
               </Popover>
@@ -214,9 +206,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                   className={cn(
                     'flex flex-col items-center justify-center h-14 w-14 gap-0.5 p-1 relative',
                     'transition-colors',
-                    active
-                      ? 'text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
+                    active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
                   {item.icon}

@@ -379,9 +379,7 @@ describe('PaperLibrary', () => {
 
       // Find the create collection button (icon button with folder-plus)
       const dialogTriggers = screen.getAllByRole('button', { expanded: false });
-      const createButton = dialogTriggers.find((btn) =>
-        btn.querySelector('.lucide-folder-plus')
-      );
+      const createButton = dialogTriggers.find((btn) => btn.querySelector('.lucide-folder-plus'));
 
       if (createButton) {
         await user.click(createButton);

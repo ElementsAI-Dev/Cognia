@@ -1,6 +1,6 @@
 /**
  * Jupyter Components
- * 
+ *
  * Re-exports all Jupyter-related components for easy importing.
  */
 

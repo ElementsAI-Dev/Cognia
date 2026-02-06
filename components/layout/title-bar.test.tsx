@@ -106,7 +106,7 @@ describe('TitleBar', () => {
     await act(async () => {
       const { container } = render(<TitleBar />);
       // Wait for effect to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       expect(container.firstChild).toBeNull();
     });
   });
@@ -114,7 +114,7 @@ describe('TitleBar', () => {
   it('checks for Tauri environment on mount', async () => {
     await act(async () => {
       render(<TitleBar />);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
     // Component should not render in non-Tauri environment
   });
@@ -130,7 +130,7 @@ describe('TitleBar - Window Controls', () => {
     // In Tauri environment, buttons would have aria-labels: Minimize, Maximize/Restore, Close
     await act(async () => {
       render(<TitleBar />);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
   });
 });
@@ -146,7 +146,7 @@ describe('TitleBar - Styling', () => {
     // and data-tauri-drag-region attribute
     await act(async () => {
       render(<TitleBar />);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
   });
 });
@@ -162,7 +162,7 @@ describe('TitleBar - Maximize State', () => {
     // - When not maximized: button label would be "Maximize"
     await act(async () => {
       render(<TitleBar />);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
   });
 });

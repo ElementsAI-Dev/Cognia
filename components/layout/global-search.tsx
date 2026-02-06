@@ -10,12 +10,7 @@ import { messageRepository } from '@/lib/db';
 import { Button as _Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   InputGroup,
@@ -46,7 +41,7 @@ export function GlobalSearch() {
 
   const sessions = useSessionStore((state) => state.sessions);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
-  
+
   const projects = useProjectStore((state) => state.projects);
   const setActiveProject = useProjectStore((state) => state.setActiveProject);
 
@@ -64,10 +59,10 @@ export function GlobalSearch() {
       setIsSearchingMessages(true);
       try {
         const results = await messageRepository.searchMessages(query, { limit: 20 });
-        const sessionMap = new Map(sessions.map(s => [s.id, s]));
-        
+        const sessionMap = new Map(sessions.map((s) => [s.id, s]));
+
         setMessageResults(
-          results.map(r => ({
+          results.map((r) => ({
             type: 'message' as const,
             id: r.message.id,
             title: sessionMap.get(r.sessionId)?.title || 'Unknown Session',
@@ -138,22 +133,25 @@ export function GlobalSearch() {
     }
 
     // Sort by updated date
-    return results.sort((a, b) => 
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    return results.sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
   }, [query, activeTab, sessions, projects, messageResults]);
 
-  const handleResultClick = useCallback((result: SearchResult) => {
-    if (result.type === 'session') {
-      setActiveSession(result.id);
-    } else if (result.type === 'message' && result.sessionId) {
-      setActiveSession(result.sessionId);
-    } else {
-      setActiveProject(result.id);
-    }
-    setGlobalSearchOpen(false);
-    setQuery('');
-  }, [setActiveSession, setActiveProject, setGlobalSearchOpen]);
+  const handleResultClick = useCallback(
+    (result: SearchResult) => {
+      if (result.type === 'session') {
+        setActiveSession(result.id);
+      } else if (result.type === 'message' && result.sessionId) {
+        setActiveSession(result.sessionId);
+      } else {
+        setActiveProject(result.id);
+      }
+      setGlobalSearchOpen(false);
+      setQuery('');
+    },
+    [setActiveSession, setActiveProject, setGlobalSearchOpen]
+  );
 
   const formatDate = (date: Date) => {
     const now = new Date();
@@ -166,19 +164,23 @@ export function GlobalSearch() {
     return new Date(date).toLocaleDateString();
   };
 
-  const sessionCount = useMemo(() => 
-    sessions.filter(s => 
-      s.title.toLowerCase().includes(query.toLowerCase()) ||
-      s.lastMessagePreview?.toLowerCase().includes(query.toLowerCase())
-    ).length,
+  const sessionCount = useMemo(
+    () =>
+      sessions.filter(
+        (s) =>
+          s.title.toLowerCase().includes(query.toLowerCase()) ||
+          s.lastMessagePreview?.toLowerCase().includes(query.toLowerCase())
+      ).length,
     [sessions, query]
   );
 
-  const projectCount = useMemo(() =>
-    projects.filter(p =>
-      p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.description?.toLowerCase().includes(query.toLowerCase())
-    ).length,
+  const projectCount = useMemo(
+    () =>
+      projects.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          p.description?.toLowerCase().includes(query.toLowerCase())
+      ).length,
     [projects, query]
   );
 
@@ -215,7 +217,11 @@ export function GlobalSearch() {
         </DialogHeader>
 
         {query.trim() && (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SearchTab)} className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as SearchTab)}
+            className="w-full"
+          >
             <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-4">
               <TabsTrigger value="all" className="data-[state=active]:bg-transparent">
                 All ({searchResults.length})
@@ -245,14 +251,16 @@ export function GlobalSearch() {
                         )}
                       >
                         <div className="flex items-start gap-3">
-                          <div className={cn(
-                            'flex h-9 w-9 items-center justify-center rounded-lg shrink-0',
-                            result.type === 'session' 
-                              ? 'bg-blue-500/10 text-blue-500' 
-                              : result.type === 'message'
-                                ? 'bg-green-500/10 text-green-500'
-                                : 'bg-purple-500/10 text-purple-500'
-                          )}>
+                          <div
+                            className={cn(
+                              'flex h-9 w-9 items-center justify-center rounded-lg shrink-0',
+                              result.type === 'session'
+                                ? 'bg-blue-500/10 text-blue-500'
+                                : result.type === 'message'
+                                  ? 'bg-green-500/10 text-green-500'
+                                  : 'bg-purple-500/10 text-purple-500'
+                            )}
+                          >
                             {result.type === 'session' ? (
                               <MessageSquare className="h-4 w-4" />
                             ) : result.type === 'message' ? (
@@ -265,7 +273,11 @@ export function GlobalSearch() {
                             <div className="flex items-center gap-2">
                               <span className="font-medium truncate">{result.title}</span>
                               <Badge variant="outline" className="text-xs shrink-0">
-                                {result.type === 'session' ? 'Session' : result.type === 'message' ? 'Message' : 'Project'}
+                                {result.type === 'session'
+                                  ? 'Session'
+                                  : result.type === 'message'
+                                    ? 'Message'
+                                    : 'Project'}
                               </Badge>
                             </div>
                             {result.description && (

@@ -18,7 +18,12 @@ const mockUseClipboardContext: {
   category: string | null;
   language: string | null;
   entities: Array<{ entity_type: string; value: string; start: number; end: number }>;
-  suggestedActions: Array<{ action_id: string; label: string; description: string; priority: number }>;
+  suggestedActions: Array<{
+    action_id: string;
+    label: string;
+    description: string;
+    priority: number;
+  }>;
   stats: { char_count: number; word_count: number; line_count: number } | null;
   formatting: { preserve_whitespace: boolean } | null;
   readAndAnalyze: jest.Mock;
@@ -64,44 +69,115 @@ jest.mock('@/hooks/context', () => ({
     Unknown: { label: 'Unknown', icon: 'help-circle', color: 'gray' },
   },
   TRANSFORM_ACTIONS: [
-    { id: 'format_json', label: 'Format JSON', description: 'Pretty print JSON', icon: 'braces', category: 'format' },
-    { id: 'to_uppercase', label: 'To Uppercase', description: 'Convert to uppercase', icon: 'arrow-up', category: 'case' },
+    {
+      id: 'format_json',
+      label: 'Format JSON',
+      description: 'Pretty print JSON',
+      icon: 'braces',
+      category: 'format',
+    },
+    {
+      id: 'to_uppercase',
+      label: 'To Uppercase',
+      description: 'Convert to uppercase',
+      icon: 'arrow-up',
+      category: 'case',
+    },
   ],
   LANGUAGE_INFO: {},
 }));
 
 // Mock Tabs components for reliable testing
 jest.mock('@/components/ui/tabs', () => ({
-  Tabs: ({ children, value, className }: { children: React.ReactNode; value?: string; className?: string }) => (
-    <div data-testid="tabs" data-value={value} className={className}>{children}</div>
+  Tabs: ({
+    children,
+    value,
+    className,
+  }: {
+    children: React.ReactNode;
+    value?: string;
+    className?: string;
+  }) => (
+    <div data-testid="tabs" data-value={value} className={className}>
+      {children}
+    </div>
   ),
   TabsList: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="tabs-list" role="tablist" className={className}>{children}</div>
+    <div data-testid="tabs-list" role="tablist" className={className}>
+      {children}
+    </div>
   ),
-  TabsTrigger: ({ children, value, className }: { children: React.ReactNode; value: string; className?: string }) => (
-    <button role="tab" data-testid={`tab-trigger-${value}`} aria-label={typeof children === 'string' ? children : value} className={className}>{children}</button>
+  TabsTrigger: ({
+    children,
+    value,
+    className,
+  }: {
+    children: React.ReactNode;
+    value: string;
+    className?: string;
+  }) => (
+    <button
+      role="tab"
+      data-testid={`tab-trigger-${value}`}
+      aria-label={typeof children === 'string' ? children : value}
+      className={className}
+    >
+      {children}
+    </button>
   ),
-  TabsContent: ({ children, value, className }: { children: React.ReactNode; value: string; className?: string }) => (
-    <div data-testid={`tab-content-${value}`} className={className}>{children}</div>
+  TabsContent: ({
+    children,
+    value,
+    className,
+  }: {
+    children: React.ReactNode;
+    value: string;
+    className?: string;
+  }) => (
+    <div data-testid={`tab-content-${value}`} className={className}>
+      {children}
+    </div>
   ),
 }));
 
 // Mock ScrollArea to avoid Radix rendering issues
 jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="scroll-area" className={className}>{children}</div>
+    <div data-testid="scroll-area" className={className}>
+      {children}
+    </div>
   ),
 }));
 
 // Mock DropdownMenu components
 jest.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-menu">{children}</div>,
-  DropdownMenuTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => (
-    <div data-testid="dropdown-menu-trigger">{asChild ? children : <button>{children}</button>}</div>
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown-menu">{children}</div>
   ),
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-menu-content">{children}</div>,
-  DropdownMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
-    <button data-testid="dropdown-menu-item" onClick={onClick}>{children}</button>
+  DropdownMenuTrigger: ({
+    children,
+    asChild,
+  }: {
+    children: React.ReactNode;
+    asChild?: boolean;
+  }) => (
+    <div data-testid="dropdown-menu-trigger">
+      {asChild ? children : <button>{children}</button>}
+    </div>
+  ),
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown-menu-content">{children}</div>
+  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => (
+    <button data-testid="dropdown-menu-item" onClick={onClick}>
+      {children}
+    </button>
   ),
   DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuSeparator: () => <hr />,
@@ -109,7 +185,18 @@ jest.mock('@/components/ui/dropdown-menu', () => ({
 
 // Mock EmptyState to avoid issues with Lucide icons passed as forwardRef
 jest.mock('@/components/layout/empty-state', () => ({
-  EmptyState: ({ title, description, compact, className }: { icon?: unknown; title: string; description?: string; compact?: boolean; className?: string }) => (
+  EmptyState: ({
+    title,
+    description,
+    compact,
+    className,
+  }: {
+    icon?: unknown;
+    title: string;
+    description?: string;
+    compact?: boolean;
+    className?: string;
+  }) => (
     <div data-testid="empty-state" data-compact={compact} className={className}>
       <div>{title}</div>
       {description && <div>{description}</div>}
@@ -158,7 +245,7 @@ describe('ClipboardContextPanel', () => {
     render(<ClipboardContextPanel />);
     // Find the refresh button by its icon or position
     const buttons = screen.getAllByRole('button');
-    const refreshBtn = buttons.find(btn => btn.querySelector('.lucide-refresh-cw'));
+    const refreshBtn = buttons.find((btn) => btn.querySelector('.lucide-refresh-cw'));
     if (refreshBtn) {
       fireEvent.click(refreshBtn);
       expect(mockUseClipboardContext.readAndAnalyze).toHaveBeenCalled();

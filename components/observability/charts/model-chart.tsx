@@ -71,19 +71,10 @@ export function ModelChart({
       <CardContent>
         <div style={{ width: '100%', height }}>
           <ResponsiveContainer>
-            <BarChart
-              data={chartData}
-              layout="vertical"
-              margin={CHART_MARGINS.vertical}
-            >
+            <BarChart data={chartData} layout="vertical" margin={CHART_MARGINS.vertical}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis type="number" tick={{ fontSize: 11 }} />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ fontSize: 11 }}
-                width={120}
-              />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE.contentStyle}
                 formatter={(value) => {
@@ -92,8 +83,8 @@ export function ModelChart({
                     dataKey === 'cost'
                       ? `$${numValue.toFixed(4)}`
                       : dataKey === 'tokens'
-                      ? `${numValue.toLocaleString()} tokens`
-                      : `${numValue} requests`;
+                        ? `${numValue.toLocaleString()} tokens`
+                        : `${numValue} requests`;
                   return formattedValue;
                 }}
               />

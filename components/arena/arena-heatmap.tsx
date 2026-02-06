@@ -12,11 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useArenaStore } from '@/stores/arena';
 import type { ArenaHeadToHead } from '@/types/arena';
@@ -293,7 +289,9 @@ function ArenaHeatmapComponent({ className, maxModels = 15 }: ArenaHeatmapProps)
         </div>
         <div>
           <Badge variant="outline" className="text-[10px]">
-            {t('totalBattles', { count: headToHead.reduce((sum: number, h: ArenaHeadToHead) => sum + h.total, 0) })}
+            {t('totalBattles', {
+              count: headToHead.reduce((sum: number, h: ArenaHeadToHead) => sum + h.total, 0),
+            })}
           </Badge>
         </div>
       </div>

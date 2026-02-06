@@ -8,7 +8,8 @@ import type { Artifact } from '@/types';
 jest.mock('recharts', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const ReactModule = require('react');
-  const Mock = ({ children }: { children?: React.ReactNode }) => ReactModule.createElement('div', null, children);
+  const Mock = ({ children }: { children?: React.ReactNode }) =>
+    ReactModule.createElement('div', null, children);
   const Null = () => null;
 
   return {
@@ -52,7 +53,9 @@ jest.mock('./jupyter-renderer', () => ({
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} {...props}>{children}</button>
+    <button onClick={onClick} {...props}>
+      {children}
+    </button>
   ),
 }));
 

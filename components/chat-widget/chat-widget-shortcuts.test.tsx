@@ -24,17 +24,25 @@ jest.mock('next-intl', () => ({
 
 // Mock Dialog to avoid portal issues in tests
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-wrapper">{children}</div>,
-  DialogContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-content">{children}</div>,
+  Dialog: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-wrapper">{children}</div>
+  ),
+  DialogContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-content">{children}</div>
+  ),
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DialogTitle: ({ children }: { children: React.ReactNode }) => <h2 data-testid="dialog-title">{children}</h2>,
+  DialogTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2 data-testid="dialog-title">{children}</h2>
+  ),
   DialogTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // Mock Button component
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} {...props}>{children}</button>
+    <button onClick={onClick} {...props}>
+      {children}
+    </button>
   ),
 }));
 
@@ -72,7 +80,7 @@ describe('ChatWidgetShortcuts', () => {
 
   it('displays all shortcut descriptions', () => {
     render(<ChatWidgetShortcuts />);
-    
+
     expect(screen.getByText('发送消息')).toBeInTheDocument();
     expect(screen.getByText('换行')).toBeInTheDocument();
     expect(screen.getByText('隐藏助手')).toBeInTheDocument();
@@ -83,7 +91,7 @@ describe('ChatWidgetShortcuts', () => {
 
   it('displays keyboard shortcut keys', () => {
     render(<ChatWidgetShortcuts />);
-    
+
     // Check for key elements
     expect(screen.getAllByText('Enter').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Shift').length).toBeGreaterThan(0);

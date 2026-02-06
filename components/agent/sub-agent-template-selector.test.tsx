@@ -99,7 +99,11 @@ describe('SubAgentTemplateSelector', () => {
 
   it('applies custom className', () => {
     const { container } = render(
-      <SubAgentTemplateSelector templates={mockTemplates} onSelect={mockOnSelect} className="custom-class" />
+      <SubAgentTemplateSelector
+        templates={mockTemplates}
+        onSelect={mockOnSelect}
+        className="custom-class"
+      />
     );
     expect(container.firstChild).toHaveClass('custom-class');
   });

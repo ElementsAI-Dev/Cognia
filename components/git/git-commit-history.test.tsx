@@ -87,11 +87,7 @@ describe('GitCommitHistory', () => {
 
   it('should display current branch badge when provided', () => {
     render(
-      <GitCommitHistory
-        commits={mockCommits}
-        currentBranch="main"
-        onRefresh={mockOnRefresh}
-      />
+      <GitCommitHistory commits={mockCommits} currentBranch="main" onRefresh={mockOnRefresh} />
     );
     expect(screen.getByText('main')).toBeInTheDocument();
   });
@@ -118,11 +114,11 @@ describe('GitCommitHistory', () => {
 
   it('should call onRefresh when clicking refresh button', () => {
     render(<GitCommitHistory commits={mockCommits} onRefresh={mockOnRefresh} />);
-    
-    const refreshButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('svg.lucide-refresh-cw')
-    );
-    
+
+    const refreshButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.querySelector('svg.lucide-refresh-cw'));
+
     if (refreshButton) {
       fireEvent.click(refreshButton);
       expect(mockOnRefresh).toHaveBeenCalled();
@@ -131,21 +127,21 @@ describe('GitCommitHistory', () => {
 
   it('should render commit messages in list', () => {
     render(<GitCommitHistory commits={mockCommits} onRefresh={mockOnRefresh} />);
-    
+
     expect(screen.getByText('Add new feature')).toBeInTheDocument();
     expect(screen.getByText('Fix bug in login')).toBeInTheDocument();
   });
 
   it('should render short hashes in list', () => {
     render(<GitCommitHistory commits={mockCommits} onRefresh={mockOnRefresh} />);
-    
+
     expect(screen.getByText('abc123d')).toBeInTheDocument();
     expect(screen.getByText('def456a')).toBeInTheDocument();
   });
 
   it('should render commit authors', () => {
     render(<GitCommitHistory commits={mockCommits} onRefresh={mockOnRefresh} />);
-    
+
     expect(screen.getByText('John Doe')).toBeInTheDocument();
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
   });
@@ -158,30 +154,21 @@ describe('GitCommitHistory', () => {
         onCheckout={mockOnCheckout}
       />
     );
-    
+
     expect(container).toBeInTheDocument();
   });
 
   it('should render with revert callback', () => {
     const { container } = render(
-      <GitCommitHistory
-        commits={mockCommits}
-        onRefresh={mockOnRefresh}
-        onRevert={mockOnRevert}
-      />
+      <GitCommitHistory commits={mockCommits} onRefresh={mockOnRefresh} onRevert={mockOnRevert} />
     );
-    
+
     expect(container).toBeInTheDocument();
   });
 
   it('should render title', () => {
-    render(
-      <GitCommitHistory
-        commits={mockCommits}
-        onRefresh={mockOnRefresh}
-      />
-    );
-    
+    render(<GitCommitHistory commits={mockCommits} onRefresh={mockOnRefresh} />);
+
     expect(screen.getByText('title')).toBeInTheDocument();
   });
 
@@ -204,29 +191,23 @@ describe('GitCommitHistory', () => {
         onLoadMore={mockOnLoadMore}
       />
     );
-    
+
     const loadMoreButton = screen.getByText('loadMore');
     fireEvent.click(loadMoreButton);
     expect(mockOnLoadMore).toHaveBeenCalled();
   });
 
   it('should disable refresh when loading', () => {
-    render(
-      <GitCommitHistory
-        commits={mockCommits}
-        isLoading={true}
-        onRefresh={mockOnRefresh}
-      />
-    );
-    
+    render(<GitCommitHistory commits={mockCommits} isLoading={true} onRefresh={mockOnRefresh} />);
+
     const buttons = screen.getAllByRole('button');
-    const disabledButton = buttons.find(btn => btn.hasAttribute('disabled'));
+    const disabledButton = buttons.find((btn) => btn.hasAttribute('disabled'));
     expect(disabledButton).toBeDefined();
   });
 
   it('should render commit list items', () => {
     render(<GitCommitHistory commits={mockCommits} onRefresh={mockOnRefresh} />);
-    
+
     // All commits should be in the document
     expect(screen.getByText('Add new feature')).toBeInTheDocument();
     expect(screen.getByText('Fix bug in login')).toBeInTheDocument();
@@ -241,12 +222,14 @@ describe('GitCommitHistory', () => {
         onViewDiff={mockOnViewDiff}
       />
     );
-    
+
     expect(container).toBeInTheDocument();
   });
 
   it('should render without errors', () => {
-    const { container } = render(<GitCommitHistory commits={mockCommits} onRefresh={mockOnRefresh} />);
+    const { container } = render(
+      <GitCommitHistory commits={mockCommits} onRefresh={mockOnRefresh} />
+    );
     expect(container).toBeInTheDocument();
   });
 });

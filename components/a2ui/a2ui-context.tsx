@@ -6,11 +6,7 @@
  */
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
-import type {
-  A2UISurfaceState,
-  A2UIComponent,
-  A2UIComponentCatalog,
-} from '@/types/artifact/a2ui';
+import type { A2UISurfaceState, A2UIComponent, A2UIComponentCatalog } from '@/types/artifact/a2ui';
 import { useA2UIStore } from '@/stores/a2ui';
 import {
   resolveStringOrPath,
@@ -197,10 +193,7 @@ export function useA2UIComponent(componentId: string): A2UIComponent | undefined
 /**
  * Hook for data binding - returns value and setter
  */
-export function useA2UIBinding<T>(
-  path: string,
-  defaultValue: T
-): [T, (value: T) => void] {
+export function useA2UIBinding<T>(path: string, defaultValue: T): [T, (value: T) => void] {
   const { dataModel, setDataValue } = useA2UIContext();
 
   const value = useMemo(() => {
@@ -234,29 +227,25 @@ export function useA2UIBinding<T>(
 /**
  * Hook for component visibility based on data binding
  */
-export function useA2UIVisibility(
-  visible?: boolean | { path: string }
-): boolean {
+export function useA2UIVisibility(visible?: boolean | { path: string }): boolean {
   const { resolveBoolean } = useA2UIContext();
-  
+
   if (visible === undefined) {
     return true;
   }
-  
+
   return resolveBoolean(visible, true);
 }
 
 /**
  * Hook for component disabled state based on data binding
  */
-export function useA2UIDisabled(
-  disabled?: boolean | { path: string }
-): boolean {
+export function useA2UIDisabled(disabled?: boolean | { path: string }): boolean {
   const { resolveBoolean } = useA2UIContext();
-  
+
   if (disabled === undefined) {
     return false;
   }
-  
+
   return resolveBoolean(disabled, false);
 }

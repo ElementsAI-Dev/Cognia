@@ -137,7 +137,7 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => isMonitoring ? stopMonitoring() : startMonitoring()}
+                onClick={() => (isMonitoring ? stopMonitoring() : startMonitoring())}
               >
                 {isMonitoring ? (
                   <span className="h-4 w-4 rounded bg-red-500" />
@@ -167,12 +167,21 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <TabsList className="shrink-0 mx-2 mt-2 grid w-auto grid-cols-3">
-          <TabsTrigger value="current" className="text-xs">{t('current')}</TabsTrigger>
-          <TabsTrigger value="actions" className="text-xs">{t('actions')}</TabsTrigger>
-          <TabsTrigger value="entities" className="text-xs">{t('entities')}</TabsTrigger>
+          <TabsTrigger value="current" className="text-xs">
+            {t('current')}
+          </TabsTrigger>
+          <TabsTrigger value="actions" className="text-xs">
+            {t('actions')}
+          </TabsTrigger>
+          <TabsTrigger value="entities" className="text-xs">
+            {t('entities')}
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="current" className="flex-1 m-0 mt-2 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
+        <TabsContent
+          value="current"
+          className="flex-1 m-0 mt-2 min-h-0 data-[state=active]:flex data-[state=active]:flex-col"
+        >
           <ScrollArea className="flex-1 min-h-0">
             <div className="p-3 space-y-3">
               {error && (
@@ -199,11 +208,13 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className={cn(
-                        'p-2 rounded bg-muted/50 text-sm font-mono',
-                        formatting?.preserve_whitespace && 'whitespace-pre-wrap',
-                        'max-h-40 overflow-auto'
-                      )}>
+                      <div
+                        className={cn(
+                          'p-2 rounded bg-muted/50 text-sm font-mono',
+                          formatting?.preserve_whitespace && 'whitespace-pre-wrap',
+                          'max-h-40 overflow-auto'
+                        )}
+                      >
                         {contentPreview || content}
                       </div>
 
@@ -220,16 +231,24 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                         )}
                         {analysis?.confidence && (
                           <div className="flex justify-between text-xs mb-1">
-                            <span>{Math.round(analysis.confidence * 100)}% {t('confidence')}</span>
+                            <span>
+                              {Math.round(analysis.confidence * 100)}% {t('confidence')}
+                            </span>
                           </div>
                         )}
                       </div>
 
                       {stats && (
                         <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                          <div>{stats.char_count} {t('chars')}</div>
-                          <div>{stats.word_count} {t('words')}</div>
-                          <div>{stats.line_count} {t('lines')}</div>
+                          <div>
+                            {stats.char_count} {t('chars')}
+                          </div>
+                          <div>
+                            {stats.word_count} {t('words')}
+                          </div>
+                          <div>
+                            {stats.line_count} {t('lines')}
+                          </div>
                         </div>
                       )}
                     </CardContent>
@@ -312,7 +331,10 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="actions" className="flex-1 m-0 mt-2 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
+        <TabsContent
+          value="actions"
+          className="flex-1 m-0 mt-2 min-h-0 data-[state=active]:flex data-[state=active]:flex-col"
+        >
           <ScrollArea className="flex-1 min-h-0">
             <div className="p-3 space-y-2">
               {suggestedActions.length > 0 ? (
@@ -367,7 +389,10 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="entities" className="flex-1 m-0 mt-2 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
+        <TabsContent
+          value="entities"
+          className="flex-1 m-0 mt-2 min-h-0 data-[state=active]:flex data-[state=active]:flex-col"
+        >
           <ScrollArea className="flex-1 min-h-0">
             <div className="p-3 space-y-2">
               {entities.length > 0 ? (
@@ -378,9 +403,7 @@ export function ClipboardContextPanel({ className }: ClipboardContextPanelProps)
                         <Badge variant="secondary" className="text-xs mb-1">
                           {entity.entity_type}
                         </Badge>
-                        <div className="text-sm font-mono truncate">
-                          {entity.value}
-                        </div>
+                        <div className="text-sm font-mono truncate">{entity.value}</div>
                       </div>
                       <div className="flex gap-1">
                         <Button

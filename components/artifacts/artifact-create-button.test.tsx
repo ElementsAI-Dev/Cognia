@@ -26,17 +26,33 @@ jest.mock('@/stores', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, className, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string }) => (
-    <button onClick={onClick} className={className} disabled={disabled} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    className,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string }) => (
+    <button onClick={onClick} className={className} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown">{children}</div>,
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-content">{children}</div>,
-  DropdownMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
-    <button onClick={onClick}>{children}</button>
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown">{children}</div>
   ),
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown-content">{children}</div>
+  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => <button onClick={onClick}>{children}</button>,
   DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -75,11 +91,13 @@ describe('ArtifactCreateButton', () => {
   it('calls createArtifact when clicked (icon variant)', () => {
     render(<ArtifactCreateButton content="const x = 1;" language="javascript" />);
     fireEvent.click(screen.getByRole('button'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      sessionId: 'session-1',
-      content: 'const x = 1;',
-      type: 'code',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'session-1',
+        content: 'const x = 1;',
+        type: 'code',
+      })
+    );
   });
 
   it('calls createArtifact when clicked (button variant)', () => {
@@ -91,65 +109,86 @@ describe('ArtifactCreateButton', () => {
   it('detects mermaid type correctly', () => {
     render(<ArtifactCreateButton content="graph TD; A-->B;" language="mermaid" />);
     fireEvent.click(screen.getByRole('button'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'mermaid',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'mermaid',
+      })
+    );
   });
 
   it('detects html type correctly', () => {
     render(<ArtifactCreateButton content="<div>Hello</div>" language="html" />);
     fireEvent.click(screen.getByRole('button'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'html',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'html',
+      })
+    );
   });
 
   it('detects react type from jsx/tsx', () => {
-    render(<ArtifactCreateButton content="export function Component() { return <div /> }" language="tsx" />);
+    render(
+      <ArtifactCreateButton
+        content="export function Component() { return <div /> }"
+        language="tsx"
+      />
+    );
     fireEvent.click(screen.getByRole('button'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'react',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'react',
+      })
+    );
   });
 
   it('detects math type correctly', () => {
     render(<ArtifactCreateButton content="x^2 + y^2 = z^2" language="latex" />);
     fireEvent.click(screen.getByRole('button'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'math',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'math',
+      })
+    );
   });
 
   it('detects document type from markdown', () => {
     render(<ArtifactCreateButton content="# Hello World" language="markdown" />);
     fireEvent.click(screen.getByRole('button'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'document',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'document',
+      })
+    );
   });
 
   it('uses provided title', () => {
     render(<ArtifactCreateButton content="code" title="My Title" />);
     fireEvent.click(screen.getByRole('button'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'My Title',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'My Title',
+      })
+    );
   });
 
   it('generates title from function name', () => {
     render(<ArtifactCreateButton content="function myFunction() { return 1; }" />);
     fireEvent.click(screen.getByRole('button'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'myFunction',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'myFunction',
+      })
+    );
   });
 
   it('generates title from export name', () => {
     render(<ArtifactCreateButton content="export default function MyComponent() {}" />);
     fireEvent.click(screen.getByRole('button'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'MyComponent',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'MyComponent',
+      })
+    );
   });
 
   it('does not create artifact when no active session', () => {
@@ -162,16 +201,20 @@ describe('ArtifactCreateButton', () => {
   it('includes messageId when provided', () => {
     render(<ArtifactCreateButton content="test" messageId="msg-1" />);
     fireEvent.click(screen.getByRole('button'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      messageId: 'msg-1',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: 'msg-1',
+      })
+    );
   });
 
   it('dropdown variant allows selecting specific type', () => {
     render(<ArtifactCreateButton content="test" variant="dropdown" />);
     fireEvent.click(screen.getByText('As React Component'));
-    expect(mockCreateArtifact).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'react',
-    }));
+    expect(mockCreateArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'react',
+      })
+    );
   });
 });

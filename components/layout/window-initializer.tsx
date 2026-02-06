@@ -33,7 +33,7 @@ export function WindowInitializer() {
 
         // Check if we have saved size preferences
         const hasSavedSize = preferences.rememberSize && size.width > 0 && size.height > 0;
-        
+
         // Get screen info to validate saved size
         const screenInfo = await getScreenInfo();
         if (!screenInfo) return;
@@ -48,7 +48,7 @@ export function WindowInitializer() {
           const { LogicalSize } = await import('@tauri-apps/api/dpi');
           const appWindow = getCurrentWindow();
           await appWindow.setSize(new LogicalSize(size.width, size.height));
-          
+
           if (preferences.startCentered) {
             await appWindow.center();
           }

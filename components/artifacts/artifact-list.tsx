@@ -18,12 +18,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useArtifactStore, useSessionStore } from '@/stores';
 import type { Artifact } from '@/types';
@@ -58,7 +53,7 @@ export function ArtifactList({
 
   const sessionArtifacts = useMemo(() => {
     if (!currentSessionId) return [];
-    
+
     return Object.values(artifacts)
       .filter((a) => a.sessionId === currentSessionId)
       .sort((a, b) => {
@@ -95,10 +90,9 @@ export function ArtifactList({
     <ScrollArea className={className} style={{ maxHeight }}>
       <div className="space-y-1 p-2">
         {sessionArtifacts.map((artifact) => {
-          const createdAt = artifact.createdAt instanceof Date 
-            ? artifact.createdAt 
-            : new Date(artifact.createdAt);
-          
+          const createdAt =
+            artifact.createdAt instanceof Date ? artifact.createdAt : new Date(artifact.createdAt);
+
           return (
             <ContextMenu key={artifact.id}>
               <ContextMenuTrigger>
@@ -115,9 +109,7 @@ export function ArtifactList({
                       {getArtifactTypeIcon(artifact.type)}
                     </span>
                     <div className="flex-1 min-w-0 text-left">
-                      <p className="text-sm font-medium truncate">
-                        {artifact.title}
-                      </p>
+                      <p className="text-sm font-medium truncate">{artifact.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {formatDistanceToNow(createdAt, { addSuffix: true })}
                       </p>
@@ -178,7 +170,7 @@ export function ArtifactListCompact({
 
   const sessionArtifacts = useMemo(() => {
     if (!currentSessionId) return [];
-    
+
     return Object.values(artifacts)
       .filter((a) => a.sessionId === currentSessionId)
       .sort((a, b) => {
@@ -206,9 +198,7 @@ export function ArtifactListCompact({
             openPanel('artifact');
           }}
         >
-          <span className="text-muted-foreground">
-            {getArtifactTypeIcon(artifact.type)}
-          </span>
+          <span className="text-muted-foreground">{getArtifactTypeIcon(artifact.type)}</span>
           <span className="truncate text-xs">{artifact.title}</span>
         </Button>
       ))}

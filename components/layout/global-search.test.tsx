@@ -7,32 +7,32 @@ const mockSetActiveProject = jest.fn();
 const mockSetGlobalSearchOpen = jest.fn();
 
 const mockSessions = [
-  { 
-    id: '1', 
-    title: 'Test Session Alpha', 
+  {
+    id: '1',
+    title: 'Test Session Alpha',
     lastMessagePreview: 'Hello world',
-    updatedAt: new Date() 
+    updatedAt: new Date(),
   },
-  { 
-    id: '2', 
-    title: 'Test Session Beta', 
+  {
+    id: '2',
+    title: 'Test Session Beta',
     lastMessagePreview: 'Goodbye world',
-    updatedAt: new Date(Date.now() - 86400000) 
+    updatedAt: new Date(Date.now() - 86400000),
   },
 ];
 
 const mockProjects = [
-  { 
-    id: 'p1', 
-    name: 'Project Alpha', 
+  {
+    id: 'p1',
+    name: 'Project Alpha',
     description: 'First project',
-    updatedAt: new Date() 
+    updatedAt: new Date(),
   },
-  { 
-    id: 'p2', 
-    name: 'Project Beta', 
+  {
+    id: 'p2',
+    name: 'Project Beta',
     description: 'Second project',
-    updatedAt: new Date(Date.now() - 172800000) 
+    updatedAt: new Date(Date.now() - 172800000),
   },
 ];
 
@@ -94,7 +94,7 @@ describe('GlobalSearch', () => {
     render(<GlobalSearch />);
     const input = screen.getByPlaceholderText('Search sessions, projects...');
     fireEvent.change(input, { target: { value: 'Alpha' } });
-    
+
     // Should show tabs when query is entered
     expect(screen.getByText(/All/)).toBeInTheDocument();
     expect(screen.getByText(/Sessions/)).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe('GlobalSearch', () => {
     render(<GlobalSearch />);
     const input = screen.getByPlaceholderText('Search sessions, projects...');
     fireEvent.change(input, { target: { value: 'xyz123nonexistent' } });
-    
+
     expect(screen.getByText(/No results found/)).toBeInTheDocument();
   });
 
@@ -113,35 +113,35 @@ describe('GlobalSearch', () => {
     render(<GlobalSearch />);
     const input = screen.getByPlaceholderText('Search sessions, projects...');
     fireEvent.change(input, { target: { value: 'test' } });
-    
+
     const clearButton = screen.getByLabelText('Clear search');
     fireEvent.click(clearButton);
-    
+
     expect(input).toHaveValue('');
   });
 
   it('calls setActiveSession when clicking a session result', () => {
     render(<GlobalSearch />);
-    
+
     // Click on a recent session (when no query)
     const sessionButton = screen.getByText('Test Session Alpha').closest('button');
     if (sessionButton) {
       fireEvent.click(sessionButton);
     }
-    
+
     expect(mockSetActiveSession).toHaveBeenCalledWith('1');
     expect(mockSetGlobalSearchOpen).toHaveBeenCalledWith(false);
   });
 
   it('calls setActiveProject when clicking a project result', () => {
     render(<GlobalSearch />);
-    
+
     // Click on a recent project (when no query)
     const projectButton = screen.getByText('Project Alpha').closest('button');
     if (projectButton) {
       fireEvent.click(projectButton);
     }
-    
+
     expect(mockSetActiveProject).toHaveBeenCalledWith('p1');
     expect(mockSetGlobalSearchOpen).toHaveBeenCalledWith(false);
   });
@@ -150,7 +150,7 @@ describe('GlobalSearch', () => {
     render(<GlobalSearch />);
     const input = screen.getByPlaceholderText('Search sessions, projects...');
     fireEvent.change(input, { target: { value: 'Test' } });
-    
+
     expect(screen.getByRole('tablist')).toBeInTheDocument();
   });
 });
@@ -167,7 +167,7 @@ describe('GlobalSearch - Search Results', () => {
     render(<GlobalSearch />);
     const input = screen.getByPlaceholderText('Search sessions, projects...');
     fireEvent.change(input, { target: { value: 'Alpha' } });
-    
+
     // Should show badges for both types
     expect(screen.getByText('Session')).toBeInTheDocument();
     expect(screen.getByText('Project')).toBeInTheDocument();

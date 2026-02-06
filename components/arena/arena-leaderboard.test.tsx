@@ -81,16 +81,22 @@ jest.mock('@/components/ui/card', () => ({
 }));
 
 jest.mock('@/components/ui/table', () => ({
-  Table: ({ children }: { children: React.ReactNode }) => <table data-testid="table">{children}</table>,
+  Table: ({ children }: { children: React.ReactNode }) => (
+    <table data-testid="table">{children}</table>
+  ),
   TableBody: ({ children }: { children: React.ReactNode }) => <tbody>{children}</tbody>,
   TableCell: ({ children }: { children: React.ReactNode }) => <td>{children}</td>,
   TableHead: ({ children }: { children: React.ReactNode }) => <th>{children}</th>,
   TableHeader: ({ children }: { children: React.ReactNode }) => <thead>{children}</thead>,
-  TableRow: ({ children }: { children: React.ReactNode }) => <tr data-testid="table-row">{children}</tr>,
+  TableRow: ({ children }: { children: React.ReactNode }) => (
+    <tr data-testid="table-row">{children}</tr>
+  ),
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span>,
+  Badge: ({ children }: { children: React.ReactNode }) => (
+    <span data-testid="badge">{children}</span>
+  ),
 }));
 
 jest.mock('@/components/ui/button', () => ({

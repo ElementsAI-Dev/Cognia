@@ -37,7 +37,7 @@ jest.mock('hls.js', () => {
       NETWORK_ERROR: 'networkError',
       MEDIA_ERROR: 'mediaError',
     };
-    
+
     attachMedia = mockHlsInstance.attachMedia;
     loadSource = mockHlsInstance.loadSource;
     on = mockHlsInstance.on;
@@ -126,57 +126,39 @@ describe('Video', () => {
 
   describe('Rendering States', () => {
     it('renders pending state', () => {
-      render(
-        <Video status="pending" />,
-        { wrapper }
-      );
+      render(<Video status="pending" />, { wrapper });
       expect(screen.getByText(/Preparing/i)).toBeInTheDocument();
     });
 
     it('renders processing state with progress', () => {
-      render(
-        <Video status="processing" progress={50} />,
-        { wrapper }
-      );
+      render(<Video status="processing" progress={50} />, { wrapper });
       expect(screen.getByText('Generating video...')).toBeInTheDocument();
       expect(screen.getByText('50% complete')).toBeInTheDocument();
     });
 
     it('renders job ID when provided', () => {
-      render(
-        <Video status="processing" jobId="job-123" />,
-        { wrapper }
-      );
+      render(<Video status="processing" jobId="job-123" />, { wrapper });
       expect(screen.getByText('Job ID: job-123')).toBeInTheDocument();
     });
 
     it('renders prompt when provided', () => {
-      render(
-        <Video status="processing" prompt="A beautiful sunset" />,
-        { wrapper }
-      );
+      render(<Video status="processing" prompt="A beautiful sunset" />, { wrapper });
       expect(screen.getByText('"A beautiful sunset"')).toBeInTheDocument();
     });
 
     it('renders check status button', async () => {
       const onRefreshStatus = jest.fn();
       const user = userEvent.setup();
-      
-      render(
-        <Video status="processing" onRefreshStatus={onRefreshStatus} />,
-        { wrapper }
-      );
-      
+
+      render(<Video status="processing" onRefreshStatus={onRefreshStatus} />, { wrapper });
+
       await user.click(screen.getByText('Check Status'));
-      
+
       expect(onRefreshStatus).toHaveBeenCalled();
     });
 
     it('renders error state', () => {
-      render(
-        <Video status="failed" error="Something went wrong" />,
-        { wrapper }
-      );
+      render(<Video status="failed" error="Something went wrong" />, { wrapper });
       expect(screen.getByText('Video generation failed')).toBeInTheDocument();
       expect(screen.getByText('Something went wrong')).toBeInTheDocument();
     });
@@ -184,22 +166,16 @@ describe('Video', () => {
     it('renders retry button on error', async () => {
       const onRetry = jest.fn();
       const user = userEvent.setup();
-      
-      render(
-        <Video status="failed" onRetry={onRetry} />,
-        { wrapper }
-      );
-      
+
+      render(<Video status="failed" onRetry={onRetry} />, { wrapper });
+
       await user.click(screen.getByText('Try Again'));
-      
+
       expect(onRetry).toHaveBeenCalled();
     });
 
     it('renders success state without URL', () => {
-      render(
-        <Video status="completed" />,
-        { wrapper }
-      );
+      render(<Video status="completed" />, { wrapper });
       expect(screen.getByText('Video generated successfully')).toBeInTheDocument();
       expect(screen.getByText(/URL not available/i)).toBeInTheDocument();
     });
@@ -207,72 +183,53 @@ describe('Video', () => {
 
   describe('Video Playback', () => {
     it('renders video element with URL', () => {
-      const { container } = render(
-        <Video video={mockVideo} status="completed" />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} status="completed" />, { wrapper });
+
       const video = container.querySelector('video');
       expect(video).toBeInTheDocument();
       expect(video).toHaveAttribute('src', mockVideo.url);
     });
 
     it('renders video with src prop', () => {
-      const { container } = render(
-        <Video src="https://example.com/direct.mp4" />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video src="https://example.com/direct.mp4" />, { wrapper });
+
       const video = container.querySelector('video');
       expect(video).toHaveAttribute('src', 'https://example.com/direct.mp4');
     });
 
     it('renders video with base64 data', () => {
-      const { container } = render(
-        <Video video={mockVideoWithBase64} status="completed" />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideoWithBase64} status="completed" />, {
+        wrapper,
+      });
+
       const video = container.querySelector('video');
       expect(video).toHaveAttribute('src', 'data:video/mp4;base64,dGVzdA==');
     });
 
     it('renders poster image when thumbnailUrl provided', () => {
-      const { container } = render(
-        <Video video={mockVideo} status="completed" />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} status="completed" />, { wrapper });
+
       const video = container.querySelector('video');
       expect(video).toHaveAttribute('poster', mockVideo.thumbnailUrl);
     });
 
     it('applies autoPlay attribute', () => {
-      const { container } = render(
-        <Video video={mockVideo} autoPlay={true} />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} autoPlay={true} />, { wrapper });
+
       const video = container.querySelector('video');
       expect(video).toHaveAttribute('autoplay');
     });
 
     it('applies loop attribute', () => {
-      const { container } = render(
-        <Video video={mockVideo} loop={true} />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} loop={true} />, { wrapper });
+
       const video = container.querySelector('video');
       expect(video).toHaveAttribute('loop');
     });
 
     it('applies muted attribute', () => {
-      const { container } = render(
-        <Video video={mockVideo} muted={true} />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} muted={true} />, { wrapper });
+
       const video = container.querySelector('video');
       // Video element exists
       expect(video).toBeInTheDocument();
@@ -281,22 +238,16 @@ describe('Video', () => {
 
   describe('Controls', () => {
     it('shows controls when showControls is true', () => {
-      const { container } = render(
-        <Video video={mockVideo} showControls={true} />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} showControls={true} />, { wrapper });
+
       // Video element should exist when controls are enabled
       const video = container.querySelector('video');
       expect(video).toBeInTheDocument();
     });
 
     it('hides controls when showControls is false', () => {
-      const { container } = render(
-        <Video video={mockVideo} showControls={false} />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} showControls={false} />, { wrapper });
+
       // Only video element, no control buttons
       const buttons = container.querySelectorAll('button');
       expect(buttons.length).toBe(0);
@@ -305,15 +256,10 @@ describe('Video', () => {
 
   describe('Screenshot Feature', () => {
     it('shows screenshot panel when showScreenshotPanel is true', () => {
-      render(
-        <Video 
-          video={mockVideo} 
-          showControls={true}
-          showScreenshotPanel={true}
-        />,
-        { wrapper }
-      );
-      
+      render(<Video video={mockVideo} showControls={true} showScreenshotPanel={true} />, {
+        wrapper,
+      });
+
       // Screenshot button should be available
       // Panel visibility depends on having screenshots
     });
@@ -321,37 +267,22 @@ describe('Video', () => {
 
   describe('Keyboard Shortcuts', () => {
     it('enables keyboard shortcuts by default', () => {
-      render(
-        <Video video={mockVideo} enableKeyboardShortcuts={true} />,
-        { wrapper }
-      );
-      
+      render(<Video video={mockVideo} enableKeyboardShortcuts={true} />, { wrapper });
+
       // Keyboard shortcuts are enabled - test would require focus handling
     });
   });
 
   describe('HLS Streaming', () => {
     it('initializes HLS for .m3u8 URLs', () => {
-      render(
-        <Video 
-          src="https://example.com/stream.m3u8" 
-          enableHls={true}
-        />,
-        { wrapper }
-      );
-      
+      render(<Video src="https://example.com/stream.m3u8" enableHls={true} />, { wrapper });
+
       // HLS should be initialized for .m3u8 URLs
     });
 
     it('does not use HLS for regular video URLs', () => {
-      render(
-        <Video 
-          src="https://example.com/video.mp4" 
-          enableHls={true}
-        />,
-        { wrapper }
-      );
-      
+      render(<Video src="https://example.com/video.mp4" enableHls={true} />, { wrapper });
+
       // HLS should not be initialized for .mp4 files
     });
   });
@@ -359,26 +290,22 @@ describe('Video', () => {
   describe('Time Updates', () => {
     it('calls onTimeUpdate callback', () => {
       const onTimeUpdate = jest.fn();
-      const { container } = render(
-        <Video video={mockVideo} onTimeUpdate={onTimeUpdate} />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} onTimeUpdate={onTimeUpdate} />, {
+        wrapper,
+      });
+
       const video = container.querySelector('video');
       // Simulate time update event
       video?.dispatchEvent(new Event('timeupdate'));
-      
+
       // Callback should be called
     });
   });
 
   describe('Error Handling', () => {
     it('renders video element for error handling', () => {
-      const { container } = render(
-        <Video video={mockVideo} />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} />, { wrapper });
+
       const video = container.querySelector('video');
       expect(video).toBeInTheDocument();
     });
@@ -386,44 +313,34 @@ describe('Video', () => {
 
   describe('Live Streaming', () => {
     it('renders with live streaming props', () => {
-      const { container } = render(
-        <Video video={mockVideo} />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} />, { wrapper });
+
       expect(container.querySelector('video')).toBeInTheDocument();
     });
   });
 
   describe('Quality Selection', () => {
     it('renders video with quality options', () => {
-      const { container } = render(
-        <Video video={mockVideo} />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} />, { wrapper });
+
       expect(container.querySelector('video')).toBeInTheDocument();
     });
   });
 
   describe('Styling', () => {
     it('applies custom className', () => {
-      const { container } = render(
-        <Video video={mockVideo} className="custom-video" />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Video video={mockVideo} className="custom-video" />, {
+        wrapper,
+      });
+
       expect(container.querySelector('.custom-video')).toBeInTheDocument();
     });
   });
 
   describe('Download', () => {
     it('allows downloading video', () => {
-      render(
-        <Video video={mockVideo} showControls={true} />,
-        { wrapper }
-      );
-      
+      render(<Video video={mockVideo} showControls={true} />, { wrapper });
+
       // Download button would trigger download function
     });
   });
@@ -434,23 +351,17 @@ describe('Video', () => {
         value: true,
         configurable: true,
       });
-      
-      render(
-        <Video video={mockVideo} showControls={true} />,
-        { wrapper }
-      );
-      
+
+      render(<Video video={mockVideo} showControls={true} />, { wrapper });
+
       // PiP button should be available
     });
   });
 
   describe('Fullscreen', () => {
     it('supports fullscreen toggle', () => {
-      render(
-        <Video video={mockVideo} showControls={true} />,
-        { wrapper }
-      );
-      
+      render(<Video video={mockVideo} showControls={true} />, { wrapper });
+
       // Fullscreen button should be available
     });
   });

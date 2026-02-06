@@ -125,10 +125,7 @@ describe('A2UIProvider', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -148,10 +145,7 @@ describe('A2UIProvider', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -163,18 +157,11 @@ describe('A2UIProvider', () => {
   it('should provide dataModel', () => {
     const TestChild = () => {
       const context = useA2UIContext();
-      return (
-        <div data-testid="data">
-          {JSON.stringify(context.dataModel)}
-        </div>
-      );
+      return <div data-testid="data">{JSON.stringify(context.dataModel)}</div>;
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -197,53 +184,35 @@ describe('A2UIProvider', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
 
     screen.getByTestId('action-btn').click();
 
-    expect(mockEmitAction).toHaveBeenCalledWith(
-      'test-surface',
-      'click',
-      'btn1',
-      { value: 42 }
-    );
+    expect(mockEmitAction).toHaveBeenCalledWith('test-surface', 'click', 'btn1', { value: 42 });
   });
 
   it('should call setDataValue with correct parameters', () => {
     const TestChild = () => {
       const context = useA2UIContext();
       return (
-        <button
-          data-testid="set-btn"
-          onClick={() => context.setDataValue('/user/name', 'Jane')}
-        >
+        <button data-testid="set-btn" onClick={() => context.setDataValue('/user/name', 'Jane')}>
           Set
         </button>
       );
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
 
     screen.getByTestId('set-btn').click();
 
-    expect(mockSetDataValue).toHaveBeenCalledWith(
-      'test-surface',
-      '/user/name',
-      'Jane'
-    );
+    expect(mockSetDataValue).toHaveBeenCalledWith('test-surface', '/user/name', 'Jane');
   });
 
   it('should resolve string values', () => {
@@ -254,10 +223,7 @@ describe('A2UIProvider', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -269,16 +235,11 @@ describe('A2UIProvider', () => {
     const TestChild = () => {
       const context = useA2UIContext();
       const component = context.getComponent('child1');
-      return (
-        <div data-testid="component-type">{component?.component}</div>
-      );
+      return <div data-testid="component-type">{component?.component}</div>;
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -293,10 +254,7 @@ describe('A2UIProvider', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -334,10 +292,7 @@ describe('useA2UIComponent', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -352,10 +307,7 @@ describe('useA2UIComponent', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -381,10 +333,7 @@ describe('useA2UIBinding', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -393,11 +342,7 @@ describe('useA2UIBinding', () => {
 
     screen.getByTestId('set').click();
 
-    expect(mockSetDataValue).toHaveBeenCalledWith(
-      'test-surface',
-      '/user/name',
-      'Updated'
-    );
+    expect(mockSetDataValue).toHaveBeenCalledWith('test-surface', '/user/name', 'Updated');
   });
 
   it('should return default value for non-existent path', () => {
@@ -407,10 +352,7 @@ describe('useA2UIBinding', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -429,10 +371,7 @@ describe('useA2UIVisibility', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -447,10 +386,7 @@ describe('useA2UIVisibility', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -465,10 +401,7 @@ describe('useA2UIVisibility', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -487,10 +420,7 @@ describe('useA2UIDisabled', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -505,10 +435,7 @@ describe('useA2UIDisabled', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );
@@ -523,10 +450,7 @@ describe('useA2UIDisabled', () => {
     };
 
     render(
-      <A2UIProvider
-        surfaceId="test-surface"
-        renderComponent={mockRenderComponent}
-      >
+      <A2UIProvider surfaceId="test-surface" renderComponent={mockRenderComponent}>
         <TestChild />
       </A2UIProvider>
     );

@@ -27,11 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Search,
   ExternalLink,
@@ -202,10 +198,13 @@ export function AppGallery({
   );
 
   // Handle view details
-  const handleViewDetails = useCallback((app: A2UIAppInstance) => {
-    setDetailApp(app);
-    appBuilder.incrementAppViews(app.id);
-  }, [appBuilder]);
+  const handleViewDetails = useCallback(
+    (app: A2UIAppInstance) => {
+      setDetailApp(app);
+      appBuilder.incrementAppViews(app.id);
+    },
+    [appBuilder]
+  );
 
   // Toggle sort order
   const toggleSortOrder = useCallback(() => {
@@ -364,12 +363,7 @@ export function AppGallery({
               <SelectItem value="name">名称</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={toggleSortOrder}
-          >
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={toggleSortOrder}>
             {sortOrder === 'asc' ? (
               <SortAsc className="h-3 w-3" />
             ) : (
@@ -382,19 +376,14 @@ export function AppGallery({
       {/* Content - Mobile optimized with responsive preview */}
       <div className="flex-1 flex flex-col sm:flex-row overflow-hidden">
         {/* Apps list */}
-        <ScrollArea className={cn(
-          'flex-1',
-          showPreview && selectedAppId && 'sm:w-1/2'
-        )}>
+        <ScrollArea className={cn('flex-1', showPreview && selectedAppId && 'sm:w-1/2')}>
           <div className={cn('p-3 sm:p-4 grid gap-2 sm:gap-3', getGridClass())}>
             {apps.map(renderAppCard)}
             {apps.length === 0 && (
               <div className="col-span-full text-center py-8 sm:py-12 text-muted-foreground">
                 <Sparkles className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
                 <p className="text-base sm:text-lg font-medium">还没有应用</p>
-                <p className="text-xs sm:text-sm">
-                  从模板创建你的第一个应用
-                </p>
+                <p className="text-xs sm:text-sm">从模板创建你的第一个应用</p>
               </div>
             )}
           </div>
@@ -437,7 +426,7 @@ export function AppGallery({
           </div>
         )}
       </div>
-      
+
       {/* Mobile preview - Bottom sheet style */}
       {showPreview && selectedAppId && (
         <div className="sm:hidden border-t max-h-[50vh] flex flex-col">
@@ -480,12 +469,14 @@ export function AppGallery({
         <DialogContent className="max-w-[90vw] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>删除应用</DialogTitle>
-            <DialogDescription>
-              确定要删除这个应用吗？此操作无法撤销。
-            </DialogDescription>
+            <DialogDescription>确定要删除这个应用吗？此操作无法撤销。</DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="w-full sm:w-auto touch-manipulation" onClick={() => setDeleteConfirmId(null)}>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto touch-manipulation"
+              onClick={() => setDeleteConfirmId(null)}
+            >
               取消
             </Button>
             <Button
@@ -514,10 +505,18 @@ export function AppGallery({
             onKeyDown={(e) => e.key === 'Enter' && handleRename()}
           />
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="w-full sm:w-auto touch-manipulation" onClick={() => setRenameDialogId(null)}>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto touch-manipulation"
+              onClick={() => setRenameDialogId(null)}
+            >
               取消
             </Button>
-            <Button className="w-full sm:w-auto touch-manipulation" onClick={handleRename} disabled={!newName.trim()}>
+            <Button
+              className="w-full sm:w-auto touch-manipulation"
+              onClick={handleRename}
+              disabled={!newName.trim()}
+            >
               确定
             </Button>
           </DialogFooter>

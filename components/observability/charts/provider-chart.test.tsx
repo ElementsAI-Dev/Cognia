@@ -18,9 +18,7 @@ jest.mock('recharts', () => ({
   PieChart: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="pie-chart">{children}</div>
   ),
-  Pie: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pie">{children}</div>
-  ),
+  Pie: ({ children }: { children: React.ReactNode }) => <div data-testid="pie">{children}</div>,
   Cell: () => <div data-testid="cell" />,
   Legend: () => <div data-testid="legend" />,
   Tooltip: () => <div data-testid="tooltip" />,
@@ -28,9 +26,7 @@ jest.mock('recharts', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/card', () => ({
-  Card: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="card">{children}</div>
-  ),
+  Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,
   CardContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="card-content">{children}</div>
   ),

@@ -45,7 +45,7 @@ export function A2UIToolOutput({
         const parsed = JSON.parse(output);
         const result = parseA2UIMessages(parsed);
         if (result.success && result.messages.length > 0) {
-          const firstMsg = result.messages.find(m => 'surfaceId' in m);
+          const firstMsg = result.messages.find((m) => 'surfaceId' in m);
           return {
             surfaceId: firstMsg ? (firstMsg as { surfaceId: string }).surfaceId : `tool-${toolId}`,
             messages: result.messages,
@@ -60,7 +60,7 @@ export function A2UIToolOutput({
     if (output && typeof output === 'object') {
       const result = parseA2UIMessages(output);
       if (result.success && result.messages.length > 0) {
-        const firstMsg = result.messages.find(m => 'surfaceId' in m);
+        const firstMsg = result.messages.find((m) => 'surfaceId' in m);
         return {
           surfaceId: firstMsg ? (firstMsg as { surfaceId: string }).surfaceId : `tool-${toolId}`,
           messages: result.messages,
@@ -140,7 +140,7 @@ export function A2UIStructuredOutput({
 
   // Get surface ID from messages
   const surfaceId = useMemo(() => {
-    const firstMsg = messages.find(m => 'surfaceId' in m);
+    const firstMsg = messages.find((m) => 'surfaceId' in m);
     return firstMsg ? (firstMsg as { surfaceId: string }).surfaceId : `output-${id}`;
   }, [messages, id]);
 
@@ -159,14 +159,8 @@ export function A2UIStructuredOutput({
 
   return (
     <div className={cn('a2ui-structured-output', className)}>
-      {title && (
-        <h3 className="mb-2 text-sm font-medium text-muted-foreground">{title}</h3>
-      )}
-      <A2UISurface
-        surfaceId={surfaceId}
-        onAction={onAction}
-        onDataChange={onDataChange}
-      />
+      {title && <h3 className="mb-2 text-sm font-medium text-muted-foreground">{title}</h3>}
+      <A2UISurface surfaceId={surfaceId} onAction={onAction} onDataChange={onDataChange} />
     </div>
   );
 }

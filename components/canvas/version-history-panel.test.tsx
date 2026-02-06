@@ -34,7 +34,9 @@ jest.mock('@/stores', () => ({
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} {...props}>{children}</button>
+    <button onClick={onClick} {...props}>
+      {children}
+    </button>
   ),
 }));
 
@@ -48,14 +50,20 @@ jest.mock('@/components/ui/badge', () => ({
 
 jest.mock('@/components/ui/sheet', () => ({
   Sheet: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    <div data-testid="sheet" data-open={open}>{children}</div>
+    <div data-testid="sheet" data-open={open}>
+      {children}
+    </div>
   ),
   SheetContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="sheet-content" data-className={className}>{children}</div>
+    <div data-testid="sheet-content" data-className={className}>
+      {children}
+    </div>
   ),
   SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  SheetTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="sheet-trigger">{children}</div>,
+  SheetTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sheet-trigger">{children}</div>
+  ),
 }));
 
 jest.mock('@/components/ui/collapsible', () => ({
@@ -65,12 +73,15 @@ jest.mock('@/components/ui/collapsible', () => ({
 }));
 
 jest.mock('@/components/ui/alert-dialog', () => ({
-  AlertDialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    open ? <div data-testid="alert-dialog">{children}</div> : null
-  ),
-  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
-    <button onClick={onClick}>{children}</button>
-  ),
+  AlertDialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
+    open ? <div data-testid="alert-dialog">{children}</div> : null,
+  AlertDialogAction: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => <button onClick={onClick}>{children}</button>,
   AlertDialogCancel: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
   AlertDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
@@ -80,11 +91,12 @@ jest.mock('@/components/ui/alert-dialog', () => ({
 }));
 
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    open ? <div data-testid="dialog">{children}</div> : null
-  ),
+  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
+    open ? <div data-testid="dialog">{children}</div> : null,
   DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dialog-content" data-className={className}>{children}</div>
+    <div data-testid="dialog-content" data-className={className}>
+      {children}
+    </div>
   ),
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
@@ -144,12 +156,7 @@ describe('VersionHistoryPanel', () => {
   });
 
   it('renders custom trigger when provided', () => {
-    render(
-      <VersionHistoryPanel
-        documentId="doc-1"
-        trigger={<button>Custom Trigger</button>}
-      />
-    );
+    render(<VersionHistoryPanel documentId="doc-1" trigger={<button>Custom Trigger</button>} />);
     expect(screen.getByText('Custom Trigger')).toBeInTheDocument();
   });
 
@@ -228,7 +235,7 @@ describe('VersionHistoryPanel', () => {
     it('applies mobile-first width to dialogs', () => {
       render(<VersionHistoryPanel documentId="doc-1" />);
       const dialogContents = screen.queryAllByTestId('dialog-content');
-      dialogContents.forEach(dialogContent => {
+      dialogContents.forEach((dialogContent) => {
         const className = dialogContent.getAttribute('data-className');
         if (className) {
           // Preview dialog should have mobile width

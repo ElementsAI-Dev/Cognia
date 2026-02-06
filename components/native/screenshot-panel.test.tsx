@@ -255,9 +255,7 @@ describe('ScreenshotPanel - Extract Text', () => {
 
   it('calls extractText and copies to clipboard', async () => {
     render(<ScreenshotPanel />);
-    const extractButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('svg')
-    );
+    const extractButton = screen.getAllByRole('button').find((btn) => btn.querySelector('svg'));
     if (extractButton) {
       fireEvent.click(extractButton);
     }
@@ -301,7 +299,7 @@ describe('ScreenshotPanel - Clear Search', () => {
     const searchInput = screen.getByPlaceholderText('Search screenshots...');
     fireEvent.change(searchInput, { target: { value: 'test' } });
     expect(searchInput).toHaveValue('test');
-    
+
     const clearButton = screen.getByLabelText('Clear search');
     fireEvent.click(clearButton);
     expect(searchInput).toHaveValue('');

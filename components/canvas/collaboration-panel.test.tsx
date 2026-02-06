@@ -67,28 +67,28 @@ describe('CollaborationPanel', () => {
 
   it('should open panel when button is clicked', async () => {
     render(<CollaborationPanel {...defaultProps} />);
-    
+
     const button = screen.getByText('Collaborate');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('Collaboration')).toBeInTheDocument();
   });
 
   it('should show start session button when not connected', async () => {
     render(<CollaborationPanel {...defaultProps} />);
-    
+
     const button = screen.getByText('Collaborate');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('Start Session')).toBeInTheDocument();
   });
 
   it('should show start session button that triggers connect', async () => {
     render(<CollaborationPanel {...defaultProps} />);
-    
+
     const button = screen.getByText('Collaborate');
     await userEvent.click(button);
-    
+
     const startButton = screen.getByText('Start Session');
     expect(startButton).toBeInTheDocument();
     // Note: clicking startButton triggers async connect which requires more complex mocking
@@ -96,39 +96,34 @@ describe('CollaborationPanel', () => {
 
   it('should show disconnected status initially', async () => {
     render(<CollaborationPanel {...defaultProps} />);
-    
+
     const button = screen.getByText('Collaborate');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('Disconnected')).toBeInTheDocument();
   });
 
   it('should show join session input', async () => {
     render(<CollaborationPanel {...defaultProps} />);
-    
+
     const button = screen.getByText('Collaborate');
     await userEvent.click(button);
-    
+
     expect(screen.getByPlaceholderText('Enter session ID')).toBeInTheDocument();
   });
 
   it('should show empty participants message when no participants', async () => {
     render(<CollaborationPanel {...defaultProps} />);
-    
+
     const button = screen.getByText('Collaborate');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('No participants yet')).toBeInTheDocument();
   });
 
   it('should render custom trigger if provided', () => {
-    render(
-      <CollaborationPanel
-        {...defaultProps}
-        trigger={<button>Custom Trigger</button>}
-      />
-    );
-    
+    render(<CollaborationPanel {...defaultProps} trigger={<button>Custom Trigger</button>} />);
+
     expect(screen.getByText('Custom Trigger')).toBeInTheDocument();
     expect(screen.queryByText('Collaborate')).not.toBeInTheDocument();
   });

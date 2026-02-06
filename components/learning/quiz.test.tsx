@@ -82,11 +82,7 @@ const mockShortAnswer: QuizQuestionData = {
   correctAnswer: 'useEffect',
 };
 
-const mockQuestions: QuizQuestionData[] = [
-  mockMultipleChoice,
-  mockTrueFalse,
-  mockFillBlank,
-];
+const mockQuestions: QuizQuestionData[] = [mockMultipleChoice, mockTrueFalse, mockFillBlank];
 
 describe('QuizQuestion', () => {
   describe('Multiple Choice', () => {
@@ -106,45 +102,45 @@ describe('QuizQuestion', () => {
     it('allows selecting an option', async () => {
       const user = userEvent.setup();
       render(<QuizQuestion question={mockMultipleChoice} />, { wrapper });
-      
+
       await user.click(screen.getByText('A library'));
-      
+
       // Option should be selected (visual change)
     });
 
     it('shows submit button after selection', () => {
       render(<QuizQuestion question={mockMultipleChoice} />, { wrapper });
-      
+
       // Question should render with options
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
 
     it('shows correct feedback on correct answer', () => {
       render(<QuizQuestion question={mockMultipleChoice} />, { wrapper });
-      
+
       // Question should render
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
 
     it('shows incorrect feedback on wrong answer', () => {
       render(<QuizQuestion question={mockMultipleChoice} />, { wrapper });
-      
+
       // Question should render
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
 
     it('shows explanation after answering', () => {
       render(<QuizQuestion question={mockMultipleChoice} />, { wrapper });
-      
+
       // Question should render
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
 
     it('calls onAnswer with result', () => {
       const onAnswer = jest.fn();
-      
+
       render(<QuizQuestion question={mockMultipleChoice} onAnswer={onAnswer} />, { wrapper });
-      
+
       // Question should render
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
@@ -159,7 +155,7 @@ describe('QuizQuestion', () => {
 
     it('handles correct true answer', () => {
       render(<QuizQuestion question={mockTrueFalse} />, { wrapper });
-      
+
       // Question should render with options
       expect(screen.getByText('React uses a virtual DOM')).toBeInTheDocument();
     });
@@ -174,7 +170,7 @@ describe('QuizQuestion', () => {
 
     it('handles correct text answer', () => {
       render(<QuizQuestion question={mockFillBlank} />, { wrapper });
-      
+
       // Input should be present
       const input = screen.getByRole('textbox');
       expect(input).toBeInTheDocument();
@@ -182,7 +178,7 @@ describe('QuizQuestion', () => {
 
     it('handles case-insensitive matching', () => {
       render(<QuizQuestion question={mockFillBlank} />, { wrapper });
-      
+
       // Input should be present
       const input = screen.getByRole('textbox');
       expect(input).toBeInTheDocument();
@@ -192,7 +188,7 @@ describe('QuizQuestion', () => {
   describe('Short Answer', () => {
     it('accepts multiple acceptable answers', () => {
       render(<QuizQuestion question={mockShortAnswer} />, { wrapper });
-      
+
       // Input should be present
       const input = screen.getByRole('textbox');
       expect(input).toBeInTheDocument();
@@ -208,7 +204,7 @@ describe('QuizQuestion', () => {
 
     it('displays hint when button clicked', () => {
       render(<QuizQuestion question={mockMultipleChoice} />, { wrapper });
-      
+
       // Question should render
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
@@ -238,26 +234,17 @@ const mockQuizData = {
 describe('Quiz', () => {
   describe('Rendering', () => {
     it('renders quiz title', () => {
-      render(
-        <Quiz quiz={mockQuizData} />,
-        { wrapper }
-      );
+      render(<Quiz quiz={mockQuizData} />, { wrapper });
       expect(screen.getByText('React Basics Quiz')).toBeInTheDocument();
     });
 
     it('renders first question', () => {
-      render(
-        <Quiz quiz={mockQuizData} />,
-        { wrapper }
-      );
+      render(<Quiz quiz={mockQuizData} />, { wrapper });
       expect(screen.getByText('What is React?')).toBeInTheDocument();
     });
 
     it('shows question progress', () => {
-      render(
-        <Quiz quiz={mockQuizData} />,
-        { wrapper }
-      );
+      render(<Quiz quiz={mockQuizData} />, { wrapper });
       // Quiz should render with title
       expect(screen.getByText('React Basics Quiz')).toBeInTheDocument();
     });
@@ -266,16 +253,13 @@ describe('Quiz', () => {
   describe('Navigation', () => {
     it('advances to next question after answering', async () => {
       const user = userEvent.setup();
-      
-      render(
-        <Quiz quiz={mockQuizData} />,
-        { wrapper }
-      );
-      
+
+      render(<Quiz quiz={mockQuizData} />, { wrapper });
+
       // Answer first question
       await user.click(screen.getByText('A library'));
       await user.click(screen.getByRole('button', { name: /submit/i }));
-      
+
       // Should advance or show next question
     });
   });
@@ -288,16 +272,13 @@ describe('Quiz', () => {
         title: 'Single Question Quiz',
         questions: [mockMultipleChoice],
       };
-      
-      render(
-        <Quiz quiz={singleQuiz} />,
-        { wrapper }
-      );
-      
+
+      render(<Quiz quiz={singleQuiz} />, { wrapper });
+
       await user.click(screen.getByText('A library'));
       const submitBtn = screen.getByRole('button', { name: /submit/i });
       await user.click(submitBtn);
-      
+
       // Quiz should complete after answering the only question
     });
 
@@ -309,18 +290,12 @@ describe('Quiz', () => {
         title: 'Single Question Quiz',
         questions: [mockMultipleChoice],
       };
-      
-      render(
-        <Quiz 
-          quiz={singleQuiz}
-          onComplete={onComplete}
-        />,
-        { wrapper }
-      );
-      
+
+      render(<Quiz quiz={singleQuiz} onComplete={onComplete} />, { wrapper });
+
       await user.click(screen.getByText('A library'));
       await user.click(screen.getByRole('button', { name: /submit/i }));
-      
+
       // onComplete should be called eventually
     });
   });
@@ -333,12 +308,9 @@ describe('Quiz', () => {
         questions: mockQuestions,
         timeLimit: 60,
       };
-      
-      render(
-        <Quiz quiz={timedQuiz} />,
-        { wrapper }
-      );
-      
+
+      render(<Quiz quiz={timedQuiz} />, { wrapper });
+
       // Timer should be displayed
       expect(screen.getByText(/1:00|0:60/)).toBeInTheDocument();
     });
@@ -346,14 +318,10 @@ describe('Quiz', () => {
 
   describe('Styling', () => {
     it('applies custom className', () => {
-      const { container } = render(
-        <Quiz 
-          quiz={mockQuizData}
-          className="custom-quiz"
-        />,
-        { wrapper }
-      );
-      
+      const { container } = render(<Quiz quiz={mockQuizData} className="custom-quiz" />, {
+        wrapper,
+      });
+
       expect(container.querySelector('.custom-quiz')).toBeInTheDocument();
     });
   });
@@ -368,9 +336,9 @@ describe('QuizQuestionFromTool', () => {
       showHint: false,
       timestamp: new Date().toISOString(),
     };
-    
+
     render(<QuizQuestionFromTool output={output} />, { wrapper });
-    
+
     expect(screen.getByText('What is React?')).toBeInTheDocument();
   });
 });
@@ -385,9 +353,9 @@ describe('QuizFromTool', () => {
       showFeedback: true,
       timestamp: new Date().toISOString(),
     };
-    
+
     render(<QuizFromTool output={output} />, { wrapper });
-    
+
     expect(screen.getByText('React Basics Quiz')).toBeInTheDocument();
   });
 });

@@ -114,9 +114,7 @@ export function ToolApprovalDialog({
             <ShieldAlert className="h-5 w-5" />
             {t('approvalRequired')}
           </DialogTitle>
-          <DialogDescription>
-            {t('approvalDescription')}
-          </DialogDescription>
+          <DialogDescription>{t('approvalDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -124,27 +122,19 @@ export function ToolApprovalDialog({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold">{request.toolName}</span>
-              <Badge
-                variant="outline"
-                className={`${risk.color} ${risk.bgColor} border-0`}
-              >
+              <Badge variant="outline" className={`${risk.color} ${risk.bgColor} border-0`}>
                 <RiskIcon className="h-3 w-3 mr-1" />
                 {risk.label}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {request.toolDescription}
-            </p>
+            <p className="text-sm text-muted-foreground">{request.toolDescription}</p>
           </div>
 
           {/* Parameters */}
           <div className="space-y-2">
             <h4 className="text-sm font-medium">{t('parameters')}</h4>
             <div className="rounded-md bg-muted/50">
-              <CodeBlock
-                code={JSON.stringify(request.args, null, 2)}
-                language="json"
-              />
+              <CodeBlock code={JSON.stringify(request.args, null, 2)} language="json" />
             </div>
           </div>
 

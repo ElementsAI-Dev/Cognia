@@ -1,27 +1,22 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Kbd } from "@/components/ui/kbd";
+} from '@/components/ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Kbd } from '@/components/ui/kbd';
 import {
   Bot,
   MessageSquare,
@@ -34,9 +29,9 @@ import {
   Focus,
   Clock,
   MapPin,
-} from "lucide-react";
-import type { ChatWidgetConfig } from "@/stores/chat";
-import type { ProviderName } from "@/types";
+} from 'lucide-react';
+import type { ChatWidgetConfig } from '@/stores/chat';
+import type { ProviderName } from '@/types';
 
 interface ChatWidgetSettingsProps {
   open: boolean;
@@ -47,49 +42,49 @@ interface ChatWidgetSettingsProps {
 }
 
 const PROVIDERS: { value: ProviderName; label: string }[] = [
-  { value: "openai", label: "OpenAI" },
-  { value: "anthropic", label: "Anthropic" },
-  { value: "google", label: "Google" },
-  { value: "deepseek", label: "DeepSeek" },
-  { value: "groq", label: "Groq" },
-  { value: "mistral", label: "Mistral" },
-  { value: "ollama", label: "Ollama (Local)" },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'anthropic', label: 'Anthropic' },
+  { value: 'google', label: 'Google' },
+  { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'groq', label: 'Groq' },
+  { value: 'mistral', label: 'Mistral' },
+  { value: 'ollama', label: 'Ollama (Local)' },
 ];
 
 const MODELS: Partial<Record<ProviderName, { value: string; label: string }[]>> = {
   openai: [
-    { value: "gpt-4o", label: "GPT-4o" },
-    { value: "gpt-4o-mini", label: "GPT-4o Mini" },
-    { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
-    { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
   ],
   anthropic: [
-    { value: "claude-3-5-sonnet-latest", label: "Claude 3.5 Sonnet" },
-    { value: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku" },
-    { value: "claude-3-opus-latest", label: "Claude 3 Opus" },
+    { value: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet' },
+    { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku' },
+    { value: 'claude-3-opus-latest', label: 'Claude 3 Opus' },
   ],
   google: [
-    { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash" },
-    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
   ],
   deepseek: [
-    { value: "deepseek-chat", label: "DeepSeek Chat" },
-    { value: "deepseek-reasoner", label: "DeepSeek Reasoner" },
+    { value: 'deepseek-chat', label: 'DeepSeek Chat' },
+    { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner' },
   ],
   groq: [
-    { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
-    { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B" },
-    { value: "mixtral-8x7b-32768", label: "Mixtral 8x7B" },
+    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
+    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B' },
+    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
   ],
   mistral: [
-    { value: "mistral-large-latest", label: "Mistral Large" },
-    { value: "mistral-small-latest", label: "Mistral Small" },
+    { value: 'mistral-large-latest', label: 'Mistral Large' },
+    { value: 'mistral-small-latest', label: 'Mistral Small' },
   ],
   ollama: [
-    { value: "llama3.2", label: "Llama 3.2" },
-    { value: "qwen2.5", label: "Qwen 2.5" },
-    { value: "deepseek-r1", label: "DeepSeek R1" },
+    { value: 'llama3.2', label: 'Llama 3.2' },
+    { value: 'qwen2.5', label: 'Qwen 2.5' },
+    { value: 'deepseek-r1', label: 'DeepSeek R1' },
   ],
   openrouter: [],
 };
@@ -130,7 +125,7 @@ function ChatWidgetSettingsContent({
   onResetConfig,
   onClose,
 }: ChatWidgetSettingsContentProps) {
-  const t = useTranslations("chatWidget.settings");
+  const t = useTranslations('chatWidget.settings');
   const [localConfig, setLocalConfig] = useState(config);
 
   const handleSave = () => {
@@ -140,7 +135,7 @@ function ChatWidgetSettingsContent({
 
   const handleProviderChange = (provider: ProviderName) => {
     const models = MODELS[provider];
-    const defaultModel = models?.[0]?.value || "";
+    const defaultModel = models?.[0]?.value || '';
     setLocalConfig((prev) => ({
       ...prev,
       provider,
@@ -156,8 +151,8 @@ function ChatWidgetSettingsContent({
             <Sparkles className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <SheetTitle className="text-lg">{t("title")}</SheetTitle>
-            <p className="text-xs text-muted-foreground">{t("description")}</p>
+            <SheetTitle className="text-lg">{t('title')}</SheetTitle>
+            <p className="text-xs text-muted-foreground">{t('description')}</p>
           </div>
         </div>
       </SheetHeader>
@@ -165,24 +160,26 @@ function ChatWidgetSettingsContent({
       <ScrollArea className="h-[calc(100vh-200px)] mt-4 pr-4">
         <div className="space-y-5">
           {/* AI Model Section */}
-          <div className={cn(
-            "rounded-xl border border-border/50 bg-card/50 p-4 space-y-4",
-            "hover:border-border/80 transition-colors"
-          )}>
+          <div
+            className={cn(
+              'rounded-xl border border-border/50 bg-card/50 p-4 space-y-4',
+              'hover:border-border/80 transition-colors'
+            )}
+          >
             <div className="flex items-center gap-2 text-sm font-medium">
               <Bot className="h-4 w-4 text-primary" />
-              <span>{t("aiModel")}</span>
+              <span>{t('aiModel')}</span>
             </div>
-            
+
             <div className="grid gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">{t("provider")}</Label>
+                <Label className="text-xs text-muted-foreground">{t('provider')}</Label>
                 <Select
                   value={localConfig.provider}
                   onValueChange={(v) => handleProviderChange(v as ProviderName)}
                 >
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder={t("selectProvider")} />
+                    <SelectValue placeholder={t('selectProvider')} />
                   </SelectTrigger>
                   <SelectContent>
                     {PROVIDERS.map((p) => (
@@ -195,15 +192,13 @@ function ChatWidgetSettingsContent({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">{t("model")}</Label>
+                <Label className="text-xs text-muted-foreground">{t('model')}</Label>
                 <Select
                   value={localConfig.model}
-                  onValueChange={(v) =>
-                    setLocalConfig((prev) => ({ ...prev, model: v }))
-                  }
+                  onValueChange={(v) => setLocalConfig((prev) => ({ ...prev, model: v }))}
                 >
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder={t("selectModel")} />
+                    <SelectValue placeholder={t('selectModel')} />
                   </SelectTrigger>
                   <SelectContent>
                     {MODELS[localConfig.provider]?.map((m) => (
@@ -218,13 +213,15 @@ function ChatWidgetSettingsContent({
           </div>
 
           {/* System Prompt Section */}
-          <div className={cn(
-            "rounded-xl border border-border/50 bg-card/50 p-4 space-y-3",
-            "hover:border-border/80 transition-colors"
-          )}>
+          <div
+            className={cn(
+              'rounded-xl border border-border/50 bg-card/50 p-4 space-y-3',
+              'hover:border-border/80 transition-colors'
+            )}
+          >
             <div className="flex items-center gap-2 text-sm font-medium">
               <MessageSquare className="h-4 w-4 text-primary" />
-              <span>{t("systemPrompt")}</span>
+              <span>{t('systemPrompt')}</span>
             </div>
             <Textarea
               value={localConfig.systemPrompt}
@@ -234,27 +231,29 @@ function ChatWidgetSettingsContent({
                   systemPrompt: e.target.value,
                 }))
               }
-              placeholder={t("systemPromptPlaceholder")}
+              placeholder={t('systemPromptPlaceholder')}
               rows={3}
               className="resize-none text-sm"
             />
           </div>
 
           {/* Behavior Settings Section */}
-          <div className={cn(
-            "rounded-xl border border-border/50 bg-card/50 p-4 space-y-3",
-            "hover:border-border/80 transition-colors"
-          )}>
+          <div
+            className={cn(
+              'rounded-xl border border-border/50 bg-card/50 p-4 space-y-3',
+              'hover:border-border/80 transition-colors'
+            )}
+          >
             <div className="flex items-center gap-2 text-sm font-medium">
               <Settings2 className="h-4 w-4 text-primary" />
-              <span>{t("behavior")}</span>
+              <span>{t('behavior')}</span>
             </div>
 
             <div className="space-y-1">
               <SettingRow
                 icon={<Pin className="h-3.5 w-3.5" />}
-                label={t("alwaysOnTop")}
-                description={t("alwaysOnTopDesc")}
+                label={t('alwaysOnTop')}
+                description={t('alwaysOnTopDesc')}
               >
                 <Switch
                   id="pinned"
@@ -267,8 +266,8 @@ function ChatWidgetSettingsContent({
 
               <SettingRow
                 icon={<Focus className="h-3.5 w-3.5" />}
-                label={t("autoFocus")}
-                description={t("autoFocusDesc")}
+                label={t('autoFocus')}
+                description={t('autoFocusDesc')}
               >
                 <Switch
                   id="autoFocus"
@@ -281,8 +280,8 @@ function ChatWidgetSettingsContent({
 
               <SettingRow
                 icon={<Clock className="h-3.5 w-3.5" />}
-                label={t("showTimestamps")}
-                description={t("showTimestampsDesc")}
+                label={t('showTimestamps')}
+                description={t('showTimestampsDesc')}
               >
                 <Switch
                   id="showTimestamps"
@@ -298,8 +297,8 @@ function ChatWidgetSettingsContent({
 
               <SettingRow
                 icon={<MapPin className="h-3.5 w-3.5" />}
-                label={t("rememberPosition")}
-                description={t("rememberPositionDesc")}
+                label={t('rememberPosition')}
+                description={t('rememberPositionDesc')}
               >
                 <Switch
                   id="rememberPosition"
@@ -316,19 +315,21 @@ function ChatWidgetSettingsContent({
           </div>
 
           {/* Shortcut Section */}
-          <div className={cn(
-            "rounded-xl border border-border/50 bg-card/50 p-4 space-y-2",
-            "hover:border-border/80 transition-colors"
-          )}>
+          <div
+            className={cn(
+              'rounded-xl border border-border/50 bg-card/50 p-4 space-y-2',
+              'hover:border-border/80 transition-colors'
+            )}
+          >
             <div className="flex items-center gap-2 text-sm font-medium">
               <Keyboard className="h-4 w-4 text-primary" />
-              <span>{t("shortcuts")}</span>
+              <span>{t('shortcuts')}</span>
             </div>
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Kbd className="px-2 py-1">
-                {localConfig.shortcut.replace("CommandOrControl", "Ctrl")}
+                {localConfig.shortcut.replace('CommandOrControl', 'Ctrl')}
               </Kbd>
-              <span>{t("toggleAssistant")}</span>
+              <span>{t('toggleAssistant')}</span>
             </div>
           </div>
         </div>
@@ -336,20 +337,13 @@ function ChatWidgetSettingsContent({
 
       {/* Actions */}
       <div className="flex gap-2 mt-4 pt-4 border-t border-border/50">
-        <Button 
-          variant="outline" 
-          className="flex-1 h-9" 
-          onClick={onResetConfig}
-        >
+        <Button variant="outline" className="flex-1 h-9" onClick={onResetConfig}>
           <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-          {t("reset")}
+          {t('reset')}
         </Button>
-        <Button 
-          className="flex-1 h-9" 
-          onClick={handleSave}
-        >
+        <Button className="flex-1 h-9" onClick={handleSave}>
           <Save className="h-3.5 w-3.5 mr-1.5" />
-          {t("save")}
+          {t('save')}
         </Button>
       </div>
     </>

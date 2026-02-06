@@ -24,15 +24,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  Collapsible,
-  CollapsibleContent,
-} from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { MCPServerBadge } from './mcp-server-badge';
@@ -68,7 +61,11 @@ export interface MCPCallTimelineProps {
 const stateConfig: Record<ToolState, { icon: React.ElementType; color: string; label: string }> = {
   'input-streaming': { icon: Loader2, color: 'text-blue-500', label: 'Streaming' },
   'input-available': { icon: Loader2, color: 'text-blue-500', label: 'Running' },
-  'approval-requested': { icon: AlertTriangle, color: 'text-yellow-500', label: 'Awaiting Approval' },
+  'approval-requested': {
+    icon: AlertTriangle,
+    color: 'text-yellow-500',
+    label: 'Awaiting Approval',
+  },
   'approval-responded': { icon: Clock, color: 'text-blue-500', label: 'Approved' },
   'output-available': { icon: CheckCircle, color: 'text-green-500', label: 'Completed' },
   'output-error': { icon: XCircle, color: 'text-red-500', label: 'Failed' },
@@ -110,8 +107,12 @@ export function MCPCallTimeline({
     }, 0);
 
     const completedCount = steps.filter((s) => s.state === 'output-available').length;
-    const failedCount = steps.filter((s) => s.state === 'output-error' || s.state === 'output-denied').length;
-    const runningCount = steps.filter((s) => s.state === 'input-streaming' || s.state === 'input-available').length;
+    const failedCount = steps.filter(
+      (s) => s.state === 'output-error' || s.state === 'output-denied'
+    ).length;
+    const runningCount = steps.filter(
+      (s) => s.state === 'input-streaming' || s.state === 'input-available'
+    ).length;
     const pendingCount = steps.filter((s) => s.state === 'approval-requested').length;
 
     const uniqueServers = new Set(steps.map((s) => s.serverId)).size;
@@ -173,9 +174,8 @@ export function MCPCallTimeline({
     const isExpanded = expandedSteps.has(step.id);
     const hasResult = step.result !== undefined;
 
-    const duration = step.endedAt && step.startedAt
-      ? step.endedAt.getTime() - step.startedAt.getTime()
-      : null;
+    const duration =
+      step.endedAt && step.startedAt ? step.endedAt.getTime() - step.startedAt.getTime() : null;
 
     return (
       <div
@@ -233,9 +233,7 @@ export function MCPCallTimeline({
                   </p>
                 )}
                 {step.progressMessage && isRunning && (
-                  <p className="text-xs text-blue-600 mt-1 animate-pulse">
-                    {step.progressMessage}
-                  </p>
+                  <p className="text-xs text-blue-600 mt-1 animate-pulse">{step.progressMessage}</p>
                 )}
                 {step.error && (
                   <p className="text-xs text-destructive mt-1 line-clamp-2">{step.error}</p>
@@ -375,7 +373,9 @@ export function MCPCallTimeline({
                   <Clock className="h-3 w-3" />
                   <span>
                     {statistics.completedCount > 0
-                      ? formatDuration(Math.round(statistics.totalDuration / statistics.completedCount))
+                      ? formatDuration(
+                          Math.round(statistics.totalDuration / statistics.completedCount)
+                        )
                       : '0ms'}
                   </span>
                 </TooltipTrigger>

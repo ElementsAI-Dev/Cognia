@@ -46,11 +46,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { BUILT_IN_AGENT_MODES, type AgentModeConfig } from '@/types/agent/agent-mode';
 import { useCustomModeStore, type CustomModeConfig } from '@/stores/agent/custom-mode-store';
@@ -101,15 +97,10 @@ export function AgentModeSelector({
 }: AgentModeSelectorProps) {
   const t = useTranslations('agentMode');
   const tCommon = useTranslations('common');
-  
+
   // Custom mode store
-  const { 
-    customModes, 
-    deleteMode, 
-    duplicateMode,
-    recordModeUsage,
-  } = useCustomModeStore();
-  
+  const { customModes, deleteMode, duplicateMode, recordModeUsage } = useCustomModeStore();
+
   // Local state
   const [showEditor, setShowEditor] = useState(false);
   const [editingMode, setEditingMode] = useState<CustomModeConfig | undefined>();
@@ -120,7 +111,7 @@ export function AgentModeSelector({
 
   // Find selected mode from both built-in and custom
   const selectedMode = useMemo(() => {
-    const builtIn = BUILT_IN_AGENT_MODES.find(m => m.id === selectedModeId);
+    const builtIn = BUILT_IN_AGENT_MODES.find((m) => m.id === selectedModeId);
     if (builtIn) return builtIn;
     return customModes[selectedModeId] || BUILT_IN_AGENT_MODES[0];
   }, [selectedModeId, customModes]);
@@ -189,10 +180,9 @@ export function AgentModeSelector({
           >
             <ModeIcon name={selectedMode.icon} className="h-4 w-4" />
             <span className="hidden sm:inline">
-              {selectedMode.type === 'custom' 
-                ? selectedMode.name 
-                : t(`modes.${selectedMode.id}.name`)
-              }
+              {selectedMode.type === 'custom'
+                ? selectedMode.name
+                : t(`modes.${selectedMode.id}.name`)}
             </span>
             <ChevronDown className="h-3 w-3 opacity-50" />
           </Button>
@@ -214,17 +204,17 @@ export function AgentModeSelector({
                       onClick={() => handleModeSelect(mode)}
                       className="flex items-start gap-3 p-3"
                     >
-                      <div className={cn(
-                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-                        isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                      )}>
+                      <div
+                        className={cn(
+                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                          isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                        )}
+                      >
                         <ModeIcon name={mode.icon} className="h-4 w-4" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">
-                            {t(`modes.${mode.id}.name`)}
-                          </span>
+                          <span className="font-medium text-sm">{t(`modes.${mode.id}.name`)}</span>
                           {isSelected && <Check className="h-3 w-3 text-primary" />}
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">
@@ -257,10 +247,12 @@ export function AgentModeSelector({
                           onClick={() => handleModeSelect(mode)}
                           className="flex items-start gap-3 p-3 group"
                         >
-                          <div className={cn(
-                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-                            isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                          )}>
+                          <div
+                            className={cn(
+                              'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                              isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                            )}
+                          >
                             <ModeIcon name={mode.icon} className="h-4 w-4" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -329,10 +321,7 @@ export function AgentModeSelector({
 
             {/* Create New Mode - outside scroll area */}
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={handleCreateNew}
-              className="gap-2"
-            >
+            <DropdownMenuItem onClick={handleCreateNew} className="gap-2">
               <Plus className="h-4 w-4" />
               {t('createCustomMode')}
             </DropdownMenuItem>
@@ -349,17 +338,21 @@ export function AgentModeSelector({
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+      <AlertDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('deleteMode')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('deleteModeConfirm')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('deleteModeConfirm')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               {tCommon('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>

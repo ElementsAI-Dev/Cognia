@@ -7,23 +7,13 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Bot,
-  CheckCircle,
-  XCircle,
-  ChevronUp,
-  ChevronDown,
-} from 'lucide-react';
+import { Bot, CheckCircle, XCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-states';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useBackgroundAgent } from '@/hooks/agent';
 
 interface BackgroundAgentIndicatorProps {
@@ -34,12 +24,8 @@ export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicator
   const t = useTranslations('agent');
   const [isOpen, setIsOpen] = useState(false);
 
-  const {
-    runningAgents,
-    completedAgents,
-    unreadNotificationCount,
-    openPanel,
-  } = useBackgroundAgent();
+  const { runningAgents, completedAgents, unreadNotificationCount, openPanel } =
+    useBackgroundAgent();
 
   const hasRunning = runningAgents.length > 0;
   const totalAgents = runningAgents.length + completedAgents.length;
@@ -59,20 +45,14 @@ export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicator
         <Button
           variant="ghost"
           size="sm"
-          className={cn(
-            'relative gap-2 h-8',
-            hasRunning && 'text-primary',
-            className
-          )}
+          className={cn('relative gap-2 h-8', hasRunning && 'text-primary', className)}
         >
-          {hasRunning ? (
-            <LoadingSpinner size="sm" />
-          ) : (
-            <Bot className="h-4 w-4" />
-          )}
-          
+          {hasRunning ? <LoadingSpinner size="sm" /> : <Bot className="h-4 w-4" />}
+
           <span className="text-xs">
-            {hasRunning ? `${runningAgents.length} ${t('running')}` : `${completedAgents.length} ${t('completed')}`}
+            {hasRunning
+              ? `${runningAgents.length} ${t('running')}`
+              : `${completedAgents.length} ${t('completed')}`}
           </span>
 
           {unreadNotificationCount > 0 && (
@@ -81,11 +61,7 @@ export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicator
             </span>
           )}
 
-          {isOpen ? (
-            <ChevronUp className="h-3 w-3" />
-          ) : (
-            <ChevronDown className="h-3 w-3" />
-          )}
+          {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </Button>
       </PopoverTrigger>
 
@@ -144,7 +120,9 @@ export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicator
           {/* Recently completed */}
           {completedAgents.length > 0 && (
             <div className="p-2 border-t">
-              <div className="text-xs font-medium text-muted-foreground mb-2">Recently Completed</div>
+              <div className="text-xs font-medium text-muted-foreground mb-2">
+                Recently Completed
+              </div>
               <div className="space-y-2">
                 {completedAgents.slice(0, 3).map((agent) => (
                   <div

@@ -17,7 +17,11 @@ jest.mock('@/stores/tools', () => ({
 
 // Mock child components
 jest.mock('./kernel-status', () => ({
-  KernelStatus: ({ kernel: _kernel, onRestart, onInterrupt }: {
+  KernelStatus: ({
+    kernel: _kernel,
+    onRestart,
+    onInterrupt,
+  }: {
     kernel: unknown;
     onRestart?: () => void;
     onInterrupt?: () => void;
@@ -31,7 +35,11 @@ jest.mock('./kernel-status', () => ({
 }));
 
 jest.mock('./variable-inspector', () => ({
-  VariableInspector: ({ variables, onRefresh, onInspect }: {
+  VariableInspector: ({
+    variables,
+    onRefresh,
+    onInspect,
+  }: {
     variables: unknown[];
     onRefresh?: () => void;
     onInspect?: (name: string) => void;
@@ -45,7 +53,11 @@ jest.mock('./variable-inspector', () => ({
 }));
 
 jest.mock('@/components/artifacts/jupyter-renderer', () => ({
-  JupyterRenderer: ({ content: _content, onCellExecute, onNotebookChange }: {
+  JupyterRenderer: ({
+    content: _content,
+    onCellExecute,
+    onNotebookChange,
+  }: {
     content: string;
     onCellExecute?: (index: number, source: string) => void;
     onNotebookChange?: (content: string) => void;
@@ -202,9 +214,7 @@ describe('InteractiveNotebook', () => {
 
   describe('connecting to kernel', () => {
     it('should show loading state when creating session', () => {
-      mockUseJupyterKernel.mockReturnValue(
-        createMockKernelHook({ isCreatingSession: true })
-      );
+      mockUseJupyterKernel.mockReturnValue(createMockKernelHook({ isCreatingSession: true }));
 
       renderWithIntl(<InteractiveNotebook content={sampleNotebook} />);
 
@@ -233,9 +243,7 @@ describe('InteractiveNotebook', () => {
         createMockKernelHook({ createSession, mapChatToSession })
       );
 
-      renderWithIntl(
-        <InteractiveNotebook content={sampleNotebook} chatSessionId="chat-123" />
-      );
+      renderWithIntl(<InteractiveNotebook content={sampleNotebook} chatSessionId="chat-123" />);
 
       // Component should render with environment selector
       expect(screen.getByRole('combobox')).toBeInTheDocument();
@@ -376,9 +384,7 @@ describe('InteractiveNotebook', () => {
 
   describe('error handling', () => {
     it('should display error message when error exists', () => {
-      mockUseJupyterKernel.mockReturnValue(
-        createMockKernelHook({ error: 'Connection failed' })
-      );
+      mockUseJupyterKernel.mockReturnValue(createMockKernelHook({ error: 'Connection failed' }));
 
       renderWithIntl(<InteractiveNotebook content={sampleNotebook} />);
 
@@ -407,11 +413,7 @@ describe('InteractiveNotebook', () => {
       );
 
       renderWithIntl(
-        <InteractiveNotebook
-          content={sampleNotebook}
-          chatSessionId="chat-123"
-          autoConnect={true}
-        />
+        <InteractiveNotebook content={sampleNotebook} chatSessionId="chat-123" autoConnect={true} />
       );
 
       expect(getSessionForChat).toHaveBeenCalledWith('chat-123');
@@ -551,21 +553,23 @@ describe('InteractiveNotebook', () => {
 
       mockUseJupyterKernel.mockReturnValue(createMockKernelHook(activeSessionMock));
 
-      mockUseJupyterStore.mockImplementation((selector: (state: { cells: Map<string, unknown> }) => unknown) => {
-        const cells = new Map<string, unknown>();
-        cells.set('session-1', [
-          {
-            id: 'c1',
-            type: 'code',
-            source: 'print("Hello")',
-            executionState: 'success',
-            executionCount: 1,
-            outputs: [{ outputType: 'stream', name: 'stdout', text: 'ok' }],
-            metadata: {},
-          },
-        ]);
-        return selector({ cells });
-      });
+      mockUseJupyterStore.mockImplementation(
+        (selector: (state: { cells: Map<string, unknown> }) => unknown) => {
+          const cells = new Map<string, unknown>();
+          cells.set('session-1', [
+            {
+              id: 'c1',
+              type: 'code',
+              source: 'print("Hello")',
+              executionState: 'success',
+              executionCount: 1,
+              outputs: [{ outputType: 'stream', name: 'stdout', text: 'ok' }],
+              metadata: {},
+            },
+          ]);
+          return selector({ cells });
+        }
+      );
 
       renderWithIntl(
         <InteractiveNotebook content={sampleNotebook} onContentChange={onContentChange} />
@@ -576,11 +580,17 @@ describe('InteractiveNotebook', () => {
       });
 
       const updated = onContentChange.mock.calls[0]?.[0] as string;
-      const parsed = JSON.parse(updated) as { cells: Array<{ outputs?: unknown[]; execution_count?: number | null }> };
+      const parsed = JSON.parse(updated) as {
+        cells: Array<{ outputs?: unknown[]; execution_count?: number | null }>;
+      };
       expect(parsed.cells[0].execution_count).toBe(1);
       expect(parsed.cells[0].outputs).toBeDefined();
 
-      const firstOutput = (parsed.cells[0].outputs ?? [])[0] as { output_type?: string; name?: string; text?: string };
+      const firstOutput = (parsed.cells[0].outputs ?? [])[0] as {
+        output_type?: string;
+        name?: string;
+        text?: string;
+      };
       expect(firstOutput.output_type).toBe('stream');
       expect(firstOutput.name).toBe('stdout');
       expect(firstOutput.text).toBe('ok');

@@ -33,19 +33,41 @@ jest.mock('@/hooks/context', () => ({
 // Mock ScrollArea to avoid Radix rendering issues
 jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="scroll-area" className={className}>{children}</div>
+    <div data-testid="scroll-area" className={className}>
+      {children}
+    </div>
   ),
 }));
 
 // Mock DropdownMenu components
 jest.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-menu">{children}</div>,
-  DropdownMenuTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => (
-    <div data-testid="dropdown-menu-trigger">{asChild ? children : <button>{children}</button>}</div>
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown-menu">{children}</div>
   ),
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-menu-content">{children}</div>,
-  DropdownMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
-    <button data-testid="dropdown-menu-item" onClick={onClick}>{children}</button>
+  DropdownMenuTrigger: ({
+    children,
+    asChild,
+  }: {
+    children: React.ReactNode;
+    asChild?: boolean;
+  }) => (
+    <div data-testid="dropdown-menu-trigger">
+      {asChild ? children : <button>{children}</button>}
+    </div>
+  ),
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown-menu-content">{children}</div>
+  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => (
+    <button data-testid="dropdown-menu-item" onClick={onClick}>
+      {children}
+    </button>
   ),
   DropdownMenuSeparator: () => <hr />,
 }));
@@ -53,23 +75,48 @@ jest.mock('@/components/ui/dropdown-menu', () => ({
 // Mock Dialog components
 jest.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    <div data-testid="dialog" data-open={open}>{children}</div>
+    <div data-testid="dialog" data-open={open}>
+      {children}
+    </div>
   ),
   DialogTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => (
     <div data-testid="dialog-trigger">{asChild ? children : <button>{children}</button>}</div>
   ),
   DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dialog-content" className={className}>{children}</div>
+    <div data-testid="dialog-content" className={className}>
+      {children}
+    </div>
   ),
-  DialogHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-header">{children}</div>,
-  DialogFooter: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-footer">{children}</div>,
-  DialogTitle: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-title">{children}</div>,
-  DialogDescription: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-description">{children}</div>,
+  DialogHeader: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-header">{children}</div>
+  ),
+  DialogFooter: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-footer">{children}</div>
+  ),
+  DialogTitle: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-title">{children}</div>
+  ),
+  DialogDescription: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-description">{children}</div>
+  ),
 }));
 
 // Mock EmptyState to avoid issues with Lucide icons passed as forwardRef
 jest.mock('@/components/layout/empty-state', () => ({
-  EmptyState: ({ title, description, compact, className, action }: { icon?: unknown; title: string; description?: string; compact?: boolean; className?: string; action?: React.ReactNode }) => (
+  EmptyState: ({
+    title,
+    description,
+    compact,
+    className,
+    action,
+  }: {
+    icon?: unknown;
+    title: string;
+    description?: string;
+    compact?: boolean;
+    className?: string;
+    action?: React.ReactNode;
+  }) => (
     <div data-testid="empty-state" data-compact={compact} className={className}>
       <div>{title}</div>
       {description && <div>{description}</div>}
@@ -149,12 +196,12 @@ describe('ClipboardTemplatesPanel', () => {
   it('opens create dialog when plus button is clicked', () => {
     render(<ClipboardTemplatesPanel />);
     const buttons = screen.getAllByRole('button');
-    const plusButton = buttons.find(btn => btn.querySelector('.lucide-plus'));
+    const plusButton = buttons.find((btn) => btn.querySelector('.lucide-plus'));
     if (plusButton) {
       fireEvent.click(plusButton);
       // Dialog content is always rendered with mocked Dialog, check by text
       const dialogTitles = screen.getAllByTestId('dialog-title');
-      const createDialogTitle = dialogTitles.find(el => el.textContent === 'Create Template');
+      const createDialogTitle = dialogTitles.find((el) => el.textContent === 'Create Template');
       expect(createDialogTitle).toBeInTheDocument();
     }
   });
@@ -181,16 +228,16 @@ describe('ClipboardTemplatesPanel', () => {
       },
     ];
     mockUseClipboardContext.searchTemplates.mockImplementation((query: string) => {
-      return mockUseClipboardContext.templates.filter(t => 
+      return mockUseClipboardContext.templates.filter((t) =>
         t.name.toLowerCase().includes(query.toLowerCase())
       );
     });
 
     render(<ClipboardTemplatesPanel />);
-    
+
     const searchInput = screen.getByPlaceholderText('Search templates...');
     fireEvent.change(searchInput, { target: { value: 'email' } });
-    
+
     expect(mockUseClipboardContext.searchTemplates).toHaveBeenCalledWith('email');
   });
 
@@ -269,10 +316,10 @@ describe('ClipboardTemplatesPanel', () => {
     mockUseClipboardContext.searchTemplates.mockReturnValue(mockUseClipboardContext.templates);
 
     render(<ClipboardTemplatesPanel />);
-    
+
     const emailCategoryButton = screen.getByText('email');
     fireEvent.click(emailCategoryButton);
-    
+
     // After clicking, only email template should be visible
     // The filtering is done in the component
   });
@@ -292,10 +339,10 @@ describe('ClipboardTemplatesPanel', () => {
     mockUseClipboardContext.searchTemplates.mockReturnValue(mockUseClipboardContext.templates);
 
     render(<ClipboardTemplatesPanel />);
-    
+
     const useButton = screen.getByText('Use');
     fireEvent.click(useButton);
-    
+
     expect(mockUseClipboardContext.applyTemplate).toHaveBeenCalledWith('1');
   });
 
@@ -314,10 +361,10 @@ describe('ClipboardTemplatesPanel', () => {
     mockUseClipboardContext.searchTemplates.mockReturnValue(mockUseClipboardContext.templates);
 
     render(<ClipboardTemplatesPanel />);
-    
+
     const useButton = screen.getByText('Use');
     fireEvent.click(useButton);
-    
+
     expect(screen.getByText('Apply Template')).toBeInTheDocument();
     expect(screen.getByText('name')).toBeInTheDocument();
   });
@@ -337,17 +384,17 @@ describe('ClipboardTemplatesPanel', () => {
     mockUseClipboardContext.searchTemplates.mockReturnValue(mockUseClipboardContext.templates);
 
     render(<ClipboardTemplatesPanel />);
-    
+
     // Find and click the more options button
     const buttons = screen.getAllByRole('button');
-    const moreButton = buttons.find(btn => btn.querySelector('.lucide-more-vertical'));
+    const moreButton = buttons.find((btn) => btn.querySelector('.lucide-more-vertical'));
     if (moreButton) {
       fireEvent.click(moreButton);
-      
+
       // Click delete option
       const deleteOption = screen.getByText('Delete');
       fireEvent.click(deleteOption);
-      
+
       expect(mockUseClipboardContext.removeTemplate).toHaveBeenCalledWith('1');
     }
   });
@@ -377,7 +424,8 @@ describe('ClipboardTemplatesPanel', () => {
   });
 
   it('shows content preview on template cards', () => {
-    const longContent = 'This is a very long template content that should be truncated in the preview...';
+    const longContent =
+      'This is a very long template content that should be truncated in the preview...';
     mockUseClipboardContext.templates = [
       {
         id: '1',
@@ -397,13 +445,13 @@ describe('ClipboardTemplatesPanel', () => {
 
   it('validates form before submission', () => {
     render(<ClipboardTemplatesPanel />);
-    
+
     // Open create dialog
     const buttons = screen.getAllByRole('button');
-    const plusButton = buttons.find(btn => btn.querySelector('.lucide-plus'));
+    const plusButton = buttons.find((btn) => btn.querySelector('.lucide-plus'));
     if (plusButton) {
       fireEvent.click(plusButton);
-      
+
       // Try to submit without filling required fields
       const createButton = screen.getByRole('button', { name: 'Create Template' });
       expect(createButton).toBeDisabled();
@@ -412,20 +460,20 @@ describe('ClipboardTemplatesPanel', () => {
 
   it('enables submit button when form is valid', () => {
     render(<ClipboardTemplatesPanel />);
-    
+
     // Open create dialog
     const buttons = screen.getAllByRole('button');
-    const plusButton = buttons.find(btn => btn.querySelector('.lucide-plus'));
+    const plusButton = buttons.find((btn) => btn.querySelector('.lucide-plus'));
     if (plusButton) {
       fireEvent.click(plusButton);
-      
+
       // Fill in required fields
       const nameInput = screen.getByLabelText('Name');
       const contentInput = screen.getByLabelText('Content');
-      
+
       fireEvent.change(nameInput, { target: { value: 'Test Template' } });
       fireEvent.change(contentInput, { target: { value: 'Test content' } });
-      
+
       const createButton = screen.getByRole('button', { name: 'Create Template' });
       expect(createButton).not.toBeDisabled();
     }
@@ -433,16 +481,18 @@ describe('ClipboardTemplatesPanel', () => {
 
   it('extracts variables from content as user types', () => {
     render(<ClipboardTemplatesPanel />);
-    
+
     // Open create dialog
     const buttons = screen.getAllByRole('button');
-    const plusButton = buttons.find(btn => btn.querySelector('.lucide-plus'));
+    const plusButton = buttons.find((btn) => btn.querySelector('.lucide-plus'));
     if (plusButton) {
       fireEvent.click(plusButton);
-      
+
       const contentInput = screen.getByLabelText('Content');
-      fireEvent.change(contentInput, { target: { value: 'Hello {{name}}, welcome to {{company}}' } });
-      
+      fireEvent.change(contentInput, {
+        target: { value: 'Hello {{name}}, welcome to {{company}}' },
+      });
+
       // Variable badges should appear
       expect(screen.getByText('name')).toBeInTheDocument();
       expect(screen.getByText('company')).toBeInTheDocument();

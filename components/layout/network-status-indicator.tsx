@@ -5,11 +5,7 @@
  */
 
 import { Wifi, WifiOff, SignalLow } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useNetworkStatus } from '@/hooks/network';
 import { cn } from '@/lib/utils';
@@ -72,9 +68,7 @@ export function NetworkStatusIndicator({
         >
           <Icon className={cn('h-3.5 w-3.5', status.color)} />
           {showLabel && (
-            <span className={cn('text-xs font-medium', status.color)}>
-              {status.label}
-            </span>
+            <span className={cn('text-xs font-medium', status.color)}>{status.label}</span>
           )}
         </div>
       </TooltipTrigger>

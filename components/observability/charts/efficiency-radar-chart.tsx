@@ -34,17 +34,21 @@ interface EfficiencyRadarChartProps {
   height?: number;
 }
 
-export function EfficiencyRadarChart({
-  data,
-  title,
-  height = 280,
-}: EfficiencyRadarChartProps) {
+export function EfficiencyRadarChart({ data, title, height = 280 }: EfficiencyRadarChartProps) {
   const t = useTranslations('observability.charts');
 
   const chartData = useMemo(() => {
     return [
-      { metric: t('costEfficiency') || 'Cost Efficiency', value: data.costEfficiency, fullMark: 100 },
-      { metric: t('tokenEfficiency') || 'Token Efficiency', value: data.tokenEfficiency, fullMark: 100 },
+      {
+        metric: t('costEfficiency') || 'Cost Efficiency',
+        value: data.costEfficiency,
+        fullMark: 100,
+      },
+      {
+        metric: t('tokenEfficiency') || 'Token Efficiency',
+        value: data.tokenEfficiency,
+        fullMark: 100,
+      },
       { metric: t('latencyScore') || 'Latency', value: data.latencyScore, fullMark: 100 },
       { metric: t('reliability') || 'Reliability', value: data.errorScore, fullMark: 100 },
       { metric: t('utilization') || 'Utilization', value: data.utilizationScore, fullMark: 100 },
@@ -83,8 +87,8 @@ export function EfficiencyRadarChart({
                 overallScore >= 70
                   ? 'text-green-600'
                   : overallScore >= 40
-                  ? 'text-yellow-600'
-                  : 'text-red-600'
+                    ? 'text-yellow-600'
+                    : 'text-red-600'
               }`}
             >
               {overallScore.toFixed(0)}%
@@ -101,12 +105,7 @@ export function EfficiencyRadarChart({
                 dataKey="metric"
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
               />
-              <PolarRadiusAxis
-                angle={90}
-                domain={[0, 100]}
-                tick={{ fontSize: 10 }}
-                tickCount={5}
-              />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} tickCount={5} />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE.contentStyle}
                 formatter={(value) => [`${Number(value ?? 0).toFixed(0)}%`, 'Score']}

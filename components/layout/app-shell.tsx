@@ -39,7 +39,7 @@ export function AppShell({ children, sidebar }: AppShellProps) {
   useEffect(() => {
     const isSimplifiedMode = simplifiedModeSettings.enabled;
     const shouldAutoHide = isSimplifiedMode && simplifiedModeSettings.autoHideSidebar;
-    
+
     if (shouldAutoHide && sidebarOpen) {
       // Store previous state before hiding
       prevSidebarStateRef.current = { open: sidebarOpen, collapsed: sidebarCollapsed };
@@ -49,7 +49,13 @@ export function AppShell({ children, sidebar }: AppShellProps) {
       setSidebarOpen(prevSidebarStateRef.current.open);
       prevSidebarStateRef.current = null;
     }
-  }, [simplifiedModeSettings.enabled, simplifiedModeSettings.autoHideSidebar, sidebarOpen, sidebarCollapsed, setSidebarOpen]);
+  }, [
+    simplifiedModeSettings.enabled,
+    simplifiedModeSettings.autoHideSidebar,
+    sidebarOpen,
+    sidebarCollapsed,
+    setSidebarOpen,
+  ]);
 
   // Swipe gesture for mobile - swipe right to open sidebar
   useSwipeGesture(mainRef, {

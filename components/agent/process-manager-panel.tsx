@@ -24,12 +24,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -38,11 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -253,11 +244,7 @@ export function ProcessManagerPanel({ open, onOpenChange }: ProcessManagerPanelP
               <div className="flex items-center gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setAutoRefresh(!autoRefresh)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => setAutoRefresh(!autoRefresh)}>
                       {autoRefresh ? (
                         <ToggleRight className="h-4 w-4 text-primary" />
                       ) : (
@@ -353,9 +340,7 @@ export function ProcessManagerPanel({ open, onOpenChange }: ProcessManagerPanelP
 
           {/* Error message */}
           {error && (
-            <div className="p-2 bg-destructive/10 border-b text-destructive text-xs">
-              {error}
-            </div>
+            <div className="p-2 bg-destructive/10 border-b text-destructive text-xs">{error}</div>
           )}
 
           {/* Process table */}
@@ -410,9 +395,8 @@ export function ProcessManagerPanel({ open, onOpenChange }: ProcessManagerPanelP
           <AlertDialogHeader>
             <AlertDialogTitle>Terminate Process?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to terminate{' '}
-              <strong>{terminateTarget?.name}</strong> (PID: {terminateTarget?.pid})?
-              This action cannot be undone.
+              Are you sure you want to terminate <strong>{terminateTarget?.name}</strong> (PID:{' '}
+              {terminateTarget?.pid})? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

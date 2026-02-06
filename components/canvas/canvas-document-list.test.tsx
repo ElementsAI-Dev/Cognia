@@ -38,8 +38,15 @@ const mockHandlers = {
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} className={className} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    className,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick} className={className} {...props}>
+      {children}
+    </button>
   ),
 }));
 
@@ -56,8 +63,18 @@ jest.mock('@/components/ui/badge', () => ({
 }));
 
 jest.mock('@/components/ui/card', () => ({
-  Card: ({ children, onClick, className }: { children: React.ReactNode; onClick?: () => void; className?: string }) => (
-    <div onClick={onClick} className={className} data-testid="card">{children}</div>
+  Card: ({
+    children,
+    onClick,
+    className,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    className?: string;
+  }) => (
+    <div onClick={onClick} className={className} data-testid="card">
+      {children}
+    </div>
   ),
   CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -66,15 +83,25 @@ jest.mock('@/components/ui/card', () => ({
 jest.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
-    <button onClick={onClick}>{children}</button>
-  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => <button onClick={onClick}>{children}</button>,
   DropdownMenuSeparator: () => <hr />,
   DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 jest.mock('@/components/ui/select', () => ({
-  Select: ({ children, onValueChange }: { children: React.ReactNode; onValueChange?: (v: string) => void }) => (
+  Select: ({
+    children,
+    onValueChange,
+  }: {
+    children: React.ReactNode;
+    onValueChange?: (v: string) => void;
+  }) => (
     <div onChange={(e) => onValueChange?.((e.target as HTMLInputElement).value)}>{children}</div>
   ),
   SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -82,17 +109,20 @@ jest.mock('@/components/ui/select', () => ({
     <option value={value}>{children}</option>
   ),
   SelectTrigger: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="select-trigger" data-className={className}>{children}</div>
+    <div data-testid="select-trigger" data-className={className}>
+      {children}
+    </div>
   ),
   SelectValue: () => <span>Value</span>,
 }));
 
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    open ? <div data-testid="dialog">{children}</div> : null
-  ),
+  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
+    open ? <div data-testid="dialog">{children}</div> : null,
   DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dialog-content" data-className={className}>{children}</div>
+    <div data-testid="dialog-content" data-className={className}>
+      {children}
+    </div>
   ),
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
@@ -154,11 +184,7 @@ describe('CanvasDocumentList', () => {
 
   it('renders document list', () => {
     render(
-      <CanvasDocumentList
-        documents={mockDocuments}
-        activeDocumentId="doc-1"
-        {...mockHandlers}
-      />
+      <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
     );
     expect(screen.getByText('JavaScript File')).toBeInTheDocument();
     expect(screen.getByText('Python Script')).toBeInTheDocument();
@@ -166,22 +192,14 @@ describe('CanvasDocumentList', () => {
 
   it('displays document count', () => {
     render(
-      <CanvasDocumentList
-        documents={mockDocuments}
-        activeDocumentId="doc-1"
-        {...mockHandlers}
-      />
+      <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
     );
     expect(screen.getByText('2 documents')).toBeInTheDocument();
   });
 
   it('filters documents by search query', () => {
     render(
-      <CanvasDocumentList
-        documents={mockDocuments}
-        activeDocumentId="doc-1"
-        {...mockHandlers}
-      />
+      <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
     );
     const searchInput = screen.getByPlaceholderText('Search documents');
     fireEvent.change(searchInput, { target: { value: 'Python' } });
@@ -191,11 +209,7 @@ describe('CanvasDocumentList', () => {
 
   it('opens create dialog when clicking new button', () => {
     render(
-      <CanvasDocumentList
-        documents={mockDocuments}
-        activeDocumentId="doc-1"
-        {...mockHandlers}
-      />
+      <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
     );
     const newButton = screen.getByText('New');
     fireEvent.click(newButton);
@@ -204,11 +218,7 @@ describe('CanvasDocumentList', () => {
 
   it('selects document when clicking card', () => {
     render(
-      <CanvasDocumentList
-        documents={mockDocuments}
-        activeDocumentId="doc-1"
-        {...mockHandlers}
-      />
+      <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
     );
     const card = screen.getByText('JavaScript File').closest('[data-testid="card"]');
     if (card) fireEvent.click(card);
@@ -218,14 +228,10 @@ describe('CanvasDocumentList', () => {
   describe('Responsive Layout', () => {
     it('applies responsive width to Select triggers', () => {
       render(
-        <CanvasDocumentList
-          documents={mockDocuments}
-          activeDocumentId="doc-1"
-          {...mockHandlers}
-        />
+        <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
       );
       const selectTriggers = screen.getAllByTestId('select-trigger');
-      selectTriggers.forEach(trigger => {
+      selectTriggers.forEach((trigger) => {
         const className = trigger.getAttribute('data-className');
         expect(className).toContain('w-full');
         expect(className).toContain('sm:w-25');
@@ -235,11 +241,7 @@ describe('CanvasDocumentList', () => {
 
     it('applies mobile-first width to dialogs', () => {
       render(
-        <CanvasDocumentList
-          documents={mockDocuments}
-          activeDocumentId="doc-1"
-          {...mockHandlers}
-        />
+        <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
       );
       // Trigger dialog to open
       const newButton = screen.getByText('New');
@@ -255,11 +257,7 @@ describe('CanvasDocumentList', () => {
 
     it('has flex-wrap on filter container for mobile', () => {
       const { container } = render(
-        <CanvasDocumentList
-          documents={mockDocuments}
-          activeDocumentId="doc-1"
-          {...mockHandlers}
-        />
+        <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
       );
       // The filter container should have flex-wrap class
       const filterContainer = container.querySelector('.flex-wrap');
@@ -269,24 +267,14 @@ describe('CanvasDocumentList', () => {
 
   describe('Empty State', () => {
     it('displays empty state when no documents', () => {
-      render(
-        <CanvasDocumentList
-          documents={[]}
-          activeDocumentId={null}
-          {...mockHandlers}
-        />
-      );
+      render(<CanvasDocumentList documents={[]} activeDocumentId={null} {...mockHandlers} />);
       expect(screen.getByText('No documents yet')).toBeInTheDocument();
       expect(screen.getByText('Create your first document')).toBeInTheDocument();
     });
 
     it('displays no results when search returns empty', () => {
       render(
-        <CanvasDocumentList
-          documents={mockDocuments}
-          activeDocumentId="doc-1"
-          {...mockHandlers}
-        />
+        <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
       );
       const searchInput = screen.getByPlaceholderText('Search documents');
       fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
@@ -297,22 +285,14 @@ describe('CanvasDocumentList', () => {
   describe('Sorting and Filtering', () => {
     it('displays language filter dropdown', () => {
       render(
-        <CanvasDocumentList
-          documents={mockDocuments}
-          activeDocumentId="doc-1"
-          {...mockHandlers}
-        />
+        <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
       );
       expect(screen.getByText('All Languages')).toBeInTheDocument();
     });
 
     it('displays sort dropdown', () => {
       render(
-        <CanvasDocumentList
-          documents={mockDocuments}
-          activeDocumentId="doc-1"
-          {...mockHandlers}
-        />
+        <CanvasDocumentList documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
       );
       expect(screen.getByText('Sort by Date')).toBeInTheDocument();
     });

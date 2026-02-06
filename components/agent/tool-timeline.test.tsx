@@ -49,7 +49,18 @@ jest.mock('@/lib/utils', () => ({
 
 // Mock UI components that can be heavy in tests
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, className, type, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string; asChild?: boolean }) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    className,
+    type,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: string;
+    size?: string;
+    asChild?: boolean;
+  }) => (
     <button type={type} onClick={onClick} disabled={disabled} className={className} {...props}>
       {children}
     </button>
@@ -57,7 +68,14 @@ jest.mock('@/components/ui/button', () => ({
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children, className }: { children: React.ReactNode; className?: string; variant?: string }) => (
+  Badge: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    variant?: string;
+  }) => (
     <span data-testid="badge" className={className}>
       {children}
     </span>
@@ -65,14 +83,27 @@ jest.mock('@/components/ui/badge', () => ({
 }));
 
 jest.mock('@/components/chat/ui/copy-button', () => ({
-  CopyButton: ({ content }: { content: string; iconOnly?: boolean; tooltip?: string; className?: string }) => (
-    <button data-testid="copy-button" data-content={content} />
-  ),
+  CopyButton: ({
+    content,
+  }: {
+    content: string;
+    iconOnly?: boolean;
+    tooltip?: string;
+    className?: string;
+  }) => <button data-testid="copy-button" data-content={content} />,
 }));
 
 jest.mock('@/components/ui/collapsible', () => ({
-  Collapsible: ({ children }: { children: React.ReactNode; open?: boolean }) => <div data-testid="collapsible">{children}</div>,
-  CollapsibleContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  Collapsible: ({ children }: { children: React.ReactNode; open?: boolean }) => (
+    <div data-testid="collapsible">{children}</div>
+  ),
+  CollapsibleContent: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
     <div data-testid="collapsible-content" className={className}>
       {children}
     </div>
@@ -80,11 +111,19 @@ jest.mock('@/components/ui/collapsible', () => ({
 }));
 
 jest.mock('@/components/ui/tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip">{children}</div>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip-content">{children}</div>,
-  TooltipTrigger: ({ children }: { children: React.ReactNode; asChild?: boolean; className?: string }) => (
-    <div data-testid="tooltip-trigger">{children}</div>
+  Tooltip: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="tooltip">{children}</div>
   ),
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="tooltip-content">{children}</div>
+  ),
+  TooltipTrigger: ({
+    children,
+  }: {
+    children: React.ReactNode;
+    asChild?: boolean;
+    className?: string;
+  }) => <div data-testid="tooltip-trigger">{children}</div>,
 }));
 
 jest.mock('@/components/ui/progress', () => ({
@@ -99,8 +138,17 @@ jest.mock('@/components/ai-elements/checkpoint', () => ({
       {children}
     </div>
   ),
-  CheckpointIcon: ({ children }: { children: React.ReactNode }) => <div data-testid="checkpoint-icon">{children}</div>,
-  CheckpointTrigger: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void; tooltip?: string }) => (
+  CheckpointIcon: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="checkpoint-icon">{children}</div>
+  ),
+  CheckpointTrigger: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    tooltip?: string;
+  }) => (
     <button data-testid="checkpoint-trigger" onClick={onClick}>
       {children}
     </button>
@@ -113,18 +161,41 @@ jest.mock('@/components/ai-elements/queue', () => ({
       {children}
     </div>
   ),
-  QueueSection: ({ children }: { children: React.ReactNode; defaultOpen?: boolean; onOpenChange?: (open: boolean) => void }) => (
-    <div data-testid="queue-section">{children}</div>
+  QueueSection: ({
+    children,
+  }: {
+    children: React.ReactNode;
+    defaultOpen?: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) => <div data-testid="queue-section">{children}</div>,
+  QueueSectionTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="queue-section-trigger">{children}</div>
   ),
-  QueueSectionTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="queue-section-trigger">{children}</div>,
-  QueueSectionLabel: ({ label, count }: { label: string; count: number; icon?: React.ReactNode }) => (
-    <div data-testid="queue-section-label">{label} {count}</div>
+  QueueSectionLabel: ({
+    label,
+    count,
+  }: {
+    label: string;
+    count: number;
+    icon?: React.ReactNode;
+  }) => (
+    <div data-testid="queue-section-label">
+      {label} {count}
+    </div>
   ),
-  QueueSectionContent: ({ children }: { children: React.ReactNode }) => <div data-testid="queue-section-content">{children}</div>,
-  QueueList: ({ children }: { children: React.ReactNode }) => <div data-testid="queue-list">{children}</div>,
-  QueueItem: ({ children }: { children: React.ReactNode; className?: string }) => <div data-testid="queue-item">{children}</div>,
+  QueueSectionContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="queue-section-content">{children}</div>
+  ),
+  QueueList: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="queue-list">{children}</div>
+  ),
+  QueueItem: ({ children }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="queue-item">{children}</div>
+  ),
   QueueItemIndicator: () => <div data-testid="queue-item-indicator" />,
-  QueueItemContent: ({ children }: { children: React.ReactNode }) => <div data-testid="queue-item-content">{children}</div>,
+  QueueItemContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="queue-item-content">{children}</div>
+  ),
 }));
 
 jest.mock('@/components/a2ui', () => ({
@@ -266,7 +337,13 @@ describe('ToolTimeline', () => {
   describe('Duration formatting', () => {
     it('formats milliseconds correctly', () => {
       const shortExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(500) },
+        {
+          id: '1',
+          toolName: 'test',
+          state: 'output-available',
+          startTime: new Date(0),
+          endTime: new Date(500),
+        },
       ];
       render(<ToolTimeline executions={shortExec} />);
       // Duration appears in multiple places (header stats, timeline item, badge)
@@ -275,7 +352,13 @@ describe('ToolTimeline', () => {
 
     it('formats seconds correctly', () => {
       const secExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(5500) },
+        {
+          id: '1',
+          toolName: 'test',
+          state: 'output-available',
+          startTime: new Date(0),
+          endTime: new Date(5500),
+        },
       ];
       render(<ToolTimeline executions={secExec} />);
       // Duration appears in multiple places (header stats, timeline item, badge)
@@ -284,7 +367,13 @@ describe('ToolTimeline', () => {
 
     it('formats minutes correctly', () => {
       const minExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(125000) },
+        {
+          id: '1',
+          toolName: 'test',
+          state: 'output-available',
+          startTime: new Date(0),
+          endTime: new Date(125000),
+        },
       ];
       render(<ToolTimeline executions={minExec} />);
       // Duration appears in multiple places (header stats, timeline item, badge)
@@ -295,7 +384,13 @@ describe('ToolTimeline', () => {
   describe('Single execution', () => {
     it('displays singular "tool" for single execution', () => {
       const singleExec: ToolExecution[] = [
-        { id: '1', toolName: 'test', state: 'output-available', startTime: new Date(0), endTime: new Date(1000) },
+        {
+          id: '1',
+          toolName: 'test',
+          state: 'output-available',
+          startTime: new Date(0),
+          endTime: new Date(1000),
+        },
       ];
       const { container } = render(<ToolTimeline executions={singleExec} />);
       // Check that the component renders with at least one execution

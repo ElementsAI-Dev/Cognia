@@ -44,7 +44,7 @@ export function ResizablePanel({
   collapsible = true,
 }: ResizablePanelProps) {
   const storageKey = `${STORAGE_KEY_PREFIX}${position}`;
-  
+
   const [size, setSize] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(storageKey);
@@ -72,30 +72,39 @@ export function ResizablePanel({
     }
   }, [size, storageKey, isFullscreen]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    startPos.current = { x: e.clientX, y: e.clientY };
-    startSize.current = { width: size.width, height: size.height };
-  }, [size]);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsResizing(true);
+      startPos.current = { x: e.clientX, y: e.clientY };
+      startSize.current = { width: size.width, height: size.height };
+    },
+    [size]
+  );
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return;
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing) return;
 
-    const deltaX = e.clientX - startPos.current.x;
-    const deltaY = e.clientY - startPos.current.y;
+      const deltaX = e.clientX - startPos.current.x;
+      const deltaY = e.clientY - startPos.current.y;
 
-    if (position === 'left') {
-      const newWidth = Math.min(maxWidth, Math.max(minWidth, startSize.current.width + deltaX));
-      setSize((prev: { width: number; height: number }) => ({ ...prev, width: newWidth }));
-    } else if (position === 'right') {
-      const newWidth = Math.min(maxWidth, Math.max(minWidth, startSize.current.width - deltaX));
-      setSize((prev: { width: number; height: number }) => ({ ...prev, width: newWidth }));
-    } else if (position === 'bottom') {
-      const newHeight = Math.min(maxHeight, Math.max(minHeight, startSize.current.height - deltaY));
-      setSize((prev: { width: number; height: number }) => ({ ...prev, height: newHeight }));
-    }
-  }, [isResizing, position, minWidth, maxWidth, minHeight, maxHeight]);
+      if (position === 'left') {
+        const newWidth = Math.min(maxWidth, Math.max(minWidth, startSize.current.width + deltaX));
+        setSize((prev: { width: number; height: number }) => ({ ...prev, width: newWidth }));
+      } else if (position === 'right') {
+        const newWidth = Math.min(maxWidth, Math.max(minWidth, startSize.current.width - deltaX));
+        setSize((prev: { width: number; height: number }) => ({ ...prev, width: newWidth }));
+      } else if (position === 'bottom') {
+        const newHeight = Math.min(
+          maxHeight,
+          Math.max(minHeight, startSize.current.height - deltaY)
+        );
+        setSize((prev: { width: number; height: number }) => ({ ...prev, height: newHeight }));
+      }
+    },
+    [isResizing, position, minWidth, maxWidth, minHeight, maxHeight]
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsResizing(false);
@@ -122,13 +131,14 @@ export function ResizablePanel({
   }, [defaultWidth, defaultHeight]);
 
   const toggleFullscreen = useCallback(() => {
-    setIsFullscreen(prev => !prev);
+    setIsFullscreen((prev) => !prev);
   }, []);
 
   if (!open) return null;
 
   const isHorizontal = position === 'left' || position === 'right';
-  const resizeHandlePosition = position === 'left' ? 'right-0' : position === 'right' ? 'left-0' : 'top-0';
+  const resizeHandlePosition =
+    position === 'left' ? 'right-0' : position === 'right' ? 'left-0' : 'top-0';
 
   return (
     <div
@@ -142,10 +152,14 @@ export function ResizablePanel({
         isResizing && 'select-none',
         className
       )}
-      style={isFullscreen ? undefined : {
-        width: isHorizontal ? size.width : '100%',
-        height: isHorizontal ? '100%' : size.height,
-      }}
+      style={
+        isFullscreen
+          ? undefined
+          : {
+              width: isHorizontal ? size.width : '100%',
+              height: isHorizontal ? '100%' : size.height,
+            }
+      }
     >
       {/* Header */}
       {showHeader && (
@@ -168,20 +182,13 @@ export function ResizablePanel({
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  {isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-                </TooltipContent>
+                <TooltipContent>{isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}</TooltipContent>
               </Tooltip>
             )}
             {onClose && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={onClose}
-                  >
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
                     <X className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
@@ -193,9 +200,7 @@ export function ResizablePanel({
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto">
-        {children}
-      </div>
+      <div className="flex-1 overflow-auto">{children}</div>
 
       {/* Resize handle */}
       {!isFullscreen && (
@@ -212,9 +217,7 @@ export function ResizablePanel({
           onMouseDown={handleMouseDown}
           onDoubleClick={handleDoubleClick}
         >
-          {isHorizontal && (
-            <GripVertical className="h-4 w-4 text-muted-foreground/50" />
-          )}
+          {isHorizontal && <GripVertical className="h-4 w-4 text-muted-foreground/50" />}
         </div>
       )}
     </div>

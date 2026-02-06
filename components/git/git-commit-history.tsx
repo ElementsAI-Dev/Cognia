@@ -23,23 +23,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { formatCommitDate, formatCommitMessage } from '@/types/system/git';
@@ -75,27 +61,30 @@ export function GitCommitHistory({
   const [loadingDiffs, setLoadingDiffs] = useState<Set<string>>(new Set());
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
-  const loadDiff = useCallback(async (commit: GitCommitInfo) => {
-    if (!onViewDiff || loadingDiffs.has(commit.hash)) return;
+  const loadDiff = useCallback(
+    async (commit: GitCommitInfo) => {
+      if (!onViewDiff || loadingDiffs.has(commit.hash)) return;
 
-    setLoadingDiffs((prev) => new Set(prev).add(commit.hash));
-    try {
-      const diffs = await onViewDiff(commit);
-      setCommitDiffs((prev) => ({ ...prev, [commit.hash]: diffs }));
-    } finally {
-      setLoadingDiffs((prev) => {
-        const next = new Set(prev);
-        next.delete(commit.hash);
-        return next;
-      });
-    }
-  }, [onViewDiff, loadingDiffs]);
+      setLoadingDiffs((prev) => new Set(prev).add(commit.hash));
+      try {
+        const diffs = await onViewDiff(commit);
+        setCommitDiffs((prev) => ({ ...prev, [commit.hash]: diffs }));
+      } finally {
+        setLoadingDiffs((prev) => {
+          const next = new Set(prev);
+          next.delete(commit.hash);
+          return next;
+        });
+      }
+    },
+    [onViewDiff, loadingDiffs]
+  );
 
   const toggleCommit = useCallback(
     async (commit: GitCommitInfo) => {
       const hash = commit.hash;
       const wasExpanded = expandedCommits.has(hash);
-      
+
       setExpandedCommits((prev) => {
         const next = new Set(prev);
         if (next.has(hash)) {
@@ -105,7 +94,7 @@ export function GitCommitHistory({
         }
         return next;
       });
-      
+
       // Load diff if not already loaded and expanding
       if (!wasExpanded && !commitDiffs[hash] && onViewDiff) {
         loadDiff(commit);
@@ -148,12 +137,7 @@ export function GitCommitHistory({
             </Badge>
           )}
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={onRefresh}
-          disabled={isLoading}
-        >
+        <Button size="sm" variant="ghost" onClick={onRefresh} disabled={isLoading}>
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
@@ -330,15 +314,8 @@ export function GitCommitHistory({
         {/* Load More */}
         {onLoadMore && (
           <div className="text-center py-4">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onLoadMore}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : null}
+            <Button size="sm" variant="outline" onClick={onLoadMore} disabled={isLoading}>
+              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {t('loadMore')}
             </Button>
           </div>
@@ -385,9 +362,7 @@ export function GitCommitHistory({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">{t('date')}</span>
-                  <span className="text-sm">
-                    {new Date(selectedCommit.date).toLocaleString()}
-                  </span>
+                  <span className="text-sm">{new Date(selectedCommit.date).toLocaleString()}</span>
                 </div>
               </div>
               <div className="space-y-2">

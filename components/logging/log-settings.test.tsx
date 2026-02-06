@@ -7,8 +7,8 @@ import { getLoggerConfig, updateLoggerConfig } from '@/lib/logger';
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     const translations: Record<string, string> = {
-      'settingsTitle': 'Logging Configuration',
-      'settingsDescription': 'Configure log levels, transports, and retention policies',
+      settingsTitle: 'Logging Configuration',
+      settingsDescription: 'Configure log levels, transports, and retention policies',
       'settings.save': 'Save',
       'settings.saving': 'Saving...',
       'settings.saved': 'Saved!',
@@ -108,21 +108,23 @@ describe('LogSettings', () => {
   describe('Rendering', () => {
     it('renders the settings page with header', () => {
       render(<LogSettings />);
-      
+
       expect(screen.getByText('Logging Configuration')).toBeInTheDocument();
-      expect(screen.getByText('Configure log levels, transports, and retention policies')).toBeInTheDocument();
+      expect(
+        screen.getByText('Configure log levels, transports, and retention policies')
+      ).toBeInTheDocument();
     });
 
     it('renders log level section', () => {
       render(<LogSettings />);
-      
+
       expect(screen.getByText('Log Level')).toBeInTheDocument();
       expect(screen.getByText('Minimum Level')).toBeInTheDocument();
     });
 
     it('renders transport options', () => {
       render(<LogSettings />);
-      
+
       expect(screen.getByText('Log Transports')).toBeInTheDocument();
       expect(screen.getByText('Console Output')).toBeInTheDocument();
       expect(screen.getByText('IndexedDB Storage')).toBeInTheDocument();
@@ -130,7 +132,7 @@ describe('LogSettings', () => {
 
     it('renders retention settings', () => {
       render(<LogSettings />);
-      
+
       expect(screen.getByText('Log Retention')).toBeInTheDocument();
       expect(screen.getByText('Maximum Entries')).toBeInTheDocument();
       expect(screen.getByText('Maximum Age (Days)')).toBeInTheDocument();
@@ -138,13 +140,13 @@ describe('LogSettings', () => {
 
     it('renders performance note', () => {
       render(<LogSettings />);
-      
+
       expect(screen.getByText('Performance Note')).toBeInTheDocument();
     });
 
     it('renders save and reset buttons', () => {
       render(<LogSettings />);
-      
+
       expect(screen.getByText('Save')).toBeInTheDocument();
       expect(screen.getByText('Reset')).toBeInTheDocument();
     });
@@ -153,7 +155,7 @@ describe('LogSettings', () => {
   describe('Configuration Loading', () => {
     it('loads initial config from getLoggerConfig', () => {
       render(<LogSettings />);
-      
+
       expect(mockGetLoggerConfig).toHaveBeenCalled();
     });
 
@@ -164,9 +166,9 @@ describe('LogSettings', () => {
         langfuse: true,
       });
       localStorageMock.getItem.mockReturnValueOnce(transportSettings);
-      
+
       render(<LogSettings />);
-      
+
       expect(localStorageMock.getItem).toHaveBeenCalledWith('cognia-logging-transports');
     });
 
@@ -177,9 +179,9 @@ describe('LogSettings', () => {
       });
       localStorageMock.getItem.mockReturnValueOnce(null); // transports
       localStorageMock.getItem.mockReturnValueOnce(retentionSettings);
-      
+
       render(<LogSettings />);
-      
+
       expect(localStorageMock.getItem).toHaveBeenCalledWith('cognia-logging-retention');
     });
   });
@@ -188,13 +190,13 @@ describe('LogSettings', () => {
     it('calls updateLoggerConfig when save is clicked', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
-      
+
       // Make a change first to enable save
       const switches = screen.getAllByRole('switch');
       if (switches.length > 0) {
         await user.click(switches[0]);
       }
-      
+
       const saveButton = screen.getByText('Save');
       await user.click(saveButton);
 
@@ -206,13 +208,13 @@ describe('LogSettings', () => {
     it('saves transport settings to localStorage', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
-      
+
       // Make a change
       const switches = screen.getAllByRole('switch');
       if (switches.length > 0) {
         await user.click(switches[0]);
       }
-      
+
       const saveButton = screen.getByText('Save');
       await user.click(saveButton);
 
@@ -227,13 +229,13 @@ describe('LogSettings', () => {
     it('saves retention settings to localStorage', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
-      
+
       // Make a change
       const switches = screen.getAllByRole('switch');
       if (switches.length > 0) {
         await user.click(switches[0]);
       }
-      
+
       const saveButton = screen.getByText('Save');
       await user.click(saveButton);
 
@@ -248,13 +250,13 @@ describe('LogSettings', () => {
     it('shows saved status after successful save', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
-      
+
       // Make a change
       const switches = screen.getAllByRole('switch');
       if (switches.length > 0) {
         await user.click(switches[0]);
       }
-      
+
       const saveButton = screen.getByText('Save');
       await user.click(saveButton);
 
@@ -268,7 +270,7 @@ describe('LogSettings', () => {
     it('resets config to defaults when reset is clicked', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
-      
+
       const resetButton = screen.getByText('Reset');
       await user.click(resetButton);
 
@@ -282,13 +284,13 @@ describe('LogSettings', () => {
     it('toggles includeStackTrace when switch is clicked', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
-      
+
       const stackTraceLabel = screen.getByText('Include Stack Traces');
       const switchElement = stackTraceLabel.closest('div')?.querySelector('[role="switch"]');
-      
+
       if (switchElement) {
         await user.click(switchElement);
-        
+
         // Verify switch state changed
         expect(switchElement).toHaveAttribute('aria-checked');
       }
@@ -297,13 +299,13 @@ describe('LogSettings', () => {
     it('toggles transport options when switches are clicked', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
-      
+
       const switches = screen.getAllByRole('switch');
       expect(switches.length).toBeGreaterThan(0);
-      
+
       // Click first switch
       await user.click(switches[0]);
-      
+
       // Save should now be enabled
       const saveButton = screen.getByText('Save');
       expect(saveButton).not.toBeDisabled();
@@ -313,7 +315,7 @@ describe('LogSettings', () => {
   describe('Log Level Selection', () => {
     it('renders log level selector', () => {
       render(<LogSettings />);
-      
+
       // Verify level selector exists
       const levelSelectors = screen.getAllByRole('combobox');
       expect(levelSelectors.length).toBeGreaterThan(0);
@@ -330,7 +332,7 @@ describe('LogSettings', () => {
   describe('Save Button State', () => {
     it('save button is disabled when no changes', () => {
       render(<LogSettings />);
-      
+
       const saveButton = screen.getByText('Save');
       expect(saveButton).toBeDisabled();
     });
@@ -338,12 +340,12 @@ describe('LogSettings', () => {
     it('save button is enabled after making changes', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
-      
+
       const switches = screen.getAllByRole('switch');
       if (switches.length > 0) {
         await user.click(switches[0]);
       }
-      
+
       const saveButton = screen.getByText('Save');
       expect(saveButton).not.toBeDisabled();
     });
@@ -352,21 +354,21 @@ describe('LogSettings', () => {
   describe('Accessibility', () => {
     it('has accessible switch elements', () => {
       render(<LogSettings />);
-      
+
       const switches = screen.getAllByRole('switch');
       expect(switches.length).toBeGreaterThan(0);
-      
-      switches.forEach(switchEl => {
+
+      switches.forEach((switchEl) => {
         expect(switchEl).toHaveAttribute('aria-checked');
       });
     });
 
     it('has accessible buttons', () => {
       render(<LogSettings />);
-      
+
       const saveButton = screen.getByRole('button', { name: /save/i });
       const resetButton = screen.getByRole('button', { name: /reset/i });
-      
+
       expect(saveButton).toBeInTheDocument();
       expect(resetButton).toBeInTheDocument();
     });

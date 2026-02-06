@@ -362,7 +362,16 @@ describe('AcademicStats', () => {
         libraryPapers: [
           createMockLibraryPaper('1', { userNotes: 'Some notes' }),
           createMockLibraryPaper('2', {
-            notes: [{ id: '1', paperId: '2', content: 'note', tags: [], createdAt: new Date(), updatedAt: new Date() }],
+            notes: [
+              {
+                id: '1',
+                paperId: '2',
+                content: 'note',
+                tags: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+            ],
           }),
           createMockLibraryPaper('3'),
         ],

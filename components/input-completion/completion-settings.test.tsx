@@ -50,14 +50,24 @@ jest.mock('@/components/ui/card', () => ({
       {children}
     </div>
   ),
-  CardContent: ({ children }: { children: React.ReactNode }) => <div data-testid="card-content">{children}</div>,
-  CardDescription: ({ children }: { children: React.ReactNode }) => <p data-testid="card-description">{children}</p>,
-  CardHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="card-header">{children}</div>,
-  CardTitle: ({ children }: { children: React.ReactNode }) => <h3 data-testid="card-title">{children}</h3>,
+  CardContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="card-content">{children}</div>
+  ),
+  CardDescription: ({ children }: { children: React.ReactNode }) => (
+    <p data-testid="card-description">{children}</p>
+  ),
+  CardHeader: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="card-header">{children}</div>
+  ),
+  CardTitle: ({ children }: { children: React.ReactNode }) => (
+    <h3 data-testid="card-title">{children}</h3>
+  ),
 }));
 
 jest.mock('@/components/ui/label', () => ({
-  Label: ({ children }: { children: React.ReactNode }) => <label data-testid="label">{children}</label>,
+  Label: ({ children }: { children: React.ReactNode }) => (
+    <label data-testid="label">{children}</label>
+  ),
 }));
 
 jest.mock('@/components/ui/switch', () => ({
@@ -108,7 +118,10 @@ jest.mock('@/components/ui/slider', () => ({
 }));
 
 jest.mock('@/components/ui/select', () => ({
-  Select: ({ children, value }: {
+  Select: ({
+    children,
+    value,
+  }: {
     children: React.ReactNode;
     value?: string;
     onValueChange?: (value: string) => void;
@@ -117,18 +130,20 @@ jest.mock('@/components/ui/select', () => ({
       {children}
     </div>
   ),
-  SelectContent: ({ children }: { children: React.ReactNode }) => <div data-testid="select-content">{children}</div>,
+  SelectContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="select-content">{children}</div>
+  ),
   SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
     <option value={value} data-testid={`select-item-${value}`}>
       {children}
     </option>
   ),
   SelectTrigger: ({ children }: { children: React.ReactNode }) => (
-    <button data-testid="select-trigger">
-      {children}
-    </button>
+    <button data-testid="select-trigger">{children}</button>
   ),
-  SelectValue: ({ placeholder }: { placeholder?: string }) => <span data-testid="select-value">{placeholder}</span>,
+  SelectValue: ({ placeholder }: { placeholder?: string }) => (
+    <span data-testid="select-value">{placeholder}</span>
+  ),
 }));
 
 jest.mock('@/components/ui/input', () => ({
@@ -306,7 +321,10 @@ describe('CompletionSettings', () => {
     });
 
     it('displays endpoint label for custom provider', () => {
-      const customConfig = { ...mockConfig, model: { ...mockConfig.model, provider: 'custom' as const } };
+      const customConfig = {
+        ...mockConfig,
+        model: { ...mockConfig.model, provider: 'custom' as const },
+      };
       mockHookState = { ...mockHookState, config: customConfig };
 
       render(<CompletionSettings />);
@@ -314,7 +332,10 @@ describe('CompletionSettings', () => {
     });
 
     it('displays API key label for custom provider', () => {
-      const customConfig = { ...mockConfig, model: { ...mockConfig.model, provider: 'custom' as const } };
+      const customConfig = {
+        ...mockConfig,
+        model: { ...mockConfig.model, provider: 'custom' as const },
+      };
       mockHookState = { ...mockHookState, config: customConfig };
 
       render(<CompletionSettings />);
@@ -476,7 +497,9 @@ describe('CompletionSettings', () => {
     it('updates model ID input', () => {
       render(<CompletionSettings />);
       const inputs = screen.getAllByTestId('input');
-      const modelIdInput = inputs.find((input) => input.getAttribute('placeholder') === 'qwen2.5-coder:0.5b');
+      const modelIdInput = inputs.find(
+        (input) => input.getAttribute('placeholder') === 'qwen2.5-coder:0.5b'
+      );
 
       if (modelIdInput) {
         fireEvent.change(modelIdInput, { target: { value: 'new-model' } });
@@ -485,12 +508,17 @@ describe('CompletionSettings', () => {
     });
 
     it('updates endpoint input for custom provider', () => {
-      const customConfig = { ...mockConfig, model: { ...mockConfig.model, provider: 'custom' as const } };
+      const customConfig = {
+        ...mockConfig,
+        model: { ...mockConfig.model, provider: 'custom' as const },
+      };
       mockHookState = { ...mockHookState, config: customConfig };
 
       render(<CompletionSettings />);
       const inputs = screen.getAllByTestId('input');
-      const endpointInput = inputs.find((input) => input.getAttribute('placeholder') === 'https://api.example.com');
+      const endpointInput = inputs.find(
+        (input) => input.getAttribute('placeholder') === 'https://api.example.com'
+      );
 
       if (endpointInput) {
         fireEvent.change(endpointInput, { target: { value: 'https://custom.api' } });
@@ -499,7 +527,10 @@ describe('CompletionSettings', () => {
     });
 
     it('updates API key input for custom provider', () => {
-      const customConfig = { ...mockConfig, model: { ...mockConfig.model, provider: 'custom' as const } };
+      const customConfig = {
+        ...mockConfig,
+        model: { ...mockConfig.model, provider: 'custom' as const },
+      };
       mockHookState = { ...mockHookState, config: customConfig };
 
       render(<CompletionSettings />);
@@ -587,7 +618,10 @@ describe('CompletionSettings', () => {
 
   describe('Provider-Specific Fields', () => {
     it('shows endpoint and API key for openai provider', () => {
-      const openaiConfig = { ...mockConfig, model: { ...mockConfig.model, provider: 'openai' as const } };
+      const openaiConfig = {
+        ...mockConfig,
+        model: { ...mockConfig.model, provider: 'openai' as const },
+      };
       mockHookState = { ...mockHookState, config: openaiConfig };
 
       render(<CompletionSettings />);
@@ -596,7 +630,10 @@ describe('CompletionSettings', () => {
     });
 
     it('shows endpoint and API key for groq provider', () => {
-      const groqConfig = { ...mockConfig, model: { ...mockConfig.model, provider: 'groq' as const } };
+      const groqConfig = {
+        ...mockConfig,
+        model: { ...mockConfig.model, provider: 'groq' as const },
+      };
       mockHookState = { ...mockHookState, config: groqConfig };
 
       render(<CompletionSettings />);
@@ -605,7 +642,10 @@ describe('CompletionSettings', () => {
     });
 
     it('hides endpoint and API key for auto provider', () => {
-      const autoConfig = { ...mockConfig, model: { ...mockConfig.model, provider: 'auto' as const } };
+      const autoConfig = {
+        ...mockConfig,
+        model: { ...mockConfig.model, provider: 'auto' as const },
+      };
       mockHookState = { ...mockHookState, config: autoConfig };
 
       render(<CompletionSettings />);

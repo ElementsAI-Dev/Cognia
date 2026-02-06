@@ -124,7 +124,7 @@ describe('JupyterRenderer', () => {
   describe('rendering', () => {
     it('should render notebook cells', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       // Check that cells are rendered - look for cell type badges
       const badges = document.querySelectorAll('[data-slot="badge"]');
       expect(badges.length).toBeGreaterThan(0);
@@ -132,35 +132,35 @@ describe('JupyterRenderer', () => {
 
     it('should display language badge', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       // Language badge should be in the toolbar
       const badges = document.querySelectorAll('[data-slot="badge"]');
-      const pythonBadge = Array.from(badges).find(b => b.textContent === 'python');
+      const pythonBadge = Array.from(badges).find((b) => b.textContent === 'python');
       expect(pythonBadge).toBeInTheDocument();
     });
 
     it('should display cell counts in toolbar', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       // Stats should be displayed
       expect(screen.getByText(/code cells/)).toBeInTheDocument();
     });
 
     it('should render error state for invalid notebook', () => {
       renderWithIntl(<JupyterRenderer content="invalid json" />);
-      
+
       expect(screen.getByText('Failed to parse Jupyter notebook')).toBeInTheDocument();
     });
 
     it('should render cell outputs', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       expect(screen.getByText('Hello, World!')).toBeInTheDocument();
     });
 
     it('should hide toolbar when showToolbar is false', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} showToolbar={false} />);
-      
+
       // Toolbar buttons should not be present
       expect(screen.queryByRole('button', { name: /expand all/i })).not.toBeInTheDocument();
     });
@@ -169,19 +169,20 @@ describe('JupyterRenderer', () => {
   describe('cell interactions', () => {
     it('should have collapse buttons for cells', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       // Find collapse buttons (chevron icons)
       const buttons = screen.getAllByRole('button');
-      const collapseButtons = buttons.filter(btn => 
-        btn.querySelector('.lucide-chevron-down') || btn.querySelector('.lucide-chevron-right')
+      const collapseButtons = buttons.filter(
+        (btn) =>
+          btn.querySelector('.lucide-chevron-down') || btn.querySelector('.lucide-chevron-right')
       );
-      
+
       expect(collapseButtons.length).toBeGreaterThan(0);
     });
 
     it('should display output section for code cells with outputs', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       // Output section should be visible
       expect(screen.getAllByText(/Output/).length).toBeGreaterThan(0);
     });
@@ -190,7 +191,7 @@ describe('JupyterRenderer', () => {
   describe('toolbar actions', () => {
     it('should have expand/collapse all buttons in toolbar', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       // Toolbar should have expand and collapse buttons
       expect(screen.getByText('Expand all cells')).toBeInTheDocument();
       expect(screen.getByText('Collapse all cells')).toBeInTheDocument();
@@ -198,7 +199,7 @@ describe('JupyterRenderer', () => {
 
     it('should have export buttons in toolbar', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       expect(screen.getByText('Export as Python script')).toBeInTheDocument();
       expect(screen.getByText('Export as Markdown')).toBeInTheDocument();
       expect(screen.getByText('Download notebook')).toBeInTheDocument();
@@ -208,16 +209,16 @@ describe('JupyterRenderer', () => {
   describe('output types', () => {
     it('should render stream output', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       expect(screen.getByText('Hello, World!')).toBeInTheDocument();
     });
 
     it('should render execute_result output', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       // The output "3" should be in a pre element
       const preElements = document.querySelectorAll('pre');
-      const hasThreeOutput = Array.from(preElements).some(pre => pre.textContent?.includes('3'));
+      const hasThreeOutput = Array.from(preElements).some((pre) => pre.textContent?.includes('3'));
       expect(hasThreeOutput).toBe(true);
     });
 
@@ -245,7 +246,7 @@ describe('JupyterRenderer', () => {
       });
 
       renderWithIntl(<JupyterRenderer content={notebookWithError} />);
-      
+
       // Error header shows ename: evalue
       expect(screen.getByText('ZeroDivisionError: division by zero')).toBeInTheDocument();
     });
@@ -276,7 +277,7 @@ describe('JupyterRenderer', () => {
       });
 
       renderWithIntl(<JupyterRenderer content={notebookWithHtml} />);
-      
+
       // HTML content should be rendered
       expect(screen.getByText('testdata')).toBeInTheDocument();
     });
@@ -291,7 +292,8 @@ describe('JupyterRenderer', () => {
               {
                 output_type: 'display_data',
                 data: {
-                  'image/png': 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                  'image/png':
+                    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
                   'text/plain': '<Figure size 640x480>',
                 },
               },
@@ -306,7 +308,7 @@ describe('JupyterRenderer', () => {
       });
 
       renderWithIntl(<JupyterRenderer content={notebookWithImage} />);
-      
+
       // Image should be rendered
       expect(document.querySelector('img')).toBeInTheDocument();
     });
@@ -315,11 +317,11 @@ describe('JupyterRenderer', () => {
   describe('copy functionality', () => {
     it('should have copy buttons for cells', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       // Copy buttons exist (in cell headers)
       const buttons = screen.getAllByRole('button');
-      const copyButtons = buttons.filter(btn => btn.querySelector('.lucide-copy'));
-      
+      const copyButtons = buttons.filter((btn) => btn.querySelector('.lucide-copy'));
+
       expect(copyButtons.length).toBeGreaterThan(0);
     });
   });
@@ -330,13 +332,13 @@ describe('JupyterRenderer', () => {
       renderWithIntl(
         <JupyterRenderer content={sampleNotebook} onNotebookChange={onNotebookChange} />
       );
-      
+
       expect(screen.getByText('Clear all outputs')).toBeInTheDocument();
     });
 
     it('should not show clear outputs button when onNotebookChange is not provided', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
-      
+
       expect(screen.queryByText('Clear all outputs')).not.toBeInTheDocument();
     });
   });

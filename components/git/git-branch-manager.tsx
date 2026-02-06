@@ -108,10 +108,7 @@ export function GitBranchManager({
 
     setIsOperating(true);
     try {
-      const success = await onCreateBranch(
-        newBranchName.trim(),
-        startPoint.trim() || undefined
-      );
+      const success = await onCreateBranch(newBranchName.trim(), startPoint.trim() || undefined);
       if (success) {
         setShowCreateDialog(false);
         setNewBranchName('');
@@ -171,23 +168,14 @@ export function GitBranchManager({
           <span className="font-medium text-sm">{t('title')}</span>
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onRefresh}
-            disabled={isLoading}
-          >
+          <Button size="sm" variant="ghost" onClick={onRefresh} disabled={isLoading}>
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <RefreshCw className="h-4 w-4" />
             )}
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowCreateDialog(true)}
-          >
+          <Button size="sm" variant="outline" onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-1" />
             {t('new')}
           </Button>
@@ -218,9 +206,7 @@ export function GitBranchManager({
           <ScrollArea className="h-64">
             {filteredLocalBranches.length > 0 && (
               <>
-                <div className="px-2 py-1 text-xs text-muted-foreground">
-                  {t('localBranches')}
-                </div>
+                <div className="px-2 py-1 text-xs text-muted-foreground">{t('localBranches')}</div>
                 {filteredLocalBranches.map((branch) => (
                   <DropdownMenuItem
                     key={branch.name}
@@ -229,9 +215,7 @@ export function GitBranchManager({
                     className="flex items-center justify-between"
                   >
                     <span className="truncate">{branch.name}</span>
-                    {branch.isCurrent && (
-                      <Check className="h-4 w-4 text-green-500" />
-                    )}
+                    {branch.isCurrent && <Check className="h-4 w-4 text-green-500" />}
                   </DropdownMenuItem>
                 ))}
               </>
@@ -346,10 +330,7 @@ export function GitBranchManager({
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
               {t('cancel')}
             </Button>
-            <Button
-              onClick={handleCreateBranch}
-              disabled={!newBranchName.trim() || isOperating}
-            >
+            <Button onClick={handleCreateBranch} disabled={!newBranchName.trim() || isOperating}>
               {isOperating ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
@@ -393,7 +374,10 @@ export function GitBranchManager({
           <AlertDialogHeader>
             <AlertDialogTitle>{t('mergeBranch')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('mergeBranchConfirm', { source: branchToMerge || '', target: currentBranch || '' })}
+              {t('mergeBranchConfirm', {
+                source: branchToMerge || '',
+                target: currentBranch || '',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

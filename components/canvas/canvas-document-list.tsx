@@ -25,10 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -124,8 +121,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
       const query = searchQuery.toLowerCase();
       result = result.filter(
         (doc) =>
-          doc.title.toLowerCase().includes(query) ||
-          doc.content.toLowerCase().includes(query)
+          doc.title.toLowerCase().includes(query) || doc.content.toLowerCase().includes(query)
       );
     }
 
@@ -292,7 +288,9 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
                           <Clock className="h-3 w-3" />
                           <span>{formatDate(doc.updatedAt)}</span>
                           <span className="mx-1">•</span>
-                          <span>{doc.content.split('\n').length} {t('lines')}</span>
+                          <span>
+                            {doc.content.split('\n').length} {t('lines')}
+                          </span>
                         </div>
                       </div>
                       <DropdownMenu>
@@ -359,7 +357,10 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('language')}</Label>
-                <Select value={newDocLanguage} onValueChange={(v) => setNewDocLanguage(v as ArtifactLanguage)}>
+                <Select
+                  value={newDocLanguage}
+                  onValueChange={(v) => setNewDocLanguage(v as ArtifactLanguage)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -374,7 +375,10 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
               </div>
               <div className="space-y-2">
                 <Label>{t('type')}</Label>
-                <Select value={newDocType} onValueChange={(v) => setNewDocType(v as 'code' | 'text')}>
+                <Select
+                  value={newDocType}
+                  onValueChange={(v) => setNewDocType(v as 'code' | 'text')}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

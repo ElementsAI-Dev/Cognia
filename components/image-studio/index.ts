@@ -8,7 +8,10 @@ export { ImageEditorPanel } from './core/image-editor-panel';
 export type { ImageEditorPanelProps } from './core/image-editor-panel';
 
 export { ImagePreview } from './core/image-preview';
-export type { ImagePreviewProps, ComparisonMode as ImagePreviewComparisonMode } from './core/image-preview';
+export type {
+  ImagePreviewProps,
+  ComparisonMode as ImagePreviewComparisonMode,
+} from './core/image-preview';
 
 export { ImageComparison } from './core/image-comparison';
 export type { ImageComparisonProps, ComparisonMode } from './core/image-comparison';
@@ -31,7 +34,10 @@ export { ImageAdjustmentsPanel } from './adjustments/image-adjustments';
 export type { ImageAdjustmentsProps } from './adjustments/image-adjustments';
 
 export { FiltersGallery } from './adjustments/filters-gallery';
-export type { FiltersGalleryProps, FilterPreset as GalleryFilterPreset } from './adjustments/filters-gallery';
+export type {
+  FiltersGalleryProps,
+  FilterPreset as GalleryFilterPreset,
+} from './adjustments/filters-gallery';
 
 // AI - AI-powered features (upscaler, background remover)
 export { ImageUpscaler } from './ai/image-upscaler';

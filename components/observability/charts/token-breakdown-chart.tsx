@@ -25,11 +25,7 @@ interface TokenBreakdownChartProps {
 
 const COLORS = [TOKEN_COLORS.input, TOKEN_COLORS.output];
 
-export function TokenBreakdownChart({
-  data,
-  title,
-  height = 240,
-}: TokenBreakdownChartProps) {
+export function TokenBreakdownChart({ data, title, height = 240 }: TokenBreakdownChartProps) {
   const t = useTranslations('observability.charts');
 
   const chartData = useMemo(() => {
@@ -92,7 +88,9 @@ export function TokenBreakdownChart({
                 outerRadius={80}
                 paddingAngle={2}
                 dataKey="value"
-                label={({ name, percent }) => `${(name || '').toString().split(' ')[0]} (${((percent || 0) * 100).toFixed(1)}%)`}
+                label={({ name, percent }) =>
+                  `${(name || '').toString().split(' ')[0]} (${((percent || 0) * 100).toFixed(1)}%)`
+                }
                 labelLine={false}
               >
                 {chartData.map((_, index) => (

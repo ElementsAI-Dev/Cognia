@@ -10,11 +10,7 @@ import { Copy, Check } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 interface DiffLine {
@@ -41,13 +37,17 @@ function computeDiff(oldText: string, newText: string): DiffLine[] {
 
   // LCS-based diff for better results
   const lcs = computeLCS(oldLines, newLines);
-  
+
   let oldIndex = 0;
   let newIndex = 0;
   let lcsIndex = 0;
 
   while (oldIndex < oldLines.length || newIndex < newLines.length) {
-    if (lcsIndex < lcs.length && oldIndex < oldLines.length && oldLines[oldIndex] === lcs[lcsIndex]) {
+    if (
+      lcsIndex < lcs.length &&
+      oldIndex < oldLines.length &&
+      oldLines[oldIndex] === lcs[lcsIndex]
+    ) {
       if (newIndex < newLines.length && newLines[newIndex] === lcs[lcsIndex]) {
         // Line is unchanged
         diff.push({
@@ -67,7 +67,11 @@ function computeDiff(oldText: string, newText: string): DiffLine[] {
         });
         newIndex++;
       }
-    } else if (lcsIndex < lcs.length && newIndex < newLines.length && newLines[newIndex] === lcs[lcsIndex]) {
+    } else if (
+      lcsIndex < lcs.length &&
+      newIndex < newLines.length &&
+      newLines[newIndex] === lcs[lcsIndex]
+    ) {
       // Line was removed from old
       diff.push({
         type: 'removed',
@@ -103,7 +107,9 @@ function computeDiff(oldText: string, newText: string): DiffLine[] {
 function computeLCS(a: string[], b: string[]): string[] {
   const m = a.length;
   const n = b.length;
-  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+  const dp: number[][] = Array(m + 1)
+    .fill(null)
+    .map(() => Array(n + 1).fill(0));
 
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
@@ -117,7 +123,8 @@ function computeLCS(a: string[], b: string[]): string[] {
 
   // Backtrack to find LCS
   const lcs: string[] = [];
-  let i = m, j = n;
+  let i = m,
+    j = n;
   while (i > 0 && j > 0) {
     if (a[i - 1] === b[j - 1]) {
       lcs.unshift(a[i - 1]);
@@ -156,10 +163,12 @@ export function VersionDiffView({
   }, [diff]);
 
   const diffText = useMemo(() => {
-    return diff.map((line) => {
-      const prefix = line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' ';
-      return `${prefix} ${line.content}`;
-    }).join('\n');
+    return diff
+      .map((line) => {
+        const prefix = line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' ';
+        return `${prefix} ${line.content}`;
+      })
+      .join('\n');
   }, [diff]);
 
   const handleCopyDiff = async () => {
@@ -180,13 +189,17 @@ export function VersionDiffView({
           {oldLabel && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{t('from')}:</span>
-              <Badge variant="outline" className="text-xs">{oldLabel}</Badge>
+              <Badge variant="outline" className="text-xs">
+                {oldLabel}
+              </Badge>
             </div>
           )}
           {newLabel && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{t('to')}:</span>
-              <Badge variant="outline" className="text-xs">{newLabel}</Badge>
+              <Badge variant="outline" className="text-xs">
+                {newLabel}
+              </Badge>
             </div>
           )}
         </div>
@@ -195,12 +208,7 @@ export function VersionDiffView({
           <span className="text-red-600 dark:text-red-400">-{stats.removed}</span>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={handleCopyDiff}
-              >
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyDiff}>
                 {copied ? (
                   <Check className="h-3 w-3 text-green-500" />
                 ) : (
@@ -228,19 +236,17 @@ export function VersionDiffView({
             >
               {/* Line numbers */}
               <div className="flex shrink-0 w-12 sm:w-16 text-muted-foreground text-xs select-none">
-                <span className="w-6 sm:w-8 text-right pr-1">
-                  {line.lineNumber.old || ''}
-                </span>
-                <span className="w-6 sm:w-8 text-right pr-1">
-                  {line.lineNumber.new || ''}
-                </span>
+                <span className="w-6 sm:w-8 text-right pr-1">{line.lineNumber.old || ''}</span>
+                <span className="w-6 sm:w-8 text-right pr-1">{line.lineNumber.new || ''}</span>
               </div>
               {/* Change indicator */}
-              <span className={cn(
-                'w-4 shrink-0 text-center select-none',
-                line.type === 'added' && 'text-green-600 dark:text-green-400',
-                line.type === 'removed' && 'text-red-600 dark:text-red-400'
-              )}>
+              <span
+                className={cn(
+                  'w-4 shrink-0 text-center select-none',
+                  line.type === 'added' && 'text-green-600 dark:text-green-400',
+                  line.type === 'removed' && 'text-red-600 dark:text-red-400'
+                )}
+              >
                 {line.type === 'added' && '+'}
                 {line.type === 'removed' && '-'}
               </span>

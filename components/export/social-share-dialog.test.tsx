@@ -116,7 +116,7 @@ describe('SocialShareDialog', () => {
 
   it('should render trigger button', () => {
     renderWithProviders(<SocialShareDialog session={mockSession} />);
-    
+
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
@@ -127,15 +127,15 @@ describe('SocialShareDialog', () => {
         trigger={<button data-testid="custom-trigger">Custom Share</button>}
       />
     );
-    
+
     expect(screen.getByTestId('custom-trigger')).toBeInTheDocument();
   });
 
   it('should open dialog when trigger is clicked', async () => {
     renderWithProviders(<SocialShareDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Share Conversation')).toBeInTheDocument();
     });
@@ -143,9 +143,9 @@ describe('SocialShareDialog', () => {
 
   it('should show loading state initially', async () => {
     renderWithProviders(<SocialShareDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     // Initially should show loading spinner
     await waitFor(() => {
       expect(screen.getByText('Share Conversation')).toBeInTheDocument();
@@ -154,14 +154,14 @@ describe('SocialShareDialog', () => {
 
   it('should display social platform buttons', async () => {
     renderWithProviders(<SocialShareDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       // Check for share label and at least one platform
       expect(screen.getByText('Share to')).toBeInTheDocument();
     });
-    
+
     // Platform buttons should be rendered as a grid
     const platformButtons = screen.getAllByRole('button');
     expect(platformButtons.length).toBeGreaterThan(1);
@@ -169,9 +169,9 @@ describe('SocialShareDialog', () => {
 
   it('should display share format tabs', async () => {
     renderWithProviders(<SocialShareDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Text')).toBeInTheDocument();
       expect(screen.getByText('MD')).toBeInTheDocument();
@@ -182,9 +182,9 @@ describe('SocialShareDialog', () => {
 
   it('should display share options', async () => {
     renderWithProviders(<SocialShareDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Share Options')).toBeInTheDocument();
       expect(screen.getByText('Include Title')).toBeInTheDocument();
@@ -195,17 +195,17 @@ describe('SocialShareDialog', () => {
 
   it('should copy text when copy button is clicked', async () => {
     const socialShare = await import('@/lib/export/social/social-share');
-    
+
     renderWithProviders(<SocialShareDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Copy Text')).toBeInTheDocument();
     });
-    
+
     fireEvent.click(screen.getByText('Copy Text'));
-    
+
     await waitFor(() => {
       expect(socialShare.copyToClipboard).toHaveBeenCalled();
     });
@@ -213,9 +213,9 @@ describe('SocialShareDialog', () => {
 
   it('should show message count info', async () => {
     renderWithProviders(<SocialShareDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText(/\d+ messages/)).toBeInTheDocument();
     });

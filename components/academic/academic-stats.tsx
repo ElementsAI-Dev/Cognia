@@ -261,9 +261,7 @@ export function AcademicStats() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                {t('noFieldsData')}
-              </p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t('noFieldsData')}</p>
             )}
           </CardContent>
         </Card>

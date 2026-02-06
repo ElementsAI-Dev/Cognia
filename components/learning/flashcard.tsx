@@ -2,7 +2,7 @@
 
 /**
  * Flashcard Component - Interactive flashcard for generative UI
- * 
+ *
  * Renders an interactive flashcard that users can flip to reveal answers.
  * Supports difficulty rating, hints, and integration with learning store.
  */
@@ -79,17 +79,20 @@ export const Flashcard = memo(function Flashcard({
     setShowHint(true);
   }, []);
 
-  const handleRate = useCallback((rating: RecallRating) => {
-    setHasRated(true);
-    
-    if (sessionId && flashcard.conceptId) {
-      const quality = RATING_QUALITY[rating];
-      learningStore.updateReviewItem(sessionId, flashcard.id, quality);
-      learningStore.recordAnswer(sessionId, rating !== 'forgot', 0);
-    }
-    
-    onRate?.(rating, flashcard.id);
-  }, [sessionId, flashcard.id, flashcard.conceptId, learningStore, onRate]);
+  const handleRate = useCallback(
+    (rating: RecallRating) => {
+      setHasRated(true);
+
+      if (sessionId && flashcard.conceptId) {
+        const quality = RATING_QUALITY[rating];
+        learningStore.updateReviewItem(sessionId, flashcard.id, quality);
+        learningStore.recordAnswer(sessionId, rating !== 'forgot', 0);
+      }
+
+      onRate?.(rating, flashcard.id);
+    },
+    [sessionId, flashcard.id, flashcard.conceptId, learningStore, onRate]
+  );
 
   const handleNext = useCallback(() => {
     setIsFlipped(false);
@@ -142,7 +145,7 @@ export const Flashcard = memo(function Flashcard({
           <Card className="absolute inset-0 w-full h-full backface-hidden">
             <CardContent className="flex flex-col items-center justify-center h-full p-6 text-center">
               <p className="text-lg font-medium">{flashcard.front}</p>
-              
+
               {/* Hint */}
               {flashcard.hint && showHint && (
                 <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
@@ -175,7 +178,7 @@ export const Flashcard = memo(function Flashcard({
           <Card className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-primary/5">
             <CardContent className="flex flex-col items-center justify-center h-full p-6 text-center">
               <p className="text-lg">{flashcard.back}</p>
-              
+
               <p className="absolute bottom-4 right-4 text-xs text-muted-foreground">
                 {t('clickToFlipBack')}
               </p>
@@ -287,7 +290,12 @@ export const Flashcard = memo(function Flashcard({
                 e.stopPropagation();
                 handleNext();
               }}
-              disabled={!onNext || (currentIndex !== undefined && totalCards !== undefined && currentIndex >= totalCards - 1)}
+              disabled={
+                !onNext ||
+                (currentIndex !== undefined &&
+                  totalCards !== undefined &&
+                  currentIndex >= totalCards - 1)
+              }
             >
               {t('next')}
               <ChevronRight className="h-4 w-4 ml-1" />
@@ -393,9 +401,7 @@ export const FlashcardDeck = memo(function FlashcardDeck({
       {/* Header */}
       <div className="text-center">
         <h3 className="text-lg font-semibold">{title}</h3>
-        {description && (
-          <p className="text-sm text-muted-foreground mt-1">{description}</p>
-        )}
+        {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
       </div>
 
       {/* Current Card */}

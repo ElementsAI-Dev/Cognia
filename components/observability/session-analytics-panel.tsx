@@ -171,10 +171,7 @@ export function SessionAnalyticsPanel({
                     >
                       #{index + 1}
                     </Badge>
-                    <span
-                      className="text-sm font-medium truncate"
-                      title={session.sessionId}
-                    >
+                    <span className="text-sm font-medium truncate" title={session.sessionId}>
                       {session.name || formatSessionId(session.sessionId)}
                     </span>
                   </div>
@@ -202,10 +199,7 @@ export function SessionAnalyticsPanel({
                 </div>
 
                 {showProgress && (
-                  <Progress
-                    value={(session.tokens / maxTokens) * 100}
-                    className="h-1"
-                  />
+                  <Progress value={(session.tokens / maxTokens) * 100} className="h-1" />
                 )}
               </div>
             ))}

@@ -27,7 +27,7 @@ jest.mock('sonner', () => ({
 }));
 
 // Mock agent for testing
-const mockAgent = ({
+const mockAgent = {
   id: 'agent-1',
   sessionId: 'session-1',
   name: 'Test Agent',
@@ -107,7 +107,7 @@ const mockAgent = ({
   completedAt: new Date(),
   retryCount: 0,
   priority: 1,
-} as unknown as BackgroundAgent);
+} as unknown as BackgroundAgent;
 
 const messages = {
   export: {
@@ -152,7 +152,7 @@ describe('AgentDemoPreview', () => {
 
   it('should render trigger button', () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     expect(screen.getByRole('button')).toBeInTheDocument();
     expect(screen.getByText('Export Agent Demo')).toBeInTheDocument();
   });
@@ -164,15 +164,15 @@ describe('AgentDemoPreview', () => {
         trigger={<button data-testid="custom-trigger">Custom Demo</button>}
       />
     );
-    
+
     expect(screen.getByTestId('custom-trigger')).toBeInTheDocument();
   });
 
   it('should open dialog when trigger is clicked', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Agent Workflow Demo')).toBeInTheDocument();
     });
@@ -180,9 +180,9 @@ describe('AgentDemoPreview', () => {
 
   it('should display agent info', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText(mockAgent.name)).toBeInTheDocument();
       expect(screen.getByText(mockAgent.task)).toBeInTheDocument();
@@ -191,9 +191,9 @@ describe('AgentDemoPreview', () => {
 
   it('should display agent status', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('completed')).toBeInTheDocument();
     });
@@ -201,9 +201,9 @@ describe('AgentDemoPreview', () => {
 
   it('should display progress bar', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Execution Progress')).toBeInTheDocument();
       expect(screen.getByText(/\d+\/\d+ steps/)).toBeInTheDocument();
@@ -212,15 +212,15 @@ describe('AgentDemoPreview', () => {
 
   it('should display steps preview', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       // Dialog should be open with agent info visible
       expect(screen.getByText('Agent Workflow Demo')).toBeInTheDocument();
       expect(screen.getByText(mockAgent.name)).toBeInTheDocument();
     });
-    
+
     // Steps preview section should show step titles
     await waitFor(() => {
       expect(screen.getByText('Analyzing request')).toBeInTheDocument();
@@ -229,9 +229,9 @@ describe('AgentDemoPreview', () => {
 
   it('should display export format options', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Export Format')).toBeInTheDocument();
       expect(screen.getByText('Interactive HTML')).toBeInTheDocument();
@@ -241,23 +241,23 @@ describe('AgentDemoPreview', () => {
 
   it('should display HTML export options when HTML is selected', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       // Check that at least one HTML option is displayed
       expect(screen.getByText('Auto Play')).toBeInTheDocument();
     });
-    
+
     // Other HTML options should also be present
     expect(screen.getByText('Show Timeline')).toBeInTheDocument();
   });
 
   it('should display export button', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Export Demo')).toBeInTheDocument();
     });
@@ -266,17 +266,17 @@ describe('AgentDemoPreview', () => {
   it('should call exportAgentDemo when export button is clicked for HTML', async () => {
     const agentExport = await import('@/lib/export/agent/agent-demo-export');
     const libExport = await import('@/lib/export');
-    
+
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Export Demo')).toBeInTheDocument();
     });
-    
+
     fireEvent.click(screen.getByText('Export Demo'));
-    
+
     await waitFor(() => {
       expect(agentExport.exportAgentDemo).toHaveBeenCalledWith(
         mockAgent,
@@ -293,16 +293,16 @@ describe('AgentDemoPreview', () => {
 
   it('should expand step details when step is clicked', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Analyzing request')).toBeInTheDocument();
     });
-    
+
     // Click on the first step to expand it
     fireEvent.click(screen.getByText('Analyzing request'));
-    
+
     await waitFor(() => {
       // Should show description when expanded
       expect(screen.getByText('Understanding the user request')).toBeInTheDocument();
@@ -311,16 +311,16 @@ describe('AgentDemoPreview', () => {
 
   it('should show tool calls in expanded step', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Calling web search')).toBeInTheDocument();
     });
-    
+
     // Click on the tool call step to expand it
     fireEvent.click(screen.getByText('Calling web search'));
-    
+
     await waitFor(() => {
       // Should show tool name when expanded
       expect(screen.getByText('web_search')).toBeInTheDocument();
@@ -329,9 +329,9 @@ describe('AgentDemoPreview', () => {
 
   it('should display duration statistics', async () => {
     renderWithProviders(<AgentDemoPreview agent={mockAgent} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       // Check for duration/time info
       expect(screen.getByText(/⏱/)).toBeInTheDocument();

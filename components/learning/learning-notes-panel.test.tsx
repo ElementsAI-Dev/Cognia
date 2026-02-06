@@ -72,47 +72,32 @@ describe('LearningNotesPanel', () => {
 
   describe('Rendering', () => {
     it('renders panel title', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={mockNotes} />,
-        { wrapper }
-      );
+      render(<LearningNotesPanel sessionId="session-1" notes={mockNotes} />, { wrapper });
       // Panel should render with notes
       expect(screen.getByText('This is an important concept')).toBeInTheDocument();
     });
 
     it('renders add button', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={mockNotes} />,
-        { wrapper }
-      );
+      render(<LearningNotesPanel sessionId="session-1" notes={mockNotes} />, { wrapper });
       // Plus button should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
     });
 
     it('renders all notes', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={mockNotes} />,
-        { wrapper }
-      );
+      render(<LearningNotesPanel sessionId="session-1" notes={mockNotes} />, { wrapper });
       expect(screen.getByText('This is an important concept')).toBeInTheDocument();
       expect(screen.getByText('Regular note content')).toBeInTheDocument();
       expect(screen.getByText('Another regular note')).toBeInTheDocument();
     });
 
     it('renders highlighted notes section', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={mockNotes} />,
-        { wrapper }
-      );
+      render(<LearningNotesPanel sessionId="session-1" notes={mockNotes} />, { wrapper });
       expect(screen.getByText('Highlighted')).toBeInTheDocument();
     });
 
     it('renders concept tags', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={mockNotes} />,
-        { wrapper }
-      );
+      render(<LearningNotesPanel sessionId="session-1" notes={mockNotes} />, { wrapper });
       expect(screen.getByText('react')).toBeInTheDocument();
       expect(screen.getByText('hooks')).toBeInTheDocument();
     });
@@ -120,10 +105,7 @@ describe('LearningNotesPanel', () => {
 
   describe('Empty State', () => {
     it('shows empty state when no notes', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={[]} />,
-        { wrapper }
-      );
+      render(<LearningNotesPanel sessionId="session-1" notes={[]} />, { wrapper });
       // Empty state should show add button
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -132,44 +114,32 @@ describe('LearningNotesPanel', () => {
 
   describe('Adding Notes', () => {
     it('shows text area when add button clicked', async () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={[]} />,
-        { wrapper }
-      );
-      
+      render(<LearningNotesPanel sessionId="session-1" notes={[]} />, { wrapper });
+
       // Check that buttons are available
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
     });
 
     it('adds note when form is submitted', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={[]} />,
-        { wrapper }
-      );
-      
+      render(<LearningNotesPanel sessionId="session-1" notes={[]} />, { wrapper });
+
       // Check that buttons are available
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
     });
 
     it('cancels add form on cancel button click', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={[]} />,
-        { wrapper }
-      );
-      
+      render(<LearningNotesPanel sessionId="session-1" notes={[]} />, { wrapper });
+
       // Check that buttons are available
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
     });
 
     it('disables save when content is empty', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={[]} />,
-        { wrapper }
-      );
-      
+      render(<LearningNotesPanel sessionId="session-1" notes={[]} />, { wrapper });
+
       // Check that buttons are available
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -178,21 +148,15 @@ describe('LearningNotesPanel', () => {
 
   describe('Editing Notes', () => {
     it('shows edit form when edit button clicked', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={mockNotes} />,
-        { wrapper }
-      );
-      
+      render(<LearningNotesPanel sessionId="session-1" notes={mockNotes} />, { wrapper });
+
       // Notes should be rendered
       expect(screen.getByText('Regular note content')).toBeInTheDocument();
     });
 
     it('saves edited note', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={mockNotes} />,
-        { wrapper }
-      );
-      
+      render(<LearningNotesPanel sessionId="session-1" notes={mockNotes} />, { wrapper });
+
       // Notes should be rendered
       expect(screen.getByText('Regular note content')).toBeInTheDocument();
     });
@@ -200,11 +164,8 @@ describe('LearningNotesPanel', () => {
 
   describe('Deleting Notes', () => {
     it('calls deleteNote when delete button clicked', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={mockNotes} />,
-        { wrapper }
-      );
-      
+      render(<LearningNotesPanel sessionId="session-1" notes={mockNotes} />, { wrapper });
+
       // Notes should be rendered
       expect(screen.getByText('Regular note content')).toBeInTheDocument();
     });
@@ -212,11 +173,8 @@ describe('LearningNotesPanel', () => {
 
   describe('Highlighting Notes', () => {
     it('calls toggleNoteHighlight when star button clicked', async () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={mockNotes} />,
-        { wrapper }
-      );
-      
+      render(<LearningNotesPanel sessionId="session-1" notes={mockNotes} />, { wrapper });
+
       // Notes should be rendered
       expect(screen.getByText('Regular note content')).toBeInTheDocument();
     });
@@ -225,23 +183,16 @@ describe('LearningNotesPanel', () => {
   describe('Styling', () => {
     it('applies custom className', () => {
       const { container } = render(
-        <LearningNotesPanel 
-          sessionId="session-1" 
-          notes={mockNotes} 
-          className="custom-notes" 
-        />,
+        <LearningNotesPanel sessionId="session-1" notes={mockNotes} className="custom-notes" />,
         { wrapper }
       );
-      
+
       expect(container.querySelector('.custom-notes')).toBeInTheDocument();
     });
 
     it('applies highlight styling to highlighted notes', () => {
-      render(
-        <LearningNotesPanel sessionId="session-1" notes={mockNotes} />,
-        { wrapper }
-      );
-      
+      render(<LearningNotesPanel sessionId="session-1" notes={mockNotes} />, { wrapper });
+
       const highlightedNote = screen.getByText('This is an important concept');
       const container = highlightedNote.closest('[class*="border-yellow"]');
       expect(container).toBeInTheDocument();

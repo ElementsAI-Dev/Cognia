@@ -172,7 +172,7 @@ describe('BeautifulExportDialog Component', () => {
 
   it('should render trigger button', () => {
     renderWithProviders(<BeautifulExportDialog session={mockSession} />);
-    
+
     expect(screen.getByRole('button')).toBeInTheDocument();
     expect(screen.getByText('Export')).toBeInTheDocument();
   });
@@ -184,15 +184,15 @@ describe('BeautifulExportDialog Component', () => {
         trigger={<button data-testid="custom-trigger">Custom Export</button>}
       />
     );
-    
+
     expect(screen.getByTestId('custom-trigger')).toBeInTheDocument();
   });
 
   it('should open dialog when trigger is clicked', async () => {
     renderWithProviders(<BeautifulExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Export Conversation')).toBeInTheDocument();
     });
@@ -200,9 +200,9 @@ describe('BeautifulExportDialog Component', () => {
 
   it('should display format and options tabs', async () => {
     renderWithProviders(<BeautifulExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Format')).toBeInTheDocument();
       expect(screen.getByText('Options')).toBeInTheDocument();
@@ -211,9 +211,9 @@ describe('BeautifulExportDialog Component', () => {
 
   it('should display export summary after loading messages', async () => {
     renderWithProviders(<BeautifulExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Export Summary')).toBeInTheDocument();
     });
@@ -221,9 +221,9 @@ describe('BeautifulExportDialog Component', () => {
 
   it('should display preview section', async () => {
     renderWithProviders(<BeautifulExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Preview')).toBeInTheDocument();
     });
@@ -231,9 +231,9 @@ describe('BeautifulExportDialog Component', () => {
 
   it('should have Cancel button', async () => {
     renderWithProviders(<BeautifulExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Cancel')).toBeInTheDocument();
     });
@@ -241,9 +241,9 @@ describe('BeautifulExportDialog Component', () => {
 
   it('should have Share and Image buttons', async () => {
     renderWithProviders(<BeautifulExportDialog session={mockSession} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Share')).toBeInTheDocument();
       expect(screen.getByText('Image')).toBeInTheDocument();
@@ -255,7 +255,7 @@ describe('Custom theme integration with export', () => {
   describe('getSyntaxTheme with custom themes', () => {
     it('should return custom theme when name matches', () => {
       const result = getSyntaxTheme('my-custom-theme', [customTheme]);
-      
+
       expect(result.name).toBe('my-custom-theme');
       expect(result.displayName).toBe('My Custom Theme');
       expect(result.colors.background).toBe('#1a1a1a');
@@ -269,26 +269,26 @@ describe('Custom theme integration with export', () => {
       };
 
       const result = getSyntaxTheme('monokai', [conflictingTheme]);
-      
+
       // Should return built-in, not custom
       expect(result.displayName).toBe('Monokai');
     });
 
     it('should fallback to default when custom theme not found', () => {
       const result = getSyntaxTheme('non-existent', [customTheme]);
-      
+
       expect(result.name).toBe('one-dark-pro');
     });
 
     it('should work with empty custom themes array', () => {
       const result = getSyntaxTheme('monokai', []);
-      
+
       expect(result.name).toBe('monokai');
     });
 
     it('should work when customThemes is undefined', () => {
       const result = getSyntaxTheme('dracula');
-      
+
       expect(result.name).toBe('dracula');
     });
   });
@@ -296,13 +296,26 @@ describe('Custom theme integration with export', () => {
   describe('Custom theme structure validation', () => {
     it('should have all required color properties', () => {
       const requiredColors = [
-        'background', 'foreground', 'comment', 'keyword', 'string',
-        'number', 'function', 'operator', 'property', 'className',
-        'constant', 'tag', 'attrName', 'attrValue', 'punctuation',
-        'selection', 'lineHighlight'
+        'background',
+        'foreground',
+        'comment',
+        'keyword',
+        'string',
+        'number',
+        'function',
+        'operator',
+        'property',
+        'className',
+        'constant',
+        'tag',
+        'attrName',
+        'attrValue',
+        'punctuation',
+        'selection',
+        'lineHighlight',
       ];
 
-      requiredColors.forEach(color => {
+      requiredColors.forEach((color) => {
         expect(customTheme.colors[color as keyof typeof customTheme.colors]).toBeDefined();
       });
     });
@@ -374,10 +387,7 @@ describe('Export options with custom themes', () => {
     };
 
     // Verify the theme can be resolved
-    const resolvedTheme = getSyntaxTheme(
-      exportOptions.syntaxTheme,
-      exportOptions.customThemes
-    );
+    const resolvedTheme = getSyntaxTheme(exportOptions.syntaxTheme, exportOptions.customThemes);
 
     expect(resolvedTheme.name).toBe('my-custom-theme');
     expect(resolvedTheme.colors.background).toBe('#1a1a1a');
@@ -389,10 +399,7 @@ describe('Export options with custom themes', () => {
       customThemes: [customTheme], // doesn't include 'deleted-theme'
     };
 
-    const resolvedTheme = getSyntaxTheme(
-      exportOptions.syntaxTheme,
-      exportOptions.customThemes
-    );
+    const resolvedTheme = getSyntaxTheme(exportOptions.syntaxTheme, exportOptions.customThemes);
 
     // Should fallback to default
     expect(resolvedTheme.name).toBe('one-dark-pro');

@@ -141,9 +141,7 @@ describe('ClipboardHistoryPanel', () => {
     render(<ClipboardHistoryPanel />);
     // Find the refresh button by its icon container (RefreshCw icon)
     const buttons = screen.getAllByRole('button');
-    const refreshButton = buttons.find(btn => 
-      btn.querySelector('svg.lucide-refresh-cw')
-    );
+    const refreshButton = buttons.find((btn) => btn.querySelector('svg.lucide-refresh-cw'));
     expect(refreshButton).toBeDefined();
     fireEvent.click(refreshButton!);
     expect(mockFetchHistory).toHaveBeenCalled();

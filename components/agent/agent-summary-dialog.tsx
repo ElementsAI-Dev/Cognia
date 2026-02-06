@@ -2,7 +2,7 @@
 
 /**
  * AgentSummaryDialog - Dialog for generating and viewing agent execution summaries with diagrams
- * 
+ *
  * Features:
  * - Generate agent execution summaries
  * - Generate Mermaid diagrams for agent flow visualization
@@ -46,12 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
@@ -63,11 +58,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useCopy } from '@/hooks/ui';
 import { useSummary } from '@/hooks/chat';
 import { MermaidBlock } from '@/components/chat/renderers/mermaid-block';
@@ -81,11 +72,36 @@ interface AgentSummaryDialogProps {
   agent: BackgroundAgent;
 }
 
-const DIAGRAM_TYPES: Array<{ value: DiagramType; label: string; icon: React.ReactNode; description: string }> = [
-  { value: 'flowchart', label: 'Flowchart', icon: <GitBranch className="h-4 w-4" />, description: 'Agent execution flow' },
-  { value: 'sequence', label: 'Sequence', icon: <List className="h-4 w-4" />, description: 'Step sequence' },
-  { value: 'timeline', label: 'Timeline', icon: <Clock className="h-4 w-4" />, description: 'Execution timeline' },
-  { value: 'stateDiagram', label: 'State', icon: <BarChart3 className="h-4 w-4" />, description: 'State transitions' },
+const DIAGRAM_TYPES: Array<{
+  value: DiagramType;
+  label: string;
+  icon: React.ReactNode;
+  description: string;
+}> = [
+  {
+    value: 'flowchart',
+    label: 'Flowchart',
+    icon: <GitBranch className="h-4 w-4" />,
+    description: 'Agent execution flow',
+  },
+  {
+    value: 'sequence',
+    label: 'Sequence',
+    icon: <List className="h-4 w-4" />,
+    description: 'Step sequence',
+  },
+  {
+    value: 'timeline',
+    label: 'Timeline',
+    icon: <Clock className="h-4 w-4" />,
+    description: 'Execution timeline',
+  },
+  {
+    value: 'stateDiagram',
+    label: 'State',
+    icon: <BarChart3 className="h-4 w-4" />,
+    description: 'State transitions',
+  },
 ];
 
 // Use formatDurationShort from lib/utils
@@ -103,11 +119,7 @@ function getStatusIcon(status: string) {
   }
 }
 
-export function AgentSummaryDialog({
-  open,
-  onOpenChange,
-  agent,
-}: AgentSummaryDialogProps) {
+export function AgentSummaryDialog({ open, onOpenChange, agent }: AgentSummaryDialogProps) {
   const t = useTranslations('agentSummary');
 
   // Summary hook
@@ -142,18 +154,19 @@ export function AgentSummaryDialog({
 
   // Stats
   const stats = useMemo(() => {
-    const completedSteps = agent.steps.filter(s => s.status === 'completed').length;
-    const failedSteps = agent.steps.filter(s => s.status === 'failed').length;
-    const completedSubAgents = agent.subAgents.filter(sa => sa.status === 'completed').length;
-    
+    const completedSteps = agent.steps.filter((s) => s.status === 'completed').length;
+    const failedSteps = agent.steps.filter((s) => s.status === 'failed').length;
+    const completedSubAgents = agent.subAgents.filter((sa) => sa.status === 'completed').length;
+
     const toolsUsed = new Set<string>();
-    agent.steps.forEach(step => {
-      step.toolCalls?.forEach(tc => toolsUsed.add(tc.name));
+    agent.steps.forEach((step) => {
+      step.toolCalls?.forEach((tc) => toolsUsed.add(tc.name));
     });
 
-    const totalDuration = agent.completedAt && agent.startedAt
-      ? agent.completedAt.getTime() - agent.startedAt.getTime()
-      : agent.steps.reduce((sum, s) => sum + (s.duration || 0), 0);
+    const totalDuration =
+      agent.completedAt && agent.startedAt
+        ? agent.completedAt.getTime() - agent.startedAt.getTime()
+        : agent.steps.reduce((sum, s) => sum + (s.duration || 0), 0);
 
     return {
       totalSteps: agent.steps.length,
@@ -207,25 +220,39 @@ export function AgentSummaryDialog({
     } catch (_err) {
       toast.error(t('generationFailed'));
     }
-  }, [agent, includeSubAgents, includeToolCalls, includeTiming, diagramType, generateAgentSummaryWithDiagram, t]);
+  }, [
+    agent,
+    includeSubAgents,
+    includeToolCalls,
+    includeTiming,
+    diagramType,
+    generateAgentSummaryWithDiagram,
+    t,
+  ]);
 
   // Export handlers
-  const handleExport = useCallback((format: 'markdown' | 'html' | 'json') => {
-    exportSummary({
-      format,
-      includeDiagram: !!diagram,
-      filename: `${agent.name}-summary`,
-    });
-    toast.success(t('exported', { format: format.toUpperCase() }));
-  }, [agent.name, diagram, exportSummary, t]);
+  const handleExport = useCallback(
+    (format: 'markdown' | 'html' | 'json') => {
+      exportSummary({
+        format,
+        includeDiagram: !!diagram,
+        filename: `${agent.name}-summary`,
+      });
+      toast.success(t('exported', { format: format.toUpperCase() }));
+    },
+    [agent.name, diagram, exportSummary, t]
+  );
 
   // Reset when dialog closes
-  const handleOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      reset();
-    }
-    onOpenChange(open);
-  }, [onOpenChange, reset]);
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        reset();
+      }
+      onOpenChange(open);
+    },
+    [onOpenChange, reset]
+  );
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -236,13 +263,22 @@ export function AgentSummaryDialog({
             {t('title')}: {agent.name}
           </DialogTitle>
           <DialogDescription>
-            {agent.task.slice(0, 100)}{agent.task.length > 100 ? '...' : ''}
+            {agent.task.slice(0, 100)}
+            {agent.task.length > 100 ? '...' : ''}
           </DialogDescription>
         </DialogHeader>
 
         {/* Stats */}
         <div className="flex flex-wrap gap-2 py-2">
-          <Badge variant={agent.status === 'completed' ? 'default' : agent.status === 'failed' ? 'destructive' : 'secondary'}>
+          <Badge
+            variant={
+              agent.status === 'completed'
+                ? 'default'
+                : agent.status === 'failed'
+                  ? 'destructive'
+                  : 'secondary'
+            }
+          >
             {getStatusIcon(agent.status)}
             <span className="ml-1">{agent.status}</span>
           </Badge>
@@ -272,7 +308,9 @@ export function AgentSummaryDialog({
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="w-full justify-between">
               <span>{t('options')}</span>
-              <ChevronDown className={cn('h-4 w-4 transition-transform', showOptions && 'rotate-180')} />
+              <ChevronDown
+                className={cn('h-4 w-4 transition-transform', showOptions && 'rotate-180')}
+              />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-3 pt-2">
@@ -283,7 +321,7 @@ export function AgentSummaryDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DIAGRAM_TYPES.map(type => (
+                  {DIAGRAM_TYPES.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       <div className="flex items-center gap-2">
                         {type.icon}
@@ -297,16 +335,34 @@ export function AgentSummaryDialog({
             </div>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2">
-                <Switch id="include-subagents" checked={includeSubAgents} onCheckedChange={setIncludeSubAgents} />
-                <Label htmlFor="include-subagents" className="text-sm">{t('includeSubAgents')}</Label>
+                <Switch
+                  id="include-subagents"
+                  checked={includeSubAgents}
+                  onCheckedChange={setIncludeSubAgents}
+                />
+                <Label htmlFor="include-subagents" className="text-sm">
+                  {t('includeSubAgents')}
+                </Label>
               </div>
               <div className="flex items-center gap-2">
-                <Switch id="include-tools" checked={includeToolCalls} onCheckedChange={setIncludeToolCalls} />
-                <Label htmlFor="include-tools" className="text-sm">{t('includeToolCalls')}</Label>
+                <Switch
+                  id="include-tools"
+                  checked={includeToolCalls}
+                  onCheckedChange={setIncludeToolCalls}
+                />
+                <Label htmlFor="include-tools" className="text-sm">
+                  {t('includeToolCalls')}
+                </Label>
               </div>
               <div className="flex items-center gap-2">
-                <Switch id="include-timing" checked={includeTiming} onCheckedChange={setIncludeTiming} />
-                <Label htmlFor="include-timing" className="text-sm">{t('includeTiming')}</Label>
+                <Switch
+                  id="include-timing"
+                  checked={includeTiming}
+                  onCheckedChange={setIncludeTiming}
+                />
+                <Label htmlFor="include-timing" className="text-sm">
+                  {t('includeTiming')}
+                </Label>
               </div>
             </div>
           </CollapsibleContent>
@@ -331,7 +387,11 @@ export function AgentSummaryDialog({
         )}
 
         {/* Content Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'summary' | 'diagram' | 'steps')} className="flex-1 flex flex-col min-h-0">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as 'summary' | 'diagram' | 'steps')}
+          className="flex-1 flex flex-col min-h-0"
+        >
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="summary" className="gap-2">
               <Bot className="h-4 w-4" />
@@ -352,7 +412,9 @@ export function AgentSummaryDialog({
             {agentSummary ? (
               <ScrollArea className="h-[280px] rounded-lg border p-4">
                 <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: formatSummaryAsHtml(agentSummary.summary) }} />
+                  <div
+                    dangerouslySetInnerHTML={{ __html: formatSummaryAsHtml(agentSummary.summary) }}
+                  />
                 </div>
 
                 {/* Sub-agent summaries */}
@@ -378,7 +440,7 @@ export function AgentSummaryDialog({
                   <div className="mt-4 pt-4 border-t">
                     <h4 className="font-medium mb-2">{t('toolsUsed')}</h4>
                     <div className="flex flex-wrap gap-2">
-                      {agentSummary.toolsUsed.map(tool => (
+                      {agentSummary.toolsUsed.map((tool) => (
                         <Badge key={tool} variant="outline">
                           🔧 {tool}
                         </Badge>
@@ -423,7 +485,7 @@ export function AgentSummaryDialog({
                   <GitBranch className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
                   <p className="text-muted-foreground">{t('noDiagramYet')}</p>
                   <div className="flex flex-wrap justify-center gap-2 mt-3">
-                    {DIAGRAM_TYPES.slice(0, 3).map(type => (
+                    {DIAGRAM_TYPES.slice(0, 3).map((type) => (
                       <Button
                         key={type.value}
                         variant="outline"
@@ -468,9 +530,7 @@ export function AgentSummaryDialog({
                           <Badge variant="outline" className="text-[10px]">
                             {step.type}
                           </Badge>
-                          {step.duration && (
-                            <span>{formatDurationShort(step.duration)}</span>
-                          )}
+                          {step.duration && <span>{formatDurationShort(step.duration)}</span>}
                         </div>
                       </div>
                       {step.description && (
@@ -480,16 +540,14 @@ export function AgentSummaryDialog({
                       )}
                       {step.toolCalls && step.toolCalls.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {step.toolCalls.map(tc => (
+                          {step.toolCalls.map((tc) => (
                             <Badge key={tc.id} variant="secondary" className="text-[10px]">
                               🔧 {tc.name}
                             </Badge>
                           ))}
                         </div>
                       )}
-                      {step.error && (
-                        <p className="text-xs text-destructive mt-1">{step.error}</p>
-                      )}
+                      {step.error && <p className="text-xs text-destructive mt-1">{step.error}</p>}
                     </div>
                   </div>
                 ))}
@@ -597,7 +655,7 @@ function escapeHtml(text: string): string {
 function formatSummaryAsHtml(text: string): string {
   // First escape any HTML entities to prevent XSS
   const escaped = escapeHtml(text);
-  
+
   // Then apply safe markdown-like formatting
   return escaped
     .replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-4 mb-2">$1</h2>')

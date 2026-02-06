@@ -28,10 +28,7 @@ jest.mock('next-intl', () => ({
 // Mock UI store
 jest.mock('@/stores', () => ({
   useUIStore: <T,>(
-    selector: (state: {
-      keyboardShortcutsOpen: boolean;
-      setKeyboardShortcutsOpen: jest.Mock;
-    }) => T
+    selector: (state: { keyboardShortcutsOpen: boolean; setKeyboardShortcutsOpen: jest.Mock }) => T
   ) =>
     selector({
       keyboardShortcutsOpen: true,
@@ -67,7 +64,9 @@ jest.mock('@/hooks/ui/use-keyboard-shortcuts', () => ({
 // Mock UI components
 jest.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    <div data-testid="dialog" data-open={open}>{children}</div>
+    <div data-testid="dialog" data-open={open}>
+      {children}
+    </div>
   ),
   DialogContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dialog-content">{children}</div>
@@ -111,11 +110,7 @@ describe('KeyboardShortcutsDialog', () => {
   });
 
   it('renders custom trigger when provided', () => {
-    render(
-      <KeyboardShortcutsDialog
-        trigger={<button>Custom Trigger</button>}
-      />
-    );
+    render(<KeyboardShortcutsDialog trigger={<button>Custom Trigger</button>} />);
     expect(screen.getByText('Custom Trigger')).toBeInTheDocument();
     expect(screen.getByTestId('dialog-trigger')).toBeInTheDocument();
   });

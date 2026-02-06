@@ -78,11 +78,7 @@ export {
 } from './form';
 
 // Data display components
-export {
-  A2UIChart,
-  A2UITable,
-  A2UIList,
-} from './data';
+export { A2UIChart, A2UITable, A2UIList } from './data';
 
 // Chat and tool integration
 export {
@@ -91,11 +87,7 @@ export {
   useA2UIMessageIntegration,
 } from './a2ui-message-renderer';
 
-export {
-  A2UIToolOutput,
-  A2UIStructuredOutput,
-  hasA2UIToolOutput,
-} from './a2ui-tool-output';
+export { A2UIToolOutput, A2UIStructuredOutput, hasA2UIToolOutput } from './a2ui-tool-output';
 
 // App Builder components
 export { QuickAppBuilder } from './quick-app-builder';

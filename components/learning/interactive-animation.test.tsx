@@ -203,7 +203,7 @@ describe('InteractiveAnimation', () => {
   describe('Navigation', () => {
     it('advances to next step on step forward', () => {
       render(<InteractiveAnimation scene={mockScene} showStepInfo={true} />, { wrapper });
-      
+
       // Navigation buttons should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -211,7 +211,7 @@ describe('InteractiveAnimation', () => {
 
     it('goes back to previous step on step backward', () => {
       render(<InteractiveAnimation scene={mockScene} showStepInfo={true} />, { wrapper });
-      
+
       // Navigation buttons should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -219,7 +219,7 @@ describe('InteractiveAnimation', () => {
 
     it('disables step backward on first step', () => {
       render(<InteractiveAnimation scene={mockScene} showControls={true} />, { wrapper });
-      
+
       const buttons = screen.getAllByRole('button');
       // First button should be step backward and disabled
       expect(buttons[0]).toBeDisabled();
@@ -229,7 +229,7 @@ describe('InteractiveAnimation', () => {
   describe('Autoplay', () => {
     it('starts playing when autoPlay is true', () => {
       render(<InteractiveAnimation scene={mockScene} autoPlay={true} />, { wrapper });
-      
+
       // Should be in playing state - pause button visible
       // Note: The actual autoplay behavior is tested via timer advancement
     });
@@ -246,20 +246,16 @@ describe('InteractiveAnimation', () => {
     it('calls onStepChange when step changes', async () => {
       const onStepChange = jest.fn();
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-      
+
       render(
-        <InteractiveAnimation 
-          scene={mockScene} 
-          onStepChange={onStepChange}
-          showControls={true}
-        />,
+        <InteractiveAnimation scene={mockScene} onStepChange={onStepChange} showControls={true} />,
         { wrapper }
       );
-      
+
       // Find and click step forward
       const buttons = screen.getAllByRole('button');
       await user.click(buttons[2]); // Step forward
-      
+
       await waitFor(() => {
         expect(onStepChange).toHaveBeenCalledWith(1, expect.objectContaining({ id: 'step-2' }));
       });
@@ -268,29 +264,25 @@ describe('InteractiveAnimation', () => {
     it('calls onElementClick for interactive elements', async () => {
       const onElementClick = jest.fn();
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-      
+
       render(
-        <InteractiveAnimation 
-          scene={mockSceneWithInteractive} 
-          onElementClick={onElementClick}
-        />,
+        <InteractiveAnimation scene={mockSceneWithInteractive} onElementClick={onElementClick} />,
         { wrapper }
       );
-      
+
       const interactiveElement = screen.getByText('Click me');
       await user.click(interactiveElement);
-      
+
       expect(onElementClick).toHaveBeenCalledWith('interactive-1', 'action-1');
     });
   });
 
   describe('Reset', () => {
     it('resets to first step on reset click', () => {
-      render(
-        <InteractiveAnimation scene={mockScene} showStepInfo={true} showControls={true} />,
-        { wrapper }
-      );
-      
+      render(<InteractiveAnimation scene={mockScene} showStepInfo={true} showControls={true} />, {
+        wrapper,
+      });
+
       // Controls should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -303,7 +295,7 @@ describe('InteractiveAnimation', () => {
         <InteractiveAnimation scene={mockScene} className="custom-animation" />,
         { wrapper }
       );
-      
+
       expect(container.querySelector('.custom-animation')).toBeInTheDocument();
     });
   });
@@ -316,7 +308,7 @@ describe('InteractiveAnimation', () => {
 
     it('renders shape elements', () => {
       render(<InteractiveAnimation scene={mockScene} showControls={true} />, { wrapper });
-      
+
       // Animation should render with controls
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -325,11 +317,10 @@ describe('InteractiveAnimation', () => {
 
   describe('Step Slider', () => {
     it('renders step slider in non-compact mode', () => {
-      render(
-        <InteractiveAnimation scene={mockScene} compact={false} showControls={true} />,
-        { wrapper }
-      );
-      
+      render(<InteractiveAnimation scene={mockScene} compact={false} showControls={true} />, {
+        wrapper,
+      });
+
       // Step numbers should be visible
       expect(screen.getByText('1')).toBeInTheDocument();
       expect(screen.getByText('2')).toBeInTheDocument();
@@ -344,7 +335,7 @@ describe('useAnimation hook', () => {
       useAnimation();
       return <div>Test</div>;
     };
-    
+
     expect(() => {
       render(<TestComponent />, { wrapper });
     }).toThrow('useAnimation must be used within InteractiveAnimation');

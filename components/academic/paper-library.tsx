@@ -109,7 +109,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
     batchAddToCollection,
     batchRemove,
   } = useAcademic();
-  
+
   const [isBatchMode, setIsBatchMode] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -182,9 +182,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t('createCollection')}</DialogTitle>
-                  <DialogDescription>
-                    {t('createCollectionDescription')}
-                  </DialogDescription>
+                  <DialogDescription>{t('createCollectionDescription')}</DialogDescription>
                 </DialogHeader>
                 <Input
                   placeholder={t('collectionName')}
@@ -306,7 +304,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            
+
             <Button
               variant={isBatchMode ? 'secondary' : 'ghost'}
               size="sm"
@@ -315,11 +313,15 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
                 if (isBatchMode) clearPaperSelection();
               }}
             >
-              {isBatchMode ? <CheckSquare className="h-4 w-4 mr-1" /> : <Square className="h-4 w-4 mr-1" />}
+              {isBatchMode ? (
+                <CheckSquare className="h-4 w-4 mr-1" />
+              ) : (
+                <Square className="h-4 w-4 mr-1" />
+              )}
               {isBatchMode ? t('exitSelection') : t('select')}
             </Button>
           </div>
-          
+
           {/* Batch Action Bar */}
           {isBatchMode && selectedPaperIds.length > 0 && (
             <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
@@ -327,11 +329,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
                 {selectedPaperIds.length} {t('selected')}
               </span>
               <div className="flex-1" />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => selectAllPapers()}
-              >
+              <Button variant="ghost" size="sm" onClick={() => selectAllPapers()}>
                 {t('selectAll')}
               </Button>
               <DropdownMenu>
@@ -372,10 +370,7 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
                     <DropdownMenuItem disabled>{t('noCollections')}</DropdownMenuItem>
                   ) : (
                     collections.map((coll) => (
-                      <DropdownMenuItem
-                        key={coll.id}
-                        onClick={() => batchAddToCollection(coll.id)}
-                      >
+                      <DropdownMenuItem key={coll.id} onClick={() => batchAddToCollection(coll.id)}>
                         <div
                           className="h-3 w-3 rounded-full mr-2"
                           style={{ backgroundColor: coll.color || '#888' }}
@@ -484,20 +479,17 @@ function LibraryPaperCard({
 
   if (viewMode === 'grid') {
     return (
-      <Card 
+      <Card
         className={cn(
           'cursor-pointer hover:bg-accent/50 transition-colors',
           isSelected && 'ring-2 ring-primary'
-        )} 
+        )}
         onClick={onSelect}
       >
         <CardHeader className="pb-2">
           {isBatchMode && (
             <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={() => onToggleSelect?.()}
-              />
+              <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect?.()} />
             </div>
           )}
           <CardTitle className="text-sm font-medium line-clamp-2">{paper.title}</CardTitle>
@@ -542,10 +534,7 @@ function LibraryPaperCard({
     >
       {isBatchMode && (
         <div onClick={(e) => e.stopPropagation()}>
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={() => onToggleSelect?.()}
-          />
+          <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect?.()} />
         </div>
       )}
       <StatusIcon className={cn('h-5 w-5 shrink-0', statusColor)} />
@@ -631,10 +620,7 @@ function LibraryPaperCard({
           <DropdownMenuSeparator />
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <DropdownMenuItem
-                onSelect={(e) => e.preventDefault()}
-                className="text-destructive"
-              >
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Remove from Library
               </DropdownMenuItem>

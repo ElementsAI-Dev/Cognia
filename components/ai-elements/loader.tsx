@@ -1,5 +1,5 @@
-import { cn } from "@/lib/utils";
-import type { HTMLAttributes } from "react";
+import { cn } from '@/lib/utils';
+import type { HTMLAttributes } from 'react';
 
 type LoaderIconProps = {
   size?: number;
@@ -9,19 +9,14 @@ const LoaderIcon = ({ size = 16 }: LoaderIconProps) => (
   <svg
     height={size}
     strokeLinejoin="round"
-    style={{ color: "currentcolor" }}
+    style={{ color: 'currentcolor' }}
     viewBox="0 0 16 16"
     width={size}
   >
     <title>Loader</title>
     <g clipPath="url(#clip0_2393_1490)">
       <path d="M8 0V4" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M8 16V12"
-        opacity="0.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
+      <path d="M8 16V12" opacity="0.5" stroke="currentColor" strokeWidth="1.5" />
       <path
         d="M3.29773 1.52783L5.64887 4.7639"
         opacity="0.9"
@@ -108,7 +103,7 @@ export const Loader = ({ className, size = 16, variant = 'spin', ...props }: Loa
   if (variant === 'dots') {
     return (
       <div
-        className={cn("inline-flex items-center justify-center text-muted-foreground", className)}
+        className={cn('inline-flex items-center justify-center text-muted-foreground', className)}
         {...props}
       >
         <DotsLoader size={size} />
@@ -119,10 +114,7 @@ export const Loader = ({ className, size = 16, variant = 'spin', ...props }: Loa
   if (variant === 'pulse') {
     return (
       <div
-        className={cn(
-          "inline-flex items-center justify-center animate-pulse",
-          className
-        )}
+        className={cn('inline-flex items-center justify-center animate-pulse', className)}
         {...props}
       >
         <LoaderIcon size={size} />
@@ -132,10 +124,7 @@ export const Loader = ({ className, size = 16, variant = 'spin', ...props }: Loa
 
   return (
     <div
-      className={cn(
-        "inline-flex animate-spin items-center justify-center",
-        className
-      )}
+      className={cn('inline-flex animate-spin items-center justify-center', className)}
       style={{ willChange: 'transform', animationDuration: '800ms' }}
       {...props}
     >

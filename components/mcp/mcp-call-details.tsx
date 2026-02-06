@@ -7,24 +7,11 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  ChevronDown,
-  FileJson,
-  Clock,
-  Server,
-  Tag,
-  Hash,
-  AlertCircle,
-  Info,
-} from 'lucide-react';
+import { ChevronDown, FileJson, Clock, Server, Tag, Hash, AlertCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { CodeBlock } from '@/components/ai-elements/code-block';
@@ -98,15 +85,15 @@ function DetailSection({ title, icon: Icon, defaultOpen = false, children }: Det
             <Icon className="h-4 w-4 text-muted-foreground" />
             {title}
           </div>
-          <ChevronDown className={cn(
-            'h-4 w-4 text-muted-foreground transition-transform',
-            isOpen && 'rotate-180'
-          )} />
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 text-muted-foreground transition-transform',
+              isOpen && 'rotate-180'
+            )}
+          />
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-3 pb-3">
-        {children}
-      </CollapsibleContent>
+      <CollapsibleContent className="px-3 pb-3">{children}</CollapsibleContent>
     </Collapsible>
   );
 }
@@ -191,9 +178,9 @@ export function MCPCallDetails({
           {/* Result */}
           {result !== undefined && (
             <DetailSection title={t('result')} icon={FileJson} defaultOpen>
-              <CodeBlock 
-                code={typeof result === 'string' ? result : JSON.stringify(result, null, 2)} 
-                language="json" 
+              <CodeBlock
+                code={typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
+                language="json"
               />
             </DetailSection>
           )}
@@ -230,12 +217,13 @@ export function MCPCallDetails({
             <DetailSection title={`${t('logs')} (${logs.length})`} icon={FileJson}>
               <div className="space-y-1 font-mono text-xs">
                 {logs.map((log, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className={cn(
                       'flex gap-2 p-1 rounded',
                       log.level === 'error' && 'bg-destructive/10 text-destructive',
-                      log.level === 'warning' && 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400',
+                      log.level === 'warning' &&
+                        'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400',
                       log.level === 'debug' && 'text-muted-foreground'
                     )}
                   >

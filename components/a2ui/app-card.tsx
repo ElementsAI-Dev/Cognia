@@ -8,13 +8,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -23,11 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   MoreVertical,
   Play,
@@ -46,10 +36,7 @@ import {
 import { icons } from 'lucide-react';
 import type { A2UIAppInstance } from '@/hooks/a2ui/use-app-builder';
 import type { A2UIAppTemplate } from '@/lib/a2ui/templates';
-import {
-  generatePlaceholderThumbnail,
-  captureSurfaceThumbnail,
-} from '@/lib/a2ui/thumbnail';
+import { generatePlaceholderThumbnail, captureSurfaceThumbnail } from '@/lib/a2ui/thumbnail';
 
 export interface AppCardProps {
   app: A2UIAppInstance;
@@ -94,9 +81,7 @@ export function AppCard({
   const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false);
   const thumbnailGenerated = useRef(false);
 
-  const IconComponent = template?.icon
-    ? icons[template.icon as keyof typeof icons]
-    : null;
+  const IconComponent = template?.icon ? icons[template.icon as keyof typeof icons] : null;
 
   // Format date - localized
   const formatDate = (timestamp: number) => {
@@ -116,10 +101,7 @@ export function AppCard({
   useEffect(() => {
     if (showThumbnail && !thumbnailUrl && !thumbnailGenerated.current) {
       thumbnailGenerated.current = true;
-      const placeholder = generatePlaceholderThumbnail(
-        template?.icon || 'Sparkles',
-        app.name
-      );
+      const placeholder = generatePlaceholderThumbnail(template?.icon || 'Sparkles', app.name);
       setThumbnailUrl(placeholder);
     }
   }, [showThumbnail, thumbnailUrl, template?.icon, app.name]);
@@ -161,11 +143,7 @@ export function AppCard({
       >
         {thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbnailUrl}
-            alt={app.name}
-            className="w-full h-full object-cover"
-          />
+          <img src={thumbnailUrl} alt={app.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Sparkles className="h-8 w-8 text-muted-foreground/50" />
@@ -188,10 +166,7 @@ export function AppCard({
 
         {/* Version badge */}
         {app.version && (
-          <Badge
-            variant="secondary"
-            className="absolute top-2 left-2 text-xs"
-          >
+          <Badge variant="secondary" className="absolute top-2 left-2 text-xs">
             v{app.version}
           </Badge>
         )}
@@ -293,17 +268,11 @@ export function AppCard({
               >
                 {IconComponent ? (
                   <IconComponent
-                    className={cn(
-                      'h-4 w-4',
-                      isSelected ? 'text-primary' : 'text-muted-foreground'
-                    )}
+                    className={cn('h-4 w-4', isSelected ? 'text-primary' : 'text-muted-foreground')}
                   />
                 ) : (
                   <Sparkles
-                    className={cn(
-                      'h-4 w-4',
-                      isSelected ? 'text-primary' : 'text-muted-foreground'
-                    )}
+                    className={cn('h-4 w-4', isSelected ? 'text-primary' : 'text-muted-foreground')}
                   />
                 )}
               </div>
@@ -359,10 +328,7 @@ export function AppCard({
                 重置数据
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => onDelete?.(app.id)}
-              >
+              <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(app.id)}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 删除
               </DropdownMenuItem>
@@ -372,9 +338,7 @@ export function AppCard({
 
         {/* Description */}
         {showDescription && app.description && !compact && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mt-2">
-            {app.description}
-          </p>
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-2">{app.description}</p>
         )}
 
         {/* Tags */}
@@ -389,15 +353,14 @@ export function AppCard({
           </div>
 
           {/* Stats or category badge */}
-          {showStats && app.stats ? (
-            renderStats()
-          ) : (
-            template && !compact && (
-              <Badge variant="outline" className="text-xs py-0 hidden sm:inline-flex">
-                {app.category || template.category}
-              </Badge>
-            )
-          )}
+          {showStats && app.stats
+            ? renderStats()
+            : template &&
+              !compact && (
+                <Badge variant="outline" className="text-xs py-0 hidden sm:inline-flex">
+                  {app.category || template.category}
+                </Badge>
+              )}
         </div>
       </CardFooter>
     </Card>

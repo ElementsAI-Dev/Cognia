@@ -78,7 +78,13 @@ class PreviewErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 /**
  * Loading spinner component
  */
-function PreviewLoading({ message, defaultMessage }: { message?: string; defaultMessage?: string }) {
+function PreviewLoading({
+  message,
+  defaultMessage,
+}: {
+  message?: string;
+  defaultMessage?: string;
+}) {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
       <Loader2 className="h-6 w-6 animate-spin" />
@@ -102,18 +108,18 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
       setIsLoading(false);
       return;
     }
-    
+
     setError(null);
     setIsLoading(true);
-    
+
     // Small delay to ensure iframe is ready
     const timer = setTimeout(() => {
       doRenderPreview();
       setIsLoading(false);
     }, 100);
-    
+
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artifact.content, artifact.type, key, needsIframe]);
 
   const doRenderPreview = () => {

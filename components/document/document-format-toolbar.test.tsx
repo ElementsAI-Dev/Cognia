@@ -67,9 +67,7 @@ describe('DocumentFormatToolbar', () => {
     });
 
     it('should render multiple buttons', () => {
-      renderWithProviders(
-        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
-      );
+      renderWithProviders(<DocumentFormatToolbar onFormatAction={mockOnFormatAction} />);
 
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(10);
@@ -77,10 +75,7 @@ describe('DocumentFormatToolbar', () => {
 
     it('should render font family selector when not compact', () => {
       renderWithProviders(
-        <DocumentFormatToolbar 
-          onFormatAction={mockOnFormatAction}
-          compact={false}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} compact={false} />
       );
 
       const comboboxes = screen.getAllByRole('combobox');
@@ -89,10 +84,7 @@ describe('DocumentFormatToolbar', () => {
 
     it('should hide font family selector in compact mode', () => {
       renderWithProviders(
-        <DocumentFormatToolbar 
-          onFormatAction={mockOnFormatAction}
-          compact={true}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} compact={true} />
       );
 
       const comboboxes = screen.getAllByRole('combobox');
@@ -101,27 +93,20 @@ describe('DocumentFormatToolbar', () => {
 
     it('should apply custom className', () => {
       const { container } = renderWithProviders(
-        <DocumentFormatToolbar 
-          onFormatAction={mockOnFormatAction}
-          className="custom-class"
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} className="custom-class" />
       );
 
       expect(container.firstChild).toHaveClass('custom-class');
     });
 
     it('should render insert dropdown trigger with text', () => {
-      renderWithProviders(
-        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
-      );
+      renderWithProviders(<DocumentFormatToolbar onFormatAction={mockOnFormatAction} />);
 
       expect(screen.getByText(/insert/i)).toBeInTheDocument();
     });
 
     it('should render separators', () => {
-      renderWithProviders(
-        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
-      );
+      renderWithProviders(<DocumentFormatToolbar onFormatAction={mockOnFormatAction} />);
 
       const separators = screen.getAllByRole('none');
       expect(separators.length).toBeGreaterThan(0);
@@ -130,9 +115,7 @@ describe('DocumentFormatToolbar', () => {
 
   describe('Format Actions', () => {
     it('should call onFormatAction when buttons are clicked', async () => {
-      renderWithProviders(
-        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
-      );
+      renderWithProviders(<DocumentFormatToolbar onFormatAction={mockOnFormatAction} />);
 
       const buttons = screen.getAllByRole('button');
       // Click the first few icon buttons (skip dropdowns)
@@ -144,10 +127,7 @@ describe('DocumentFormatToolbar', () => {
   describe('Disabled State', () => {
     it('should disable buttons when disabled is true', () => {
       renderWithProviders(
-        <DocumentFormatToolbar 
-          onFormatAction={mockOnFormatAction}
-          disabled={true}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} disabled={true} />
       );
 
       const buttons = screen.getAllByRole('button');
@@ -157,10 +137,7 @@ describe('DocumentFormatToolbar', () => {
 
     it('should not call onFormatAction when disabled', async () => {
       renderWithProviders(
-        <DocumentFormatToolbar 
-          onFormatAction={mockOnFormatAction}
-          disabled={true}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} disabled={true} />
       );
 
       const buttons = screen.getAllByRole('button');
@@ -173,7 +150,7 @@ describe('DocumentFormatToolbar', () => {
   describe('Font Size Changes', () => {
     it('should render font size selector', () => {
       renderWithProviders(
-        <DocumentFormatToolbar 
+        <DocumentFormatToolbar
           onFormatAction={mockOnFormatAction}
           onFontSizeChange={mockOnFontSizeChange}
         />
@@ -188,10 +165,7 @@ describe('DocumentFormatToolbar', () => {
     it('should apply active class to buttons based on formatState', () => {
       const formatState: FormatState = { bold: true };
       const { container } = renderWithProviders(
-        <DocumentFormatToolbar 
-          onFormatAction={mockOnFormatAction}
-          formatState={formatState}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} formatState={formatState} />
       );
 
       // Check that at least one toggle has the pressed state (data-state="on")
@@ -202,9 +176,7 @@ describe('DocumentFormatToolbar', () => {
 
   describe('Dropdown Menus', () => {
     it('should render insert dropdown trigger', () => {
-      renderWithProviders(
-        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
-      );
+      renderWithProviders(<DocumentFormatToolbar onFormatAction={mockOnFormatAction} />);
 
       const insertButton = screen.getByText(/insert/i);
       expect(insertButton).toBeInTheDocument();
@@ -282,9 +254,7 @@ describe('DocumentFormatToolbar', () => {
 
   describe('Multiple Format Actions', () => {
     it('should call onFormatAction with redo action', async () => {
-      renderWithProviders(
-        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
-      );
+      renderWithProviders(<DocumentFormatToolbar onFormatAction={mockOnFormatAction} />);
 
       const buttons = screen.getAllByRole('button');
       // Second button is redo (index 1)
@@ -294,9 +264,7 @@ describe('DocumentFormatToolbar', () => {
     });
 
     it('should call onFormatAction with bold action', async () => {
-      renderWithProviders(
-        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
-      );
+      renderWithProviders(<DocumentFormatToolbar onFormatAction={mockOnFormatAction} />);
 
       const buttons = screen.getAllByRole('button');
       // Find a button with bold formatting (after font selects)
@@ -312,10 +280,7 @@ describe('DocumentFormatToolbar', () => {
     it('should apply active state when italic is true', () => {
       const formatState: FormatState = { italic: true };
       const { container } = renderWithProviders(
-        <DocumentFormatToolbar
-          onFormatAction={mockOnFormatAction}
-          formatState={formatState}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} formatState={formatState} />
       );
 
       const activeToggles = container.querySelectorAll('[data-state="on"]');
@@ -325,10 +290,7 @@ describe('DocumentFormatToolbar', () => {
     it('should apply active state when underline is true', () => {
       const formatState: FormatState = { underline: true };
       const { container } = renderWithProviders(
-        <DocumentFormatToolbar
-          onFormatAction={mockOnFormatAction}
-          formatState={formatState}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} formatState={formatState} />
       );
 
       const activeToggles = container.querySelectorAll('[data-state="on"]');
@@ -338,10 +300,7 @@ describe('DocumentFormatToolbar', () => {
     it('should apply active state when alignment is center', () => {
       const formatState: FormatState = { alignment: 'center' };
       const { container } = renderWithProviders(
-        <DocumentFormatToolbar
-          onFormatAction={mockOnFormatAction}
-          formatState={formatState}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} formatState={formatState} />
       );
 
       const activeToggles = container.querySelectorAll('[data-state="on"]');
@@ -351,10 +310,7 @@ describe('DocumentFormatToolbar', () => {
     it('should apply active state when listType is bullet', () => {
       const formatState: FormatState = { listType: 'bullet' };
       const { container } = renderWithProviders(
-        <DocumentFormatToolbar
-          onFormatAction={mockOnFormatAction}
-          formatState={formatState}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} formatState={formatState} />
       );
 
       const activeToggles = container.querySelectorAll('[data-state="on"]');
@@ -364,10 +320,7 @@ describe('DocumentFormatToolbar', () => {
     it('should apply active state when isQuote is true', () => {
       const formatState: FormatState = { isQuote: true };
       const { container } = renderWithProviders(
-        <DocumentFormatToolbar
-          onFormatAction={mockOnFormatAction}
-          formatState={formatState}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} formatState={formatState} />
       );
 
       const activeToggles = container.querySelectorAll('[data-state="on"]');
@@ -377,10 +330,7 @@ describe('DocumentFormatToolbar', () => {
     it('should apply active state when isCode is true', () => {
       const formatState: FormatState = { isCode: true };
       const { container } = renderWithProviders(
-        <DocumentFormatToolbar
-          onFormatAction={mockOnFormatAction}
-          formatState={formatState}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} formatState={formatState} />
       );
 
       const activeToggles = container.querySelectorAll('[data-state="on"]');
@@ -392,10 +342,7 @@ describe('DocumentFormatToolbar', () => {
     it('should display current font color indicator', () => {
       const formatState: FormatState = { fontColor: '#DC2626' };
       const { container } = renderWithProviders(
-        <DocumentFormatToolbar
-          onFormatAction={mockOnFormatAction}
-          formatState={formatState}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} formatState={formatState} />
       );
 
       // Find color indicator elements
@@ -406,10 +353,7 @@ describe('DocumentFormatToolbar', () => {
     it('should display current highlight color indicator', () => {
       const formatState: FormatState = { highlightColor: '#FEF08A' };
       const { container } = renderWithProviders(
-        <DocumentFormatToolbar
-          onFormatAction={mockOnFormatAction}
-          formatState={formatState}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} formatState={formatState} />
       );
 
       const colorIndicators = container.querySelectorAll('[style*="background-color"]');
@@ -420,10 +364,7 @@ describe('DocumentFormatToolbar', () => {
   describe('Default Values', () => {
     it('should use default font family when not provided', () => {
       renderWithProviders(
-        <DocumentFormatToolbar
-          onFormatAction={mockOnFormatAction}
-          compact={false}
-        />
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} compact={false} />
       );
 
       // Default font family should be Calibri
@@ -432,9 +373,7 @@ describe('DocumentFormatToolbar', () => {
     });
 
     it('should use default font size when not provided', () => {
-      renderWithProviders(
-        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
-      );
+      renderWithProviders(<DocumentFormatToolbar onFormatAction={mockOnFormatAction} />);
 
       // Default font size should be 11
       const comboboxes = screen.getAllByRole('combobox');

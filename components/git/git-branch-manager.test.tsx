@@ -47,7 +47,7 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('title')).toBeInTheDocument();
   });
 
@@ -62,7 +62,7 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // Multiple elements may contain 'main' (dropdown trigger + branch list)
     const mainElements = screen.getAllByText('main');
     expect(mainElements.length).toBeGreaterThan(0);
@@ -79,7 +79,7 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('new')).toBeInTheDocument();
   });
 
@@ -94,10 +94,10 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     const newButton = screen.getByText('new');
     fireEvent.click(newButton);
-    
+
     await waitFor(() => {
       expect(screen.getByText('createBranch')).toBeInTheDocument();
       expect(screen.getByText('branchName')).toBeInTheDocument();
@@ -115,23 +115,23 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // Open dialog
     const newButton = screen.getByText('new');
     fireEvent.click(newButton);
-    
+
     await waitFor(() => {
       expect(screen.getByText('createBranch')).toBeInTheDocument();
     });
-    
+
     // Fill in branch name
     const input = screen.getByPlaceholderText('branchNamePlaceholder');
     fireEvent.change(input, { target: { value: 'feature/new-feature' } });
-    
+
     // Click create button
     const createButton = screen.getByText('create');
     fireEvent.click(createButton);
-    
+
     await waitFor(() => {
       expect(mockOnCreateBranch).toHaveBeenCalledWith('feature/new-feature', undefined);
     });
@@ -148,7 +148,7 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('feature/test')).toBeInTheDocument();
     expect(screen.getByText('develop')).toBeInTheDocument();
   });
@@ -164,7 +164,7 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // The dropdown trigger should be present
     const dropdownTrigger = screen.getByRole('button', { name: /main/i });
     expect(dropdownTrigger).toBeInTheDocument();
@@ -181,11 +181,11 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // Find delete buttons (they should be present for non-current branches)
-    const deleteButtons = screen.getAllByRole('button').filter(
-      btn => btn.querySelector('svg.lucide-trash-2')
-    );
+    const deleteButtons = screen
+      .getAllByRole('button')
+      .filter((btn) => btn.querySelector('svg.lucide-trash-2'));
     expect(deleteButtons.length).toBeGreaterThan(0);
   });
 
@@ -200,11 +200,11 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
-    const refreshButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('svg.lucide-refresh-cw')
-    );
-    
+
+    const refreshButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.querySelector('svg.lucide-refresh-cw'));
+
     if (refreshButton) {
       fireEvent.click(refreshButton);
       expect(mockOnRefresh).toHaveBeenCalled();
@@ -223,10 +223,10 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
-    const mergeButtons = screen.getAllByRole('button').filter(
-      btn => btn.querySelector('svg.lucide-git-merge')
-    );
+
+    const mergeButtons = screen
+      .getAllByRole('button')
+      .filter((btn) => btn.querySelector('svg.lucide-git-merge'));
     expect(mergeButtons.length).toBeGreaterThan(0);
   });
 
@@ -242,10 +242,10 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // Find disabled button (refresh is disabled when loading)
     const buttons = screen.getAllByRole('button');
-    const disabledButton = buttons.find(btn => btn.hasAttribute('disabled'));
+    const disabledButton = buttons.find((btn) => btn.hasAttribute('disabled'));
     expect(disabledButton).toBeInTheDocument();
   });
 
@@ -260,7 +260,7 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(container).toBeInTheDocument();
   });
 
@@ -275,7 +275,7 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     // Dropdown trigger should show current branch
     const dropdownTrigger = screen.getByRole('button', { name: /main/i });
     expect(dropdownTrigger).toBeInTheDocument();
@@ -292,7 +292,7 @@ describe('GitBranchManager', () => {
         onRefresh={mockOnRefresh}
       />
     );
-    
+
     expect(screen.getByText('noBranch')).toBeInTheDocument();
   });
 });

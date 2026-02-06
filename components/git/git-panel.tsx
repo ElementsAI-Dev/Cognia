@@ -106,20 +106,23 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
   const [isLoadingDiffs, setIsLoadingDiffs] = useState(false);
 
   // Load diffs for the Changes tab
-  const loadDiffs = useCallback(async (staged?: boolean) => {
-    if (!repoPath) return;
-    setIsLoadingDiffs(true);
-    try {
-      const diffs = await getDiffBetween('HEAD', staged ? '--staged' : '');
-      setCurrentDiffs(diffs || []);
-      setShowDiffView(true);
-    } catch (error) {
-      console.error('Failed to load diffs:', error);
-    } finally {
-      setIsLoadingDiffs(false);
-    }
-  }, [repoPath, getDiffBetween]);
-  
+  const loadDiffs = useCallback(
+    async (staged?: boolean) => {
+      if (!repoPath) return;
+      setIsLoadingDiffs(true);
+      try {
+        const diffs = await getDiffBetween('HEAD', staged ? '--staged' : '');
+        setCurrentDiffs(diffs || []);
+        setShowDiffView(true);
+      } catch (error) {
+        console.error('Failed to load diffs:', error);
+      } finally {
+        setIsLoadingDiffs(false);
+      }
+    },
+    [repoPath, getDiffBetween]
+  );
+
   // Refresh status periodically
   useEffect(() => {
     if (isInstalled && repoPath) {
@@ -145,49 +148,79 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
     }
   };
 
-  const handleStageFiles = useCallback(async (files: string[]) => {
-    return stage(files);
-  }, [stage]);
+  const handleStageFiles = useCallback(
+    async (files: string[]) => {
+      return stage(files);
+    },
+    [stage]
+  );
 
-  const handleUnstageFiles = useCallback(async (files: string[]) => {
-    return unstage(files);
-  }, [unstage]);
+  const handleUnstageFiles = useCallback(
+    async (files: string[]) => {
+      return unstage(files);
+    },
+    [unstage]
+  );
 
-  const handleDiscardFiles = useCallback(async (files: string[]) => {
-    return discardChanges(files);
-  }, [discardChanges]);
+  const handleDiscardFiles = useCallback(
+    async (files: string[]) => {
+      return discardChanges(files);
+    },
+    [discardChanges]
+  );
 
-  const handleCheckout = useCallback(async (target: string, createNew?: boolean) => {
-    return checkout(target, createNew);
-  }, [checkout]);
+  const handleCheckout = useCallback(
+    async (target: string, createNew?: boolean) => {
+      return checkout(target, createNew);
+    },
+    [checkout]
+  );
 
-  const handleCreateBranch = useCallback(async (name: string, startPoint?: string) => {
-    return createBranch(name, startPoint);
-  }, [createBranch]);
+  const handleCreateBranch = useCallback(
+    async (name: string, startPoint?: string) => {
+      return createBranch(name, startPoint);
+    },
+    [createBranch]
+  );
 
-  const handleDeleteBranch = useCallback(async (name: string, force?: boolean) => {
-    return deleteBranch(name, force);
-  }, [deleteBranch]);
+  const handleDeleteBranch = useCallback(
+    async (name: string, force?: boolean) => {
+      return deleteBranch(name, force);
+    },
+    [deleteBranch]
+  );
 
-  const handleMergeBranch = useCallback(async (branch: string) => {
-    return mergeBranch(branch);
-  }, [mergeBranch]);
+  const handleMergeBranch = useCallback(
+    async (branch: string) => {
+      return mergeBranch(branch);
+    },
+    [mergeBranch]
+  );
 
-  const handleViewCommitDiff = useCallback(async (commit: GitCommitInfo) => {
-    const diffs = await getDiffBetween(`${commit.hash}^`, commit.hash);
-    return diffs || [];
-  }, [getDiffBetween]);
+  const handleViewCommitDiff = useCallback(
+    async (commit: GitCommitInfo) => {
+      const diffs = await getDiffBetween(`${commit.hash}^`, commit.hash);
+      return diffs || [];
+    },
+    [getDiffBetween]
+  );
 
-  const handleCheckoutCommit = useCallback(async (commitHash: string) => {
-    return checkout(commitHash);
-  }, [checkout]);
+  const handleCheckoutCommit = useCallback(
+    async (commitHash: string) => {
+      return checkout(commitHash);
+    },
+    [checkout]
+  );
 
-  const handleRevertCommit = useCallback(async (commitHash: string) => {
-    // Revert is essentially creating a new commit that undoes the changes
-    // For now, we checkout the parent commit's state for that file
-    // A proper revert would need backend support
-    return checkout(commitHash);
-  }, [checkout]);
+  const handleRevertCommit = useCallback(
+    async (commitHash: string) => {
+      // Revert is essentially creating a new commit that undoes the changes
+      // For now, we checkout the parent commit's state for that file
+      // A proper revert would need backend support
+      return checkout(commitHash);
+    },
+    [checkout]
+  );
 
   const loadBranches = useCallback(async () => {
     await refreshStatus();
@@ -200,9 +233,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
         <div className="text-center py-8">
           <GitBranch className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h3 className="font-medium mb-2">{t('desktopRequired.title')}</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            {t('desktopRequired.description')}
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">{t('desktopRequired.description')}</p>
           <Button variant="outline" onClick={openGitWebsite}>
             <ExternalLink className="h-4 w-4 mr-2" />
             {t('desktopRequired.learnMore')}
@@ -219,9 +250,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
         <div className="text-center py-8">
           <GitBranch className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h3 className="font-medium mb-2">{t('notInstalled.title')}</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            {t('notInstalled.description')}
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">{t('notInstalled.description')}</p>
           <div className="flex justify-center gap-2">
             <Button onClick={installGit}>
               <Download className="h-4 w-4 mr-2" />
@@ -255,17 +284,15 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
         <div className="text-center py-8">
           <FolderGit2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h3 className="font-medium mb-2">{t('noRepo.title')}</h3>
-          <p className="text-sm text-muted-foreground">
-            {t('noRepo.description')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('noRepo.description')}</p>
         </div>
       </div>
     );
   }
 
   const hasChanges = fileStatus.length > 0;
-  const stagedCount = fileStatus.filter(f => f.staged).length;
-  const unstagedCount = fileStatus.filter(f => !f.staged).length;
+  const stagedCount = fileStatus.filter((f) => f.staged).length;
+  const unstagedCount = fileStatus.filter((f) => !f.staged).length;
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
@@ -421,7 +448,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
               onDiscardFiles={handleDiscardFiles}
               onRefresh={refreshStatus}
             />
-            
+
             {/* Diff Preview Toggle */}
             {fileStatus.length > 0 && (
               <div className="border-t pt-3">
@@ -445,7 +472,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
                   )}
                   {showDiffView ? t('diff.collapseAll') : t('diff.expandAll')}
                 </Button>
-                
+
                 {showDiffView && currentDiffs.length > 0 && (
                   <div className="mt-3">
                     <GitDiffViewer
@@ -507,9 +534,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
           <div className="flex items-start gap-2">
             <GitCommit className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
             <div className="min-w-0">
-              <p className="text-xs truncate">
-                {formatCommitMessage(currentRepo.lastCommit)}
-              </p>
+              <p className="text-xs truncate">{formatCommitMessage(currentRepo.lastCommit)}</p>
               <p className="text-xs text-muted-foreground">
                 {currentRepo.lastCommit.author} • {formatCommitDate(currentRepo.lastCommit.date)}
               </p>
@@ -551,9 +576,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
             </div>
 
             {unstagedCount > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {t('commitDialog.willStageAll')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('commitDialog.willStageAll')}</p>
             )}
           </div>
           <DialogFooter>

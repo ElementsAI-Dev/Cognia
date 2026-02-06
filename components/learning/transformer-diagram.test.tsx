@@ -10,8 +10,15 @@ import { TransformerDiagram } from './transformer-diagram';
 // Mock framer-motion - filter out motion-specific props
 jest.mock('motion/react', () => ({
   motion: {
-    button: ({ children, onClick, className, ..._rest }: React.PropsWithChildren<Record<string, unknown>>) => (
-      <button onClick={onClick as () => void} className={className as string}>{children}</button>
+    button: ({
+      children,
+      onClick,
+      className,
+      ..._rest
+    }: React.PropsWithChildren<Record<string, unknown>>) => (
+      <button onClick={onClick as () => void} className={className as string}>
+        {children}
+      </button>
     ),
     div: ({ children, ..._rest }: React.PropsWithChildren<Record<string, unknown>>) => (
       <div>{children}</div>
@@ -161,7 +168,9 @@ describe('TransformerDiagram', () => {
 
     it('hides description when compact', () => {
       render(<TransformerDiagram compact={true} />, { wrapper });
-      expect(screen.queryByText('Interactive visualization of the Transformer model')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('Interactive visualization of the Transformer model')
+      ).not.toBeInTheDocument();
     });
 
     it('renders interactive badge', () => {
@@ -215,7 +224,7 @@ describe('TransformerDiagram', () => {
 
     it('advances to next step on next click', () => {
       render(<TransformerDiagram />, { wrapper });
-      
+
       // Navigation buttons should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThanOrEqual(4);
@@ -225,14 +234,14 @@ describe('TransformerDiagram', () => {
   describe('Auto-play', () => {
     it('auto-advances when autoPlay is true', () => {
       render(<TransformerDiagram autoPlay={true} animationDuration={100} />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Transformer Architecture')).toBeInTheDocument();
     });
 
     it('stops at last step', () => {
       render(<TransformerDiagram autoPlay={true} animationDuration={50} />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Transformer Architecture')).toBeInTheDocument();
     });
@@ -241,36 +250,32 @@ describe('TransformerDiagram', () => {
   describe('Component Interaction', () => {
     it('opens dialog when component clicked', () => {
       render(<TransformerDiagram interactive={true} />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Transformer Architecture')).toBeInTheDocument();
     });
 
     it('shows formula when showFormulas is true', () => {
       render(<TransformerDiagram showFormulas={true} interactive={true} />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Transformer Architecture')).toBeInTheDocument();
     });
 
     it('shows details when showDetails is true', () => {
       render(<TransformerDiagram showDetails={true} interactive={true} />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Transformer Architecture')).toBeInTheDocument();
     });
 
     it('calls onComponentClick callback', () => {
       const onComponentClick = jest.fn();
-      
-      render(
-        <TransformerDiagram 
-          interactive={true} 
-          onComponentClick={onComponentClick}
-        />,
-        { wrapper }
-      );
-      
+
+      render(<TransformerDiagram interactive={true} onComponentClick={onComponentClick} />, {
+        wrapper,
+      });
+
       // Diagram should render
       expect(screen.getByText('Transformer Architecture')).toBeInTheDocument();
     });
@@ -279,7 +284,7 @@ describe('TransformerDiagram', () => {
   describe('Reset', () => {
     it('resets to first step on reset click', () => {
       render(<TransformerDiagram />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Transformer Architecture')).toBeInTheDocument();
     });
@@ -288,9 +293,9 @@ describe('TransformerDiagram', () => {
   describe('Step Change Callback', () => {
     it('calls onStepChange when step changes', () => {
       const onStepChange = jest.fn();
-      
+
       render(<TransformerDiagram onStepChange={onStepChange} />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Transformer Architecture')).toBeInTheDocument();
     });
@@ -299,14 +304,14 @@ describe('TransformerDiagram', () => {
   describe('Attention Visualization', () => {
     it('shows attention visualization on multi-head attention step', () => {
       render(<TransformerDiagram />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Transformer Architecture')).toBeInTheDocument();
     });
 
     it('displays tokens in attention visualization', () => {
       render(<TransformerDiagram />, { wrapper });
-      
+
       // Diagram should render
       expect(screen.getByText('Transformer Architecture')).toBeInTheDocument();
     });
@@ -314,11 +319,8 @@ describe('TransformerDiagram', () => {
 
   describe('Styling', () => {
     it('applies custom className', () => {
-      const { container } = render(
-        <TransformerDiagram className="custom-diagram" />,
-        { wrapper }
-      );
-      
+      const { container } = render(<TransformerDiagram className="custom-diagram" />, { wrapper });
+
       expect(container.querySelector('.custom-diagram')).toBeInTheDocument();
     });
   });

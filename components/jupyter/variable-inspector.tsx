@@ -6,39 +6,15 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  ChevronDown,
-  ChevronRight,
-  RefreshCw,
-  Search,
-  Loader2,
-  Variable,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, RefreshCw, Search, Loader2, Variable } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group';
-import {
-  Empty,
-  EmptyMedia,
-  EmptyDescription,
-} from '@/components/ui/empty';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { VariableInfo } from '@/types/system/jupyter';
 
@@ -89,11 +65,7 @@ export function VariableInspector({
       <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
         <CollapsibleTrigger asChild>
           <Button variant="ghost" size="icon" className="h-6 w-6">
-            {isOpen ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
+            {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           </Button>
         </CollapsibleTrigger>
 
@@ -182,9 +154,7 @@ export function VariableInspector({
                         onClick={() => onInspect?.(variable.name)}
                       >
                         <div className="flex items-center gap-2">
-                          <code className="text-xs font-mono font-medium">
-                            {variable.name}
-                          </code>
+                          <code className="text-xs font-mono font-medium">{variable.name}</code>
                           <Badge
                             variant="secondary"
                             className={cn('text-[10px] px-1.5 py-0', getTypeColor(variable.type))}
@@ -205,9 +175,7 @@ export function VariableInspector({
                     <TooltipContent side="left" className="max-w-[300px]">
                       <div className="space-y-1">
                         <div className="font-medium">{variable.name}</div>
-                        <div className="text-xs font-mono break-all">
-                          {variable.value}
-                        </div>
+                        <div className="text-xs font-mono break-all">{variable.value}</div>
                       </div>
                     </TooltipContent>
                   </Tooltip>

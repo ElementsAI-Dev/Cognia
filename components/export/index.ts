@@ -1,6 +1,6 @@
 /**
  * Export components - UI for chat export functionality
- * 
+ *
  * BeautifulExportDialog: Main unified export dialog supporting all formats
  *   (Beautiful HTML, PDF, Markdown, Word, Excel, CSV, Animated HTML, JSON)
  * BatchExportDialog: Export multiple sessions to ZIP archive

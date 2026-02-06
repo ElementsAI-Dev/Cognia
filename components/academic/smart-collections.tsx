@@ -202,9 +202,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
               <Wand2 className="h-5 w-5 text-purple-500" />
               {t('title')}
             </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t('description')}
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">{t('description')}</p>
           </div>
           <Button
             onClick={handleGenerateCollections}
@@ -267,7 +265,9 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Badge variant="outline">{rule.matchCount} {t('papers')}</Badge>
+                          <Badge variant="outline">
+                            {rule.matchCount} {t('papers')}
+                          </Badge>
                           <Switch
                             checked={rule.enabled}
                             onCheckedChange={() => toggleRule(rule.id)}
@@ -297,9 +297,7 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                {t('noTopicsHint')}
-              </p>
+              <p className="text-sm text-muted-foreground">{t('noTopicsHint')}</p>
             )}
           </div>
 

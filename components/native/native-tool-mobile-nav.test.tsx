@@ -31,28 +31,24 @@ describe('NativeToolMobileNav', () => {
   });
 
   it('renders all native tools', () => {
-    render(
-      <NativeToolMobileNav activeTab="clipboard" onTabChange={mockOnTabChange} />
-    );
+    render(<NativeToolMobileNav activeTab="clipboard" onTabChange={mockOnTabChange} />);
 
     NATIVE_TOOLS.forEach((tool) => {
-      expect(screen.getByRole('button', { name: new RegExp(tool.labelKey, 'i') })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: new RegExp(tool.labelKey, 'i') })
+      ).toBeInTheDocument();
     });
   });
 
   it('highlights active tab', () => {
-    render(
-      <NativeToolMobileNav activeTab="focus" onTabChange={mockOnTabChange} />
-    );
+    render(<NativeToolMobileNav activeTab="focus" onTabChange={mockOnTabChange} />);
 
     const focusButton = screen.getByRole('button', { name: /focus/i });
     expect(focusButton).toHaveAttribute('aria-current', 'page');
   });
 
   it('calls onTabChange when tool is clicked', () => {
-    render(
-      <NativeToolMobileNav activeTab="clipboard" onTabChange={mockOnTabChange} />
-    );
+    render(<NativeToolMobileNav activeTab="clipboard" onTabChange={mockOnTabChange} />);
 
     const systemButton = screen.getByRole('button', { name: /system/i });
     fireEvent.click(systemButton);
@@ -74,9 +70,7 @@ describe('NativeToolMobileNav', () => {
   });
 
   it('renders with horizontal scroll area', () => {
-    render(
-      <NativeToolMobileNav activeTab="clipboard" onTabChange={mockOnTabChange} />
-    );
+    render(<NativeToolMobileNav activeTab="clipboard" onTabChange={mockOnTabChange} />);
 
     // The nav should have scroll area with all buttons visible
     const buttons = screen.getAllByRole('button');

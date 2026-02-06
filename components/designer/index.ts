@@ -1,7 +1,7 @@
 /**
  * Designer components index
  * V0-style web page designer
- * 
+ *
  * Components organized by function:
  * - core/     - Main designer components (DesignerPanel, V0Designer, etc.)
  * - ai/       - AI-related components (AIChatPanel, AISuggestionsPanel)
@@ -10,7 +10,7 @@
  * - preview/  - Preview components (DesignerPreview, ResponsiveControls, etc.)
  * - toolbar/  - Toolbar components (DesignerToolbar, InlineTextEditor, etc.)
  * - dnd/      - Drag and drop system
- * 
+ *
  * Performance optimizations:
  * - Heavy components use React.lazy() for code splitting
  * - Element tree supports virtualization for 1000+ elements

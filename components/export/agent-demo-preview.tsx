@@ -2,7 +2,7 @@
 
 /**
  * AgentDemoPreview - Preview and export agent workflow demonstrations
- * 
+ *
  * Features:
  * - Interactive preview of agent execution
  * - Export to animated HTML
@@ -40,11 +40,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { BackgroundAgent, BackgroundAgentStep } from '@/types/agent/background-agent';
@@ -70,25 +66,25 @@ const STEP_ICONS: Record<BackgroundAgentStep['type'], React.ReactNode> = {
 };
 
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; bgColor: string }> = {
-  completed: { 
-    icon: <CheckCircle className="h-4 w-4" />, 
-    color: 'text-green-500', 
-    bgColor: 'bg-green-500/10' 
+  completed: {
+    icon: <CheckCircle className="h-4 w-4" />,
+    color: 'text-green-500',
+    bgColor: 'bg-green-500/10',
   },
-  running: { 
-    icon: <Loader2 className="h-4 w-4 animate-spin" />, 
-    color: 'text-amber-500', 
-    bgColor: 'bg-amber-500/10' 
+  running: {
+    icon: <Loader2 className="h-4 w-4 animate-spin" />,
+    color: 'text-amber-500',
+    bgColor: 'bg-amber-500/10',
   },
-  failed: { 
-    icon: <XCircle className="h-4 w-4" />, 
-    color: 'text-red-500', 
-    bgColor: 'bg-red-500/10' 
+  failed: {
+    icon: <XCircle className="h-4 w-4" />,
+    color: 'text-red-500',
+    bgColor: 'bg-red-500/10',
   },
-  pending: { 
-    icon: <Clock className="h-4 w-4" />, 
-    color: 'text-muted-foreground', 
-    bgColor: 'bg-muted' 
+  pending: {
+    icon: <Clock className="h-4 w-4" />,
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted',
   },
 };
 
@@ -104,7 +100,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('html');
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
-  
+
   // Demo options
   const [autoPlay, setAutoPlay] = useState(false);
   const [showTimeline, setShowTimeline] = useState(true);
@@ -114,7 +110,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
 
   // Toggle step expansion
   const toggleStep = useCallback((stepNumber: number) => {
-    setExpandedSteps(prev => {
+    setExpandedSteps((prev) => {
       const next = new Set(prev);
       if (next.has(stepNumber)) {
         next.delete(stepNumber);
@@ -128,7 +124,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
   // Handle export
   const handleExport = useCallback(async () => {
     setIsExporting(true);
-    
+
     try {
       const options: Partial<AgentDemoOptions> = {
         autoPlay,
@@ -162,20 +158,27 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
     } finally {
       setIsExporting(false);
     }
-  }, [agent, exportFormat, autoPlay, showTimeline, showToolDetails, showThinkingProcess, playbackSpeed, t]);
+  }, [
+    agent,
+    exportFormat,
+    autoPlay,
+    showTimeline,
+    showToolDetails,
+    showThinkingProcess,
+    playbackSpeed,
+    t,
+  ]);
 
   // Calculate statistics
   const stats = {
     totalSteps: agent.steps.length,
-    completedSteps: agent.steps.filter(s => s.status === 'completed').length,
-    failedSteps: agent.steps.filter(s => s.status === 'failed').length,
+    completedSteps: agent.steps.filter((s) => s.status === 'completed').length,
+    failedSteps: agent.steps.filter((s) => s.status === 'failed').length,
     totalDuration: agent.steps.reduce((sum, s) => sum + (s.duration || 0), 0),
-    toolCalls: agent.steps.filter(s => s.type === 'tool_call').length,
+    toolCalls: agent.steps.filter((s) => s.type === 'tool_call').length,
   };
 
-  const progress = stats.totalSteps > 0 
-    ? (stats.completedSteps / stats.totalSteps) * 100 
-    : 0;
+  const progress = stats.totalSteps > 0 ? (stats.completedSteps / stats.totalSteps) * 100 : 0;
 
   const statusConfig = STATUS_CONFIG[agent.status] || STATUS_CONFIG.pending;
 
@@ -195,9 +198,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
             <Zap className="h-5 w-5" />
             {t('agentWorkflowDemo')}
           </DialogTitle>
-          <DialogDescription>
-            {t('agentWorkflowDemoDesc')}
-          </DialogDescription>
+          <DialogDescription>{t('agentWorkflowDemoDesc')}</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col gap-4">
@@ -220,14 +221,20 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{t('executionProgress')}</span>
-              <span className="font-medium">{stats.completedSteps}/{stats.totalSteps} {t('steps')}</span>
+              <span className="font-medium">
+                {stats.completedSteps}/{stats.totalSteps} {t('steps')}
+              </span>
             </div>
             <Progress value={progress} className="h-2" />
             <div className="flex gap-4 text-xs text-muted-foreground">
               <span>⏱ {formatDuration(stats.totalDuration)}</span>
-              <span>🔧 {stats.toolCalls} {t('toolCalls')}</span>
+              <span>
+                🔧 {stats.toolCalls} {t('toolCalls')}
+              </span>
               {stats.failedSteps > 0 && (
-                <span className="text-red-500">❌ {stats.failedSteps} {t('failed')}</span>
+                <span className="text-red-500">
+                  ❌ {stats.failedSteps} {t('failed')}
+                </span>
               )}
             </div>
           </div>
@@ -240,7 +247,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
                 {agent.steps.map((step) => {
                   const stepStatus = STATUS_CONFIG[step.status] || STATUS_CONFIG.pending;
                   const isExpanded = expandedSteps.has(step.stepNumber);
-                  
+
                   return (
                     <Collapsible
                       key={step.id}
@@ -286,11 +293,15 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
                               {step.toolCalls.map((tc, idx) => (
                                 <div key={idx} className="flex items-center gap-2">
                                   <span>🔧</span>
-                                  <code className="text-xs bg-muted px-1 py-0.5 rounded">{tc.name}</code>
-                                  <span className={cn(
-                                    'text-xs',
-                                    tc.status === 'completed' ? 'text-green-500' : 'text-red-500'
-                                  )}>
+                                  <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                                    {tc.name}
+                                  </code>
+                                  <span
+                                    className={cn(
+                                      'text-xs',
+                                      tc.status === 'completed' ? 'text-green-500' : 'text-red-500'
+                                    )}
+                                  >
                                     {tc.status === 'completed' ? '✓' : '✗'}
                                   </span>
                                 </div>
@@ -328,7 +339,9 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
                     <Code2 className="h-4 w-4" />
                     <div>
                       <div className="font-medium">{t('interactiveHtml')}</div>
-                      <div className="text-xs text-muted-foreground">{t('interactiveHtmlDesc')}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {t('interactiveHtmlDesc')}
+                      </div>
                     </div>
                   </Label>
                 </div>
@@ -358,11 +371,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
                   <Label htmlFor="auto-play" className="text-sm font-normal">
                     {t('autoPlayDemo')}
                   </Label>
-                  <Switch
-                    id="auto-play"
-                    checked={autoPlay}
-                    onCheckedChange={setAutoPlay}
-                  />
+                  <Switch id="auto-play" checked={autoPlay} onCheckedChange={setAutoPlay} />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <Label htmlFor="show-timeline" className="text-sm font-normal">
@@ -399,11 +408,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
           </div>
 
           {/* Export Button */}
-          <Button
-            onClick={handleExport}
-            className="w-full"
-            disabled={isExporting}
-          >
+          <Button onClick={handleExport} className="w-full" disabled={isExporting}>
             {isExporting ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (

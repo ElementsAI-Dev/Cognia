@@ -57,7 +57,7 @@ export function PaperRecommendations({ className }: PaperRecommendationsProps) {
       maxResults: 15,
       minRelevanceScore: 10,
     });
-    
+
     const trending = getTrendingInFields(searchResults, libraryPapers, 10);
     const byAuthors = getPapersByFavoriteAuthors(searchResults, libraryPapers, 10);
 
@@ -77,7 +77,7 @@ export function PaperRecommendations({ className }: PaperRecommendationsProps) {
 
   const handleRefresh = useCallback(async () => {
     if (libraryPapers.length === 0) return;
-    
+
     setIsRefreshing(true);
     try {
       // Get top topics from library to search for new recommendations
@@ -86,7 +86,7 @@ export function PaperRecommendations({ className }: PaperRecommendationsProps) {
         paper.fieldsOfStudy?.forEach((field) => libraryTopics.add(field));
         paper.keywords?.forEach((kw) => libraryTopics.add(kw));
       });
-      
+
       const topTopics = Array.from(libraryTopics).slice(0, 3);
       if (topTopics.length > 0) {
         // Trigger search for each top topic to get fresh candidates
@@ -203,9 +203,7 @@ export function PaperRecommendations({ className }: PaperRecommendationsProps) {
               <Lightbulb className="h-5 w-5 text-yellow-500" />
               {t('title')}
             </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t('description')}
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">{t('description')}</p>
           </div>
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
             <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />

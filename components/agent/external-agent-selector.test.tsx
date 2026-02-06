@@ -43,7 +43,13 @@ jest.mock('@/stores/agent/external-agent-store', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    className,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
     <button onClick={onClick} disabled={disabled} className={className} {...props}>
       {children}
     </button>
@@ -51,42 +57,89 @@ jest.mock('@/components/ui/button', () => ({
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children, className }: { children: React.ReactNode; className?: string; variant?: string }) => (
-    <span data-testid="badge" className={className}>{children}</span>
+  Badge: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    variant?: string;
+  }) => (
+    <span data-testid="badge" className={className}>
+      {children}
+    </span>
   ),
 }));
 
 jest.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-menu">{children}</div>,
-  DropdownMenuContent: ({ children }: { children: React.ReactNode; align?: string; className?: string }) => (
-    <div data-testid="dropdown-content">{children}</div>
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown-menu">{children}</div>
   ),
-  DropdownMenuItem: ({ children, onClick, className }: { children: React.ReactNode; onClick?: () => void; className?: string }) => (
+  DropdownMenuContent: ({
+    children,
+  }: {
+    children: React.ReactNode;
+    align?: string;
+    className?: string;
+  }) => <div data-testid="dropdown-content">{children}</div>,
+  DropdownMenuItem: ({
+    children,
+    onClick,
+    className,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    className?: string;
+  }) => (
     <div data-testid="dropdown-item" onClick={onClick} className={className}>
       {children}
     </div>
   ),
   DropdownMenuSeparator: () => <hr data-testid="dropdown-separator" />,
-  DropdownMenuTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => (
-    <div data-testid="dropdown-trigger">{children}</div>
+  DropdownMenuTrigger: ({
+    children,
+    asChild: _asChild,
+  }: {
+    children: React.ReactNode;
+    asChild?: boolean;
+  }) => <div data-testid="dropdown-trigger">{children}</div>,
+  DropdownMenuGroup: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown-group">{children}</div>
   ),
-  DropdownMenuGroup: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-group">{children}</div>,
-  DropdownMenuLabel: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dropdown-label" className={className}>{children}</div>
+  DropdownMenuLabel: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
+    <div data-testid="dropdown-label" className={className}>
+      {children}
+    </div>
   ),
 }));
 
 jest.mock('@/components/ui/tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip">{children}</div>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip-content">{children}</div>,
-  TooltipTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => (
-    <div data-testid="tooltip-trigger">{children}</div>
+  Tooltip: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="tooltip">{children}</div>
   ),
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="tooltip-content">{children}</div>
+  ),
+  TooltipTrigger: ({
+    children,
+    asChild: _asChild,
+  }: {
+    children: React.ReactNode;
+    asChild?: boolean;
+  }) => <div data-testid="tooltip-trigger">{children}</div>,
 }));
 
 jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="scroll-area" className={className}>{children}</div>
+    <div data-testid="scroll-area" className={className}>
+      {children}
+    </div>
   ),
 }));
 
@@ -166,11 +219,17 @@ describe('ExternalAgentSelector', () => {
   describe('Selection', () => {
     it('calls onAgentChange with null when "Built-in Agent" is clicked', () => {
       const onAgentChange = jest.fn();
-      render(<ExternalAgentSelector {...defaultProps} onAgentChange={onAgentChange} selectedAgentId="agent-1" />);
-      
-      const builtInItem = screen.getAllByTestId('dropdown-item').find(
-        item => item.textContent?.includes('Built-in Agent')
+      render(
+        <ExternalAgentSelector
+          {...defaultProps}
+          onAgentChange={onAgentChange}
+          selectedAgentId="agent-1"
+        />
       );
+
+      const builtInItem = screen
+        .getAllByTestId('dropdown-item')
+        .find((item) => item.textContent?.includes('Built-in Agent'));
       if (builtInItem) {
         fireEvent.click(builtInItem);
         expect(onAgentChange).toHaveBeenCalledWith(null);
@@ -180,10 +239,10 @@ describe('ExternalAgentSelector', () => {
     it('calls onAgentChange with agent ID when external agent is clicked', () => {
       const onAgentChange = jest.fn();
       render(<ExternalAgentSelector {...defaultProps} onAgentChange={onAgentChange} />);
-      
-      const agentItem = screen.getAllByTestId('dropdown-item').find(
-        item => item.textContent?.includes('Claude Code')
-      );
+
+      const agentItem = screen
+        .getAllByTestId('dropdown-item')
+        .find((item) => item.textContent?.includes('Claude Code'));
       if (agentItem) {
         fireEvent.click(agentItem);
         expect(onAgentChange).toHaveBeenCalledWith('agent-1');
@@ -222,10 +281,10 @@ describe('ExternalAgentSelector', () => {
     it('calls onOpenSettings when "Manage Agents" is clicked', () => {
       const onOpenSettings = jest.fn();
       render(<ExternalAgentSelector {...defaultProps} onOpenSettings={onOpenSettings} />);
-      
-      const settingsItem = screen.getAllByTestId('dropdown-item').find(
-        item => item.textContent?.includes('Manage Agents')
-      );
+
+      const settingsItem = screen
+        .getAllByTestId('dropdown-item')
+        .find((item) => item.textContent?.includes('Manage Agents'));
       if (settingsItem) {
         fireEvent.click(settingsItem);
         expect(onOpenSettings).toHaveBeenCalled();

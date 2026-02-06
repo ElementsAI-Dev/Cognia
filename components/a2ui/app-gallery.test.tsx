@@ -33,7 +33,13 @@ jest.mock('./a2ui-surface', () => ({
 }));
 
 jest.mock('./app-card', () => ({
-  AppCard: ({ app, onSelect }: { app: { id: string; name: string }; onSelect: (id: string) => void }) => (
+  AppCard: ({
+    app,
+    onSelect,
+  }: {
+    app: { id: string; name: string };
+    onSelect: (id: string) => void;
+  }) => (
     <div data-testid={`app-card-${app.id}`} onClick={() => onSelect(app.id)}>
       {app.name}
     </div>
@@ -41,9 +47,8 @@ jest.mock('./app-card', () => ({
 }));
 
 jest.mock('./app-detail-dialog', () => ({
-  AppDetailDialog: ({ open }: { open: boolean }) => (
-    open ? <div data-testid="app-detail-dialog">Detail Dialog</div> : null
-  ),
+  AppDetailDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="app-detail-dialog">Detail Dialog</div> : null,
 }));
 
 jest.mock('@/lib/a2ui/thumbnail', () => ({
@@ -83,19 +88,19 @@ describe('AppGallery', () => {
   describe('rendering', () => {
     it('should render gallery header', () => {
       render(<AppGallery />);
-      
+
       expect(screen.getByText('应用库')).toBeInTheDocument();
     });
 
     it('should render search input', () => {
       render(<AppGallery />);
-      
+
       expect(screen.getByPlaceholderText('搜索应用...')).toBeInTheDocument();
     });
 
     it('should render view mode toggles', () => {
       render(<AppGallery />);
-      
+
       // Both grid and list buttons should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -103,19 +108,19 @@ describe('AppGallery', () => {
 
     it('should render category filter', () => {
       render(<AppGallery />);
-      
+
       expect(screen.getByText('全部分类')).toBeInTheDocument();
     });
 
     it('should render empty state when no apps', () => {
       render(<AppGallery />);
-      
+
       expect(screen.getByText('暂无应用')).toBeInTheDocument();
     });
 
     it('should render app count badge', () => {
       render(<AppGallery />);
-      
+
       expect(screen.getByText('0')).toBeInTheDocument();
     });
   });
@@ -145,7 +150,7 @@ describe('AppGallery', () => {
         templates: [],
         getTemplate: jest.fn((id) => ({ id, name: `Template ${id}`, category: 'productivity' })),
         getAllApps: jest.fn(() => mockApps),
-        getAppInstance: jest.fn((id) => mockApps.find(app => app.id === id)),
+        getAppInstance: jest.fn((id) => mockApps.find((app) => app.id === id)),
         createFromTemplate: jest.fn(),
         duplicateApp: jest.fn(() => 'new-app-id'),
         deleteApp: jest.fn(),
@@ -161,27 +166,27 @@ describe('AppGallery', () => {
 
     it('should render app cards', () => {
       render(<AppGallery />);
-      
+
       expect(screen.getByTestId('app-card-app-1')).toBeInTheDocument();
       expect(screen.getByTestId('app-card-app-2')).toBeInTheDocument();
     });
 
     it('should show correct app count', () => {
       render(<AppGallery />);
-      
+
       expect(screen.getByText('2')).toBeInTheDocument();
     });
 
     it('should have search input for filtering', () => {
       render(<AppGallery />);
-      
+
       const searchInput = screen.getByPlaceholderText('搜索应用...');
       expect(searchInput).toBeInTheDocument();
     });
 
     it('should render app cards that can be clicked', () => {
       render(<AppGallery />);
-      
+
       const appCard = screen.getByTestId('app-card-app-1');
       expect(appCard).toBeInTheDocument();
     });
@@ -189,12 +194,20 @@ describe('AppGallery', () => {
 
   describe('dialogs', () => {
     it('should open delete confirmation dialog', async () => {
-      const mockApps = [{ id: 'app-1', templateId: 't1', name: 'App', createdAt: Date.now(), lastModified: Date.now() }];
+      const mockApps = [
+        {
+          id: 'app-1',
+          templateId: 't1',
+          name: 'App',
+          createdAt: Date.now(),
+          lastModified: Date.now(),
+        },
+      ];
       mockUseA2UIAppBuilder.mockReturnValue({
         templates: [],
         getTemplate: jest.fn(),
         getAllApps: jest.fn(() => mockApps),
-        getAppInstance: jest.fn((id) => mockApps.find(app => app.id === id)),
+        getAppInstance: jest.fn((id) => mockApps.find((app) => app.id === id)),
         createFromTemplate: jest.fn(),
         duplicateApp: jest.fn(),
         deleteApp: jest.fn(),
@@ -208,7 +221,7 @@ describe('AppGallery', () => {
       });
 
       render(<AppGallery />);
-      
+
       // Verify app card is rendered
       expect(screen.getByTestId('app-card-app-1')).toBeInTheDocument();
     });
@@ -217,20 +230,20 @@ describe('AppGallery', () => {
   describe('props', () => {
     it('should accept className prop', () => {
       const { container } = render(<AppGallery className="custom-class" />);
-      
+
       expect(container.firstChild).toHaveClass('custom-class');
     });
 
     it('should respect showPreview prop', () => {
       render(<AppGallery showPreview={false} />);
-      
+
       // Component should render without preview
       expect(screen.getByText('应用库')).toBeInTheDocument();
     });
 
     it('should respect defaultViewMode prop', () => {
       render(<AppGallery defaultViewMode="list" />);
-      
+
       // Should render in list mode
       expect(screen.getByText('应用库')).toBeInTheDocument();
     });
@@ -239,13 +252,13 @@ describe('AppGallery', () => {
   describe('sorting', () => {
     it('should render sort options', () => {
       render(<AppGallery />);
-      
+
       expect(screen.getByText('排序:')).toBeInTheDocument();
     });
 
     it('should have sort toggle button', () => {
       render(<AppGallery />);
-      
+
       // Sort order toggle button should be present
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);

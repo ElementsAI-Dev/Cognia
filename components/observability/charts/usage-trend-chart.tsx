@@ -89,7 +89,12 @@ export function UsageTrendChart({
               <XAxis dataKey="displayDate" tick={{ fontSize: 12 }} className="text-xs" />
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} className="text-xs" />
               {showCost && (
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} className="text-xs" />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fontSize: 12 }}
+                  className="text-xs"
+                />
               )}
               <Tooltip
                 contentStyle={TOOLTIP_STYLE.contentStyle}

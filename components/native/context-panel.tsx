@@ -27,12 +27,7 @@ interface ContextPanelProps {
 
 export function ContextPanel({ className }: ContextPanelProps) {
   const t = useTranslations('contextPanel');
-  const {
-    context,
-    isLoading,
-    error,
-    fetchContext,
-  } = useContext();
+  const { context, isLoading, error, fetchContext } = useContext();
 
   const getAppTypeIcon = (appType?: AppType) => {
     switch (appType) {
@@ -98,9 +93,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-4">
           {error && (
-            <div className="text-sm text-destructive p-2 bg-destructive/10 rounded">
-              {error}
-            </div>
+            <div className="text-sm text-destructive p-2 bg-destructive/10 rounded">{error}</div>
           )}
 
           {context?.window && (
@@ -116,7 +109,9 @@ export function ContextPanel({ className }: ContextPanelProps) {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{context.window.process_name}</span>
                   <span>·</span>
-                  <span>{context.window.width}x{context.window.height}</span>
+                  <span>
+                    {context.window.width}x{context.window.height}
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -142,13 +137,19 @@ export function ContextPanel({ className }: ContextPanelProps) {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {context.app.supports_text_input && (
-                    <Badge variant="outline" className="text-xs">{t('textInput')}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {t('textInput')}
+                    </Badge>
                   )}
                   {context.app.supports_rich_text && (
-                    <Badge variant="outline" className="text-xs">{t('richText')}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {t('richText')}
+                    </Badge>
                   )}
                   {context.app.is_dev_tool && (
-                    <Badge variant="outline" className="text-xs">{t('devTool')}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {t('devTool')}
+                    </Badge>
                   )}
                 </div>
                 {context.app.suggested_actions.length > 0 && (
@@ -181,9 +182,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
                   <div className="flex items-center gap-2 text-sm">
                     <FileCode className="h-3 w-3 text-muted-foreground" />
                     <span className="truncate">{context.editor.file_name}</span>
-                    {context.editor.is_modified && (
-                      <span className="text-yellow-500">●</span>
-                    )}
+                    {context.editor.is_modified && <span className="text-yellow-500">●</span>}
                   </div>
                 )}
                 {context.editor.project_name && (
@@ -222,9 +221,7 @@ export function ContextPanel({ className }: ContextPanelProps) {
                 )}
                 {context.browser.domain && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {context.browser.is_secure && (
-                      <span className="text-green-500">🔒</span>
-                    )}
+                    {context.browser.is_secure && <span className="text-green-500">🔒</span>}
                     <span className="truncate">{context.browser.domain}</span>
                   </div>
                 )}
@@ -241,13 +238,9 @@ export function ContextPanel({ className }: ContextPanelProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {context.file.name && (
-                  <p className="font-medium truncate">{context.file.name}</p>
-                )}
+                {context.file.name && <p className="font-medium truncate">{context.file.name}</p>}
                 {context.file.path && (
-                  <p className="text-xs text-muted-foreground truncate">
-                    {context.file.path}
-                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{context.file.path}</p>
                 )}
                 <div className="flex items-center gap-2">
                   {context.file.language && (

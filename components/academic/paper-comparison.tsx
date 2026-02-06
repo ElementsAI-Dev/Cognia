@@ -132,9 +132,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
               <ArrowLeftRight className="h-5 w-5" />
               {t('title')}
             </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t('description')}
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">{t('description')}</p>
           </div>
 
           <Dialog open={isSelectOpen} onOpenChange={setIsSelectOpen}>

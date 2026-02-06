@@ -81,17 +81,22 @@ export function AppDetailDialog({
 }: AppDetailDialogProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<Partial<A2UIAppInstance>>({});
-  const [publishCheck, setPublishCheck] = useState<{ valid: boolean; missing: string[] } | null>(null);
+  const [publishCheck, setPublishCheck] = useState<{ valid: boolean; missing: string[] } | null>(
+    null
+  );
 
   // Reset state when dialog opens/closes
-  const handleOpenChange = useCallback((newOpen: boolean) => {
-    if (!newOpen) {
-      setIsEditing(false);
-      setEditedData({});
-      setPublishCheck(null);
-    }
-    onOpenChange(newOpen);
-  }, [onOpenChange]);
+  const handleOpenChange = useCallback(
+    (newOpen: boolean) => {
+      if (!newOpen) {
+        setIsEditing(false);
+        setEditedData({});
+        setPublishCheck(null);
+      }
+      onOpenChange(newOpen);
+    },
+    [onOpenChange]
+  );
 
   // Start editing
   const handleStartEdit = useCallback(() => {
@@ -155,10 +160,16 @@ export function AppDetailDialog({
   }, []);
 
   // Update tags
-  const handleTagsChange = useCallback((tagsString: string) => {
-    const tags = tagsString.split(',').map((t) => t.trim()).filter(Boolean);
-    updateField('tags', tags);
-  }, [updateField]);
+  const handleTagsChange = useCallback(
+    (tagsString: string) => {
+      const tags = tagsString
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      updateField('tags', tags);
+    },
+    [updateField]
+  );
 
   if (!app) return null;
 
@@ -170,9 +181,7 @@ export function AppDetailDialog({
             <Info className="h-5 w-5" />
             应用详情
           </DialogTitle>
-          <DialogDescription>
-            查看和编辑应用的详细信息
-          </DialogDescription>
+          <DialogDescription>查看和编辑应用的详细信息</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="info" className="mt-4">
@@ -189,11 +198,7 @@ export function AppDetailDialog({
               <div className="w-40 h-28 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                 {app.thumbnail ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={app.thumbnail}
-                    alt={app.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={app.thumbnail} alt={app.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <Sparkles className="h-8 w-8 text-muted-foreground/50" />
@@ -283,7 +288,8 @@ export function AppDetailDialog({
                 <div className="flex items-center gap-2 mt-1">
                   <FolderOpen className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">
-                    {CATEGORY_OPTIONS.find((c) => c.value === (app.category || template?.category))?.label || '未分类'}
+                    {CATEGORY_OPTIONS.find((c) => c.value === (app.category || template?.category))
+                      ?.label || '未分类'}
                   </span>
                 </div>
               )}
@@ -322,18 +328,14 @@ export function AppDetailDialog({
                   <Calendar className="h-3 w-3" />
                   创建时间
                 </Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {formatDate(app.createdAt)}
-                </p>
+                <p className="text-sm text-muted-foreground mt-1">{formatDate(app.createdAt)}</p>
               </div>
               <div>
                 <Label className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   最后修改
                 </Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {formatDate(app.lastModified)}
-                </p>
+                <p className="text-sm text-muted-foreground mt-1">{formatDate(app.lastModified)}</p>
               </div>
             </div>
           </TabsContent>
@@ -409,9 +411,7 @@ export function AppDetailDialog({
                 </div>
                 <div className="text-center p-3 rounded-lg bg-muted">
                   <Star className="h-5 w-5 mx-auto mb-1 text-yellow-500" />
-                  <p className="text-lg font-semibold">
-                    {app.stats?.rating?.toFixed(1) || '-'}
-                  </p>
+                  <p className="text-lg font-semibold">{app.stats?.rating?.toFixed(1) || '-'}</p>
                   <p className="text-xs text-muted-foreground">评分</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-muted">
@@ -453,10 +453,14 @@ export function AppDetailDialog({
             </div>
 
             {publishCheck && (
-              <div className={cn(
-                'p-4 rounded-lg',
-                publishCheck.valid ? 'bg-green-50 dark:bg-green-950' : 'bg-yellow-50 dark:bg-yellow-950'
-              )}>
+              <div
+                className={cn(
+                  'p-4 rounded-lg',
+                  publishCheck.valid
+                    ? 'bg-green-50 dark:bg-green-950'
+                    : 'bg-yellow-50 dark:bg-yellow-950'
+                )}
+              >
                 {publishCheck.valid ? (
                   <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
                     <CheckCircle className="h-5 w-5" />
@@ -480,14 +484,14 @@ export function AppDetailDialog({
 
             {app.isPublished && (
               <div className="text-center p-4 bg-muted rounded-lg">
-                <Badge variant="default" className="mb-2">已发布</Badge>
+                <Badge variant="default" className="mb-2">
+                  已发布
+                </Badge>
                 <p className="text-sm text-muted-foreground">
                   发布时间: {app.publishedAt ? formatDate(app.publishedAt) : '未知'}
                 </p>
                 {app.storeId && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    商店 ID: {app.storeId}
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">商店 ID: {app.storeId}</p>
                 )}
               </div>
             )}

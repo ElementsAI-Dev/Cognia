@@ -2,7 +2,7 @@
 
 /**
  * Quiz Component - Interactive quiz for generative UI
- * 
+ *
  * Renders interactive quizzes with multiple question types:
  * - Multiple choice
  * - True/False
@@ -73,33 +73,37 @@ export const QuizQuestion = memo(function QuizQuestion({
   const [startTime] = useState(() => Date.now());
   const learningStore = useLearningStore();
 
-  const checkAnswer = useCallback((answer: string): boolean => {
-    const normalizedAnswer = answer.trim().toLowerCase();
-    const normalizedCorrect = question.correctAnswer.trim().toLowerCase();
+  const checkAnswer = useCallback(
+    (answer: string): boolean => {
+      const normalizedAnswer = answer.trim().toLowerCase();
+      const normalizedCorrect = question.correctAnswer.trim().toLowerCase();
 
-    if (question.type === 'true_false') {
-      return normalizedAnswer === normalizedCorrect;
-    }
+      if (question.type === 'true_false') {
+        return normalizedAnswer === normalizedCorrect;
+      }
 
-    if (question.type === 'multiple_choice') {
-      return normalizedAnswer === normalizedCorrect;
-    }
+      if (question.type === 'multiple_choice') {
+        return normalizedAnswer === normalizedCorrect;
+      }
 
-    if (question.type === 'fill_blank') {
-      return normalizedAnswer === normalizedCorrect;
-    }
+      if (question.type === 'fill_blank') {
+        return normalizedAnswer === normalizedCorrect;
+      }
 
-    // Short answer - more lenient matching
-    return normalizedCorrect.includes(normalizedAnswer) || 
-           normalizedAnswer.includes(normalizedCorrect);
-  }, [question.correctAnswer, question.type]);
+      // Short answer - more lenient matching
+      return (
+        normalizedCorrect.includes(normalizedAnswer) || normalizedAnswer.includes(normalizedCorrect)
+      );
+    },
+    [question.correctAnswer, question.type]
+  );
 
   const handleSubmit = useCallback(() => {
     if (!userAnswer.trim()) return;
 
     const correct = checkAnswer(userAnswer);
     const timeSpentMs = Date.now() - startTime;
-    
+
     setIsSubmitted(true);
     setIsCorrect(correct);
 
@@ -113,7 +117,16 @@ export const QuizQuestion = memo(function QuizQuestion({
       userAnswer,
       timeSpentMs,
     });
-  }, [userAnswer, checkAnswer, startTime, sessionId, question.id, question.conceptId, learningStore, onAnswer]);
+  }, [
+    userAnswer,
+    checkAnswer,
+    startTime,
+    sessionId,
+    question.id,
+    question.conceptId,
+    learningStore,
+    onAnswer,
+  ]);
 
   const handleRetry = useCallback(() => {
     setUserAnswer('');
@@ -146,8 +159,13 @@ export const QuizQuestion = memo(function QuizQuestion({
                   htmlFor={`option-${index}`}
                   className={cn(
                     'cursor-pointer',
-                    isSubmitted && option === question.correctAnswer && 'text-green-600 font-medium',
-                    isSubmitted && userAnswer === option && !isCorrect && 'text-red-600 line-through'
+                    isSubmitted &&
+                      option === question.correctAnswer &&
+                      'text-green-600 font-medium',
+                    isSubmitted &&
+                      userAnswer === option &&
+                      !isCorrect &&
+                      'text-red-600 line-through'
                   )}
                 >
                   {option}
@@ -237,9 +255,7 @@ export const QuizQuestion = memo(function QuizQuestion({
         )}
 
         {/* Input */}
-        <div className="space-y-3">
-          {renderQuestionInput()}
-        </div>
+        <div className="space-y-3">{renderQuestionInput()}</div>
 
         {/* Feedback */}
         {isSubmitted && showFeedback && (
@@ -256,21 +272,24 @@ export const QuizQuestion = memo(function QuizQuestion({
                 <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
               )}
               <div className="space-y-1">
-                <p className={cn(
-                  'font-medium',
-                  isCorrect ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
-                )}>
+                <p
+                  className={cn(
+                    'font-medium',
+                    isCorrect
+                      ? 'text-green-700 dark:text-green-300'
+                      : 'text-red-700 dark:text-red-300'
+                  )}
+                >
                   {isCorrect ? t('quiz.correct') : t('quiz.incorrect')}
                 </p>
                 {!isCorrect && (
                   <p className="text-sm text-muted-foreground">
-                    {t('quiz.correctAnswerIs')}: <span className="font-medium">{question.correctAnswer}</span>
+                    {t('quiz.correctAnswerIs')}:{' '}
+                    <span className="font-medium">{question.correctAnswer}</span>
                   </p>
                 )}
                 {question.explanation && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {question.explanation}
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">{question.explanation}</p>
                 )}
               </div>
             </div>
@@ -282,11 +301,7 @@ export const QuizQuestion = memo(function QuizQuestion({
           {!isSubmitted && (
             <>
               {question.hint && !showHint && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowHint(true)}
-                >
+                <Button variant="outline" size="sm" onClick={() => setShowHint(true)}>
                   <Lightbulb className="h-4 w-4 mr-2" />
                   {t('showHint')}
                 </Button>
@@ -302,12 +317,7 @@ export const QuizQuestion = memo(function QuizQuestion({
             </>
           )}
           {isSubmitted && allowRetry && !isCorrect && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRetry}
-              className="ml-auto"
-            >
+            <Button variant="outline" size="sm" onClick={handleRetry} className="ml-auto">
               <RotateCcw className="h-4 w-4 mr-2" />
               {t('quiz.tryAgain')}
             </Button>
@@ -384,15 +394,16 @@ export const Quiz = memo(function Quiz({
 
   const handleComplete = useCallback(() => {
     setIsComplete(true);
-    
+
     const totalPoints = quiz.questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
     const score = results.reduce((sum, r) => {
       const question = quiz.questions.find((q) => q.id === r.questionId);
       return sum + (r.correct ? (question?.points ?? 1) : 0);
     }, 0);
-    const accuracy = results.length > 0 
-      ? Math.round((results.filter((r) => r.correct).length / results.length) * 100)
-      : 0;
+    const accuracy =
+      results.length > 0
+        ? Math.round((results.filter((r) => r.correct).length / results.length) * 100)
+        : 0;
     const timeSpentMs = Date.now() - startTime;
 
     onComplete?.({
@@ -441,37 +452,46 @@ export const Quiz = memo(function Quiz({
       const question = quiz.questions.find((q) => q.id === r.questionId);
       return sum + (r.correct ? (question?.points ?? 1) : 0);
     }, 0);
-    const accuracy = results.length > 0
-      ? Math.round((results.filter((r) => r.correct).length / results.length) * 100)
-      : 0;
+    const accuracy =
+      results.length > 0
+        ? Math.round((results.filter((r) => r.correct).length / results.length) * 100)
+        : 0;
     const passed = quiz.passingScore ? accuracy >= quiz.passingScore : true;
 
     return (
       <Card className={cn('p-6', className)}>
         <div className="text-center space-y-4">
-          <div className={cn(
-            'mx-auto w-16 h-16 rounded-full flex items-center justify-center',
-            passed ? 'bg-green-100 dark:bg-green-900/30' : 'bg-yellow-100 dark:bg-yellow-900/30'
-          )}>
+          <div
+            className={cn(
+              'mx-auto w-16 h-16 rounded-full flex items-center justify-center',
+              passed ? 'bg-green-100 dark:bg-green-900/30' : 'bg-yellow-100 dark:bg-yellow-900/30'
+            )}
+          >
             {passed ? (
               <Trophy className="h-8 w-8 text-green-600 dark:text-green-400" />
             ) : (
               <Target className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
             )}
           </div>
-          
+
           <h3 className="text-xl font-semibold">{t('quiz.completed')}</h3>
-          
+
           <div className="text-4xl font-bold text-primary">{accuracy}%</div>
-          
+
           <div className="text-muted-foreground">
             <p>{t('quiz.scoreResult', { score, total: totalPoints })}</p>
-            <p>{t('quiz.correctCount', { correct: results.filter((r) => r.correct).length, total: results.length })}</p>
+            <p>
+              {t('quiz.correctCount', {
+                correct: results.filter((r) => r.correct).length,
+                total: results.length,
+              })}
+            </p>
           </div>
 
           {quiz.passingScore && (
             <Badge variant={passed ? 'default' : 'destructive'}>
-              {passed ? t('quiz.passed') : t('quiz.failed')} ({t('quiz.passingScore')}: {quiz.passingScore}%)
+              {passed ? t('quiz.passed') : t('quiz.failed')} ({t('quiz.passingScore')}:{' '}
+              {quiz.passingScore}%)
             </Badge>
           )}
 
@@ -487,7 +507,7 @@ export const Quiz = memo(function Quiz({
   }
 
   const currentQuestion = questions[currentIndex];
-  const progress = ((currentIndex) / questions.length) * 100;
+  const progress = (currentIndex / questions.length) * 100;
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -497,15 +517,16 @@ export const Quiz = memo(function Quiz({
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">{quiz.title}</CardTitle>
             {timeRemaining !== null && (
-              <Badge variant={timeRemaining < 60 ? 'destructive' : 'outline'} className="flex items-center gap-1">
+              <Badge
+                variant={timeRemaining < 60 ? 'destructive' : 'outline'}
+                className="flex items-center gap-1"
+              >
                 <Clock className="h-3 w-3" />
                 {formatTime(timeRemaining)}
               </Badge>
             )}
           </div>
-          {quiz.description && (
-            <p className="text-sm text-muted-foreground">{quiz.description}</p>
-          )}
+          {quiz.description && <p className="text-sm text-muted-foreground">{quiz.description}</p>}
         </CardHeader>
       </Card>
 
@@ -589,10 +610,7 @@ interface QuizFromToolProps {
   }) => void;
 }
 
-export const QuizFromTool = memo(function QuizFromTool({
-  output,
-  onComplete,
-}: QuizFromToolProps) {
+export const QuizFromTool = memo(function QuizFromTool({ output, onComplete }: QuizFromToolProps) {
   return (
     <Quiz
       quiz={output.quiz}

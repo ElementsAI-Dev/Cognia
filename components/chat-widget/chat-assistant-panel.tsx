@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /**
  * Chat Assistant Panel
@@ -7,18 +7,18 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useTranslations } from "next-intl";
-import { motion } from "motion/react";
+import { useTranslations } from 'next-intl';
+import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { isTauri } from '@/lib/native/utils';
-import { useChatWidget } from "@/hooks/chat";
-import { useChatWidgetStore } from "@/stores/chat";
-import { ChatWidgetHeader } from "./chat-widget-header";
-import { ChatWidgetMessages } from "./chat-widget-messages";
-import { ChatWidgetInput } from "./chat-widget-input";
-import { ChatWidgetSettings } from "./chat-widget-settings";
-import { ChatWidgetSuggestions } from "./chat-widget-suggestions";
-import type { FabPosition, PanelExpandDirection } from "@/hooks/chat";
+import { useChatWidget } from '@/hooks/chat';
+import { useChatWidgetStore } from '@/stores/chat';
+import { ChatWidgetHeader } from './chat-widget-header';
+import { ChatWidgetMessages } from './chat-widget-messages';
+import { ChatWidgetInput } from './chat-widget-input';
+import { ChatWidgetSettings } from './chat-widget-settings';
+import { ChatWidgetSuggestions } from './chat-widget-suggestions';
+import type { FabPosition, PanelExpandDirection } from '@/hooks/chat';
 
 interface ChatAssistantPanelProps {
   isOpen: boolean;
@@ -44,25 +44,25 @@ function getPanelStyles(
   const styles: React.CSSProperties = {
     width,
     height,
-    position: "fixed",
+    position: 'fixed',
   };
 
   // Horizontal position
-  if (fabPosition.includes("right")) {
+  if (fabPosition.includes('right')) {
     styles.right = fabOffset;
   } else {
     styles.left = fabOffset;
   }
 
   // Vertical position based on expand direction
-  if (fabPosition.includes("bottom")) {
-    if (expandDirection === "up") {
+  if (fabPosition.includes('bottom')) {
+    if (expandDirection === 'up') {
       styles.bottom = fabOffset + fabSize + gap;
     } else {
       styles.bottom = fabOffset;
     }
   } else {
-    if (expandDirection === "down") {
+    if (expandDirection === 'down') {
       styles.top = fabOffset + fabSize + gap;
     } else {
       styles.top = fabOffset;
@@ -73,33 +73,30 @@ function getPanelStyles(
 }
 
 // Animation variants based on expand direction and FAB position
-function getAnimationVariants(
-  fabPosition: FabPosition,
-  expandDirection: PanelExpandDirection
-) {
-  const isRight = fabPosition.includes("right");
-  const isBottom = fabPosition.includes("bottom");
+function getAnimationVariants(fabPosition: FabPosition, expandDirection: PanelExpandDirection) {
+  const isRight = fabPosition.includes('right');
+  const isBottom = fabPosition.includes('bottom');
 
   // Origin point for scale animation
-  let originX = isRight ? "100%" : "0%";
-  let originY = isBottom ? "100%" : "0%";
+  let originX = isRight ? '100%' : '0%';
+  let originY = isBottom ? '100%' : '0%';
 
   // Initial offset for slide animation
   let initialX = 0;
   let initialY = 0;
 
-  if (expandDirection === "up") {
+  if (expandDirection === 'up') {
     initialY = 20;
-    originY = "100%";
-  } else if (expandDirection === "down") {
+    originY = '100%';
+  } else if (expandDirection === 'down') {
     initialY = -20;
-    originY = "0%";
-  } else if (expandDirection === "left") {
+    originY = '0%';
+  } else if (expandDirection === 'left') {
     initialX = 20;
-    originX = "100%";
-  } else if (expandDirection === "right") {
+    originX = '100%';
+  } else if (expandDirection === 'right') {
     initialX = -20;
-    originX = "0%";
+    originX = '0%';
   }
 
   return {
@@ -131,12 +128,12 @@ export function ChatAssistantPanel({
   isOpen,
   onClose,
   fabPosition,
-  expandDirection = "up",
+  expandDirection = 'up',
   width = 400,
   height = 560,
   className,
 }: ChatAssistantPanelProps) {
-  const t = useTranslations("chatWidget");
+  const t = useTranslations('chatWidget');
   const containerRef = useRef<HTMLDivElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const resetConfig = useChatWidgetStore((state) => state.resetConfig);
@@ -171,10 +168,7 @@ export function ChatAssistantPanel({
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       // Don't close if clicking on FAB or panel
-      if (
-        containerRef.current?.contains(target) ||
-        target.closest("[data-chat-fab]")
-      ) {
+      if (containerRef.current?.contains(target) || target.closest('[data-chat-fab]')) {
         return;
       }
       onClose();
@@ -182,12 +176,12 @@ export function ChatAssistantPanel({
 
     // Delay adding listener to prevent immediate close
     const timer = setTimeout(() => {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
     }, 100);
 
     return () => {
       clearTimeout(timer);
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen, onClose]);
 
@@ -196,13 +190,13 @@ export function ChatAssistantPanel({
     if (!isOpen) return;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
 
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
   // Handle window dragging (Tauri only)
@@ -243,10 +237,10 @@ export function ChatAssistantPanel({
     <motion.div
       ref={containerRef}
       className={cn(
-        "z-50 flex flex-col overflow-hidden",
-        "bg-background/95 backdrop-blur-xl",
-        "border border-border/50 rounded-2xl",
-        "shadow-2xl shadow-black/10 dark:shadow-black/30",
+        'z-50 flex flex-col overflow-hidden',
+        'bg-background/95 backdrop-blur-xl',
+        'border border-border/50 rounded-2xl',
+        'shadow-2xl shadow-black/10 dark:shadow-black/30',
         className
       )}
       style={{ ...panelStyles, ...variants.style }}
@@ -254,7 +248,7 @@ export function ChatAssistantPanel({
       animate={variants.animate}
       exit={variants.exit}
       transition={{
-        type: "spring",
+        type: 'spring',
         stiffness: 400,
         damping: 30,
       }}
@@ -273,11 +267,14 @@ export function ChatAssistantPanel({
         onModelChange={(model) => updateConfig({ model })}
         onExport={() => {
           const content = messages
-            .map((m) => `${m.role === "user" ? t("export.user") : t("export.assistant")}:\n${m.content}`)
-            .join("\n\n---\n\n");
-          const blob = new Blob([content], { type: "text/markdown" });
+            .map(
+              (m) =>
+                `${m.role === 'user' ? t('export.user') : t('export.assistant')}:\n${m.content}`
+            )
+            .join('\n\n---\n\n');
+          const blob = new Blob([content], { type: 'text/markdown' });
           const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
+          const a = document.createElement('a');
           a.href = url;
           a.download = `chat-export-${new Date().toISOString().slice(0, 10)}.md`;
           a.click();
@@ -298,7 +295,7 @@ export function ChatAssistantPanel({
           handleSubmit();
         }}
         onContinue={() => {
-          setInputValue(t("continueGeneration"));
+          setInputValue(t('continueGeneration'));
           handleSubmit();
         }}
       />

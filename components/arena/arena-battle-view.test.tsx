@@ -44,15 +44,17 @@ jest.mock('sonner', () => ({
 }));
 
 jest.mock('@/stores/arena', () => ({
-  useArenaStore: (selector: (state: {
-    battles: ArenaBattle[];
-    selectWinner: typeof mockSelectWinner;
-    declareTie: typeof mockDeclareTie;
-    declareBothBad: typeof mockDeclareBothBad;
-    canVote: typeof mockCanVote;
-    recordVoteAttempt: jest.Mock;
-    markBattleViewed: typeof mockMarkBattleViewed;
-  }) => unknown) => {
+  useArenaStore: (
+    selector: (state: {
+      battles: ArenaBattle[];
+      selectWinner: typeof mockSelectWinner;
+      declareTie: typeof mockDeclareTie;
+      declareBothBad: typeof mockDeclareBothBad;
+      canVote: typeof mockCanVote;
+      recordVoteAttempt: jest.Mock;
+      markBattleViewed: typeof mockMarkBattleViewed;
+    }) => unknown
+  ) => {
     const state = {
       battles: mockBattle ? [mockBattle] : [],
       selectWinner: mockSelectWinner,
@@ -68,26 +70,39 @@ jest.mock('@/stores/arena', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) => 
+  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
     open ? <div data-testid="dialog">{children}</div> : null,
-  DialogContent: ({ children }: { children: React.ReactNode }) => 
-    <div data-testid="dialog-content">{children}</div>,
-  DialogHeader: ({ children }: { children: React.ReactNode }) => 
-    <div data-testid="dialog-header">{children}</div>,
-  DialogTitle: ({ children }: { children: React.ReactNode }) => 
-    <h2 data-testid="dialog-title">{children}</h2>,
-  DialogDescription: ({ children }: { children: React.ReactNode }) => 
-    <p data-testid="dialog-description">{children}</p>,
+  DialogContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-content">{children}</div>
+  ),
+  DialogHeader: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-header">{children}</div>
+  ),
+  DialogTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2 data-testid="dialog-title">{children}</h2>
+  ),
+  DialogDescription: ({ children }: { children: React.ReactNode }) => (
+    <p data-testid="dialog-description">{children}</p>
+  ),
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span>,
+  Badge: ({ children }: { children: React.ReactNode }) => (
+    <span data-testid="badge">{children}</span>
+  ),
 }));
 
 jest.mock('@/components/ui/scroll-area', () => ({
@@ -99,9 +114,13 @@ jest.mock('@/components/ui/input', () => ({
 }));
 
 jest.mock('@/components/ui/select', () => ({
-  Select: ({ children, onValueChange: _onValueChange }: { children: React.ReactNode; onValueChange?: (v: string) => void }) => (
-    <div data-testid="select">{children}</div>
-  ),
+  Select: ({
+    children,
+    onValueChange: _onValueChange,
+  }: {
+    children: React.ReactNode;
+    onValueChange?: (v: string) => void;
+  }) => <div data-testid="select">{children}</div>,
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
   SelectValue: () => <span>value</span>,
   SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -138,12 +157,22 @@ jest.mock('lucide-react', () => ({
 
 // Mock chat utils (MarkdownRenderer)
 jest.mock('@/components/chat/utils', () => ({
-  MarkdownRenderer: ({ content }: { content: string }) => <div data-testid="markdown-renderer">{content}</div>,
+  MarkdownRenderer: ({ content }: { content: string }) => (
+    <div data-testid="markdown-renderer">{content}</div>
+  ),
 }));
 
 // Mock QuickVoteBar
 jest.mock('@/components/chat/ui/quick-vote-bar', () => ({
-  QuickVoteBar: ({ onVote, onTie, onBothBad }: { onVote: (id: string) => void; onTie: () => void; onBothBad?: () => void }) => (
+  QuickVoteBar: ({
+    onVote,
+    onTie,
+    onBothBad,
+  }: {
+    onVote: (id: string) => void;
+    onTie: () => void;
+    onBothBad?: () => void;
+  }) => (
     <div data-testid="quick-vote-bar">
       <button onClick={() => onVote('a')}>Vote A</button>
       <button onClick={() => onVote('b')}>Vote B</button>
@@ -153,7 +182,10 @@ jest.mock('@/components/chat/ui/quick-vote-bar', () => ({
   ),
 }));
 
-const createMockContestant = (id: string, status: ArenaContestant['status'] = 'completed'): ArenaContestant => ({
+const createMockContestant = (
+  id: string,
+  status: ArenaContestant['status'] = 'completed'
+): ArenaContestant => ({
   id,
   model: `gpt-4-${id}`,
   provider: 'openai',
@@ -168,10 +200,7 @@ const createMockContestant = (id: string, status: ArenaContestant['status'] = 'c
 const createMockBattle = (overrides?: Partial<ArenaBattle>): ArenaBattle => ({
   id: 'battle-1',
   prompt: 'Test prompt',
-  contestants: [
-    createMockContestant('a'),
-    createMockContestant('b'),
-  ],
+  contestants: [createMockContestant('a'), createMockContestant('b')],
   mode: 'normal',
   conversationMode: 'single',
   createdAt: new Date(),
@@ -193,17 +222,14 @@ describe('ArenaBattleView', () => {
 
   it('calls cancelBattle when cancel button clicked', async () => {
     mockBattle = createMockBattle({
-      contestants: [
-        createMockContestant('a', 'streaming'),
-        createMockContestant('b', 'completed'),
-      ],
+      contestants: [createMockContestant('a', 'streaming'), createMockContestant('b', 'completed')],
     });
 
     render(<ArenaBattleView {...defaultProps} />);
 
-    const cancelButton = screen.getAllByRole('button').find((button) =>
-      button.querySelector('[data-testid="icon-ban"]')
-    );
+    const cancelButton = screen
+      .getAllByRole('button')
+      .find((button) => button.querySelector('[data-testid="icon-ban"]'));
 
     if (cancelButton) {
       await userEvent.click(cancelButton);
@@ -251,10 +277,10 @@ describe('ArenaBattleView', () => {
   it('calls onOpenChange when close button clicked', async () => {
     const onOpenChange = jest.fn();
     render(<ArenaBattleView {...defaultProps} onOpenChange={onOpenChange} />);
-    
+
     const closeButtons = screen.getAllByRole('button');
-    const closeButton = closeButtons.find(btn => btn.querySelector('[data-testid="icon-x"]'));
-    
+    const closeButton = closeButtons.find((btn) => btn.querySelector('[data-testid="icon-x"]'));
+
     if (closeButton) {
       await userEvent.click(closeButton);
       expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -263,12 +289,12 @@ describe('ArenaBattleView', () => {
 
   it('allows selecting a winner', async () => {
     render(<ArenaBattleView {...defaultProps} />);
-    
+
     // Find select winner buttons
-    const selectButtons = screen.getAllByRole('button').filter(
-      btn => btn.textContent?.includes('selectWinner')
-    );
-    
+    const selectButtons = screen
+      .getAllByRole('button')
+      .filter((btn) => btn.textContent?.includes('selectWinner'));
+
     if (selectButtons.length > 0) {
       await userEvent.click(selectButtons[0]);
       expect(mockSelectWinner).toHaveBeenCalledWith('battle-1', 'a', { reason: 'quality' });
@@ -289,11 +315,11 @@ describe('ArenaBattleView', () => {
 
   it('shows declare tie button when all contestants are done', async () => {
     render(<ArenaBattleView {...defaultProps} />);
-    
-    const tieButton = screen.getAllByRole('button').find(
-      btn => btn.textContent?.includes('declareTie')
-    );
-    
+
+    const tieButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.textContent?.includes('declareTie'));
+
     if (tieButton) {
       await userEvent.click(tieButton);
       expect(mockDeclareTie).toHaveBeenCalledWith('battle-1');
@@ -310,10 +336,7 @@ describe('ArenaBattleView', () => {
 
   it('shows streaming status for streaming contestants', () => {
     mockBattle = createMockBattle({
-      contestants: [
-        createMockContestant('a', 'streaming'),
-        createMockContestant('b', 'completed'),
-      ],
+      contestants: [createMockContestant('a', 'streaming'), createMockContestant('b', 'completed')],
     });
     render(<ArenaBattleView {...defaultProps} />);
     expect(screen.getByText('streaming')).toBeInTheDocument();
@@ -343,11 +366,11 @@ describe('ArenaBattleView', () => {
 
   it('toggles fullscreen mode', async () => {
     render(<ArenaBattleView {...defaultProps} />);
-    
-    const fullscreenButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('[data-testid="icon-maximize"]')
-    );
-    
+
+    const fullscreenButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.querySelector('[data-testid="icon-maximize"]'));
+
     expect(fullscreenButton).toBeDefined();
   });
 });

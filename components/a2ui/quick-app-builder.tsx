@@ -9,13 +9,7 @@ import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -90,14 +84,14 @@ export function QuickAppBuilder({
   const [activeTab, setActiveTab] = useState<TabValue>('flash');
   const [previewAppId, setPreviewAppId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  
+
   // Flash App state (like Lingguang)
   const [flashPrompt, setFlashPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  
+
   // File input ref for import
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const a2ui = useA2UI({ onAction, onDataChange });
 
   const appBuilder = useA2UIAppBuilder({
@@ -133,17 +127,17 @@ export function QuickAppBuilder({
   // Handle Flash App generation (like Lingguang)
   const handleFlashGenerate = useCallback(async () => {
     if (!flashPrompt.trim() || isGenerating) return;
-    
+
     setIsGenerating(true);
     try {
       // Generate app from description
       const generatedApp = generateAppFromDescription({
         description: flashPrompt,
       });
-      
+
       // Process the generated app messages
       a2ui.processMessages(generatedApp.messages);
-      
+
       // Set as preview and switch to my-apps
       setPreviewAppId(generatedApp.id);
       setFlashPrompt('');
@@ -339,9 +333,7 @@ export function QuickAppBuilder({
   // Render app instance card
   const renderAppCard = (app: A2UIAppInstance) => {
     const template = appBuilder.getTemplate(app.templateId);
-    const IconComponent = template?.icon
-      ? icons[template.icon as keyof typeof icons]
-      : null;
+    const IconComponent = template?.icon ? icons[template.icon as keyof typeof icons] : null;
 
     return (
       <Card
@@ -353,10 +345,7 @@ export function QuickAppBuilder({
         )}
       >
         <CardHeader
-          className={cn(
-            'cursor-pointer',
-            viewMode === 'list' && 'flex-1 py-3'
-          )}
+          className={cn('cursor-pointer', viewMode === 'list' && 'flex-1 py-3')}
           onClick={() => {
             setPreviewAppId(app.id);
             onAppSelect?.(app.id);
@@ -373,18 +362,12 @@ export function QuickAppBuilder({
             <div className="flex-1 min-w-0">
               <CardTitle className="text-sm">{app.name}</CardTitle>
               <CardDescription className="text-xs">
-                {template?.name || 'Custom App'} •{' '}
-                {new Date(app.lastModified).toLocaleDateString()}
+                {template?.name || 'Custom App'} • {new Date(app.lastModified).toLocaleDateString()}
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardFooter
-          className={cn(
-            'gap-1',
-            viewMode === 'grid' ? 'pt-0' : 'py-3 pr-4'
-          )}
-        >
+        <CardFooter className={cn('gap-1', viewMode === 'grid' ? 'pt-0' : 'py-3 pr-4')}>
           <Button
             size="icon"
             variant="ghost"
@@ -414,7 +397,10 @@ export function QuickAppBuilder({
           >
             <Download className="h-4 w-4" />
           </Button>
-          <DropdownMenu open={shareMenuAppId === app.id} onOpenChange={(open) => setShareMenuAppId(open ? app.id : null)}>
+          <DropdownMenu
+            open={shareMenuAppId === app.id}
+            onOpenChange={(open) => setShareMenuAppId(open ? app.id : null)}
+          >
             <DropdownMenuTrigger asChild>
               <Button size="icon" variant="ghost" className="h-8 w-8" title="分享">
                 <Share2 className="h-4 w-4" />
@@ -549,10 +535,16 @@ export function QuickAppBuilder({
             <Zap className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
             <span className="hidden xs:inline">闪</span>应用
           </TabsTrigger>
-          <TabsTrigger value="templates" className="flex-1 text-xs sm:text-sm py-2 touch-manipulation">
+          <TabsTrigger
+            value="templates"
+            className="flex-1 text-xs sm:text-sm py-2 touch-manipulation"
+          >
             模板
           </TabsTrigger>
-          <TabsTrigger value="my-apps" className="flex-1 text-xs sm:text-sm py-2 touch-manipulation">
+          <TabsTrigger
+            value="my-apps"
+            className="flex-1 text-xs sm:text-sm py-2 touch-manipulation"
+          >
             我的 ({myApps.length})
           </TabsTrigger>
         </TabsList>
@@ -571,7 +563,7 @@ export function QuickAppBuilder({
                   描述你想要的应用，30秒内生成
                 </p>
               </div>
-              
+
               {/* Input area */}
               <div className="flex flex-col gap-3 sm:gap-4">
                 <div className="relative">
@@ -595,32 +587,27 @@ export function QuickAppBuilder({
                     )}
                   </Button>
                 </div>
-                
+
                 {/* Quick suggestions - scrollable on mobile */}
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground">快速尝试：</p>
                   <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 sm:flex-wrap sm:overflow-visible">
-                    {[
-                      '📝 待办',
-                      '🧮 计算器',
-                      '⏱️ 番茄钟',
-                      '💰 记账',
-                      '🎯 打卡',
-                      '📊 图表',
-                    ].map((suggestion) => (
-                      <Button
-                        key={suggestion}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs whitespace-nowrap flex-shrink-0 touch-manipulation h-8 sm:h-9"
-                        onClick={() => setFlashPrompt(suggestion)}
-                      >
-                        {suggestion}
-                      </Button>
-                    ))}
+                    {['📝 待办', '🧮 计算器', '⏱️ 番茄钟', '💰 记账', '🎯 打卡', '📊 图表'].map(
+                      (suggestion) => (
+                        <Button
+                          key={suggestion}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs whitespace-nowrap flex-shrink-0 touch-manipulation h-8 sm:h-9"
+                          onClick={() => setFlashPrompt(suggestion)}
+                        >
+                          {suggestion}
+                        </Button>
+                      )
+                    )}
                   </div>
                 </div>
-                
+
                 {/* Example apps showcase */}
                 <div className="pt-3 sm:pt-4 border-t">
                   <p className="text-xs text-muted-foreground mb-2 sm:mb-3">示例应用</p>
@@ -639,10 +626,14 @@ export function QuickAppBuilder({
                           onClick={() => setFlashPrompt(`做一个${example.name}`)}
                         >
                           <div className="flex items-center gap-2">
-                            {ExIcon && <ExIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+                            {ExIcon && (
+                              <ExIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            )}
                             <div className="min-w-0">
                               <p className="text-sm font-medium truncate">{example.name}</p>
-                              <p className="text-xs text-muted-foreground truncate">{example.desc}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {example.desc}
+                              </p>
                             </div>
                           </div>
                         </Card>
@@ -739,9 +730,7 @@ export function QuickAppBuilder({
             <div
               className={cn(
                 'p-3 sm:p-4',
-                viewMode === 'grid'
-                  ? 'grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3'
-                  : 'space-y-2'
+                viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3' : 'space-y-2'
               )}
             >
               {myApps.map(renderAppCard)}

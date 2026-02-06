@@ -26,21 +26,10 @@ import { cn, formatDurationShort } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CopyButton } from '@/components/chat/ui/copy-button';
-import {
-  Collapsible,
-  CollapsibleContent,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
-import {
-  Checkpoint,
-  CheckpointIcon,
-  CheckpointTrigger,
-} from '@/components/ai-elements/checkpoint';
+import { Checkpoint, CheckpointIcon, CheckpointTrigger } from '@/components/ai-elements/checkpoint';
 import {
   Queue,
   QueueSection,
@@ -142,21 +131,21 @@ function formatToolName(name: string): string {
     .join(' ');
 }
 
-export function ToolTimeline({ 
-  executions, 
+export function ToolTimeline({
+  executions,
   pendingTools = [],
   onCheckpointRestore,
   onCancelPending,
   showStatistics = true,
   // TODO: Implement groupByServer feature for server-grouped view
   groupByServer: _groupByServer = false,
-  className 
+  className,
 }: ToolTimelineProps) {
   const t = useTranslations('agent');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showQueue, setShowQueue] = useState(true);
   const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
-  
+
   // Calculate statistics
   const statistics = useMemo(() => {
     const totalDuration = executions.reduce((acc, exec) => {
@@ -165,16 +154,18 @@ export function ToolTimeline({
       }
       return acc;
     }, 0);
-    
+
     const completedCount = executions.filter((e) => e.state === 'output-available').length;
-    const failedCount = executions.filter((e) => e.state === 'output-error' || e.state === 'output-denied').length;
-    const runningCount = executions.filter((e) => e.state === 'input-streaming' || e.state === 'input-available').length;
+    const failedCount = executions.filter(
+      (e) => e.state === 'output-error' || e.state === 'output-denied'
+    ).length;
+    const runningCount = executions.filter(
+      (e) => e.state === 'input-streaming' || e.state === 'input-available'
+    ).length;
     const checkpointCount = executions.filter((e) => e.isCheckpoint).length;
-    
-    const avgDuration = completedCount > 0 
-      ? Math.round(totalDuration / completedCount) 
-      : 0;
-    
+
+    const avgDuration = completedCount > 0 ? Math.round(totalDuration / completedCount) : 0;
+
     return {
       totalDuration,
       completedCount,
@@ -182,17 +173,16 @@ export function ToolTimeline({
       runningCount,
       checkpointCount,
       avgDuration,
-      successRate: executions.length > 0 
-        ? Math.round((completedCount / executions.length) * 100) 
-        : 0,
+      successRate:
+        executions.length > 0 ? Math.round((completedCount / executions.length) * 100) : 0,
     };
   }, [executions]);
-  
+
   const hasRunningTool = statistics.runningCount > 0;
-  
+
   // Toggle result preview
   const toggleResultPreview = (id: string) => {
-    setExpandedResults(prev => {
+    setExpandedResults((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -208,14 +198,16 @@ export function ToolTimeline({
   }
 
   return (
-    <div className={cn(
-      'space-y-4 rounded-2xl border border-border/50 bg-card/95 backdrop-blur-md p-4 shadow-lg',
-      'animate-in fade-in-0 slide-in-from-right-4 duration-300',
-      hasRunningTool && 'border-blue-500/30 shadow-blue-500/10',
-      className
-    )}>
+    <div
+      className={cn(
+        'space-y-4 rounded-2xl border border-border/50 bg-card/95 backdrop-blur-md p-4 shadow-lg',
+        'animate-in fade-in-0 slide-in-from-right-4 duration-300',
+        hasRunningTool && 'border-blue-500/30 shadow-blue-500/10',
+        className
+      )}
+    >
       {/* Header - clickable to collapse/expand */}
-      <button 
+      <button
         className="flex w-full items-center justify-between text-sm hover:opacity-80 transition-opacity"
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
@@ -223,10 +215,12 @@ export function ToolTimeline({
           {hasRunningTool ? (
             <Zap className="h-4 w-4 text-blue-500 animate-pulse" />
           ) : (
-            <div className={cn(
-              "h-2 w-2 rounded-full",
-              statistics.failedCount > 0 ? "bg-red-500" : "bg-green-500"
-            )} />
+            <div
+              className={cn(
+                'h-2 w-2 rounded-full',
+                statistics.failedCount > 0 ? 'bg-red-500' : 'bg-green-500'
+              )}
+            />
           )}
           <span className="font-semibold">{t('toolExecutions')}</span>
           {hasRunningTool && (
@@ -279,7 +273,9 @@ export function ToolTimeline({
             <Tooltip>
               <TooltipTrigger className="flex items-center gap-1">
                 <ListTodo className="h-3 w-3" />
-                <span>{pendingTools.length} {t('pending')}</span>
+                <span>
+                  {pendingTools.length} {t('pending')}
+                </span>
               </TooltipTrigger>
               <TooltipContent>{t('pendingTools')}</TooltipContent>
             </Tooltip>
@@ -292,8 +288,8 @@ export function ToolTimeline({
         <Queue className="mt-2">
           <QueueSection defaultOpen={showQueue} onOpenChange={setShowQueue}>
             <QueueSectionTrigger>
-              <QueueSectionLabel 
-                count={pendingTools.length} 
+              <QueueSectionLabel
+                count={pendingTools.length}
                 label={t('pendingTools')}
                 icon={<ListTodo className="h-4 w-4" />}
               />
@@ -333,179 +329,180 @@ export function ToolTimeline({
 
       {/* Timeline - collapsible */}
       {!isCollapsed && (
-      <div className="relative space-y-0">
-        {executions.map((execution, index) => {
-          const config = stateConfig[execution.state];
-          const Icon = config.icon;
-          const duration = execution.endTime && execution.startTime
-            ? execution.endTime.getTime() - execution.startTime.getTime()
-            : null;
-          const isLast = index === executions.length - 1;
-          const isRunning =
-            execution.state === 'input-streaming' ||
-            execution.state === 'input-available';
-          const isExpanded = expandedResults.has(execution.id);
-          const hasResult = execution.result !== undefined;
+        <div className="relative space-y-0">
+          {executions.map((execution, index) => {
+            const config = stateConfig[execution.state];
+            const Icon = config.icon;
+            const duration =
+              execution.endTime && execution.startTime
+                ? execution.endTime.getTime() - execution.startTime.getTime()
+                : null;
+            const isLast = index === executions.length - 1;
+            const isRunning =
+              execution.state === 'input-streaming' || execution.state === 'input-available';
+            const isExpanded = expandedResults.has(execution.id);
+            const hasResult = execution.result !== undefined;
 
-          return (
-            <div key={execution.id}>
-              {/* Checkpoint marker */}
-              {execution.isCheckpoint && (
-                <Checkpoint className="my-2">
-                  <CheckpointIcon>
-                    <Bookmark className="h-4 w-4 text-purple-500" />
-                  </CheckpointIcon>
-                  <span className="text-xs text-purple-600 dark:text-purple-400 font-medium px-2">
-                    {execution.checkpointLabel || t('checkpoint')}
-                  </span>
-                  {onCheckpointRestore && (
-                    <CheckpointTrigger
-                      tooltip={t('restoreFromCheckpoint')}
-                      onClick={() => onCheckpointRestore(execution.id)}
-                    >
-                      {t('restore')}
-                    </CheckpointTrigger>
-                  )}
-                </Checkpoint>
-              )}
-              
-              <div 
-                className="relative flex gap-4 animate-in fade-in-0 slide-in-from-left-2 duration-300"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                {/* Timeline connector */}
-                <div className="flex flex-col items-center">
-                  <div
-                    className={cn(
-                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 transition-all duration-300',
-                      execution.state === 'output-available'
-                        ? 'border-green-300 bg-green-50 dark:bg-green-950/50 dark:border-green-700'
-                        : execution.state === 'output-error' ||
-                            execution.state === 'output-denied'
-                          ? 'border-red-300 bg-red-50 dark:bg-red-950/50 dark:border-red-700'
-                          : 'border-blue-300 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-700'
+            return (
+              <div key={execution.id}>
+                {/* Checkpoint marker */}
+                {execution.isCheckpoint && (
+                  <Checkpoint className="my-2">
+                    <CheckpointIcon>
+                      <Bookmark className="h-4 w-4 text-purple-500" />
+                    </CheckpointIcon>
+                    <span className="text-xs text-purple-600 dark:text-purple-400 font-medium px-2">
+                      {execution.checkpointLabel || t('checkpoint')}
+                    </span>
+                    {onCheckpointRestore && (
+                      <CheckpointTrigger
+                        tooltip={t('restoreFromCheckpoint')}
+                        onClick={() => onCheckpointRestore(execution.id)}
+                      >
+                        {t('restore')}
+                      </CheckpointTrigger>
                     )}
-                  >
-                    <Icon
-                      className={cn(
-                        'h-4 w-4',
-                        config.color,
-                        isRunning && 'animate-spin'
-                      )}
-                    />
-                  </div>
-                  {!isLast && (
-                    <div className="h-full w-0.5 bg-linear-to-b from-border to-transparent" />
-                  )}
-                </div>
+                  </Checkpoint>
+                )}
 
-                {/* Content */}
-                <div className={cn('flex-1 pb-6', isLast && 'pb-0')}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium text-sm truncate">
-                          {formatToolName(execution.toolName)}
+                <div
+                  className="relative flex gap-4 animate-in fade-in-0 slide-in-from-left-2 duration-300"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  {/* Timeline connector */}
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 transition-all duration-300',
+                        execution.state === 'output-available'
+                          ? 'border-green-300 bg-green-50 dark:bg-green-950/50 dark:border-green-700'
+                          : execution.state === 'output-error' ||
+                              execution.state === 'output-denied'
+                            ? 'border-red-300 bg-red-50 dark:bg-red-950/50 dark:border-red-700'
+                            : 'border-blue-300 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-700'
+                      )}
+                    >
+                      <Icon className={cn('h-4 w-4', config.color, isRunning && 'animate-spin')} />
+                    </div>
+                    {!isLast && (
+                      <div className="h-full w-0.5 bg-linear-to-b from-border to-transparent" />
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className={cn('flex-1 pb-6', isLast && 'pb-0')}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-sm truncate">
+                            {formatToolName(execution.toolName)}
+                          </p>
+                          {/* MCP Server badge */}
+                          {execution.serverId && (
+                            <MCPServerBadge
+                              serverId={execution.serverId}
+                              serverName={execution.serverName}
+                              status={execution.serverStatus}
+                              size="sm"
+                              showStatus={false}
+                            />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {config.label}
+                          {execution.error && (
+                            <span className="text-destructive block truncate">
+                              {' '}
+                              {execution.error}
+                            </span>
+                          )}
                         </p>
-                        {/* MCP Server badge */}
-                        {execution.serverId && (
-                          <MCPServerBadge
-                            serverId={execution.serverId}
-                            serverName={execution.serverName}
-                            status={execution.serverStatus}
-                            size="sm"
-                            showStatus={false}
-                          />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {/* Result preview toggle */}
+                        {hasResult && execution.state === 'output-available' && (
+                          <>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => toggleResultPreview(execution.id)}
+                                >
+                                  {isExpanded ? (
+                                    <EyeOff className="h-3 w-3" />
+                                  ) : (
+                                    <Eye className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {isExpanded ? t('hideResult') : t('showResult')}
+                              </TooltipContent>
+                            </Tooltip>
+                            <CopyButton
+                              content={
+                                typeof execution.result === 'string'
+                                  ? execution.result
+                                  : JSON.stringify(execution.result, null, 2)
+                              }
+                              iconOnly
+                              tooltip={t('copyResult')}
+                              className="h-6 w-6"
+                            />
+                          </>
+                        )}
+                        {duration !== null && (
+                          <Badge variant="secondary" className="text-[10px] shrink-0">
+                            {formatDurationShort(duration)}
+                          </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {config.label}
-                        {execution.error && (
-                          <span className="text-destructive block truncate"> {execution.error}</span>
+                    </div>
+
+                    {/* Inline result preview - with A2UI support */}
+                    {isExpanded && hasResult && (
+                      <Collapsible open={isExpanded}>
+                        <CollapsibleContent className="mt-2">
+                          {hasA2UIToolOutput(execution.result) ? (
+                            <A2UIToolOutput
+                              toolId={execution.id}
+                              toolName={execution.toolName}
+                              output={execution.result}
+                            />
+                          ) : (
+                            <div className="rounded-lg bg-muted/50 p-2 text-xs font-mono overflow-x-auto max-h-40 overflow-y-auto">
+                              <pre className="whitespace-pre-wrap">
+                                {typeof execution.result === 'string'
+                                  ? execution.result
+                                  : JSON.stringify(execution.result, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
+
+                    {/* Progress bar for completed executions */}
+                    {duration !== null && statistics.totalDuration > 0 && (
+                      <Progress
+                        value={Math.min((duration / statistics.totalDuration) * 100, 100)}
+                        className={cn(
+                          'h-1 mt-2',
+                          execution.state === 'output-available' && '[&>div]:bg-green-500',
+                          (execution.state === 'output-error' ||
+                            execution.state === 'output-denied') &&
+                            '[&>div]:bg-red-500'
                         )}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {/* Result preview toggle */}
-                      {hasResult && execution.state === 'output-available' && (
-                        <>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => toggleResultPreview(execution.id)}
-                              >
-                                {isExpanded ? (
-                                  <EyeOff className="h-3 w-3" />
-                                ) : (
-                                  <Eye className="h-3 w-3" />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {isExpanded ? t('hideResult') : t('showResult')}
-                            </TooltipContent>
-                          </Tooltip>
-                          <CopyButton
-                            content={typeof execution.result === 'string'
-                              ? execution.result
-                              : JSON.stringify(execution.result, null, 2)}
-                            iconOnly
-                            tooltip={t('copyResult')}
-                            className="h-6 w-6"
-                          />
-                        </>
-                      )}
-                      {duration !== null && (
-                        <Badge variant="secondary" className="text-[10px] shrink-0">
-                          {formatDurationShort(duration)}
-                        </Badge>
-                      )}
-                    </div>
+                      />
+                    )}
                   </div>
-
-                  {/* Inline result preview - with A2UI support */}
-                  {isExpanded && hasResult && (
-                    <Collapsible open={isExpanded}>
-                      <CollapsibleContent className="mt-2">
-                        {hasA2UIToolOutput(execution.result) ? (
-                          <A2UIToolOutput
-                            toolId={execution.id}
-                            toolName={execution.toolName}
-                            output={execution.result}
-                          />
-                        ) : (
-                          <div className="rounded-lg bg-muted/50 p-2 text-xs font-mono overflow-x-auto max-h-40 overflow-y-auto">
-                            <pre className="whitespace-pre-wrap">
-                              {typeof execution.result === 'string' 
-                                ? execution.result 
-                                : JSON.stringify(execution.result, null, 2)}
-                            </pre>
-                          </div>
-                        )}
-                      </CollapsibleContent>
-                    </Collapsible>
-                  )}
-
-                  {/* Progress bar for completed executions */}
-                  {duration !== null && statistics.totalDuration > 0 && (
-                    <Progress 
-                      value={Math.min((duration / statistics.totalDuration) * 100, 100)} 
-                      className={cn(
-                        "h-1 mt-2",
-                        execution.state === 'output-available' && '[&>div]:bg-green-500',
-                        (execution.state === 'output-error' || execution.state === 'output-denied') && '[&>div]:bg-red-500'
-                      )}
-                    />
-                  )}
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

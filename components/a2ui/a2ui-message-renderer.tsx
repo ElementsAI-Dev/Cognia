@@ -86,9 +86,7 @@ export function A2UIMessageRenderer({
     if (!textContent) return null;
     return (
       <div className={cn('a2ui-message-content', className)}>
-        <div className="message-text">
-          {textRenderer ? textRenderer(textContent) : textContent}
-        </div>
+        <div className="message-text">{textRenderer ? textRenderer(textContent) : textContent}</div>
       </div>
     );
   }
@@ -97,15 +95,9 @@ export function A2UIMessageRenderer({
   return (
     <div className={cn('a2ui-message-content space-y-3', className)}>
       {textContent && (
-        <div className="message-text">
-          {textRenderer ? textRenderer(textContent) : textContent}
-        </div>
+        <div className="message-text">{textRenderer ? textRenderer(textContent) : textContent}</div>
       )}
-      <A2UIInlineSurface
-        surfaceId={surfaceId}
-        onAction={onAction}
-        onDataChange={onDataChange}
-      />
+      <A2UIInlineSurface surfaceId={surfaceId} onAction={onAction} onDataChange={onDataChange} />
     </div>
   );
 }

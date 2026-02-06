@@ -106,7 +106,7 @@ describe('ArenaChatView', () => {
       // Check for tab list with 4 tabs
       const tabList = screen.getByRole('tablist');
       expect(tabList).toBeInTheDocument();
-      
+
       const tabs = screen.getAllByRole('tab');
       expect(tabs).toHaveLength(4);
     });

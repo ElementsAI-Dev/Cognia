@@ -65,7 +65,12 @@ jest.mock('@/components/ui/dialog', () => ({
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button type="button" onClick={onClick} disabled={disabled} {...props}>
       {children}
     </button>
@@ -98,9 +103,15 @@ jest.mock('@/components/ui/scroll-area', () => ({
 }));
 
 jest.mock('@/components/ui/textarea', () => ({
-  Textarea: ({ value, onChange, placeholder }: { value: string; onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; placeholder?: string }) => (
-    <textarea value={value} onChange={onChange} placeholder={placeholder} />
-  ),
+  Textarea: ({
+    value,
+    onChange,
+    placeholder,
+  }: {
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+    placeholder?: string;
+  }) => <textarea value={value} onChange={onChange} placeholder={placeholder} />,
 }));
 
 jest.mock('@/components/ui/tabs', () => ({
@@ -115,7 +126,15 @@ jest.mock('@/components/ui/tabs', () => ({
 }));
 
 jest.mock('@/components/ui/switch', () => ({
-  Switch: ({ checked, onCheckedChange, id }: { checked?: boolean; onCheckedChange?: (v: boolean) => void; id?: string }) => (
+  Switch: ({
+    checked,
+    onCheckedChange,
+    id,
+  }: {
+    checked?: boolean;
+    onCheckedChange?: (v: boolean) => void;
+    id?: string;
+  }) => (
     <input
       id={id}
       type="checkbox"
@@ -127,7 +146,13 @@ jest.mock('@/components/ui/switch', () => ({
 }));
 
 jest.mock('@/components/ui/slider', () => ({
-  Slider: ({ value, onValueChange }: { value: number[]; onValueChange?: (v: number[]) => void }) => (
+  Slider: ({
+    value,
+    onValueChange,
+  }: {
+    value: number[];
+    onValueChange?: (v: number[]) => void;
+  }) => (
     <input
       type="range"
       aria-label="slider"
@@ -143,7 +168,9 @@ jest.mock('@/components/ui/select', () => ({
   SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
     <div data-value={value}>{children}</div>
   ),
-  SelectTrigger: ({ children }: { children: React.ReactNode }) => <button type="button">{children}</button>,
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
   SelectValue: () => <span />,
 }));
 
@@ -206,12 +233,7 @@ describe('ArenaDialog', () => {
     const onOpenChange = jest.fn();
 
     render(
-      <ArenaDialog
-        open
-        onOpenChange={onOpenChange}
-        sessionId="session-1"
-        systemPrompt="sys"
-      />
+      <ArenaDialog open onOpenChange={onOpenChange} sessionId="session-1" systemPrompt="sys" />
     );
 
     await userEvent.type(screen.getByPlaceholderText('promptPlaceholder'), '  test prompt  ');

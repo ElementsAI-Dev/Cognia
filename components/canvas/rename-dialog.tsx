@@ -24,12 +24,7 @@ interface RenameDialogProps {
   onRename: (newTitle: string) => void;
 }
 
-export function RenameDialog({
-  open,
-  onOpenChange,
-  currentTitle,
-  onRename,
-}: RenameDialogProps) {
+export function RenameDialog({ open, onOpenChange, currentTitle, onRename }: RenameDialogProps) {
   const t = useTranslations('canvas');
   const [value, setValue] = useState(currentTitle);
   const [lastTitle, setLastTitle] = useState(currentTitle);

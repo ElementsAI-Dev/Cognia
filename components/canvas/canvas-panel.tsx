@@ -45,12 +45,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useArtifactStore, useSettingsStore, useSessionStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { VersionHistoryPanel } from './version-history-panel';
@@ -61,7 +56,12 @@ import { CollaborationPanel } from './collaboration-panel';
 import { CommentPanel } from './comment-panel';
 import { KeybindingSettings } from './keybinding-settings';
 import type { CanvasSuggestion } from '@/types';
-import { useCanvasCodeExecution, useCanvasDocuments, useCanvasSuggestions, useChunkLoader } from '@/hooks/canvas';
+import {
+  useCanvasCodeExecution,
+  useCanvasDocuments,
+  useCanvasSuggestions,
+  useChunkLoader,
+} from '@/hooks/canvas';
 import { useKeybindingStore } from '@/stores/canvas/keybinding-store';
 import { useChunkedDocumentStore } from '@/stores/canvas/chunked-document-store';
 import { isLargeDocument } from '@/lib/canvas/utils';
@@ -87,12 +87,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -127,7 +122,12 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ),
 });
 
-const canvasActions: Array<{ type: CanvasActionType; labelKey: string; icon: string; shortcut?: string }> = [
+const canvasActions: Array<{
+  type: CanvasActionType;
+  labelKey: string;
+  icon: string;
+  shortcut?: string;
+}> = [
   { type: 'review', labelKey: 'actionReview', icon: 'eye', shortcut: '⌘R' },
   { type: 'fix', labelKey: 'actionFix', icon: 'bug', shortcut: '⌘F' },
   { type: 'improve', labelKey: 'actionImprove', icon: 'sparkles', shortcut: '⌘I' },
@@ -223,9 +223,11 @@ function CanvasPanelContent() {
   const { addChunkedDocument, removeChunkedDocument } = useChunkedDocumentStore();
   const { isLargeDocument: isLargeDoc, state: chunkState } = useChunkLoader(activeCanvasId);
   const isLargeFile = activeDocument ? isLargeDocument(activeDocument.content || '') : false;
-  
+
   // Use chunk loader state for large documents
-  const _chunkLoaderInfo = isLargeDoc ? { totalLines: chunkState.totalLines, isLoading: chunkState.isLoading } : null;
+  const _chunkLoaderInfo = isLargeDoc
+    ? { totalLines: chunkState.totalLines, isLoading: chunkState.isLoading }
+    : null;
 
   // Initialize chunked document for large files
   useEffect(() => {
@@ -245,9 +247,10 @@ function CanvasPanelContent() {
     minimap: true,
     lineNumbers: true,
   });
-  
+
   // Check if current document can be opened in Designer
-  const canOpenInDesigner = activeDocument && 
+  const canOpenInDesigner =
+    activeDocument &&
     ['jsx', 'tsx', 'html', 'javascript', 'typescript'].includes(activeDocument.language);
 
   // Calculate document statistics
@@ -260,13 +263,16 @@ function CanvasPanelContent() {
   }, [localContent]);
 
   // Handle Designer code changes
-  const handleDesignerCodeChange = useCallback((newCode: string) => {
-    setLocalContent(newCode);
-    if (activeCanvasId) {
-      updateCanvasDocument(activeCanvasId, { content: newCode });
-    }
-    setHasUnsavedChanges(newCode !== lastSavedContentRef.current);
-  }, [activeCanvasId, updateCanvasDocument]);
+  const handleDesignerCodeChange = useCallback(
+    (newCode: string) => {
+      setLocalContent(newCode);
+      if (activeCanvasId) {
+        updateCanvasDocument(activeCanvasId, { content: newCode });
+      }
+      setHasUnsavedChanges(newCode !== lastSavedContentRef.current);
+    },
+    [activeCanvasId, updateCanvasDocument]
+  );
 
   // Open in full Designer page
   const handleOpenInFullDesigner = useCallback(() => {
@@ -365,8 +371,9 @@ function CanvasPanelContent() {
 
   // Get Monaco theme from theme registry
   const monacoTheme = useMemo(() => {
-    const editorTheme = theme === 'dark' ? themeRegistry.getTheme('vs-dark') : themeRegistry.getTheme('vs');
-    return editorTheme ? editorTheme.id : (theme === 'dark' ? 'vs-dark' : 'light');
+    const editorTheme =
+      theme === 'dark' ? themeRegistry.getTheme('vs-dark') : themeRegistry.getTheme('vs');
+    return editorTheme ? editorTheme.id : theme === 'dark' ? 'vs-dark' : 'light';
   }, [theme]);
 
   // Keyboard shortcuts handler - uses keybinding store
@@ -393,7 +400,7 @@ function CanvasPanelContent() {
       const boundAction = getActionByKeybinding(keyCombo);
       if (boundAction && boundAction.startsWith('action.')) {
         const actionType = boundAction.replace('action.', '');
-        const action = canvasActions.find(a => a.type === actionType);
+        const action = canvasActions.find((a) => a.type === actionType);
         if (action) {
           e.preventDefault();
           const event = new CustomEvent('canvas-action', { detail: action });
@@ -404,17 +411,17 @@ function CanvasPanelContent() {
 
       // Fallback to default key mapping
       const keyActionMap: Record<string, string> = {
-        'r': 'review',
-        'f': 'fix',
-        'i': 'improve',
-        'e': 'explain',
-        's': 'simplify',
-        'x': 'expand',
+        r: 'review',
+        f: 'fix',
+        i: 'improve',
+        e: 'explain',
+        s: 'simplify',
+        x: 'expand',
       };
 
       const actionType = keyActionMap[e.key.toLowerCase()];
       if (actionType) {
-        const action = canvasActions.find(a => a.type === actionType);
+        const action = canvasActions.find((a) => a.type === actionType);
         if (action) {
           e.preventDefault();
           const event = new CustomEvent('canvas-action', { detail: action });
@@ -461,74 +468,105 @@ function CanvasPanelContent() {
     }
   }, [activeCanvasId, hasUnsavedChanges, saveCanvasVersion, localContent]);
 
-  const handleAction = useCallback(async (action: { type: CanvasActionType; labelKey?: string; label?: string; icon?: string; shortcut?: string }, translateTargetLang?: string) => {
-    if (!activeDocument) return;
+  const handleAction = useCallback(
+    async (
+      action: {
+        type: CanvasActionType;
+        labelKey?: string;
+        label?: string;
+        icon?: string;
+        shortcut?: string;
+      },
+      translateTargetLang?: string
+    ) => {
+      if (!activeDocument) return;
 
-    setIsProcessing(true);
-    setActionError(null);
-    setActionResult(null);
+      setIsProcessing(true);
+      setActionError(null);
+      setActionResult(null);
 
-    // Get provider and model from session or defaults
-    const session = getActiveSession();
-    const provider = (session?.provider || defaultProvider || 'openai') as ProviderName;
-    const model = session?.model || providerSettings[provider]?.defaultModel || 'gpt-4o-mini';
-    const settings = providerSettings[provider];
+      // Get provider and model from session or defaults
+      const session = getActiveSession();
+      const provider = (session?.provider || defaultProvider || 'openai') as ProviderName;
+      const model = session?.model || providerSettings[provider]?.defaultModel || 'gpt-4o-mini';
+      const settings = providerSettings[provider];
 
-    if (!settings?.apiKey && provider !== 'ollama') {
-      setActionError(`No API key configured for ${provider}. Please add your API key in Settings.`);
-      setIsProcessing(false);
-      return;
-    }
+      if (!settings?.apiKey && provider !== 'ollama') {
+        setActionError(
+          `No API key configured for ${provider}. Please add your API key in Settings.`
+        );
+        setIsProcessing(false);
+        return;
+      }
 
-    try {
-      const result = await executeCanvasAction(
-        action.type as CanvasActionType,
-        localContent,
-        {
-          provider,
-          model,
-          apiKey: settings?.apiKey || '',
-          baseURL: settings?.baseURL,
-        },
-        {
-          language: activeDocument.language,
-          selection: selection || undefined,
-          targetLanguage: translateTargetLang,
-        }
-      );
-
-      if (result.success && result.result) {
-        // For content-modifying actions, apply the result
-        const contentActions = ['fix', 'improve', 'simplify', 'expand', 'translate', 'format'];
-        if (contentActions.includes(action.type)) {
-          const newContent = applyCanvasActionResult(localContent, result.result, selection || undefined);
-          setLocalContent(newContent);
-          if (activeCanvasId) {
-            updateCanvasDocument(activeCanvasId, { content: newContent });
-            setHasUnsavedChanges(true);
-          }
-        } else if (action.type === 'review') {
-          // For review action, also generate inline suggestions
-          generateSuggestions({
-            content: localContent,
+      try {
+        const result = await executeCanvasAction(
+          action.type as CanvasActionType,
+          localContent,
+          {
+            provider,
+            model,
+            apiKey: settings?.apiKey || '',
+            baseURL: settings?.baseURL,
+          },
+          {
             language: activeDocument.language,
             selection: selection || undefined,
-          }, { focusArea: 'all' });
-          // Still show the review result
-          setActionResult(result.result);
-        } else {
-          // For explain actions, show the result
-          setActionResult(result.result);
+            targetLanguage: translateTargetLang,
+          }
+        );
+
+        if (result.success && result.result) {
+          // For content-modifying actions, apply the result
+          const contentActions = ['fix', 'improve', 'simplify', 'expand', 'translate', 'format'];
+          if (contentActions.includes(action.type)) {
+            const newContent = applyCanvasActionResult(
+              localContent,
+              result.result,
+              selection || undefined
+            );
+            setLocalContent(newContent);
+            if (activeCanvasId) {
+              updateCanvasDocument(activeCanvasId, { content: newContent });
+              setHasUnsavedChanges(true);
+            }
+          } else if (action.type === 'review') {
+            // For review action, also generate inline suggestions
+            generateSuggestions(
+              {
+                content: localContent,
+                language: activeDocument.language,
+                selection: selection || undefined,
+              },
+              { focusArea: 'all' }
+            );
+            // Still show the review result
+            setActionResult(result.result);
+          } else {
+            // For explain actions, show the result
+            setActionResult(result.result);
+          }
+        } else if (!result.success) {
+          setActionError(result.error || 'Action failed');
         }
-      } else if (!result.success) {
-        setActionError(result.error || 'Action failed');
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setIsProcessing(false);
       }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [activeDocument, getActiveSession, defaultProvider, providerSettings, localContent, selection, activeCanvasId, updateCanvasDocument, generateSuggestions]);
+    },
+    [
+      activeDocument,
+      getActiveSession,
+      defaultProvider,
+      providerSettings,
+      localContent,
+      selection,
+      activeCanvasId,
+      updateCanvasDocument,
+      generateSuggestions,
+    ]
+  );
 
   // Listen for canvas-action custom events
   useEffect(() => {
@@ -580,8 +618,15 @@ function CanvasPanelContent() {
   };
 
   return (
-    <Sheet open={panelOpen && panelView === 'canvas'} onOpenChange={(open) => !open && closePanel()}>
-      <SheetContent side="right" className="w-full sm:w-[600px] lg:w-[700px] p-0 flex flex-col" showCloseButton={false}>
+    <Sheet
+      open={panelOpen && panelView === 'canvas'}
+      onOpenChange={(open) => !open && closePanel()}
+    >
+      <SheetContent
+        side="right"
+        className="w-full sm:w-[600px] lg:w-[700px] p-0 flex flex-col"
+        showCloseButton={false}
+      >
         <SheetTitle className="sr-only">Canvas Panel</SheetTitle>
         {activeDocument ? (
           <>
@@ -591,12 +636,14 @@ function CanvasPanelContent() {
               activeDocumentId={activeCanvasId}
               onSelectDocument={openDocument}
               onCloseDocument={closeDocument}
-              onCreateDocument={() => createDocument({
-                title: 'Untitled',
-                content: '',
-                language: 'javascript',
-                type: 'code',
-              })}
+              onCreateDocument={() =>
+                createDocument({
+                  title: 'Untitled',
+                  content: '',
+                  language: 'javascript',
+                  type: 'code',
+                })
+              }
               onRenameDocument={renameDocument}
               onDuplicateDocument={duplicateDocument}
               onDeleteDocument={deleteDocument}
@@ -630,10 +677,7 @@ function CanvasPanelContent() {
                       onClick={handleManualSave}
                       disabled={!hasUnsavedChanges}
                     >
-                      <Save className={cn(
-                        "h-4 w-4",
-                        hasUnsavedChanges && "text-primary"
-                      )} />
+                      <Save className={cn('h-4 w-4', hasUnsavedChanges && 'text-primary')} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{t('saveVersion')}</TooltipContent>
@@ -650,15 +694,10 @@ function CanvasPanelContent() {
                 />
 
                 {/* Collaboration Panel */}
-                <CollaborationPanel
-                  documentId={activeDocument.id}
-                  documentContent={localContent}
-                />
+                <CollaborationPanel documentId={activeDocument.id} documentContent={localContent} />
 
                 {/* Comment Panel */}
-                <CommentPanel
-                  documentId={activeDocument.id}
-                />
+                <CommentPanel documentId={activeDocument.id} />
 
                 {/* Keybinding Settings */}
                 <KeybindingSettings />
@@ -733,9 +772,7 @@ function CanvasPanelContent() {
                       <p>
                         {t(action.labelKey)}
                         {action.shortcut && (
-                          <span className="ml-2 text-muted-foreground">
-                            {action.shortcut}
-                          </span>
+                          <span className="ml-2 text-muted-foreground">{action.shortcut}</span>
                         )}
                       </p>
                     </TooltipContent>
@@ -793,9 +830,7 @@ function CanvasPanelContent() {
             {/* Quick actions for selected text */}
             {selection && selection.length > 0 && !isProcessing && (
               <div className="flex items-center gap-1 px-4 py-1.5 bg-primary/5 border-b">
-                <span className="text-xs text-muted-foreground mr-2">
-                  {t('selectedText')}:
-                </span>
+                <span className="text-xs text-muted-foreground mr-2">{t('selectedText')}:</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -891,9 +926,15 @@ function CanvasPanelContent() {
             {/* Footer with stats and settings */}
             <div className="flex items-center justify-between border-t px-4 py-1.5 text-xs text-muted-foreground bg-muted/30">
               <div className="flex items-center gap-4">
-                <span>{documentStats.lines} {t('lines')}</span>
-                <span>{documentStats.words} {t('words')}</span>
-                <span>{documentStats.chars} {t('characters')}</span>
+                <span>
+                  {documentStats.lines} {t('lines')}
+                </span>
+                <span>
+                  {documentStats.words} {t('words')}
+                </span>
+                <span>
+                  {documentStats.chars} {t('characters')}
+                </span>
                 {selection && (
                   <span className="text-primary">
                     {t('selectedChars', { count: selection.length })}
@@ -906,7 +947,9 @@ function CanvasPanelContent() {
                     <Toggle
                       size="sm"
                       pressed={editorSettings.wordWrap}
-                      onPressedChange={(pressed) => setEditorSettings(s => ({ ...s, wordWrap: pressed }))}
+                      onPressedChange={(pressed) =>
+                        setEditorSettings((s) => ({ ...s, wordWrap: pressed }))
+                      }
                       aria-label={t('wordWrap')}
                       className="h-6 w-6 p-0"
                     >
@@ -920,7 +963,9 @@ function CanvasPanelContent() {
                     <Toggle
                       size="sm"
                       pressed={editorSettings.minimap}
-                      onPressedChange={(pressed) => setEditorSettings(s => ({ ...s, minimap: pressed }))}
+                      onPressedChange={(pressed) =>
+                        setEditorSettings((s) => ({ ...s, minimap: pressed }))
+                      }
                       aria-label={t('minimap')}
                       className="h-6 w-6 p-0"
                     >
@@ -934,7 +979,9 @@ function CanvasPanelContent() {
                     <Toggle
                       size="sm"
                       pressed={editorSettings.lineNumbers}
-                      onPressedChange={(pressed) => setEditorSettings(s => ({ ...s, lineNumbers: pressed }))}
+                      onPressedChange={(pressed) =>
+                        setEditorSettings((s) => ({ ...s, lineNumbers: pressed }))
+                      }
                       aria-label={t('lineNumbers')}
                       className="h-6 w-6 p-0"
                     >
@@ -986,8 +1033,9 @@ function CanvasPanelContent() {
             )}
 
             {/* Suggestions panel - shows both store suggestions and hook-generated ones */}
-            {((activeDocument.aiSuggestions && activeDocument.aiSuggestions.length > 0) || 
-              aiSuggestions.length > 0 || isGeneratingSuggestions) && (
+            {((activeDocument.aiSuggestions && activeDocument.aiSuggestions.length > 0) ||
+              aiSuggestions.length > 0 ||
+              isGeneratingSuggestions) && (
               <SuggestionsPanel
                 documentId={activeDocument.id}
                 suggestions={[
@@ -1003,9 +1051,7 @@ function CanvasPanelContent() {
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>{t('unsavedChanges')}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t('unsavedChangesDescription')}
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>{t('unsavedChangesDescription')}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
@@ -1114,9 +1160,7 @@ function SuggestionsPanel({
 }) {
   const t = useTranslations('canvas');
   const applySuggestion = useArtifactStore((state) => state.applySuggestion);
-  const updateSuggestionStatus = useArtifactStore(
-    (state) => state.updateSuggestionStatus
-  );
+  const updateSuggestionStatus = useArtifactStore((state) => state.updateSuggestionStatus);
 
   const pendingSuggestions = suggestions.filter((s) => s.status === 'pending');
 

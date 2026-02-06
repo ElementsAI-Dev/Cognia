@@ -22,11 +22,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useCopy } from '@/hooks/ui';
 import type { CodeSandboxExecutionResult } from '@/hooks/canvas/use-code-execution';
@@ -113,33 +109,18 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
                 </TooltipTrigger>
                 <TooltipContent>{t('copyOutput')}</TooltipContent>
               </Tooltip>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9"
-                onClick={onClear}
-              >
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onClear}>
                 <X className="h-3 w-3" />
               </Button>
             </>
           )}
           {isExecuting ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-9 px-2"
-              onClick={onCancel}
-            >
+            <Button variant="destructive" size="sm" className="h-9 px-2" onClick={onCancel}>
               <Square className="h-3 w-3 mr-1" />
               {t('stop')}
             </Button>
           ) : (
-            <Button
-              variant="default"
-              size="sm"
-              className="h-9 px-2"
-              onClick={onExecute}
-            >
+            <Button variant="default" size="sm" className="h-9 px-2" onClick={onExecute}>
               <Play className="h-3 w-3 mr-1" />
               {t('run')}
             </Button>
@@ -170,10 +151,12 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
                     {result.executionTime}ms
                   </span>
                   {result.exitCode !== null && (
-                    <span className={cn(
-                      'flex items-center gap-1',
-                      result.exitCode === 0 ? 'text-green-600' : 'text-red-600'
-                    )}>
+                    <span
+                      className={cn(
+                        'flex items-center gap-1',
+                        result.exitCode === 0 ? 'text-green-600' : 'text-red-600'
+                      )}
+                    >
                       {t('exitCode')}: {result.exitCode}
                     </span>
                   )}
@@ -183,9 +166,7 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
                 {/* stdout */}
                 {result.stdout && (
                   <div className="space-y-1">
-                    <div className="text-xs font-medium text-muted-foreground">
-                      {t('output')}:
-                    </div>
+                    <div className="text-xs font-medium text-muted-foreground">{t('output')}:</div>
                     <pre className="p-2 rounded bg-muted text-xs sm:text-sm font-mono whitespace-pre-wrap overflow-x-auto">
                       {result.stdout}
                     </pre>
@@ -207,9 +188,7 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
 
                 {/* No output message */}
                 {!result.stdout && !result.stderr && result.success && (
-                  <div className="text-sm text-muted-foreground italic">
-                    {t('noOutput')}
-                  </div>
+                  <div className="text-sm text-muted-foreground italic">{t('noOutput')}</div>
                 )}
               </>
             )}

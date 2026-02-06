@@ -86,12 +86,12 @@ describe('GitDiffViewer', () => {
 
   it('should expand diff when clicking on file', async () => {
     render(<GitDiffViewer diffs={mockDiffs} fileStatus={mockFileStatus} />);
-    
+
     const fileButton = screen.getByText('src/app.tsx').closest('button');
     if (fileButton) {
       fireEvent.click(fileButton);
     }
-    
+
     await waitFor(() => {
       expect(screen.getByText('copyPath')).toBeInTheDocument();
     });
@@ -105,10 +105,10 @@ describe('GitDiffViewer', () => {
 
   it('should expand all diffs when clicking expand all', async () => {
     render(<GitDiffViewer diffs={mockDiffs} />);
-    
+
     const expandAllButton = screen.getByText('expandAll');
     fireEvent.click(expandAllButton);
-    
+
     await waitFor(() => {
       const copyPathButtons = screen.getAllByText('copyPath');
       expect(copyPathButtons.length).toBe(2);
@@ -117,16 +117,12 @@ describe('GitDiffViewer', () => {
 
   it('should show stage button for unstaged files', async () => {
     render(
-      <GitDiffViewer
-        diffs={mockDiffs}
-        fileStatus={mockFileStatus}
-        onStageFile={mockOnStageFile}
-      />
+      <GitDiffViewer diffs={mockDiffs} fileStatus={mockFileStatus} onStageFile={mockOnStageFile} />
     );
-    
+
     const expandAllButton = screen.getByText('expandAll');
     fireEvent.click(expandAllButton);
-    
+
     await waitFor(() => {
       expect(screen.getByText('stage')).toBeInTheDocument();
     });
@@ -140,10 +136,10 @@ describe('GitDiffViewer', () => {
         onUnstageFile={mockOnUnstageFile}
       />
     );
-    
+
     const expandAllButton = screen.getByText('expandAll');
     fireEvent.click(expandAllButton);
-    
+
     await waitFor(() => {
       expect(screen.getByText('unstage')).toBeInTheDocument();
     });
@@ -151,16 +147,12 @@ describe('GitDiffViewer', () => {
 
   it('should call onStageFile when clicking stage button', async () => {
     render(
-      <GitDiffViewer
-        diffs={mockDiffs}
-        fileStatus={mockFileStatus}
-        onStageFile={mockOnStageFile}
-      />
+      <GitDiffViewer diffs={mockDiffs} fileStatus={mockFileStatus} onStageFile={mockOnStageFile} />
     );
-    
+
     const expandAllButton = screen.getByText('expandAll');
     fireEvent.click(expandAllButton);
-    
+
     await waitFor(() => {
       const stageButton = screen.getByText('stage');
       fireEvent.click(stageButton);
@@ -176,10 +168,10 @@ describe('GitDiffViewer', () => {
         onDiscardFile={mockOnDiscardFile}
       />
     );
-    
+
     const expandAllButton = screen.getByText('expandAll');
     fireEvent.click(expandAllButton);
-    
+
     await waitFor(() => {
       const discardButtons = screen.getAllByText('discard');
       fireEvent.click(discardButtons[0]);
@@ -189,10 +181,10 @@ describe('GitDiffViewer', () => {
 
   it('should copy path to clipboard when clicking copy button', async () => {
     render(<GitDiffViewer diffs={mockDiffs} />);
-    
+
     const expandAllButton = screen.getByText('expandAll');
     fireEvent.click(expandAllButton);
-    
+
     await waitFor(() => {
       const copyButtons = screen.getAllByText('copyPath');
       fireEvent.click(copyButtons[0]);
@@ -202,10 +194,10 @@ describe('GitDiffViewer', () => {
 
   it('should show fullscreen button', async () => {
     render(<GitDiffViewer diffs={mockDiffs} />);
-    
+
     const expandAllButton = screen.getByText('expandAll');
     fireEvent.click(expandAllButton);
-    
+
     await waitFor(() => {
       expect(screen.getAllByText('fullscreen').length).toBeGreaterThan(0);
     });
@@ -220,20 +212,20 @@ describe('GitDiffViewer', () => {
         content: '',
       },
     ];
-    
+
     render(<GitDiffViewer diffs={binaryDiff} />);
-    
+
     const fileButton = screen.getByText('image.png').closest('button');
     if (fileButton) {
       fireEvent.click(fileButton);
     }
-    
+
     expect(screen.getByText('binaryOrEmpty')).toBeInTheDocument();
   });
 
   it('should display status badge for files with status', () => {
     render(<GitDiffViewer diffs={mockDiffs} fileStatus={mockFileStatus} />);
-    
+
     // Modified files should show 'M' badge
     const badges = screen.getAllByText('M');
     expect(badges.length).toBeGreaterThan(0);

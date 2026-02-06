@@ -79,33 +79,20 @@ const mockSteps: GuideStep[] = [
 describe('StepGuide', () => {
   describe('Rendering', () => {
     it('renders guide title', () => {
-      render(
-        <StepGuide title="Getting Started" steps={mockSteps} />,
-        { wrapper }
-      );
+      render(<StepGuide title="Getting Started" steps={mockSteps} />, { wrapper });
       expect(screen.getByText('Getting Started')).toBeInTheDocument();
     });
 
     it('renders description when not compact', () => {
-      render(
-        <StepGuide 
-          title="Guide" 
-          description="A helpful guide" 
-          steps={mockSteps} 
-        />,
-        { wrapper }
-      );
+      render(<StepGuide title="Guide" description="A helpful guide" steps={mockSteps} />, {
+        wrapper,
+      });
       expect(screen.getByText('A helpful guide')).toBeInTheDocument();
     });
 
     it('hides description when compact', () => {
       render(
-        <StepGuide 
-          title="Guide" 
-          description="A helpful guide" 
-          steps={mockSteps} 
-          compact={true}
-        />,
+        <StepGuide title="Guide" description="A helpful guide" steps={mockSteps} compact={true} />,
         { wrapper }
       );
       expect(screen.queryByText('A helpful guide')).not.toBeInTheDocument();
@@ -119,19 +106,13 @@ describe('StepGuide', () => {
     });
 
     it('renders step progress when showProgress is true', () => {
-      render(
-        <StepGuide title="Guide" steps={mockSteps} showProgress={true} />,
-        { wrapper }
-      );
+      render(<StepGuide title="Guide" steps={mockSteps} showProgress={true} />, { wrapper });
       // Guide should render with first step
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('renders skip button when allowSkip is true', () => {
-      render(
-        <StepGuide title="Guide" steps={mockSteps} allowSkip={true} />,
-        { wrapper }
-      );
+      render(<StepGuide title="Guide" steps={mockSteps} allowSkip={true} />, { wrapper });
       // Guide should render with buttons
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -154,39 +135,34 @@ describe('StepGuide', () => {
 
     it('advances to next step on next click', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('goes back to previous step', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('shows Complete button on last step', () => {
       const twoSteps = mockSteps.slice(0, 2);
-      
+
       render(<StepGuide title="Guide" steps={twoSteps} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('calls onStepChange when step changes', () => {
       const onStepChange = jest.fn();
-      
-      render(
-        <StepGuide 
-          title="Guide" 
-          steps={mockSteps} 
-          onStepChange={onStepChange}
-        />,
-        { wrapper }
-      );
-      
+
+      render(<StepGuide title="Guide" steps={mockSteps} onStepChange={onStepChange} />, {
+        wrapper,
+      });
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
@@ -194,26 +170,18 @@ describe('StepGuide', () => {
 
   describe('Step Indicators', () => {
     it('renders step indicators when showStepList is true and <= 6 steps', () => {
-      render(
-        <StepGuide title="Guide" steps={mockSteps} showStepList={true} />,
-        { wrapper }
-      );
-      
+      render(<StepGuide title="Guide" steps={mockSteps} showStepList={true} />, { wrapper });
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('allows direct navigation when allowNavigation is true', () => {
       render(
-        <StepGuide 
-          title="Guide" 
-          steps={mockSteps} 
-          showStepList={true}
-          allowNavigation={true}
-        />,
+        <StepGuide title="Guide" steps={mockSteps} showStepList={true} allowNavigation={true} />,
         { wrapper }
       );
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
@@ -222,21 +190,21 @@ describe('StepGuide', () => {
   describe('Confirmation', () => {
     it('shows confirmation button when requiresConfirmation is true', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('disables next until confirmed', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('enables next after confirmation', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
@@ -245,7 +213,7 @@ describe('StepGuide', () => {
   describe('Tips', () => {
     it('displays tips when present', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
-      
+
       // Guide should render with first step
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
@@ -254,14 +222,14 @@ describe('StepGuide', () => {
   describe('Hints', () => {
     it('shows hints toggle when hints exist', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('reveals hints on click', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
@@ -270,7 +238,7 @@ describe('StepGuide', () => {
   describe('Resources', () => {
     it('displays resources when present', () => {
       render(<StepGuide title="Guide" steps={mockSteps} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
@@ -280,16 +248,9 @@ describe('StepGuide', () => {
     it('calls onComplete when guide is completed', () => {
       const onComplete = jest.fn();
       const singleStep = [mockSteps[0]];
-      
-      render(
-        <StepGuide 
-          title="Guide" 
-          steps={singleStep} 
-          onComplete={onComplete}
-        />,
-        { wrapper }
-      );
-      
+
+      render(<StepGuide title="Guide" steps={singleStep} onComplete={onComplete} />, { wrapper });
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
@@ -298,17 +259,11 @@ describe('StepGuide', () => {
   describe('Skip', () => {
     it('calls onSkip when skip button clicked', () => {
       const onSkip = jest.fn();
-      
-      render(
-        <StepGuide 
-          title="Guide" 
-          steps={mockSteps} 
-          allowSkip={true}
-          onSkip={onSkip}
-        />,
-        { wrapper }
-      );
-      
+
+      render(<StepGuide title="Guide" steps={mockSteps} allowSkip={true} onSkip={onSkip} />, {
+        wrapper,
+      });
+
       // Check that buttons are rendered when allowSkip is true
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
@@ -318,26 +273,20 @@ describe('StepGuide', () => {
   describe('Step Callbacks', () => {
     it('calls onEnter when entering a step', () => {
       const onEnter = jest.fn();
-      const stepsWithCallback = [
-        mockSteps[0],
-        { ...mockSteps[1], onEnter },
-      ];
-      
+      const stepsWithCallback = [mockSteps[0], { ...mockSteps[1], onEnter }];
+
       render(<StepGuide title="Guide" steps={stepsWithCallback} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
 
     it('calls onLeave when leaving a step', () => {
       const onLeave = jest.fn();
-      const stepsWithCallback = [
-        { ...mockSteps[0], onLeave },
-        mockSteps[1],
-      ];
-      
+      const stepsWithCallback = [{ ...mockSteps[0], onLeave }, mockSteps[1]];
+
       render(<StepGuide title="Guide" steps={stepsWithCallback} />, { wrapper });
-      
+
       // Guide should render
       expect(screen.getAllByText('Introduction').length).toBeGreaterThan(0);
     });
@@ -361,15 +310,8 @@ describe('StepGuide', () => {
 
   describe('Controlled Mode', () => {
     it('respects controlled currentStep prop', () => {
-      render(
-        <StepGuide 
-          title="Guide" 
-          steps={mockSteps} 
-          currentStep={1}
-        />,
-        { wrapper }
-      );
-      
+      render(<StepGuide title="Guide" steps={mockSteps} currentStep={1} />, { wrapper });
+
       // Guide should render with step 2
       expect(screen.getAllByText('Main Concepts').length).toBeGreaterThan(0);
     });
@@ -381,7 +323,7 @@ describe('StepGuide', () => {
         <StepGuide title="Guide" steps={mockSteps} className="custom-guide" />,
         { wrapper }
       );
-      
+
       expect(container.querySelector('.custom-guide')).toBeInTheDocument();
     });
   });

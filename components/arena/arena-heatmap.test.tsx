@@ -28,7 +28,12 @@ let mockModelRatings: ArenaModelRating[] = [];
 let mockHeadToHead: ArenaHeadToHead[] = [];
 
 jest.mock('@/stores/arena', () => ({
-  useArenaStore: (selector: (state: { modelRatings: ArenaModelRating[]; getHeadToHead: () => ArenaHeadToHead[] }) => unknown) => {
+  useArenaStore: (
+    selector: (state: {
+      modelRatings: ArenaModelRating[];
+      getHeadToHead: () => ArenaHeadToHead[];
+    }) => unknown
+  ) => {
     const state = {
       modelRatings: [...mockModelRatings],
       getHeadToHead: () => mockHeadToHead,
@@ -38,7 +43,12 @@ jest.mock('@/stores/arena', () => ({
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button type="button" onClick={onClick} disabled={disabled} {...props}>
       {children}
     </button>
@@ -73,7 +83,9 @@ describe('ArenaHeatmap', () => {
   });
 
   it('renders empty state when fewer than two models exist', () => {
-    mockModelRatings = [makeRating({ modelId: 'openai:gpt-4o-mini', provider: 'openai', model: 'gpt-4o-mini' })];
+    mockModelRatings = [
+      makeRating({ modelId: 'openai:gpt-4o-mini', provider: 'openai', model: 'gpt-4o-mini' }),
+    ];
 
     render(<ArenaHeatmap />);
 
@@ -83,8 +95,18 @@ describe('ArenaHeatmap', () => {
 
   it('renders matrix and computes win rates from head-to-head data', () => {
     mockModelRatings = [
-      makeRating({ modelId: 'openai:gpt-4o-mini', provider: 'openai', model: 'gpt-4o-mini', rating: 1800 }),
-      makeRating({ modelId: 'anthropic:claude-3-5-sonnet', provider: 'anthropic', model: 'claude-3-5-sonnet', rating: 1750 }),
+      makeRating({
+        modelId: 'openai:gpt-4o-mini',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        rating: 1800,
+      }),
+      makeRating({
+        modelId: 'anthropic:claude-3-5-sonnet',
+        provider: 'anthropic',
+        model: 'claude-3-5-sonnet',
+        rating: 1750,
+      }),
     ];
 
     mockHeadToHead = [
@@ -114,14 +136,28 @@ describe('ArenaHeatmap', () => {
 
   it('changes cell size via zoom buttons', () => {
     mockModelRatings = [
-      makeRating({ modelId: 'openai:gpt-4o-mini', provider: 'openai', model: 'gpt-4o-mini', rating: 1800 }),
-      makeRating({ modelId: 'anthropic:claude-3-5-sonnet', provider: 'anthropic', model: 'claude-3-5-sonnet', rating: 1750 }),
+      makeRating({
+        modelId: 'openai:gpt-4o-mini',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        rating: 1800,
+      }),
+      makeRating({
+        modelId: 'anthropic:claude-3-5-sonnet',
+        provider: 'anthropic',
+        model: 'claude-3-5-sonnet',
+        rating: 1750,
+      }),
     ];
 
     render(<ArenaHeatmap />);
 
-    const zoomOutButton = screen.getAllByRole('button').find((b) => b.querySelector('[data-testid="icon-zoomout"]'));
-    const zoomInButton = screen.getAllByRole('button').find((b) => b.querySelector('[data-testid="icon-zoomin"]'));
+    const zoomOutButton = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('[data-testid="icon-zoomout"]'));
+    const zoomInButton = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('[data-testid="icon-zoomin"]'));
 
     expect(zoomOutButton).toBeDefined();
     expect(zoomInButton).toBeDefined();

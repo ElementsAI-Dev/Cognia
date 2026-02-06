@@ -37,11 +37,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -195,11 +191,7 @@ function ContestantCard({
                 onClick={onCopy}
                 disabled={!contestant.response}
               >
-                {isCopying ? (
-                  <Check className="h-3 w-3" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
+                {isCopying ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
               </Button>
             </TooltipTrigger>
             <TooltipContent>{t('copy')}</TooltipContent>
@@ -235,8 +227,7 @@ function ContestantCard({
           )}
           {contestant.estimatedCost && (
             <div className="flex items-center gap-1">
-              <Coins className="h-3 w-3" />
-              ${contestant.estimatedCost.toFixed(4)}
+              <Coins className="h-3 w-3" />${contestant.estimatedCost.toFixed(4)}
             </div>
           )}
         </div>
@@ -294,9 +285,10 @@ function ArenaBattleViewComponent({
   const ensureVoteAllowed = useCallback(() => {
     const result = canVote(battleId);
     if (!result.allowed) {
-      const message = result.reason === 'min-viewing-time'
-        ? tToasts('arenaMinViewingTime')
-        : tToasts('arenaRateLimit');
+      const message =
+        result.reason === 'min-viewing-time'
+          ? tToasts('arenaMinViewingTime')
+          : tToasts('arenaRateLimit');
       toast.error(message);
       return false;
     }
@@ -356,9 +348,11 @@ function ArenaBattleViewComponent({
   }
 
   const isMultiTurn = battle.conversationMode === 'multi';
-  const canContinueBattle = canContinue && isMultiTurn && allDone && !battle.winnerId && !battle.isTie;
+  const canContinueBattle =
+    canContinue && isMultiTurn && allDone && !battle.winnerId && !battle.isTie;
 
-  const isBlindMode = battle.mode === 'blind' && !battle.winnerId && !battle.isTie && !battle.isBothBad;
+  const isBlindMode =
+    battle.mode === 'blind' && !battle.winnerId && !battle.isTie && !battle.isBothBad;
   const isBattleComplete = !!battle.winnerId || !!battle.isTie || !!battle.isBothBad;
 
   // Convert contestants to ArenaModelConfig for QuickVoteBar (must be after isBlindMode)

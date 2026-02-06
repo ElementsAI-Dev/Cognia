@@ -36,12 +36,7 @@ export function CompletionOverlay({
   const [internalVisible, setInternalVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const {
-    currentSuggestion,
-    config,
-    accept,
-    dismiss,
-  } = useInputCompletion({
+  const { currentSuggestion, config, accept, dismiss } = useInputCompletion({
     onSuggestion: () => setInternalVisible(true),
     onAccept: (suggestion) => {
       setInternalVisible(false);
@@ -58,9 +53,7 @@ export function CompletionOverlay({
   const hasMultipleSuggestions = suggestions.length > 1;
 
   // Clamp selectedIndex to valid range to prevent out-of-bounds access
-  const clampedIndex = suggestions.length > 0
-    ? Math.min(selectedIndex, suggestions.length - 1)
-    : 0;
+  const clampedIndex = suggestions.length > 0 ? Math.min(selectedIndex, suggestions.length - 1) : 0;
   const activeSuggestion = suggestions[clampedIndex] ?? currentSuggestion;
 
   const visible = visibleProp ?? internalVisible;
@@ -177,7 +170,9 @@ export function CompletionOverlay({
         {/* Multi-suggestion indicator */}
         {hasMultipleSuggestions && (
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground/50">
-            <span>{selectedIndex + 1}/{suggestions.length}</span>
+            <span>
+              {selectedIndex + 1}/{suggestions.length}
+            </span>
             <span className="mx-1">·</span>
             <kbd className="rounded bg-muted px-1 py-0.5 text-[9px]">Alt+[</kbd>
             <kbd className="rounded bg-muted px-1 py-0.5 text-[9px]">Alt+]</kbd>
@@ -188,14 +183,10 @@ export function CompletionOverlay({
         {/* Accept hint */}
         {config.ui.show_accept_hint && (
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground/70">
-            <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-              Tab
-            </kbd>
+            <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">Tab</kbd>
             <span>to accept</span>
             <span className="mx-1">·</span>
-            <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-              Esc
-            </kbd>
+            <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">Esc</kbd>
             <span>to dismiss</span>
           </div>
         )}

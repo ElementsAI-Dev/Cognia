@@ -13,7 +13,9 @@ jest.mock('next-intl', () => ({
 // Mock UI components
 jest.mock('@/components/ui/card', () => ({
   Card: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="card" className={className}>{children}</div>
+    <div data-testid="card" className={className}>
+      {children}
+    </div>
   ),
   CardContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="card-content">{children}</div>
@@ -28,7 +30,9 @@ jest.mock('@/components/ui/card', () => ({
 
 jest.mock('@/components/ui/alert', () => ({
   Alert: ({ children, variant }: { children: React.ReactNode; variant?: string }) => (
-    <div data-testid="alert" data-variant={variant}>{children}</div>
+    <div data-testid="alert" data-variant={variant}>
+      {children}
+    </div>
   ),
   AlertDescription: ({ children }: { children: React.ReactNode }) => (
     <p data-testid="alert-description">{children}</p>
@@ -69,7 +73,9 @@ describe('RecommendationsPanel', () => {
   it('displays recommendation text', () => {
     render(<RecommendationsPanel recommendations={mockRecommendations} />);
     expect(screen.getByText('Your usage is healthy and within budget.')).toBeInTheDocument();
-    expect(screen.getByText('Consider using a smaller model for cost savings.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Consider using a smaller model for cost savings.')
+    ).toBeInTheDocument();
   });
 
   it('renders title with lightbulb icon', () => {

@@ -73,9 +73,7 @@ export function GitignoreTemplateSelector({
 
   const handleTemplateToggle = (templateId: string) => {
     setSelectedTemplates((prev) =>
-      prev.includes(templateId)
-        ? prev.filter((id) => id !== templateId)
-        : [...prev, templateId]
+      prev.includes(templateId) ? prev.filter((id) => id !== templateId) : [...prev, templateId]
     );
   };
 
@@ -147,9 +145,7 @@ export function GitignoreTemplateSelector({
                 >
                   <span className="mr-1">{template.icon}</span>
                   {template.name}
-                  {selectedTemplates.includes(template.id) && (
-                    <Check className="h-3 w-3 ml-1" />
-                  )}
+                  {selectedTemplates.includes(template.id) && <Check className="h-3 w-3 ml-1" />}
                 </Button>
               ))}
             </div>
@@ -197,9 +193,7 @@ export function GitignoreTemplateSelector({
                 </Button>
               </div>
               <ScrollArea className="h-48 rounded-md border bg-muted/30">
-                <pre className="p-3 text-xs font-mono whitespace-pre-wrap">
-                  {finalContent}
-                </pre>
+                <pre className="p-3 text-xs font-mono whitespace-pre-wrap">{finalContent}</pre>
               </ScrollArea>
             </div>
           )}

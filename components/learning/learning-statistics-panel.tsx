@@ -2,7 +2,7 @@
 
 /**
  * Learning Statistics Panel
- * 
+ *
  * Displays learning statistics, achievements, and progress visualization.
  */
 
@@ -70,7 +70,9 @@ export const LearningStatisticsPanel = memo(function LearningStatisticsPanel({
   }, [session.concepts]);
 
   const _learningConcepts = useMemo(() => {
-    return session.concepts.filter((c) => c.masteryStatus === 'learning' || c.masteryStatus === 'practicing').length;
+    return session.concepts.filter(
+      (c) => c.masteryStatus === 'learning' || c.masteryStatus === 'practicing'
+    ).length;
   }, [session.concepts]);
 
   return (
@@ -110,8 +112,12 @@ export const LearningStatisticsPanel = memo(function LearningStatisticsPanel({
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2">
-            <div className={cn('w-3 h-3 rounded-full', DIFFICULTY_COLORS[session.currentDifficulty])} />
-            <span className="font-medium">{t(`stats.difficulty.${session.currentDifficulty}`)}</span>
+            <div
+              className={cn('w-3 h-3 rounded-full', DIFFICULTY_COLORS[session.currentDifficulty])}
+            />
+            <span className="font-medium">
+              {t(`stats.difficulty.${session.currentDifficulty}`)}
+            </span>
             {session.adaptiveAdjustments > 0 && (
               <Badge variant="secondary" className="text-xs">
                 {session.adaptiveAdjustments} {t('stats.adjustments')}
@@ -119,17 +125,17 @@ export const LearningStatisticsPanel = memo(function LearningStatisticsPanel({
             )}
           </div>
           <div className="flex gap-1 mt-2">
-            {(['beginner', 'intermediate', 'advanced', 'expert'] as DifficultyLevel[]).map((level) => (
-              <div
-                key={level}
-                className={cn(
-                  'flex-1 h-1.5 rounded-full transition-colors',
-                  level === session.currentDifficulty
-                    ? DIFFICULTY_COLORS[level]
-                    : 'bg-muted'
-                )}
-              />
-            ))}
+            {(['beginner', 'intermediate', 'advanced', 'expert'] as DifficultyLevel[]).map(
+              (level) => (
+                <div
+                  key={level}
+                  className={cn(
+                    'flex-1 h-1.5 rounded-full transition-colors',
+                    level === session.currentDifficulty ? DIFFICULTY_COLORS[level] : 'bg-muted'
+                  )}
+                />
+              )
+            )}
           </div>
         </CardContent>
       </Card>
@@ -145,16 +151,14 @@ export const LearningStatisticsPanel = memo(function LearningStatisticsPanel({
         <CardContent>
           <div className="flex items-center gap-3">
             <Progress value={session.engagementScore} className="flex-1 h-2" />
-            <span className="text-sm font-medium w-10 text-right">
-              {session.engagementScore}%
-            </span>
+            <span className="text-sm font-medium w-10 text-right">{session.engagementScore}%</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             {session.engagementScore >= 70
               ? t('stats.engagementHigh')
               : session.engagementScore >= 40
-              ? t('stats.engagementMedium')
-              : t('stats.engagementLow')}
+                ? t('stats.engagementMedium')
+                : t('stats.engagementLow')}
           </p>
         </CardContent>
       </Card>
@@ -174,9 +178,7 @@ export const LearningStatisticsPanel = memo(function LearningStatisticsPanel({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs truncate">{concept.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {concept.masteryScore}%
-                    </span>
+                    <span className="text-xs text-muted-foreground">{concept.masteryScore}%</span>
                   </div>
                   <Progress value={concept.masteryScore} className="h-1" />
                 </div>
@@ -232,11 +234,7 @@ export const LearningStatisticsPanel = memo(function LearningStatisticsPanel({
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {achievements.map((achievement) => (
-                <Badge
-                  key={achievement.id}
-                  variant="secondary"
-                  className="flex items-center gap-1"
-                >
+                <Badge key={achievement.id} variant="secondary" className="flex items-center gap-1">
                   <Award className="h-3 w-3" />
                   {achievement.name}
                 </Badge>

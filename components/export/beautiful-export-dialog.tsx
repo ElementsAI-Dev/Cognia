@@ -44,12 +44,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -61,7 +56,15 @@ import { CustomThemeEditor } from './custom-theme-editor';
 import { SocialShareDialog } from './social-share-dialog';
 import { ImageExportDialog } from './image-export-dialog';
 
-type ExportFormat = 'beautiful-html' | 'pdf' | 'markdown' | 'word' | 'excel' | 'csv' | 'animated-html' | 'json';
+type ExportFormat =
+  | 'beautiful-html'
+  | 'pdf'
+  | 'markdown'
+  | 'word'
+  | 'excel'
+  | 'csv'
+  | 'animated-html'
+  | 'json';
 type ThemeOption = 'light' | 'dark' | 'system';
 
 interface BeautifulExportDialogProps {
@@ -97,13 +100,16 @@ const DEFAULT_OPTIONS: ExportOptions = {
 
 const SYNTAX_THEMES = getAvailableSyntaxThemes();
 
-const FORMAT_CONFIG: Record<ExportFormat, {
-  icon: React.ElementType;
-  label: string;
-  description: string;
-  extension: string;
-  badge?: string;
-}> = {
+const FORMAT_CONFIG: Record<
+  ExportFormat,
+  {
+    icon: React.ElementType;
+    label: string;
+    description: string;
+    extension: string;
+    badge?: string;
+  }
+> = {
   'beautiful-html': {
     icon: Sparkles,
     label: 'Beautiful HTML',
@@ -111,31 +117,31 @@ const FORMAT_CONFIG: Record<ExportFormat, {
     extension: '.html',
     badge: 'Recommended',
   },
-  'pdf': {
+  pdf: {
     icon: FileType,
     label: 'PDF Document',
     description: 'Professional PDF with cover page',
     extension: '.pdf',
   },
-  'markdown': {
+  markdown: {
     icon: FileText,
     label: 'Rich Markdown',
     description: 'GitHub-flavored markdown with metadata',
     extension: '.md',
   },
-  'word': {
+  word: {
     icon: BookOpen,
     label: 'Word Document',
     description: 'Microsoft Word format (.docx)',
     extension: '.docx',
   },
-  'excel': {
+  excel: {
     icon: FileSpreadsheet,
     label: 'Excel Spreadsheet',
     description: 'Tabular format with statistics',
     extension: '.xlsx',
   },
-  'csv': {
+  csv: {
     icon: Table2,
     label: 'CSV Spreadsheet',
     description: 'CSV format for Google Sheets import',
@@ -147,7 +153,7 @@ const FORMAT_CONFIG: Record<ExportFormat, {
     description: 'Interactive replay with typewriter effect',
     extension: '.html',
   },
-  'json': {
+  json: {
     icon: Code2,
     label: 'JSON Data',
     description: 'Complete structured data export',
@@ -167,7 +173,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
   const [options, setOptions] = useState<ExportOptions>(DEFAULT_OPTIONS);
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const previewRef = useRef<HTMLIFrameElement>(null);
-  
+
   // Custom theme editor state
   const [themeEditorOpen, setThemeEditorOpen] = useState(false);
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
@@ -187,7 +193,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
   // Generate preview when format or options change
   useEffect(() => {
     if (!open || messages.length === 0) return;
-    
+
     const generatePreview = async () => {
       if (selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') {
         try {
@@ -239,7 +245,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
       switch (selectedFormat) {
         case 'beautiful-html': {
-          const { exportToBeautifulHTML, downloadFile, generateFilename } = await import('@/lib/export');
+          const { exportToBeautifulHTML, downloadFile, generateFilename } =
+            await import('@/lib/export');
           const html = exportToBeautifulHTML({
             session,
             messages,
@@ -269,7 +276,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
             messages,
             exportedAt,
             options: {
-              theme: options.theme === 'system' ? 'light' : options.theme as 'light' | 'dark',
+              theme: options.theme === 'system' ? 'light' : (options.theme as 'light' | 'dark'),
               showTimestamps: options.showTimestamps,
               showTokens: options.showTokens,
               showThinkingProcess: options.showThinkingProcess,
@@ -282,7 +289,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         }
 
         case 'markdown': {
-          const { exportToRichMarkdown, downloadFile, generateFilename } = await import('@/lib/export');
+          const { exportToRichMarkdown, downloadFile, generateFilename } =
+            await import('@/lib/export');
           const markdown = exportToRichMarkdown({
             session,
             messages,
@@ -296,7 +304,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         }
 
         case 'word': {
-          const { generateWordDocument, downloadWordDocument } = await import('@/lib/export/document/word-document-generator');
+          const { generateWordDocument, downloadWordDocument } =
+            await import('@/lib/export/document/word-document-generator');
           const result = await generateWordDocument(session, messages, {
             includeMetadata: true,
             includeTimestamps: options.showTimestamps,
@@ -304,12 +313,14 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
             showThinkingProcess: options.showThinkingProcess,
             showToolCalls: options.showToolCalls,
             includeCoverPage: options.includeCoverPage,
-            tableOfContents: options.includeTableOfContents ? {
-              enabled: true,
-              title: 'Table of Contents',
-              levels: 3,
-              showPageNumbers: true,
-            } : undefined,
+            tableOfContents: options.includeTableOfContents
+              ? {
+                  enabled: true,
+                  title: 'Table of Contents',
+                  levels: 3,
+                  showPageNumbers: true,
+                }
+              : undefined,
           });
           if (result.success && result.blob && result.filename) {
             downloadWordDocument(result.blob, result.filename);
@@ -320,7 +331,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         }
 
         case 'excel': {
-          const { exportChatToExcel, downloadExcel } = await import('@/lib/export/document/excel-export');
+          const { exportChatToExcel, downloadExcel } =
+            await import('@/lib/export/document/excel-export');
           const result = await exportChatToExcel(session, messages);
           if (result.success && result.blob && result.filename) {
             downloadExcel(result.blob, result.filename);
@@ -331,7 +343,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         }
 
         case 'csv': {
-          const { exportChatToCSV, downloadCSV } = await import('@/lib/export/document/google-sheets-export');
+          const { exportChatToCSV, downloadCSV } =
+            await import('@/lib/export/document/google-sheets-export');
           const result = exportChatToCSV(session, messages);
           if (result.success && result.content && result.filename) {
             downloadCSV(result.content, result.filename);
@@ -342,7 +355,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         }
 
         case 'animated-html': {
-          const { exportToAnimatedHTML, downloadFile, generateFilename } = await import('@/lib/export');
+          const { exportToAnimatedHTML, downloadFile, generateFilename } =
+            await import('@/lib/export');
           const html = exportToAnimatedHTML({
             session,
             messages,
@@ -377,8 +391,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
   const stats = {
     messages: messages.length,
-    userMessages: messages.filter(m => m.role === 'user').length,
-    assistantMessages: messages.filter(m => m.role === 'assistant').length,
+    userMessages: messages.filter((m) => m.role === 'user').length,
+    assistantMessages: messages.filter((m) => m.role === 'assistant').length,
     tokens: messages.reduce((sum, m) => sum + (m.tokens?.total || 0), 0),
   };
 
@@ -398,9 +412,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
             <Sparkles className="h-5 w-5 text-primary" />
             {t('title')}
           </DialogTitle>
-          <DialogDescription>
-            {t('description')}
-          </DialogDescription>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
@@ -430,48 +442,53 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                       onValueChange={(v) => setSelectedFormat(v as ExportFormat)}
                       className="space-y-2"
                     >
-                      {(Object.entries(FORMAT_CONFIG) as [ExportFormat, typeof FORMAT_CONFIG[ExportFormat]][]).map(
-                        ([format, config]) => {
-                          const Icon = config.icon;
-                          return (
-                            <div
-                              key={format}
+                      {(
+                        Object.entries(FORMAT_CONFIG) as [
+                          ExportFormat,
+                          (typeof FORMAT_CONFIG)[ExportFormat],
+                        ][]
+                      ).map(([format, config]) => {
+                        const Icon = config.icon;
+                        return (
+                          <div
+                            key={format}
+                            className={cn(
+                              'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all',
+                              selectedFormat === format
+                                ? 'border-primary bg-primary/5 shadow-sm'
+                                : 'border-border hover:border-primary/50 hover:bg-accent/50'
+                            )}
+                            onClick={() => setSelectedFormat(format)}
+                          >
+                            <RadioGroupItem value={format} id={format} className="mt-1" />
+                            <Icon
                               className={cn(
-                                'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all',
-                                selectedFormat === format
-                                  ? 'border-primary bg-primary/5 shadow-sm'
-                                  : 'border-border hover:border-primary/50 hover:bg-accent/50'
-                              )}
-                              onClick={() => setSelectedFormat(format)}
-                            >
-                              <RadioGroupItem value={format} id={format} className="mt-1" />
-                              <Icon className={cn(
                                 'h-5 w-5 mt-0.5',
                                 selectedFormat === format ? 'text-primary' : 'text-muted-foreground'
-                              )} />
-                              <div className="flex-1 min-w-0">
-                                <Label
-                                  htmlFor={format}
-                                  className="flex items-center gap-2 cursor-pointer font-medium"
-                                >
-                                  {config.label}
-                                  {config.badge && (
-                                    <Badge variant="secondary" className="text-xs font-normal">
-                                      {config.badge}
-                                    </Badge>
-                                  )}
-                                </Label>
-                                <p className="text-sm text-muted-foreground mt-0.5">
-                                  {config.description}
-                                </p>
-                              </div>
-                              <span className="text-xs text-muted-foreground font-mono">
-                                {config.extension}
-                              </span>
+                              )}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <Label
+                                htmlFor={format}
+                                className="flex items-center gap-2 cursor-pointer font-medium"
+                              >
+                                {config.label}
+                                {config.badge && (
+                                  <Badge variant="secondary" className="text-xs font-normal">
+                                    {config.badge}
+                                  </Badge>
+                                )}
+                              </Label>
+                              <p className="text-sm text-muted-foreground mt-0.5">
+                                {config.description}
+                              </p>
                             </div>
-                          );
-                        }
-                      )}
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {config.extension}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </RadioGroup>
 
                     {/* Google Sheets shortcut */}
@@ -481,7 +498,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                         className="w-full"
                         onClick={async () => {
                           try {
-                            const { exportChatToCSV, downloadCSV } = await import('@/lib/export/document/google-sheets-export');
+                            const { exportChatToCSV, downloadCSV } =
+                              await import('@/lib/export/document/google-sheets-export');
                             const result = exportChatToCSV(session, messages);
                             if (result.success && result.content && result.filename) {
                               downloadCSV(result.content, result.filename);
@@ -520,7 +538,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                               variant={options.theme === value ? 'default' : 'outline'}
                               size="sm"
                               className="flex-1"
-                              onClick={() => setOptions(prev => ({ ...prev, theme: value }))}
+                              onClick={() => setOptions((prev) => ({ ...prev, theme: value }))}
                             >
                               <Icon className="h-4 w-4 mr-2" />
                               {label}
@@ -532,60 +550,76 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                       {/* Display Options */}
                       <div className="space-y-4">
                         <Label className="text-sm font-medium">{t('display')}</Label>
-                        
+
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <Label htmlFor="timestamps" className="text-sm">{t('showTimestamps')}</Label>
-                              <p className="text-xs text-muted-foreground">{t('showTimestampsDesc')}</p>
+                              <Label htmlFor="timestamps" className="text-sm">
+                                {t('showTimestamps')}
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                {t('showTimestampsDesc')}
+                              </p>
                             </div>
                             <Switch
                               id="timestamps"
                               checked={options.showTimestamps}
                               onCheckedChange={(checked) =>
-                                setOptions(prev => ({ ...prev, showTimestamps: checked }))
+                                setOptions((prev) => ({ ...prev, showTimestamps: checked }))
                               }
                             />
                           </div>
 
                           <div className="flex items-center justify-between">
                             <div>
-                              <Label htmlFor="tokens" className="text-sm">{t('showTokenCount')}</Label>
-                              <p className="text-xs text-muted-foreground">{t('showTokenCountDesc')}</p>
+                              <Label htmlFor="tokens" className="text-sm">
+                                {t('showTokenCount')}
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                {t('showTokenCountDesc')}
+                              </p>
                             </div>
                             <Switch
                               id="tokens"
                               checked={options.showTokens}
                               onCheckedChange={(checked) =>
-                                setOptions(prev => ({ ...prev, showTokens: checked }))
+                                setOptions((prev) => ({ ...prev, showTokens: checked }))
                               }
                             />
                           </div>
 
                           <div className="flex items-center justify-between">
                             <div>
-                              <Label htmlFor="thinking" className="text-sm">{t('showThinking')}</Label>
-                              <p className="text-xs text-muted-foreground">{t('showThinkingDesc')}</p>
+                              <Label htmlFor="thinking" className="text-sm">
+                                {t('showThinking')}
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                {t('showThinkingDesc')}
+                              </p>
                             </div>
                             <Switch
                               id="thinking"
                               checked={options.showThinkingProcess}
                               onCheckedChange={(checked) =>
-                                setOptions(prev => ({ ...prev, showThinkingProcess: checked }))
+                                setOptions((prev) => ({ ...prev, showThinkingProcess: checked }))
                               }
                             />
                           </div>
 
                           <div className="flex items-center justify-between">
                             <div>
-                              <Label htmlFor="tools" className="text-sm">{t('showToolCalls')}</Label>
-                              <p className="text-xs text-muted-foreground">{t('showToolCallsDesc')}</p>
+                              <Label htmlFor="tools" className="text-sm">
+                                {t('showToolCalls')}
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                {t('showToolCallsDesc')}
+                              </p>
                             </div>
                             <Switch
                               id="tools"
                               checked={options.showToolCalls}
                               onCheckedChange={(checked) =>
-                                setOptions(prev => ({ ...prev, showToolCalls: checked }))
+                                setOptions((prev) => ({ ...prev, showToolCalls: checked }))
                               }
                             />
                           </div>
@@ -596,60 +630,79 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                       {selectedFormat === 'word' && (
                         <div className="space-y-4">
                           <Label className="text-sm font-medium">{t('wordOptions')}</Label>
-                          
+
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="wordCover" className="text-sm">{t('coverPage')}</Label>
-                                <p className="text-xs text-muted-foreground">{t('coverPageDesc')}</p>
+                                <Label htmlFor="wordCover" className="text-sm">
+                                  {t('coverPage')}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('coverPageDesc')}
+                                </p>
                               </div>
                               <Switch
                                 id="wordCover"
                                 checked={options.includeCoverPage}
                                 onCheckedChange={(checked) =>
-                                  setOptions(prev => ({ ...prev, includeCoverPage: checked }))
+                                  setOptions((prev) => ({ ...prev, includeCoverPage: checked }))
                                 }
                               />
                             </div>
 
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="wordToc" className="text-sm">{t('tableOfContents')}</Label>
-                                <p className="text-xs text-muted-foreground">{t('tableOfContentsDesc')}</p>
+                                <Label htmlFor="wordToc" className="text-sm">
+                                  {t('tableOfContents')}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('tableOfContentsDesc')}
+                                </p>
                               </div>
                               <Switch
                                 id="wordToc"
                                 checked={options.includeTableOfContents}
                                 onCheckedChange={(checked) =>
-                                  setOptions(prev => ({ ...prev, includeTableOfContents: checked }))
+                                  setOptions((prev) => ({
+                                    ...prev,
+                                    includeTableOfContents: checked,
+                                  }))
                                 }
                               />
                             </div>
 
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="wordThinking" className="text-sm">{t('showThinking')}</Label>
-                                <p className="text-xs text-muted-foreground">{t('showThinkingDesc')}</p>
+                                <Label htmlFor="wordThinking" className="text-sm">
+                                  {t('showThinking')}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('showThinkingDesc')}
+                                </p>
                               </div>
                               <Switch
                                 id="wordThinking"
                                 checked={options.showThinkingProcess}
                                 onCheckedChange={(checked) =>
-                                  setOptions(prev => ({ ...prev, showThinkingProcess: checked }))
+                                  setOptions((prev) => ({ ...prev, showThinkingProcess: checked }))
                                 }
                               />
                             </div>
 
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="wordTools" className="text-sm">{t('showToolCalls')}</Label>
-                                <p className="text-xs text-muted-foreground">{t('showToolCallsDesc')}</p>
+                                <Label htmlFor="wordTools" className="text-sm">
+                                  {t('showToolCalls')}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('showToolCallsDesc')}
+                                </p>
                               </div>
                               <Switch
                                 id="wordTools"
                                 checked={options.showToolCalls}
                                 onCheckedChange={(checked) =>
-                                  setOptions(prev => ({ ...prev, showToolCalls: checked }))
+                                  setOptions((prev) => ({ ...prev, showToolCalls: checked }))
                                 }
                               />
                             </div>
@@ -661,32 +714,43 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                       {(selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') && (
                         <div className="space-y-4">
                           <Label className="text-sm font-medium">{t('document')}</Label>
-                          
+
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="cover" className="text-sm">{t('coverPage')}</Label>
-                                <p className="text-xs text-muted-foreground">{t('coverPageDesc')}</p>
+                                <Label htmlFor="cover" className="text-sm">
+                                  {t('coverPage')}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('coverPageDesc')}
+                                </p>
                               </div>
                               <Switch
                                 id="cover"
                                 checked={options.includeCoverPage}
                                 onCheckedChange={(checked) =>
-                                  setOptions(prev => ({ ...prev, includeCoverPage: checked }))
+                                  setOptions((prev) => ({ ...prev, includeCoverPage: checked }))
                                 }
                               />
                             </div>
 
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="toc" className="text-sm">{t('tableOfContents')}</Label>
-                                <p className="text-xs text-muted-foreground">{t('tableOfContentsDesc')}</p>
+                                <Label htmlFor="toc" className="text-sm">
+                                  {t('tableOfContents')}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('tableOfContentsDesc')}
+                                </p>
                               </div>
                               <Switch
                                 id="toc"
                                 checked={options.includeTableOfContents}
                                 onCheckedChange={(checked) =>
-                                  setOptions(prev => ({ ...prev, includeTableOfContents: checked }))
+                                  setOptions((prev) => ({
+                                    ...prev,
+                                    includeTableOfContents: checked,
+                                  }))
                                 }
                               />
                             </div>
@@ -708,7 +772,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                                   {t('custom')}
                                 </Button>
                               </div>
-                              
+
                               {/* Custom Themes */}
                               {customThemes.length > 0 && (
                                 <div className="space-y-1">
@@ -727,12 +791,19 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                                         <button
                                           type="button"
                                           className="w-full text-left"
-                                          onClick={() => setOptions(prev => ({ ...prev, syntaxTheme: theme.name as SyntaxThemeName }))}
+                                          onClick={() =>
+                                            setOptions((prev) => ({
+                                              ...prev,
+                                              syntaxTheme: theme.name as SyntaxThemeName,
+                                            }))
+                                          }
                                         >
-                                          <span className={cn(
-                                            'inline-block w-2 h-2 rounded-full mr-2',
-                                            theme.isDark ? 'bg-slate-700' : 'bg-slate-200'
-                                          )} />
+                                          <span
+                                            className={cn(
+                                              'inline-block w-2 h-2 rounded-full mr-2',
+                                              theme.isDark ? 'bg-slate-700' : 'bg-slate-200'
+                                            )}
+                                          />
                                           {theme.displayName}
                                         </button>
                                         <div className="absolute right-1 top-1 hidden group-hover:flex gap-0.5">
@@ -763,9 +834,11 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                                   </div>
                                 </div>
                               )}
-                              
+
                               {/* Built-in Themes */}
-                              <p className="text-xs text-muted-foreground pt-1">{t('builtInThemes')}</p>
+                              <p className="text-xs text-muted-foreground pt-1">
+                                {t('builtInThemes')}
+                              </p>
                               <div className="grid grid-cols-2 gap-2">
                                 {SYNTAX_THEMES.slice(0, 6).map((theme) => (
                                   <button
@@ -777,12 +850,16 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                                         ? 'border-primary bg-primary/10 font-medium'
                                         : 'border-border hover:border-primary/50'
                                     )}
-                                    onClick={() => setOptions(prev => ({ ...prev, syntaxTheme: theme.name }))}
+                                    onClick={() =>
+                                      setOptions((prev) => ({ ...prev, syntaxTheme: theme.name }))
+                                    }
                                   >
-                                    <span className={cn(
-                                      'inline-block w-2 h-2 rounded-full mr-2',
-                                      theme.isDark ? 'bg-slate-700' : 'bg-slate-200'
-                                    )} />
+                                    <span
+                                      className={cn(
+                                        'inline-block w-2 h-2 rounded-full mr-2',
+                                        theme.isDark ? 'bg-slate-700' : 'bg-slate-200'
+                                      )}
+                                    />
                                     {theme.displayName}
                                   </button>
                                 ))}
@@ -803,12 +880,19 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                                             ? 'border-primary bg-primary/10 font-medium'
                                             : 'border-border hover:border-primary/50'
                                         )}
-                                        onClick={() => setOptions(prev => ({ ...prev, syntaxTheme: theme.name }))}
+                                        onClick={() =>
+                                          setOptions((prev) => ({
+                                            ...prev,
+                                            syntaxTheme: theme.name,
+                                          }))
+                                        }
                                       >
-                                        <span className={cn(
-                                          'inline-block w-2 h-2 rounded-full mr-2',
-                                          theme.isDark ? 'bg-slate-700' : 'bg-slate-200'
-                                        )} />
+                                        <span
+                                          className={cn(
+                                            'inline-block w-2 h-2 rounded-full mr-2',
+                                            theme.isDark ? 'bg-slate-700' : 'bg-slate-200'
+                                          )}
+                                        />
                                         {theme.displayName}
                                       </button>
                                     ))}
@@ -819,28 +903,36 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
 
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="syntax" className="text-sm">{t('syntaxHighlighting')}</Label>
-                                <p className="text-xs text-muted-foreground">{t('syntaxHighlightingDesc')}</p>
+                                <Label htmlFor="syntax" className="text-sm">
+                                  {t('syntaxHighlighting')}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('syntaxHighlightingDesc')}
+                                </p>
                               </div>
                               <Switch
                                 id="syntax"
                                 checked={options.syntaxHighlighting}
                                 onCheckedChange={(checked) =>
-                                  setOptions(prev => ({ ...prev, syntaxHighlighting: checked }))
+                                  setOptions((prev) => ({ ...prev, syntaxHighlighting: checked }))
                                 }
                               />
                             </div>
 
                             <div className="flex items-center justify-between">
                               <div>
-                                <Label htmlFor="compact" className="text-sm">{t('compactMode')}</Label>
-                                <p className="text-xs text-muted-foreground">{t('compactModeDesc')}</p>
+                                <Label htmlFor="compact" className="text-sm">
+                                  {t('compactMode')}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('compactModeDesc')}
+                                </p>
                               </div>
                               <Switch
                                 id="compact"
                                 checked={options.compactMode}
                                 onCheckedChange={(checked) =>
-                                  setOptions(prev => ({ ...prev, compactMode: checked }))
+                                  setOptions((prev) => ({ ...prev, compactMode: checked }))
                                 }
                               />
                             </div>
@@ -883,7 +975,8 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                 {t('preview')}
               </div>
               <div className="rounded-lg border bg-muted/30 overflow-hidden h-[420px]">
-                {(selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') && previewHtml ? (
+                {(selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') &&
+                previewHtml ? (
                   <iframe
                     ref={previewRef}
                     srcDoc={previewHtml}
@@ -943,28 +1036,28 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
               }
             />
           </div>
-          
+
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>
               {t('cancel')}
             </Button>
             <Button
-            onClick={handleExport}
-            disabled={isExporting || isLoading || messages.length === 0}
-            className="min-w-[140px]"
-          >
-            {isExporting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {t('exporting')}
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                {t('exportFormat', { ext: FORMAT_CONFIG[selectedFormat].extension })}
-              </>
-            )}
-          </Button>
+              onClick={handleExport}
+              disabled={isExporting || isLoading || messages.length === 0}
+              className="min-w-[140px]"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {t('exporting')}
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  {t('exportFormat', { ext: FORMAT_CONFIG[selectedFormat].extension })}
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </DialogContent>
@@ -976,9 +1069,9 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
         editingThemeId={editingThemeId}
         onSave={(themeId) => {
           // Select the newly created/edited theme
-          const theme = customThemes.find(t => t.id === themeId);
+          const theme = customThemes.find((t) => t.id === themeId);
           if (theme) {
-            setOptions(prev => ({ ...prev, syntaxTheme: theme.name as SyntaxThemeName }));
+            setOptions((prev) => ({ ...prev, syntaxTheme: theme.name as SyntaxThemeName }));
           }
         }}
       />

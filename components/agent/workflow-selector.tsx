@@ -31,11 +31,7 @@ import { cn } from '@/lib/utils';
 import { useWorkflow } from '@/hooks/designer';
 import { useWorkflowStore } from '@/stores/workflow';
 import { useTemplateMarketStore } from '@/stores/workflow/template-market-store';
-import type {
-  WorkflowDefinition,
-  WorkflowTemplate,
-  PPTGenerationOptions,
-} from '@/types/workflow';
+import type { WorkflowDefinition, WorkflowTemplate, PPTGenerationOptions } from '@/types/workflow';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
 import {
   Play,
@@ -126,7 +122,7 @@ export function WorkflowSelector({
   });
 
   const { openWorkflowPanel, setSelectedWorkflowType } = useWorkflowStore();
-  
+
   // Get templates from template market store
   const { getFilteredTemplates, initialize, isInitialized } = useTemplateMarketStore();
 
@@ -141,7 +137,7 @@ export function WorkflowSelector({
 
   const templates = useMemo(() => {
     if (!selectedWorkflow) return [];
-    
+
     // Get templates from template market store filtered by workflow type
     const allTemplates = getFilteredTemplates();
     return allTemplates
@@ -210,157 +206,149 @@ export function WorkflowSelector({
           {!isRunning && (
             <Card>
               <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Workflow className="h-5 w-5" />
-              {t('selectWorkflow')}
-            </CardTitle>
-            <CardDescription>{t('selectWorkflowDescription')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {workflows.map((workflow) => (
-                <WorkflowCard
-                  key={workflow.id}
-                  workflow={workflow}
-                  onSelect={() => handleSelectWorkflow(workflow)}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                <CardTitle className="flex items-center gap-2">
+                  <Workflow className="h-5 w-5" />
+                  {t('selectWorkflow')}
+                </CardTitle>
+                <CardDescription>{t('selectWorkflowDescription')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {workflows.map((workflow) => (
+                    <WorkflowCard
+                      key={workflow.id}
+                      workflow={workflow}
+                      onSelect={() => handleSelectWorkflow(workflow)}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Running workflow status */}
-      {isRunning && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                {selectedWorkflow && WORKFLOW_ICONS[selectedWorkflow.type]}
-                {selectedWorkflow?.name || t('runningWorkflow')}
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePauseResume}
-                >
+          {/* Running workflow status */}
+          {isRunning && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    {selectedWorkflow && WORKFLOW_ICONS[selectedWorkflow.type]}
+                    {selectedWorkflow?.name || t('runningWorkflow')}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handlePauseResume}>
+                      {isPaused ? (
+                        <>
+                          <Play className="h-4 w-4 mr-1" />
+                          {t('resume')}
+                        </>
+                      ) : (
+                        <>
+                          <Pause className="h-4 w-4 mr-1" />
+                          {t('pause')}
+                        </>
+                      )}
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={handleCancel}>
+                      <StopCircle className="h-4 w-4 mr-1" />
+                      {t('cancel')}
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Progress */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>{t('progress')}</span>
+                    <span>{progress}%</span>
+                  </div>
+                  <Progress value={progress} />
+                </div>
+
+                {/* Status indicator */}
+                <div className="flex items-center gap-2 text-sm">
                   {isPaused ? (
                     <>
-                      <Play className="h-4 w-4 mr-1" />
-                      {t('resume')}
+                      <Pause className="h-4 w-4 text-yellow-500" />
+                      <span className="text-yellow-500">{t('paused')}</span>
                     </>
                   ) : (
                     <>
-                      <Pause className="h-4 w-4 mr-1" />
-                      {t('pause')}
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span className="text-primary">{t('running')}</span>
                     </>
                   )}
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleCancel}
-                >
-                  <StopCircle className="h-4 w-4 mr-1" />
-                  {t('cancel')}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Progress */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>{t('progress')}</span>
-                <span>{progress}%</span>
-              </div>
-              <Progress value={progress} />
-            </div>
+                </div>
 
-            {/* Status indicator */}
-            <div className="flex items-center gap-2 text-sm">
-              {isPaused ? (
-                <>
-                  <Pause className="h-4 w-4 text-yellow-500" />
-                  <span className="text-yellow-500">{t('paused')}</span>
-                </>
-              ) : (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-primary">{t('running')}</span>
-                </>
-              )}
-            </div>
+                {/* Error display */}
+                {error && (
+                  <Alert variant="destructive">
+                    <XCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
 
-            {/* Error display */}
-            {error && (
-              <Alert variant="destructive">
-                <XCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Logs */}
-            {logs.length > 0 && (
-              <div className="space-y-2">
-                <Label>{t('logs')}</Label>
-                <ScrollArea className="h-32 border rounded-lg p-2">
-                  {logs.map((log, index) => (
-                    <div
-                      key={index}
-                      className={cn(
-                        'text-xs py-1',
-                        log.level === 'error' && 'text-destructive',
-                        log.level === 'warn' && 'text-yellow-500',
-                        log.level === 'info' && 'text-muted-foreground'
-                      )}
-                    >
-                      <span className="text-muted-foreground">
-                        [{new Date(log.timestamp).toLocaleTimeString()}]
-                      </span>{' '}
-                      {log.message}
-                    </div>
-                  ))}
-                </ScrollArea>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Configuration Dialog */}
-      <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedWorkflow && WORKFLOW_ICONS[selectedWorkflow.type]}
-              {selectedWorkflow?.name}
-            </DialogTitle>
-            <DialogDescription>{selectedWorkflow?.description}</DialogDescription>
-          </DialogHeader>
-
-          {selectedWorkflow?.type === 'ppt-generation' && (
-            <PPTConfigForm
-              options={pptOptions}
-              onChange={setPptOptions}
-              templates={templates}
-              selectedTemplate={selectedTemplate}
-              onSelectTemplate={handleSelectTemplate}
-            />
+                {/* Logs */}
+                {logs.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>{t('logs')}</Label>
+                    <ScrollArea className="h-32 border rounded-lg p-2">
+                      {logs.map((log, index) => (
+                        <div
+                          key={index}
+                          className={cn(
+                            'text-xs py-1',
+                            log.level === 'error' && 'text-destructive',
+                            log.level === 'warn' && 'text-yellow-500',
+                            log.level === 'info' && 'text-muted-foreground'
+                          )}
+                        >
+                          <span className="text-muted-foreground">
+                            [{new Date(log.timestamp).toLocaleTimeString()}]
+                          </span>{' '}
+                          {log.message}
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfigDialog(false)}>
-              {t('cancel')}
-            </Button>
-            <Button onClick={handleStartWorkflow} disabled={!pptOptions.topic}>
-              <Play className="h-4 w-4 mr-2" />
-              {t('startWorkflow')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* Configuration Dialog */}
+          <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {selectedWorkflow && WORKFLOW_ICONS[selectedWorkflow.type]}
+                  {selectedWorkflow?.name}
+                </DialogTitle>
+                <DialogDescription>{selectedWorkflow?.description}</DialogDescription>
+              </DialogHeader>
+
+              {selectedWorkflow?.type === 'ppt-generation' && (
+                <PPTConfigForm
+                  options={pptOptions}
+                  onChange={setPptOptions}
+                  templates={templates}
+                  selectedTemplate={selectedTemplate}
+                  onSelectTemplate={handleSelectTemplate}
+                />
+              )}
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowConfigDialog(false)}>
+                  {t('cancel')}
+                </Button>
+                <Button onClick={handleStartWorkflow} disabled={!pptOptions.topic}>
+                  <Play className="h-4 w-4 mr-2" />
+                  {t('startWorkflow')}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </DialogContent>
     </Dialog>
@@ -383,17 +371,14 @@ function WorkflowCard({ workflow, onSelect }: WorkflowCardProps) {
       </div>
       <div className="flex-1 min-w-0">
         <h4 className="font-medium">{workflow.name}</h4>
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {workflow.description}
-        </p>
+        <p className="text-sm text-muted-foreground line-clamp-2">{workflow.description}</p>
         <div className="flex items-center gap-2 mt-2">
           <Badge variant="secondary" className="text-xs">
             {workflow.steps.length} steps
           </Badge>
           {workflow.estimatedDuration && (
             <Badge variant="outline" className="text-xs">
-              <Clock className="h-3 w-3 mr-1" />
-              ~{Math.ceil(workflow.estimatedDuration / 60)}m
+              <Clock className="h-3 w-3 mr-1" />~{Math.ceil(workflow.estimatedDuration / 60)}m
             </Badge>
           )}
         </div>
@@ -514,9 +499,7 @@ function PPTConfigForm({
               min={3}
               max={50}
               value={options.slideCount || 10}
-              onChange={(e) =>
-                onChange({ ...options, slideCount: parseInt(e.target.value) || 10 })
-              }
+              onChange={(e) => onChange({ ...options, slideCount: parseInt(e.target.value) || 10 })}
             />
           </div>
 
@@ -643,9 +626,7 @@ function PPTConfigForm({
           <Textarea
             id="customInstructions"
             value={options.customInstructions || ''}
-            onChange={(e) =>
-              onChange({ ...options, customInstructions: e.target.value })
-            }
+            onChange={(e) => onChange({ ...options, customInstructions: e.target.value })}
             placeholder={t('customInstructionsPlaceholder')}
             rows={3}
           />

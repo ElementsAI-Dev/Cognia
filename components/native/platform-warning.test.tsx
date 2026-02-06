@@ -5,12 +5,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import {
-  PlatformWarning,
-  PlatformBadge,
-  DesktopOnly,
-  detectPlatform,
-} from './platform-warning';
+import { PlatformWarning, PlatformBadge, DesktopOnly, detectPlatform } from './platform-warning';
 
 // Mock isTauri
 jest.mock('@/lib/native/utils', () => ({
@@ -94,10 +89,7 @@ describe('PlatformWarning', () => {
   it('renders nothing in web environment', () => {
     mockIsTauri.mockReturnValue(false);
     const { container } = render(
-      <PlatformWarning
-        supportedPlatforms={['windows']}
-        featureName="Screenshot"
-      />,
+      <PlatformWarning supportedPlatforms={['windows']} featureName="Screenshot" />,
       { wrapper }
     );
     expect(container.firstChild).toBeNull();
@@ -109,10 +101,7 @@ describe('PlatformWarning', () => {
       writable: true,
     });
     const { container } = render(
-      <PlatformWarning
-        supportedPlatforms={['windows']}
-        featureName="Screenshot"
-      />,
+      <PlatformWarning supportedPlatforms={['windows']} featureName="Screenshot" />,
       { wrapper }
     );
     expect(container.firstChild).toBeNull();
@@ -120,11 +109,7 @@ describe('PlatformWarning', () => {
 
   it('renders alert when platform is not supported', () => {
     render(
-      <PlatformWarning
-        supportedPlatforms={['windows']}
-        featureName="Screenshot"
-        mode="alert"
-      />,
+      <PlatformWarning supportedPlatforms={['windows']} featureName="Screenshot" mode="alert" />,
       { wrapper }
     );
     expect(screen.getByText('Limited Support')).toBeInTheDocument();
@@ -132,11 +117,7 @@ describe('PlatformWarning', () => {
 
   it('renders badge mode correctly', () => {
     render(
-      <PlatformWarning
-        supportedPlatforms={['windows']}
-        featureName="Screenshot"
-        mode="badge"
-      />,
+      <PlatformWarning supportedPlatforms={['windows']} featureName="Screenshot" mode="badge" />,
       { wrapper }
     );
     expect(screen.getByText('Windows only')).toBeInTheDocument();
@@ -169,11 +150,7 @@ describe('PlatformWarning', () => {
 
   it('renders children in tooltip mode when unsupported', () => {
     render(
-      <PlatformWarning
-        supportedPlatforms={['windows']}
-        featureName="Screenshot"
-        mode="tooltip"
-      >
+      <PlatformWarning supportedPlatforms={['windows']} featureName="Screenshot" mode="tooltip">
         <button>Click me</button>
       </PlatformWarning>,
       { wrapper }
@@ -187,11 +164,7 @@ describe('PlatformWarning', () => {
       writable: true,
     });
     const { container } = render(
-      <PlatformWarning
-        supportedPlatforms={['windows']}
-        featureName="Screenshot"
-        mode="tooltip"
-      >
+      <PlatformWarning supportedPlatforms={['windows']} featureName="Screenshot" mode="tooltip">
         <button>Click me</button>
       </PlatformWarning>,
       { wrapper }
@@ -260,7 +233,9 @@ describe('DesktopOnly', () => {
       { wrapper }
     );
     expect(screen.queryByText('Desktop content')).not.toBeInTheDocument();
-    expect(screen.getByText('This feature is only available in the desktop app.')).toBeInTheDocument();
+    expect(
+      screen.getByText('This feature is only available in the desktop app.')
+    ).toBeInTheDocument();
   });
 
   it('renders custom fallback in web environment', () => {

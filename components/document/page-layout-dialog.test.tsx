@@ -74,10 +74,7 @@ describe('PageLayoutDialog', () => {
   describe('Rendering', () => {
     it('should render trigger button', () => {
       renderWithProviders(
-        <PageLayoutDialog
-          settings={defaultSettings}
-          onSettingsChange={mockOnSettingsChange}
-        />
+        <PageLayoutDialog settings={defaultSettings} onSettingsChange={mockOnSettingsChange} />
       );
 
       expect(screen.getByRole('button', { name: /page layout/i })).toBeInTheDocument();
@@ -97,10 +94,7 @@ describe('PageLayoutDialog', () => {
 
     it('should open dialog when trigger is clicked', async () => {
       renderWithProviders(
-        <PageLayoutDialog
-          settings={defaultSettings}
-          onSettingsChange={mockOnSettingsChange}
-        />
+        <PageLayoutDialog settings={defaultSettings} onSettingsChange={mockOnSettingsChange} />
       );
 
       const trigger = screen.getByRole('button', { name: /page layout/i });

@@ -32,30 +32,33 @@ jest.mock('@/lib/native/gitignore-templates', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    <div data-testid="dialog" data-open={open}>{children}</div>
+    <div data-testid="dialog" data-open={open}>
+      {children}
+    </div>
   ),
   DialogContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dialog-content">{children}</div>
   ),
-  DialogDescription: ({ children }: { children: React.ReactNode }) => (
-    <p>{children}</p>
-  ),
+  DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   DialogFooter: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dialog-footer">{children}</div>
   ),
-  DialogHeader: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DialogTitle: ({ children }: { children: React.ReactNode }) => (
-    <h2>{children}</h2>
-  ),
+  DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   DialogTrigger: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dialog-trigger">{children}</div>
   ),
@@ -80,9 +83,7 @@ jest.mock('@/components/ui/textarea', () => ({
 }));
 
 jest.mock('@/components/ui/label', () => ({
-  Label: ({ children }: { children: React.ReactNode }) => (
-    <label>{children}</label>
-  ),
+  Label: ({ children }: { children: React.ReactNode }) => <label>{children}</label>,
 }));
 
 // Mock lucide-react icons
@@ -146,12 +147,7 @@ describe('GitignoreTemplateSelector', () => {
   });
 
   it('allows custom className', () => {
-    render(
-      <GitignoreTemplateSelector
-        onSelect={mockOnSelect}
-        className="custom-class"
-      />
-    );
+    render(<GitignoreTemplateSelector onSelect={mockOnSelect} className="custom-class" />);
     expect(screen.getByTestId('dialog-trigger')).toBeInTheDocument();
   });
 });

@@ -129,9 +129,7 @@ describe('KernelStatus', () => {
       renderWithIntl(<KernelStatus kernel={kernel} onInterrupt={onInterrupt} />);
 
       const buttons = screen.getAllByRole('button');
-      const interruptButton = buttons.find((btn) =>
-        btn.querySelector('.lucide-square')
-      );
+      const interruptButton = buttons.find((btn) => btn.querySelector('.lucide-square'));
       expect(interruptButton).toBeInTheDocument();
     });
 
@@ -141,9 +139,7 @@ describe('KernelStatus', () => {
       renderWithIntl(<KernelStatus kernel={kernel} onInterrupt={onInterrupt} />);
 
       const buttons = screen.getAllByRole('button');
-      const interruptButton = buttons.find((btn) =>
-        btn.querySelector('.lucide-square')
-      );
+      const interruptButton = buttons.find((btn) => btn.querySelector('.lucide-square'));
       if (interruptButton) {
         fireEvent.click(interruptButton);
       }
@@ -216,9 +212,7 @@ describe('KernelStatus', () => {
       renderWithIntl(<KernelStatus kernel={kernel} onRestart={onRestart} />);
 
       const buttons = screen.queryAllByRole('button');
-      const restartButton = buttons.find((btn) =>
-        btn.querySelector('.lucide-refresh-cw')
-      );
+      const restartButton = buttons.find((btn) => btn.querySelector('.lucide-refresh-cw'));
       expect(restartButton).toBeUndefined();
     });
   });
@@ -230,9 +224,7 @@ describe('KernelStatus', () => {
       renderWithIntl(<KernelStatus kernel={kernel} onRestart={onRestart} />);
 
       const buttons = screen.getAllByRole('button');
-      const restartButton = buttons.find((btn) =>
-        btn.querySelector('.lucide-refresh-cw')
-      );
+      const restartButton = buttons.find((btn) => btn.querySelector('.lucide-refresh-cw'));
       expect(restartButton).toBeInTheDocument();
     });
 
@@ -242,9 +234,7 @@ describe('KernelStatus', () => {
       renderWithIntl(<KernelStatus kernel={kernel} onRestart={onRestart} />);
 
       const buttons = screen.getAllByRole('button');
-      const restartButton = buttons.find((btn) =>
-        btn.querySelector('.lucide-refresh-cw')
-      );
+      const restartButton = buttons.find((btn) => btn.querySelector('.lucide-refresh-cw'));
       if (restartButton) {
         fireEvent.click(restartButton);
       }

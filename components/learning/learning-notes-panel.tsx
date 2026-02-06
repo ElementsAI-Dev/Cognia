@@ -2,22 +2,13 @@
 
 /**
  * Learning Notes Panel
- * 
+ *
  * Allows users to take and manage notes during learning sessions.
  */
 
 import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  StickyNote,
-  Plus,
-  Trash2,
-  Star,
-  StarOff,
-  Edit2,
-  Check,
-  X,
-} from 'lucide-react';
+import { StickyNote, Plus, Trash2, Star, StarOff, Edit2, Check, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -42,7 +33,7 @@ export const LearningNotesPanel = memo(function LearningNotesPanel({
 }: LearningNotesPanelProps) {
   const t = useTranslations('learningMode');
   const { addNote, updateNote, deleteNote, toggleNoteHighlight } = useLearningStore();
-  
+
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -72,13 +63,19 @@ export const LearningNotesPanel = memo(function LearningNotesPanel({
     setEditContent('');
   }, []);
 
-  const handleDelete = useCallback((noteId: string) => {
-    deleteNote(sessionId, noteId);
-  }, [sessionId, deleteNote]);
+  const handleDelete = useCallback(
+    (noteId: string) => {
+      deleteNote(sessionId, noteId);
+    },
+    [sessionId, deleteNote]
+  );
 
-  const handleToggleHighlight = useCallback((noteId: string) => {
-    toggleNoteHighlight(sessionId, noteId);
-  }, [sessionId, toggleNoteHighlight]);
+  const handleToggleHighlight = useCallback(
+    (noteId: string) => {
+      toggleNoteHighlight(sessionId, noteId);
+    },
+    [sessionId, toggleNoteHighlight]
+  );
 
   const highlightedNotes = notes.filter((n) => n.isHighlight);
   const regularNotes = notes.filter((n) => !n.isHighlight);
@@ -125,11 +122,7 @@ export const LearningNotesPanel = memo(function LearningNotesPanel({
                   >
                     <X className="h-4 w-4" />
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleAddNote}
-                    disabled={!newNoteContent.trim()}
-                  >
+                  <Button size="sm" onClick={handleAddNote} disabled={!newNoteContent.trim()}>
                     <Check className="h-4 w-4" />
                   </Button>
                 </div>
@@ -197,11 +190,7 @@ export const LearningNotesPanel = memo(function LearningNotesPanel({
                 </EmptyMedia>
                 <EmptyTitle className="text-sm">{t('notes.empty')}</EmptyTitle>
                 <EmptyContent>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsAddingNote(true)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setIsAddingNote(true)}>
                     <Plus className="h-4 w-4 mr-1" />
                     {t('notes.addFirst')}
                   </Button>
@@ -279,9 +268,7 @@ const NoteItem = memo(function NoteItem({
     >
       <p className="text-sm whitespace-pre-wrap pr-16">{note.content}</p>
       <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-muted-foreground">
-          {formatDate(note.createdAt)}
-        </span>
+        <span className="text-xs text-muted-foreground">{formatDate(note.createdAt)}</span>
         {note.conceptTags && note.conceptTags.length > 0 && (
           <div className="flex gap-1">
             {note.conceptTags.map((tag) => (
@@ -292,18 +279,13 @@ const NoteItem = memo(function NoteItem({
           </div>
         )}
       </div>
-      
+
       {/* Action buttons */}
       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={onToggleHighlight}
-              >
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onToggleHighlight}>
                 {note.isHighlight ? (
                   <StarOff className="h-3 w-3 text-yellow-500" />
                 ) : (
@@ -317,12 +299,7 @@ const NoteItem = memo(function NoteItem({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={onStartEdit}
-              >
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onStartEdit}>
                 <Edit2 className="h-3 w-3" />
               </Button>
             </TooltipTrigger>

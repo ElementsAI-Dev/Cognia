@@ -27,12 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CodeBlock } from '@/components/ai-elements/code-block';
 import { MathBlock } from '@/components/chat/renderers/math-block';
 import { MarkdownRenderer } from './artifact-renderers';
@@ -110,16 +105,19 @@ export function JupyterRenderer({
     onNotebookChange(serializeNotebook(cleared));
   }, [notebook, onNotebookChange]);
 
-  const handleCopyCell = useCallback((cellIndex: number) => {
-    if (!notebook) return;
-    const source = getCellSource(notebook.cells[cellIndex]);
-    navigator.clipboard.writeText(source);
-    setCopied(`cell-${cellIndex}`);
-    setTimeout(() => setCopied(null), 2000);
-  }, [notebook]);
+  const handleCopyCell = useCallback(
+    (cellIndex: number) => {
+      if (!notebook) return;
+      const source = getCellSource(notebook.cells[cellIndex]);
+      navigator.clipboard.writeText(source);
+      setCopied(`cell-${cellIndex}`);
+      setTimeout(() => setCopied(null), 2000);
+    },
+    [notebook]
+  );
 
   const toggleCellCollapse = (index: number) => {
-    setCollapsedCells(prev => {
+    setCollapsedCells((prev) => {
       const next = new Set(prev);
       if (next.has(index)) {
         next.delete(index);
@@ -131,7 +129,7 @@ export function JupyterRenderer({
   };
 
   const toggleOutputCollapse = (index: number) => {
-    setCollapsedOutputs(prev => {
+    setCollapsedOutputs((prev) => {
       const next = new Set(prev);
       if (next.has(index)) {
         next.delete(index);
@@ -154,7 +152,9 @@ export function JupyterRenderer({
   // Count statistics
   const stats = useMemo(() => {
     if (!notebook) return { code: 0, markdown: 0, outputs: 0 };
-    let code = 0, markdown = 0, outputs = 0;
+    let code = 0,
+      markdown = 0,
+      outputs = 0;
     for (const cell of notebook.cells) {
       if (cell.cell_type === 'code') {
         code++;
@@ -208,7 +208,9 @@ export function JupyterRenderer({
               isOutputCollapsed={collapsedOutputs.has(index)}
               onToggleCollapse={() => toggleCellCollapse(index)}
               onToggleOutputCollapse={() => toggleOutputCollapse(index)}
-              onExecute={onCellExecute ? () => onCellExecute(index, getCellSource(cell)) : undefined}
+              onExecute={
+                onCellExecute ? () => onCellExecute(index, getCellSource(cell)) : undefined
+              }
               onCopy={() => handleCopyCell(index)}
               isCopied={copied === `cell-${index}`}
               t={t}
@@ -383,17 +385,8 @@ function NotebookCell({
     <div className="group rounded-lg border bg-card overflow-hidden shadow-sm">
       {/* Cell header */}
       <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 border-b">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-5 w-5 shrink-0"
-          onClick={onToggleCollapse}
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-3 w-3" />
-          ) : (
-            <ChevronDown className="h-3 w-3" />
-          )}
+        <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={onToggleCollapse}>
+          {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </Button>
 
         <div className="flex items-center gap-1.5 min-w-0">
@@ -404,9 +397,7 @@ function NotebookCell({
           ) : (
             <Terminal className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           )}
-          <span className="text-xs font-mono text-muted-foreground">
-            [{index + 1}]
-          </span>
+          <span className="text-xs font-mono text-muted-foreground">[{index + 1}]</span>
           <Badge
             variant="secondary"
             className={cn(
@@ -432,12 +423,7 @@ function NotebookCell({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5"
-                  onClick={onCopy}
-                >
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onCopy}>
                   {isCopied ? (
                     <Check className="h-3 w-3 text-green-500" />
                   ) : (
@@ -451,12 +437,7 @@ function NotebookCell({
             {isCodeCell && onExecute && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5"
-                    onClick={onExecute}
-                  >
+                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onExecute}>
                     <Play className="h-3 w-3" />
                   </Button>
                 </TooltipTrigger>
@@ -534,7 +515,7 @@ interface CellOutputProps {
 function CellOutput({ output, cell }: CellOutputProps) {
   // Handle stream output
   if (output.output_type === 'stream') {
-    const text = Array.isArray(output.text) ? output.text.join('') : (output.text || '');
+    const text = Array.isArray(output.text) ? output.text.join('') : output.text || '';
     const isError = output.name === 'stderr';
     const hasAnsi = hasAnsiCodes(text);
 
@@ -571,7 +552,9 @@ function CellOutput({ output, cell }: CellOutputProps) {
       <div className="bg-destructive/10 rounded p-3 overflow-hidden">
         <div className="font-semibold text-sm text-destructive flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{output.ename}: {output.evalue}</span>
+          <span>
+            {output.ename}: {output.evalue}
+          </span>
         </div>
         {traceback && (
           <pre
@@ -597,20 +580,17 @@ function CellOutput({ output, cell }: CellOutputProps) {
     // Image output
     if (imageOutput) {
       const isBase64 = !imageOutput.data.startsWith('http') && !imageOutput.data.startsWith('<');
-      const src = imageOutput.mimeType === 'image/svg+xml'
-        ? `data:image/svg+xml,${encodeURIComponent(imageOutput.data)}`
-        : isBase64
-          ? `data:${imageOutput.mimeType};base64,${imageOutput.data}`
-          : imageOutput.data;
+      const src =
+        imageOutput.mimeType === 'image/svg+xml'
+          ? `data:image/svg+xml,${encodeURIComponent(imageOutput.data)}`
+          : isBase64
+            ? `data:${imageOutput.mimeType};base64,${imageOutput.data}`
+            : imageOutput.data;
 
       return (
         <div className="flex justify-center p-2 bg-white dark:bg-muted rounded">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt="Cell output"
-            className="max-w-full max-h-[500px] object-contain"
-          />
+          <img src={src} alt="Cell output" className="max-w-full max-h-[500px] object-contain" />
         </div>
       );
     }

@@ -67,7 +67,14 @@ jest.mock('@/hooks/agent', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, className, type, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    className,
+    type,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
     <button type={type} onClick={onClick} disabled={disabled} className={className} {...props}>
       {children}
     </button>
@@ -75,7 +82,15 @@ jest.mock('@/components/ui/button', () => ({
 }));
 
 jest.mock('@/components/ui/card', () => ({
-  Card: ({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => (
+  Card: ({
+    children,
+    className,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    onClick?: () => void;
+  }) => (
     <div data-testid="card" className={className} onClick={onClick}>
       {children}
     </div>
@@ -103,7 +118,14 @@ jest.mock('@/components/ui/card', () => ({
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children, className }: { children: React.ReactNode; className?: string; variant?: string }) => (
+  Badge: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    variant?: string;
+  }) => (
     <span data-testid="badge" className={className}>
       {children}
     </span>
@@ -120,28 +142,57 @@ jest.mock('@/components/ui/scroll-area', () => ({
 
 // Dialog mocks (conditionally render children based on `open`)
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void }) => (
-    <>{open ? children : null}</>
-  ),
+  Dialog: ({
+    children,
+    open,
+  }: {
+    children: React.ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) => <>{open ? children : null}</>,
   DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div data-testid="dialog-content" className={className}>
       {children}
     </div>
   ),
-  DialogHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-header">{children}</div>,
-  DialogTitle: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-title">{children}</div>,
-  DialogDescription: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-description">{children}</div>,
-  DialogFooter: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-footer">{children}</div>,
+  DialogHeader: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-header">{children}</div>
+  ),
+  DialogTitle: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-title">{children}</div>
+  ),
+  DialogDescription: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-description">{children}</div>
+  ),
+  DialogFooter: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dialog-footer">{children}</div>
+  ),
 }));
 
 jest.mock('@/components/ui/input', () => ({
-  Input: ({ value, onChange, id, placeholder, required, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
-    <input id={id} value={value as any} onChange={onChange} placeholder={placeholder} required={required} {...props} />
+  Input: ({
+    value,
+    onChange,
+    id,
+    placeholder,
+    required,
+    ...props
+  }: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input
+      id={id}
+      value={value as any}
+      onChange={onChange}
+      placeholder={placeholder}
+      required={required}
+      {...props}
+    />
   ),
 }));
 
 jest.mock('@/components/ui/label', () => ({
-  Label: ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) => <label htmlFor={htmlFor}>{children}</label>,
+  Label: ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) => (
+    <label htmlFor={htmlFor}>{children}</label>
+  ),
 }));
 
 jest.mock('@/components/ui/separator', () => ({
@@ -149,18 +200,33 @@ jest.mock('@/components/ui/separator', () => ({
 }));
 
 jest.mock('@/components/ui/tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip">{children}</div>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip-content">{children}</div>,
-  TooltipTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => (
-    <div data-testid="tooltip-trigger">{children}</div>
+  Tooltip: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="tooltip">{children}</div>
   ),
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="tooltip-content">{children}</div>
+  ),
+  TooltipTrigger: ({
+    children,
+    asChild: _asChild,
+  }: {
+    children: React.ReactNode;
+    asChild?: boolean;
+  }) => <div data-testid="tooltip-trigger">{children}</div>,
 }));
 
 // Select mocks with context - click SelectItem to trigger onValueChange
 jest.mock('@/components/ui/select', () => {
   const SelectContext = React.createContext({ onValueChange: (_value: string) => {} });
 
-  function Select({ children, onValueChange: _onValueChange }: { children: React.ReactNode; value?: string; onValueChange?: (value: string) => void }) {
+  function Select({
+    children,
+    onValueChange: _onValueChange,
+  }: {
+    children: React.ReactNode;
+    value?: string;
+    onValueChange?: (value: string) => void;
+  }) {
     return (
       <SelectContext.Provider value={{ onValueChange: _onValueChange || (() => {}) }}>
         <div data-testid="select">{children}</div>
@@ -171,7 +237,11 @@ jest.mock('@/components/ui/select', () => {
   function SelectItem({ children, value }: { children: React.ReactNode; value: string }) {
     const { onValueChange } = React.useContext(SelectContext);
     return (
-      <button type="button" data-testid={`select-item-${value}`} onClick={() => onValueChange(value)}>
+      <button
+        type="button"
+        data-testid={`select-item-${value}`}
+        onClick={() => onValueChange(value)}
+      >
         {children}
       </button>
     );
@@ -179,9 +249,15 @@ jest.mock('@/components/ui/select', () => {
 
   return {
     Select,
-    SelectTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="select-trigger">{children}</div>,
-    SelectValue: ({ placeholder }: { placeholder?: string }) => <span data-testid="select-value">{placeholder}</span>,
-    SelectContent: ({ children }: { children: React.ReactNode }) => <div data-testid="select-content">{children}</div>,
+    SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="select-trigger">{children}</div>
+    ),
+    SelectValue: ({ placeholder }: { placeholder?: string }) => (
+      <span data-testid="select-value">{placeholder}</span>
+    ),
+    SelectContent: ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="select-content">{children}</div>
+    ),
     SelectItem,
   };
 });
@@ -273,11 +349,25 @@ describe('ExternalAgentManager', () => {
       setActiveAgent,
       agents: [
         {
-          config: { id: 'a1', name: 'Agent One', protocol: 'acp', transport: 'stdio', enabled: true, process: { command: 'npx', args: ['foo'] } },
+          config: {
+            id: 'a1',
+            name: 'Agent One',
+            protocol: 'acp',
+            transport: 'stdio',
+            enabled: true,
+            process: { command: 'npx', args: ['foo'] },
+          },
           connectionStatus: 'disconnected',
         },
         {
-          config: { id: 'a2', name: 'Agent Two', protocol: 'http', transport: 'http', enabled: true, network: { endpoint: 'http://localhost:8080' } },
+          config: {
+            id: 'a2',
+            name: 'Agent Two',
+            protocol: 'http',
+            transport: 'http',
+            enabled: true,
+            network: { endpoint: 'http://localhost:8080' },
+          },
           connectionStatus: 'connected',
         },
       ],
@@ -305,11 +395,25 @@ describe('ExternalAgentManager', () => {
       setActiveAgent,
       agents: [
         {
-          config: { id: 'a1', name: 'Agent One', protocol: 'acp', transport: 'stdio', enabled: true, process: { command: 'npx', args: [] } },
+          config: {
+            id: 'a1',
+            name: 'Agent One',
+            protocol: 'acp',
+            transport: 'stdio',
+            enabled: true,
+            process: { command: 'npx', args: [] },
+          },
           connectionStatus: 'disconnected',
         },
         {
-          config: { id: 'a2', name: 'Agent Two', protocol: 'http', transport: 'http', enabled: true, network: { endpoint: 'http://localhost:8080' } },
+          config: {
+            id: 'a2',
+            name: 'Agent Two',
+            protocol: 'http',
+            transport: 'http',
+            enabled: true,
+            network: { endpoint: 'http://localhost:8080' },
+          },
           connectionStatus: 'connected',
         },
       ],
@@ -340,7 +444,14 @@ describe('ExternalAgentManager', () => {
       removeAgent,
       agents: [
         {
-          config: { id: 'a1', name: 'Agent One', protocol: 'acp', transport: 'stdio', enabled: true, process: { command: 'npx', args: [] } },
+          config: {
+            id: 'a1',
+            name: 'Agent One',
+            protocol: 'acp',
+            transport: 'stdio',
+            enabled: true,
+            process: { command: 'npx', args: [] },
+          },
           connectionStatus: 'disconnected',
         },
       ],
@@ -366,7 +477,14 @@ describe('ExternalAgentManager', () => {
       removeAgent,
       agents: [
         {
-          config: { id: 'a1', name: 'Agent One', protocol: 'acp', transport: 'stdio', enabled: true, process: { command: 'npx', args: [] } },
+          config: {
+            id: 'a1',
+            name: 'Agent One',
+            protocol: 'acp',
+            transport: 'stdio',
+            enabled: true,
+            process: { command: 'npx', args: [] },
+          },
           connectionStatus: 'disconnected',
         },
       ],
@@ -400,7 +518,9 @@ describe('ExternalAgentManager', () => {
     // Fill required fields
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My Agent' } });
     fireEvent.change(screen.getByLabelText('Command'), { target: { value: 'npx' } });
-    fireEvent.change(screen.getByLabelText('Arguments'), { target: { value: '@anthropics/claude-code --stdio' } });
+    fireEvent.change(screen.getByLabelText('Arguments'), {
+      target: { value: '@anthropics/claude-code --stdio' },
+    });
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add Agent' }));
 
@@ -462,7 +582,9 @@ describe('ExternalAgentManager', () => {
     fireEvent.click(within(transportContainer as HTMLElement).getByTestId('select-item-http'));
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'HTTP Agent' } });
-    fireEvent.change(screen.getByLabelText('Endpoint URL'), { target: { value: 'http://localhost:9999' } });
+    fireEvent.change(screen.getByLabelText('Endpoint URL'), {
+      target: { value: 'http://localhost:9999' },
+    });
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add Agent' }));
 

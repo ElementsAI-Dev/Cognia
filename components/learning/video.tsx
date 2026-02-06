@@ -2,7 +2,7 @@
 
 /**
  * Video Component - Display and control AI-generated videos
- * 
+ *
  * Features:
  * - Video playback with custom controls
  * - Progress indicator for generating videos
@@ -57,25 +57,20 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { GeneratedVideo, VideoStatus } from '@/types/media/video';
-import { downloadVideoAsBlob, saveVideoToFile, base64ToVideoDataUrl } from '@/lib/ai/media/video-generation';
+import {
+  downloadVideoAsBlob,
+  saveVideoToFile,
+  base64ToVideoDataUrl,
+} from '@/lib/ai/media/video-generation';
 
 // Playback speed options
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -215,7 +210,7 @@ export function Video({
   const [showScreenshotFlash, setShowScreenshotFlash] = useState(false);
   const [internalShowPanel, setInternalShowPanel] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
+
   // HLS streaming state
   const [isHlsStream, setIsHlsStream] = useState(false);
   const [qualityLevels, setQualityLevels] = useState<QualityLevel[]>([]);
@@ -258,7 +253,7 @@ export function Video({
       const bufferedEnd = buffered.end(buffered.length - 1);
       const percent = (bufferedEnd / duration) * 100;
       setBufferedPercent(percent);
-      setStreamingStats(prev => ({ ...prev, buffered: percent }));
+      setStreamingStats((prev) => ({ ...prev, buffered: percent }));
     }
   }, [duration]);
 
@@ -299,8 +294,8 @@ export function Video({
           name: level.height ? `${level.height}p` : `${formatBitrate(level.bitrate)}`,
         }));
         setQualityLevels(levels);
-        setStreamingStats(prev => ({ ...prev, levels }));
-        
+        setStreamingStats((prev) => ({ ...prev, levels }));
+
         // Check if it's a live stream
         if (data.levels.some((l: Level) => l.details?.live)) {
           setIsLiveStream(true);
@@ -314,7 +309,7 @@ export function Video({
       // Handle level switch
       hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
         setCurrentQuality(data.level);
-        setStreamingStats(prev => ({ ...prev, currentLevel: data.level }));
+        setStreamingStats((prev) => ({ ...prev, currentLevel: data.level }));
       });
 
       // Handle buffering
@@ -330,8 +325,8 @@ export function Video({
       // Handle stats update
       hls.on(Hls.Events.FRAG_LOADED, (_event, data) => {
         const stats = data.frag.stats;
-        const bandwidth = stats.loaded * 8 / ((stats.loading.end - stats.loading.start) / 1000);
-        setStreamingStats(prev => {
+        const bandwidth = (stats.loaded * 8) / ((stats.loading.end - stats.loading.start) / 1000);
+        setStreamingStats((prev) => {
           const newStats = {
             ...prev,
             bandwidth: bandwidth || prev.bandwidth,
@@ -374,7 +369,16 @@ export function Video({
         videoRef.current.src = videoSrc;
       }
     }
-  }, [videoSrc, shouldUseHls, autoPlay, initialQuality, isLive, t, onStreamingStats, updateBufferedPercent]);
+  }, [
+    videoSrc,
+    shouldUseHls,
+    autoPlay,
+    initialQuality,
+    isLive,
+    t,
+    onStreamingStats,
+    updateBufferedPercent,
+  ]);
 
   // Handle quality change
   const handleQualityChange = useCallback((levelIndex: number) => {
@@ -396,7 +400,7 @@ export function Video({
 
   const handlePlayPause = useCallback(() => {
     if (!videoRef.current) return;
-    
+
     if (isPlaying) {
       videoRef.current.pause();
     } else {
@@ -426,7 +430,7 @@ export function Video({
 
   const handleFullscreen = useCallback(async () => {
     if (!containerRef.current) return;
-    
+
     try {
       if (document.fullscreenElement) {
         await document.exitFullscreen();
@@ -442,7 +446,7 @@ export function Video({
 
   const handlePictureInPicture = useCallback(async () => {
     if (!videoRef.current) return;
-    
+
     try {
       if (document.pictureInPictureElement) {
         await document.exitPictureInPicture();
@@ -469,32 +473,35 @@ export function Video({
     setIsLooping(newLoop);
   }, [isLooping]);
 
-  const handleSeek = useCallback((seconds: number) => {
-    if (!videoRef.current) return;
-    const newTime = Math.max(0, Math.min(videoRef.current.currentTime + seconds, duration));
-    videoRef.current.currentTime = newTime;
-  }, [duration]);
+  const handleSeek = useCallback(
+    (seconds: number) => {
+      if (!videoRef.current) return;
+      const newTime = Math.max(0, Math.min(videoRef.current.currentTime + seconds, duration));
+      videoRef.current.currentTime = newTime;
+    },
+    [duration]
+  );
 
   const handleScreenshot = useCallback(() => {
     if (!videoRef.current) return;
-    
+
     const video = videoRef.current;
     const canvas = canvasRef.current || document.createElement('canvas');
-    
+
     // Set canvas size to video dimensions
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
+
     // Draw current video frame to canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
+
     // Convert to data URL
     const dataUrl = canvas.toDataURL('image/png');
     const timestamp = video.currentTime;
-    
+
     // Create screenshot item
     const screenshotItem: ScreenshotItem = {
       id: `ss-${Date.now()}`,
@@ -502,14 +509,14 @@ export function Video({
       timestamp,
       createdAt: Date.now(),
     };
-    
+
     // Add to history (limit to maxScreenshots)
-    setScreenshots(prev => [screenshotItem, ...prev].slice(0, maxScreenshots));
-    
+    setScreenshots((prev) => [screenshotItem, ...prev].slice(0, maxScreenshots));
+
     // Show flash effect
     setShowScreenshotFlash(true);
     setTimeout(() => setShowScreenshotFlash(false), 200);
-    
+
     // Callback if provided
     onScreenshotCallback?.(dataUrl, timestamp);
   }, [onScreenshotCallback, maxScreenshots]);
@@ -524,7 +531,7 @@ export function Video({
 
   // Delete a screenshot from history
   const handleDeleteScreenshot = useCallback((id: string) => {
-    setScreenshots(prev => prev.filter(s => s.id !== id));
+    setScreenshots((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
   // Clear all screenshots
@@ -581,7 +588,6 @@ export function Video({
     setIsLoading(false);
   }, [t]);
 
-
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.muted = muted;
@@ -624,7 +630,10 @@ export function Video({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only handle if focus is on the video container or video element
-      if (!containerRef.current?.contains(document.activeElement) && document.activeElement !== containerRef.current) {
+      if (
+        !containerRef.current?.contains(document.activeElement) &&
+        document.activeElement !== containerRef.current
+      ) {
         return;
       }
 
@@ -672,12 +681,16 @@ export function Video({
           break;
         case ',':
           e.preventDefault();
-          const prevSpeed = PLAYBACK_SPEEDS[Math.max(0, PLAYBACK_SPEEDS.indexOf(playbackSpeed) - 1)];
+          const prevSpeed =
+            PLAYBACK_SPEEDS[Math.max(0, PLAYBACK_SPEEDS.indexOf(playbackSpeed) - 1)];
           handlePlaybackSpeedChange(prevSpeed);
           break;
         case '.':
           e.preventDefault();
-          const nextSpeed = PLAYBACK_SPEEDS[Math.min(PLAYBACK_SPEEDS.length - 1, PLAYBACK_SPEEDS.indexOf(playbackSpeed) + 1)];
+          const nextSpeed =
+            PLAYBACK_SPEEDS[
+              Math.min(PLAYBACK_SPEEDS.length - 1, PLAYBACK_SPEEDS.indexOf(playbackSpeed) + 1)
+            ];
           handlePlaybackSpeedChange(nextSpeed);
           break;
         case '0':
@@ -701,7 +714,21 @@ export function Video({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enableKeyboardShortcuts, handlePlayPause, handleMuteToggle, handleFullscreen, handlePictureInPicture, handleLoopToggle, handleSeek, handleVolumeChange, volume, playbackSpeed, handlePlaybackSpeedChange, duration, handleScreenshot]);
+  }, [
+    enableKeyboardShortcuts,
+    handlePlayPause,
+    handleMuteToggle,
+    handleFullscreen,
+    handlePictureInPicture,
+    handleLoopToggle,
+    handleSeek,
+    handleVolumeChange,
+    volume,
+    playbackSpeed,
+    handlePlaybackSpeedChange,
+    duration,
+    handleScreenshot,
+  ]);
 
   // Get volume icon based on level
   const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
@@ -739,12 +766,7 @@ export function Video({
           </p>
         )}
         {onRefreshStatus && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-4"
-            onClick={onRefreshStatus}
-          >
+          <Button variant="ghost" size="sm" className="mt-4" onClick={onRefreshStatus}>
             <RefreshCw className="h-4 w-4 mr-2" />
             {t('checkStatus')}
           </Button>
@@ -764,19 +786,12 @@ export function Video({
         style={{ aspectRatio: '16/9', minHeight: 200 }}
       >
         <AlertCircle className="h-8 w-8 text-destructive mb-4" />
-        <p className="text-sm font-medium text-destructive mb-2">
-          {t('generationFailed')}
-        </p>
+        <p className="text-sm font-medium text-destructive mb-2">{t('generationFailed')}</p>
         <p className="text-xs text-muted-foreground text-center max-w-md">
           {error || videoError || t('unknownError')}
         </p>
         {onRetry && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4"
-            onClick={onRetry}
-          >
+          <Button variant="outline" size="sm" className="mt-4" onClick={onRetry}>
             <RefreshCw className="h-4 w-4 mr-2" />
             {t('tryAgain')}
           </Button>
@@ -797,24 +812,29 @@ export function Video({
       >
         <CheckCircle2 className="h-8 w-8 text-green-500 mb-4" />
         <p className="text-sm font-medium mb-2">{t('generatedSuccessfully')}</p>
-        <p className="text-xs text-muted-foreground">
-          {t('urlNotAvailable')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('urlNotAvailable')}</p>
       </div>
     );
   }
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className={cn('relative rounded-lg overflow-hidden group', isFullscreen && 'bg-black', className)}
+      className={cn(
+        'relative rounded-lg overflow-hidden group',
+        isFullscreen && 'bg-black',
+        className
+      )}
       tabIndex={0}
     >
       {/* Video element */}
       <video
         ref={videoRef}
         src={videoSrc}
-        poster={video?.thumbnailUrl || (video?.thumbnailBase64 ? `data:image/jpeg;base64,${video.thumbnailBase64}` : undefined)}
+        poster={
+          video?.thumbnailUrl ||
+          (video?.thumbnailBase64 ? `data:image/jpeg;base64,${video.thumbnailBase64}` : undefined)
+        }
         autoPlay={autoPlay}
         loop={isLooping}
         muted={isMuted}
@@ -840,7 +860,9 @@ export function Video({
       {showPanel && screenshots.length > 0 && (
         <div className="absolute top-0 right-0 bottom-0 w-48 bg-black/90 border-l border-white/20 flex flex-col z-10">
           <div className="flex items-center justify-between p-2 border-b border-white/20">
-            <span className="text-xs text-white font-medium">Screenshots ({screenshots.length})</span>
+            <span className="text-xs text-white font-medium">
+              Screenshots ({screenshots.length})
+            </span>
             <div className="flex gap-1">
               <TooltipProvider>
                 <Tooltip>
@@ -963,10 +985,12 @@ export function Video({
 
       {/* Controls overlay */}
       {showControls && !isLoading && (
-        <div className={cn(
-          'absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 via-transparent to-transparent transition-opacity',
-          isFullscreen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-        )}>
+        <div
+          className={cn(
+            'absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 via-transparent to-transparent transition-opacity',
+            isFullscreen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          )}
+        >
           {/* Progress bar */}
           <div className="px-3">
             <input
@@ -1013,16 +1037,10 @@ export function Video({
                       className="h-8 w-8 text-white hover:bg-white/20"
                       onClick={handlePlayPause}
                     >
-                      {isPlaying ? (
-                        <Pause className="h-4 w-4" />
-                      ) : (
-                        <Play className="h-4 w-4" />
-                      )}
+                      {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>
-                    {isPlaying ? t('pause') : t('play')} (K)
-                  </TooltipContent>
+                  <TooltipContent>{isPlaying ? t('pause') : t('play')} (K)</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
 
@@ -1056,8 +1074,8 @@ export function Video({
                     <VolumeIcon className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent 
-                  side="top" 
+                <PopoverContent
+                  side="top"
                   className="w-10 p-2 bg-black/80 border-white/20"
                   onMouseLeave={() => setShowVolumeSlider(false)}
                 >
@@ -1149,7 +1167,9 @@ export function Video({
                         </DropdownMenuTrigger>
                       </TooltipTrigger>
                       <TooltipContent>
-                        {currentQuality === -1 ? t('qualityAuto') : qualityLevels[currentQuality]?.name}
+                        {currentQuality === -1
+                          ? t('qualityAuto')
+                          : qualityLevels[currentQuality]?.name}
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -1211,9 +1231,15 @@ export function Video({
                     </TooltipTrigger>
                     <TooltipContent>
                       <div className="text-xs space-y-1">
-                        <div>{t('bandwidth')}: {formatBandwidth(streamingStats.bandwidth)}</div>
-                        <div>{t('buffered')}: {bufferedPercent.toFixed(0)}%</div>
-                        <div>{t('latency')}: {streamingStats.latency.toFixed(0)}ms</div>
+                        <div>
+                          {t('bandwidth')}: {formatBandwidth(streamingStats.bandwidth)}
+                        </div>
+                        <div>
+                          {t('buffered')}: {bufferedPercent.toFixed(0)}%
+                        </div>
+                        <div>
+                          {t('latency')}: {streamingStats.latency.toFixed(0)}ms
+                        </div>
                       </div>
                     </TooltipContent>
                   </Tooltip>
@@ -1302,7 +1328,9 @@ export function Video({
                         <PictureInPicture2 className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>{isPiPActive ? 'Exit PiP' : 'Picture-in-Picture'} (P)</TooltipContent>
+                    <TooltipContent>
+                      {isPiPActive ? 'Exit PiP' : 'Picture-in-Picture'} (P)
+                    </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
@@ -1324,7 +1352,9 @@ export function Video({
                       )}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{isFullscreen ? 'Exit fullscreen' : t('fullscreen')} (F)</TooltipContent>
+                  <TooltipContent>
+                    {isFullscreen ? 'Exit fullscreen' : t('fullscreen')} (F)
+                  </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>

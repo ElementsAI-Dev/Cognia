@@ -72,12 +72,14 @@ describe('McpPromptsPanel', () => {
   it('shows select prompt message initially', () => {
     render(<McpPromptsPanel serverId="server-1" />);
     expect(screen.getByText('Select a prompt')).toBeInTheDocument();
-    expect(screen.getByText('Choose a prompt from the list to preview its content.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Choose a prompt from the list to preview its content.')
+    ).toBeInTheDocument();
   });
 
   it('calls getPrompt when prompt is clicked', async () => {
     render(<McpPromptsPanel serverId="server-1" />);
-    
+
     const greetingButton = screen.getByText('greeting').closest('button');
     if (greetingButton) {
       fireEvent.click(greetingButton);
@@ -89,12 +91,15 @@ describe('McpPromptsPanel', () => {
   });
 
   it('shows loading state while fetching prompt', async () => {
-    mockGetPrompt.mockImplementation(() => new Promise((resolve) => {
-      setTimeout(() => resolve({ messages: [] }), 100);
-    }));
+    mockGetPrompt.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve({ messages: [] }), 100);
+        })
+    );
 
     render(<McpPromptsPanel serverId="server-1" />);
-    
+
     const greetingButton = screen.getByText('greeting').closest('button');
     if (greetingButton) {
       fireEvent.click(greetingButton);
@@ -105,7 +110,7 @@ describe('McpPromptsPanel', () => {
 
   it('displays prompt content after loading', async () => {
     render(<McpPromptsPanel serverId="server-1" />);
-    
+
     const greetingButton = screen.getByText('greeting').closest('button');
     if (greetingButton) {
       fireEvent.click(greetingButton);
@@ -119,7 +124,7 @@ describe('McpPromptsPanel', () => {
   it('shows Insert button when onInsert is provided', async () => {
     const onInsert = jest.fn();
     render(<McpPromptsPanel serverId="server-1" onInsert={onInsert} />);
-    
+
     const greetingButton = screen.getByText('greeting').closest('button');
     if (greetingButton) {
       fireEvent.click(greetingButton);
@@ -133,7 +138,7 @@ describe('McpPromptsPanel', () => {
   it('calls onInsert with flattened content when Insert clicked', async () => {
     const onInsert = jest.fn();
     render(<McpPromptsPanel serverId="server-1" onInsert={onInsert} />);
-    
+
     const greetingButton = screen.getByText('greeting').closest('button');
     if (greetingButton) {
       fireEvent.click(greetingButton);
@@ -149,7 +154,7 @@ describe('McpPromptsPanel', () => {
 
   it('does not show Insert button when onInsert is not provided', async () => {
     render(<McpPromptsPanel serverId="server-1" />);
-    
+
     const greetingButton = screen.getByText('greeting').closest('button');
     if (greetingButton) {
       fireEvent.click(greetingButton);
@@ -164,7 +169,7 @@ describe('McpPromptsPanel', () => {
 
   it('highlights selected prompt', async () => {
     render(<McpPromptsPanel serverId="server-1" />);
-    
+
     const greetingButton = screen.getByText('greeting').closest('button');
     if (greetingButton) {
       fireEvent.click(greetingButton);
@@ -173,7 +178,7 @@ describe('McpPromptsPanel', () => {
     await waitFor(() => {
       expect(mockGetPrompt).toHaveBeenCalled();
     });
-    
+
     // Button should have secondary variant when selected
     expect(greetingButton).toBeInTheDocument();
   });
@@ -192,7 +197,7 @@ describe('McpPromptsPanel', () => {
     });
 
     render(<McpPromptsPanel serverId="server-1" />);
-    
+
     const greetingButton = screen.getByText('greeting').closest('button');
     if (greetingButton) {
       fireEvent.click(greetingButton);
@@ -204,9 +209,7 @@ describe('McpPromptsPanel', () => {
   });
 
   it('applies custom className', () => {
-    const { container } = render(
-      <McpPromptsPanel serverId="server-1" className="custom-class" />
-    );
+    const { container } = render(<McpPromptsPanel serverId="server-1" className="custom-class" />);
     expect(container.firstChild).toHaveClass('custom-class');
   });
 });

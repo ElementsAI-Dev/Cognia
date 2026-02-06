@@ -41,7 +41,13 @@ import {
   LayoutGrid,
   Zap,
 } from 'lucide-react';
-import { useSessionStore, useSettingsStore, useUIStore, useArtifactStore, useChatStore } from '@/stores';
+import {
+  useSessionStore,
+  useSettingsStore,
+  useUIStore,
+  useArtifactStore,
+  useChatStore,
+} from '@/stores';
 import { toast } from '@/components/ui/sonner';
 import type { ChatMode } from '@/types';
 
@@ -65,7 +71,7 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
 
   const openModal = useUIStore((state) => state.openModal);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
-  
+
   const openPanel = useArtifactStore((state) => state.openPanel);
   const closePanel = useArtifactStore((state) => state.closePanel);
   const panelOpen = useArtifactStore((state) => state.panelOpen);
@@ -74,10 +80,13 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
   const clearMessages = useChatStore((state) => state.clearMessages);
 
   // Handle open state change
-  const handleOpenChange = useCallback((newOpen: boolean) => {
-    setOpen(newOpen);
-    onOpenChange?.(newOpen);
-  }, [onOpenChange]);
+  const handleOpenChange = useCallback(
+    (newOpen: boolean) => {
+      setOpen(newOpen);
+      onOpenChange?.(newOpen);
+    },
+    [onOpenChange]
+  );
 
   // Keyboard shortcut to open command palette
   useEffect(() => {
@@ -93,10 +102,13 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
   }, [open, handleOpenChange]);
 
   // Navigation actions
-  const handleNavigate = useCallback((path: string) => {
-    router.push(path);
-    handleOpenChange(false);
-  }, [router, handleOpenChange]);
+  const handleNavigate = useCallback(
+    (path: string) => {
+      router.push(path);
+      handleOpenChange(false);
+    },
+    [router, handleOpenChange]
+  );
 
   // Session actions
   const handleNewChat = useCallback(() => {
@@ -104,27 +116,36 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
     handleOpenChange(false);
   }, [createSession, handleOpenChange]);
 
-  const handleSelectSession = useCallback((sessionId: string) => {
-    setActiveSession(sessionId);
-    handleOpenChange(false);
-  }, [setActiveSession, handleOpenChange]);
+  const handleSelectSession = useCallback(
+    (sessionId: string) => {
+      setActiveSession(sessionId);
+      handleOpenChange(false);
+    },
+    [setActiveSession, handleOpenChange]
+  );
 
   // Mode change
-  const handleModeChange = useCallback((mode: ChatMode) => {
-    const session = sessions.find(s => s.id === activeSessionId);
-    if (session) {
-      updateSession(session.id, { mode });
-    } else {
-      createSession({ mode });
-    }
-    handleOpenChange(false);
-  }, [sessions, activeSessionId, updateSession, createSession, handleOpenChange]);
+  const handleModeChange = useCallback(
+    (mode: ChatMode) => {
+      const session = sessions.find((s) => s.id === activeSessionId);
+      if (session) {
+        updateSession(session.id, { mode });
+      } else {
+        createSession({ mode });
+      }
+      handleOpenChange(false);
+    },
+    [sessions, activeSessionId, updateSession, createSession, handleOpenChange]
+  );
 
   // Theme actions
-  const handleThemeChange = useCallback((newTheme: 'light' | 'dark' | 'system') => {
-    setTheme(newTheme);
-    handleOpenChange(false);
-  }, [setTheme, handleOpenChange]);
+  const handleThemeChange = useCallback(
+    (newTheme: 'light' | 'dark' | 'system') => {
+      setTheme(newTheme);
+      handleOpenChange(false);
+    },
+    [setTheme, handleOpenChange]
+  );
 
   // Panel actions
   const handleToggleCanvas = useCallback(() => {
@@ -164,7 +185,10 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
   const handleCopyChat = useCallback(async () => {
     if (messages.length > 0) {
       const text = messages
-        .map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
+        .map(
+          (m) =>
+            `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`
+        )
         .join('\n\n');
       await navigator.clipboard.writeText(text);
       toast.success(t('chatCopied'));
@@ -253,10 +277,7 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
           <>
             <CommandGroup heading={t('recentConversations')}>
               {recentSessions.map((session) => (
-                <CommandItem
-                  key={session.id}
-                  onSelect={() => handleSelectSession(session.id)}
-                >
+                <CommandItem key={session.id} onSelect={() => handleSelectSession(session.id)}>
                   <MessageSquare className="mr-2 h-4 w-4" />
                   <span className="truncate">{session.title}</span>
                   {session.id === activeSessionId && (
@@ -292,11 +313,21 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
 
         {/* Tools */}
         <CommandGroup heading={t('tools')}>
-          <CommandItem onSelect={() => { openModal('export'); handleOpenChange(false); }}>
+          <CommandItem
+            onSelect={() => {
+              openModal('export');
+              handleOpenChange(false);
+            }}
+          >
             <Download className="mr-2 h-4 w-4" />
             <span>{t('exportConversation')}</span>
           </CommandItem>
-          <CommandItem onSelect={() => { openModal('import'); handleOpenChange(false); }}>
+          <CommandItem
+            onSelect={() => {
+              openModal('import');
+              handleOpenChange(false);
+            }}
+          >
             <Upload className="mr-2 h-4 w-4" />
             <span>{t('importData')}</span>
           </CommandItem>
@@ -333,7 +364,12 @@ export function CommandPalette({ onOpenChange }: CommandPaletteProps) {
 
         {/* Help */}
         <CommandGroup heading={t('help')}>
-          <CommandItem onSelect={() => { openModal('mcp-servers'); handleOpenChange(false); }}>
+          <CommandItem
+            onSelect={() => {
+              openModal('mcp-servers');
+              handleOpenChange(false);
+            }}
+          >
             <Keyboard className="mr-2 h-4 w-4" />
             <span>{t('keyboardShortcuts')}</span>
             <CommandShortcut>?</CommandShortcut>

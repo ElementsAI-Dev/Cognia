@@ -22,17 +22,26 @@ jest.mock('@/hooks/media/use-speech', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, type, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} type={type} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    type,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick} disabled={disabled} type={type} {...props}>
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/textarea', () => ({
-  Textarea: React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
-    function Textarea(props, ref) {
-      return <textarea ref={ref} {...props} />;
-    }
-  ),
+  Textarea: React.forwardRef<
+    HTMLTextAreaElement,
+    React.TextareaHTMLAttributes<HTMLTextAreaElement>
+  >(function Textarea(props, ref) {
+    return <textarea ref={ref} {...props} />;
+  }),
 }));
 
 describe('ChatWidgetInput', () => {
@@ -121,14 +130,14 @@ describe('ChatWidgetInput', () => {
     render(<ChatWidgetInput {...defaultProps} value="" />);
     // The submit button should be disabled when empty
     const buttons = screen.getAllByRole('button');
-    const sendButton = buttons.find(btn => btn.getAttribute('type') === 'submit');
+    const sendButton = buttons.find((btn) => btn.getAttribute('type') === 'submit');
     expect(sendButton).toBeDisabled();
   });
 
   it('enables send button when value is not empty', () => {
     render(<ChatWidgetInput {...defaultProps} value="Hello" />);
     const buttons = screen.getAllByRole('button');
-    const sendButton = buttons.find(btn => btn.getAttribute('type') === 'submit');
+    const sendButton = buttons.find((btn) => btn.getAttribute('type') === 'submit');
     expect(sendButton).not.toBeDisabled();
   });
 
@@ -178,10 +187,10 @@ describe('ChatWidgetInput', () => {
   it('auto-resizes textarea when content changes', () => {
     render(<ChatWidgetInput {...defaultProps} />);
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
-    
+
     // Simulate input that would trigger resize
     fireEvent.change(textarea, { target: { value: 'Line 1\nLine 2\nLine 3' } });
-    
+
     expect(defaultProps.onChange).toHaveBeenCalled();
   });
 });
@@ -205,7 +214,7 @@ describe('ChatWidgetInput with voice listening', () => {
         ttsSupported: true,
       }),
     }));
-    
+
     // This test verifies the component renders with voice support
     const props = {
       value: '',
@@ -214,7 +223,7 @@ describe('ChatWidgetInput with voice listening', () => {
       onKeyDown: jest.fn(),
       showVoiceInput: true,
     };
-    
+
     render(<ChatWidgetInput {...props} />);
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);

@@ -8,16 +8,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import * as Icons from 'lucide-react';
-import {
-  Bot,
-  ChevronDown,
-  ChevronRight,
-  Plus,
-  Wand2,
-  Check,
-  X,
-  Settings,
-} from 'lucide-react';
+import { Bot, ChevronDown, ChevronRight, Plus, Wand2, Check, X, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -42,16 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useCustomModeStore,
@@ -110,7 +93,9 @@ function TemplateSelector({ onSelect }: TemplateSelectorProps) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label>{t('templates') || 'Quick Start Templates'}</Label>
-        <Badge variant="outline">{MODE_TEMPLATES.length} {t('available') || 'available'}</Badge>
+        <Badge variant="outline">
+          {MODE_TEMPLATES.length} {t('available') || 'available'}
+        </Badge>
       </div>
       <ScrollArea className="h-[180px]">
         <div className="grid grid-cols-2 gap-2 pr-4">
@@ -129,7 +114,9 @@ function TemplateSelector({ onSelect }: TemplateSelectorProps) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm truncate">{template.name}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {template.description}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -154,9 +141,7 @@ function IconSelector({ value, onChange }: IconSelectorProps) {
   const filteredIcons = useMemo(() => {
     if (!search) return AVAILABLE_MODE_ICONS;
     const lowerSearch = search.toLowerCase();
-    return AVAILABLE_MODE_ICONS.filter((icon) =>
-      icon.toLowerCase().includes(lowerSearch)
-    );
+    return AVAILABLE_MODE_ICONS.filter((icon) => icon.toLowerCase().includes(lowerSearch));
   }, [search]);
 
   const CurrentIcon = (Icons[value as keyof typeof Icons] as Icons.LucideIcon) || Bot;
@@ -171,11 +156,7 @@ function IconSelector({ value, onChange }: IconSelectorProps) {
               <CurrentIcon className="h-4 w-4" />
               <span>{value}</span>
             </div>
-            {isOpen ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
+            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-2">
@@ -260,21 +241,20 @@ function ToolSelector({ value, onChange }: ToolSelectorProps) {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label>{t('tools')}</Label>
-        <Badge variant="secondary">{value.length} {t('selected')}</Badge>
+        <Badge variant="secondary">
+          {value.length} {t('selected')}
+        </Badge>
       </div>
       <ScrollArea className="h-[300px] border rounded-md">
         <div className="p-2 space-y-1">
           {Object.entries(TOOL_CATEGORIES).map(([key, category]) => {
             const isExpanded = expandedCategories.has(key);
             const selectedCount = category.tools.filter((t) => value.includes(t)).length;
-            const Icon = (Icons[category.icon as keyof typeof Icons] as Icons.LucideIcon) || Settings;
+            const Icon =
+              (Icons[category.icon as keyof typeof Icons] as Icons.LucideIcon) || Settings;
 
             return (
-              <Collapsible
-                key={key}
-                open={isExpanded}
-                onOpenChange={() => toggleCategory(key)}
-              >
+              <Collapsible key={key} open={isExpanded} onOpenChange={() => toggleCategory(key)}>
                 <div className="flex items-center gap-2">
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm" className="flex-1 justify-start gap-2">
@@ -339,8 +319,8 @@ function McpToolSelector({ value, onChange }: McpToolSelectorProps) {
   const t = useTranslations('customMode');
   const mcpServers = useMcpStore((state) => state.servers);
 
-  const connectedServers = useMemo(() => 
-    mcpServers.filter(s => s.status.type === 'connected'),
+  const connectedServers = useMemo(
+    () => mcpServers.filter((s) => s.status.type === 'connected'),
     [mcpServers]
   );
 
@@ -355,25 +335,25 @@ function McpToolSelector({ value, onChange }: McpToolSelectorProps) {
   };
 
   const isToolSelected = (serverId: string, toolName: string) => {
-    return value.some(t => t.serverId === serverId && t.toolName === toolName);
+    return value.some((t) => t.serverId === serverId && t.toolName === toolName);
   };
 
   const toggleTool = (serverId: string, toolName: string, displayName?: string) => {
     if (isToolSelected(serverId, toolName)) {
-      onChange(value.filter(t => !(t.serverId === serverId && t.toolName === toolName)));
+      onChange(value.filter((t) => !(t.serverId === serverId && t.toolName === toolName)));
     } else {
       onChange([...value, { serverId, toolName, displayName }]);
     }
   };
 
   const toggleAllInServer = (serverId: string, tools: Array<{ name: string }>) => {
-    const serverToolNames = tools.map(t => t.name);
-    const allSelected = serverToolNames.every(name => isToolSelected(serverId, name));
-    
+    const serverToolNames = tools.map((t) => t.name);
+    const allSelected = serverToolNames.every((name) => isToolSelected(serverId, name));
+
     if (allSelected) {
-      onChange(value.filter(t => t.serverId !== serverId));
+      onChange(value.filter((t) => t.serverId !== serverId));
     } else {
-      const newTools = [...value.filter(t => t.serverId !== serverId)];
+      const newTools = [...value.filter((t) => t.serverId !== serverId)];
       for (const tool of tools) {
         newTools.push({ serverId, toolName: tool.name, displayName: tool.name });
       }
@@ -400,14 +380,18 @@ function McpToolSelector({ value, onChange }: McpToolSelectorProps) {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label>{t('mcpTools') || 'MCP Tools'}</Label>
-        <Badge variant="secondary">{selectedCount} {t('selected')}</Badge>
+        <Badge variant="secondary">
+          {selectedCount} {t('selected')}
+        </Badge>
       </div>
       <ScrollArea className="h-[200px] border rounded-md">
         <div className="p-2 space-y-1">
           {connectedServers.map((server) => {
             const isExpanded = expandedServers.has(server.id);
             const serverTools = server.tools || [];
-            const selectedInServer = serverTools.filter(t => isToolSelected(server.id, t.name)).length;
+            const selectedInServer = serverTools.filter((t) =>
+              isToolSelected(server.id, t.name)
+            ).length;
 
             return (
               <Collapsible
@@ -482,24 +466,23 @@ function McpToolSelector({ value, onChange }: McpToolSelectorProps) {
 // Main Editor Component
 // =============================================================================
 
-export function CustomModeEditor({
-  open,
-  onOpenChange,
-  mode,
-  onSave,
-}: CustomModeEditorProps) {
+export function CustomModeEditor({ open, onOpenChange, mode, onSave }: CustomModeEditorProps) {
   const t = useTranslations('customMode');
   const tCommon = useTranslations('common');
-  const { createMode, updateMode, generateModeFromDescription, isGenerating } = useCustomModeStore();
+  const { createMode, updateMode, generateModeFromDescription, isGenerating } =
+    useCustomModeStore();
 
   const isEditing = !!mode;
 
   // Get provider settings for tool availability check
   const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const availableApiKeys = useMemo(() => ({
-    tavily: !!providerSettings?.tavily?.apiKey,
-    openai: !!providerSettings?.openai?.apiKey,
-  }), [providerSettings]);
+  const availableApiKeys = useMemo(
+    () => ({
+      tavily: !!providerSettings?.tavily?.apiKey,
+      openai: !!providerSettings?.openai?.apiKey,
+    }),
+    [providerSettings]
+  );
 
   // Form state
   const [name, setName] = useState(mode?.name || '');
@@ -629,15 +612,16 @@ export function CustomModeEditor({
   const isValid = name.trim().length > 0;
 
   return (
-    <Dialog open={open} onOpenChange={(open) => {
-      if (!open) resetForm();
-      onOpenChange(open);
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(open) => {
+        if (!open) resetForm();
+        onOpenChange(open);
+      }}
+    >
       <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>
-            {isEditing ? t('editMode') : t('createMode')}
-          </DialogTitle>
+          <DialogTitle>{isEditing ? t('editMode') : t('createMode')}</DialogTitle>
           <DialogDescription>
             {isEditing ? t('editModeDesc') : t('createModeDesc')}
           </DialogDescription>
@@ -655,9 +639,7 @@ export function CustomModeEditor({
             {/* Basic Settings */}
             <TabsContent value="basic" className="space-y-4 pr-4">
               {/* Template Selector - only show when creating new mode */}
-              {!isEditing && (
-                <TemplateSelector onSelect={handleTemplateSelect} />
-              )}
+              {!isEditing && <TemplateSelector onSelect={handleTemplateSelect} />}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -671,7 +653,10 @@ export function CustomModeEditor({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="category">{t('category')}</Label>
-                  <Select value={category} onValueChange={(v) => setCategory(v as CustomModeCategory)}>
+                  <Select
+                    value={category}
+                    onValueChange={(v) => setCategory(v as CustomModeCategory)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -714,21 +699,24 @@ export function CustomModeEditor({
                     </CollapsibleTrigger>
                     <CollapsibleContent className="absolute z-10 mt-1 p-2 bg-popover border rounded-md shadow-md w-[280px]">
                       <p className="text-xs text-muted-foreground mb-2">
-                        {t('templateVarsHint') || 'Click to insert. Variables are replaced at runtime.'}
+                        {t('templateVarsHint') ||
+                          'Click to insert. Variables are replaced at runtime.'}
                       </p>
                       <div className="space-y-1">
-                        {Object.entries(PROMPT_TEMPLATE_VARIABLES).map(([variable, description]) => (
-                          <Button
-                            key={variable}
-                            variant="ghost"
-                            size="sm"
-                            className="w-full justify-start text-xs h-auto py-1"
-                            onClick={() => setSystemPrompt(prev => prev + variable)}
-                          >
-                            <code className="text-primary mr-2">{variable}</code>
-                            <span className="text-muted-foreground truncate">{description}</span>
-                          </Button>
-                        ))}
+                        {Object.entries(PROMPT_TEMPLATE_VARIABLES).map(
+                          ([variable, description]) => (
+                            <Button
+                              key={variable}
+                              variant="ghost"
+                              size="sm"
+                              className="w-full justify-start text-xs h-auto py-1"
+                              onClick={() => setSystemPrompt((prev) => prev + variable)}
+                            >
+                              <code className="text-primary mr-2">{variable}</code>
+                              <span className="text-muted-foreground truncate">{description}</span>
+                            </Button>
+                          )
+                        )}
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
@@ -773,27 +761,32 @@ export function CustomModeEditor({
             {/* Tools Selection */}
             <TabsContent value="tools" className="space-y-4 pr-4">
               {/* Tool availability warnings */}
-              {tools.length > 0 && (() => {
-                const { unavailable } = checkToolAvailability(tools, availableApiKeys);
-                if (unavailable.length > 0) {
-                  return (
-                    <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
-                      <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
-                          {t('toolsUnavailable') || 'Some tools require configuration'}
-                        </p>
-                        <ul className="text-xs text-muted-foreground space-y-0.5">
-                          {unavailable.map(({ tool, reason }) => (
-                            <li key={tool}>• <code className="text-yellow-600 dark:text-yellow-400">{tool}</code>: {reason}</li>
-                          ))}
-                        </ul>
+              {tools.length > 0 &&
+                (() => {
+                  const { unavailable } = checkToolAvailability(tools, availableApiKeys);
+                  if (unavailable.length > 0) {
+                    return (
+                      <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+                        <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
+                            {t('toolsUnavailable') || 'Some tools require configuration'}
+                          </p>
+                          <ul className="text-xs text-muted-foreground space-y-0.5">
+                            {unavailable.map(({ tool, reason }) => (
+                              <li key={tool}>
+                                •{' '}
+                                <code className="text-yellow-600 dark:text-yellow-400">{tool}</code>
+                                : {reason}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
+                    );
+                  }
+                  return null;
+                })()}
               <ToolSelector value={tools} onChange={setTools} />
               <McpToolSelector value={mcpTools} onChange={setMcpTools} />
             </TabsContent>
@@ -807,7 +800,10 @@ export function CustomModeEditor({
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>{t('outputFormat')}</Label>
-                    <Select value={outputFormat} onValueChange={(v) => setOutputFormat(v as typeof outputFormat)}>
+                    <Select
+                      value={outputFormat}
+                      onValueChange={(v) => setOutputFormat(v as typeof outputFormat)}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -824,14 +820,9 @@ export function CustomModeEditor({
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>{t('livePreview')}</Label>
-                      <p className="text-xs text-muted-foreground">
-                        {t('livePreviewDesc')}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{t('livePreviewDesc')}</p>
                     </div>
-                    <Switch
-                      checked={previewEnabled}
-                      onCheckedChange={setPreviewEnabled}
-                    />
+                    <Switch checked={previewEnabled} onCheckedChange={setPreviewEnabled} />
                   </div>
                 </CardContent>
               </Card>
@@ -854,7 +845,9 @@ export function CustomModeEditor({
                     <div className="flex items-center justify-between">
                       <Label>{t('temperature')}</Label>
                       <span className="text-sm text-muted-foreground">
-                        {temperatureOverride !== undefined ? temperatureOverride.toFixed(1) : t('default')}
+                        {temperatureOverride !== undefined
+                          ? temperatureOverride.toFixed(1)
+                          : t('default')}
                       </span>
                     </div>
                     <Slider
@@ -871,7 +864,9 @@ export function CustomModeEditor({
                     <Input
                       type="number"
                       value={maxTokensOverride || ''}
-                      onChange={(e) => setMaxTokensOverride(e.target.value ? parseInt(e.target.value) : undefined)}
+                      onChange={(e) =>
+                        setMaxTokensOverride(e.target.value ? parseInt(e.target.value) : undefined)
+                      }
                       placeholder={t('maxTokensPlaceholder')}
                     />
                   </div>
@@ -887,14 +882,9 @@ export function CustomModeEditor({
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>{t('enableA2UI')}</Label>
-                      <p className="text-xs text-muted-foreground">
-                        {t('enableA2UIDesc')}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{t('enableA2UIDesc')}</p>
                     </div>
-                    <Switch
-                      checked={a2uiEnabled}
-                      onCheckedChange={setA2UIEnabled}
-                    />
+                    <Switch checked={a2uiEnabled} onCheckedChange={setA2UIEnabled} />
                   </div>
                 </CardContent>
               </Card>
@@ -910,7 +900,8 @@ export function CustomModeEditor({
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-3">
                     {(() => {
-                      const IconComp = (Icons[icon as keyof typeof Icons] as Icons.LucideIcon) || Bot;
+                      const IconComp =
+                        (Icons[icon as keyof typeof Icons] as Icons.LucideIcon) || Bot;
                       return (
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                           <IconComp className="h-5 w-5 text-primary" />
@@ -919,7 +910,9 @@ export function CustomModeEditor({
                     })()}
                     <div>
                       <p className="font-medium">{name || 'Unnamed Mode'}</p>
-                      <p className="text-xs text-muted-foreground">{description || 'No description'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {description || 'No description'}
+                      </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
@@ -942,8 +935,10 @@ export function CustomModeEditor({
                   </div>
                   {tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
-                      {tags.map(tag => (
-                        <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
+                      {tags.map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-[10px]">
+                          {tag}
+                        </Badge>
                       ))}
                     </div>
                   )}
@@ -959,9 +954,7 @@ export function CustomModeEditor({
                     <Wand2 className="h-5 w-5" />
                     {t('generateFromDescription')}
                   </CardTitle>
-                  <CardDescription>
-                    {t('generateFromDescriptionDesc')}
-                  </CardDescription>
+                  <CardDescription>{t('generateFromDescriptionDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Textarea

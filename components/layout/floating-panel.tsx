@@ -82,10 +82,13 @@ export function FloatingPanel({
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const isMobile = useIsMobile();
-  
+
   const panelRef = useRef<HTMLDivElement>(null);
   const dragStart = useRef<Position>({ x: 0, y: 0 });
-  const resizeStart = useRef<{ pos: Position; size: Size }>({ pos: { x: 0, y: 0 }, size: { width: 0, height: 0 } });
+  const resizeStart = useRef<{ pos: Position; size: Size }>({
+    pos: { x: 0, y: 0 },
+    size: { width: 0, height: 0 },
+  });
 
   // Save position and size
   useEffect(() => {
@@ -96,52 +99,70 @@ export function FloatingPanel({
   }, [position, size, storageKey]);
 
   // Drag handlers
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    if (!draggable) return;
-    e.preventDefault();
-    setIsDragging(true);
-    dragStart.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    };
-  }, [draggable, position]);
+  const handleDragStart = useCallback(
+    (e: React.MouseEvent) => {
+      if (!draggable) return;
+      e.preventDefault();
+      setIsDragging(true);
+      dragStart.current = {
+        x: e.clientX - position.x,
+        y: e.clientY - position.y,
+      };
+    },
+    [draggable, position]
+  );
 
-  const handleDragMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return;
-    
-    const newX = Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragStart.current.x));
-    const newY = Math.max(0, Math.min(window.innerHeight - size.height, e.clientY - dragStart.current.y));
-    
-    setPosition({ x: newX, y: newY });
-  }, [isDragging, size]);
+  const handleDragMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      const newX = Math.max(
+        0,
+        Math.min(window.innerWidth - size.width, e.clientX - dragStart.current.x)
+      );
+      const newY = Math.max(
+        0,
+        Math.min(window.innerHeight - size.height, e.clientY - dragStart.current.y)
+      );
+
+      setPosition({ x: newX, y: newY });
+    },
+    [isDragging, size]
+  );
 
   const handleDragEnd = useCallback(() => {
     setIsDragging(false);
   }, []);
 
   // Resize handlers
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
-    if (!resizable) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsResizing(true);
-    resizeStart.current = {
-      pos: { x: e.clientX, y: e.clientY },
-      size: { ...size },
-    };
-  }, [resizable, size]);
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      if (!resizable) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setIsResizing(true);
+      resizeStart.current = {
+        pos: { x: e.clientX, y: e.clientY },
+        size: { ...size },
+      };
+    },
+    [resizable, size]
+  );
 
-  const handleResizeMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return;
-    
-    const deltaX = e.clientX - resizeStart.current.pos.x;
-    const deltaY = e.clientY - resizeStart.current.pos.y;
-    
-    const newWidth = Math.max(minWidth, resizeStart.current.size.width + deltaX);
-    const newHeight = Math.max(minHeight, resizeStart.current.size.height + deltaY);
-    
-    setSize({ width: newWidth, height: newHeight });
-  }, [isResizing, minWidth, minHeight]);
+  const handleResizeMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const deltaX = e.clientX - resizeStart.current.pos.x;
+      const deltaY = e.clientY - resizeStart.current.pos.y;
+
+      const newWidth = Math.max(minWidth, resizeStart.current.size.width + deltaX);
+      const newHeight = Math.max(minHeight, resizeStart.current.size.height + deltaY);
+
+      setSize({ width: newWidth, height: newHeight });
+    },
+    [isResizing, minWidth, minHeight]
+  );
 
   const handleResizeEnd = useCallback(() => {
     setIsResizing(false);
@@ -187,21 +208,23 @@ export function FloatingPanel({
   if (!open) return null;
 
   // On mobile, use full-width bottom sheet style
-  const mobileStyles = isMobile ? {
-    left: 0,
-    right: 0,
-    bottom: 0,
-    top: 'auto',
-    width: '100%',
-    height: isMinimized ? 'auto' : '60vh',
-    maxHeight: '80vh',
-    borderRadius: '1rem 1rem 0 0',
-  } : {
-    left: position.x,
-    top: position.y,
-    width: isMinimized ? 200 : size.width,
-    height: isMinimized ? 'auto' : size.height,
-  };
+  const mobileStyles = isMobile
+    ? {
+        left: 0,
+        right: 0,
+        bottom: 0,
+        top: 'auto',
+        width: '100%',
+        height: isMinimized ? 'auto' : '60vh',
+        maxHeight: '80vh',
+        borderRadius: '1rem 1rem 0 0',
+      }
+    : {
+        left: position.x,
+        top: position.y,
+        width: isMinimized ? 200 : size.width,
+        height: isMinimized ? 'auto' : size.height,
+      };
 
   return (
     <div
@@ -212,10 +235,12 @@ export function FloatingPanel({
         (isDragging || isResizing) && 'select-none',
         className
       )}
-      style={{
-        ...mobileStyles,
-        zIndex,
-      } as React.CSSProperties}
+      style={
+        {
+          ...mobileStyles,
+          zIndex,
+        } as React.CSSProperties
+      }
     >
       {/* Header - draggable on desktop only */}
       <div
@@ -247,9 +272,7 @@ export function FloatingPanel({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              {isMinimized ? 'Expand' : 'Minimize'}
-            </TooltipContent>
+            <TooltipContent>{isMinimized ? 'Expand' : 'Minimize'}</TooltipContent>
           </Tooltip>
           {onClose && (
             <Tooltip>
@@ -271,11 +294,7 @@ export function FloatingPanel({
       </div>
 
       {/* Content */}
-      {!isMinimized && (
-        <div className="flex-1 overflow-auto">
-          {children}
-        </div>
-      )}
+      {!isMinimized && <div className="flex-1 overflow-auto">{children}</div>}
 
       {/* Resize handle - desktop only */}
       {resizable && !isMinimized && !isMobile && (

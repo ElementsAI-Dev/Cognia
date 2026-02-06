@@ -6,14 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Keyboard,
-  RotateCcw,
-  AlertTriangle,
-  Download,
-  Upload,
-  Search,
-} from 'lucide-react';
+import { Keyboard, RotateCcw, AlertTriangle, Download, Upload, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -27,11 +20,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,9 +44,37 @@ interface KeybindingSettingsProps {
 }
 
 const KEYBINDING_CATEGORIES = {
-  canvas: ['canvas.save', 'canvas.saveVersion', 'canvas.undo', 'canvas.redo', 'canvas.find', 'canvas.replace', 'canvas.goToLine', 'canvas.format', 'canvas.toggleWordWrap', 'canvas.toggleMinimap', 'canvas.close'],
-  action: ['action.review', 'action.fix', 'action.improve', 'action.explain', 'action.simplify', 'action.expand', 'action.translate', 'action.run'],
-  navigation: ['navigation.nextSuggestion', 'navigation.prevSuggestion', 'navigation.acceptSuggestion', 'navigation.rejectSuggestion', 'navigation.nextDocument', 'navigation.prevDocument'],
+  canvas: [
+    'canvas.save',
+    'canvas.saveVersion',
+    'canvas.undo',
+    'canvas.redo',
+    'canvas.find',
+    'canvas.replace',
+    'canvas.goToLine',
+    'canvas.format',
+    'canvas.toggleWordWrap',
+    'canvas.toggleMinimap',
+    'canvas.close',
+  ],
+  action: [
+    'action.review',
+    'action.fix',
+    'action.improve',
+    'action.explain',
+    'action.simplify',
+    'action.expand',
+    'action.translate',
+    'action.run',
+  ],
+  navigation: [
+    'navigation.nextSuggestion',
+    'navigation.prevSuggestion',
+    'navigation.acceptSuggestion',
+    'navigation.rejectSuggestion',
+    'navigation.nextDocument',
+    'navigation.prevDocument',
+  ],
   view: ['view.toggleHistory', 'view.toggleSuggestions', 'view.toggleExecution'],
   edit: ['edit.selectAll', 'edit.copy', 'edit.cut', 'edit.paste', 'edit.duplicate', 'edit.comment'],
   fold: ['fold.foldAll', 'fold.unfoldAll', 'fold.foldLevel1', 'fold.foldLevel2'],
@@ -83,35 +100,41 @@ export function KeybindingSettings({ trigger }: KeybindingSettingsProps) {
     checkConflicts,
   } = useKeybindingStore();
 
-  const handleStartEditing = useCallback((action: string) => {
-    setEditingAction(action);
-    setRecordingKey(bindings[action] || '');
-  }, [bindings]);
+  const handleStartEditing = useCallback(
+    (action: string) => {
+      setEditingAction(action);
+      setRecordingKey(bindings[action] || '');
+    },
+    [bindings]
+  );
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!editingAction) return;
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!editingAction) return;
 
-    e.preventDefault();
-    e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
 
-    if (e.key === 'Escape') {
-      setEditingAction(null);
-      setRecordingKey('');
-      return;
-    }
+      if (e.key === 'Escape') {
+        setEditingAction(null);
+        setRecordingKey('');
+        return;
+      }
 
-    if (e.key === 'Enter' && recordingKey) {
-      setKeybinding(editingAction, recordingKey);
-      setEditingAction(null);
-      setRecordingKey('');
-      return;
-    }
+      if (e.key === 'Enter' && recordingKey) {
+        setKeybinding(editingAction, recordingKey);
+        setEditingAction(null);
+        setRecordingKey('');
+        return;
+      }
 
-    const keyCombo = parseKeyEvent(e.nativeEvent);
-    if (keyCombo && !['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
-      setRecordingKey(keyCombo);
-    }
-  }, [editingAction, recordingKey, setKeybinding]);
+      const keyCombo = parseKeyEvent(e.nativeEvent);
+      if (keyCombo && !['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+        setRecordingKey(keyCombo);
+      }
+    },
+    [editingAction, recordingKey, setKeybinding]
+  );
 
   const handleExport = useCallback(() => {
     const json = exportBindings();
@@ -143,8 +166,8 @@ export function KeybindingSettings({ trigger }: KeybindingSettingsProps) {
     input.click();
   }, [importBindings]);
 
-  const filteredCategories = Object.entries(KEYBINDING_CATEGORIES).map(
-    ([category, actions]) => ({
+  const filteredCategories = Object.entries(KEYBINDING_CATEGORIES)
+    .map(([category, actions]) => ({
       category,
       actions: actions.filter((action) => {
         if (!searchQuery) return true;
@@ -154,8 +177,8 @@ export function KeybindingSettings({ trigger }: KeybindingSettingsProps) {
           (bindings[action] || '').toLowerCase().includes(query)
         );
       }),
-    })
-  ).filter((cat) => cat.actions.length > 0);
+    }))
+    .filter((cat) => cat.actions.length > 0);
 
   const hasConflicts = Object.keys(conflicts).length > 0;
 
@@ -211,11 +234,7 @@ export function KeybindingSettings({ trigger }: KeybindingSettingsProps) {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowResetConfirm(true)}
-                  >
+                  <Button variant="outline" size="icon" onClick={() => setShowResetConfirm(true)}>
                     <RotateCcw className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -249,9 +268,7 @@ export function KeybindingSettings({ trigger }: KeybindingSettingsProps) {
                           isEditing={editingAction === action}
                           recordingKey={editingAction === action ? recordingKey : undefined}
                           isModified={isModified(action)}
-                          hasConflict={Object.values(conflicts).some((c) =>
-                            c.includes(action)
-                          )}
+                          hasConflict={Object.values(conflicts).some((c) => c.includes(action))}
                           onStartEdit={() => handleStartEditing(action)}
                           onKeyDown={handleKeyDown}
                           onReset={() => resetKeybinding(action)}
@@ -283,9 +300,7 @@ export function KeybindingSettings({ trigger }: KeybindingSettingsProps) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('resetAllKeybindings')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('resetKeybindingsConfirm')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('resetKeybindingsConfirm')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
@@ -387,12 +402,7 @@ function KeybindingRow({
             {isModified && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={onReset}
-                  >
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onReset}>
                     <RotateCcw className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>

@@ -29,7 +29,8 @@ export function NativeToolMobileNav({
       const containerRect = container.getBoundingClientRect();
       const buttonRect = activeButton.getBoundingClientRect();
 
-      const scrollLeft = buttonRect.left - containerRect.left - (containerRect.width / 2) + (buttonRect.width / 2);
+      const scrollLeft =
+        buttonRect.left - containerRect.left - containerRect.width / 2 + buttonRect.width / 2;
       // Check if scrollBy is available (not in JSDOM)
       if (typeof container.scrollBy === 'function') {
         container.scrollBy({ left: scrollLeft, behavior: 'smooth' });

@@ -28,13 +28,15 @@ export function MetricsPanel({ metrics, timeRange, timeSeries = [] }: MetricsPan
   const tCommon = useTranslations('observability');
 
   // Convert metrics data to chart-compatible format
-  const providerData = Object.entries(metrics?.requestsByProvider || {}).map(([provider, requests]) => ({
-    provider,
-    requests,
-    tokens: metrics?.tokensByProvider?.[provider] || 0,
-    cost: metrics?.costByProvider?.[provider] || 0,
-    percentage: metrics?.totalRequests ? (requests / metrics.totalRequests) * 100 : 0,
-  }));
+  const providerData = Object.entries(metrics?.requestsByProvider || {}).map(
+    ([provider, requests]) => ({
+      provider,
+      requests,
+      tokens: metrics?.tokensByProvider?.[provider] || 0,
+      cost: metrics?.costByProvider?.[provider] || 0,
+      percentage: metrics?.totalRequests ? (requests / metrics.totalRequests) * 100 : 0,
+    })
+  );
 
   const modelData = Object.entries(metrics?.requestsByModel || {}).map(([model, requests]) => ({
     model,
@@ -56,10 +58,14 @@ export function MetricsPanel({ metrics, timeRange, timeSeries = [] }: MetricsPan
 
   const getTimeRangeLabel = (range: TimeRange) => {
     switch (range) {
-      case '1h': return tTime('lastHour');
-      case '24h': return tTime('last24Hours');
-      case '7d': return tTime('last7Days');
-      case '30d': return tTime('last30Days');
+      case '1h':
+        return tTime('lastHour');
+      case '24h':
+        return tTime('last24Hours');
+      case '7d':
+        return tTime('last7Days');
+      case '30d':
+        return tTime('last30Days');
     }
   };
 
@@ -122,9 +128,7 @@ export function MetricsPanel({ metrics, timeRange, timeSeries = [] }: MetricsPan
 
       {/* Charts Section - Primary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {timeSeries.length > 0 && (
-          <RequestsTimelineChart data={timeSeries} showCost height={260} />
-        )}
+        {timeSeries.length > 0 && <RequestsTimelineChart data={timeSeries} showCost height={260} />}
         <LatencyDistributionChart
           data={metrics.latencyPercentiles}
           averageLatency={metrics.averageLatency}
@@ -141,9 +145,7 @@ export function MetricsPanel({ metrics, timeRange, timeSeries = [] }: MetricsPan
       )}
 
       {/* Model Usage Chart */}
-      {modelData.length > 0 && (
-        <ModelChart data={modelData} dataKey="requests" height={200} />
-      )}
+      {modelData.length > 0 && <ModelChart data={modelData} dataKey="requests" height={200} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Latency Stats Card with visual progress bars */}
@@ -159,27 +161,45 @@ export function MetricsPanel({ metrics, timeRange, timeSeries = [] }: MetricsPan
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground flex items-center gap-2">
-                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">P50</Badge>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 text-xs">
+                      P50
+                    </Badge>
                     {t('median') || 'Median'}
                   </span>
                   <span className="font-medium">{metrics.latencyPercentiles.p50.toFixed(0)}ms</span>
                 </div>
-                <Progress value={Math.min(100, (metrics.latencyPercentiles.p50 / metrics.latencyPercentiles.p99) * 100)} className="h-1.5" />
+                <Progress
+                  value={Math.min(
+                    100,
+                    (metrics.latencyPercentiles.p50 / metrics.latencyPercentiles.p99) * 100
+                  )}
+                  className="h-1.5"
+                />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground flex items-center gap-2">
-                    <Badge variant="outline" className="bg-yellow-100 text-yellow-700 text-xs">P90</Badge>
+                    <Badge variant="outline" className="bg-yellow-100 text-yellow-700 text-xs">
+                      P90
+                    </Badge>
                     {t('90thPercentile') || '90th Percentile'}
                   </span>
                   <span className="font-medium">{metrics.latencyPercentiles.p90.toFixed(0)}ms</span>
                 </div>
-                <Progress value={Math.min(100, (metrics.latencyPercentiles.p90 / metrics.latencyPercentiles.p99) * 100)} className="h-1.5" />
+                <Progress
+                  value={Math.min(
+                    100,
+                    (metrics.latencyPercentiles.p90 / metrics.latencyPercentiles.p99) * 100
+                  )}
+                  className="h-1.5"
+                />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground flex items-center gap-2">
-                    <Badge variant="outline" className="bg-red-100 text-red-700 text-xs">P99</Badge>
+                    <Badge variant="outline" className="bg-red-100 text-red-700 text-xs">
+                      P99
+                    </Badge>
                     {t('99thPercentile') || '99th Percentile'}
                   </span>
                   <span className="font-medium">{metrics.latencyPercentiles.p99.toFixed(0)}ms</span>

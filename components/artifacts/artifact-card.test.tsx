@@ -8,7 +8,8 @@ import type { Artifact } from '@/types';
 
 // Mock artifact-icons
 jest.mock('./artifact-icons', () => ({
-  getArtifactTypeIcon: (type: string) => React.createElement('span', { 'data-testid': `icon-${type}` }, type),
+  getArtifactTypeIcon: (type: string) =>
+    React.createElement('span', { 'data-testid': `icon-${type}` }, type),
   ARTIFACT_TYPE_ICONS: {},
 }));
 
@@ -54,14 +55,31 @@ jest.mock('@/stores', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string }) => (
-    <button onClick={onClick} className={className} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    className,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string }) => (
+    <button onClick={onClick} className={className} {...props}>
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/card', () => ({
-  Card: ({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => (
-    <div data-testid="card" className={className} onClick={onClick}>{children}</div>
+  Card: ({
+    children,
+    className,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    onClick?: () => void;
+  }) => (
+    <div data-testid="card" className={className} onClick={onClick}>
+      {children}
+    </div>
   ),
   CardContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
@@ -69,14 +87,26 @@ jest.mock('@/components/ui/card', () => ({
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children, variant, className }: { children: React.ReactNode; variant?: string; className?: string }) => (
-    <span data-testid="badge" data-variant={variant} className={className}>{children}</span>
+  Badge: ({
+    children,
+    variant,
+    className,
+  }: {
+    children: React.ReactNode;
+    variant?: string;
+    className?: string;
+  }) => (
+    <span data-testid="badge" data-variant={variant} className={className}>
+      {children}
+    </span>
   ),
 }));
 
 jest.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => <div data-testid="tooltip-content">{children}</div>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="tooltip-content">{children}</div>
+  ),
   TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));

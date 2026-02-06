@@ -22,23 +22,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useCommentStore } from '@/stores/canvas/comment-store';
@@ -212,9 +198,7 @@ export function CommentPanel({
           <ScrollArea className="h-[calc(100vh-320px)]">
             <div className="space-y-3 pr-4">
               {displayedComments.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  {t('noComments')}
-                </p>
+                <p className="text-sm text-muted-foreground text-center py-8">{t('noComments')}</p>
               ) : (
                 displayedComments.map((comment) => (
                   <CommentThread
@@ -291,12 +275,7 @@ function CommentThread({
     .slice(0, 2);
 
   return (
-    <div
-      className={cn(
-        'rounded-lg border p-3 space-y-2',
-        isResolved && 'opacity-60'
-      )}
-    >
+    <div className={cn('rounded-lg border p-3 space-y-2', isResolved && 'opacity-60')}>
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
@@ -353,12 +332,7 @@ function CommentThread({
 
       {/* Actions */}
       <div className="flex items-center gap-1 pt-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs"
-          onClick={onStartReply}
-        >
+        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onStartReply}>
           <Reply className="h-3 w-3 mr-1" />
           {t('reply')}
         </Button>
@@ -433,11 +407,7 @@ function CommentThread({
               <X className="h-3 w-3 mr-1" />
               {t('cancel')}
             </Button>
-            <Button
-              size="sm"
-              onClick={onSubmitReply}
-              disabled={!replyContent.trim()}
-            >
+            <Button size="sm" onClick={onSubmitReply} disabled={!replyContent.trim()}>
               <Check className="h-3 w-3 mr-1" />
               {t('reply')}
             </Button>
@@ -472,13 +442,7 @@ interface ReplyItemProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-function ReplyItem({
-  reply,
-  currentUserId,
-  onDelete,
-  onToggleReaction,
-  t,
-}: ReplyItemProps) {
+function ReplyItem({ reply, currentUserId, onDelete, onToggleReaction, t }: ReplyItemProps) {
   const isAuthor = reply.authorId === currentUserId;
   const initials = reply.authorName
     .split(' ')

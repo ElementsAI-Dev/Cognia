@@ -10,8 +10,22 @@ import { QuickAppBuilder } from './quick-app-builder';
 jest.mock('@/hooks/a2ui/use-app-builder', () => ({
   useA2UIAppBuilder: jest.fn(() => ({
     templates: [
-      { id: 'todo-list', name: 'Todo List', description: 'Task management', icon: 'CheckSquare', category: 'productivity', tags: ['productivity'] },
-      { id: 'calculator', name: 'Calculator', description: 'Basic calculator', icon: 'Calculator', category: 'utility', tags: ['math'] },
+      {
+        id: 'todo-list',
+        name: 'Todo List',
+        description: 'Task management',
+        icon: 'CheckSquare',
+        category: 'productivity',
+        tags: ['productivity'],
+      },
+      {
+        id: 'calculator',
+        name: 'Calculator',
+        description: 'Basic calculator',
+        icon: 'Calculator',
+        category: 'utility',
+        tags: ['math'],
+      },
     ],
     getTemplate: jest.fn((id) => ({ id, name: 'Template', category: 'productivity' })),
     getTemplatesByCategory: jest.fn(() => []),
@@ -67,13 +81,13 @@ describe('QuickAppBuilder', () => {
   describe('rendering', () => {
     it('should render component', () => {
       render(<QuickAppBuilder />);
-      
+
       expect(screen.getByText('应用工坊')).toBeInTheDocument();
     });
 
     it('should render tabs', () => {
       render(<QuickAppBuilder />);
-      
+
       expect(screen.getByText('闪建')).toBeInTheDocument();
       expect(screen.getByText('模板')).toBeInTheDocument();
       expect(screen.getByText('我的应用')).toBeInTheDocument();
@@ -81,13 +95,15 @@ describe('QuickAppBuilder', () => {
 
     it('should render flash build input', () => {
       render(<QuickAppBuilder />);
-      
-      expect(screen.getByPlaceholderText('描述你想要的应用，例如：一个简单的待办事项列表...')).toBeInTheDocument();
+
+      expect(
+        screen.getByPlaceholderText('描述你想要的应用，例如：一个简单的待办事项列表...')
+      ).toBeInTheDocument();
     });
 
     it('should render create button', () => {
       render(<QuickAppBuilder />);
-      
+
       expect(screen.getByText('闪建应用')).toBeInTheDocument();
     });
   });
@@ -95,7 +111,7 @@ describe('QuickAppBuilder', () => {
   describe('tabs navigation', () => {
     it('should have tabs trigger elements', () => {
       render(<QuickAppBuilder />);
-      
+
       // Verify tab triggers exist
       const tabList = screen.getByRole('tablist');
       expect(tabList).toBeInTheDocument();
@@ -103,7 +119,7 @@ describe('QuickAppBuilder', () => {
 
     it('should render tab panels', () => {
       render(<QuickAppBuilder />);
-      
+
       // First tab panel should be visible
       const tabPanel = screen.getByRole('tabpanel');
       expect(tabPanel).toBeInTheDocument();
@@ -113,10 +129,12 @@ describe('QuickAppBuilder', () => {
   describe('flash build', () => {
     it('should enable button when description is entered', async () => {
       render(<QuickAppBuilder />);
-      
-      const input = screen.getByPlaceholderText('描述你想要的应用，例如：一个简单的待办事项列表...');
+
+      const input = screen.getByPlaceholderText(
+        '描述你想要的应用，例如：一个简单的待办事项列表...'
+      );
       fireEvent.change(input, { target: { value: 'Create a todo list app' } });
-      
+
       await waitFor(() => {
         const button = screen.getByText('闪建应用');
         expect(button).not.toBeDisabled();
@@ -127,7 +145,7 @@ describe('QuickAppBuilder', () => {
   describe('templates', () => {
     it('should have templates available', () => {
       render(<QuickAppBuilder />);
-      
+
       // Templates are provided via mock hook
       expect(mockUseA2UIAppBuilder().templates.length).toBeGreaterThan(0);
     });
@@ -136,7 +154,7 @@ describe('QuickAppBuilder', () => {
   describe('my apps', () => {
     it('should have getAllApps function', () => {
       render(<QuickAppBuilder />);
-      
+
       expect(typeof mockUseA2UIAppBuilder().getAllApps).toBe('function');
     });
   });
@@ -144,14 +162,14 @@ describe('QuickAppBuilder', () => {
   describe('props', () => {
     it('should accept className prop', () => {
       const { container } = render(<QuickAppBuilder className="custom-class" />);
-      
+
       expect(container.firstChild).toHaveClass('custom-class');
     });
 
     it('should accept onAppSelect prop', () => {
       const onAppSelect = jest.fn();
       render(<QuickAppBuilder onAppSelect={onAppSelect} />);
-      
+
       // onAppSelect prop is accepted without throwing
       expect(true).toBe(true);
     });
@@ -160,7 +178,7 @@ describe('QuickAppBuilder', () => {
   describe('view mode', () => {
     it('should render with buttons for interaction', () => {
       render(<QuickAppBuilder />);
-      
+
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
     });

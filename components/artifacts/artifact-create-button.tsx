@@ -14,12 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useArtifactStore, useSessionStore } from '@/stores';
 import type { ArtifactType } from '@/types';
 import {
@@ -43,30 +38,30 @@ interface ArtifactCreateButtonProps {
  */
 function detectArtifactType(language?: string, content?: string): ArtifactType {
   if (!language) return 'code';
-  
+
   const lang = language.toLowerCase();
-  
+
   // Direct language mappings
   if (lang === 'mermaid') return 'mermaid';
   if (lang === 'latex' || lang === 'tex' || lang === 'math') return 'math';
   if (lang === 'markdown' || lang === 'md') return 'document';
   if (lang === 'html') return 'html';
   if (lang === 'svg') return 'svg';
-  
+
   // JSX/TSX - check for React patterns
   if (lang === 'jsx' || lang === 'tsx') {
     if (content && matchesTypePatterns(content, 'react')) {
       return 'react';
     }
   }
-  
+
   // JSON - check for chart data patterns
   if (lang === 'json' && content) {
     if (matchesTypePatterns(content, 'chart')) {
       return 'chart';
     }
   }
-  
+
   return 'code';
 }
 
@@ -79,13 +74,13 @@ function generateTitle(content: string, language?: string): string {
   if (functionMatch) {
     return functionMatch[1];
   }
-  
+
   // Try to extract export name
   const exportMatch = content.match(/export\s+(?:default\s+)?(?:function|const|class)\s+(\w+)/);
   if (exportMatch) {
     return exportMatch[1];
   }
-  
+
   // Use language display name as fallback
   return language ? `${getLanguageDisplayName(language)} Code` : 'Code Artifact';
 }
@@ -129,33 +124,27 @@ export function ArtifactCreateButton({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="ghost" className={className}>
-            {created ? <Check className="h-4 w-4 text-green-500" /> : <Layers className="h-4 w-4" />}
+            {created ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <Layers className="h-4 w-4" />
+            )}
             <span className="ml-1">{t('createArtifact')}</span>
             <ChevronDown className="ml-1 h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => handleCreate('code')}>
-            {t('asCode')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleCreate('react')}>
-            {t('asReact')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleCreate('html')}>
-            {t('asHtml')}
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCreate('code')}>{t('asCode')}</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCreate('react')}>{t('asReact')}</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCreate('html')}>{t('asHtml')}</DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleCreate('document')}>
             {t('asDocument')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleCreate('mermaid')}>
             {t('asMermaid')}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleCreate('chart')}>
-            {t('asChart')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleCreate('math')}>
-            {t('asMath')}
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCreate('chart')}>{t('asChart')}</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCreate('math')}>{t('asMath')}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -163,12 +152,7 @@ export function ArtifactCreateButton({
 
   if (variant === 'button') {
     return (
-      <Button
-        size="sm"
-        variant="ghost"
-        className={className}
-        onClick={() => handleCreate()}
-      >
+      <Button size="sm" variant="ghost" className={className} onClick={() => handleCreate()}>
         {created ? <Check className="h-4 w-4 text-green-500" /> : <Layers className="h-4 w-4" />}
         <span className="ml-1">{t('createArtifact')}</span>
       </Button>
@@ -180,13 +164,12 @@ export function ArtifactCreateButton({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button
-            size="icon"
-            variant="ghost"
-            className={className}
-            onClick={() => handleCreate()}
-          >
-            {created ? <Check className="h-4 w-4 text-green-500" /> : <Layers className="h-4 w-4" />}
+          <Button size="icon" variant="ghost" className={className} onClick={() => handleCreate()}>
+            {created ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <Layers className="h-4 w-4" />
+            )}
           </Button>
         </TooltipTrigger>
         <TooltipContent>

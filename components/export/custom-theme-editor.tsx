@@ -51,9 +51,7 @@ function ColorField({ label, value, onChange, description }: ColorFieldProps) {
         />
         <div className="flex-1 min-w-0">
           <Label className="text-sm font-medium">{label}</Label>
-          {description && (
-            <p className="text-xs text-muted-foreground truncate">{description}</p>
-          )}
+          {description && <p className="text-xs text-muted-foreground truncate">{description}</p>}
         </div>
       </div>
       <Input
@@ -97,17 +95,17 @@ function greetUser(name) {
 // Call the function
 const result = greetUser("World");`;
 
-export function CustomThemeEditor({ 
-  open, 
-  onOpenChange, 
+export function CustomThemeEditor({
+  open,
+  onOpenChange,
   editingThemeId,
-  onSave 
+  onSave,
 }: CustomThemeEditorProps) {
   const t = useTranslations('customThemeEditor');
   const { addTheme, updateTheme, getTheme, exportTheme, importTheme } = useCustomThemeStore();
-  
+
   const existingTheme = editingThemeId ? getTheme(editingThemeId) : null;
-  
+
   const [themeName, setThemeName] = useState(existingTheme?.displayName || 'My Custom Theme');
   const [isDark, setIsDark] = useState(existingTheme?.isDark ?? true);
   const [colors, setColors] = useState<SyntaxTheme['colors']>(
@@ -115,7 +113,7 @@ export function CustomThemeEditor({
   );
 
   const updateColor = useCallback((key: keyof SyntaxTheme['colors'], value: string) => {
-    setColors(prev => ({ ...prev, [key]: value }));
+    setColors((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   const resetToDefaults = useCallback(() => {
@@ -148,7 +146,18 @@ export function CustomThemeEditor({
 
     onSave?.(themeId);
     onOpenChange(false);
-  }, [themeName, isDark, colors, editingThemeId, existingTheme, addTheme, updateTheme, onSave, onOpenChange, t]);
+  }, [
+    themeName,
+    isDark,
+    colors,
+    editingThemeId,
+    existingTheme,
+    addTheme,
+    updateTheme,
+    onSave,
+    onOpenChange,
+    t,
+  ]);
 
   const handleExport = useCallback(() => {
     if (editingThemeId) {
@@ -173,10 +182,10 @@ export function CustomThemeEditor({
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      
+
       const text = await file.text();
       const result = importTheme(text);
-      
+
       if (result.success) {
         toast.success(t('themeImported'));
         onOpenChange(false);
@@ -211,8 +220,7 @@ export function CustomThemeEditor({
   }, [colors]);
 
   const highlightedCode = useMemo(() => {
-    return SAMPLE_CODE
-      .replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>')
+    return SAMPLE_CODE.replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>')
       .replace(/\b(function|const|return)\b/g, '<span class="keyword">$1</span>')
       .replace(/"([^"]*)"/g, '<span class="string">"$1"</span>')
       .replace(/\b(\d+)\b/g, '<span class="number">$1</span>')
@@ -228,9 +236,7 @@ export function CustomThemeEditor({
             <Palette className="h-5 w-5" />
             {editingThemeId ? t('editTheme') : t('createTheme')}
           </DialogTitle>
-          <DialogDescription>
-            {t('description')}
-          </DialogDescription>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-4">
@@ -249,15 +255,9 @@ export function CustomThemeEditor({
             <div className="flex items-center justify-between rounded-lg border p-3">
               <div>
                 <Label htmlFor="is-dark">{t('darkTheme')}</Label>
-                <p className="text-xs text-muted-foreground">
-                  {t('darkThemeDesc')}
-                </p>
+                <p className="text-xs text-muted-foreground">{t('darkThemeDesc')}</p>
               </div>
-              <Switch
-                id="is-dark"
-                checked={isDark}
-                onCheckedChange={setIsDark}
-              />
+              <Switch id="is-dark" checked={isDark} onCheckedChange={setIsDark} />
             </div>
 
             <Tabs defaultValue="basic" className="w-full">
@@ -265,7 +265,7 @@ export function CustomThemeEditor({
                 <TabsTrigger value="basic">{t('basicColors')}</TabsTrigger>
                 <TabsTrigger value="advanced">{t('advanced')}</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="basic">
                 <ScrollArea className="h-[280px] pr-4">
                   <div className="space-y-1">
@@ -281,7 +281,7 @@ export function CustomThemeEditor({
                   </div>
                 </ScrollArea>
               </TabsContent>
-              
+
               <TabsContent value="advanced">
                 <ScrollArea className="h-[280px] pr-4">
                   <div className="space-y-1">
@@ -304,37 +304,19 @@ export function CustomThemeEditor({
           <div className="space-y-3">
             <Label>{t('livePreview')}</Label>
             <style dangerouslySetInnerHTML={{ __html: previewStyles }} />
-            <div 
-              className="preview-code"
-              dangerouslySetInnerHTML={{ __html: highlightedCode }}
-            />
-            
+            <div className="preview-code" dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+
             <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetToDefaults}
-                className="flex-1"
-              >
+              <Button variant="outline" size="sm" onClick={resetToDefaults} className="flex-1">
                 <RotateCcw className="h-4 w-4 mr-2" />
                 {t('reset')}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleImport}
-                className="flex-1"
-              >
+              <Button variant="outline" size="sm" onClick={handleImport} className="flex-1">
                 <Upload className="h-4 w-4 mr-2" />
                 {t('import')}
               </Button>
               {editingThemeId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExport}
-                  className="flex-1"
-                >
+                <Button variant="outline" size="sm" onClick={handleExport} className="flex-1">
                   <Download className="h-4 w-4 mr-2" />
                   {t('export')}
                 </Button>

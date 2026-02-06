@@ -32,14 +32,15 @@ jest.mock('./observability-dashboard', () => ({
 // Mock Radix UI components
 jest.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    <div data-testid="dialog" data-open={open}>{children}</div>
+    <div data-testid="dialog" data-open={open}>
+      {children}
+    </div>
   ),
   DialogContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dialog-content">{children}</div>
   ),
-  DialogTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => (
-    asChild ? <>{children}</> : <div>{children}</div>
-  ),
+  DialogTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) =>
+    asChild ? <>{children}</> : <div>{children}</div>,
 }));
 
 jest.mock('@/components/ui/tooltip', () => ({
@@ -47,9 +48,8 @@ jest.mock('@/components/ui/tooltip', () => ({
   TooltipContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="tooltip-content">{children}</div>
   ),
-  TooltipTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => (
-    asChild ? <>{children}</> : <div>{children}</div>
-  ),
+  TooltipTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) =>
+    asChild ? <>{children}</> : <div>{children}</div>,
 }));
 
 describe('ObservabilityButton', () => {
@@ -59,55 +59,55 @@ describe('ObservabilityButton', () => {
 
   it('should render button with Activity icon', () => {
     render(<ObservabilityButton />);
-    
+
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);
   });
 
   it('should render with default props', () => {
     render(<ObservabilityButton />);
-    
+
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);
   });
 
   it('should show label when showLabel is true', () => {
     render(<ObservabilityButton showLabel={true} />);
-    
+
     expect(screen.getByText('Observability')).toBeInTheDocument();
   });
 
   it('should not show label when showLabel is false', () => {
     render(<ObservabilityButton showLabel={false} />);
-    
+
     expect(screen.queryByText('Observability')).not.toBeInTheDocument();
   });
 
   it('should open dialog on click', () => {
     render(<ObservabilityButton />);
-    
+
     const buttons = screen.getAllByRole('button');
     fireEvent.click(buttons[0]);
-    
+
     expect(screen.getByTestId('dialog-content')).toBeInTheDocument();
   });
 
   it('should render tooltip content', () => {
     render(<ObservabilityButton />);
-    
+
     expect(screen.getByText('Observability Dashboard')).toBeInTheDocument();
   });
 
   it('should apply variant prop', () => {
     render(<ObservabilityButton variant="outline" />);
-    
+
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);
   });
 
   it('should apply size prop', () => {
     render(<ObservabilityButton size="sm" />);
-    
+
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);
   });
@@ -128,7 +128,7 @@ describe('ObservabilityButton when disabled', () => {
 
   it('should show disabled message in tooltip', () => {
     render(<ObservabilityButton />);
-    
+
     expect(screen.getByText(/enable in settings/i)).toBeInTheDocument();
   });
 });

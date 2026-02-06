@@ -11,14 +11,7 @@ import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import {
-  Gauge,
-  TrendingDown,
-  Sparkles,
-  AlertTriangle,
-  CheckCircle2,
-  Coins,
-} from 'lucide-react';
+import { Gauge, TrendingDown, Sparkles, AlertTriangle, CheckCircle2, Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CostEfficiencyMetrics } from '@/lib/ai/usage-analytics';
 
@@ -43,10 +36,25 @@ export function EfficiencyMetricsCard({
   }, [metrics]);
 
   const getEfficiencyLabel = (score: number) => {
-    if (score >= 80) return { label: t('excellent') || 'Excellent', color: 'text-green-600', bgColor: 'bg-green-100' };
-    if (score >= 60) return { label: t('good') || 'Good', color: 'text-blue-600', bgColor: 'bg-blue-100' };
-    if (score >= 40) return { label: t('moderate') || 'Moderate', color: 'text-yellow-600', bgColor: 'bg-yellow-100' };
-    return { label: t('needsImprovement') || 'Needs Improvement', color: 'text-red-600', bgColor: 'bg-red-100' };
+    if (score >= 80)
+      return {
+        label: t('excellent') || 'Excellent',
+        color: 'text-green-600',
+        bgColor: 'bg-green-100',
+      };
+    if (score >= 60)
+      return { label: t('good') || 'Good', color: 'text-blue-600', bgColor: 'bg-blue-100' };
+    if (score >= 40)
+      return {
+        label: t('moderate') || 'Moderate',
+        color: 'text-yellow-600',
+        bgColor: 'bg-yellow-100',
+      };
+    return {
+      label: t('needsImprovement') || 'Needs Improvement',
+      color: 'text-red-600',
+      bgColor: 'bg-red-100',
+    };
   };
 
   const efficiencyInfo = getEfficiencyLabel(efficiencyScore);
@@ -84,8 +92,12 @@ export function EfficiencyMetricsCard({
         {/* Efficiency Score Gauge */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t('efficiencyScore') || 'Efficiency Score'}</span>
-            <span className={cn('font-bold', efficiencyInfo.color)}>{efficiencyScore.toFixed(0)}%</span>
+            <span className="text-muted-foreground">
+              {t('efficiencyScore') || 'Efficiency Score'}
+            </span>
+            <span className={cn('font-bold', efficiencyInfo.color)}>
+              {efficiencyScore.toFixed(0)}%
+            </span>
           </div>
           <div className="relative">
             <Progress value={efficiencyScore} className="h-2" />
@@ -128,17 +140,18 @@ export function EfficiencyMetricsCard({
               </div>
             </div>
           )}
-          {metrics.leastEfficientModel && metrics.leastEfficientModel !== metrics.mostEfficientModel && (
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900">
-              <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />
-              <div className="min-w-0">
-                <div className="text-xs text-orange-700 dark:text-orange-400">
-                  {t('leastEfficient') || 'Least Efficient'}
+          {metrics.leastEfficientModel &&
+            metrics.leastEfficientModel !== metrics.mostEfficientModel && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900">
+                <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs text-orange-700 dark:text-orange-400">
+                    {t('leastEfficient') || 'Least Efficient'}
+                  </div>
+                  <div className="text-sm font-medium truncate">{metrics.leastEfficientModel}</div>
                 </div>
-                <div className="text-sm font-medium truncate">{metrics.leastEfficientModel}</div>
               </div>
-            </div>
-          )}
+            )}
         </div>
 
         {/* Potential Savings */}

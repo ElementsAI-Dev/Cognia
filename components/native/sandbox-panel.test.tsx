@@ -79,13 +79,17 @@ jest.mock('@/hooks/sandbox', () => ({
 // Mock sub-components that are used in tabs
 jest.mock('@/components/sandbox/execution-history', () => ({
   ExecutionHistory: ({ className }: { className?: string }) => (
-    <div data-testid="execution-history" className={className}>Execution History Mock</div>
+    <div data-testid="execution-history" className={className}>
+      Execution History Mock
+    </div>
   ),
 }));
 
 jest.mock('@/components/sandbox/snippet-manager', () => ({
   SnippetManager: ({ className }: { className?: string }) => (
-    <div data-testid="snippet-manager" className={className}>Snippet Manager Mock</div>
+    <div data-testid="snippet-manager" className={className}>
+      Snippet Manager Mock
+    </div>
   ),
 }));
 
@@ -113,7 +117,7 @@ describe('SandboxPanel', () => {
     render(<SandboxPanel />);
     // Find the main run button (the one with variant=default)
     const runButtons = screen.getAllByRole('button', { name: /run/i });
-    const mainRunButton = runButtons.find(btn => btn.getAttribute('data-variant') === 'default');
+    const mainRunButton = runButtons.find((btn) => btn.getAttribute('data-variant') === 'default');
     expect(mainRunButton).toBeInTheDocument();
   });
 
@@ -121,7 +125,7 @@ describe('SandboxPanel', () => {
     render(<SandboxPanel />);
     // Find the main run button (the one with variant=default)
     const runButtons = screen.getAllByRole('button', { name: /run/i });
-    const mainRunButton = runButtons.find(btn => btn.getAttribute('data-variant') === 'default');
+    const mainRunButton = runButtons.find((btn) => btn.getAttribute('data-variant') === 'default');
     expect(mainRunButton).toBeDisabled();
   });
 
@@ -159,9 +163,9 @@ describe('SandboxPanel', () => {
     render(<SandboxPanel />);
     const textarea = screen.getByPlaceholderText('Enter your code here...');
     fireEvent.change(textarea, { target: { value: 'print("test")' } });
-    
+
     const runButtons = screen.getAllByRole('button', { name: /run/i });
-    const mainRunButton = runButtons.find(btn => btn.getAttribute('data-variant') === 'default');
+    const mainRunButton = runButtons.find((btn) => btn.getAttribute('data-variant') === 'default');
     expect(mainRunButton).not.toBeDisabled();
   });
 
@@ -169,7 +173,7 @@ describe('SandboxPanel', () => {
     render(<SandboxPanel />);
     const textarea = screen.getByPlaceholderText('Enter your code here...');
     fireEvent.change(textarea, { target: { value: 'print("test")' } });
-    
+
     // Find the main run button (should be enabled now)
     const runButton = screen.getByRole('button', { name: /run/i });
     expect(runButton).toBeInTheDocument();
@@ -221,7 +225,7 @@ describe('SandboxPanel - Unavailable State', () => {
         loading: false,
       }),
     }));
-    
+
     // The mock above won't affect already imported module
     // This test documents the expected behavior
     render(<SandboxPanel />);

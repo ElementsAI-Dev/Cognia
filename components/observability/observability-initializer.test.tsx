@@ -46,8 +46,8 @@ describe('ObservabilityInitializer', () => {
     render(<ObservabilityInitializer />);
 
     // Wait a bit to ensure effect has run
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     expect(mockInitializeObservability).not.toHaveBeenCalled();
   });
 
@@ -121,7 +121,7 @@ describe('ObservabilityInitializer', () => {
   it('should handle initialization error gracefully', async () => {
     const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
     mockInitializeObservability.mockRejectedValueOnce(new Error('Init failed'));
-    
+
     mockUseSettingsStore.mockImplementation((selector) => {
       const state = {
         observabilitySettings: {
@@ -146,7 +146,7 @@ describe('ObservabilityInitializer', () => {
 
   it('should log success on initialization', async () => {
     const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-    
+
     mockUseSettingsStore.mockImplementation((selector) => {
       const state = {
         observabilitySettings: {

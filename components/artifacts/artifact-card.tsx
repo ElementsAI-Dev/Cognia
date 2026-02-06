@@ -9,12 +9,7 @@ import { ExternalLink, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useArtifactStore } from '@/stores';
 import type { Artifact, ArtifactType } from '@/types';
@@ -60,8 +55,8 @@ export function ArtifactCard({
   };
 
   // Get a preview snippet of the content
-  const previewSnippet = artifact.content.slice(0, 100).trim() + 
-    (artifact.content.length > 100 ? '...' : '');
+  const previewSnippet =
+    artifact.content.slice(0, 100).trim() + (artifact.content.length > 100 ? '...' : '');
 
   if (compact) {
     return (
@@ -71,11 +66,7 @@ export function ArtifactCard({
             <Button
               variant="outline"
               size="sm"
-              className={cn(
-                'gap-2 h-7 text-xs',
-                typeColors[artifact.type],
-                className
-              )}
+              className={cn('gap-2 h-7 text-xs', typeColors[artifact.type], className)}
               onClick={handleOpen}
             >
               {getArtifactTypeIcon(artifact.type)}
@@ -104,10 +95,7 @@ export function ArtifactCard({
       <CardContent className="p-3">
         <div className="flex items-start gap-3">
           {/* Icon */}
-          <div className={cn(
-            'shrink-0 p-2 rounded-lg',
-            typeColors[artifact.type]
-          )}>
+          <div className={cn('shrink-0 p-2 rounded-lg', typeColors[artifact.type])}>
             {getArtifactTypeIcon(artifact.type)}
           </div>
 
@@ -203,9 +191,7 @@ export function MessageArtifacts({
 }) {
   const artifacts = useArtifactStore((state) => state.artifacts);
 
-  const messageArtifacts = Object.values(artifacts).filter(
-    (a) => a.messageId === messageId
-  );
+  const messageArtifacts = Object.values(artifacts).filter((a) => a.messageId === messageId);
 
   if (messageArtifacts.length === 0) {
     return null;
@@ -215,11 +201,7 @@ export function MessageArtifacts({
     return (
       <div className={cn('flex flex-wrap gap-1 mt-2', className)}>
         {messageArtifacts.map((artifact) => (
-          <ArtifactCard
-            key={artifact.id}
-            artifact={artifact}
-            compact
-          />
+          <ArtifactCard key={artifact.id} artifact={artifact} compact />
         ))}
       </div>
     );
@@ -228,11 +210,7 @@ export function MessageArtifacts({
   return (
     <div className={cn('space-y-2 mt-3', className)}>
       {messageArtifacts.map((artifact) => (
-        <ArtifactCard
-          key={artifact.id}
-          artifact={artifact}
-          showPreview
-        />
+        <ArtifactCard key={artifact.id} artifact={artifact} showPreview />
       ))}
     </div>
   );

@@ -30,28 +30,24 @@ describe('NativeToolSidebar', () => {
   });
 
   it('renders all native tools', () => {
-    render(
-      <NativeToolSidebar activeTab="clipboard" onTabChange={mockOnTabChange} />
-    );
+    render(<NativeToolSidebar activeTab="clipboard" onTabChange={mockOnTabChange} />);
 
     NATIVE_TOOLS.forEach((tool) => {
-      expect(screen.getByRole('button', { name: new RegExp(tool.labelKey, 'i') })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: new RegExp(tool.labelKey, 'i') })
+      ).toBeInTheDocument();
     });
   });
 
   it('highlights active tab', () => {
-    render(
-      <NativeToolSidebar activeTab="screenshot" onTabChange={mockOnTabChange} />
-    );
+    render(<NativeToolSidebar activeTab="screenshot" onTabChange={mockOnTabChange} />);
 
     const screenshotButton = screen.getByRole('button', { name: /screenshot/i });
     expect(screenshotButton).toHaveAttribute('aria-current', 'page');
   });
 
   it('calls onTabChange when tool is clicked', () => {
-    render(
-      <NativeToolSidebar activeTab="clipboard" onTabChange={mockOnTabChange} />
-    );
+    render(<NativeToolSidebar activeTab="clipboard" onTabChange={mockOnTabChange} />);
 
     const sandboxButton = screen.getByRole('button', { name: /sandbox/i });
     fireEvent.click(sandboxButton);
@@ -60,13 +56,7 @@ describe('NativeToolSidebar', () => {
   });
 
   it('renders in collapsed mode', () => {
-    render(
-      <NativeToolSidebar
-        activeTab="clipboard"
-        onTabChange={mockOnTabChange}
-        collapsed
-      />
-    );
+    render(<NativeToolSidebar activeTab="clipboard" onTabChange={mockOnTabChange} collapsed />);
 
     // In collapsed mode, labels should not be visible (only icons with tooltips)
     const sidebar = screen.getByRole('navigation');

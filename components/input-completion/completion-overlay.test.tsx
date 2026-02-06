@@ -135,9 +135,7 @@ describe('CompletionOverlay', () => {
     });
 
     it('does not apply position styles when position is not provided', () => {
-      const { container } = render(
-        <CompletionOverlay {...defaultProps} position={undefined} />
-      );
+      const { container } = render(<CompletionOverlay {...defaultProps} position={undefined} />);
       const overlay = container.firstChild as HTMLElement;
       expect(overlay.style.position).toBe('');
     });
@@ -181,9 +179,9 @@ describe('CompletionOverlay', () => {
       // Check that border, bg-popover, and backdrop-blur classes are applied
       // Tailwind v4 may combine these with opacity modifiers like /50
       const classNames = Array.from(overlay.classList);
-      expect(classNames.some(c => c.includes('border'))).toBe(true);
-      expect(classNames.some(c => c.includes('bg-popover'))).toBe(true);
-      expect(classNames.some(c => c.includes('backdrop-blur'))).toBe(true);
+      expect(classNames.some((c) => c.includes('border'))).toBe(true);
+      expect(classNames.some((c) => c.includes('bg-popover'))).toBe(true);
+      expect(classNames.some((c) => c.includes('backdrop-blur'))).toBe(true);
     });
 
     it('applies custom font size from config', () => {
@@ -440,25 +438,15 @@ describe('CompletionOverlay', () => {
     ];
 
     it('renders with multiple suggestions', () => {
-      render(
-        <CompletionOverlay
-          {...defaultProps}
-          suggestions={multipleSuggestions}
-        />
-      );
-      
+      render(<CompletionOverlay {...defaultProps} suggestions={multipleSuggestions} />);
+
       // Should show first suggestion by default
       expect(screen.getByText(/First/)).toBeInTheDocument();
     });
 
     it('shows navigation indicator for multiple suggestions', () => {
-      render(
-        <CompletionOverlay
-          {...defaultProps}
-          suggestions={multipleSuggestions}
-        />
-      );
-      
+      render(<CompletionOverlay {...defaultProps} suggestions={multipleSuggestions} />);
+
       // Should show 1/3 indicator
       expect(screen.getByText('1/3')).toBeInTheDocument();
     });
@@ -472,9 +460,9 @@ describe('CompletionOverlay', () => {
           onIndexChange={onIndexChange}
         />
       );
-      
+
       fireEvent.keyDown(window, { key: ']', altKey: true });
-      
+
       expect(onIndexChange).toHaveBeenCalledWith(1);
     });
 
@@ -487,12 +475,12 @@ describe('CompletionOverlay', () => {
           onIndexChange={onIndexChange}
         />
       );
-      
+
       // First go to second suggestion
       fireEvent.keyDown(window, { key: ']', altKey: true });
       // Then go back to first
       fireEvent.keyDown(window, { key: '[', altKey: true });
-      
+
       expect(onIndexChange).toHaveBeenLastCalledWith(0);
     });
 
@@ -505,23 +493,18 @@ describe('CompletionOverlay', () => {
           onIndexChange={onIndexChange}
         />
       );
-      
+
       // Navigate through all suggestions
       fireEvent.keyDown(window, { key: ']', altKey: true }); // 0 -> 1
       fireEvent.keyDown(window, { key: ']', altKey: true }); // 1 -> 2
       fireEvent.keyDown(window, { key: ']', altKey: true }); // 2 -> 0 (wrap)
-      
+
       expect(onIndexChange).toHaveBeenLastCalledWith(0);
     });
 
     it('does not show navigation indicator for single suggestion', () => {
-      render(
-        <CompletionOverlay
-          {...defaultProps}
-          suggestions={[multipleSuggestions[0]]}
-        />
-      );
-      
+      render(<CompletionOverlay {...defaultProps} suggestions={[multipleSuggestions[0]]} />);
+
       expect(screen.queryByText('1/1')).not.toBeInTheDocument();
     });
   });

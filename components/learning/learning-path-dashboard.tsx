@@ -2,7 +2,7 @@
 
 /**
  * Learning Path Dashboard
- * 
+ *
  * Dashboard component for managing and tracking long-term learning paths.
  * Shows milestones, progress, and study statistics.
  */
@@ -29,9 +29,9 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { useLearningStore } from '@/stores/learning';
-import { 
-  formatTimeSpent, 
-  formatProgress, 
+import {
+  formatTimeSpent,
+  formatProgress,
   getProgressColorClass,
   getCategoryDisplayName,
 } from '@/lib/learning';
@@ -52,21 +52,18 @@ export const LearningPathDashboard = memo(function LearningPathDashboard({
   className,
 }: LearningPathDashboardProps) {
   const t = useTranslations('learningMode');
-  const { 
-    learningPaths, 
-    activeLearningPathId, 
-    getActivePaths, 
-    getAllPaths,
-    globalStats,
-  } = useLearningStore();
+  const { learningPaths, activeLearningPathId, getActivePaths, getAllPaths, globalStats } =
+    useLearningStore();
 
   const activePaths = useMemo(() => getActivePaths(), [getActivePaths]);
   const allPaths = useMemo(() => getAllPaths(), [getAllPaths]);
-  const selectedPath = pathId ? learningPaths[pathId] : 
-    (activeLearningPathId ? learningPaths[activeLearningPathId] : undefined);
+  const selectedPath = pathId
+    ? learningPaths[pathId]
+    : activeLearningPathId
+      ? learningPaths[activeLearningPathId]
+      : undefined;
 
-  const completedPaths = useMemo(() => 
-    allPaths.filter(p => p.completedAt), [allPaths]);
+  const completedPaths = useMemo(() => allPaths.filter((p) => p.completedAt), [allPaths]);
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -102,9 +99,7 @@ export const LearningPathDashboard = memo(function LearningPathDashboard({
               <BookOpen className="h-4 w-4" />
               {t('dashboard.activeLearningPaths')}
             </CardTitle>
-            <CardDescription>
-              {t('dashboard.activePathsDesc')}
-            </CardDescription>
+            <CardDescription>{t('dashboard.activePathsDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
             <ScrollArea className="max-h-[300px]">
@@ -138,14 +133,12 @@ export const LearningPathDashboard = memo(function LearningPathDashboard({
                   </Badge>
                   <span>•</span>
                   <span className="text-xs">
-                    {formatProgress(selectedPath.overallProgress)} {t('dashboard.complete') || '完成'}
+                    {formatProgress(selectedPath.overallProgress)}{' '}
+                    {t('dashboard.complete') || '完成'}
                   </span>
                 </CardDescription>
               </div>
-              <Button 
-                size="sm" 
-                onClick={() => onContinueLearning?.(selectedPath.id)}
-              >
+              <Button size="sm" onClick={() => onContinueLearning?.(selectedPath.id)}>
                 {t('dashboard.continueLearning') || '继续学习'}
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
@@ -218,9 +211,7 @@ export const LearningPathDashboard = memo(function LearningPathDashboard({
               <EmptyMedia variant="icon">
                 <Map className="h-6 w-6" />
               </EmptyMedia>
-              <EmptyTitle>
-                {t('dashboard.noActivePaths') || '还没有学习路径'}
-              </EmptyTitle>
+              <EmptyTitle>{t('dashboard.noActivePaths') || '还没有学习路径'}</EmptyTitle>
               <EmptyDescription>
                 {t('dashboard.noActivePathsDesc') || '开始一个系统学习计划，跟踪你的学习进度'}
               </EmptyDescription>
@@ -262,15 +253,15 @@ interface PathCardProps {
   t: ReturnType<typeof useTranslations>;
 }
 
-const PathCard = memo(function PathCard({ 
-  path, 
-  isActive, 
-  onSelect, 
+const PathCard = memo(function PathCard({
+  path,
+  isActive,
+  onSelect,
   onContinue,
   t,
 }: PathCardProps) {
-  const completedMilestones = path.milestones.filter(m => m.progress >= 100).length;
-  
+  const completedMilestones = path.milestones.filter((m) => m.progress >= 100).length;
+
   return (
     <div
       className={cn(
@@ -287,11 +278,19 @@ const PathCard = memo(function PathCard({
               {getCategoryDisplayName(path.category)}
             </Badge>
             <span className="text-xs text-muted-foreground">
-              {completedMilestones}/{path.milestones.length} {t('dashboard.milestonesComplete') || '里程碑'}
+              {completedMilestones}/{path.milestones.length}{' '}
+              {t('dashboard.milestonesComplete') || '里程碑'}
             </span>
           </div>
         </div>
-        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onContinue(); }}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+            onContinue();
+          }}
+        >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -324,7 +323,7 @@ const MilestoneItem = memo(function MilestoneItem({
   isCurrent,
 }: MilestoneItemProps) {
   const isComplete = milestone.progress >= 100;
-  
+
   return (
     <div
       className={cn(
@@ -345,18 +344,12 @@ const MilestoneItem = memo(function MilestoneItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">{index + 1}.</span>
-          <span className={cn(
-            'text-sm',
-            isComplete && 'line-through',
-            isCurrent && 'font-medium'
-          )}>
+          <span className={cn('text-sm', isComplete && 'line-through', isCurrent && 'font-medium')}>
             {milestone.title}
           </span>
         </div>
         {milestone.description && (
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {milestone.description}
-          </p>
+          <p className="text-xs text-muted-foreground truncate mt-0.5">{milestone.description}</p>
         )}
       </div>
       <div className="flex-shrink-0 text-right">

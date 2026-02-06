@@ -6,27 +6,11 @@
 
 import { memo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Check,
-  X,
-  ChevronDown,
-  Bug,
-  Sparkles,
-  MessageSquare,
-  Edit3,
-} from 'lucide-react';
+import { Check, X, ChevronDown, Bug, Sparkles, MessageSquare, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { CanvasSuggestion } from '@/types';
 
@@ -100,28 +84,20 @@ export const SuggestionItem = memo(function SuggestionItem({
       {hasCodeDiff && (
         <Collapsible open={open} onOpenChange={setOpen} className="space-y-1">
           <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs w-full justify-between"
-            >
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs w-full justify-between">
               <span>{t('viewChanges')}</span>
               <ChevronDown className="h-3 w-3 transition-transform data-[state=open]:rotate-180" />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="rounded-md border bg-muted/30 p-2 space-y-2 text-xs sm:text-sm font-mono">
             <div className="space-y-1">
-              <div className="text-[10px] text-muted-foreground font-sans">
-                {t('original')}:
-              </div>
+              <div className="text-[10px] text-muted-foreground font-sans">{t('original')}:</div>
               <pre className="p-2 rounded bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 whitespace-pre-wrap overflow-x-auto">
                 {suggestion.originalText}
               </pre>
             </div>
             <div className="space-y-1">
-              <div className="text-[10px] text-muted-foreground font-sans">
-                {t('suggested')}:
-              </div>
+              <div className="text-[10px] text-muted-foreground font-sans">{t('suggested')}:</div>
               <pre className="p-2 rounded bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 whitespace-pre-wrap overflow-x-auto">
                 {suggestion.suggestedText}
               </pre>
@@ -135,11 +111,7 @@ export const SuggestionItem = memo(function SuggestionItem({
         <div className="flex items-center gap-2 pt-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                className="h-9 flex-1"
-                onClick={() => onApply(suggestion.id)}
-              >
+              <Button size="sm" className="h-9 flex-1" onClick={() => onApply(suggestion.id)}>
                 <Check className="h-3.5 w-3.5 mr-1" />
                 {t('apply')}
               </Button>

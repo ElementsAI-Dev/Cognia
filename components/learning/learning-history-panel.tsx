@@ -2,7 +2,7 @@
 
 /**
  * Learning History Panel
- * 
+ *
  * Displays completed learning sessions, achievements, and overall progress.
  */
 
@@ -84,7 +84,7 @@ export const LearningHistoryPanel = memo(function LearningHistoryPanel({
 
     return {
       totalSessions: completedSessions.length,
-      totalTimeHours: Math.round(totalTime / 3600000 * 10) / 10,
+      totalTimeHours: Math.round((totalTime / 3600000) * 10) / 10,
       totalQuestions,
       accuracy: totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0,
       conceptsMastered: totalConcepts,
@@ -146,7 +146,9 @@ export const LearningHistoryPanel = memo(function LearningHistoryPanel({
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{t('history.currentStreak')}</span>
-                <span className="text-lg font-bold">{overallStats.currentStreak} {t('history.days')}</span>
+                <span className="text-lg font-bold">
+                  {overallStats.currentStreak} {t('history.days')}
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">
                 {t('history.longestStreak')}: {overallStats.longestStreak} {t('history.days')}
@@ -222,12 +224,10 @@ interface AchievementCardProps {
 
 const AchievementCard = memo(function AchievementCard({ achievement }: AchievementCardProps) {
   const icon = ACHIEVEMENT_ICONS[achievement.iconName] || <Award className="h-4 w-4" />;
-  
+
   return (
     <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-      <div className="p-1.5 rounded-full bg-yellow-500/20 text-yellow-600">
-        {icon}
-      </div>
+      <div className="p-1.5 rounded-full bg-yellow-500/20 text-yellow-600">{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{achievement.name}</p>
         <p className="text-xs text-muted-foreground truncate">{achievement.description}</p>
@@ -255,7 +255,8 @@ const SessionCard = memo(function SessionCard({
   const accuracy = session.statistics?.questionsAnswered
     ? Math.round((session.statistics.correctAnswers / session.statistics.questionsAnswered) * 100)
     : 0;
-  const conceptsMastered = session.concepts?.filter((c) => c.masteryStatus === 'mastered').length || 0;
+  const conceptsMastered =
+    session.concepts?.filter((c) => c.masteryStatus === 'mastered').length || 0;
 
   return (
     <div

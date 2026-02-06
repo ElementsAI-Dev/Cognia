@@ -2,7 +2,7 @@
 
 /**
  * Learning Start Dialog
- * 
+ *
  * Dialog for starting a new learning session with topic and goals.
  */
 
@@ -41,7 +41,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useLearningMode } from '@/hooks/ui';
-import type { DifficultyLevel, LearningStyle, LearningDurationType, LearningCategory, LearningPathDuration } from '@/types/learning';
+import type {
+  DifficultyLevel,
+  LearningStyle,
+  LearningDurationType,
+  LearningCategory,
+  LearningPathDuration,
+} from '@/types/learning';
 import { detectLearningType } from '@/lib/learning';
 import { cn } from '@/lib/utils';
 
@@ -65,13 +71,13 @@ export const LearningStartDialog = memo(function LearningStartDialog({
   const [newGoal, setNewGoal] = useState('');
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
   const [learningStyle, setLearningStyle] = useState<LearningStyle | undefined>(undefined);
-  
+
   // Learning type state
   const [durationType, setDurationType] = useState<LearningDurationType>('quick');
   const [category, setCategory] = useState<LearningCategory>('other');
   const [estimatedDuration, setEstimatedDuration] = useState<LearningPathDuration>('weeks');
   const [detectionConfidence, setDetectionConfidence] = useState<number>(0);
-  
+
   // Auto-detect learning type on topic blur
   const handleTopicBlur = useCallback(() => {
     if (topic.trim().length > 5) {
@@ -138,7 +144,19 @@ export const LearningStartDialog = memo(function LearningStartDialog({
 
     onOpenChange(false);
     onStart?.();
-  }, [topic, background, goals, difficulty, learningStyle, durationType, category, estimatedDuration, startLearning, onOpenChange, onStart]);
+  }, [
+    topic,
+    background,
+    goals,
+    difficulty,
+    learningStyle,
+    durationType,
+    category,
+    estimatedDuration,
+    startLearning,
+    onOpenChange,
+    onStart,
+  ]);
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
@@ -163,9 +181,7 @@ export const LearningStartDialog = memo(function LearningStartDialog({
             <GraduationCap className="h-5 w-5 text-primary" />
             {t('startDialog.title')}
           </DialogTitle>
-          <DialogDescription>
-            {t('startDialog.description')}
-          </DialogDescription>
+          <DialogDescription>{t('startDialog.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -206,7 +222,12 @@ export const LearningStartDialog = memo(function LearningStartDialog({
                     : 'border-border hover:border-primary/50'
                 )}
               >
-                <Zap className={cn('h-5 w-5', durationType === 'quick' ? 'text-primary' : 'text-muted-foreground')} />
+                <Zap
+                  className={cn(
+                    'h-5 w-5',
+                    durationType === 'quick' ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                />
                 <span className="text-sm font-medium">{t('learningType.quick')}</span>
                 <span className="text-xs text-muted-foreground text-center">
                   {t('learningType.quickDesc')}
@@ -222,7 +243,12 @@ export const LearningStartDialog = memo(function LearningStartDialog({
                     : 'border-border hover:border-primary/50'
                 )}
               >
-                <Map className={cn('h-5 w-5', durationType === 'journey' ? 'text-primary' : 'text-muted-foreground')} />
+                <Map
+                  className={cn(
+                    'h-5 w-5',
+                    durationType === 'journey' ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                />
                 <span className="text-sm font-medium">{t('learningType.journey')}</span>
                 <span className="text-xs text-muted-foreground text-center">
                   {t('learningType.journeyDesc')}
@@ -237,7 +263,10 @@ export const LearningStartDialog = memo(function LearningStartDialog({
               <Label className="flex items-center gap-2">
                 {t('startDialog.estimatedDuration')}
               </Label>
-              <Select value={estimatedDuration} onValueChange={(v) => setEstimatedDuration(v as LearningPathDuration)}>
+              <Select
+                value={estimatedDuration}
+                onValueChange={(v) => setEstimatedDuration(v as LearningPathDuration)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -248,9 +277,7 @@ export const LearningStartDialog = memo(function LearningStartDialog({
                   <SelectItem value="long-term">{t('duration.longTerm')}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                {t('startDialog.journeyHint')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('startDialog.journeyHint')}</p>
             </div>
           )}
 
@@ -295,11 +322,12 @@ export const LearningStartDialog = memo(function LearningStartDialog({
             <Label className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
               {t('startDialog.learningStyle')}
-              <span className="text-muted-foreground text-xs">
-                ({t('startDialog.optional')})
-              </span>
+              <span className="text-muted-foreground text-xs">({t('startDialog.optional')})</span>
             </Label>
-            <Select value={learningStyle || ''} onValueChange={(v) => setLearningStyle(v as LearningStyle || undefined)}>
+            <Select
+              value={learningStyle || ''}
+              onValueChange={(v) => setLearningStyle((v as LearningStyle) || undefined)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder={t('startDialog.learningStyleHint')} />
               </SelectTrigger>
@@ -317,11 +345,9 @@ export const LearningStartDialog = memo(function LearningStartDialog({
             <Label className="flex items-center gap-2">
               <Target className="h-4 w-4" />
               {t('startDialog.goals')}
-              <span className="text-muted-foreground text-xs">
-                ({t('startDialog.optional')})
-              </span>
+              <span className="text-muted-foreground text-xs">({t('startDialog.optional')})</span>
             </Label>
-            
+
             {goals.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {goals.map((goal, index) => (
@@ -360,9 +386,7 @@ export const LearningStartDialog = memo(function LearningStartDialog({
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t('startDialog.goalHint')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('startDialog.goalHint')}</p>
           </div>
         </div>
 

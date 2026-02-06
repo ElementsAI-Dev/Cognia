@@ -47,35 +47,35 @@ describe('MCPLogViewer', () => {
 
   it('filters logs by search query', () => {
     render(<MCPLogViewer logs={mockLogs} />);
-    
+
     const searchInput = screen.getByPlaceholderText('searchLogs');
     fireEvent.change(searchInput, { target: { value: 'failed' } });
-    
+
     expect(screen.getByText('Request failed')).toBeInTheDocument();
     expect(screen.queryByText('Server started')).not.toBeInTheDocument();
   });
 
   it('shows no matching logs message when filter has no results', () => {
     render(<MCPLogViewer logs={mockLogs} />);
-    
+
     const searchInput = screen.getByPlaceholderText('searchLogs');
     fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
-    
+
     expect(screen.getByText('noMatchingLogs')).toBeInTheDocument();
   });
 
   it('clears search when clear button clicked', () => {
     render(<MCPLogViewer logs={mockLogs} />);
-    
+
     const searchInput = screen.getByPlaceholderText('searchLogs');
     fireEvent.change(searchInput, { target: { value: 'failed' } });
-    
+
     // Find and click clear button
     const clearButtons = screen.getAllByRole('button');
-    const xButton = clearButtons.find(btn => 
+    const xButton = clearButtons.find((btn) =>
       btn.querySelector('svg')?.classList.contains('lucide-x')
     );
-    
+
     if (xButton) {
       fireEvent.click(xButton);
       expect(screen.getByText('Server started')).toBeInTheDocument();
@@ -89,10 +89,10 @@ describe('MCPLogViewer', () => {
 
   it('collapses/expands on header click', () => {
     render(<MCPLogViewer logs={mockLogs} />);
-    
+
     // Header should be present
     expect(screen.getByText('logs')).toBeInTheDocument();
-    
+
     // Content should initially be visible
     expect(screen.getByText('Server started')).toBeInTheDocument();
   });
@@ -100,12 +100,12 @@ describe('MCPLogViewer', () => {
   it('calls onClear when clear button clicked', () => {
     const onClear = jest.fn();
     render(<MCPLogViewer logs={mockLogs} onClear={onClear} />);
-    
+
     const clearButtons = screen.getAllByRole('button');
-    const trashButton = clearButtons.find(btn => 
+    const trashButton = clearButtons.find((btn) =>
       btn.querySelector('svg')?.classList.contains('lucide-trash-2')
     );
-    
+
     if (trashButton) {
       fireEvent.click(trashButton);
       expect(onClear).toHaveBeenCalled();
@@ -114,13 +114,13 @@ describe('MCPLogViewer', () => {
 
   it('expands log data when clicked', () => {
     render(<MCPLogViewer logs={mockLogs} />);
-    
+
     // Find expand button for log with data
     const expandButtons = screen.getAllByRole('button');
-    const chevronButton = expandButtons.find(btn => 
+    const chevronButton = expandButtons.find((btn) =>
       btn.querySelector('svg')?.classList.contains('lucide-chevron-down')
     );
-    
+
     if (chevronButton) {
       fireEvent.click(chevronButton);
       // Data should be visible

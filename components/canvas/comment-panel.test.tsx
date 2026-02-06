@@ -81,29 +81,29 @@ describe('CommentPanel', () => {
 
   it('should open panel when button is clicked', async () => {
     render(<CommentPanel {...defaultProps} />);
-    
+
     const button = screen.getByText('Comments');
     await userEvent.click(button);
-    
+
     // Panel title should be visible
     expect(screen.getAllByText('Comments').length).toBeGreaterThan(1);
   });
 
   it('should show add comment textarea', async () => {
     render(<CommentPanel {...defaultProps} />);
-    
+
     const button = screen.getByText('Comments');
     await userEvent.click(button);
-    
+
     expect(screen.getByPlaceholderText('Add Comment')).toBeInTheDocument();
   });
 
   it('should show no comments message when empty', async () => {
     render(<CommentPanel {...defaultProps} />);
-    
+
     const button = screen.getByText('Comments');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('No comments yet')).toBeInTheDocument();
   });
 
@@ -118,21 +118,24 @@ describe('CommentPanel', () => {
     });
 
     render(<CommentPanel {...defaultProps} />);
-    
+
     const openButton = screen.getByText('Comments');
     await userEvent.click(openButton);
-    
+
     const textarea = screen.getByPlaceholderText('Add Comment');
     await userEvent.type(textarea, 'Test comment');
-    
+
     const addButton = screen.getByRole('button', { name: /add comment/i });
     await userEvent.click(addButton);
-    
-    expect(mockAddComment).toHaveBeenCalledWith('doc-123', expect.objectContaining({
-      content: 'Test comment',
-      authorId: 'user-1',
-      authorName: 'Test User',
-    }));
+
+    expect(mockAddComment).toHaveBeenCalledWith(
+      'doc-123',
+      expect.objectContaining({
+        content: 'Test comment',
+        authorId: 'user-1',
+        authorName: 'Test User',
+      })
+    );
   });
 
   it('should show selected range badge when provided', async () => {
@@ -142,21 +145,16 @@ describe('CommentPanel', () => {
         selectedRange={{ startLine: 10, endLine: 15, startColumn: 0, endColumn: 0 }}
       />
     );
-    
+
     const button = screen.getByText('Comments');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('Lines 10-15')).toBeInTheDocument();
   });
 
   it('should render custom trigger if provided', () => {
-    render(
-      <CommentPanel
-        {...defaultProps}
-        trigger={<button>Custom Trigger</button>}
-      />
-    );
-    
+    render(<CommentPanel {...defaultProps} trigger={<button>Custom Trigger</button>} />);
+
     expect(screen.getByText('Custom Trigger')).toBeInTheDocument();
   });
 
@@ -167,19 +165,19 @@ describe('CommentPanel', () => {
     ]);
 
     render(<CommentPanel {...defaultProps} />);
-    
+
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
   it('should toggle show/hide resolved comments', async () => {
     render(<CommentPanel {...defaultProps} />);
-    
+
     const openButton = screen.getByText('Comments');
     await userEvent.click(openButton);
-    
+
     const toggleButton = screen.getByText('Show Resolved');
     await userEvent.click(toggleButton);
-    
+
     expect(screen.getByText('Hide Resolved')).toBeInTheDocument();
   });
 });
@@ -214,30 +212,30 @@ describe('CommentPanel with comments', () => {
 
   it('should display comments list', async () => {
     render(<CommentPanel documentId="doc-123" />);
-    
+
     const button = screen.getByText('Comments');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('First comment')).toBeInTheDocument();
     expect(screen.getByText('Second comment')).toBeInTheDocument();
   });
 
   it('should display comment author names', async () => {
     render(<CommentPanel documentId="doc-123" />);
-    
+
     const button = screen.getByText('Comments');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('User One')).toBeInTheDocument();
     expect(screen.getByText('User Two')).toBeInTheDocument();
   });
 
   it('should display reactions on comments', async () => {
     render(<CommentPanel documentId="doc-123" />);
-    
+
     const button = screen.getByText('Comments');
     await userEvent.click(button);
-    
+
     expect(screen.getByText('👍 1')).toBeInTheDocument();
   });
 });

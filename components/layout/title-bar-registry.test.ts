@@ -1,7 +1,11 @@
 /**
  * @jest-environment jsdom
  */
-import { useTitleBarRegistry, registerTitleBarItem, unregisterTitleBarItem } from './title-bar-registry';
+import {
+  useTitleBarRegistry,
+  registerTitleBarItem,
+  unregisterTitleBarItem,
+} from './title-bar-registry';
 import type { TitleBarItemDefinition } from './title-bar-registry';
 
 describe('title-bar-registry', () => {

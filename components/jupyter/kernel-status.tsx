@@ -5,23 +5,11 @@
  */
 
 import { useTranslations } from 'next-intl';
-import {
-  Circle,
-  Square,
-  RefreshCw,
-  Loader2,
-  Zap,
-  AlertCircle,
-} from 'lucide-react';
+import { Circle, Square, RefreshCw, Loader2, Zap, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { KernelInfo, KernelStatus as KernelStatusType } from '@/types/system/jupyter';
 
 interface KernelStatusProps {
@@ -110,12 +98,7 @@ export function KernelStatus({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={onConnect}
-                >
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onConnect}>
                   <Zap className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>
@@ -144,16 +127,12 @@ export function KernelStatus({
   return (
     <div className={cn('flex items-center gap-2', className)}>
       <Badge variant="outline" className="text-xs gap-1.5">
-        <span className={cn('rounded-full', config.color)}>
-          {config.icon}
-        </span>
+        <span className={cn('rounded-full', config.color)}>{config.icon}</span>
         <span>
           {kernel?.name || t('pythonDefault')} · {t(config.labelKey)}
         </span>
         {kernel?.executionCount !== undefined && kernel.executionCount > 0 && (
-          <span className="text-muted-foreground">
-            [{kernel.executionCount}]
-          </span>
+          <span className="text-muted-foreground">[{kernel.executionCount}]</span>
         )}
       </Badge>
 
@@ -162,12 +141,7 @@ export function KernelStatus({
           {status === 'busy' && onInterrupt && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={onInterrupt}
-                >
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onInterrupt}>
                   <Square className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>
@@ -178,12 +152,7 @@ export function KernelStatus({
           {onRestart && status !== 'restarting' && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={onRestart}
-                >
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRestart}>
                   <RefreshCw className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>

@@ -52,24 +52,24 @@ describe('RenameDialog', () => {
 
   it('should call onRename with current title when save is clicked', async () => {
     render(<RenameDialog {...defaultProps} />);
-    
+
     const saveButton = screen.getByText('Save');
     await userEvent.click(saveButton);
-    
+
     expect(defaultProps.onRename).toHaveBeenCalledWith('Test Document');
     expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('should disable save button when input is empty', async () => {
     render(<RenameDialog {...defaultProps} currentTitle="" />);
-    
+
     const saveButton = screen.getByText('Save');
     expect(saveButton).toBeDisabled();
   });
 
   it('should disable save button when input has only whitespace', async () => {
     render(<RenameDialog {...defaultProps} currentTitle="   " />);
-    
+
     const saveButton = screen.getByText('Save');
     expect(saveButton).toBeDisabled();
   });
@@ -77,18 +77,18 @@ describe('RenameDialog', () => {
   it('should call onRename when Enter key is pressed', async () => {
     render(<RenameDialog {...defaultProps} />);
     const input = screen.getByPlaceholderText('Document Title');
-    
+
     await userEvent.type(input, '{enter}');
-    
+
     expect(defaultProps.onRename).toHaveBeenCalledWith('Test Document');
   });
 
   it('should trim whitespace from title', async () => {
     render(<RenameDialog {...defaultProps} currentTitle="  Trimmed Title  " />);
-    
+
     const saveButton = screen.getByText('Save');
     await userEvent.click(saveButton);
-    
+
     expect(defaultProps.onRename).toHaveBeenCalledWith('Trimmed Title');
   });
 

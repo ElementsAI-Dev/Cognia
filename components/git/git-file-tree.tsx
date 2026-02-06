@@ -25,11 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -261,11 +257,7 @@ export function GitFileTree({
       }
 
       return (
-        <Collapsible
-          key={node.path}
-          open={isExpanded}
-          onOpenChange={() => toggleExpand(node.path)}
-        >
+        <Collapsible key={node.path} open={isExpanded} onOpenChange={() => toggleExpand(node.path)}>
           <CollapsibleTrigger className="w-full">
             <div
               className="flex items-center gap-1 py-1 px-2 hover:bg-muted/50 rounded-sm"
@@ -323,18 +315,12 @@ export function GitFileTree({
         </ContextMenuTrigger>
         <ContextMenuContent>
           {!file.staged ? (
-            <ContextMenuItem
-              onClick={() => onStageFiles([file.path])}
-              disabled={isOperating}
-            >
+            <ContextMenuItem onClick={() => onStageFiles([file.path])} disabled={isOperating}>
               <Plus className="h-4 w-4 mr-2" />
               {t('stageFile')}
             </ContextMenuItem>
           ) : (
-            <ContextMenuItem
-              onClick={() => onUnstageFiles([file.path])}
-              disabled={isOperating}
-            >
+            <ContextMenuItem onClick={() => onUnstageFiles([file.path])} disabled={isOperating}>
               <Minus className="h-4 w-4 mr-2" />
               {t('unstageFile')}
             </ContextMenuItem>
@@ -375,12 +361,7 @@ export function GitFileTree({
             {files.length}
           </Badge>
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={onRefresh}
-          disabled={isLoading}
-        >
+        <Button size="sm" variant="ghost" onClick={onRefresh} disabled={isLoading}>
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
@@ -395,12 +376,7 @@ export function GitFileTree({
           <span className="text-xs text-muted-foreground flex-1">
             {t('selectedCount', { count: selectedFiles.size })}
           </span>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 px-2 text-xs"
-            onClick={deselectAll}
-          >
+          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={deselectAll}>
             {t('deselectAll')}
           </Button>
           <Button
@@ -438,12 +414,7 @@ export function GitFileTree({
 
       {/* Quick Actions */}
       <div className="flex items-center gap-1">
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 text-xs flex-1"
-          onClick={selectAll}
-        >
+        <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={selectAll}>
           <CheckSquare className="h-3 w-3 mr-1" />
           {t('selectAll')}
         </Button>

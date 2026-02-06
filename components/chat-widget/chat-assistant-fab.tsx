@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /**
  * Chat Assistant FAB (Floating Action Button)
@@ -6,18 +6,13 @@
  * Only displays in Tauri desktop mode
  */
 
-import { forwardRef } from "react";
-import { useTranslations } from "next-intl";
-import { motion, AnimatePresence } from "motion/react";
-import { cn } from "@/lib/utils";
-import { MessageCircle, X, Sparkles } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import type { FabPosition } from "@/hooks/chat";
+import { forwardRef } from 'react';
+import { useTranslations } from 'next-intl';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '@/lib/utils';
+import { MessageCircle, X, Sparkles } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import type { FabPosition } from '@/hooks/chat';
 
 interface ChatAssistantFabProps {
   isOpen: boolean;
@@ -33,10 +28,10 @@ interface ChatAssistantFabProps {
 }
 
 const positionClasses: Record<FabPosition, string> = {
-  "bottom-right": "bottom-6 right-6",
-  "bottom-left": "bottom-6 left-6",
-  "top-right": "top-6 right-6",
-  "top-left": "top-6 left-6",
+  'bottom-right': 'bottom-6 right-6',
+  'bottom-left': 'bottom-6 left-6',
+  'top-right': 'top-6 right-6',
+  'top-left': 'top-6 left-6',
 };
 
 export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabProps>(
@@ -44,7 +39,7 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
     {
       isOpen,
       onClick,
-      position = "bottom-right",
+      position = 'bottom-right',
       offset = { x: 0, y: 0 },
       unreadCount = 0,
       isLoading = false,
@@ -55,7 +50,7 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
     },
     ref
   ) {
-    const t = useTranslations("chatWidget.fab");
+    const t = useTranslations('chatWidget.fab');
 
     const button = (
       <motion.button
@@ -64,14 +59,14 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
         onMouseDown={onMouseDown}
         onTouchStart={onTouchStart}
         className={cn(
-          "fixed z-[9999] flex items-center justify-center",
-          "h-14 w-14 rounded-full",
-          "bg-primary text-primary-foreground",
-          "shadow-lg shadow-primary/25",
-          "hover:shadow-xl hover:shadow-primary/30",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-          "transition-shadow duration-200",
-          "group",
+          'fixed z-[9999] flex items-center justify-center',
+          'h-14 w-14 rounded-full',
+          'bg-primary text-primary-foreground',
+          'shadow-lg shadow-primary/25',
+          'hover:shadow-xl hover:shadow-primary/30',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+          'transition-shadow duration-200',
+          'group',
           positionClasses[position],
           className
         )}
@@ -84,11 +79,11 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         transition={{
-          type: "spring",
+          type: 'spring',
           stiffness: 400,
           damping: 25,
         }}
-        aria-label={isOpen ? t("closeAssistant") : t("openAssistant")}
+        aria-label={isOpen ? t('closeAssistant') : t('openAssistant')}
         aria-expanded={isOpen}
       >
         {/* Pulsing ring animation when not open */}
@@ -128,7 +123,7 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
         <motion.div
           className="relative flex items-center justify-center"
           animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
         >
           <AnimatePresence mode="wait">
             {isOpen ? (
@@ -161,7 +156,7 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
                   transition={{
                     duration: 2,
                     repeat: Infinity,
-                    ease: "easeInOut",
+                    ease: 'easeInOut',
                   }}
                 >
                   <Sparkles className="h-3 w-3 text-primary-foreground/80" />
@@ -179,7 +174,7 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
             transition={{
               duration: 1,
               repeat: Infinity,
-              ease: "linear",
+              ease: 'linear',
             }}
           />
         )}
@@ -189,27 +184,25 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
           {unreadCount > 0 && !isOpen && (
             <motion.span
               className={cn(
-                "absolute -top-1 -right-1",
-                "flex items-center justify-center",
-                "min-w-5 h-5 px-1.5 rounded-full",
-                "bg-destructive text-destructive-foreground",
-                "text-xs font-semibold",
-                "shadow-sm"
+                'absolute -top-1 -right-1',
+                'flex items-center justify-center',
+                'min-w-5 h-5 px-1.5 rounded-full',
+                'bg-destructive text-destructive-foreground',
+                'text-xs font-semibold',
+                'shadow-sm'
               )}
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0 }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
             >
-              {unreadCount > 99 ? "99+" : unreadCount}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </motion.span>
           )}
         </AnimatePresence>
 
         {/* Hover glow effect */}
-        <motion.div
-          className="absolute inset-0 rounded-full bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-        />
+        <motion.div className="absolute inset-0 rounded-full bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       </motion.button>
     );
 
@@ -218,13 +211,10 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>{button}</TooltipTrigger>
-            <TooltipContent
-              side={position.includes("right") ? "left" : "right"}
-              sideOffset={8}
-            >
-              <p>{t("title")}</p>
-              <p className="text-xs text-muted-foreground">{t("clickToStart")}</p>
-              <p className="text-[10px] text-muted-foreground mt-1">{t("shortcutHint")}</p>
+            <TooltipContent side={position.includes('right') ? 'left' : 'right'} sideOffset={8}>
+              <p>{t('title')}</p>
+              <p className="text-xs text-muted-foreground">{t('clickToStart')}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{t('shortcutHint')}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

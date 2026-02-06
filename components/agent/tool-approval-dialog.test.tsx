@@ -11,7 +11,8 @@ jest.mock('next-intl', () => ({
     const translations: Record<string, Record<string, string>> = {
       tools: {
         approvalRequired: 'Tool Approval Required',
-        approvalDescription: 'The agent wants to use the following tool. Please review and approve or deny.',
+        approvalDescription:
+          'The agent wants to use the following tool. Please review and approve or deny.',
         parameters: 'Parameters',
         alwaysAllowTool: 'Always allow this tool',
         deny: 'Deny',
@@ -25,7 +26,11 @@ jest.mock('next-intl', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, variant }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) => (
+  Button: ({
+    children,
+    onClick,
+    variant,
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) => (
     <button onClick={onClick} data-variant={variant}>
       {children}
     </button>
@@ -33,7 +38,15 @@ jest.mock('@/components/ui/button', () => ({
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children, variant, className }: { children: React.ReactNode; variant?: string; className?: string }) => (
+  Badge: ({
+    children,
+    variant,
+    className,
+  }: {
+    children: React.ReactNode;
+    variant?: string;
+    className?: string;
+  }) => (
     <span data-testid="badge" data-variant={variant} className={className}>
       {children}
     </span>
@@ -41,7 +54,15 @@ jest.mock('@/components/ui/badge', () => ({
 }));
 
 jest.mock('@/components/ui/checkbox', () => ({
-  Checkbox: ({ id, checked, onCheckedChange }: { id?: string; checked?: boolean; onCheckedChange?: (checked: boolean) => void }) => (
+  Checkbox: ({
+    id,
+    checked,
+    onCheckedChange,
+  }: {
+    id?: string;
+    checked?: boolean;
+    onCheckedChange?: (checked: boolean) => void;
+  }) => (
     <input
       type="checkbox"
       id={id}
@@ -53,23 +74,40 @@ jest.mock('@/components/ui/checkbox', () => ({
 }));
 
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open, onOpenChange }: { children: React.ReactNode; open: boolean; onOpenChange?: (open: boolean) => void }) => (
-    open ? <div data-testid="dialog" onClick={() => onOpenChange?.(false)}>{children}</div> : null
-  ),
+  Dialog: ({
+    children,
+    open,
+    onOpenChange,
+  }: {
+    children: React.ReactNode;
+    open: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) =>
+    open ? (
+      <div data-testid="dialog" onClick={() => onOpenChange?.(false)}>
+        {children}
+      </div>
+    ) : null,
   DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dialog-content" className={className}>{children}</div>
+    <div data-testid="dialog-content" className={className}>
+      {children}
+    </div>
   ),
   DialogDescription: ({ children }: { children: React.ReactNode }) => (
     <p data-testid="dialog-description">{children}</p>
   ),
   DialogFooter: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dialog-footer" className={className}>{children}</div>
+    <div data-testid="dialog-footer" className={className}>
+      {children}
+    </div>
   ),
   DialogHeader: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dialog-header">{children}</div>
   ),
   DialogTitle: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <h2 data-testid="dialog-title" className={className}>{children}</h2>
+    <h2 data-testid="dialog-title" className={className}>
+      {children}
+    </h2>
   ),
 }));
 
@@ -103,16 +141,12 @@ describe('ToolApprovalDialog', () => {
   });
 
   it('renders nothing when request is null', () => {
-    const { container } = render(
-      <ToolApprovalDialog {...defaultProps} request={null} />
-    );
+    const { container } = render(<ToolApprovalDialog {...defaultProps} request={null} />);
     expect(container.firstChild).toBeNull();
   });
 
   it('renders nothing when not open', () => {
-    const { container } = render(
-      <ToolApprovalDialog {...defaultProps} open={false} />
-    );
+    const { container } = render(<ToolApprovalDialog {...defaultProps} open={false} />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -128,7 +162,11 @@ describe('ToolApprovalDialog', () => {
 
   it('displays the dialog description', () => {
     render(<ToolApprovalDialog {...defaultProps} />);
-    expect(screen.getByText('The agent wants to use the following tool. Please review and approve or deny.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'The agent wants to use the following tool. Please review and approve or deny.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('displays the tool name', () => {
@@ -209,30 +247,30 @@ describe('ToolApprovalDialog', () => {
     it('calls onDeny when Deny button is clicked', () => {
       const onDeny = jest.fn();
       render(<ToolApprovalDialog {...defaultProps} onDeny={onDeny} />);
-      
+
       fireEvent.click(screen.getByText('Deny'));
-      
+
       expect(onDeny).toHaveBeenCalledWith('request-1');
     });
 
     it('calls onApprove when Approve button is clicked', () => {
       const onApprove = jest.fn();
       render(<ToolApprovalDialog {...defaultProps} onApprove={onApprove} />);
-      
+
       fireEvent.click(screen.getByText('Approve'));
-      
+
       expect(onApprove).toHaveBeenCalledWith('request-1', false);
     });
 
     it('calls onApprove with alwaysAllow=true when checkbox is checked', async () => {
       const onApprove = jest.fn();
       render(<ToolApprovalDialog {...defaultProps} onApprove={onApprove} />);
-      
+
       const checkbox = screen.getByTestId('checkbox');
       fireEvent.click(checkbox);
-      
+
       fireEvent.click(screen.getByText('Approve'));
-      
+
       expect(onApprove).toHaveBeenCalledWith('request-1', true);
     });
   });
@@ -240,38 +278,34 @@ describe('ToolApprovalDialog', () => {
   describe('State reset', () => {
     it('resets alwaysAllow state after approving', () => {
       const onApprove = jest.fn();
-      const { rerender } = render(
-        <ToolApprovalDialog {...defaultProps} onApprove={onApprove} />
-      );
-      
+      const { rerender } = render(<ToolApprovalDialog {...defaultProps} onApprove={onApprove} />);
+
       const checkbox = screen.getByTestId('checkbox');
       fireEvent.click(checkbox);
       expect(checkbox).toBeChecked();
-      
+
       fireEvent.click(screen.getByText('Approve'));
-      
+
       // Rerender with the same props
       rerender(<ToolApprovalDialog {...defaultProps} onApprove={onApprove} />);
-      
+
       // Checkbox should be unchecked after approve
       expect(screen.getByTestId('checkbox')).not.toBeChecked();
     });
 
     it('resets alwaysAllow state after denying', () => {
       const onDeny = jest.fn();
-      const { rerender } = render(
-        <ToolApprovalDialog {...defaultProps} onDeny={onDeny} />
-      );
-      
+      const { rerender } = render(<ToolApprovalDialog {...defaultProps} onDeny={onDeny} />);
+
       const checkbox = screen.getByTestId('checkbox');
       fireEvent.click(checkbox);
       expect(checkbox).toBeChecked();
-      
+
       fireEvent.click(screen.getByText('Deny'));
-      
+
       // Rerender with the same props
       rerender(<ToolApprovalDialog {...defaultProps} onDeny={onDeny} />);
-      
+
       // Checkbox should be unchecked after deny
       expect(screen.getByTestId('checkbox')).not.toBeChecked();
     });
@@ -290,7 +324,7 @@ describe('ToolApprovalDialog', () => {
         },
       };
       render(<ToolApprovalDialog {...defaultProps} request={complexRequest} />);
-      
+
       const codeBlock = screen.getByTestId('code-block');
       expect(codeBlock).toHaveTextContent('"query": "test"');
       expect(codeBlock).toHaveTextContent('"limit": 10');
@@ -299,7 +333,7 @@ describe('ToolApprovalDialog', () => {
     it('handles empty args', () => {
       const emptyArgsRequest = { ...mockRequest, args: {} };
       render(<ToolApprovalDialog {...defaultProps} request={emptyArgsRequest} />);
-      
+
       const codeBlock = screen.getByTestId('code-block');
       expect(codeBlock).toHaveTextContent('{}');
     });

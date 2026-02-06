@@ -1,30 +1,30 @@
-"use client";
+'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useTranslations } from "next-intl";
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { isTauri } from '@/lib/native/utils';
-import { useChatWidget } from "@/hooks/chat";
-import { useChatWidgetStore } from "@/stores/chat";
-import { ChatWidgetHeader } from "./chat-widget-header";
-import { ChatWidgetMessages } from "./chat-widget-messages";
-import { ChatWidgetInput } from "./chat-widget-input";
-import { ChatWidgetSettings } from "./chat-widget-settings";
-import { ChatWidgetSuggestions } from "./chat-widget-suggestions";
+import { useChatWidget } from '@/hooks/chat';
+import { useChatWidgetStore } from '@/stores/chat';
+import { ChatWidgetHeader } from './chat-widget-header';
+import { ChatWidgetMessages } from './chat-widget-messages';
+import { ChatWidgetInput } from './chat-widget-input';
+import { ChatWidgetSettings } from './chat-widget-settings';
+import { ChatWidgetSuggestions } from './chat-widget-suggestions';
 
 interface ChatWidgetProps {
   className?: string;
 }
 
 export function ChatWidget({ className }: ChatWidgetProps) {
-  const t = useTranslations("chatWidget");
+  const t = useTranslations('chatWidget');
   const containerRef = useRef<HTMLDivElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contentReady, setContentReady] = useState(false);
   const resetConfig = useChatWidgetStore((state) => state.resetConfig);
   const setFeedback = useChatWidgetStore((state) => state.setFeedback);
   const editMessage = useChatWidgetStore((state) => state.editMessage);
-  
+
   const {
     isVisible,
     isLoading,
@@ -62,8 +62,8 @@ export function ChatWidget({ className }: ChatWidgetProps) {
     let unlisten: (() => void) | undefined;
 
     const setup = async () => {
-      const { listen } = await import("@tauri-apps/api/event");
-      unlisten = await listen("chat-widget-open-settings", () => {
+      const { listen } = await import('@tauri-apps/api/event');
+      unlisten = await listen('chat-widget-open-settings', () => {
         setSettingsOpen(true);
       });
     };
@@ -102,13 +102,13 @@ export function ChatWidget({ className }: ChatWidgetProps) {
   // Handle escape key to hide
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isVisible) {
+      if (e.key === 'Escape' && isVisible) {
         hide();
       }
     };
 
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, [isVisible, hide]);
 
   return (
@@ -117,14 +117,14 @@ export function ChatWidget({ className }: ChatWidgetProps) {
       data-chat-widget-container
       data-content-ready={contentReady}
       className={cn(
-        "flex flex-col h-screen w-full",
+        'flex flex-col h-screen w-full',
         // Use solid opaque background to ensure content visibility
         // Avoid backdrop-blur which can cause transparency issues on some platforms
-        "bg-background",
+        'bg-background',
         // No border/rounded corners to prevent gap at window edges
-        "overflow-hidden",
+        'overflow-hidden',
         // Ensure text and content are always visible with proper contrast
-        "text-foreground",
+        'text-foreground',
         className
       )}
     >
@@ -142,11 +142,14 @@ export function ChatWidget({ className }: ChatWidgetProps) {
         onModelChange={(model) => updateConfig({ model })}
         onExport={() => {
           const content = messages
-            .map((m) => `${m.role === "user" ? t("export.user") : t("export.assistant")}:\n${m.content}`)
-            .join("\n\n---\n\n");
-          const blob = new Blob([content], { type: "text/markdown" });
+            .map(
+              (m) =>
+                `${m.role === 'user' ? t('export.user') : t('export.assistant')}:\n${m.content}`
+            )
+            .join('\n\n---\n\n');
+          const blob = new Blob([content], { type: 'text/markdown' });
           const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
+          const a = document.createElement('a');
           a.href = url;
           a.download = `chat-export-${new Date().toISOString().slice(0, 10)}.md`;
           a.click();
@@ -169,7 +172,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
         }}
         onContinue={() => {
           // Continue generation by sending a "continue" message
-          setInputValue(t("continueGeneration"));
+          setInputValue(t('continueGeneration'));
           handleSubmit();
         }}
       />

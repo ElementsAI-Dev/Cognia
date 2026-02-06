@@ -49,18 +49,17 @@ export function NativeToolHeader({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold truncate">{title}</h2>
-            {badge && (
-              typeof badge === 'string' ? (
+            {badge &&
+              (typeof badge === 'string' ? (
                 <Badge variant="secondary" className="text-xs shrink-0">
                   {badge}
                 </Badge>
-              ) : badge
-            )}
+              ) : (
+                badge
+              ))}
           </div>
           {description && (
-            <p className="text-xs text-muted-foreground truncate mt-0.5">
-              {description}
-            </p>
+            <p className="text-xs text-muted-foreground truncate mt-0.5">{description}</p>
           )}
         </div>
       </div>
@@ -77,9 +76,7 @@ export function NativeToolHeader({
                 onClick={onRefresh}
                 disabled={isRefreshing}
               >
-                <RefreshCw
-                  className={cn('h-4 w-4', isRefreshing && 'animate-spin')}
-                />
+                <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>{refreshLabel}</TooltipContent>

@@ -18,13 +18,7 @@ describe('MCPServerBadge', () => {
   });
 
   it('shows connected status indicator', () => {
-    render(
-      <MCPServerBadge 
-        serverId="test-server" 
-        status={{ type: 'connected' }}
-        showStatus 
-      />
-    );
+    render(<MCPServerBadge serverId="test-server" status={{ type: 'connected' }} showStatus />);
     // Multiple elements may contain 'test-server', so use getAllByText
     const elements = screen.getAllByText('test-server');
     expect(elements.length).toBeGreaterThan(0);
@@ -32,10 +26,10 @@ describe('MCPServerBadge', () => {
 
   it('shows error status indicator', () => {
     render(
-      <MCPServerBadge 
-        serverId="test-server" 
+      <MCPServerBadge
+        serverId="test-server"
         status={{ type: 'error', message: 'Connection failed' }}
-        showStatus 
+        showStatus
       />
     );
     // Multiple elements may contain 'test-server', so use getAllByText
@@ -53,11 +47,7 @@ describe('MCPServerBadge', () => {
 
   it('hides status when showStatus is false', () => {
     render(
-      <MCPServerBadge 
-        serverId="test-server" 
-        status={{ type: 'connected' }}
-        showStatus={false} 
-      />
+      <MCPServerBadge serverId="test-server" status={{ type: 'connected' }} showStatus={false} />
     );
     // Multiple elements may contain 'test-server', so use getAllByText
     const elements = screen.getAllByText('test-server');

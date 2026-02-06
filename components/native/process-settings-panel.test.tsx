@@ -200,7 +200,7 @@ describe('ProcessSettingsPanel', () => {
 
     // Click add button (first plus button)
     const addButtons = screen.getAllByRole('button');
-    const addButton = addButtons.find(btn => btn.querySelector('svg.lucide-plus'));
+    const addButton = addButtons.find((btn) => btn.querySelector('svg.lucide-plus'));
     if (addButton) {
       fireEvent.click(addButton);
     }

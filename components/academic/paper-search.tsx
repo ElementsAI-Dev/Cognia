@@ -201,9 +201,7 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
           {searchError && <div className="text-center text-destructive py-4">{searchError}</div>}
 
           {!isSearching && searchResults.length === 0 && searchQuery && !searchError && (
-            <div className="text-center text-muted-foreground py-8">
-              {t('noResults')}
-            </div>
+            <div className="text-center text-muted-foreground py-8">{t('noResults')}</div>
           )}
 
           {!isSearching && searchResults.length === 0 && !searchQuery && (

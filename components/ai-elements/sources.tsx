@@ -1,37 +1,32 @@
-"use client";
+'use client';
 
 import { useTranslations } from 'next-intl';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
-import { 
-  BookIcon, 
-  ChevronDownIcon, 
-  Globe, 
-  FileText, 
-  Video, 
+  BookIcon,
+  ChevronDownIcon,
+  Globe,
+  FileText,
+  Video,
   Image as ImageIcon,
   Link2,
   ExternalLink,
   Star,
   Clock,
-} from "lucide-react";
-import type { ComponentProps } from "react";
-import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from 'lucide-react';
+import type { ComponentProps } from 'react';
+import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Source type configuration
 export type SourceType = 'web' | 'document' | 'video' | 'image' | 'link' | 'book';
 
-const sourceTypeConfig: Record<SourceType, { icon: React.ElementType; color: string; label: string }> = {
+const sourceTypeConfig: Record<
+  SourceType,
+  { icon: React.ElementType; color: string; label: string }
+> = {
   web: { icon: Globe, color: 'text-blue-500 bg-blue-500/10', label: 'Web' },
   document: { icon: FileText, color: 'text-orange-500 bg-orange-500/10', label: 'Document' },
   video: { icon: Video, color: 'text-red-500 bg-red-500/10', label: 'Video' },
@@ -40,15 +35,15 @@ const sourceTypeConfig: Record<SourceType, { icon: React.ElementType; color: str
   book: { icon: BookIcon, color: 'text-amber-500 bg-amber-500/10', label: 'Book' },
 };
 
-export type SourcesProps = ComponentProps<"div"> & {
+export type SourcesProps = ComponentProps<'div'> & {
   variant?: 'default' | 'compact' | 'detailed';
 };
 
 export const Sources = ({ className, variant = 'default', ...props }: SourcesProps) => (
   <Collapsible
     className={cn(
-      "not-prose mb-4 text-primary text-xs",
-      "animate-in fade-in-0 slide-in-from-bottom-2 duration-300",
+      'not-prose mb-4 text-primary text-xs',
+      'animate-in fade-in-0 slide-in-from-bottom-2 duration-300',
       variant === 'compact' && 'mb-2',
       className
     )}
@@ -72,10 +67,10 @@ export const SourcesTrigger = ({
   return (
     <CollapsibleTrigger
       className={cn(
-        "group flex items-center gap-2 transition-all",
-        variant === 'pill' && "px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20",
-        variant === 'default' && "px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20",
-        variant === 'minimal' && "px-2 py-1 rounded hover:bg-accent/50",
+        'group flex items-center gap-2 transition-all',
+        variant === 'pill' && 'px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20',
+        variant === 'default' && 'px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20',
+        variant === 'minimal' && 'px-2 py-1 rounded hover:bg-accent/50',
         className
       )}
       {...props}
@@ -95,16 +90,12 @@ export type SourcesContentProps = ComponentProps<typeof CollapsibleContent> & {
   maxHeight?: number;
 };
 
-export const SourcesContent = ({
-  className,
-  maxHeight,
-  ...props
-}: SourcesContentProps) => (
+export const SourcesContent = ({ className, maxHeight, ...props }: SourcesContentProps) => (
   <CollapsibleContent
     className={cn(
-      "mt-3 flex w-full flex-col gap-2 rounded-xl border border-border/30 bg-card/50 p-3",
-      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in duration-200",
-      maxHeight && "overflow-y-auto",
+      'mt-3 flex w-full flex-col gap-2 rounded-xl border border-border/30 bg-card/50 p-3',
+      'data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in duration-200',
+      maxHeight && 'overflow-y-auto',
       className
     )}
     style={maxHeight ? { maxHeight } : undefined}
@@ -112,7 +103,7 @@ export const SourcesContent = ({
   />
 );
 
-export type SourceProps = ComponentProps<"a"> & {
+export type SourceProps = ComponentProps<'a'> & {
   sourceType?: SourceType;
   snippet?: string;
   relevance?: number;
@@ -121,10 +112,10 @@ export type SourceProps = ComponentProps<"a"> & {
   domain?: string;
 };
 
-export const Source = ({ 
-  href, 
-  title, 
-  children, 
+export const Source = ({
+  href,
+  title,
+  children,
   sourceType = 'web',
   snippet,
   relevance,
@@ -132,18 +123,18 @@ export const Source = ({
   favicon,
   domain,
   className,
-  ...props 
+  ...props
 }: SourceProps) => {
   const config = sourceTypeConfig[sourceType];
   const TypeIcon = config.icon;
-  
+
   // Extract domain from href if not provided
   const displayDomain = domain || (href ? new URL(href).hostname.replace('www.', '') : undefined);
 
   return (
     <a
       className={cn(
-        "flex items-start gap-3 p-2.5 rounded-lg hover:bg-accent/50 transition-all group border border-transparent hover:border-border/50",
+        'flex items-start gap-3 p-2.5 rounded-lg hover:bg-accent/50 transition-all group border border-transparent hover:border-border/50',
         className
       )}
       href={href}
@@ -154,18 +145,20 @@ export const Source = ({
       {children ?? (
         <>
           {/* Icon/Favicon */}
-          <div className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
-            config.color,
-            "group-hover:scale-105"
-          )}>
+          <div
+            className={cn(
+              'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all',
+              config.color,
+              'group-hover:scale-105'
+            )}
+          >
             {favicon ? (
               <Image src={favicon} alt="" width={16} height={16} className="rounded" unoptimized />
             ) : (
               <TypeIcon className="h-4 w-4" />
             )}
           </div>
-          
+
           {/* Content */}
           <div className="flex-1 min-w-0 space-y-1">
             {/* Title row */}
@@ -175,12 +168,10 @@ export const Source = ({
               </span>
               <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </div>
-            
+
             {/* Domain/meta row */}
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-              {displayDomain && (
-                <span className="truncate max-w-[120px]">{displayDomain}</span>
-              )}
+              {displayDomain && <span className="truncate max-w-[120px]">{displayDomain}</span>}
               {timestamp && (
                 <>
                   <span>•</span>
@@ -194,7 +185,7 @@ export const Source = ({
                 {config.label}
               </Badge>
             </div>
-            
+
             {/* Snippet preview */}
             {snippet && (
               <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
@@ -202,7 +193,7 @@ export const Source = ({
               </p>
             )}
           </div>
-          
+
           {/* Relevance indicator */}
           {relevance !== undefined && (
             <Tooltip>
@@ -229,13 +220,13 @@ export type SourceGroupProps = {
   className?: string;
 };
 
-export const SourceGroup = ({ 
-  title, 
-  sources, 
+export const SourceGroup = ({
+  title,
+  sources,
   defaultExpanded = true,
-  className 
+  className,
 }: SourceGroupProps) => (
-  <Collapsible defaultOpen={defaultExpanded} className={cn("space-y-2", className)}>
+  <Collapsible defaultOpen={defaultExpanded} className={cn('space-y-2', className)}>
     <CollapsibleTrigger className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors w-full group">
       <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-data-[state=closed]:-rotate-90" />
       <span>{title}</span>

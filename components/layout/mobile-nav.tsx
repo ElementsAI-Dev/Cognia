@@ -22,12 +22,7 @@ export function MobileNav({ children }: MobileNavProps) {
   return (
     <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
       <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          aria-label={t('openMenu')}
-        >
+        <Button variant="ghost" size="icon" className="md:hidden" aria-label={t('openMenu')}>
           <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>

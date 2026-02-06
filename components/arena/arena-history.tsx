@@ -32,16 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,12 +93,20 @@ function BattleCard({
 
   const getStatusBadge = () => {
     if (battle.isTie) {
-      return <Badge variant="outline" className="text-xs">{t('history.tie')}</Badge>;
+      return (
+        <Badge variant="outline" className="text-xs">
+          {t('history.tie')}
+        </Badge>
+      );
     }
     if (battle.winnerId) {
       return <Badge className="text-xs bg-green-600">{t('history.completed')}</Badge>;
     }
-    return <Badge variant="secondary" className="text-xs">{t('history.pending')}</Badge>;
+    return (
+      <Badge variant="secondary" className="text-xs">
+        {t('history.pending')}
+      </Badge>
+    );
   };
 
   return (
@@ -157,7 +157,11 @@ function BattleCard({
             {onDelete && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
@@ -170,9 +174,7 @@ function BattleCard({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t('history.cancel')}</AlertDialogCancel>
-                    <AlertDialogAction onClick={onDelete}>
-                      {t('history.delete')}
-                    </AlertDialogAction>
+                    <AlertDialogAction onClick={onDelete}>{t('history.delete')}</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -197,7 +199,10 @@ function BattleCard({
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px] w-5 h-5 p-0 flex items-center justify-center">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] w-5 h-5 p-0 flex items-center justify-center"
+                    >
                       {index + 1}
                     </Badge>
                     <div>
@@ -218,7 +223,9 @@ function BattleCard({
                       </div>
                     )}
                     {contestant.tokenCount && (
-                      <div>{contestant.tokenCount.total} {t('tokens')}</div>
+                      <div>
+                        {contestant.tokenCount.total} {t('tokens')}
+                      </div>
                     )}
                     <Badge
                       variant="outline"
@@ -258,7 +265,8 @@ function BattleCard({
               )}
               {battle.completedAt && (
                 <div className="text-muted-foreground">
-                  {t('duration')}: {formatDuration(new Date(battle.createdAt), new Date(battle.completedAt))}
+                  {t('duration')}:{' '}
+                  {formatDuration(new Date(battle.createdAt), new Date(battle.completedAt))}
                 </div>
               )}
             </div>
@@ -340,9 +348,12 @@ function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: Arena
     return filtered.slice(0, maxItems);
   }, [battles, searchQuery, statusFilter, modelFilter, sortOrder, maxItems]);
 
-  const handleDelete = useCallback((battleId: string) => {
-    deleteBattle(battleId);
-  }, [deleteBattle]);
+  const handleDelete = useCallback(
+    (battleId: string) => {
+      deleteBattle(battleId);
+    },
+    [deleteBattle]
+  );
 
   if (battles.length === 0) {
     return (
@@ -430,9 +441,7 @@ function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: Arena
       <ScrollArea className="h-[500px]">
         <div className="space-y-2 pr-4">
           {filteredBattles.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              {t('history.noResults')}
-            </div>
+            <div className="text-center py-8 text-muted-foreground">{t('history.noResults')}</div>
           ) : (
             filteredBattles.map((battle) => (
               <BattleCard

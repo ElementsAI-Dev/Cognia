@@ -31,7 +31,7 @@ const mockSimplifiedModeSettings = {
 
 jest.mock('@/stores', () => ({
   useUIStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = { 
+    const state = {
       sidebarOpen: true,
       setSidebarOpen: mockSetSidebarOpen,
     };
@@ -50,7 +50,9 @@ jest.mock('@/stores', () => ({
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} {...props}>{children}</button>
+    <button onClick={onClick} {...props}>
+      {children}
+    </button>
   ),
 }));
 
@@ -72,16 +74,16 @@ describe('AppShell', () => {
   });
 
   it('renders children in main area', () => {
-    render(<AppShell><div data-testid="main-content">Main Content</div></AppShell>);
+    render(
+      <AppShell>
+        <div data-testid="main-content">Main Content</div>
+      </AppShell>
+    );
     expect(screen.getByTestId('main-content')).toBeInTheDocument();
   });
 
   it('renders sidebar when provided', () => {
-    render(
-      <AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>
-        Content
-      </AppShell>
-    );
+    render(<AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>Content</AppShell>);
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
   });
 
@@ -92,16 +94,12 @@ describe('AppShell', () => {
   });
 
   it('renders collapse toggle button when sidebar is open', () => {
-    render(
-      <AppShell sidebar={<div>Sidebar</div>}>Content</AppShell>
-    );
+    render(<AppShell sidebar={<div>Sidebar</div>}>Content</AppShell>);
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
   it('calls setSidebarCollapsed when collapse button is clicked', () => {
-    render(
-      <AppShell sidebar={<div>Sidebar</div>}>Content</AppShell>
-    );
+    render(<AppShell sidebar={<div>Sidebar</div>}>Content</AppShell>);
     fireEvent.click(screen.getByRole('button'));
     expect(mockSetSidebarCollapsed).toHaveBeenCalledWith(true);
   });
@@ -110,18 +108,14 @@ describe('AppShell', () => {
     it('renders sidebar when simplified mode is disabled', () => {
       mockSimplifiedModeSettings.enabled = false;
       mockSimplifiedModeSettings.autoHideSidebar = false;
-      render(
-        <AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>Content</AppShell>
-      );
+      render(<AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>Content</AppShell>);
       expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     });
 
     it('renders sidebar when simplified mode is enabled but autoHideSidebar is false', () => {
       mockSimplifiedModeSettings.enabled = true;
       mockSimplifiedModeSettings.autoHideSidebar = false;
-      render(
-        <AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>Content</AppShell>
-      );
+      render(<AppShell sidebar={<div data-testid="sidebar">Sidebar</div>}>Content</AppShell>);
       expect(screen.getByTestId('sidebar')).toBeInTheDocument();
     });
   });

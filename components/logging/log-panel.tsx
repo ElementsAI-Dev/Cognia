@@ -2,7 +2,7 @@
 
 /**
  * LogPanel
- * 
+ *
  * A comprehensive log viewing component that aggregates logs from multiple sources
  * (frontend, Tauri, MCP, plugins) with filtering, grouping, and export capabilities.
  */
@@ -37,11 +37,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { InlineLoading } from '@/components/ui/loading-states';
 import { Empty, EmptyTitle } from '@/components/ui/empty';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -53,16 +49,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,7 +69,7 @@ const TIME_RANGES = {
   '6h': 6 * 60 * 60 * 1000,
   '24h': 24 * 60 * 60 * 1000,
   '7d': 7 * 24 * 60 * 60 * 1000,
-  'all': 0,
+  all: 0,
 } as const;
 
 type TimeRange = keyof typeof TIME_RANGES;
@@ -104,25 +92,30 @@ export interface LogPanelProps {
   sources?: ('frontend' | 'tauri' | 'mcp' | 'plugin')[];
 }
 
-const LEVEL_CONFIG: Record<LogLevel, { icon: React.ElementType; color: string; bgColor: string }> = {
-  trace: { icon: Bug, color: 'text-gray-500', bgColor: 'bg-gray-100 dark:bg-gray-800' },
-  debug: { icon: Bug, color: 'text-blue-500', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
-  info: { icon: Info, color: 'text-green-500', bgColor: 'bg-green-100 dark:bg-green-900/30' },
-  warn: { icon: AlertTriangle, color: 'text-yellow-500', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' },
-  error: { icon: AlertCircle, color: 'text-red-500', bgColor: 'bg-red-100 dark:bg-red-900/30' },
-  fatal: { icon: XCircle, color: 'text-red-700', bgColor: 'bg-red-200 dark:bg-red-900/50' },
-};
+const LEVEL_CONFIG: Record<LogLevel, { icon: React.ElementType; color: string; bgColor: string }> =
+  {
+    trace: { icon: Bug, color: 'text-gray-500', bgColor: 'bg-gray-100 dark:bg-gray-800' },
+    debug: { icon: Bug, color: 'text-blue-500', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
+    info: { icon: Info, color: 'text-green-500', bgColor: 'bg-green-100 dark:bg-green-900/30' },
+    warn: {
+      icon: AlertTriangle,
+      color: 'text-yellow-500',
+      bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
+    },
+    error: { icon: AlertCircle, color: 'text-red-500', bgColor: 'bg-red-100 dark:bg-red-900/30' },
+    fatal: { icon: XCircle, color: 'text-red-700', bgColor: 'bg-red-200 dark:bg-red-900/50' },
+  };
 
 const ALL_LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
 
-function LogEntry({ 
-  log, 
-  isExpanded, 
+function LogEntry({
+  log,
+  isExpanded,
   onToggle,
   t,
-}: { 
-  log: StructuredLogEntry; 
-  isExpanded: boolean; 
+}: {
+  log: StructuredLogEntry;
+  isExpanded: boolean;
   onToggle: () => void;
   t: ReturnType<typeof useTranslations>;
 }) {
@@ -138,10 +131,10 @@ function LogEntry({
   }, [log]);
 
   const timestamp = new Date(log.timestamp);
-  const timeStr = timestamp.toLocaleTimeString('en-US', { 
-    hour12: false, 
-    hour: '2-digit', 
-    minute: '2-digit', 
+  const timeStr = timestamp.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
     second: '2-digit',
     fractionalSecondDigits: 3,
   });
@@ -149,11 +142,13 @@ function LogEntry({
   const hasDetails = log.data || log.stack || log.source;
 
   return (
-    <div className={cn('border-b border-border/50 hover:bg-muted/30 transition-colors', config.bgColor)}>
-      <div 
-        className="flex items-start gap-2 px-3 py-2 cursor-pointer"
-        onClick={onToggle}
-      >
+    <div
+      className={cn(
+        'border-b border-border/50 hover:bg-muted/30 transition-colors',
+        config.bgColor
+      )}
+    >
+      <div className="flex items-start gap-2 px-3 py-2 cursor-pointer" onClick={onToggle}>
         {hasDetails ? (
           isExpanded ? (
             <ChevronDown className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
@@ -163,17 +158,15 @@ function LogEntry({
         ) : (
           <div className="w-4" />
         )}
-        
+
         <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', config.color)} />
-        
-        <span className="text-xs text-muted-foreground font-mono shrink-0">
-          {timeStr}
-        </span>
-        
+
+        <span className="text-xs text-muted-foreground font-mono shrink-0">{timeStr}</span>
+
         <Badge variant="outline" className="text-xs shrink-0 font-mono">
           {log.module}
         </Badge>
-        
+
         {log.traceId && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -182,14 +175,14 @@ function LogEntry({
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{t('panel.traceId')}: {log.traceId}</p>
+              <p>
+                {t('panel.traceId')}: {log.traceId}
+              </p>
             </TooltipContent>
           </Tooltip>
         )}
-        
-        <span className="text-sm flex-1 break-words">
-          {log.message}
-        </span>
+
+        <span className="text-sm flex-1 break-words">{log.message}</span>
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -202,11 +195,7 @@ function LogEntry({
                 handleCopy();
               }}
             >
-              {copied ? (
-                <Check className="h-3 w-3 text-green-500" />
-              ) : (
-                <Copy className="h-3 w-3" />
-              )}
+              {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent>{t('panel.copyEntry')}</TooltipContent>
@@ -223,7 +212,7 @@ function LogEntry({
               </pre>
             </div>
           )}
-          
+
           {log.stack && (
             <div className="rounded bg-red-50 dark:bg-red-900/20 p-2">
               <div className="text-xs text-muted-foreground mb-1">{t('panel.stackTrace')}:</div>
@@ -232,7 +221,7 @@ function LogEntry({
               </pre>
             </div>
           )}
-          
+
           {log.source && (
             <div className="text-xs text-muted-foreground">
               {t('panel.source')}: {log.source.file}:{log.source.line}
@@ -259,17 +248,13 @@ function TraceGroup({
   t: ReturnType<typeof useTranslations>;
 }) {
   const [isOpen, setIsOpen] = useState(true);
-  const hasErrors = logs.some(l => l.level === 'error' || l.level === 'fatal');
-  const hasWarnings = logs.some(l => l.level === 'warn');
+  const hasErrors = logs.some((l) => l.level === 'error' || l.level === 'fatal');
+  const hasWarnings = logs.some((l) => l.level === 'warn');
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="border rounded-lg mb-2">
       <CollapsibleTrigger className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50">
-        {isOpen ? (
-          <ChevronDown className="h-4 w-4" />
-        ) : (
-          <ChevronRight className="h-4 w-4" />
-        )}
+        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         <Clock className="h-4 w-4 text-muted-foreground" />
         <span className="font-mono text-sm">
           {traceId === 'no-trace' ? t('panel.noTraceId') : traceId}
@@ -278,7 +263,11 @@ function TraceGroup({
           {logs.length} {t('panel.logs')}
         </Badge>
         {hasErrors && <Badge variant="destructive">{t('panel.error')}</Badge>}
-        {hasWarnings && !hasErrors && <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">{t('panel.warning')}</Badge>}
+        {hasWarnings && !hasErrors && (
+          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+            {t('panel.warning')}
+          </Badge>
+        )}
       </CollapsibleTrigger>
       <CollapsibleContent>
         {logs.map((log) => (
@@ -304,7 +293,7 @@ export function LogPanel({
   showStats = true,
 }: LogPanelProps) {
   const t = useTranslations('logging');
-  
+
   const [autoRefresh, setAutoRefresh] = useState(defaultAutoRefresh);
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all');
   const [moduleFilter, setModuleFilter] = useState<string>('all');
@@ -312,7 +301,7 @@ export function LogPanel({
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [autoScroll, setAutoScroll] = useState(true);
-  
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const modules = useLogModules();
@@ -323,27 +312,19 @@ export function LogPanel({
     return Date.now() - TIME_RANGES[timeRange];
   }, [timeRange]);
 
-  const {
-    logs,
-    groupedLogs,
-    isLoading,
-    error,
-    refresh,
-    clearLogs,
-    exportLogs,
-    stats,
-  } = useLogStream({
-    autoRefresh,
-    refreshInterval,
-    level: levelFilter,
-    module: moduleFilter === 'all' ? undefined : moduleFilter,
-    searchQuery: searchQuery || undefined,
-    groupByTraceId,
-    maxLogs: 1000,
-  });
+  const { logs, groupedLogs, isLoading, error, refresh, clearLogs, exportLogs, stats } =
+    useLogStream({
+      autoRefresh,
+      refreshInterval,
+      level: levelFilter,
+      module: moduleFilter === 'all' ? undefined : moduleFilter,
+      searchQuery: searchQuery || undefined,
+      groupByTraceId,
+      maxLogs: 1000,
+    });
 
   const toggleExpanded = useCallback((id: string) => {
-    setExpandedIds(prev => {
+    setExpandedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -367,32 +348,37 @@ export function LogPanel({
   }, []);
 
   // Export logs in different formats
-  const handleExport = useCallback((format: ExportFormat = 'json') => {
-    const content = exportLogs(format === 'csv' ? 'text' : format);
-    let mimeType = 'application/json';
-    let extension = 'json';
-    
-    if (format === 'csv') {
-      // Convert to CSV format
-      const csvContent = logs.map(log => {
-        const timestamp = new Date(log.timestamp).toISOString();
-        const message = log.message.replace(/"/g, '""');
-        return `"${timestamp}","${log.level}","${log.module}","${message}"`;
-      }).join('\n');
-      const csvHeader = '"Timestamp","Level","Module","Message"\n';
-      mimeType = 'text/csv';
-      extension = 'csv';
-      const blob = new Blob([csvHeader + csvContent], { type: mimeType });
+  const handleExport = useCallback(
+    (format: ExportFormat = 'json') => {
+      const content = exportLogs(format === 'csv' ? 'text' : format);
+      let mimeType = 'application/json';
+      let extension = 'json';
+
+      if (format === 'csv') {
+        // Convert to CSV format
+        const csvContent = logs
+          .map((log) => {
+            const timestamp = new Date(log.timestamp).toISOString();
+            const message = log.message.replace(/"/g, '""');
+            return `"${timestamp}","${log.level}","${log.module}","${message}"`;
+          })
+          .join('\n');
+        const csvHeader = '"Timestamp","Level","Module","Message"\n';
+        mimeType = 'text/csv';
+        extension = 'csv';
+        const blob = new Blob([csvHeader + csvContent], { type: mimeType });
+        downloadBlob(blob, extension);
+        return;
+      } else if (format === 'text') {
+        mimeType = 'text/plain';
+        extension = 'txt';
+      }
+
+      const blob = new Blob([content], { type: mimeType });
       downloadBlob(blob, extension);
-      return;
-    } else if (format === 'text') {
-      mimeType = 'text/plain';
-      extension = 'txt';
-    }
-    
-    const blob = new Blob([content], { type: mimeType });
-    downloadBlob(blob, extension);
-  }, [exportLogs, logs, downloadBlob]);
+    },
+    [exportLogs, logs, downloadBlob]
+  );
 
   // Scroll controls
   const scrollToTop = useCallback(() => {
@@ -411,7 +397,7 @@ export function LogPanel({
   const filteredLogs = useMemo(() => {
     if (timeRange === 'all') return logs;
     const cutoff = getTimeRangeCutoff();
-    return logs.filter(log => new Date(log.timestamp).getTime() >= cutoff);
+    return logs.filter((log) => new Date(log.timestamp).getTime() >= cutoff);
   }, [logs, timeRange, getTimeRangeCutoff]);
 
   // Keyboard shortcuts
@@ -421,7 +407,7 @@ export function LogPanel({
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
-      
+
       if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         refresh();
@@ -579,9 +565,9 @@ export function LogPanel({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  variant={autoScroll ? 'default' : 'ghost'} 
-                  size="sm" 
+                <Button
+                  variant={autoScroll ? 'default' : 'ghost'}
+                  size="sm"
                   onClick={() => setAutoScroll(!autoScroll)}
                 >
                   {autoScroll ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
@@ -607,7 +593,8 @@ export function LogPanel({
       {showStats && (
         <div className="flex items-center gap-4 px-3 py-2 border-b bg-muted/20 text-xs">
           <span className="text-muted-foreground">
-            {t('panel.total')}: <span className="font-medium text-foreground">{filteredLogs.length}</span>
+            {t('panel.total')}:{' '}
+            <span className="font-medium text-foreground">{filteredLogs.length}</span>
             {filteredLogs.length !== stats.total && (
               <span className="text-muted-foreground/70"> / {stats.total}</span>
             )}
@@ -625,11 +612,7 @@ export function LogPanel({
       )}
 
       {/* Log content */}
-      <ScrollArea 
-        ref={scrollRef}
-        className="flex-1"
-        style={{ maxHeight }}
-      >
+      <ScrollArea ref={scrollRef} className="flex-1" style={{ maxHeight }}>
         {isLoading && filteredLogs.length === 0 ? (
           <div className="flex items-center justify-center py-8">
             <InlineLoading text={t('panel.loadingLogs')} />

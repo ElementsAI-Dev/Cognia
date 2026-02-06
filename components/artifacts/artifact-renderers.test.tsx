@@ -40,7 +40,9 @@ jest.mock('mermaid', () => ({
 
 // Mock chat renderers to avoid langfuse import chain
 jest.mock('@/components/chat/renderers/mermaid-block', () => ({
-  MermaidBlock: ({ content }: { content: string }) => <div data-testid="mermaid-block">{content}</div>,
+  MermaidBlock: ({ content }: { content: string }) => (
+    <div data-testid="mermaid-block">{content}</div>
+  ),
 }));
 
 jest.mock('@/components/chat/renderers/math-block', () => ({
@@ -49,10 +51,11 @@ jest.mock('@/components/chat/renderers/math-block', () => ({
 
 jest.mock('@/components/chat/renderers/code-block', () => ({
   CodeBlock: ({ code, className }: { code: string; className?: string }) => (
-    <pre className={className} data-testid="code-block">{code}</pre>
+    <pre className={className} data-testid="code-block">
+      {code}
+    </pre>
   ),
 }));
-
 
 // Mock katex
 jest.mock('katex', () => ({
@@ -85,17 +88,29 @@ jest.mock('@/hooks/sandbox/use-sandbox-db', () => ({
 
 // Mock recharts
 jest.mock('recharts', () => ({
-  LineChart: ({ children }: { children: React.ReactNode }) => <div data-testid="line-chart">{children}</div>,
+  LineChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="line-chart">{children}</div>
+  ),
   Line: () => null,
-  BarChart: ({ children }: { children: React.ReactNode }) => <div data-testid="bar-chart">{children}</div>,
+  BarChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="bar-chart">{children}</div>
+  ),
   Bar: () => null,
-  PieChart: ({ children }: { children: React.ReactNode }) => <div data-testid="pie-chart">{children}</div>,
+  PieChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="pie-chart">{children}</div>
+  ),
   Pie: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  AreaChart: ({ children }: { children: React.ReactNode }) => <div data-testid="area-chart">{children}</div>,
+  AreaChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="area-chart">{children}</div>
+  ),
   Area: () => null,
-  ScatterChart: ({ children }: { children: React.ReactNode }) => <div data-testid="scatter-chart">{children}</div>,
+  ScatterChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="scatter-chart">{children}</div>
+  ),
   Scatter: () => null,
-  RadarChart: ({ children }: { children: React.ReactNode }) => <div data-testid="radar-chart">{children}</div>,
+  RadarChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="radar-chart">{children}</div>
+  ),
   Radar: () => null,
   PolarGrid: () => null,
   PolarAngleAxis: () => null,
@@ -105,7 +120,9 @@ jest.mock('recharts', () => ({
   CartesianGrid: () => null,
   Tooltip: () => null,
   Legend: () => null,
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="responsive-container">{children}</div>,
+  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="responsive-container">{children}</div>
+  ),
   Cell: () => null,
 }));
 

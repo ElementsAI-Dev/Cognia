@@ -1,6 +1,6 @@
 /**
  * Logging Components
- * 
+ *
  * Components for log viewing and configuration.
  */
 

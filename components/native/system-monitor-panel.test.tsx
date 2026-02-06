@@ -117,7 +117,7 @@ describe('SystemMonitorPanel', () => {
     render(<SystemMonitorPanel />);
     const refreshButton = screen.getByRole('button');
     fireEvent.click(refreshButton);
-    
+
     await waitFor(() => {
       expect(mockFetchSystemState).toHaveBeenCalled();
     });
@@ -139,7 +139,7 @@ describe('SystemMonitorPanel - Empty State', () => {
         fetchSystemState: mockFetchSystemState,
       }),
     }));
-    
+
     // Note: Due to module caching, this won't take effect
     // This documents expected behavior
     render(<SystemMonitorPanel />);

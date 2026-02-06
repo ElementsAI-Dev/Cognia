@@ -68,8 +68,8 @@ export function StatCard({
       color: isPositive
         ? 'text-green-600 dark:text-green-400'
         : isNegative
-        ? 'text-red-600 dark:text-red-400'
-        : 'text-muted-foreground',
+          ? 'text-red-600 dark:text-red-400'
+          : 'text-muted-foreground',
       label: `${isPositive ? '+' : ''}${trend.value.toFixed(1)}%`,
       isNeutral,
     };
@@ -131,9 +131,7 @@ export function StatCard({
                         {trendInfo.label}
                       </span>
                     )}
-                    {trend?.label && (
-                      <span className="text-muted-foreground">{trend.label}</span>
-                    )}
+                    {trend?.label && <span className="text-muted-foreground">{trend.label}</span>}
                     {subtitle && <span className="text-muted-foreground">{subtitle}</span>}
                   </div>
                 )}
@@ -153,9 +151,7 @@ export function StatCard({
                           padding: '4px 8px',
                         }}
                         formatter={(v) => [Number(v ?? 0).toLocaleString(), '']}
-                        labelFormatter={(_, payload) =>
-                          payload?.[0]?.payload?.label || ''
-                        }
+                        labelFormatter={(_, payload) => payload?.[0]?.payload?.label || ''}
                       />
                       <Line
                         type="monotone"

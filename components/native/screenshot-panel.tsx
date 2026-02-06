@@ -3,7 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { useScreenshot, useScreenshotHistory, ScreenshotHistoryEntry, WindowInfo } from '@/hooks/native/use-screenshot';
+import {
+  useScreenshot,
+  useScreenshotHistory,
+  ScreenshotHistoryEntry,
+  WindowInfo,
+} from '@/hooks/native/use-screenshot';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
@@ -39,10 +44,7 @@ interface ScreenshotPanelProps {
   onScreenshotTaken?: (imageBase64: string) => void;
 }
 
-export function ScreenshotPanel({
-  className,
-  onScreenshotTaken,
-}: ScreenshotPanelProps) {
+export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPanelProps) {
   const t = useTranslations('screenshotPanel');
   const {
     isCapturing,
@@ -162,7 +164,7 @@ export function ScreenshotPanel({
           mode="alert"
           className="mb-2"
         />
-        
+
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
@@ -228,11 +230,7 @@ export function ScreenshotPanel({
                   {lastScreenshot.metadata.width}x{lastScreenshot.metadata.height}
                 </span>
                 <div className="flex gap-1">
-                  <CopyButton
-                    content={lastScreenshot.image_base64}
-                    className="h-7 w-7"
-                    iconOnly
-                  />
+                  <CopyButton content={lastScreenshot.image_base64} className="h-7 w-7" iconOnly />
                   <Button
                     variant="ghost"
                     size="icon"
@@ -307,7 +305,7 @@ export function ScreenshotPanel({
               entry={item}
               isSelected={selectedScreenshot === item.id}
               onSelect={() => setSelectedScreenshot(item.id)}
-              onPin={() => item.is_pinned ? unpinScreenshot(item.id) : pinScreenshot(item.id)}
+              onPin={() => (item.is_pinned ? unpinScreenshot(item.id) : pinScreenshot(item.id))}
               onDelete={() => deleteScreenshot(item.id)}
             />
           ))}
@@ -328,12 +326,7 @@ export function ScreenshotPanel({
         <span className="text-xs text-muted-foreground">
           {t('screenshotCount', { count: history.length })}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={clearHistory}
-          className="text-xs"
-        >
+        <Button variant="ghost" size="sm" onClick={clearHistory} className="text-xs">
           {t('clearHistory')}
         </Button>
       </div>
@@ -385,7 +378,7 @@ function ScreenshotHistoryItem({
           <Camera className="h-6 w-6 text-muted-foreground" />
         </div>
       )}
-      
+
       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
         <Button
           variant="ghost"
@@ -396,11 +389,7 @@ function ScreenshotHistoryItem({
             onPin();
           }}
         >
-          {entry.is_pinned ? (
-            <PinOff className="h-3.5 w-3.5" />
-          ) : (
-            <Pin className="h-3.5 w-3.5" />
-          )}
+          {entry.is_pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
         </Button>
         <Button
           variant="ghost"

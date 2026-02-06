@@ -52,10 +52,10 @@ describe('MCPCallTimeline', () => {
 
   it('hides content when collapsed', () => {
     render(<MCPCallTimeline steps={mockSteps} />);
-    
+
     // Find header button and click to collapse
     const buttons = screen.getAllByRole('button');
-    const header = buttons.find(btn => btn.textContent?.includes('mcpCalls'));
+    const header = buttons.find((btn) => btn.textContent?.includes('mcpCalls'));
     if (header) {
       fireEvent.click(header);
     }
@@ -72,7 +72,7 @@ describe('MCPCallTimeline', () => {
   it('calls onStepClick when step clicked', () => {
     const onStepClick = jest.fn();
     render(<MCPCallTimeline steps={mockSteps} onStepClick={onStepClick} />);
-    
+
     const step = screen.getByText('Read File').closest('div[class*="rounded-lg"]');
     if (step) {
       fireEvent.click(step);
@@ -89,13 +89,13 @@ describe('MCPCallTimeline', () => {
 
   it('expands result preview on toggle', () => {
     render(<MCPCallTimeline steps={mockSteps} />);
-    
+
     // Find the eye button for the completed step
     const expandButtons = screen.getAllByRole('button');
-    const eyeButton = expandButtons.find(btn => 
+    const eyeButton = expandButtons.find((btn) =>
       btn.querySelector('svg')?.classList.contains('lucide-eye')
     );
-    
+
     if (eyeButton) {
       fireEvent.click(eyeButton);
       // Result should be visible after expanding
@@ -118,7 +118,7 @@ describe('MCPCallTimeline', () => {
         error: 'Connection timeout',
       },
     ];
-    
+
     render(<MCPCallTimeline steps={stepsWithError} />);
     expect(screen.getByText('Connection timeout')).toBeInTheDocument();
   });

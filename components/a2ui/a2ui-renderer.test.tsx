@@ -57,19 +57,25 @@ jest.mock('@/lib/a2ui/catalog', () => ({
 // Mock layout components
 jest.mock('./layout/a2ui-row', () => ({
   A2UIRow: ({ component }: A2UIComponentProps) => (
-    <div data-testid="a2ui-row" data-component-id={component.id}>Row</div>
+    <div data-testid="a2ui-row" data-component-id={component.id}>
+      Row
+    </div>
   ),
 }));
 
 jest.mock('./layout/a2ui-column', () => ({
   A2UIColumn: ({ component }: A2UIComponentProps) => (
-    <div data-testid="a2ui-column" data-component-id={component.id}>Column</div>
+    <div data-testid="a2ui-column" data-component-id={component.id}>
+      Column
+    </div>
   ),
 }));
 
 jest.mock('./layout/a2ui-card', () => ({
   A2UICard: ({ component }: A2UIComponentProps) => (
-    <div data-testid="a2ui-card" data-component-id={component.id}>Card</div>
+    <div data-testid="a2ui-card" data-component-id={component.id}>
+      Card
+    </div>
   ),
 }));
 
@@ -83,7 +89,9 @@ jest.mock('./layout/a2ui-spacer', () => ({
 
 jest.mock('./layout/a2ui-dialog', () => ({
   A2UIDialog: ({ component }: A2UIComponentProps) => (
-    <div data-testid="a2ui-dialog" data-component-id={component.id}>Dialog</div>
+    <div data-testid="a2ui-dialog" data-component-id={component.id}>
+      Dialog
+    </div>
   ),
 }));
 
@@ -98,13 +106,17 @@ jest.mock('./layout/a2ui-fallback', () => ({
 // Mock display components
 jest.mock('./display/a2ui-text', () => ({
   A2UIText: ({ component }: A2UIComponentProps) => (
-    <span data-testid="a2ui-text" data-component-id={component.id}>Text</span>
+    <span data-testid="a2ui-text" data-component-id={component.id}>
+      Text
+    </span>
   ),
 }));
 
 jest.mock('./display/a2ui-alert', () => ({
   A2UIAlert: ({ component }: A2UIComponentProps) => (
-    <div data-testid="a2ui-alert" data-component-id={component.id}>Alert</div>
+    <div data-testid="a2ui-alert" data-component-id={component.id}>
+      Alert
+    </div>
   ),
 }));
 
@@ -131,7 +143,9 @@ jest.mock('./display/a2ui-link', () => ({
 // Mock form components
 jest.mock('./form/a2ui-button', () => ({
   A2UIButton: ({ component }: A2UIComponentProps) => (
-    <button data-testid="a2ui-button" data-component-id={component.id}>Button</button>
+    <button data-testid="a2ui-button" data-component-id={component.id}>
+      Button
+    </button>
   ),
 }));
 
@@ -294,10 +308,7 @@ describe('A2UIChildRenderer', () => {
 describe('withA2UIContext', () => {
   it('should wrap component with context access', () => {
     const TestComponent = ({ component, onAction }: A2UIComponentProps) => (
-      <button
-        data-testid="wrapped"
-        onClick={() => onAction?.('click', { test: true })}
-      >
+      <button data-testid="wrapped" onClick={() => onAction?.('click', { test: true })}>
         {component.id}
       </button>
     );

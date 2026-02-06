@@ -52,11 +52,7 @@ export function EmptyState({
 
     if (isComponent) {
       const IconComponent = Icon as LucideIcon;
-      return (
-        <IconComponent
-          className={cn(compact ? 'h-6 w-6' : 'h-8 w-8', iconClassName)}
-        />
-      );
+      return <IconComponent className={cn(compact ? 'h-6 w-6' : 'h-8 w-8', iconClassName)} />;
     }
 
     // If Icon is already a ReactNode (JSX element), return as-is

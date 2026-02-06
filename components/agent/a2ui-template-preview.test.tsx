@@ -71,24 +71,24 @@ describe('A2UITemplatePreview', () => {
 
   it('renders toggle button when onTogglePreview provided', () => {
     const onToggle = jest.fn();
-    renderWithProviders(
-      <A2UITemplatePreview template={mockTemplate} onTogglePreview={onToggle} />
-    );
+    renderWithProviders(<A2UITemplatePreview template={mockTemplate} onTogglePreview={onToggle} />);
     expect(screen.getByText('Hide')).toBeInTheDocument();
   });
 
   it('calls onTogglePreview when toggle clicked', () => {
     const onToggle = jest.fn();
-    renderWithProviders(
-      <A2UITemplatePreview template={mockTemplate} onTogglePreview={onToggle} />
-    );
+    renderWithProviders(<A2UITemplatePreview template={mockTemplate} onTogglePreview={onToggle} />);
     fireEvent.click(screen.getByText('Hide'));
     expect(onToggle).toHaveBeenCalled();
   });
 
   it('shows Show when preview hidden', () => {
     renderWithProviders(
-      <A2UITemplatePreview template={mockTemplate} showPreview={false} onTogglePreview={jest.fn()} />
+      <A2UITemplatePreview
+        template={mockTemplate}
+        showPreview={false}
+        onTogglePreview={jest.fn()}
+      />
     );
     expect(screen.getByText('Show')).toBeInTheDocument();
   });

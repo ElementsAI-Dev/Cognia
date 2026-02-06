@@ -6,11 +6,11 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
-import { 
-  ReviewSession, 
-  ProgressSummary, 
-  ReviewSessionFromTool, 
-  ProgressSummaryFromTool 
+import {
+  ReviewSession,
+  ProgressSummary,
+  ReviewSessionFromTool,
+  ProgressSummaryFromTool,
 } from './review-session';
 import { useLearningStore as _useLearningStore } from '@/stores/learning';
 import type { ReviewSessionData, ProgressStats } from '@/lib/ai/tools/learning-tools';
@@ -24,7 +24,13 @@ jest.mock('@/stores/learning', () => ({
 
 // Mock child components
 jest.mock('./flashcard', () => ({
-  Flashcard: ({ flashcard, onRate }: { flashcard: { front: string }; onRate?: (r: string, id: string) => void }) => (
+  Flashcard: ({
+    flashcard,
+    onRate,
+  }: {
+    flashcard: { front: string };
+    onRate?: (r: string, id: string) => void;
+  }) => (
     <div data-testid="flashcard">
       <span>{flashcard.front}</span>
       <button onClick={() => onRate?.('good', 'fc-1')}>Rate Good</button>
@@ -33,10 +39,18 @@ jest.mock('./flashcard', () => ({
 }));
 
 jest.mock('./quiz', () => ({
-  QuizQuestion: ({ question, onAnswer }: { question: { question: string }; onAnswer?: (r: { questionId: string; correct: boolean; timeSpentMs: number }) => void }) => (
+  QuizQuestion: ({
+    question,
+    onAnswer,
+  }: {
+    question: { question: string };
+    onAnswer?: (r: { questionId: string; correct: boolean; timeSpentMs: number }) => void;
+  }) => (
     <div data-testid="quiz-question">
       <span>{question.question}</span>
-      <button onClick={() => onAnswer?.({ questionId: 'q-1', correct: true, timeSpentMs: 1000 })}>Answer Correct</button>
+      <button onClick={() => onAnswer?.({ questionId: 'q-1', correct: true, timeSpentMs: 1000 })}>
+        Answer Correct
+      </button>
     </div>
   ),
 }));
@@ -167,15 +181,15 @@ describe('ReviewSession', () => {
 
     it('advances to next item after rating', async () => {
       const user = userEvent.setup();
-      
+
       render(<ReviewSession session={mockSession} />, { wrapper });
-      
+
       // Rate the flashcard
       await user.click(screen.getByText('Rate Good'));
-      
+
       // Click next
       await user.click(screen.getByText(/next/i));
-      
+
       // Should show quiz question
       expect(screen.getByTestId('quiz-question')).toBeInTheDocument();
     });
@@ -188,9 +202,9 @@ describe('ReviewSession', () => {
         ...mockSession,
         items: [mockFlashcardItem],
       };
-      
+
       render(<ReviewSession session={singleItemSession} />, { wrapper });
-      
+
       await user.click(screen.getByText('Rate Good'));
       expect(screen.getByTestId('flashcard')).toBeInTheDocument();
     });
@@ -201,12 +215,12 @@ describe('ReviewSession', () => {
         ...mockSession,
         items: [mockFlashcardItem],
       };
-      
+
       render(<ReviewSession session={singleItemSession} />, { wrapper });
-      
+
       // Rate the flashcard
       await user.click(screen.getByText('Rate Good'));
-      
+
       // Flashcard should be rendered
       expect(screen.getByTestId('flashcard')).toBeInTheDocument();
     });
@@ -218,12 +232,12 @@ describe('ReviewSession', () => {
         items: [mockFlashcardItem],
         targetAccuracy: 80,
       };
-      
+
       render(<ReviewSession session={singleItemSession} />, { wrapper });
-      
+
       // Rate the flashcard
       await user.click(screen.getByText('Rate Good'));
-      
+
       // Flashcard should be rendered
       expect(screen.getByTestId('flashcard')).toBeInTheDocument();
     });
@@ -235,15 +249,12 @@ describe('ReviewSession', () => {
         ...mockSession,
         items: [mockFlashcardItem],
       };
-      
-      render(
-        <ReviewSession session={singleItemSession} onComplete={onComplete} />,
-        { wrapper }
-      );
-      
+
+      render(<ReviewSession session={singleItemSession} onComplete={onComplete} />, { wrapper });
+
       // Rate the flashcard
       await user.click(screen.getByText('Rate Good'));
-      
+
       // Flashcard should still be rendered
       expect(screen.getByTestId('flashcard')).toBeInTheDocument();
     });
@@ -254,12 +265,12 @@ describe('ReviewSession', () => {
         ...mockSession,
         items: [mockFlashcardItem],
       };
-      
+
       render(<ReviewSession session={singleItemSession} />, { wrapper });
-      
+
       // Rate the flashcard
       await user.click(screen.getByText('Rate Good'));
-      
+
       // Content should still be visible
       expect(screen.getByTestId('flashcard')).toBeInTheDocument();
     });
@@ -272,11 +283,11 @@ describe('ReviewSession', () => {
         ...mockSession,
         items: [mockQuizItem],
       };
-      
+
       render(<ReviewSession session={quizSession} />, { wrapper });
-      
+
       expect(screen.getByTestId('quiz-question')).toBeInTheDocument();
-      
+
       // Click answer and verify it's rendered
       await user.click(screen.getByText('Answer Correct'));
     });
@@ -288,7 +299,7 @@ describe('ReviewSession', () => {
         <ReviewSession session={mockSession} className="custom-review" />,
         { wrapper }
       );
-      
+
       expect(container.querySelector('.custom-review')).toBeInTheDocument();
     });
   });
@@ -297,50 +308,32 @@ describe('ReviewSession', () => {
 describe('ProgressSummary', () => {
   describe('Rendering', () => {
     it('renders title', () => {
-      render(
-        <ProgressSummary title="Progress Overview" stats={mockStats} />,
-        { wrapper }
-      );
+      render(<ProgressSummary title="Progress Overview" stats={mockStats} />, { wrapper });
       expect(screen.getByText('Progress Overview')).toBeInTheDocument();
     });
 
     it('displays mastered concepts count', () => {
-      render(
-        <ProgressSummary title="Progress" stats={mockStats} />,
-        { wrapper }
-      );
+      render(<ProgressSummary title="Progress" stats={mockStats} />, { wrapper });
       expect(screen.getByText('15')).toBeInTheDocument();
     });
 
     it('displays learning concepts count', () => {
-      render(
-        <ProgressSummary title="Progress" stats={mockStats} />,
-        { wrapper }
-      );
+      render(<ProgressSummary title="Progress" stats={mockStats} />, { wrapper });
       expect(screen.getByText('5')).toBeInTheDocument();
     });
 
     it('displays accuracy percentage', () => {
-      render(
-        <ProgressSummary title="Progress" stats={mockStats} />,
-        { wrapper }
-      );
+      render(<ProgressSummary title="Progress" stats={mockStats} />, { wrapper });
       expect(screen.getByText('85%')).toBeInTheDocument();
     });
 
     it('displays streak days', () => {
-      render(
-        <ProgressSummary title="Progress" stats={mockStats} />,
-        { wrapper }
-      );
+      render(<ProgressSummary title="Progress" stats={mockStats} />, { wrapper });
       expect(screen.getByText('7')).toBeInTheDocument();
     });
 
     it('shows mastery progress bar', () => {
-      render(
-        <ProgressSummary title="Progress" stats={mockStats} />,
-        { wrapper }
-      );
+      render(<ProgressSummary title="Progress" stats={mockStats} />, { wrapper });
       expect(screen.getByText('75%')).toBeInTheDocument(); // 15/20 = 75%
     });
   });
@@ -351,16 +344,12 @@ describe('ProgressSummary', () => {
         { date: '2024-01-15', conceptsReviewed: 10, accuracy: 90 },
         { date: '2024-01-14', conceptsReviewed: 8, accuracy: 85 },
       ];
-      
+
       render(
-        <ProgressSummary 
-          title="Progress" 
-          stats={mockStats} 
-          recentActivity={recentActivity}
-        />,
+        <ProgressSummary title="Progress" stats={mockStats} recentActivity={recentActivity} />,
         { wrapper }
       );
-      
+
       // Recent activity should show dates and scores
       expect(screen.getByText('2024-01-15')).toBeInTheDocument();
     });
@@ -372,16 +361,12 @@ describe('ProgressSummary', () => {
         'Review React hooks more frequently',
         'Focus on TypeScript generics',
       ];
-      
+
       render(
-        <ProgressSummary 
-          title="Progress" 
-          stats={mockStats} 
-          recommendations={recommendations}
-        />,
+        <ProgressSummary title="Progress" stats={mockStats} recommendations={recommendations} />,
         { wrapper }
       );
-      
+
       // Recommendations should be rendered
       expect(screen.getByText('Review React hooks more frequently')).toBeInTheDocument();
     });
@@ -390,14 +375,10 @@ describe('ProgressSummary', () => {
   describe('Styling', () => {
     it('applies custom className', () => {
       const { container } = render(
-        <ProgressSummary 
-          title="Progress" 
-          stats={mockStats} 
-          className="custom-progress"
-        />,
+        <ProgressSummary title="Progress" stats={mockStats} className="custom-progress" />,
         { wrapper }
       );
-      
+
       expect(container.querySelector('.custom-progress')).toBeInTheDocument();
     });
   });
@@ -411,9 +392,9 @@ describe('ReviewSessionFromTool', () => {
       learningSessionId: 'ls-1',
       timestamp: new Date().toISOString(),
     };
-    
+
     render(<ReviewSessionFromTool output={output} />, { wrapper });
-    
+
     expect(screen.getByText('Review Session')).toBeInTheDocument();
   });
 });
@@ -426,9 +407,9 @@ describe('ProgressSummaryFromTool', () => {
       stats: mockStats,
       timestamp: new Date().toISOString(),
     };
-    
+
     render(<ProgressSummaryFromTool output={output} />, { wrapper });
-    
+
     expect(screen.getByText('Your Progress')).toBeInTheDocument();
   });
 });

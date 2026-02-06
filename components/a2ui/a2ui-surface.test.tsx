@@ -4,11 +4,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import {
-  A2UISurface,
-  A2UIInlineSurface,
-  A2UIDialogSurface,
-} from './a2ui-surface';
+import { A2UISurface, A2UIInlineSurface, A2UIDialogSurface } from './a2ui-surface';
 
 // Mock components
 const mockDeleteSurface = jest.fn();
@@ -103,11 +99,7 @@ describe('A2UISurface', () => {
     mockLoadingSurfaces.add('test-surface');
 
     render(
-      <A2UISurface
-        surfaceId="test-surface"
-        showLoading={true}
-        loadingText="Please wait..."
-      />
+      <A2UISurface surfaceId="test-surface" showLoading={true} loadingText="Please wait..." />
     );
 
     expect(screen.getByText('Please wait...')).toBeInTheDocument();
@@ -116,9 +108,7 @@ describe('A2UISurface', () => {
   it('should not show loading when showLoading is false', () => {
     mockLoadingSurfaces.add('test-surface');
 
-    const { container } = render(
-      <A2UISurface surfaceId="test-surface" showLoading={false} />
-    );
+    const { container } = render(<A2UISurface surfaceId="test-surface" showLoading={false} />);
 
     expect(container.querySelector('.animate-spin')).toBeNull();
   });
@@ -165,9 +155,7 @@ describe('A2UISurface', () => {
   });
 
   it('should apply custom className', () => {
-    const { container } = render(
-      <A2UISurface surfaceId="test-surface" className="custom-class" />
-    );
+    const { container } = render(<A2UISurface surfaceId="test-surface" className="custom-class" />);
 
     expect(container.firstChild).toHaveClass('custom-class');
   });
@@ -177,11 +165,7 @@ describe('A2UISurface', () => {
     const onDataChange = jest.fn();
 
     render(
-      <A2UISurface
-        surfaceId="test-surface"
-        onAction={onAction}
-        onDataChange={onDataChange}
-      />
+      <A2UISurface surfaceId="test-surface" onAction={onAction} onDataChange={onDataChange} />
     );
 
     const { globalEventEmitter } = jest.requireMock('@/lib/a2ui/events');

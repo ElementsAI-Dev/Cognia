@@ -20,7 +20,12 @@ import { Button } from '@/components/ui/button';
 // TooltipProvider is now at app level in providers.tsx
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSettingsStore, useRecentFilesStore, usePromptTemplateStore } from '@/stores';
-import { RecentFilesPopover, MentionPopover, ToolHistoryPanel, SlashCommandPopover } from './popovers';
+import {
+  RecentFilesPopover,
+  MentionPopover,
+  ToolHistoryPanel,
+  SlashCommandPopover,
+} from './popovers';
 import type { SlashCommandDefinition } from '@/types/chat/slash-commands';
 import type { RecentFile } from '@/stores/system';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
@@ -1111,7 +1116,10 @@ export function ChatInput({
         </div>
 
         {/* Bottom Toolbar - hidden in focused/zen simplified modes */}
-        {!(isSimplifiedMode && (simplifiedModeSettings.preset === 'focused' || simplifiedModeSettings.preset === 'zen')) && (
+        {!(
+          isSimplifiedMode &&
+          (simplifiedModeSettings.preset === 'focused' || simplifiedModeSettings.preset === 'zen')
+        ) && (
           <BottomToolbar
             modelName={modelName}
             webSearchEnabled={webSearchEnabled}
@@ -1141,7 +1149,10 @@ export function ChatInput({
         )}
 
         {/* Helper text - hidden in focused/zen simplified modes */}
-        {!(isSimplifiedMode && (simplifiedModeSettings.preset === 'focused' || simplifiedModeSettings.preset === 'zen')) && (
+        {!(
+          isSimplifiedMode &&
+          (simplifiedModeSettings.preset === 'focused' || simplifiedModeSettings.preset === 'zen')
+        ) && (
           <p className="mt-1 sm:mt-2 text-center text-[10px] sm:text-xs text-muted-foreground/70">
             <span className="hidden sm:inline">
               {sendOnEnter ? t('enterToSend') : t('clickToSend')}

@@ -81,7 +81,10 @@ export function ProviderChart({
                 labelLine={false}
               >
                 {chartData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={EXTENDED_COLORS[index % EXTENDED_COLORS.length]} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={EXTENDED_COLORS[index % EXTENDED_COLORS.length]}
+                  />
                 ))}
               </Pie>
               <Tooltip

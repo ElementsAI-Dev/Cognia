@@ -125,45 +125,45 @@ describe('GitPanel', () => {
 
   it('should show desktop required message when not in desktop mode', () => {
     mockUseGit.isDesktopAvailable = false;
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('desktopRequired.title')).toBeInTheDocument();
   });
 
   it('should show not installed message when Git is not installed', () => {
     mockUseGit.isInstalled = false;
     mockUseGit.isCheckingGit = false;
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('notInstalled.title')).toBeInTheDocument();
   });
 
   it('should show checking state when checking Git', () => {
     mockUseGit.isInstalled = false;
     mockUseGit.isCheckingGit = true;
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('checking')).toBeInTheDocument();
   });
 
   it('should show repository header with branch name', () => {
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('main')).toBeInTheDocument();
   });
 
   it('should show repository status badge', () => {
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('status.clean')).toBeInTheDocument();
   });
 
   it('should render tabs', () => {
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('tabs.changes')).toBeInTheDocument();
     expect(screen.getByText('tabs.branches')).toBeInTheDocument();
     expect(screen.getByText('tabs.history')).toBeInTheDocument();
@@ -172,42 +172,38 @@ describe('GitPanel', () => {
 
   it('should show commit button', () => {
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('actions.commit')).toBeInTheDocument();
   });
 
   it('should disable commit button when no changes', () => {
     mockUseGit.fileStatus = [];
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     const commitButton = screen.getByText('actions.commit').closest('button');
     expect(commitButton).toBeDisabled();
   });
 
   it('should enable commit button when there are changes', () => {
-    mockUseGit.fileStatus = [
-      { path: 'test.ts', status: 'modified', staged: false },
-    ];
-    
+    mockUseGit.fileStatus = [{ path: 'test.ts', status: 'modified', staged: false }];
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     const commitButton = screen.getByText('actions.commit').closest('button');
     expect(commitButton).not.toBeDisabled();
   });
 
   it('should open commit dialog when clicking commit', async () => {
-    mockUseGit.fileStatus = [
-      { path: 'test.ts', status: 'modified', staged: false },
-    ];
-    
+    mockUseGit.fileStatus = [{ path: 'test.ts', status: 'modified', staged: false }];
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     const commitButton = screen.getByText('actions.commit').closest('button');
     if (commitButton) {
       fireEvent.click(commitButton);
     }
-    
+
     await waitFor(() => {
       expect(screen.getByText('commitDialog.title')).toBeInTheDocument();
     });
@@ -215,11 +211,11 @@ describe('GitPanel', () => {
 
   it('should call refreshStatus when clicking refresh', () => {
     render(<GitPanel repoPath="/test/repo" />);
-    
-    const refreshButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('svg.lucide-refresh-cw')
-    );
-    
+
+    const refreshButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.querySelector('svg.lucide-refresh-cw'));
+
     if (refreshButton) {
       fireEvent.click(refreshButton);
       expect(mockUseGit.refreshStatus).toHaveBeenCalled();
@@ -228,21 +224,21 @@ describe('GitPanel', () => {
 
   it('should show error alert when there is an error', () => {
     mockUseGit.error = 'Something went wrong';
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
   });
 
   it('should clear error when clicking dismiss', () => {
     mockUseGit.error = 'Something went wrong';
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
-    const dismissButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('svg.lucide-x')
-    );
-    
+
+    const dismissButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.querySelector('svg.lucide-x'));
+
     if (dismissButton) {
       fireEvent.click(dismissButton);
       expect(mockUseGit.clearError).toHaveBeenCalled();
@@ -251,7 +247,7 @@ describe('GitPanel', () => {
 
   it('should show last commit info', () => {
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('Initial commit')).toBeInTheDocument();
   });
 
@@ -269,15 +265,15 @@ describe('GitPanel', () => {
       hasUntrackedFiles: false,
       lastCommit: null,
     };
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('status.dirty')).toBeInTheDocument();
   });
 
   it('should show cloud icon when remote is configured', () => {
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     const cloudIcon = document.querySelector('svg.lucide-cloud');
     expect(cloudIcon).toBeInTheDocument();
   });
@@ -296,9 +292,9 @@ describe('GitPanel', () => {
       hasUntrackedFiles: false,
       lastCommit: null,
     };
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     const cloudOffIcon = document.querySelector('svg.lucide-cloud-off');
     expect(cloudOffIcon).toBeInTheDocument();
   });
@@ -306,36 +302,36 @@ describe('GitPanel', () => {
   it('should show install button when Git not installed', () => {
     mockUseGit.isInstalled = false;
     mockUseGit.isCheckingGit = false;
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('notInstalled.install')).toBeInTheDocument();
   });
 
   it('should call installGit when clicking install', () => {
     mockUseGit.isInstalled = false;
     mockUseGit.isCheckingGit = false;
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     const installButton = screen.getByText('notInstalled.install');
     fireEvent.click(installButton);
-    
+
     expect(mockUseGit.installGit).toHaveBeenCalled();
   });
 
   it('should show website button when Git not installed', () => {
     mockUseGit.isInstalled = false;
     mockUseGit.isCheckingGit = false;
-    
+
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(screen.getByText('notInstalled.website')).toBeInTheDocument();
   });
 
   it('should have branch tab trigger', () => {
     render(<GitPanel repoPath="/test/repo" />);
-    
+
     const branchesTab = screen.getByText('tabs.branches');
     expect(branchesTab).toBeInTheDocument();
   });
@@ -345,9 +341,9 @@ describe('GitPanel', () => {
       { path: 'test1.ts', status: 'modified', staged: false },
       { path: 'test2.ts', status: 'added', staged: true },
     ];
-    
+
     const { container } = render(<GitPanel repoPath="/test/repo" />);
-    
+
     expect(container).toBeInTheDocument();
   });
 });

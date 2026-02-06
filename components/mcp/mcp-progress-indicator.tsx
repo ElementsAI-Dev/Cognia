@@ -104,9 +104,7 @@ export function MCPProgressIndicator({
   }, [state, startedAt, showElapsedTime]);
 
   // Calculate final duration if ended
-  const displayTime = endedAt && startedAt
-    ? endedAt.getTime() - startedAt.getTime()
-    : elapsedTime;
+  const displayTime = endedAt && startedAt ? endedAt.getTime() - startedAt.getTime() : elapsedTime;
 
   const isIndeterminate = state === 'running' && progress === undefined;
 
@@ -139,9 +137,7 @@ export function MCPProgressIndicator({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {renderIcon()}
-          <span className={cn('text-sm font-medium', config.color)}>
-            {config.label}
-          </span>
+          <span className={cn('text-sm font-medium', config.color)}>{config.label}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {progress !== undefined && state === 'running' && (
@@ -156,18 +152,11 @@ export function MCPProgressIndicator({
       {state === 'running' && (
         <Progress
           value={isIndeterminate ? undefined : progress}
-          className={cn(
-            'h-1.5',
-            isIndeterminate && '[&>div]:animate-pulse'
-          )}
+          className={cn('h-1.5', isIndeterminate && '[&>div]:animate-pulse')}
         />
       )}
 
-      {message && (
-        <p className="text-xs text-muted-foreground animate-pulse">
-          {message}
-        </p>
-      )}
+      {message && <p className="text-xs text-muted-foreground animate-pulse">{message}</p>}
     </div>
   );
 }

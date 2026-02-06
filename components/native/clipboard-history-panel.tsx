@@ -33,10 +33,7 @@ interface ClipboardHistoryPanelProps {
   onSelect?: (entry: ClipboardEntry) => void;
 }
 
-export function ClipboardHistoryPanel({
-  className,
-  onSelect,
-}: ClipboardHistoryPanelProps) {
+export function ClipboardHistoryPanel({ className, onSelect }: ClipboardHistoryPanelProps) {
   const t = useTranslations('clipboardPanel');
   const {
     history,
@@ -87,7 +84,9 @@ export function ClipboardHistoryPanel({
             <Clipboard className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold leading-none">{t('title') || 'Clipboard History'}</h3>
+            <h3 className="text-sm font-semibold leading-none">
+              {t('title') || 'Clipboard History'}
+            </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               {t('itemCount', { count: history.length })}
             </p>
@@ -138,9 +137,7 @@ export function ClipboardHistoryPanel({
 
       {pinnedItems.length > 0 && !searchResults && (
         <div className="p-2 border-b">
-          <div className="text-xs font-medium text-muted-foreground mb-2">
-            {t('pinned')}
-          </div>
+          <div className="text-xs font-medium text-muted-foreground mb-2">{t('pinned')}</div>
           <div className="space-y-1">
             {pinnedItems.map((item) => (
               <ClipboardItem
@@ -159,16 +156,18 @@ export function ClipboardHistoryPanel({
 
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-2 space-y-1">
-          {displayItems.filter(item => !item.is_pinned).map((item) => (
-            <ClipboardItem
-              key={item.id}
-              entry={item}
-              onCopy={() => copyEntry(item.id)}
-              onPin={() => pinEntry(item.id)}
-              onDelete={() => deleteEntry(item.id)}
-              onSelect={() => onSelect?.(item)}
-            />
-          ))}
+          {displayItems
+            .filter((item) => !item.is_pinned)
+            .map((item) => (
+              <ClipboardItem
+                key={item.id}
+                entry={item}
+                onCopy={() => copyEntry(item.id)}
+                onPin={() => pinEntry(item.id)}
+                onDelete={() => deleteEntry(item.id)}
+                onSelect={() => onSelect?.(item)}
+              />
+            ))}
           {displayItems.length === 0 && (
             <EmptyState
               icon={Clipboard}
@@ -205,14 +204,7 @@ interface ClipboardItemProps {
   isPinned?: boolean;
 }
 
-function ClipboardItem({
-  entry,
-  onCopy,
-  onPin,
-  onDelete,
-  onSelect,
-  isPinned,
-}: ClipboardItemProps) {
+function ClipboardItem({ entry, onCopy, onPin, onDelete, onSelect, isPinned }: ClipboardItemProps) {
   const getContentTypeIcon = (type: ClipboardEntry['content_type']) => {
     switch (type) {
       case 'Image':
@@ -245,10 +237,12 @@ function ClipboardItem({
       )}
       onClick={onSelect}
     >
-      <div className={cn(
-        'flex items-center justify-center h-8 w-8 rounded-md shrink-0',
-        getContentTypeBg(entry.content_type)
-      )}>
+      <div
+        className={cn(
+          'flex items-center justify-center h-8 w-8 rounded-md shrink-0',
+          getContentTypeBg(entry.content_type)
+        )}
+      >
         {getContentTypeIcon(entry.content_type)}
       </div>
       <div className="flex-1 min-w-0">
@@ -286,11 +280,7 @@ function ClipboardItem({
                 onPin();
               }}
             >
-              {isPinned ? (
-                <PinOff className="h-4 w-4" />
-              ) : (
-                <Pin className="h-4 w-4" />
-              )}
+              {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="top">{isPinned ? 'Unpin' : 'Pin'}</TooltipContent>

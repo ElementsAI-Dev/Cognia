@@ -72,9 +72,9 @@ export function ArtifactPanel() {
   const artifacts = useArtifactStore((state) => state.artifacts);
   const updateArtifact = useArtifactStore((state) => state.updateArtifact);
   const activeArtifact = activeArtifactId ? artifacts[activeArtifactId] : null;
-  
+
   const theme = useSettingsStore((state) => state.theme);
-  
+
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'edit'>('code');
   const [copied, setCopied] = useState(false);
   const [designerOpen, setDesignerOpen] = useState(false);
@@ -123,14 +123,16 @@ export function ArtifactPanel() {
     setHasChanges(false);
   }, []);
 
-  const handleEditorChange = useCallback((value: string | undefined) => {
-    setEditContent(value || '');
-    setHasChanges(value !== activeArtifact?.content);
-  }, [activeArtifact?.content]);
-
+  const handleEditorChange = useCallback(
+    (value: string | undefined) => {
+      setEditContent(value || '');
+      setHasChanges(value !== activeArtifact?.content);
+    },
+    [activeArtifact?.content]
+  );
 
   const toggleFullscreen = useCallback(() => {
-    setIsFullscreen(prev => !prev);
+    setIsFullscreen((prev) => !prev);
   }, []);
 
   const handleCopy = async () => {
@@ -174,12 +176,15 @@ export function ArtifactPanel() {
   const isPreviewable = activeArtifact ? canPreview(activeArtifact.type) : false;
   const isDesignable = activeArtifact ? canDesign(activeArtifact.type) : false;
 
-  const panelWidth = isFullscreen 
-    ? 'w-full sm:w-full sm:max-w-full' 
+  const panelWidth = isFullscreen
+    ? 'w-full sm:w-full sm:max-w-full'
     : 'w-full sm:w-[600px] sm:max-w-[600px]';
 
   return (
-    <Sheet open={panelOpen && panelView === 'artifact'} onOpenChange={(open) => !open && closePanel()}>
+    <Sheet
+      open={panelOpen && panelView === 'artifact'}
+      onOpenChange={(open) => !open && closePanel()}
+    >
       <SheetContent side="right" className={`${panelWidth} p-0 transition-all duration-200`}>
         <SheetTitle className="sr-only">{t('sheetTitle')}</SheetTitle>
         {activeArtifact ? (
@@ -218,11 +223,18 @@ export function ArtifactPanel() {
                   </>
                 ) : (
                   <>
-                    <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'code' | 'preview')}>
+                    <Tabs
+                      value={viewMode}
+                      onValueChange={(v) => setViewMode(v as 'code' | 'preview')}
+                    >
                       <TabsList className="h-8">
-                        <TabsTrigger value="code" className="text-xs px-2">{t('code')}</TabsTrigger>
+                        <TabsTrigger value="code" className="text-xs px-2">
+                          {t('code')}
+                        </TabsTrigger>
                         {isPreviewable && (
-                          <TabsTrigger value="preview" className="text-xs px-2">{t('preview')}</TabsTrigger>
+                          <TabsTrigger value="preview" className="text-xs px-2">
+                            {t('preview')}
+                          </TabsTrigger>
                         )}
                       </TabsList>
                     </Tabs>

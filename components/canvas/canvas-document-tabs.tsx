@@ -6,16 +6,7 @@
 
 import { memo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  X,
-  Plus,
-  FileCode,
-  FileText,
-  MoreHorizontal,
-  Copy,
-  Trash2,
-  Edit2,
-} from 'lucide-react';
+import { X, Plus, FileCode, FileText, MoreHorizontal, Copy, Trash2, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,11 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { CanvasDocument } from '@/types';
 import { RenameDialog } from './rename-dialog';

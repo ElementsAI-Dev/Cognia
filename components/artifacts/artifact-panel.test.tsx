@@ -58,9 +58,8 @@ jest.mock('@/stores', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) => (
-    open ? <div data-testid="sheet">{children}</div> : null
-  ),
+  Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
+    open ? <div data-testid="sheet">{children}</div> : null,
   SheetContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="sheet-content">{children}</div>
   ),
@@ -68,7 +67,9 @@ jest.mock('@/components/ui/sheet', () => ({
 
 jest.mock('@/components/ui/tabs', () => ({
   Tabs: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <div data-testid="tabs" data-value={value}>{children}</div>
+    <div data-testid="tabs" data-value={value}>
+      {children}
+    </div>
   ),
   TabsList: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="tabs-list">{children}</div>
@@ -86,7 +87,9 @@ jest.mock('@/components/ui/scroll-area', () => ({
 
 jest.mock('@/components/ai-elements/artifact', () => ({
   Artifact: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="artifact" className={className}>{children}</div>
+    <div data-testid="artifact" className={className}>
+      {children}
+    </div>
   ),
   ArtifactHeader: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="artifact-header">{children}</div>
@@ -97,20 +100,33 @@ jest.mock('@/components/ai-elements/artifact', () => ({
   ArtifactActions: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="artifact-actions">{children}</div>
   ),
-  ArtifactAction: ({ tooltip, onClick }: { tooltip?: string; icon?: React.ComponentType; onClick?: () => void }) => (
-    <button data-testid={`action-${tooltip}`} onClick={onClick}>{tooltip}</button>
+  ArtifactAction: ({
+    tooltip,
+    onClick,
+  }: {
+    tooltip?: string;
+    icon?: React.ComponentType;
+    onClick?: () => void;
+  }) => (
+    <button data-testid={`action-${tooltip}`} onClick={onClick}>
+      {tooltip}
+    </button>
   ),
   ArtifactContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="artifact-content">{children}</div>
   ),
   ArtifactClose: ({ onClick }: { onClick?: () => void }) => (
-    <button data-testid="artifact-close" onClick={onClick}>Close</button>
+    <button data-testid="artifact-close" onClick={onClick}>
+      Close
+    </button>
   ),
 }));
 
 jest.mock('@/components/ai-elements/code-block', () => ({
   CodeBlock: ({ code, language }: { code: string; language: string }) => (
-    <pre data-testid="code-block" data-language={language}>{code}</pre>
+    <pre data-testid="code-block" data-language={language}>
+      {code}
+    </pre>
   ),
 }));
 
@@ -148,7 +164,9 @@ jest.mock('./artifact-icons', () => ({
 
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} {...props}>{children}</button>
+    <button onClick={onClick} {...props}>
+      {children}
+    </button>
   ),
 }));
 
@@ -242,14 +260,14 @@ describe('ArtifactPanel fullscreen mode', () => {
   it.skip('toggles fullscreen when fullscreen button is clicked', () => {
     render(<ArtifactPanel />);
     const fullscreenButton = screen.getByTestId('action-fullscreen');
-    
+
     // Initially not fullscreen - sheet should have normal width
     const sheet = screen.getByTestId('sheet-content');
     expect(sheet).toBeInTheDocument();
-    
+
     // Click to toggle fullscreen
     fireEvent.click(fullscreenButton);
-    
+
     // Should still render (toggle state internally)
     expect(screen.getByTestId('sheet')).toBeInTheDocument();
   });
@@ -264,7 +282,7 @@ describe('ArtifactPanel edit mode', () => {
     render(<ArtifactPanel />);
     const editButton = screen.getByTestId('action-edit');
     fireEvent.click(editButton);
-    
+
     // Monaco editor should be rendered in edit mode
     expect(screen.getByTestId('monaco-editor')).toBeInTheDocument();
   });
@@ -273,7 +291,7 @@ describe('ArtifactPanel edit mode', () => {
     render(<ArtifactPanel />);
     const editButton = screen.getByTestId('action-edit');
     fireEvent.click(editButton);
-    
+
     expect(screen.getByText('save')).toBeInTheDocument();
     expect(screen.getByText('cancel')).toBeInTheDocument();
   });
@@ -282,11 +300,11 @@ describe('ArtifactPanel edit mode', () => {
     render(<ArtifactPanel />);
     const editButton = screen.getByTestId('action-edit');
     fireEvent.click(editButton);
-    
+
     // Click cancel
     const cancelButton = screen.getByText('cancel');
     fireEvent.click(cancelButton);
-    
+
     // Should be back to code view
     expect(screen.getByTestId('code-block')).toBeInTheDocument();
   });

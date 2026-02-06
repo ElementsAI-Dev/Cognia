@@ -68,8 +68,15 @@ jest.mock('@/components/ui/sheet', () => ({
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }));
 
@@ -99,9 +106,13 @@ jest.mock('@/components/ui/tooltip', () => ({
 jest.mock('@/components/ui/alert-dialog', () => ({
   AlertDialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
     open ? <div data-testid="alert-dialog">{children}</div> : <>{children}</>,
-  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
-    <button onClick={onClick}>{children}</button>
-  ),
+  AlertDialogAction: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => <button onClick={onClick}>{children}</button>,
   AlertDialogCancel: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
   AlertDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
@@ -160,11 +171,11 @@ describe('ProcessManagerPanel', () => {
 
   it('calls refresh when refresh button clicked', async () => {
     render(<ProcessManagerPanel {...defaultProps} />);
-    
-    const refreshButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('[data-testid="icon-refresh"]')
-    );
-    
+
+    const refreshButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.querySelector('[data-testid="icon-refresh"]'));
+
     if (refreshButton) {
       await userEvent.click(refreshButton);
       expect(mockRefresh).toHaveBeenCalled();
@@ -173,10 +184,10 @@ describe('ProcessManagerPanel', () => {
 
   it('filters processes by search query', async () => {
     render(<ProcessManagerPanel {...defaultProps} />);
-    
+
     const searchInput = screen.getByRole('textbox');
     await userEvent.type(searchInput, 'node');
-    
+
     // Node should still be visible, python may be filtered
     expect(screen.getByText('node.exe')).toBeInTheDocument();
   });
@@ -201,12 +212,15 @@ describe('ProcessManagerPanel', () => {
 
   it('toggles auto-refresh setting', async () => {
     render(<ProcessManagerPanel {...defaultProps} />);
-    
-    const toggleButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('[data-testid="icon-toggle-right"]') || 
-             btn.querySelector('[data-testid="icon-toggle-left"]')
-    );
-    
+
+    const toggleButton = screen
+      .getAllByRole('button')
+      .find(
+        (btn) =>
+          btn.querySelector('[data-testid="icon-toggle-right"]') ||
+          btn.querySelector('[data-testid="icon-toggle-left"]')
+      );
+
     if (toggleButton) {
       await userEvent.click(toggleButton);
       expect(mockSetAutoRefresh).toHaveBeenCalledWith(false);

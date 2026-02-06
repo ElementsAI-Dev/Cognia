@@ -39,8 +39,15 @@ jest.mock('next-intl', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    disabled,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
   ),
 }));
 
@@ -51,15 +58,24 @@ jest.mock('@/components/ui/label', () => ({
 }));
 
 jest.mock('@/components/ui/textarea', () => ({
-  Textarea: React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
-    function Textarea(props, ref) {
-      return <textarea ref={ref} {...props} />;
-    }
-  ),
+  Textarea: React.forwardRef<
+    HTMLTextAreaElement,
+    React.TextareaHTMLAttributes<HTMLTextAreaElement>
+  >(function Textarea(props, ref) {
+    return <textarea ref={ref} {...props} />;
+  }),
 }));
 
 jest.mock('@/components/ui/switch', () => ({
-  Switch: ({ id, checked, onCheckedChange }: { id: string; checked: boolean; onCheckedChange: (checked: boolean) => void }) => (
+  Switch: ({
+    id,
+    checked,
+    onCheckedChange,
+  }: {
+    id: string;
+    checked: boolean;
+    onCheckedChange: (checked: boolean) => void;
+  }) => (
     <input
       type="checkbox"
       id={id}
@@ -71,28 +87,47 @@ jest.mock('@/components/ui/switch', () => ({
 }));
 
 jest.mock('@/components/ui/select', () => ({
-  Select: ({ children, value, onValueChange }: { children: React.ReactNode; value: string; onValueChange: (v: string) => void }) => (
+  Select: ({
+    children,
+    value,
+    onValueChange,
+  }: {
+    children: React.ReactNode;
+    value: string;
+    onValueChange: (v: string) => void;
+  }) => (
     <div data-testid="select" data-value={value}>
-      {React.Children.map(children, child => {
+      {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
-          return React.cloneElement(child as React.ReactElement<{ onValueChange?: (v: string) => void }>, { onValueChange });
+          return React.cloneElement(
+            child as React.ReactElement<{ onValueChange?: (v: string) => void }>,
+            { onValueChange }
+          );
         }
         return child;
       })}
     </div>
   ),
-  SelectContent: ({ children }: { children: React.ReactNode }) => <div data-testid="select-content">{children}</div>,
-  SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <option value={value} data-testid={`select-item-${value}`}>{children}</option>
+  SelectContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="select-content">{children}</div>
   ),
-  SelectTrigger: ({ children }: { children: React.ReactNode }) => <button data-testid="select-trigger">{children}</button>,
+  SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <option value={value} data-testid={`select-item-${value}`}>
+      {children}
+    </option>
+  ),
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+    <button data-testid="select-trigger">{children}</button>
+  ),
   SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
 }));
 
 jest.mock('@/components/ui/sheet', () => ({
   Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
     open ? <div data-testid="sheet">{children}</div> : null,
-  SheetContent: ({ children }: { children: React.ReactNode }) => <div data-testid="sheet-content">{children}</div>,
+  SheetContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sheet-content">{children}</div>
+  ),
   SheetDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
@@ -100,10 +135,11 @@ jest.mock('@/components/ui/sheet', () => ({
 
 jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={className} data-testid="scroll-area">{children}</div>
+    <div className={className} data-testid="scroll-area">
+      {children}
+    </div>
   ),
 }));
-
 
 describe('ChatWidgetSettings', () => {
   const defaultConfig: ChatWidgetConfig = {

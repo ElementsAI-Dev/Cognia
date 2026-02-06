@@ -6,16 +6,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Archive,
-  Plus,
-  Play,
-  Trash2,
-  RefreshCw,
-  Loader2,
-  Download,
-  Copy,
-} from 'lucide-react';
+import { Archive, Plus, Play, Trash2, RefreshCw, Loader2, Download, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,12 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 
@@ -97,10 +83,7 @@ export function GitStashPanel({
   const handleSave = async () => {
     setIsOperating(true);
     try {
-      const success = await onStashSave(
-        stashMessage.trim() || undefined,
-        includeUntracked
-      );
+      const success = await onStashSave(stashMessage.trim() || undefined, includeUntracked);
       if (success) {
         setShowSaveDialog(false);
         setStashMessage('');
@@ -174,23 +157,14 @@ export function GitStashPanel({
           )}
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onRefresh}
-            disabled={isLoading}
-          >
+          <Button size="sm" variant="ghost" onClick={onRefresh} disabled={isLoading}>
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <RefreshCw className="h-4 w-4" />
             )}
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowSaveDialog(true)}
-          >
+          <Button size="sm" variant="outline" onClick={() => setShowSaveDialog(true)}>
             <Plus className="h-4 w-4 mr-1" />
             {t('save')}
           </Button>
@@ -307,14 +281,9 @@ export function GitStashPanel({
             <div className="flex items-center justify-between">
               <div>
                 <Label>{t('includeUntracked')}</Label>
-                <p className="text-xs text-muted-foreground">
-                  {t('includeUntrackedHint')}
-                </p>
+                <p className="text-xs text-muted-foreground">{t('includeUntrackedHint')}</p>
               </div>
-              <Switch
-                checked={includeUntracked}
-                onCheckedChange={setIncludeUntracked}
-              />
+              <Switch checked={includeUntracked} onCheckedChange={setIncludeUntracked} />
             </div>
           </div>
           <DialogFooter>
@@ -344,10 +313,7 @@ export function GitStashPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDrop}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <AlertDialogAction onClick={handleDrop} className="bg-red-600 hover:bg-red-700">
               {isOperating ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
@@ -370,10 +336,7 @@ export function GitStashPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleClear}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <AlertDialogAction onClick={handleClear} className="bg-red-600 hover:bg-red-700">
               {isOperating ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (

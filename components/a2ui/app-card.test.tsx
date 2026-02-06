@@ -11,13 +11,15 @@ import type { A2UIAppTemplate } from '@/lib/a2ui/templates';
 // Mock thumbnail functions
 jest.mock('@/lib/a2ui/thumbnail', () => ({
   generatePlaceholderThumbnail: jest.fn(() => 'data:image/png;base64,placeholder'),
-  captureSurfaceThumbnail: jest.fn(() => Promise.resolve({
-    dataUrl: 'data:image/png;base64,captured',
-    width: 280,
-    height: 180,
-    format: 'webp',
-    generatedAt: Date.now(),
-  })),
+  captureSurfaceThumbnail: jest.fn(() =>
+    Promise.resolve({
+      dataUrl: 'data:image/png;base64,captured',
+      width: 280,
+      height: 180,
+      format: 'webp',
+      generatedAt: Date.now(),
+    })
+  ),
 }));
 
 // Mock lucide-react icons
@@ -32,7 +34,7 @@ jest.mock('lucide-react', () => ({
 // Mock tooltip provider
 jest.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => 
+  TooltipTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) =>
     asChild ? <>{children}</> : <span>{children}</span>,
   TooltipContent: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
@@ -75,13 +77,13 @@ describe('AppCard', () => {
   describe('rendering', () => {
     it('should render app name', () => {
       renderAppCard();
-      
+
       expect(screen.getByText('Test Application')).toBeInTheDocument();
     });
 
     it('should render template name', () => {
       renderAppCard();
-      
+
       expect(screen.getByText('Test Template')).toBeInTheDocument();
     });
 
@@ -90,13 +92,13 @@ describe('AppCard', () => {
         app: createMockApp({ description: 'This is a test app description' }),
         showDescription: true,
       });
-      
+
       expect(screen.getByText('This is a test app description')).toBeInTheDocument();
     });
 
     it('should render "自定义应用" when no template', () => {
       renderAppCard({ template: undefined });
-      
+
       expect(screen.getByText('自定义应用')).toBeInTheDocument();
     });
 
@@ -104,7 +106,7 @@ describe('AppCard', () => {
       renderAppCard({
         app: createMockApp({ version: '1.2.3' }),
       });
-      
+
       expect(screen.getByText('v1.2.3')).toBeInTheDocument();
     });
   });
@@ -112,7 +114,7 @@ describe('AppCard', () => {
   describe('thumbnail', () => {
     it('should show placeholder thumbnail when no thumbnail set', async () => {
       renderAppCard({ showThumbnail: true });
-      
+
       // The placeholder should be generated
       await waitFor(() => {
         const img = screen.queryByRole('img');
@@ -127,14 +129,14 @@ describe('AppCard', () => {
         app: createMockApp({ thumbnail: 'data:image/png;base64,existingThumb' }),
         showThumbnail: true,
       });
-      
+
       const img = screen.getByRole('img');
       expect(img).toHaveAttribute('src', 'data:image/png;base64,existingThumb');
     });
 
     it('should hide thumbnail when showThumbnail is false', () => {
       renderAppCard({ showThumbnail: false });
-      
+
       expect(screen.queryByRole('img')).not.toBeInTheDocument();
     });
   });
@@ -144,7 +146,7 @@ describe('AppCard', () => {
       renderAppCard({
         app: createMockApp({ tags: ['custom-tag-1', 'custom-tag-2'] }),
       });
-      
+
       expect(screen.getByText('custom-tag-1')).toBeInTheDocument();
       expect(screen.getByText('custom-tag-2')).toBeInTheDocument();
     });
@@ -154,7 +156,7 @@ describe('AppCard', () => {
         app: createMockApp({ tags: undefined }),
         template: createMockTemplate({ tags: ['template-tag'] }),
       });
-      
+
       expect(screen.getByText('template-tag')).toBeInTheDocument();
     });
 
@@ -162,7 +164,7 @@ describe('AppCard', () => {
       renderAppCard({
         app: createMockApp({ tags: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5'] }),
       });
-      
+
       expect(screen.getByText('+2')).toBeInTheDocument();
     });
   });
@@ -175,7 +177,7 @@ describe('AppCard', () => {
         }),
         showStats: true,
       });
-      
+
       expect(screen.getByText('100')).toBeInTheDocument();
     });
 
@@ -186,7 +188,7 @@ describe('AppCard', () => {
         }),
         showStats: true,
       });
-      
+
       expect(screen.getByText('4.5')).toBeInTheDocument();
       expect(screen.getByText('(10)')).toBeInTheDocument();
     });
@@ -198,7 +200,7 @@ describe('AppCard', () => {
         }),
         showStats: false,
       });
-      
+
       expect(screen.queryByText('100')).not.toBeInTheDocument();
     });
   });
@@ -207,83 +209,83 @@ describe('AppCard', () => {
     it('should call onSelect when card is clicked', () => {
       const onSelect = jest.fn();
       renderAppCard({ onSelect });
-      
+
       fireEvent.click(screen.getByText('Test Application').closest('.group')!);
-      
+
       expect(onSelect).toHaveBeenCalledWith('test-app-1');
     });
 
     it('should show selected state', () => {
       const { container } = renderAppCard({ isSelected: true });
-      
+
       expect(container.querySelector('.ring-2')).toBeInTheDocument();
     });
 
     it('should call onOpen when menu item is clicked', async () => {
       const onOpen = jest.fn();
       renderAppCard({ onOpen });
-      
+
       // Open dropdown
       const moreButton = screen.getByRole('button', { name: '' }); // More button has no text
       fireEvent.click(moreButton);
-      
+
       // Click open option
       await waitFor(() => {
         const openButton = screen.getByText('打开');
         fireEvent.click(openButton);
       });
-      
+
       expect(onOpen).toHaveBeenCalledWith('test-app-1');
     });
 
     it('should call onRename when rename is clicked', async () => {
       const onRename = jest.fn();
       renderAppCard({ onRename });
-      
+
       // Open dropdown
       const moreButton = screen.getByRole('button', { name: '' });
       fireEvent.click(moreButton);
-      
+
       // Click rename option
       await waitFor(() => {
         const renameButton = screen.getByText('重命名');
         fireEvent.click(renameButton);
       });
-      
+
       expect(onRename).toHaveBeenCalled();
     });
 
     it('should call onDuplicate when duplicate is clicked', async () => {
       const onDuplicate = jest.fn();
       renderAppCard({ onDuplicate });
-      
+
       // Open dropdown
       const moreButton = screen.getByRole('button', { name: '' });
       fireEvent.click(moreButton);
-      
+
       // Click duplicate option
       await waitFor(() => {
         const duplicateButton = screen.getByText('复制');
         fireEvent.click(duplicateButton);
       });
-      
+
       expect(onDuplicate).toHaveBeenCalledWith('test-app-1');
     });
 
     it('should call onDelete when delete is clicked', async () => {
       const onDelete = jest.fn();
       renderAppCard({ onDelete });
-      
+
       // Open dropdown
       const moreButton = screen.getByRole('button', { name: '' });
       fireEvent.click(moreButton);
-      
+
       // Click delete option
       await waitFor(() => {
         const deleteButton = screen.getByText('删除');
         fireEvent.click(deleteButton);
       });
-      
+
       expect(onDelete).toHaveBeenCalledWith('test-app-1');
     });
   });
@@ -295,7 +297,7 @@ describe('AppCard', () => {
         compact: true,
         showDescription: true,
       });
-      
+
       expect(screen.queryByText('This description should be hidden')).not.toBeInTheDocument();
     });
 
@@ -304,7 +306,7 @@ describe('AppCard', () => {
         app: createMockApp({ tags: ['hidden-tag'] }),
         compact: true,
       });
-      
+
       expect(screen.queryByText('hidden-tag')).not.toBeInTheDocument();
     });
   });
@@ -314,7 +316,7 @@ describe('AppCard', () => {
       renderAppCard({
         app: createMockApp({ lastModified: Date.now() - 30000 }), // 30 seconds ago
       });
-      
+
       expect(screen.getByText('刚刚')).toBeInTheDocument();
     });
 
@@ -322,7 +324,7 @@ describe('AppCard', () => {
       renderAppCard({
         app: createMockApp({ lastModified: Date.now() - 300000 }), // 5 minutes ago
       });
-      
+
       expect(screen.getByText('5分钟前')).toBeInTheDocument();
     });
 
@@ -330,7 +332,7 @@ describe('AppCard', () => {
       renderAppCard({
         app: createMockApp({ lastModified: Date.now() - 7200000 }), // 2 hours ago
       });
-      
+
       expect(screen.getByText('2小时前')).toBeInTheDocument();
     });
 
@@ -338,7 +340,7 @@ describe('AppCard', () => {
       renderAppCard({
         app: createMockApp({ lastModified: Date.now() - 172800000 }), // 2 days ago
       });
-      
+
       expect(screen.getByText('2天前')).toBeInTheDocument();
     });
   });

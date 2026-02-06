@@ -63,22 +63,50 @@ export function AcademicChatPanel({
   className,
 }: AcademicChatPanelProps) {
   const t = useTranslations('academic.chatPanel');
-  const { 
-    searchPapers, 
-    analyzePaperWithAI, 
-    isAnalyzing, 
+  const {
+    searchPapers,
+    analyzePaperWithAI,
+    isAnalyzing,
     addToLibrary,
     generatePresentationFromPaper,
     isGeneratingPPT,
   } = useAcademic();
 
-  const quickActions = useMemo(() => [
-    { id: 'search', label: t('actions.search'), icon: QUICK_ACTION_ICONS.search, prompt: t('prompts.search') },
-    { id: 'summarize', label: t('actions.summarize'), icon: QUICK_ACTION_ICONS.summarize, prompt: t('prompts.summarize') },
-    { id: 'compare', label: t('actions.compare'), icon: QUICK_ACTION_ICONS.compare, prompt: t('prompts.compare') },
-    { id: 'explain', label: t('actions.explain'), icon: QUICK_ACTION_ICONS.explain, prompt: t('prompts.explain') },
-    { id: 'ppt', label: t('actions.generatePPT'), icon: QUICK_ACTION_ICONS.ppt, prompt: t('prompts.generatePPT') },
-  ], [t]);
+  const quickActions = useMemo(
+    () => [
+      {
+        id: 'search',
+        label: t('actions.search'),
+        icon: QUICK_ACTION_ICONS.search,
+        prompt: t('prompts.search'),
+      },
+      {
+        id: 'summarize',
+        label: t('actions.summarize'),
+        icon: QUICK_ACTION_ICONS.summarize,
+        prompt: t('prompts.summarize'),
+      },
+      {
+        id: 'compare',
+        label: t('actions.compare'),
+        icon: QUICK_ACTION_ICONS.compare,
+        prompt: t('prompts.compare'),
+      },
+      {
+        id: 'explain',
+        label: t('actions.explain'),
+        icon: QUICK_ACTION_ICONS.explain,
+        prompt: t('prompts.explain'),
+      },
+      {
+        id: 'ppt',
+        label: t('actions.generatePPT'),
+        icon: QUICK_ACTION_ICONS.ppt,
+        prompt: t('prompts.generatePPT'),
+      },
+    ],
+    [t]
+  );
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState(initialQuery || '');
@@ -223,7 +251,7 @@ export function AcademicChatPanel({
       }
 
       setIsLoading(true);
-      addMessage('user', `Generate presentation from: ${papers.map(p => p.title).join(', ')}`);
+      addMessage('user', `Generate presentation from: ${papers.map((p) => p.title).join(', ')}`);
 
       try {
         const result = await generatePresentationFromPaper(papers, {
@@ -237,13 +265,16 @@ export function AcademicChatPanel({
           addMessage(
             'assistant',
             `✅ Successfully generated presentation: **${result.presentation.title}**\n\n` +
-            `- ${result.presentation.totalSlides} slides created\n` +
-            `- Style: Academic\n` +
-            `- Includes speaker notes\n\n` +
-            `You can now view and edit the presentation in the PPT editor.`
+              `- ${result.presentation.totalSlides} slides created\n` +
+              `- Style: Academic\n` +
+              `- Includes speaker notes\n\n` +
+              `You can now view and edit the presentation in the PPT editor.`
           );
         } else {
-          addMessage('assistant', `Failed to generate presentation: ${result.error || 'Unknown error'}`);
+          addMessage(
+            'assistant',
+            `Failed to generate presentation: ${result.error || 'Unknown error'}`
+          );
         }
       } catch (error) {
         addMessage(
@@ -257,14 +288,22 @@ export function AcademicChatPanel({
     [generatePresentationFromPaper, addMessage]
   );
 
-  const handleQuickAction = useCallback((action: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; prompt: string }) => {
-    if (action.id === 'ppt') {
-      handleGeneratePPT(selectedPapers);
-      return;
-    }
-    setInput(action.prompt);
-    inputRef.current?.focus();
-  }, [handleGeneratePPT, selectedPapers]);
+  const handleQuickAction = useCallback(
+    (action: {
+      id: string;
+      label: string;
+      icon: React.ComponentType<{ className?: string }>;
+      prompt: string;
+    }) => {
+      if (action.id === 'ppt') {
+        handleGeneratePPT(selectedPapers);
+        return;
+      }
+      setInput(action.prompt);
+      inputRef.current?.focus();
+    },
+    [handleGeneratePPT, selectedPapers]
+  );
 
   const handleSuggestedQuery = useCallback(
     (query: string) => {
@@ -395,8 +434,8 @@ export function AcademicChatPanel({
 
                 {message.papers && message.papers.length > 0 && (
                   <div className="mt-4 space-y-3">
-                    {(expandedMessageIds.has(message.id) 
-                      ? message.papers 
+                    {(expandedMessageIds.has(message.id)
+                      ? message.papers
                       : message.papers.slice(0, 5)
                     ).map((paper, idx) => (
                       <AcademicPaperCard
@@ -415,7 +454,7 @@ export function AcademicChatPanel({
                         size="sm"
                         className="w-full"
                         onClick={() => {
-                          setExpandedMessageIds(prev => {
+                          setExpandedMessageIds((prev) => {
                             const next = new Set(prev);
                             if (next.has(message.id)) {
                               next.delete(message.id);
@@ -426,8 +465,8 @@ export function AcademicChatPanel({
                           });
                         }}
                       >
-                        {expandedMessageIds.has(message.id) 
-                          ? t('showLess') 
+                        {expandedMessageIds.has(message.id)
+                          ? t('showLess')
                           : t('showMore', { count: message.papers.length - 5 })}
                       </Button>
                     )}
@@ -453,7 +492,9 @@ export function AcademicChatPanel({
               variant="ghost"
               className="w-full flex items-center justify-between px-4 py-2 h-auto"
             >
-              <span className="text-sm font-medium">{t('selectedPapers')} ({selectedPapers.length})</span>
+              <span className="text-sm font-medium">
+                {t('selectedPapers')} ({selectedPapers.length})
+              </span>
               <ChevronUp className="h-4 w-4" />
             </Button>
           </CollapsibleTrigger>

@@ -29,12 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Paper } from '@/types/learning/academic';
 import {
@@ -60,10 +55,10 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
 
   const loadCitationNetwork = useCallback(async () => {
     if (!paper) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await buildCitationNetwork(paper, {
         maxCitations: 100,
@@ -81,16 +76,14 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
     loadCitationNetwork();
   }, [loadCitationNetwork]);
 
-  const filteredCitations = network?.citations.filter(
-    c => !showInfluentialOnly || c.isInfluential
-  ) || [];
-  
-  const filteredReferences = network?.references.filter(
-    r => !showInfluentialOnly || r.isInfluential
-  ) || [];
+  const filteredCitations =
+    network?.citations.filter((c) => !showInfluentialOnly || c.isInfluential) || [];
+
+  const filteredReferences =
+    network?.references.filter((r) => !showInfluentialOnly || r.isInfluential) || [];
 
   const toggleNodeExpansion = (nodeId: string) => {
-    setExpandedNodes(prev => {
+    setExpandedNodes((prev) => {
       const next = new Set(prev);
       if (next.has(nodeId)) {
         next.delete(nodeId);
@@ -103,10 +96,10 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
 
   const renderCitationNode = (node: CitationNode, _type: 'citation' | 'reference') => {
     const isExpanded = expandedNodes.has(node.paperId);
-    
+
     return (
-      <Card 
-        key={node.paperId} 
+      <Card
+        key={node.paperId}
         className={cn(
           'transition-all hover:shadow-md cursor-pointer',
           node.isInfluential && 'border-l-4 border-l-yellow-500'
@@ -115,7 +108,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
         <CardHeader className="py-3 px-4">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <CardTitle 
+              <CardTitle
                 className="text-sm font-medium line-clamp-2 hover:text-primary cursor-pointer"
                 onClick={() => onPaperClick?.(node.paperId, node.title)}
               >
@@ -134,7 +127,10 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 text-xs">
+                      <Badge
+                        variant="secondary"
+                        className="bg-yellow-500/10 text-yellow-600 text-xs"
+                      >
                         ★
                       </Badge>
                     </TooltipTrigger>
@@ -160,13 +156,11 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
             </div>
           </div>
         </CardHeader>
-        
+
         {isExpanded && (
           <CardContent className="pt-0 pb-3 px-4 space-y-2">
             {node.abstract && (
-              <p className="text-xs text-muted-foreground line-clamp-3">
-                {node.abstract}
-              </p>
+              <p className="text-xs text-muted-foreground line-clamp-3">{node.abstract}</p>
             )}
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               {node.year && (
@@ -181,9 +175,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
                   {node.citationCount.toLocaleString()} {t('citations')}
                 </span>
               )}
-              {node.venue && (
-                <span className="truncate max-w-[150px]">{node.venue}</span>
-              )}
+              {node.venue && <span className="truncate max-w-[150px]">{node.venue}</span>}
             </div>
             <div className="flex gap-2 pt-1">
               <Button
@@ -199,7 +191,9 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
                 variant="outline"
                 size="sm"
                 className="h-7 text-xs"
-                onClick={() => window.open(`https://www.semanticscholar.org/paper/${node.paperId}`, '_blank')}
+                onClick={() =>
+                  window.open(`https://www.semanticscholar.org/paper/${node.paperId}`, '_blank')
+                }
               >
                 <ExternalLink className="h-3 w-3 mr-1" />
                 {t('semanticScholar')}
@@ -219,7 +213,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
           <span className="text-sm">{t('loading')}</span>
         </div>
         <div className="space-y-3">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
@@ -245,9 +239,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
       <div className={cn('text-center py-8', className)}>
         <Network className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
         <p className="text-muted-foreground">{t('emptyState')}</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t('emptyStateHint')}
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">{t('emptyStateHint')}</p>
       </div>
     );
   }
@@ -306,13 +298,11 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
           <ScrollArea className="h-[400px]">
             {filteredCitations.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                {showInfluentialOnly 
-                  ? t('noCitations')
-                  : t('noCitations')}
+                {showInfluentialOnly ? t('noCitations') : t('noCitations')}
               </div>
             ) : (
               <div className="space-y-3 pr-4">
-                {filteredCitations.map(node => renderCitationNode(node, 'citation'))}
+                {filteredCitations.map((node) => renderCitationNode(node, 'citation'))}
               </div>
             )}
           </ScrollArea>
@@ -322,13 +312,11 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
           <ScrollArea className="h-[400px]">
             {filteredReferences.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                {showInfluentialOnly 
-                  ? t('noReferences')
-                  : t('noReferences')}
+                {showInfluentialOnly ? t('noReferences') : t('noReferences')}
               </div>
             ) : (
               <div className="space-y-3 pr-4">
-                {filteredReferences.map(node => renderCitationNode(node, 'reference'))}
+                {filteredReferences.map((node) => renderCitationNode(node, 'reference'))}
               </div>
             )}
           </ScrollArea>

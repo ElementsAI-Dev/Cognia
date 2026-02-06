@@ -39,8 +39,20 @@ const mockHandlers = {
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} className={className} data-testid={className?.includes('h-9') ? 'touch-target-button' : ''} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    className,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button
+      onClick={onClick}
+      className={className}
+      data-testid={className?.includes('h-9') ? 'touch-target-button' : ''}
+      {...props}
+    >
+      {children}
+    </button>
   ),
 }));
 
@@ -51,22 +63,36 @@ jest.mock('@/components/ui/scroll-area', () => ({
 
 const mockTabsOnValueChange = { current: null as ((v: string) => void) | null };
 jest.mock('@/components/ui/tabs', () => ({
-  Tabs: ({ children, value, onValueChange }: { children: React.ReactNode; value: string; onValueChange: (v: string) => void }) => {
+  Tabs: ({
+    children,
+    value,
+    onValueChange,
+  }: {
+    children: React.ReactNode;
+    value: string;
+    onValueChange: (v: string) => void;
+  }) => {
     mockTabsOnValueChange.current = onValueChange;
     return <div data-value={value}>{children}</div>;
   },
   TabsList: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   TabsTrigger: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <button data-value={value} onClick={() => mockTabsOnValueChange.current?.(value)}>{children}</button>
+    <button data-value={value} onClick={() => mockTabsOnValueChange.current?.(value)}>
+      {children}
+    </button>
   ),
 }));
 
 jest.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
-    <button onClick={onClick}>{children}</button>
-  ),
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => <button onClick={onClick}>{children}</button>,
   DropdownMenuSeparator: () => <hr />,
   DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
@@ -78,11 +104,12 @@ jest.mock('@/components/ui/tooltip', () => ({
 }));
 
 jest.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    open ? <div data-testid="dialog">{children}</div> : null
-  ),
+  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
+    open ? <div data-testid="dialog">{children}</div> : null,
   DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dialog-content" data-className={className}>{children}</div>
+    <div data-testid="dialog-content" data-className={className}>
+      {children}
+    </div>
   ),
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
@@ -112,11 +139,7 @@ describe('CanvasDocumentTabs', () => {
 
   it('renders null when documents array is empty', () => {
     const { container } = render(
-      <CanvasDocumentTabs
-        documents={[]}
-        activeDocumentId={null}
-        {...mockHandlers}
-      />
+      <CanvasDocumentTabs documents={[]} activeDocumentId={null} {...mockHandlers} />
     );
     expect(container.firstChild).toBe(null);
   });
@@ -134,11 +157,7 @@ describe('CanvasDocumentTabs', () => {
 
   it('renders tabs when multiple documents exist', () => {
     render(
-      <CanvasDocumentTabs
-        documents={mockDocuments}
-        activeDocumentId="doc-1"
-        {...mockHandlers}
-      />
+      <CanvasDocumentTabs documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
     );
     expect(screen.getByText('Document 1')).toBeInTheDocument();
     expect(screen.getByText('Document 2')).toBeInTheDocument();
@@ -146,11 +165,7 @@ describe('CanvasDocumentTabs', () => {
 
   it('calls onSelectDocument when clicking a tab', () => {
     render(
-      <CanvasDocumentTabs
-        documents={mockDocuments}
-        activeDocumentId="doc-1"
-        {...mockHandlers}
-      />
+      <CanvasDocumentTabs documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
     );
     const tab2Button = screen.getByText('Document 2').closest('button');
     expect(tab2Button).toBeInTheDocument();
@@ -162,11 +177,7 @@ describe('CanvasDocumentTabs', () => {
 
   it('calls onCreateDocument when clicking add button', () => {
     render(
-      <CanvasDocumentTabs
-        documents={mockDocuments}
-        activeDocumentId="doc-1"
-        {...mockHandlers}
-      />
+      <CanvasDocumentTabs documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
     );
     // The add button has h-9 w-9 shrink-0 classes, find by checking for Plus icon content
     const touchTargetButtons = screen.getAllByTestId('touch-target-button');
@@ -179,15 +190,11 @@ describe('CanvasDocumentTabs', () => {
   describe('Responsive Layout', () => {
     it('applies mobile-first width to dialogs', () => {
       render(
-        <CanvasDocumentTabs
-          documents={mockDocuments}
-          activeDocumentId="doc-1"
-          {...mockHandlers}
-        />
+        <CanvasDocumentTabs documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
       );
       // Trigger rename dialog to render
       const moreButtons = screen.getAllByRole('button');
-      const renameButton = moreButtons.find(btn => btn.textContent === '⋯');
+      const renameButton = moreButtons.find((btn) => btn.textContent === '⋯');
       if (renameButton) fireEvent.click(renameButton);
 
       const dialogContent = screen.queryByTestId('dialog-content');
@@ -202,11 +209,7 @@ describe('CanvasDocumentTabs', () => {
   describe('Touch Target Accessibility', () => {
     it('renders icon buttons with minimum touch target size (h-9 w-9)', () => {
       render(
-        <CanvasDocumentTabs
-          documents={mockDocuments}
-          activeDocumentId="doc-1"
-          {...mockHandlers}
-        />
+        <CanvasDocumentTabs documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
       );
       // Find buttons with h-9 w-9 className (touch target buttons)
       const touchTargetButtons = screen.getAllByTestId('touch-target-button');
@@ -215,11 +218,7 @@ describe('CanvasDocumentTabs', () => {
 
     it('renders add button with proper touch target size', () => {
       render(
-        <CanvasDocumentTabs
-          documents={mockDocuments}
-          activeDocumentId="doc-1"
-          {...mockHandlers}
-        />
+        <CanvasDocumentTabs documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
       );
       // Find all touch target buttons - the add button is among them with h-9 w-9 shrink-0
       const touchTargetButtons = screen.getAllByTestId('touch-target-button');
@@ -233,11 +232,7 @@ describe('CanvasDocumentTabs', () => {
   describe('Tab Title Responsive Width', () => {
     it('applies responsive max-width to tab titles', () => {
       render(
-        <CanvasDocumentTabs
-          documents={mockDocuments}
-          activeDocumentId="doc-1"
-          {...mockHandlers}
-        />
+        <CanvasDocumentTabs documents={mockDocuments} activeDocumentId="doc-1" {...mockHandlers} />
       );
       const titleElement = screen.getByText('Document 1');
       expect(titleElement).toHaveClass('max-w-[80px]');

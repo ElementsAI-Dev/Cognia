@@ -6,13 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Download,
-  Loader2,
-  FileArchive,
-  Check,
-  X,
-} from 'lucide-react';
+import { Download, Loader2, FileArchive, Check, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -168,19 +162,14 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
-          <DialogDescription>
-            {t('description')}
-          </DialogDescription>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Format Selection */}
           <div className="space-y-2">
             <Label>{t('exportFormat')}</Label>
-            <Select
-              value={format}
-              onValueChange={(v) => setFormat(v as BatchExportFormat)}
-            >
+            <Select value={format} onValueChange={(v) => setFormat(v as BatchExportFormat)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -197,7 +186,9 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
           {/* Session Selection */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>{t('selectSessions', { selected: selectedIds.size, total: sessions.length })}</Label>
+              <Label>
+                {t('selectSessions', { selected: selectedIds.size, total: sessions.length })}
+              </Label>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={selectAll}>
                   <Check className="h-3 w-3 mr-1" />
@@ -250,10 +241,7 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
           <Button variant="outline" onClick={() => setOpen(false)}>
             {t('cancel')}
           </Button>
-          <Button
-            onClick={handleExport}
-            disabled={isExporting || selectedIds.size === 0}
-          >
+          <Button onClick={handleExport} disabled={isExporting || selectedIds.size === 0}>
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

@@ -7,16 +7,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Shield,
-  Plus,
-  X,
-  Save,
-  RotateCcw,
-  Loader2,
-  AlertTriangle,
-  Check,
-} from 'lucide-react';
+import { Shield, Plus, X, Save, RotateCcw, Loader2, AlertTriangle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,17 +15,8 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useProcessManager } from '@/hooks/agent/use-process-manager';
 import { DEFAULT_PROCESS_CONFIG } from '@/stores/agent/process-store';
@@ -46,13 +28,7 @@ interface ProcessSettingsPanelProps {
 
 export function ProcessSettingsPanel({ className }: ProcessSettingsPanelProps) {
   const t = useTranslations('processSettings');
-  const {
-    config,
-    configLoading,
-    isAvailable,
-    refreshConfig,
-    updateConfig,
-  } = useProcessManager();
+  const { config, configLoading, isAvailable, refreshConfig, updateConfig } = useProcessManager();
 
   // Local state for editing
   const [localConfig, setLocalConfig] = useState<ProcessManagerConfig>(config);
@@ -90,7 +66,7 @@ export function ProcessSettingsPanel({ className }: ProcessSettingsPanelProps) {
 
   // Update local config helper
   const updateLocalConfig = useCallback((updates: Partial<ProcessManagerConfig>) => {
-    setLocalConfig(prev => ({ ...prev, ...updates }));
+    setLocalConfig((prev) => ({ ...prev, ...updates }));
     setSaveSuccess(false);
   }, []);
 
@@ -106,11 +82,14 @@ export function ProcessSettingsPanel({ className }: ProcessSettingsPanelProps) {
   }, [newAllowedProgram, localConfig.allowedPrograms, updateLocalConfig]);
 
   // Remove program from allowlist
-  const removeAllowedProgram = useCallback((program: string) => {
-    updateLocalConfig({
-      allowedPrograms: localConfig.allowedPrograms.filter(p => p !== program),
-    });
-  }, [localConfig.allowedPrograms, updateLocalConfig]);
+  const removeAllowedProgram = useCallback(
+    (program: string) => {
+      updateLocalConfig({
+        allowedPrograms: localConfig.allowedPrograms.filter((p) => p !== program),
+      });
+    },
+    [localConfig.allowedPrograms, updateLocalConfig]
+  );
 
   // Add program to denylist
   const addDeniedProgram = useCallback(() => {
@@ -124,11 +103,14 @@ export function ProcessSettingsPanel({ className }: ProcessSettingsPanelProps) {
   }, [newDeniedProgram, localConfig.deniedPrograms, updateLocalConfig]);
 
   // Remove program from denylist
-  const removeDeniedProgram = useCallback((program: string) => {
-    updateLocalConfig({
-      deniedPrograms: localConfig.deniedPrograms.filter(p => p !== program),
-    });
-  }, [localConfig.deniedPrograms, updateLocalConfig]);
+  const removeDeniedProgram = useCallback(
+    (program: string) => {
+      updateLocalConfig({
+        deniedPrograms: localConfig.deniedPrograms.filter((p) => p !== program),
+      });
+    },
+    [localConfig.deniedPrograms, updateLocalConfig]
+  );
 
   // Save configuration
   const handleSave = useCallback(async () => {
@@ -178,7 +160,8 @@ export function ProcessSettingsPanel({ className }: ProcessSettingsPanelProps) {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>{t('disabledWarning') || 'Process Management Disabled'}</AlertTitle>
             <AlertDescription>
-              {t('disabledWarningDesc') || 'Process tools will not be available to the AI assistant.'}
+              {t('disabledWarningDesc') ||
+                'Process tools will not be available to the AI assistant.'}
             </AlertDescription>
           </Alert>
         )}
@@ -192,7 +175,8 @@ export function ProcessSettingsPanel({ className }: ProcessSettingsPanelProps) {
               {t('allowedPrograms') || 'Allowed Programs'}
             </Label>
             <p className="text-xs text-muted-foreground">
-              {t('allowedProgramsDesc') || 'Programs that can be started (empty = all allowed except denied)'}
+              {t('allowedProgramsDesc') ||
+                'Programs that can be started (empty = all allowed except denied)'}
             </p>
           </div>
 
@@ -307,7 +291,8 @@ export function ProcessSettingsPanel({ className }: ProcessSettingsPanelProps) {
             <div className="space-y-0.5">
               <Label>{t('onlyTerminateOwn') || 'Only Terminate Own Processes'}</Label>
               <p className="text-xs text-muted-foreground">
-                {t('onlyTerminateOwnDesc') || 'Only allow terminating processes started by this app'}
+                {t('onlyTerminateOwnDesc') ||
+                  'Only allow terminating processes started by this app'}
               </p>
             </div>
             <Switch
@@ -335,10 +320,7 @@ export function ProcessSettingsPanel({ className }: ProcessSettingsPanelProps) {
             </Tooltip>
           </TooltipProvider>
 
-          <Button
-            onClick={handleSave}
-            disabled={!hasChanges || configLoading}
-          >
+          <Button onClick={handleSave} disabled={!hasChanges || configLoading}>
             {configLoading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : saveSuccess ? (
@@ -346,7 +328,7 @@ export function ProcessSettingsPanel({ className }: ProcessSettingsPanelProps) {
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            {saveSuccess ? (t('saved') || 'Saved!') : (t('save') || 'Save')}
+            {saveSuccess ? t('saved') || 'Saved!' : t('save') || 'Save'}
           </Button>
         </div>
       </div>

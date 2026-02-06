@@ -28,9 +28,7 @@ jest.mock('next-intl', () => ({
 
 // Mock useBackgroundAgent hook
 const mockOpenPanel = jest.fn();
-const mockRunningAgents = [
-  { id: '1', name: 'Agent 1', progress: 50, status: 'running' },
-];
+const mockRunningAgents = [{ id: '1', name: 'Agent 1', progress: 50, status: 'running' }];
 const mockCompletedAgents = [
   { id: '2', name: 'Agent 2', progress: 100, status: 'completed', completedAt: new Date() },
 ];
@@ -105,12 +103,12 @@ describe('BackgroundAgentIndicator - Popover', () => {
     await act(async () => {
       render(<BackgroundAgentIndicator />);
     });
-    
+
     const button = screen.getByRole('button');
     await act(async () => {
       fireEvent.click(button);
     });
-    
+
     // Popover content should be visible
     expect(screen.getByText('Background Agents')).toBeInTheDocument();
   });
@@ -119,12 +117,12 @@ describe('BackgroundAgentIndicator - Popover', () => {
     await act(async () => {
       render(<BackgroundAgentIndicator />);
     });
-    
+
     const button = screen.getByRole('button');
     await act(async () => {
       fireEvent.click(button);
     });
-    
+
     expect(screen.getByText('View All')).toBeInTheDocument();
   });
 });

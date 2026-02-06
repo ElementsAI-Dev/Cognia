@@ -46,7 +46,11 @@ describe('SubAgentNode', () => {
   });
 
   it('shows progress for running status', () => {
-    const runningAgent = { ...mockSubAgent, status: 'running', progress: 50 } as unknown as SubAgent;
+    const runningAgent = {
+      ...mockSubAgent,
+      status: 'running',
+      progress: 50,
+    } as unknown as SubAgent;
     render(<SubAgentNode subAgent={runningAgent} />);
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
@@ -66,12 +70,16 @@ describe('SubAgentNode', () => {
   });
 
   it('shows connector when not last', () => {
-    const { container } = render(<SubAgentNode subAgent={mockSubAgent} showConnector isLast={false} />);
+    const { container } = render(
+      <SubAgentNode subAgent={mockSubAgent} showConnector isLast={false} />
+    );
     expect(container.querySelector('.bg-border')).toBeInTheDocument();
   });
 
   it('hides connector when last', () => {
-    const { container } = render(<SubAgentNode subAgent={mockSubAgent} showConnector isLast={true} />);
+    const { container } = render(
+      <SubAgentNode subAgent={mockSubAgent} showConnector isLast={true} />
+    );
     expect(container.querySelector('.absolute.left-4')).not.toBeInTheDocument();
   });
 

@@ -32,29 +32,27 @@ const mockEfficiencyData = {
 describe('EfficiencyRadarChart', () => {
   it('should render the radar chart container', () => {
     render(<EfficiencyRadarChart data={mockEfficiencyData} />);
-    
+
     expect(screen.getByTestId('responsive-container')).toBeInTheDocument();
     expect(screen.getByTestId('radar-chart')).toBeInTheDocument();
   });
 
   it('should render chart title', () => {
     render(<EfficiencyRadarChart data={mockEfficiencyData} />);
-    
+
     expect(screen.getByText(/efficiency/i)).toBeInTheDocument();
   });
 
   it('should display overall score', () => {
     render(<EfficiencyRadarChart data={mockEfficiencyData} />);
-    
+
     // Score display should be present (average of all scores)
     expect(screen.getByText(/%/)).toBeInTheDocument();
   });
 
   it('should render with custom height', () => {
-    const { container } = render(
-      <EfficiencyRadarChart data={mockEfficiencyData} height={300} />
-    );
-    
+    const { container } = render(<EfficiencyRadarChart data={mockEfficiencyData} height={300} />);
+
     expect(container.firstChild).toBeInTheDocument();
   });
 
@@ -67,14 +65,14 @@ describe('EfficiencyRadarChart', () => {
       utilizationScore: 0,
     };
     render(<EfficiencyRadarChart data={zeroData} />);
-    
+
     // Should show no data message
     expect(screen.getByText(/no data/i)).toBeInTheDocument();
   });
 
   it('should render with custom title', () => {
     render(<EfficiencyRadarChart data={mockEfficiencyData} title="Custom Title" />);
-    
+
     expect(screen.getByText('Custom Title')).toBeInTheDocument();
   });
 });
@@ -88,9 +86,9 @@ describe('calculateEfficiencyScores', () => {
       tokensPerDollar: 500000,
       totalRequests: 100,
     };
-    
+
     const scores = calculateEfficiencyScores(metrics);
-    
+
     expect(scores).toHaveProperty('costEfficiency');
     expect(scores).toHaveProperty('tokenEfficiency');
     expect(scores).toHaveProperty('latencyScore');
@@ -108,9 +106,9 @@ describe('calculateEfficiencyScores', () => {
       tokensPerDollar: 0,
       totalRequests: 0,
     };
-    
+
     const scores = calculateEfficiencyScores(zeroMetrics);
-    
+
     expect(scores.errorScore).toBe(100); // 0 error rate = 100% score
     expect(scores.latencyScore).toBe(100); // 0 latency = 100% score
   });
@@ -123,9 +121,9 @@ describe('calculateEfficiencyScores', () => {
       tokensPerDollar: 10000,
       totalRequests: 50,
     };
-    
+
     const scores = calculateEfficiencyScores(expensiveMetrics);
-    
+
     expect(scores.costEfficiency).toBe(0); // Max cost = 0 efficiency
   });
 
@@ -137,9 +135,9 @@ describe('calculateEfficiencyScores', () => {
       tokensPerDollar: 1000000,
       totalRequests: 500,
     };
-    
+
     const scores = calculateEfficiencyScores(goodMetrics);
-    
+
     expect(scores.costEfficiency).toBeLessThanOrEqual(100);
     expect(scores.tokenEfficiency).toBeLessThanOrEqual(100);
     expect(scores.utilizationScore).toBeLessThanOrEqual(100);

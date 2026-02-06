@@ -6,16 +6,21 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { CheckCircle, Circle, Loader2, XCircle, Flag, Clock, Zap, AlertTriangle } from 'lucide-react';
+import {
+  CheckCircle,
+  Circle,
+  Loader2,
+  XCircle,
+  Flag,
+  Clock,
+  Zap,
+  AlertTriangle,
+} from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Checkpoint, CheckpointTrigger } from '@/components/ai-elements/checkpoint';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface AgentStep {
   id: string;
@@ -45,7 +50,12 @@ const priorityConfig: Record<string, { color: string; icon: React.ElementType }>
   critical: { color: 'text-red-500', icon: Zap },
 };
 
-export function AgentSteps({ steps, className, showCheckpoints = true, compactMode = false }: AgentStepsProps) {
+export function AgentSteps({
+  steps,
+  className,
+  showCheckpoints = true,
+  compactMode = false,
+}: AgentStepsProps) {
   const t = useTranslations('agent');
   const completedSteps = steps.filter((s) => s.status === 'completed').length;
   const errorSteps = steps.filter((s) => s.status === 'error').length;
@@ -96,13 +106,14 @@ export function AgentSteps({ steps, className, showCheckpoints = true, compactMo
         <div className="relative">
           <Progress value={progress} className="h-2 bg-muted/50" />
           {/* Checkpoint markers on progress bar */}
-          {showCheckpoints && checkpointIndices.map((idx) => (
-            <div
-              key={idx}
-              className="absolute top-1/2 -translate-y-1/2 w-1 h-3 bg-primary rounded-full"
-              style={{ left: `${((idx + 1) / steps.length) * 100}%` }}
-            />
-          ))}
+          {showCheckpoints &&
+            checkpointIndices.map((idx) => (
+              <div
+                key={idx}
+                className="absolute top-1/2 -translate-y-1/2 w-1 h-3 bg-primary rounded-full"
+                style={{ left: `${((idx + 1) / steps.length) * 100}%` }}
+              />
+            ))}
         </div>
       </div>
 
@@ -110,7 +121,7 @@ export function AgentSteps({ steps, className, showCheckpoints = true, compactMo
       <div className="space-y-2">
         {steps.map((step, index) => {
           const isAfterCheckpoint = checkpointIndices.includes(index - 1);
-          
+
           return (
             <div key={step.id}>
               {/* Checkpoint separator */}
@@ -118,14 +129,16 @@ export function AgentSteps({ steps, className, showCheckpoints = true, compactMo
                 <Checkpoint className="my-3">
                   <CheckpointTrigger>
                     <Flag className="h-3.5 w-3.5 mr-1" />
-                    <span>{step.checkpointLabel || `Checkpoint ${checkpointIndices.indexOf(index) + 1}`}</span>
+                    <span>
+                      {step.checkpointLabel || `Checkpoint ${checkpointIndices.indexOf(index) + 1}`}
+                    </span>
                   </CheckpointTrigger>
                 </Checkpoint>
               )}
-              
-              <StepItem 
-                step={step} 
-                index={index} 
+
+              <StepItem
+                step={step}
+                index={index}
                 compact={compactMode}
                 highlighted={isAfterCheckpoint}
               />
@@ -152,9 +165,10 @@ function StepItem({ step, index, compact = false, highlighted = false }: StepIte
     error: <XCircle className="h-4 w-4 text-destructive" />,
   };
 
-  const duration = step.completedAt && step.startedAt
-    ? ((step.completedAt.getTime() - step.startedAt.getTime()) / 1000).toFixed(1)
-    : null;
+  const duration =
+    step.completedAt && step.startedAt
+      ? ((step.completedAt.getTime() - step.startedAt.getTime()) / 1000).toFixed(1)
+      : null;
 
   const priorityCfg = step.priority ? priorityConfig[step.priority] : null;
 
@@ -172,9 +186,7 @@ function StepItem({ step, index, compact = false, highlighted = false }: StepIte
       >
         {statusIcons[step.status]}
         <span className="text-sm truncate flex-1">{step.name}</span>
-        {duration && (
-          <span className="text-[10px] text-muted-foreground">{duration}s</span>
-        )}
+        {duration && <span className="text-[10px] text-muted-foreground">{duration}s</span>}
       </div>
     );
   }
@@ -192,18 +204,22 @@ function StepItem({ step, index, compact = false, highlighted = false }: StepIte
       )}
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      <div className={cn(
-        'mt-0.5 flex h-6 w-6 items-center justify-center rounded-lg',
-        step.status === 'running' && 'bg-primary/10',
-        step.status === 'completed' && 'bg-green-500/10',
-        step.status === 'error' && 'bg-destructive/10',
-        step.status === 'pending' && 'bg-muted'
-      )}>
+      <div
+        className={cn(
+          'mt-0.5 flex h-6 w-6 items-center justify-center rounded-lg',
+          step.status === 'running' && 'bg-primary/10',
+          step.status === 'completed' && 'bg-green-500/10',
+          step.status === 'error' && 'bg-destructive/10',
+          step.status === 'pending' && 'bg-muted'
+        )}
+      >
         {statusIcons[step.status]}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">Step {index + 1}</span>
+          <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+            Step {index + 1}
+          </span>
           <span className="font-medium truncate">{step.name}</span>
           {step.isCheckpoint && (
             <Tooltip>
@@ -235,11 +251,7 @@ function StepItem({ step, index, compact = false, highlighted = false }: StepIte
             ✓ Completed in {duration}s
           </p>
         )}
-        {step.status === 'error' && (
-          <p className="mt-1 text-xs text-destructive">
-            ✗ Step failed
-          </p>
-        )}
+        {step.status === 'error' && <p className="mt-1 text-xs text-destructive">✗ Step failed</p>}
       </div>
     </div>
   );

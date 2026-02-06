@@ -2,12 +2,12 @@
 
 /**
  * Artifact Renderers - Specialized renderers for different artifact types
- * 
+ *
  * This module provides a unified interface for artifact rendering by:
  * 1. Re-exporting feature-rich renderers from chat/renderers for consistency
  * 2. Providing ChartRenderer (unique to artifacts, not in chat/renderers)
  * 3. Maintaining backward-compatible API through wrapper components
- * 
+ *
  * Supports: Mermaid diagrams, Charts (Recharts), Math (KaTeX), Markdown, Code
  */
 
@@ -70,12 +70,26 @@ interface ChartDataPoint {
   [key: string]: string | number;
 }
 
-const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00C49F', '#FFBB28', '#FF8042'];
+const COLORS = [
+  '#8884d8',
+  '#82ca9d',
+  '#ffc658',
+  '#ff7300',
+  '#0088fe',
+  '#00C49F',
+  '#FFBB28',
+  '#FF8042',
+];
 
 /**
  * Chart Renderer using Recharts
  */
-export function ChartRenderer({ content, chartType = 'line', chartData, className }: ChartRendererProps) {
+export function ChartRenderer({
+  content,
+  chartType = 'line',
+  chartData,
+  className,
+}: ChartRendererProps) {
   const t = useTranslations('renderer');
   const [data, setData] = useState<ChartDataPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -92,11 +106,11 @@ export function ChartRenderer({ content, chartType = 'line', chartData, classNam
       } else {
         // Try to parse content as JSON
         const parsed = JSON.parse(content);
-        
+
         if (parsed.type) {
           setDetectedType(parsed.type);
         }
-        
+
         if (Array.isArray(parsed)) {
           setData(parsed);
         } else if (parsed.data && Array.isArray(parsed.data)) {
@@ -130,7 +144,7 @@ export function ChartRenderer({ content, chartType = 'line', chartData, classNam
 
   // Get all numeric keys for multi-series charts
   const numericKeys = Object.keys(data[0] || {}).filter(
-    key => key !== 'name' && typeof data[0][key] === 'number'
+    (key) => key !== 'name' && typeof data[0][key] === 'number'
   );
 
   const renderChart = () => {
@@ -277,7 +291,14 @@ export function ArtifactRenderer({
     case 'mermaid':
       return <MermaidBlock content={content} className={className} />;
     case 'chart':
-      return <ChartRenderer content={content} chartType={chartType} chartData={chartData} className={className} />;
+      return (
+        <ChartRenderer
+          content={content}
+          chartType={chartType}
+          chartData={chartData}
+          className={className}
+        />
+      );
     case 'math':
       return <MathBlock content={content} className={className} />;
     case 'document':

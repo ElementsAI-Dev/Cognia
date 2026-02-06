@@ -88,18 +88,14 @@ export function NativeToolSidebar({
                     isActive && 'text-primary'
                   )}
                 />
-                {!collapsed && (
-                  <span className="truncate">{label}</span>
-                )}
+                {!collapsed && <span className="truncate">{label}</span>}
               </Button>
             );
 
             if (collapsed) {
               return (
                 <Tooltip key={tool.id} delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    {buttonContent}
-                  </TooltipTrigger>
+                  <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
                   <TooltipContent side="right" className="font-medium">
                     {label}
                   </TooltipContent>
@@ -111,7 +107,6 @@ export function NativeToolSidebar({
           })}
         </nav>
       </ScrollArea>
-
     </aside>
   );
 }

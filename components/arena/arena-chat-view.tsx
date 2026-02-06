@@ -7,15 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Scale,
-  Trophy,
-  Grid3X3,
-  History,
-  Zap,
-  Plus,
-  ChevronRight,
-} from 'lucide-react';
+import { Scale, Trophy, Grid3X3, History, Zap, Plus, ChevronRight } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +47,10 @@ export function ArenaChatView({
   const setActiveBattle = useArenaStore((state) => state.setActiveBattle);
 
   const activeBattles = battles.filter(
-    (b) => !b.winnerId && !b.isTie && b.contestants.some((c) => c.status === 'streaming' || c.status === 'pending')
+    (b) =>
+      !b.winnerId &&
+      !b.isTie &&
+      b.contestants.some((c) => c.status === 'streaming' || c.status === 'pending')
   );
   const recentBattles = battles.slice(0, 5);
   const completedBattles = battles.filter((b) => b.winnerId || b.isTie);
@@ -214,7 +209,9 @@ export function ArenaChatView({
                   <Card className="py-3">
                     <CardContent className="p-0 px-3">
                       <div className="text-2xl font-bold">{battles.length}</div>
-                      <div className="text-xs text-muted-foreground">{t('history.totalBattles')}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {t('history.totalBattles')}
+                      </div>
                     </CardContent>
                   </Card>
                   <Card className="py-3">

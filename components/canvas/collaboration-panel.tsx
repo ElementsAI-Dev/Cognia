@@ -6,33 +6,14 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Users,
-  Share2,
-  Check,
-  Link2,
-  UserPlus,
-  Wifi,
-  WifiOff,
-  Circle,
-} from 'lucide-react';
+import { Users, Share2, Check, Link2, UserPlus, Wifi, WifiOff, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useCollaborativeSession } from '@/hooks/canvas';
@@ -191,11 +172,7 @@ export function CollaborationPanel({
               <div className="flex gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={handleCopyShareLink}
-                    >
+                    <Button variant="outline" className="flex-1" onClick={handleCopyShareLink}>
                       {copied ? (
                         <Check className="h-4 w-4 mr-2 text-green-500" />
                       ) : (
@@ -229,10 +206,7 @@ export function CollaborationPanel({
                   </p>
                 ) : (
                   participants.map((participant) => (
-                    <ParticipantItem
-                      key={participant.id}
-                      participant={participant}
-                    />
+                    <ParticipantItem key={participant.id} participant={participant} />
                   ))
                 )}
               </div>

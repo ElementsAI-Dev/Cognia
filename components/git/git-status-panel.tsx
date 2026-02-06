@@ -74,7 +74,9 @@ export function GitStatusPanel({
     }
   }, [isInstalled, repoPath, refreshStatus]);
 
-  const statusColor = currentRepo ? getGitStatusColor(currentRepo.status as Parameters<typeof getGitStatusColor>[0]) : 'gray';
+  const statusColor = currentRepo
+    ? getGitStatusColor(currentRepo.status as Parameters<typeof getGitStatusColor>[0])
+    : 'gray';
 
   if (compact) {
     return (
@@ -84,9 +86,7 @@ export function GitStatusPanel({
         ) : isInstalled ? (
           <>
             <Check className="h-4 w-4 text-green-500" />
-            <span className="text-sm text-muted-foreground">
-              Git {gitStatus.version || ''}
-            </span>
+            <span className="text-sm text-muted-foreground">Git {gitStatus.version || ''}</span>
             {currentRepo && (
               <Badge variant="outline" className="text-xs">
                 {currentRepo.branch || 'detached'}
@@ -131,9 +131,7 @@ export function GitStatusPanel({
                   <GitBranch className="h-5 w-5" />
                   {t('installation.title')}
                 </CardTitle>
-                <CardDescription>
-                  {t('installation.description')}
-                </CardDescription>
+                <CardDescription>{t('installation.description')}</CardDescription>
               </div>
               <Button
                 size="sm"
@@ -163,9 +161,7 @@ export function GitStatusPanel({
                   <Badge variant="secondary">{gitStatus.version}</Badge>
                 </div>
                 {gitStatus.path && (
-                  <p className="text-sm text-muted-foreground truncate">
-                    {gitStatus.path}
-                  </p>
+                  <p className="text-sm text-muted-foreground truncate">{gitStatus.path}</p>
                 )}
               </div>
             ) : (
@@ -175,11 +171,7 @@ export function GitStatusPanel({
                   <span>{t('notInstalledWarning')}</span>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={installGit}
-                    disabled={isInstallingGit}
-                  >
+                  <Button size="sm" onClick={installGit} disabled={isInstallingGit}>
                     {isInstallingGit ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -217,12 +209,7 @@ export function GitStatusPanel({
                   {currentRepo.path}
                 </CardDescription>
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={refreshStatus}
-                disabled={isOperating}
-              >
+              <Button size="sm" variant="ghost" onClick={refreshStatus} disabled={isOperating}>
                 {isOperating ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -234,10 +221,7 @@ export function GitStatusPanel({
           <CardContent className="space-y-4">
             {/* Branch and Status */}
             <div className="flex items-center gap-3">
-              <Badge
-                variant="outline"
-                className="flex items-center gap-1"
-              >
+              <Badge variant="outline" className="flex items-center gap-1">
                 <GitBranch className="h-3 w-3" />
                 {currentRepo.branch || 'detached'}
               </Badge>
@@ -247,10 +231,10 @@ export function GitStatusPanel({
                   statusColor === 'green'
                     ? 'bg-green-500'
                     : statusColor === 'yellow'
-                    ? 'bg-yellow-500'
-                    : statusColor === 'red'
-                    ? 'bg-red-500'
-                    : ''
+                      ? 'bg-yellow-500'
+                      : statusColor === 'red'
+                        ? 'bg-red-500'
+                        : ''
                 }
               >
                 {currentRepo.status}
@@ -296,10 +280,10 @@ export function GitStatusPanel({
                           file.status === 'added'
                             ? 'text-green-600 border-green-600'
                             : file.status === 'deleted'
-                            ? 'text-red-600 border-red-600'
-                            : file.status === 'modified'
-                            ? 'text-yellow-600 border-yellow-600'
-                            : ''
+                              ? 'text-red-600 border-red-600'
+                              : file.status === 'modified'
+                                ? 'text-yellow-600 border-yellow-600'
+                                : ''
                         }
                       >
                         {file.status.charAt(0).toUpperCase()}
@@ -338,7 +322,9 @@ export function GitStatusPanel({
             {/* Recent Branches */}
             {branches.length > 0 && (
               <div className="space-y-2 border-t pt-3">
-                <p className="text-sm font-medium">{t('repoStatus.branchCount', { count: branches.length })}</p>
+                <p className="text-sm font-medium">
+                  {t('repoStatus.branchCount', { count: branches.length })}
+                </p>
                 <div className="flex flex-wrap gap-1">
                   {branches.slice(0, 5).map((branch, idx) => (
                     <Badge
@@ -366,9 +352,7 @@ export function GitStatusPanel({
         <Card>
           <CardContent className="py-6 text-center">
             <GitPullRequest className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {t('notARepo')}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('notARepo')}</p>
           </CardContent>
         </Card>
       )}

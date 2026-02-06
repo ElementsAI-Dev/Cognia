@@ -23,7 +23,9 @@ jest.mock('recharts', () => ({
   Tooltip: () => <div data-testid="tooltip" />,
   Legend: () => <div data-testid="legend" />,
   defs: ({ children }: { children: React.ReactNode }) => <defs>{children}</defs>,
-  linearGradient: ({ children }: { children: React.ReactNode }) => <linearGradient>{children}</linearGradient>,
+  linearGradient: ({ children }: { children: React.ReactNode }) => (
+    <linearGradient>{children}</linearGradient>
+  ),
   stop: () => <stop />,
 }));
 
@@ -38,48 +40,46 @@ const mockTimeSeriesData: TimeSeriesDataPoint[] = [
 describe('RequestsTimelineChart', () => {
   it('should render the composed chart container', () => {
     render(<RequestsTimelineChart data={mockTimeSeriesData} />);
-    
+
     expect(screen.getByTestId('responsive-container')).toBeInTheDocument();
     expect(screen.getByTestId('composed-chart')).toBeInTheDocument();
   });
 
   it('should render chart title', () => {
     render(<RequestsTimelineChart data={mockTimeSeriesData} />);
-    
+
     expect(screen.getByText(/requests/i)).toBeInTheDocument();
   });
 
   it('should render with cost line when showCost is true', () => {
     render(<RequestsTimelineChart data={mockTimeSeriesData} showCost />);
-    
+
     expect(screen.getByTestId('line')).toBeInTheDocument();
   });
 
   it('should render with custom height', () => {
-    const { container } = render(
-      <RequestsTimelineChart data={mockTimeSeriesData} height={300} />
-    );
-    
+    const { container } = render(<RequestsTimelineChart data={mockTimeSeriesData} height={300} />);
+
     expect(container.firstChild).toBeInTheDocument();
   });
 
   it('should handle empty data', () => {
     render(<RequestsTimelineChart data={[]} />);
-    
+
     expect(screen.getByText(/no data/i)).toBeInTheDocument();
   });
 
   it('should handle single data point', () => {
     const singlePoint = [mockTimeSeriesData[0]];
     render(<RequestsTimelineChart data={singlePoint} />);
-    
+
     expect(screen.getByTestId('composed-chart')).toBeInTheDocument();
   });
 
   it('should handle data with zero requests', () => {
-    const zeroData = mockTimeSeriesData.map(d => ({ ...d, requests: 0 }));
+    const zeroData = mockTimeSeriesData.map((d) => ({ ...d, requests: 0 }));
     render(<RequestsTimelineChart data={zeroData} />);
-    
+
     expect(screen.getByTestId('composed-chart')).toBeInTheDocument();
   });
 });

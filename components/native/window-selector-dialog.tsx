@@ -16,14 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  AppWindow,
-  Search,
-  RefreshCw,
-  Camera,
-  Maximize2,
-  Minimize2,
-} from 'lucide-react';
+import { AppWindow, Search, RefreshCw, Camera, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useScreenshot, WindowInfo } from '@/hooks/native/use-screenshot';
 
@@ -42,7 +35,7 @@ export function WindowSelectorDialog({
 }: WindowSelectorDialogProps) {
   const t = useTranslations('windowSelector');
   const { getWindowsWithThumbnails, captureWindowByHwnd, isCapturing } = useScreenshot();
-  
+
   const [windows, setWindows] = useState<WindowInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,7 +70,7 @@ export function WindowSelectorDialog({
 
   const handleSelectAndCapture = async () => {
     if (!selectedWindow) return;
-    
+
     if (onCaptureWindow) {
       onCaptureWindow(selectedWindow);
     } else {
@@ -104,9 +97,7 @@ export function WindowSelectorDialog({
             <AppWindow className="h-5 w-5" />
             {t('title')}
           </DialogTitle>
-          <DialogDescription>
-            {t('description')}
-          </DialogDescription>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center gap-2 py-2">
@@ -121,12 +112,7 @@ export function WindowSelectorDialog({
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={fetchWindows}
-                disabled={isLoading}
-              >
+              <Button variant="outline" size="icon" onClick={fetchWindows} disabled={isLoading}>
                 <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
               </Button>
             </TooltipTrigger>
@@ -137,9 +123,7 @@ export function WindowSelectorDialog({
         <ScrollArea className="flex-1 min-h-0 border rounded-md">
           <div className="p-2 grid grid-cols-2 md:grid-cols-3 gap-3">
             {isLoading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <WindowItemSkeleton key={i} />
-              ))
+              Array.from({ length: 6 }).map((_, i) => <WindowItemSkeleton key={i} />)
             ) : filteredWindows.length === 0 ? (
               <div className="col-span-full py-8 text-center text-muted-foreground">
                 <AppWindow className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -167,10 +151,7 @@ export function WindowSelectorDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               {t('cancel')}
             </Button>
-            <Button
-              onClick={handleSelectAndCapture}
-              disabled={!selectedWindow || isCapturing}
-            >
+            <Button onClick={handleSelectAndCapture} disabled={!selectedWindow || isCapturing}>
               <Camera className="h-4 w-4 mr-2" />
               {isCapturing ? t('capturing') : t('capture')}
             </Button>
@@ -228,12 +209,8 @@ function WindowItem({ window, isSelected, onClick, onDoubleClick }: WindowItemPr
           <Badge variant="outline" className="text-xs px-1 py-0">
             {window.width}×{window.height}
           </Badge>
-          {window.is_maximized && (
-            <Maximize2 className="h-3 w-3 text-muted-foreground" />
-          )}
-          {window.is_minimized && (
-            <Minimize2 className="h-3 w-3 text-muted-foreground" />
-          )}
+          {window.is_maximized && <Maximize2 className="h-3 w-3 text-muted-foreground" />}
+          {window.is_minimized && <Minimize2 className="h-3 w-3 text-muted-foreground" />}
         </div>
       </div>
 

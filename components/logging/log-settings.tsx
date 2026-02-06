@@ -2,21 +2,13 @@
 
 /**
  * LogSettings - Configuration UI for the unified logging system
- * 
+ *
  * Allows users to configure log levels, transports, and retention policies.
  */
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Save,
-  RotateCcw,
-  Database,
-  Cloud,
-  Monitor,
-  AlertTriangle,
-  Info,
-} from 'lucide-react';
+import { Save, RotateCcw, Database, Cloud, Monitor, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -29,21 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { 
-  getLoggerConfig, 
+import {
+  getLoggerConfig,
   updateLoggerConfig,
   type LogLevel,
   type UnifiedLoggerConfig,
@@ -57,7 +39,7 @@ const LOG_LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error', 'fata
 
 export function LogSettings({ className }: LogSettingsProps) {
   const t = useTranslations('logging');
-  
+
   // Initialize config from current logger settings
   const [config, setConfig] = useState<Partial<UnifiedLoggerConfig>>(() => {
     const currentConfig = getLoggerConfig();
@@ -69,14 +51,20 @@ export function LogSettings({ className }: LogSettingsProps) {
       flushInterval: currentConfig.flushInterval,
     };
   });
-  
+
   const [hasChanges, setHasChanges] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   // Transport settings (stored separately)
   const [transports, setTransports] = useState(() => {
     if (typeof window === 'undefined') {
-      return { console: true, indexedDB: true, remote: false, langfuse: false, opentelemetry: false };
+      return {
+        console: true,
+        indexedDB: true,
+        remote: false,
+        langfuse: false,
+        opentelemetry: false,
+      };
     }
     const stored = localStorage.getItem('cognia-logging-transports');
     if (stored) {
@@ -109,7 +97,7 @@ export function LogSettings({ className }: LogSettingsProps) {
     key: K,
     value: UnifiedLoggerConfig[K]
   ) => {
-    setConfig(prev => ({ ...prev, [key]: value }));
+    setConfig((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
   };
 
@@ -125,18 +113,18 @@ export function LogSettings({ className }: LogSettingsProps) {
 
   const handleSave = () => {
     setSaveStatus('saving');
-    
+
     try {
       // Update logger config
       updateLoggerConfig(config as UnifiedLoggerConfig);
-      
+
       // Store transport and retention settings in localStorage
       localStorage.setItem('cognia-logging-transports', JSON.stringify(transports));
       localStorage.setItem('cognia-logging-retention', JSON.stringify(retention));
-      
+
       setHasChanges(false);
       setSaveStatus('saved');
-      
+
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch {
       setSaveStatus('error');
@@ -183,9 +171,7 @@ export function LogSettings({ className }: LogSettingsProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-base sm:text-lg font-semibold">{t('settingsTitle')}</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            {t('settingsDescription')}
-          </p>
+          <p className="text-xs sm:text-sm text-muted-foreground">{t('settingsDescription')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -217,9 +203,7 @@ export function LogSettings({ className }: LogSettingsProps) {
             <AlertTriangle className="h-4 w-4" />
             {t('settings.logLevel.title')}
           </CardTitle>
-          <CardDescription>
-            {t('settings.logLevel.description')}
-          </CardDescription>
+          <CardDescription>{t('settings.logLevel.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
@@ -287,9 +271,7 @@ export function LogSettings({ className }: LogSettingsProps) {
             <Database className="h-4 w-4" />
             {t('settings.transports.title')}
           </CardTitle>
-          <CardDescription>
-            {t('settings.transports.description')}
-          </CardDescription>
+          <CardDescription>{t('settings.transports.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
@@ -373,15 +355,15 @@ export function LogSettings({ className }: LogSettingsProps) {
             <Database className="h-4 w-4" />
             {t('settings.retention.title')}
           </CardTitle>
-          <CardDescription>
-            {t('settings.retention.description')}
-          </CardDescription>
+          <CardDescription>{t('settings.retention.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 sm:space-y-6">
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <Label className="text-sm">{t('settings.retention.maxEntries')}</Label>
-              <span className="text-xs sm:text-sm font-mono shrink-0">{retention.maxEntries.toLocaleString()}</span>
+              <span className="text-xs sm:text-sm font-mono shrink-0">
+                {retention.maxEntries.toLocaleString()}
+              </span>
             </div>
             <Slider
               value={[retention.maxEntries]}
@@ -401,7 +383,9 @@ export function LogSettings({ className }: LogSettingsProps) {
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <Label className="text-sm">{t('settings.retention.maxAgeDays')}</Label>
-              <span className="text-xs sm:text-sm font-mono shrink-0">{retention.maxAgeDays} {t('settings.retention.days')}</span>
+              <span className="text-xs sm:text-sm font-mono shrink-0">
+                {retention.maxAgeDays} {t('settings.retention.days')}
+              </span>
             </div>
             <Slider
               value={[retention.maxAgeDays]}
@@ -422,9 +406,7 @@ export function LogSettings({ className }: LogSettingsProps) {
       <Alert>
         <Info className="h-4 w-4" />
         <AlertTitle>{t('settings.performanceNote.title')}</AlertTitle>
-        <AlertDescription>
-          {t('settings.performanceNote.description')}
-        </AlertDescription>
+        <AlertDescription>{t('settings.performanceNote.description')}</AlertDescription>
       </Alert>
     </div>
   );

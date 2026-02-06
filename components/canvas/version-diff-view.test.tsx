@@ -19,24 +19,23 @@ jest.mock('next-intl', () => ({
 // Mock UI components
 jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={className} data-testid="scroll-area">{children}</div>
+    <div className={className} data-testid="scroll-area">
+      {children}
+    </div>
   ),
 }));
 
 jest.mock('@/components/ui/badge', () => ({
   Badge: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <span className={className} data-testid="badge">{children}</span>
+    <span className={className} data-testid="badge">
+      {children}
+    </span>
   ),
 }));
 
 describe('VersionDiffView', () => {
   it('renders without crashing', () => {
-    render(
-      <VersionDiffView
-        oldContent="line 1\nline 2"
-        newContent="line 1\nline 2"
-      />
-    );
+    render(<VersionDiffView oldContent="line 1\nline 2" newContent="line 1\nline 2" />);
     expect(screen.getByTestId('scroll-area')).toBeInTheDocument();
   });
 
@@ -54,12 +53,7 @@ describe('VersionDiffView', () => {
   });
 
   it('shows unchanged lines correctly', () => {
-    render(
-      <VersionDiffView
-        oldContent="same line"
-        newContent="same line"
-      />
-    );
+    render(<VersionDiffView oldContent="same line" newContent="same line" />);
     expect(screen.getByText('same line')).toBeInTheDocument();
   });
 
@@ -106,12 +100,7 @@ new line`}
   });
 
   it('handles empty content', () => {
-    render(
-      <VersionDiffView
-        oldContent=""
-        newContent="new content"
-      />
-    );
+    render(<VersionDiffView oldContent="" newContent="new content" />);
     expect(screen.getByText('new content')).toBeInTheDocument();
   });
 
@@ -125,48 +114,29 @@ new line`}
   console.log("Extra line");
   return true;
 }`;
-    
-    render(
-      <VersionDiffView
-        oldContent={oldContent}
-        newContent={newContent}
-      />
-    );
-    
+
+    render(<VersionDiffView oldContent={oldContent} newContent={newContent} />);
+
     expect(screen.getByText('function hello() {')).toBeInTheDocument();
   });
 
   it('applies custom className', () => {
     const { container } = render(
-      <VersionDiffView
-        oldContent="old"
-        newContent="new"
-        className="custom-class"
-      />
+      <VersionDiffView oldContent="old" newContent="new" className="custom-class" />
     );
     expect(container.firstChild).toHaveClass('custom-class');
   });
 
   describe('Responsive Layout', () => {
     it('applies responsive font sizes to diff content', () => {
-      const { container } = render(
-        <VersionDiffView
-          oldContent="line 1"
-          newContent="line 2"
-        />
-      );
+      const { container } = render(<VersionDiffView oldContent="line 1" newContent="line 2" />);
       const diffContent = container.querySelector('.font-mono');
       expect(diffContent).toHaveClass('text-xs');
       expect(diffContent).toHaveClass('sm:text-sm');
     });
 
     it('applies responsive line number width', () => {
-      render(
-        <VersionDiffView
-          oldContent="line 1"
-          newContent="line 1"
-        />
-      );
+      render(<VersionDiffView oldContent="line 1" newContent="line 1" />);
       const lineNumberContainer = document.querySelector('.w-12.sm\\:w-16');
       expect(lineNumberContainer).toBeInTheDocument();
     });
@@ -183,12 +153,7 @@ new line`}
     });
 
     it('applies horizontal overflow to code content', () => {
-      render(
-        <VersionDiffView
-          oldContent="line 1"
-          newContent="line 1"
-        />
-      );
+      render(<VersionDiffView oldContent="line 1" newContent="line 1" />);
       const contentSpan = document.querySelector('.overflow-x-auto');
       expect(contentSpan).toBeInTheDocument();
     });

@@ -14,35 +14,58 @@ jest.mock('next-intl', () => ({
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href} data-testid="link">{children}</a>
+    <a href={href} data-testid="link">
+      {children}
+    </a>
   ),
 }));
 
 // Mock UI components
 jest.mock('@/components/ui/empty', () => ({
   Empty: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="empty" data-slot="empty" className={className}>{children}</div>
+    <div data-testid="empty" data-slot="empty" className={className}>
+      {children}
+    </div>
   ),
   EmptyHeader: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="empty-header" data-slot="empty-header">{children}</div>
+    <div data-testid="empty-header" data-slot="empty-header">
+      {children}
+    </div>
   ),
   EmptyMedia: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="empty-media" data-slot="empty-media">{children}</div>
+    <div data-testid="empty-media" data-slot="empty-media">
+      {children}
+    </div>
   ),
   EmptyTitle: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="empty-title" data-slot="empty-title">{children}</div>
+    <div data-testid="empty-title" data-slot="empty-title">
+      {children}
+    </div>
   ),
   EmptyDescription: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="empty-description" data-slot="empty-description">{children}</div>
+    <div data-testid="empty-description" data-slot="empty-description">
+      {children}
+    </div>
   ),
   EmptyContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="empty-content" data-slot="empty-content">{children}</div>
+    <div data-testid="empty-content" data-slot="empty-content">
+      {children}
+    </div>
   ),
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, asChild: _asChild, ...props }: { children: React.ReactNode; asChild?: boolean }) => (
-    <button data-testid="button" {...props}>{children}</button>
+  Button: ({
+    children,
+    asChild: _asChild,
+    ...props
+  }: {
+    children: React.ReactNode;
+    asChild?: boolean;
+  }) => (
+    <button data-testid="button" {...props}>
+      {children}
+    </button>
   ),
 }));
 

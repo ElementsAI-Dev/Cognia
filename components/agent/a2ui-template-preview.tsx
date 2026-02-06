@@ -70,17 +70,19 @@ function ComponentPreview({ component }: { component: A2UIComponent }) {
   const getComponentContent = () => {
     switch (component.component) {
       case 'Button':
-        return ('text' in component && typeof component.text === 'string') ? component.text : 'Button';
+        return 'text' in component && typeof component.text === 'string'
+          ? component.text
+          : 'Button';
       case 'TextField':
-        return ('placeholder' in component) ? component.placeholder : 'Text input...';
+        return 'placeholder' in component ? component.placeholder : 'Text input...';
       case 'TextArea':
-        return ('placeholder' in component) ? component.placeholder : 'Text area...';
+        return 'placeholder' in component ? component.placeholder : 'Text area...';
       case 'Select':
-        return ('placeholder' in component) ? component.placeholder : 'Select...';
+        return 'placeholder' in component ? component.placeholder : 'Select...';
       case 'Text':
-        return ('text' in component && typeof component.text === 'string') ? component.text : 'Text';
+        return 'text' in component && typeof component.text === 'string' ? component.text : 'Text';
       case 'Badge':
-        return ('text' in component && typeof component.text === 'string') ? component.text : 'Badge';
+        return 'text' in component && typeof component.text === 'string' ? component.text : 'Badge';
       case 'Progress':
         return <div className="h-full bg-primary/60 w-1/2 rounded-full" />;
       case 'Divider':
@@ -90,11 +92,7 @@ function ComponentPreview({ component }: { component: A2UIComponent }) {
     }
   };
 
-  return (
-    <div className={getComponentStyle()}>
-      {getComponentContent()}
-    </div>
-  );
+  return <div className={getComponentStyle()}>{getComponentContent()}</div>;
 }
 
 // =============================================================================
@@ -113,7 +111,7 @@ export function A2UITemplatePreview({
   const components = template?.components;
   const rootComponents = useMemo(() => {
     if (!components) return [];
-    
+
     // Find all component IDs that are referenced as children
     const childIds = new Set<string>();
     for (const component of components) {
@@ -123,15 +121,15 @@ export function A2UITemplatePreview({
         }
       }
     }
-    
+
     // Root components are those not referenced as children
-    return components.filter(c => !childIds.has(c.id));
+    return components.filter((c) => !childIds.has(c.id));
   }, [components]);
 
   // Component count by type
   const componentCounts = useMemo(() => {
     if (!components) return {};
-    
+
     const counts: Record<string, number> = {};
     for (const component of components) {
       counts[component.component] = (counts[component.component] || 0) + 1;
@@ -141,9 +139,10 @@ export function A2UITemplatePreview({
 
   if (!template) {
     const noTemplateText = t('noA2UITemplate');
-    const noTemplateMessage = noTemplateText === 'noA2UITemplate'
-      ? 'No A2UI template configured for this mode.'
-      : noTemplateText;
+    const noTemplateMessage =
+      noTemplateText === 'noA2UITemplate'
+        ? 'No A2UI template configured for this mode.'
+        : noTemplateText;
 
     return (
       <Card className={className}>
@@ -157,9 +156,7 @@ export function A2UITemplatePreview({
         <CardContent>
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {noTemplateMessage}
-            </AlertDescription>
+            <AlertDescription>{noTemplateMessage}</AlertDescription>
           </Alert>
         </CardContent>
       </Card>
@@ -180,12 +177,7 @@ export function A2UITemplatePreview({
             )}
           </div>
           {onTogglePreview && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onTogglePreview}
-              className="gap-2"
-            >
+            <Button variant="ghost" size="sm" onClick={onTogglePreview} className="gap-2">
               {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               {showPreview ? 'Hide' : 'Show'}
             </Button>

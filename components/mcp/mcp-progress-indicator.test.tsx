@@ -47,18 +47,12 @@ describe('MCPProgressIndicator', () => {
 
   it('calculates elapsed time when running', () => {
     const startedAt = new Date(Date.now() - 5000);
-    render(
-      <MCPProgressIndicator 
-        state="running" 
-        startedAt={startedAt}
-        showElapsedTime 
-      />
-    );
-    
+    render(<MCPProgressIndicator state="running" startedAt={startedAt} showElapsedTime />);
+
     act(() => {
       jest.advanceTimersByTime(100);
     });
-    
+
     // Should show some elapsed time
     expect(screen.getByText('Running')).toBeInTheDocument();
   });
@@ -66,16 +60,16 @@ describe('MCPProgressIndicator', () => {
   it('shows final duration when completed', () => {
     const startedAt = new Date(Date.now() - 3500);
     const endedAt = new Date();
-    
+
     render(
-      <MCPProgressIndicator 
-        state="completed" 
+      <MCPProgressIndicator
+        state="completed"
         startedAt={startedAt}
         endedAt={endedAt}
-        showElapsedTime 
+        showElapsedTime
       />
     );
-    
+
     expect(screen.getByText('Completed')).toBeInTheDocument();
   });
 
