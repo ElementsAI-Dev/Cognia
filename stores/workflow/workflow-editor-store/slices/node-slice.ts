@@ -160,6 +160,79 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
       return newNodeId;
     },
 
+    duplicateNodes: (nodeIds) => {
+      const { currentWorkflow } = get();
+      if (!currentWorkflow || nodeIds.length === 0) return [];
+
+      const nodeIdSet = new Set(nodeIds);
+      const idMap = new Map<string, string>();
+      const newNodes: WorkflowNode[] = [];
+
+      // Duplicate each node with offset
+      currentWorkflow.nodes
+        .filter((n) => nodeIdSet.has(n.id))
+        .forEach((node, index) => {
+          const newNodeId = `${node.type}-${nanoid(8)}`;
+          idMap.set(node.id, newNodeId);
+          newNodes.push({
+            ...node,
+            id: newNodeId,
+            position: {
+              x: node.position.x + 50,
+              y: node.position.y + 50 + index * 10,
+            },
+            data: { ...node.data },
+          });
+        });
+
+      // Duplicate internal edges between selected nodes
+      const newEdges = currentWorkflow.edges
+        .filter((e) => nodeIdSet.has(e.source) && nodeIdSet.has(e.target))
+        .map((edge) => ({
+          ...edge,
+          id: `edge-${nanoid(8)}`,
+          source: idMap.get(edge.source) || edge.source,
+          target: idMap.get(edge.target) || edge.target,
+          data: { ...edge.data },
+        }));
+
+      const updated = {
+        ...currentWorkflow,
+        nodes: [...currentWorkflow.nodes, ...newNodes],
+        edges: [...currentWorkflow.edges, ...newEdges],
+        updatedAt: new Date(),
+      };
+
+      set({
+        currentWorkflow: updated,
+        isDirty: true,
+        selectedNodes: newNodes.map((n) => n.id),
+      });
+      get().pushHistory();
+      scheduleWorkflowValidation(get);
+      return newNodes.map((n) => n.id);
+    },
+
+    batchUpdateNodes: (nodeIds, data) => {
+      const { currentWorkflow } = get();
+      if (!currentWorkflow || nodeIds.length === 0) return;
+
+      const nodeIdSet = new Set(nodeIds);
+      const updated = {
+        ...currentWorkflow,
+        nodes: currentWorkflow.nodes.map((node) =>
+          nodeIdSet.has(node.id)
+            ? { ...node, data: { ...node.data, ...data } as WorkflowNodeData }
+            : node
+        ),
+        updatedAt: new Date(),
+      };
+
+      set({ currentWorkflow: updated, isDirty: true });
+      get().pushHistory();
+      scheduleWorkflowValidation(get);
+    },
+
     onNodesChange: (changes: NodeChange<WorkflowNode>[]) => {
       const { currentWorkflow } = get();
       if (!currentWorkflow) return;

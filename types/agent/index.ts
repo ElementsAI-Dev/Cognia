@@ -5,6 +5,7 @@
 export * from './agent';
 export * from './agent-mode';
 export * from './sub-agent';
+export * from './agent-team';
 export * from './background-agent';
 export * from './external-agent';
 export * from './tool';

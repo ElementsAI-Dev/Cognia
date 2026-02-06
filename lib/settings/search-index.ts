@@ -163,4 +163,11 @@ export const SETTINGS_SEARCH_INDEX: SearchableSetting[] = [
     sectionId: 'arena',
     description: 'Configure chat arena battles and leaderboard preferences',
   },
+  {
+    id: 'agent-teams',
+    title: 'Agent Teams',
+    keywords: ['agent team', 'multi-agent', 'collaboration', 'teammate', 'parallel agents', 'delegation', 'team coordination'],
+    sectionId: 'agent-teams',
+    description: 'Configure and manage multi-agent teams for collaborative task execution',
+  },
 ];

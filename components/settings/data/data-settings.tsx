@@ -21,6 +21,7 @@ import {
   Sparkles,
   Activity,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +53,7 @@ import { BatchExportDialog } from '@/components/export';
 import { ChatImportDialog } from '@/components/chat/dialogs';
 import { toast } from '@/components/ui/sonner';
 import { resetOnboardingTour } from '@/components/onboarding';
+import { resetMcpPrivacyConsent, clearOptimizationHistory } from '@/lib/ai/prompts/mcp-prompt-optimizer';
 import { useStorageStats, useStorageCleanup } from '@/hooks/storage';
 import type { StorageCategory } from '@/lib/storage';
 import { StorageBreakdown } from './storage-breakdown';
@@ -391,6 +393,36 @@ export function DataSettings() {
                   {t('dataPrivacyDesc')}
                 </AlertDescription>
               </Alert>
+            </CardContent>
+          </Card>
+
+          {/* Privacy & Consent */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                {t('privacyConsent')}
+              </CardTitle>
+              <CardDescription className="text-[10px]">
+                {t('privacyConsentDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  resetMcpPrivacyConsent();
+                  clearOptimizationHistory();
+                  toast.success(t('privacyConsentReset'));
+                }}
+              >
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                {t('resetMcpConsent')}
+              </Button>
+              <p className="text-[10px] text-muted-foreground">
+                {t('resetMcpConsentDesc')}
+              </p>
             </CardContent>
           </Card>
 

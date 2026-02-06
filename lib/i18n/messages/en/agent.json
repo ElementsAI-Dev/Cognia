@@ -66,6 +66,8 @@
     "deleteMode": "Delete Mode",
     "deleteModeConfirm": "Are you sure you want to delete this mode?",
     "duplicateMode": "Duplicate Mode",
+    "agentTeams": "Agent Teams",
+    "createTeam": "Create Team",
     "modes": {
       "general": {
         "name": "General Assistant",

@@ -1,0 +1,110 @@
+{
+  "agentTeam": {
+    "title": "Agent 团队",
+    "createTeam": "创建团队",
+    "deleteTeam": "删除团队",
+    "executeTeam": "执行团队",
+    "cancelTeam": "取消团队",
+    "pauseTeam": "暂停团队",
+    "resumeTeam": "恢复团队",
+    "teamName": "团队名称",
+    "teamDescription": "团队描述",
+    "taskDescription": "描述团队的任务",
+    "noTeams": "暂无 Agent 团队",
+    "noTeamsHint": "创建一个团队来协调多个 AI Agent 协同工作。",
+    "selectTeam": "选择一个团队查看详情",
+
+    "status": {
+      "idle": "空闲",
+      "planning": "规划中",
+      "executing": "执行中",
+      "paused": "已暂停",
+      "completed": "已完成",
+      "failed": "已失败",
+      "cancelled": "已取消"
+    },
+
+    "teammate": {
+      "title": "团队成员",
+      "add": "添加成员",
+      "remove": "移除成员",
+      "shutdownAction": "关闭成员",
+      "lead": "组长",
+      "idle": "空闲",
+      "planning": "规划中",
+      "awaitingApproval": "等待审批",
+      "executing": "执行中",
+      "paused": "已暂停",
+      "completed": "已完成",
+      "failed": "已失败",
+      "cancelled": "已取消",
+      "shutdownStatus": "已关闭",
+      "name": "成员名称",
+      "description": "描述",
+      "specialization": "专长",
+      "tokens": "{count} tokens"
+    },
+
+    "task": {
+      "title": "任务",
+      "create": "创建任务",
+      "delete": "删除任务",
+      "claim": "认领任务",
+      "assign": "分配任务",
+      "pending": "待处理",
+      "blocked": "已阻塞",
+      "claimed": "已认领",
+      "inProgress": "进行中",
+      "review": "审核中",
+      "completed": "已完成",
+      "failed": "已失败",
+      "cancelled": "已取消",
+      "noTasks": "暂无任务",
+      "noTasksHint": "团队执行时将自动生成任务。",
+      "done": "{completed}/{total} 完成",
+      "dependencies": "{count} 个依赖",
+      "dependenciesPlural": "{count} 个依赖"
+    },
+
+    "message": {
+      "title": "消息",
+      "noMessages": "暂无消息",
+      "broadcast": "广播",
+      "direct": "私信",
+      "system": "系统"
+    },
+
+    "template": {
+      "title": "选择团队模板",
+      "description": "选择一个模板来创建新的 Agent 团队，或从零开始。",
+      "builtIn": "内置模板",
+      "custom": "自定义模板",
+      "startFromScratch": "从零开始",
+      "parallelReview": "并行代码审查",
+      "competingHypotheses": "竞争性假设",
+      "researchTeam": "研究团队",
+      "fullStackDev": "全栈开发",
+      "crossLayer": "跨层协调"
+    },
+
+    "display": {
+      "compact": "紧凑",
+      "expanded": "展开",
+      "split": "分栏"
+    },
+
+    "result": {
+      "title": "最终结果",
+      "error": "错误",
+      "totalTokens": "总 tokens: {count}"
+    },
+
+    "execution": {
+      "decomposing": "正在为团队分解任务...",
+      "startingTeammates": "正在启动团队成员...",
+      "synthesizing": "正在合成结果...",
+      "teamCompleted": "团队完成",
+      "completedTasks": "已完成 {completed}/{total} 个任务"
+    }
+  }
+}

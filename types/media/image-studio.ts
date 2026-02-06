@@ -34,8 +34,11 @@ export interface ImageAdjustments {
 }
 
 export interface FilterPreset {
+  id: string;
   name: string;
+  category?: 'basic' | 'vintage' | 'cinematic' | 'artistic' | 'black-white';
   adjustments: Partial<ImageAdjustments>;
+  description?: string;
 }
 
 export const DEFAULT_IMAGE_ADJUSTMENTS: ImageAdjustments = {
@@ -108,6 +111,9 @@ export interface TextLayerConfig {
   shadowEnabled: boolean;
   shadowColor: string;
   shadowBlur: number;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
+  visible: boolean;
 }
 
 // ============================================================================

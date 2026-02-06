@@ -22,6 +22,7 @@ import {
   Edit,
   Trash2,
   Copy,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 import { BUILT_IN_AGENT_MODES, type AgentModeConfig } from '@/types/agent/agent-mode';
 import { useCustomModeStore, type CustomModeConfig } from '@/stores/agent/custom-mode-store';
+import { useAgentTeamStore } from '@/stores/agent/agent-team-store';
+import { TEAM_STATUS_CONFIG } from '@/types/agent/agent-team';
 import { CustomModeEditor } from './custom-mode-editor';
 
 // =============================================================================
@@ -80,6 +83,8 @@ interface AgentModeSelectorProps {
   selectedModeId: string;
   onModeChange: (mode: AgentModeConfig | CustomModeConfig) => void;
   onCustomModeCreate?: (mode: Partial<AgentModeConfig>) => void;
+  onCreateTeam?: () => void;
+  onSelectTeam?: (teamId: string) => void;
   disabled?: boolean;
   className?: string;
 }
@@ -92,6 +97,8 @@ export function AgentModeSelector({
   selectedModeId,
   onModeChange,
   onCustomModeCreate,
+  onCreateTeam,
+  onSelectTeam,
   disabled,
   className,
 }: AgentModeSelectorProps) {
@@ -100,6 +107,13 @@ export function AgentModeSelector({
 
   // Custom mode store
   const { customModes, deleteMode, duplicateMode, recordModeUsage } = useCustomModeStore();
+
+  // Agent team store
+  const teamsList = useAgentTeamStore((s) => Object.values(s.teams));
+  const activeTeams = useMemo(
+    () => teamsList.filter((t) => t.status === 'executing' || t.status === 'planning' || t.status === 'paused'),
+    [teamsList]
+  );
 
   // Local state
   const [showEditor, setShowEditor] = useState(false);
@@ -314,6 +328,57 @@ export function AgentModeSelector({
                         </DropdownMenuItem>
                       );
                     })}
+                  </DropdownMenuGroup>
+                </>
+              )}
+              {/* Agent Teams Section */}
+              {(activeTeams.length > 0 || onCreateTeam) && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Users className="h-3 w-3" />
+                      {t('agentTeams') || 'Agent Teams'}
+                      {activeTeams.length > 0 && (
+                        <Badge variant="default" className="text-[9px] h-4 px-1 animate-pulse">
+                          {activeTeams.length}
+                        </Badge>
+                      )}
+                    </DropdownMenuLabel>
+                    {activeTeams.map((team) => {
+                      const statusCfg = TEAM_STATUS_CONFIG[team.status];
+                      return (
+                        <DropdownMenuItem
+                          key={team.id}
+                          onClick={() => onSelectTeam?.(team.id)}
+                          className="flex items-start gap-3 p-3"
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                            <Users className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{team.name}</span>
+                              <Badge variant="outline" className={cn('text-[9px]', statusCfg.color)}>
+                                {statusCfg.label}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              {team.task}
+                            </p>
+                            <span className="text-[10px] text-muted-foreground">
+                              {team.teammateIds.length} teammates
+                            </span>
+                          </div>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                    {onCreateTeam && (
+                      <DropdownMenuItem onClick={onCreateTeam} className="gap-2 text-primary">
+                        <Plus className="h-4 w-4" />
+                        {t('createTeam') || 'Create Team'}
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuGroup>
                 </>
               )}

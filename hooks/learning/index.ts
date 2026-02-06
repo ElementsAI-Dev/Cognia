@@ -17,3 +17,5 @@ export {
   useQuizManager,
   useStudyInsights,
 } from './use-textbook-processor';
+
+export { useSpeedPassUser } from './use-speedpass-user';

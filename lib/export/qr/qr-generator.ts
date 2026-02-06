@@ -130,7 +130,7 @@ export async function generateStyledQR(options: QRGeneratorOptions): Promise<str
         }
       };
       reader.onerror = () => reject(new Error('FileReader error'));
-      reader.readAsDataURL(blob);
+      reader.readAsDataURL(blob as Blob);
     });
   } catch (error) {
     log.error('Failed to generate styled QR code', error as Error);
@@ -162,10 +162,10 @@ export async function generateStyledQRWithBlob(
         }
       };
       reader.onerror = () => reject(new Error('FileReader error'));
-      reader.readAsDataURL(blob);
+      reader.readAsDataURL(blob as Blob);
     });
 
-    return { dataUrl, blob };
+    return { dataUrl, blob: blob as Blob };
   } catch (error) {
     log.error('Failed to generate styled QR code with blob', error as Error);
     throw error;
@@ -207,7 +207,7 @@ export async function getQRBlob(
       throw new Error('Failed to generate QR code blob');
     }
 
-    return blob;
+    return blob as Blob;
   } catch (error) {
     log.error('Failed to get QR blob', error as Error);
     throw error;
@@ -226,7 +226,7 @@ export async function getQRSvg(options: QRGeneratorOptions): Promise<string> {
       throw new Error('Failed to generate QR code SVG');
     }
 
-    return blob.text();
+    return (blob as Blob).text();
   } catch (error) {
     log.error('Failed to get QR SVG', error as Error);
     throw error;

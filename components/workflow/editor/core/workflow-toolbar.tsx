@@ -102,6 +102,7 @@ export function WorkflowToolbar({
     handleDeleteSelection,
     handleDuplicateSelection,
     handleAlign,
+    handleDistribute,
     undo,
     redo,
     autoLayout,
@@ -453,6 +454,21 @@ export function WorkflowToolbar({
               <DropdownMenuItem onClick={() => handleAlign('bottom')}>
                 <AlignEndVertical className="h-4 w-4 mr-2" />
                 {t('alignBottom')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDistribute('horizontal')}
+                disabled={selectedNodes.length < 3}
+              >
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                {t('distributeHorizontal')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleDistribute('vertical')}
+                disabled={selectedNodes.length < 3}
+              >
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                {t('distributeVertical')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

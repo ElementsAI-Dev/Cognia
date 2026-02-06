@@ -66,6 +66,8 @@
     "deleteMode": "删除模式",
     "deleteModeConfirm": "确定要删除此模式吗？",
     "duplicateMode": "复制模式",
+    "agentTeams": "Agent 团队",
+    "createTeam": "创建团队",
     "modes": {
       "general": {
         "name": "通用助手",

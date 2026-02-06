@@ -25,6 +25,7 @@ import type {
   UserAcademicProfile,
 } from '@/types/learning/speedpass';
 import { SPEED_LEARNING_MODES } from '@/types/learning/speedpass';
+import { isSpeedLearningIntent, detectSpeedLearningMode } from '@/lib/learning/speedpass';
 
 // ============================================================================
 // Hook Return Type
@@ -121,6 +122,10 @@ interface UseSpeedPassReturn {
   formatStudyTime: (ms: number) => string;
   clearError: () => void;
   reset: () => void;
+  
+  // Intent Detection (for AI/chat integration)
+  isSpeedLearningIntent: (input: string) => boolean;
+  detectSpeedLearningMode: typeof detectSpeedLearningMode;
 }
 
 // ============================================================================
@@ -289,6 +294,10 @@ export function useSpeedPass(): UseSpeedPassReturn {
     formatStudyTime,
     clearError,
     reset: store.reset,
+    
+    // Intent Detection (for AI/chat integration)
+    isSpeedLearningIntent,
+    detectSpeedLearningMode,
   };
 }
 

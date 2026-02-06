@@ -4,6 +4,7 @@
  */
 
 export { PromptOptimizerDialog } from './prompt-optimizer-dialog';
+export { McpPrivacyDialog } from './mcp-privacy-dialog';
 export { PromptSelfOptimizerDialog } from './prompt-self-optimizer-dialog';
 export { PromptFeedbackDialog } from './prompt-feedback-dialog';
 export { PromptABTestPanel } from './prompt-ab-test-panel';

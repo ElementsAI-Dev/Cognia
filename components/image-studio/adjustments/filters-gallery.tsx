@@ -39,15 +39,7 @@ import {
   Eye,
 } from 'lucide-react';
 
-import type { ImageAdjustments } from '@/types';
-
-export interface FilterPreset {
-  id: string;
-  name: string;
-  category: 'basic' | 'vintage' | 'cinematic' | 'artistic' | 'black-white';
-  adjustments: Partial<ImageAdjustments>;
-  description?: string;
-}
+import type { ImageAdjustments, FilterPreset } from '@/types';
 
 export interface FiltersGalleryProps {
   imageUrl: string;
@@ -372,8 +364,9 @@ export function FiltersGallery({
   const filtersByCategory = useMemo(() => {
     const result: Record<string, FilterPreset[]> = {};
     FILTER_PRESETS.forEach((filter) => {
-      if (!result[filter.category]) result[filter.category] = [];
-      result[filter.category].push(filter);
+      const cat = filter.category ?? 'basic';
+      if (!result[cat]) result[cat] = [];
+      result[cat].push(filter);
     });
     return result;
   }, []);

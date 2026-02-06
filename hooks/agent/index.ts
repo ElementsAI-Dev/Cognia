@@ -48,3 +48,6 @@ export {
   type UseExternalAgentActions,
   type UseExternalAgentReturn,
 } from './use-external-agent';
+
+// Agent team
+export { useAgentTeam, type UseAgentTeamOptions, type UseAgentTeamReturn } from './use-agent-team';

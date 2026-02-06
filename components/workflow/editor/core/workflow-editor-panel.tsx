@@ -5,7 +5,7 @@
  * Enhanced with responsive design for mobile and desktop
  */
 
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -17,6 +17,7 @@ import {
   type NodeChange,
   type EdgeChange,
   type Node,
+  type Edge,
 } from '@xyflow/react';
 import { useShallow } from 'zustand/react/shallow';
 import { Controls } from '@/components/ai-elements/controls';
@@ -44,6 +45,8 @@ import { ExecutionPanel } from '../execution/execution-panel';
 import { CustomEdge } from '../edges/custom-edge';
 import { CustomConnectionLine } from '../edges/custom-connection-line';
 import { NodeSearchCommand } from '../search/node-search-command';
+import { CanvasContextMenu } from './canvas-context-menu';
+import { HelperLines, getHelperLines } from './helper-lines';
 import type { WorkflowNodeType, WorkflowNode } from '@/types/workflow/workflow-editor';
 
 // Define edge types for React Flow
@@ -65,6 +68,12 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [mobilePanel, setMobilePanel] = useState<'palette' | 'config' | 'execution' | null>(null);
 
+  // Canvas context menu state
+  const [contextMenu, setContextMenu] = useState<{ open: boolean; x: number; y: number }>({ open: false, x: 0, y: 0 });
+
+  // Helper lines state for alignment guides during drag
+  const [helperLines, setHelperLines] = useState<{ horizontal: number | null; vertical: number | null }>({ horizontal: null, vertical: null });
+
   const {
     currentWorkflow,
     isDirty,
@@ -78,6 +87,9 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     onNodesChange,
     onEdgesChange,
     onConnect,
+    reconnectEdge,
+    deleteNodes,
+    deleteEdges,
     addNode,
     selectNodes,
     createWorkflow,
@@ -98,6 +110,9 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
       onNodesChange: state.onNodesChange,
       onEdgesChange: state.onEdgesChange,
       onConnect: state.onConnect,
+      reconnectEdge: state.reconnectEdge,
+      deleteNodes: state.deleteNodes,
+      deleteEdges: state.deleteEdges,
       addNode: state.addNode,
       selectNodes: state.selectNodes,
       createWorkflow: state.createWorkflow,
@@ -132,12 +147,15 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     return () => clearTimeout(timer);
   }, [currentWorkflow?.id, currentWorkflow?.settings.autoSave, isDirty, saveWorkflow]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts - pass view callbacks for zoom/fit
   useWorkflowKeyboardShortcuts({
     enabled: true,
     onSave: () => {
       void useWorkflowEditorStore.getState().saveWorkflow();
     },
+    onFitView: () => fitView({ padding: 0.2 }),
+    onZoomIn: () => zoomIn(),
+    onZoomOut: () => zoomOut(),
   });
 
   // Handle node changes
@@ -163,6 +181,100 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     },
     [onConnect]
   );
+
+  // Handle edge reconnection (React Flow v12)
+  const handleReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      reconnectEdge(oldEdge as import('@/types/workflow/workflow-editor').WorkflowEdge, newConnection);
+    },
+    [reconnectEdge]
+  );
+
+  // Validate connections - prevent self-connections and duplicate edges
+  const isValidConnection = useCallback(
+    (connection: Edge | Connection) => {
+      if (!currentWorkflow) return false;
+      // Prevent self-connections
+      if (connection.source === connection.target) return false;
+      // Prevent duplicate edges
+      const exists = currentWorkflow.edges.some(
+        (e) =>
+          e.source === connection.source &&
+          e.target === connection.target &&
+          e.sourceHandle === connection.sourceHandle &&
+          e.targetHandle === connection.targetHandle
+      );
+      if (exists) return false;
+      // Prevent connecting end node as source
+      const sourceNode = currentWorkflow.nodes.find((n) => n.id === connection.source);
+      if (sourceNode?.type === 'end') return false;
+      // Prevent connecting start node as target
+      const targetNode = currentWorkflow.nodes.find((n) => n.id === connection.target);
+      if (targetNode?.type === 'start') return false;
+      return true;
+    },
+    [currentWorkflow]
+  );
+
+  // Handle combined delete for nodes and edges (React Flow v12)
+  const handleDelete = useCallback(
+    ({ nodes: deletedNodes, edges: deletedEdges }: { nodes: Node[]; edges: Edge[] }) => {
+      const nodeIds = deletedNodes.map((n) => n.id);
+      const edgeIds = deletedEdges.map((e) => e.id);
+      if (nodeIds.length > 0) deleteNodes(nodeIds);
+      if (edgeIds.length > 0) deleteEdges(edgeIds);
+    },
+    [deleteNodes, deleteEdges]
+  );
+
+  // Handle pane context menu (right-click on blank canvas)
+  const handlePaneContextMenu = useCallback(
+    (event: MouseEvent | React.MouseEvent) => {
+      event.preventDefault();
+      setContextMenu({ open: true, x: event.clientX, y: event.clientY });
+    },
+    []
+  );
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu((prev) => ({ ...prev, open: false }));
+  }, []);
+
+  // Handle node drag for helper lines
+  const handleNodeDrag = useCallback(
+    (_event: React.MouseEvent, dragNode: Node) => {
+      if (!currentWorkflow) return;
+      const otherNodes = currentWorkflow.nodes
+        .filter((n) => n.id !== dragNode.id)
+        .map((n) => ({
+          id: n.id,
+          x: n.position.x,
+          y: n.position.y,
+          width: (n.measured?.width ?? n.width ?? 180) as number,
+          height: (n.measured?.height ?? n.height ?? 60) as number,
+        }));
+
+      const dragging = {
+        id: dragNode.id,
+        x: dragNode.position.x,
+        y: dragNode.position.y,
+        width: (dragNode.measured?.width ?? dragNode.width ?? 180) as number,
+        height: (dragNode.measured?.height ?? dragNode.height ?? 60) as number,
+      };
+
+      const lines = getHelperLines(dragging, otherNodes);
+      setHelperLines({ horizontal: lines.horizontal, vertical: lines.vertical });
+    },
+    [currentWorkflow]
+  );
+
+  const handleNodeDragStop = useCallback(() => {
+    // Clear helper lines when drag stops
+    setHelperLines({ horizontal: null, vertical: null });
+    if (!isDragHistoryPendingRef.current) return;
+    isDragHistoryPendingRef.current = false;
+    pushHistory();
+  }, [pushHistory]);
 
   // Handle selection changes
   const handleSelectionChange = useCallback(
@@ -196,26 +308,35 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     [screenToFlowPosition, addNode]
   );
 
-  // Get node class based on execution state (reserved for future use)
-  const _getNodeClassName = useCallback(
-    (node: Node) => {
-      if (!executionState) return '';
-      const nodeState = executionState.nodeStates[node.id];
-      if (!nodeState) return '';
+  // Compute nodes with execution state className applied
+  const nodesWithExecState = useMemo(() => {
+    if (!currentWorkflow) return [];
+    if (!executionState) return currentWorkflow.nodes as Node[];
 
+    return currentWorkflow.nodes.map((node) => {
+      const nodeState = executionState.nodeStates[node.id];
+      if (!nodeState) return node as Node;
+
+      let execClassName = '';
       switch (nodeState.status) {
         case 'running':
-          return 'ring-2 ring-blue-500 ring-offset-2';
+          execClassName = 'ring-2 ring-blue-500 ring-offset-2';
+          break;
         case 'completed':
-          return 'ring-2 ring-green-500 ring-offset-2';
+          execClassName = 'ring-2 ring-green-500 ring-offset-2';
+          break;
         case 'failed':
-          return 'ring-2 ring-red-500 ring-offset-2';
-        default:
-          return '';
+          execClassName = 'ring-2 ring-red-500 ring-offset-2';
+          break;
       }
-    },
-    [executionState]
-  );
+
+      if (!execClassName) return node as Node;
+      return {
+        ...node,
+        className: cn(node.className, execClassName),
+      } as Node;
+    });
+  }, [currentWorkflow, executionState]);
 
   // Derive mobile panel visibility - close when switching to desktop
   const effectiveMobilePanel = isMobile ? mobilePanel : null;
@@ -258,25 +379,27 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
             onDrop={handleDrop}
           >
             <ReactFlow
-              nodes={currentWorkflow.nodes as Node[]}
+              nodes={nodesWithExecState}
               edges={currentWorkflow.edges}
               onNodesChange={handleNodesChange}
               onEdgesChange={handleEdgesChange}
               onConnect={handleConnect}
+              onReconnect={handleReconnect}
+              onDelete={handleDelete}
+              isValidConnection={isValidConnection}
+              onPaneContextMenu={handlePaneContextMenu}
               onSelectionChange={handleSelectionChange}
               onNodeDragStart={() => {
                 isDragHistoryPendingRef.current = true;
               }}
-              onNodeDragStop={() => {
-                if (!isDragHistoryPendingRef.current) return;
-                isDragHistoryPendingRef.current = false;
-                pushHistory();
-              }}
+              onNodeDrag={handleNodeDrag}
+              onNodeDragStop={handleNodeDragStop}
               onMoveEnd={(_event, viewport) => {
                 setViewport(viewport);
               }}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
+              edgesReconnectable
               connectionLineComponent={CustomConnectionLine}
               fitView
               fitViewOptions={{ padding: 0.2 }}
@@ -293,6 +416,7 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
               className="bg-background touch-none"
               proOptions={{ hideAttribution: true }}
             >
+              <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
               {showMinimap && (
                 <MiniMap
                   className="bg-background border rounded-lg shadow-sm"
@@ -411,25 +535,27 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
                 onDrop={handleDrop}
               >
                 <ReactFlow
-                  nodes={currentWorkflow.nodes as Node[]}
+                  nodes={nodesWithExecState}
                   edges={currentWorkflow.edges}
                   onNodesChange={handleNodesChange}
                   onEdgesChange={handleEdgesChange}
                   onConnect={handleConnect}
+                  onReconnect={handleReconnect}
+                  onDelete={handleDelete}
+                  isValidConnection={isValidConnection}
+                  onPaneContextMenu={handlePaneContextMenu}
                   onSelectionChange={handleSelectionChange}
                   onNodeDragStart={() => {
                     isDragHistoryPendingRef.current = true;
                   }}
-                  onNodeDragStop={() => {
-                    if (!isDragHistoryPendingRef.current) return;
-                    isDragHistoryPendingRef.current = false;
-                    pushHistory();
-                  }}
+                  onNodeDrag={handleNodeDrag}
+                  onNodeDragStop={handleNodeDragStop}
                   onMoveEnd={(_event, viewport) => {
                     setViewport(viewport);
                   }}
                   nodeTypes={nodeTypes}
                   edgeTypes={edgeTypes}
+                  edgesReconnectable
                   connectionLineComponent={CustomConnectionLine}
                   fitView
                   fitViewOptions={{ padding: 0.2 }}
@@ -441,11 +567,12 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
                   selectionOnDrag
                   panOnScroll
                   zoomOnPinch
-                  panOnDrag
+                  panOnDrag={[1, 2]}
                   selectNodesOnDrag={false}
                   className="bg-background touch-none"
                   proOptions={{ hideAttribution: true }}
                 >
+                  <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
                   <Controls className="hidden md:flex" />
                   <Panel position="top-left">
                     <div className="text-xs text-muted-foreground px-2 py-1 bg-background/80 backdrop-blur-sm rounded">
@@ -538,6 +665,14 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
         </ResizablePanelGroup>
         )}
       </div>
+
+      {/* Canvas right-click context menu */}
+      <CanvasContextMenu
+        open={contextMenu.open}
+        position={{ x: contextMenu.x, y: contextMenu.y }}
+        onClose={handleCloseContextMenu}
+        onAddNode={addNode}
+      />
 
       {/* Mobile Sheets/Drawers */}
       {isMobile && (

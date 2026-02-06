@@ -24,7 +24,7 @@ export interface LocalProviderDetectionResult {
 }
 
 // Default configurations for local providers
-export const LOCAL_PROVIDER_CONFIGS: Record<string, { url: string; name: string; healthPath: string }> = {
+export const LOCAL_PROVIDER_TEST_CONFIGS: Record<string, { url: string; name: string; healthPath: string }> = {
   ollama: { url: 'http://localhost:11434', name: 'Ollama', healthPath: '/api/tags' },
   lmstudio: { url: 'http://localhost:1234', name: 'LM Studio', healthPath: '/v1/models' },
   llamacpp: { url: 'http://localhost:8080', name: 'llama.cpp', healthPath: '/health' },
@@ -487,12 +487,12 @@ export async function testProviderConnection(
 export async function detectLocalProviders(
   providerIds?: string[]
 ): Promise<LocalProviderDetectionResult[]> {
-  const providersToCheck = providerIds || Object.keys(LOCAL_PROVIDER_CONFIGS);
+  const providersToCheck = providerIds || Object.keys(LOCAL_PROVIDER_TEST_CONFIGS);
   const results: LocalProviderDetectionResult[] = [];
   
   // Check each provider in parallel with timeout
   const checkPromises = providersToCheck.map(async (providerId) => {
-    const config = LOCAL_PROVIDER_CONFIGS[providerId];
+    const config = LOCAL_PROVIDER_TEST_CONFIGS[providerId];
     if (!config) return null;
     
     const result: LocalProviderDetectionResult = {
@@ -560,7 +560,7 @@ export async function detectLocalProvider(
   providerId: string,
   customUrl?: string
 ): Promise<LocalProviderDetectionResult | null> {
-  const config = LOCAL_PROVIDER_CONFIGS[providerId];
+  const config = LOCAL_PROVIDER_TEST_CONFIGS[providerId];
   if (!config && !customUrl) return null;
   
   const baseUrl = customUrl || config?.url || '';

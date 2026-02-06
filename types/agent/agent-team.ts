@@ -1,0 +1,803 @@
+/**
+ * AgentTeam Type Definitions
+ * Defines types for coordinating multiple agent instances working together as a team.
+ *
+ * Inspired by Claude Code's Agent Teams design:
+ * - One lead agent coordinates work, assigns tasks, synthesizes results
+ * - Teammates work independently, each in its own context window
+ * - Shared task list with dependency management
+ * - Inter-agent messaging (direct + broadcast)
+ * - Plan approval workflow
+ *
+ * Reuses existing SubAgent/Orchestrator infrastructure where possible.
+ */
+
+import type { ProviderName } from '../provider/provider';
+import type { SubAgentTokenUsage, SubAgentPriority } from './sub-agent';
+
+// ============================================================================
+// Team Core Types
+// ============================================================================
+
+/**
+ * Team member role
+ */
+export type TeamMemberRole = 'lead' | 'teammate';
+
+/**
+ * Team status
+ */
+export type TeamStatus =
+  | 'idle'
+  | 'planning'
+  | 'executing'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+/**
+ * Teammate status
+ */
+export type TeammateStatus =
+  | 'idle'
+  | 'planning'
+  | 'awaiting_approval'
+  | 'executing'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'shutdown';
+
+/**
+ * Display mode for the team UI
+ */
+export type TeamDisplayMode = 'compact' | 'expanded' | 'split';
+
+/**
+ * Team execution mode
+ */
+export type TeamExecutionMode =
+  | 'coordinated'   // Lead coordinates all work
+  | 'autonomous'    // Teammates self-claim tasks
+  | 'delegate';     // Lead only delegates, never implements
+
+// ============================================================================
+// Team Configuration
+// ============================================================================
+
+/**
+ * Team configuration
+ */
+export interface AgentTeamConfig {
+  /** Maximum number of teammates */
+  maxTeammates: number;
+  /** Maximum concurrent active teammates */
+  maxConcurrentTeammates: number;
+  /** Default execution mode */
+  executionMode: TeamExecutionMode;
+  /** Display mode for UI */
+  displayMode: TeamDisplayMode;
+  /** Default provider for teammates */
+  defaultProvider?: ProviderName;
+  /** Default model for teammates */
+  defaultModel?: string;
+  /** Default API key */
+  defaultApiKey?: string;
+  /** Default base URL */
+  defaultBaseURL?: string;
+  /** Default system prompt for all teammates */
+  defaultSystemPrompt?: string;
+  /** Default temperature */
+  defaultTemperature?: number;
+  /** Default max steps per teammate */
+  defaultMaxSteps?: number;
+  /** Default timeout per teammate (ms) */
+  defaultTimeout?: number;
+  /** Whether teammates require plan approval before executing */
+  requirePlanApproval?: boolean;
+  /** Auto-shutdown teammates when all tasks complete */
+  autoShutdown?: boolean;
+  /** Token budget for the entire team */
+  tokenBudget?: number;
+  /** Enable inter-agent messaging */
+  enableMessaging?: boolean;
+  /** Enable shared task list */
+  enableSharedTaskList?: boolean;
+}
+
+/**
+ * Default team configuration
+ */
+export const DEFAULT_TEAM_CONFIG: AgentTeamConfig = {
+  maxTeammates: 10,
+  maxConcurrentTeammates: 5,
+  executionMode: 'coordinated',
+  displayMode: 'expanded',
+  defaultTemperature: 0.7,
+  defaultMaxSteps: 15,
+  defaultTimeout: 600000, // 10 minutes
+  requirePlanApproval: false,
+  autoShutdown: true,
+  enableMessaging: true,
+  enableSharedTaskList: true,
+};
+
+// ============================================================================
+// Team Member (Teammate)
+// ============================================================================
+
+/**
+ * Teammate configuration (per-member overrides)
+ */
+export interface TeammateConfig {
+  /** Custom system prompt */
+  systemPrompt?: string;
+  /** Provider override */
+  provider?: ProviderName;
+  /** Model override */
+  model?: string;
+  /** API key override */
+  apiKey?: string;
+  /** Base URL override */
+  baseURL?: string;
+  /** Temperature override */
+  temperature?: number;
+  /** Max steps override */
+  maxSteps?: number;
+  /** Timeout override (ms) */
+  timeout?: number;
+  /** Available tools for this teammate */
+  tools?: string[];
+  /** Require plan approval before executing */
+  requirePlanApproval?: boolean;
+  /** Specialization area (e.g., "security", "performance", "testing") */
+  specialization?: string;
+  /** Custom metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Teammate definition
+ */
+export interface AgentTeammate {
+  /** Unique identifier */
+  id: string;
+  /** Team ID this teammate belongs to */
+  teamId: string;
+  /** Human-readable name */
+  name: string;
+  /** Description of the teammate's role/purpose */
+  description: string;
+  /** Role in the team */
+  role: TeamMemberRole;
+  /** Current status */
+  status: TeammateStatus;
+  /** Configuration */
+  config: TeammateConfig;
+  /** Spawn prompt from the lead */
+  spawnPrompt?: string;
+  /** Current task ID being worked on */
+  currentTaskId?: string;
+  /** Proposed plan (when in awaiting_approval) */
+  proposedPlan?: string;
+  /** Plan approval feedback from lead */
+  planFeedback?: string;
+  /** Completed task IDs */
+  completedTaskIds: string[];
+  /** Token usage */
+  tokenUsage: SubAgentTokenUsage;
+  /** Progress percentage (0-100) */
+  progress: number;
+  /** Last activity description */
+  lastActivity?: string;
+  /** Creation timestamp */
+  createdAt: Date;
+  /** Last active timestamp */
+  lastActiveAt?: Date;
+  /** Error message if failed */
+  error?: string;
+}
+
+// ============================================================================
+// Shared Task List
+// ============================================================================
+
+/**
+ * Task status in the shared task list
+ */
+export type TeamTaskStatus =
+  | 'pending'
+  | 'blocked'        // Waiting for dependencies
+  | 'claimed'        // Claimed by a teammate
+  | 'in_progress'
+  | 'review'         // Completed, waiting for review
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+/**
+ * Shared task definition
+ */
+export interface AgentTeamTask {
+  /** Unique identifier */
+  id: string;
+  /** Team ID */
+  teamId: string;
+  /** Task title */
+  title: string;
+  /** Detailed task description/prompt */
+  description: string;
+  /** Current status */
+  status: TeamTaskStatus;
+  /** Priority level */
+  priority: SubAgentPriority;
+  /** Assigned teammate ID (null if unassigned) */
+  assignedTo?: string;
+  /** Claimed by teammate ID */
+  claimedBy?: string;
+  /** Dependencies - task IDs that must complete first */
+  dependencies: string[];
+  /** Tags for categorization */
+  tags: string[];
+  /** Expected deliverable description */
+  expectedOutput?: string;
+  /** Actual result/output */
+  result?: string;
+  /** Error message if failed */
+  error?: string;
+  /** Creation timestamp */
+  createdAt: Date;
+  /** Started timestamp */
+  startedAt?: Date;
+  /** Completed timestamp */
+  completedAt?: Date;
+  /** Estimated duration (ms) */
+  estimatedDuration?: number;
+  /** Actual duration (ms) */
+  actualDuration?: number;
+  /** Token usage for this task */
+  tokenUsage?: SubAgentTokenUsage;
+  /** Order in the task list */
+  order: number;
+  /** Custom metadata */
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================================================
+// Inter-Agent Messaging
+// ============================================================================
+
+/**
+ * Message type
+ */
+export type TeamMessageType =
+  | 'direct'         // Message to a specific teammate
+  | 'broadcast'      // Message to all teammates
+  | 'system'         // System notification
+  | 'plan_approval'  // Plan approval request
+  | 'plan_feedback'  // Plan approval response
+  | 'task_update'    // Task status update
+  | 'result_share';  // Sharing results between teammates
+
+/**
+ * Inter-agent message
+ */
+export interface AgentTeamMessage {
+  /** Unique identifier */
+  id: string;
+  /** Team ID */
+  teamId: string;
+  /** Message type */
+  type: TeamMessageType;
+  /** Sender teammate ID */
+  senderId: string;
+  /** Sender name (for display) */
+  senderName: string;
+  /** Recipient teammate ID (null for broadcast) */
+  recipientId?: string;
+  /** Recipient name (for display) */
+  recipientName?: string;
+  /** Message content */
+  content: string;
+  /** Related task ID */
+  taskId?: string;
+  /** Whether the message has been read */
+  read: boolean;
+  /** Timestamp */
+  timestamp: Date;
+  /** Custom metadata */
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================================================
+// Team Definition
+// ============================================================================
+
+/**
+ * Agent Team definition
+ */
+export interface AgentTeam {
+  /** Unique identifier */
+  id: string;
+  /** Team name */
+  name: string;
+  /** Team description/purpose */
+  description: string;
+  /** Original task that spawned this team */
+  task: string;
+  /** Team status */
+  status: TeamStatus;
+  /** Team configuration */
+  config: AgentTeamConfig;
+  /** Lead teammate ID */
+  leadId: string;
+  /** All teammate IDs (including lead) */
+  teammateIds: string[];
+  /** Shared task list IDs */
+  taskIds: string[];
+  /** Message IDs */
+  messageIds: string[];
+  /** Overall progress (0-100) */
+  progress: number;
+  /** Total token usage across all teammates */
+  totalTokenUsage: SubAgentTokenUsage;
+  /** Final synthesized result */
+  finalResult?: string;
+  /** Error message if failed */
+  error?: string;
+  /** Creation timestamp */
+  createdAt: Date;
+  /** Started timestamp */
+  startedAt?: Date;
+  /** Completed timestamp */
+  completedAt?: Date;
+  /** Total duration (ms) */
+  totalDuration?: number;
+  /** Session ID that created this team */
+  sessionId?: string;
+  /** Custom metadata */
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================================================
+// Input Types
+// ============================================================================
+
+/**
+ * Input for creating a new team
+ */
+export interface CreateTeamInput {
+  name: string;
+  description?: string;
+  task: string;
+  config?: Partial<AgentTeamConfig>;
+  sessionId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Input for adding a teammate
+ */
+export interface AddTeammateInput {
+  teamId: string;
+  name: string;
+  description?: string;
+  role?: TeamMemberRole;
+  config?: TeammateConfig;
+  spawnPrompt?: string;
+}
+
+/**
+ * Input for creating a task
+ */
+export interface CreateTaskInput {
+  teamId: string;
+  title: string;
+  description: string;
+  priority?: SubAgentPriority;
+  dependencies?: string[];
+  tags?: string[];
+  expectedOutput?: string;
+  assignedTo?: string;
+  estimatedDuration?: number;
+  order?: number;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Input for sending a message
+ */
+export interface SendMessageInput {
+  teamId: string;
+  senderId: string;
+  type?: TeamMessageType;
+  recipientId?: string;
+  content: string;
+  taskId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================================================
+// Team Events (for callbacks)
+// ============================================================================
+
+/**
+ * Team event types
+ */
+export type TeamEventType =
+  | 'team_created'
+  | 'team_started'
+  | 'team_completed'
+  | 'team_failed'
+  | 'team_cancelled'
+  | 'teammate_added'
+  | 'teammate_started'
+  | 'teammate_completed'
+  | 'teammate_failed'
+  | 'teammate_shutdown'
+  | 'task_created'
+  | 'task_claimed'
+  | 'task_started'
+  | 'task_completed'
+  | 'task_failed'
+  | 'message_sent'
+  | 'plan_submitted'
+  | 'plan_approved'
+  | 'plan_rejected'
+  | 'progress_update';
+
+/**
+ * Team event
+ */
+export interface AgentTeamEvent {
+  type: TeamEventType;
+  teamId: string;
+  teammateId?: string;
+  taskId?: string;
+  messageId?: string;
+  data?: Record<string, unknown>;
+  timestamp: Date;
+}
+
+/**
+ * Team execution options (callbacks)
+ */
+export interface TeamExecutionOptions {
+  onEvent?: (event: AgentTeamEvent) => void;
+  onTeammateStart?: (teammate: AgentTeammate) => void;
+  onTeammateComplete?: (teammate: AgentTeammate) => void;
+  onTeammateError?: (teammate: AgentTeammate, error: string) => void;
+  onTaskComplete?: (task: AgentTeamTask) => void;
+  onMessage?: (message: AgentTeamMessage) => void;
+  onProgress?: (progress: number, activity?: string) => void;
+  onPlanSubmitted?: (teammate: AgentTeammate, plan: string) => void;
+  onComplete?: (team: AgentTeam) => void;
+  onError?: (error: string) => void;
+}
+
+// ============================================================================
+// Team Templates
+// ============================================================================
+
+/**
+ * Predefined team template
+ */
+export interface AgentTeamTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: 'review' | 'research' | 'development' | 'debugging' | 'analysis' | 'general' | 'documentation' | 'security';
+  /** Teammate definitions */
+  teammates: Array<{
+    name: string;
+    description: string;
+    specialization?: string;
+    config?: TeammateConfig;
+  }>;
+  /** Default tasks */
+  taskTemplates?: Array<{
+    title: string;
+    description: string;
+    priority: SubAgentPriority;
+    assignedToIndex?: number;
+  }>;
+  /** Default config overrides */
+  config?: Partial<AgentTeamConfig>;
+  icon?: string;
+  isBuiltIn?: boolean;
+}
+
+/**
+ * Built-in team templates
+ */
+export const BUILT_IN_TEAM_TEMPLATES: AgentTeamTemplate[] = [
+  {
+    id: 'parallel-review',
+    name: 'Parallel Code Review',
+    description: 'Split code review across multiple specialized reviewers',
+    category: 'review',
+    teammates: [
+      {
+        name: 'Security Reviewer',
+        description: 'Reviews code for security vulnerabilities and best practices',
+        specialization: 'security',
+      },
+      {
+        name: 'Performance Reviewer',
+        description: 'Reviews code for performance issues and optimization opportunities',
+        specialization: 'performance',
+      },
+      {
+        name: 'Test Coverage Reviewer',
+        description: 'Reviews test coverage and suggests additional test cases',
+        specialization: 'testing',
+      },
+    ],
+    config: {
+      executionMode: 'coordinated',
+      requirePlanApproval: false,
+    },
+    icon: 'ShieldCheck',
+    isBuiltIn: true,
+  },
+  {
+    id: 'competing-hypotheses',
+    name: 'Competing Hypotheses',
+    description: 'Investigate a problem from different angles with competing theories',
+    category: 'debugging',
+    teammates: [
+      {
+        name: 'Hypothesis A',
+        description: 'Investigates the first potential root cause',
+        specialization: 'debugging',
+      },
+      {
+        name: 'Hypothesis B',
+        description: 'Investigates an alternative potential root cause',
+        specialization: 'debugging',
+      },
+      {
+        name: 'Hypothesis C',
+        description: 'Investigates a third potential root cause',
+        specialization: 'debugging',
+      },
+    ],
+    config: {
+      executionMode: 'autonomous',
+      enableMessaging: true,
+    },
+    icon: 'FlaskConical',
+    isBuiltIn: true,
+  },
+  {
+    id: 'research-team',
+    name: 'Research Team',
+    description: 'Multi-perspective research with synthesis',
+    category: 'research',
+    teammates: [
+      {
+        name: 'Primary Researcher',
+        description: 'Conducts the main research and gathers information',
+        specialization: 'research',
+      },
+      {
+        name: 'Fact Checker',
+        description: 'Validates findings and cross-references sources',
+        specialization: 'verification',
+      },
+      {
+        name: 'Synthesizer',
+        description: 'Combines findings into a coherent summary',
+        specialization: 'writing',
+      },
+    ],
+    config: {
+      executionMode: 'coordinated',
+      requirePlanApproval: true,
+    },
+    icon: 'BookOpen',
+    isBuiltIn: true,
+  },
+  {
+    id: 'full-stack-dev',
+    name: 'Full Stack Development',
+    description: 'Parallel frontend, backend, and test development',
+    category: 'development',
+    teammates: [
+      {
+        name: 'Frontend Developer',
+        description: 'Implements UI components and client-side logic',
+        specialization: 'frontend',
+      },
+      {
+        name: 'Backend Developer',
+        description: 'Implements API endpoints and server-side logic',
+        specialization: 'backend',
+      },
+      {
+        name: 'Test Engineer',
+        description: 'Writes tests and validates implementations',
+        specialization: 'testing',
+      },
+    ],
+    config: {
+      executionMode: 'coordinated',
+      requirePlanApproval: true,
+    },
+    icon: 'Layers',
+    isBuiltIn: true,
+  },
+  {
+    id: 'cross-layer',
+    name: 'Cross-Layer Coordination',
+    description: 'Changes spanning multiple layers owned by different teammates',
+    category: 'development',
+    teammates: [
+      {
+        name: 'Data Layer',
+        description: 'Handles database schemas, migrations, and data access',
+        specialization: 'data',
+      },
+      {
+        name: 'API Layer',
+        description: 'Implements API routes and business logic',
+        specialization: 'api',
+      },
+      {
+        name: 'UI Layer',
+        description: 'Implements user interface and interactions',
+        specialization: 'ui',
+      },
+    ],
+    config: {
+      executionMode: 'coordinated',
+      enableMessaging: true,
+    },
+    icon: 'GitBranch',
+    isBuiltIn: true,
+  },
+  {
+    id: 'documentation-team',
+    name: 'Documentation Team',
+    description: 'Generate comprehensive documentation with API docs, guides, and examples',
+    category: 'documentation',
+    teammates: [
+      {
+        name: 'API Documenter',
+        description: 'Documents public APIs, parameters, return types, and usage examples',
+        specialization: 'api-docs',
+      },
+      {
+        name: 'Guide Writer',
+        description: 'Writes user guides, tutorials, and getting-started documentation',
+        specialization: 'technical-writing',
+      },
+      {
+        name: 'Example Creator',
+        description: 'Creates code examples, snippets, and sample projects',
+        specialization: 'examples',
+      },
+    ],
+    config: {
+      executionMode: 'coordinated',
+      requirePlanApproval: false,
+    },
+    icon: 'FileText',
+    isBuiltIn: true,
+  },
+  {
+    id: 'refactoring-team',
+    name: 'Refactoring Team',
+    description: 'Safe code refactoring with analysis, implementation, and verification',
+    category: 'development',
+    teammates: [
+      {
+        name: 'Code Analyzer',
+        description: 'Analyzes current code structure, identifies patterns and dependencies',
+        specialization: 'code-analysis',
+      },
+      {
+        name: 'Refactorer',
+        description: 'Implements the refactoring changes following best practices',
+        specialization: 'refactoring',
+      },
+      {
+        name: 'Regression Tester',
+        description: 'Verifies no regressions and validates the refactored code',
+        specialization: 'testing',
+      },
+    ],
+    config: {
+      executionMode: 'coordinated',
+      enableMessaging: true,
+      requirePlanApproval: true,
+    },
+    icon: 'RefreshCw',
+    isBuiltIn: true,
+  },
+  {
+    id: 'security-audit',
+    name: 'Security Audit',
+    description: 'Comprehensive security review from multiple angles',
+    category: 'security',
+    teammates: [
+      {
+        name: 'Vulnerability Scanner',
+        description: 'Identifies potential security vulnerabilities in the codebase',
+        specialization: 'vulnerability-detection',
+      },
+      {
+        name: 'Auth Reviewer',
+        description: 'Reviews authentication and authorization implementations',
+        specialization: 'auth-security',
+      },
+      {
+        name: 'Data Safety Auditor',
+        description: 'Checks data handling, encryption, and privacy compliance',
+        specialization: 'data-security',
+      },
+    ],
+    config: {
+      executionMode: 'autonomous',
+    },
+    icon: 'ShieldAlert',
+    isBuiltIn: true,
+  },
+];
+
+// ============================================================================
+// Display Configuration
+// ============================================================================
+
+/**
+ * Team status display configuration
+ */
+export const TEAM_STATUS_CONFIG: Record<
+  TeamStatus,
+  { label: string; color: string; icon: string }
+> = {
+  idle: { label: 'Idle', color: 'text-muted-foreground', icon: 'Circle' },
+  planning: { label: 'Planning', color: 'text-blue-500', icon: 'Brain' },
+  executing: { label: 'Executing', color: 'text-primary', icon: 'Play' },
+  paused: { label: 'Paused', color: 'text-yellow-500', icon: 'Pause' },
+  completed: { label: 'Completed', color: 'text-green-500', icon: 'CheckCircle' },
+  failed: { label: 'Failed', color: 'text-destructive', icon: 'XCircle' },
+  cancelled: { label: 'Cancelled', color: 'text-orange-500', icon: 'Ban' },
+};
+
+/**
+ * Teammate status display configuration
+ */
+export const TEAMMATE_STATUS_CONFIG: Record<
+  TeammateStatus,
+  { label: string; color: string; icon: string }
+> = {
+  idle: { label: 'Idle', color: 'text-muted-foreground', icon: 'Circle' },
+  planning: { label: 'Planning', color: 'text-blue-500', icon: 'FileText' },
+  awaiting_approval: { label: 'Awaiting Approval', color: 'text-yellow-500', icon: 'Clock' },
+  executing: { label: 'Executing', color: 'text-primary', icon: 'Loader2' },
+  paused: { label: 'Paused', color: 'text-yellow-500', icon: 'Pause' },
+  completed: { label: 'Completed', color: 'text-green-500', icon: 'CheckCircle' },
+  failed: { label: 'Failed', color: 'text-destructive', icon: 'XCircle' },
+  cancelled: { label: 'Cancelled', color: 'text-orange-500', icon: 'Ban' },
+  shutdown: { label: 'Shutdown', color: 'text-muted-foreground', icon: 'Power' },
+};
+
+/**
+ * Task status display configuration
+ */
+export const TASK_STATUS_CONFIG: Record<
+  TeamTaskStatus,
+  { label: string; color: string; icon: string }
+> = {
+  pending: { label: 'Pending', color: 'text-muted-foreground', icon: 'Circle' },
+  blocked: { label: 'Blocked', color: 'text-red-400', icon: 'Lock' },
+  claimed: { label: 'Claimed', color: 'text-blue-400', icon: 'Hand' },
+  in_progress: { label: 'In Progress', color: 'text-primary', icon: 'Loader2' },
+  review: { label: 'In Review', color: 'text-purple-500', icon: 'Eye' },
+  completed: { label: 'Completed', color: 'text-green-500', icon: 'CheckCircle' },
+  failed: { label: 'Failed', color: 'text-destructive', icon: 'XCircle' },
+  cancelled: { label: 'Cancelled', color: 'text-orange-500', icon: 'Ban' },
+};

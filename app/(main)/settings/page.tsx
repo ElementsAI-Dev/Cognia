@@ -38,6 +38,7 @@ import {
   ScrollText,
   ExternalLink,
   Swords,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -114,7 +115,7 @@ import {
   LoggingSettings,
   ArenaSettings,
 } from '@/components/settings';
-import { ExternalAgentSettings } from '@/components/settings/agent';
+import { ExternalAgentSettings, AgentTeamSettings } from '@/components/settings/agent';
 import { ObservabilitySettings } from '@/components/observability';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
 import { PromptTemplateManager, PromptMarketplaceBrowser } from '@/components/prompt';
@@ -435,6 +436,13 @@ export default function SettingsPage() {
         group: 'ai',
       },
       {
+        id: 'agent-teams',
+        label: t('tabAgentTeams') || 'Agent Teams',
+        icon: <Users className="h-4 w-4" />,
+        description: t('descAgentTeams') || 'Configure multi-agent team coordination',
+        group: 'ai',
+      },
+      {
         id: 'appearance',
         label: t('tabAppearance'),
         icon: <Palette className="h-4 w-4" />,
@@ -669,6 +677,8 @@ export default function SettingsPage() {
         return <AgentOptimizationSettings />;
       case 'external-agents':
         return <ExternalAgentSettings />;
+      case 'agent-teams':
+        return <AgentTeamSettings />;
       case 'logs':
         return <LogViewer />;
       case 'logging-config':

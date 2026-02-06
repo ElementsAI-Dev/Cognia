@@ -21,7 +21,6 @@ import type {
   TeacherKeyPointInput,
   TeacherKeyPointResult,
   SpeedLearningTutorial,
-  TutorialSection,
   SpeedStudySession,
   Quiz,
   WrongQuestionRecord,
@@ -30,7 +29,7 @@ import type {
   StartSpeedLearningInput,
   CreateQuizInput,
 } from '@/types/learning/speedpass';
-import { SPEED_LEARNING_MODES } from '@/types/learning/speedpass';
+import { generateTutorial } from '@/lib/learning/speedpass/tutorial-generator';
 
 // ============================================================================
 // Store Interface
@@ -545,81 +544,27 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             throw new Error('Textbook not found');
           }
 
-          const modeConfig = SPEED_LEARNING_MODES[input.mode];
           const knowledgePoints = state.textbookKnowledgePoints[input.textbookId] || [];
           const questions = state.textbookQuestions[input.textbookId] || [];
           const chapters = state.textbookChapters[input.textbookId] || [];
 
-          // Create tutorial sections based on knowledge points
-          const sections: TutorialSection[] = knowledgePoints
-            .filter((kp) => kp.importance === 'critical' || kp.importance === 'high')
-            .slice(0, input.mode === 'extreme' ? 10 : input.mode === 'speed' ? 20 : 50)
-            .map((kp, index) => {
-              const chapter = chapters.find((c) => c.id === kp.chapterId);
-              const relatedExamples = questions.filter(
-                (q) => q.sourceType === 'example' && kp.relatedExampleIds?.includes(q.id)
-              );
-              const relatedExercises = questions.filter(
-                (q) => q.sourceType === 'exercise' && kp.relatedExerciseIds?.includes(q.id)
-              );
-
-              return {
-                id: nanoid(),
-                knowledgePointId: kp.id,
-                orderIndex: index,
-                importanceLevel: kp.importance === 'critical' ? 'critical' : 'important',
-                textbookLocation: {
-                  textbookName: textbook.name,
-                  chapter: chapter?.chapterNumber || '',
-                  section: chapter?.title || '',
-                  pageRange: `P${kp.pageNumber}`,
-                },
-                originalContent: kp.content,
-                quickSummary: kp.summary || kp.content.slice(0, 200),
-                keyPoints: [],
-                mustKnowFormulas: (kp.formulas || []).map((f) => ({
-                  formula: f,
-                  explanation: '',
-                  pageNumber: kp.pageNumber,
-                })),
-                examples: relatedExamples.slice(0, 3).map((ex) => ({
-                  questionId: ex.id,
-                  title: ex.questionNumber,
-                  difficulty:
-                    ex.difficulty < 0.3 ? 'easy' : ex.difficulty < 0.7 ? 'medium' : 'hard',
-                  pageNumber: ex.pageNumber,
-                })),
-                recommendedExercises: relatedExercises.slice(0, 3).map((ex) => ({
-                  questionId: ex.id,
-                  number: ex.questionNumber,
-                  difficulty:
-                    ex.difficulty < 0.3 ? 'easy' : ex.difficulty < 0.7 ? 'medium' : 'hard',
-                })),
-                commonMistakes: [],
-                memoryTips: [],
-                estimatedMinutes:
-                  modeConfig.tutorialDepth === 'brief'
-                    ? 5
-                    : modeConfig.tutorialDepth === 'standard'
-                      ? 10
-                      : 15,
-              } as TutorialSection;
-            });
-
-          const tutorial: SpeedLearningTutorial = {
-            id: nanoid(),
-            userId: input.userId || '',
-            courseId: input.courseId,
-            textbookId: input.textbookId,
+          // Use the library's generateTutorial for richer content
+          // (summaries, key points, memory tips, common mistakes)
+          const result = generateTutorial({
+            textbook,
+            chapters,
+            knowledgePoints,
+            questions,
             mode: input.mode,
-            createdAt: new Date(),
+            userId: input.userId || '',
+            courseId: input.courseId || '',
+          });
+
+          // Override the generated ID with nanoid for consistency
+          const tutorial: SpeedLearningTutorial = {
+            ...result.tutorial,
+            id: nanoid(),
             teacherKeyPointIds: input.teacherKeyPointIds || [],
-            title: `${textbook.name} - ${input.mode === 'extreme' ? '极速' : input.mode === 'speed' ? '速成' : '全面'}复习`,
-            overview: `基于《${textbook.name}》生成的${input.mode === 'extreme' ? '极速(1-2小时)' : input.mode === 'speed' ? '速成(2-4小时)' : '全面(6-12小时)'}复习教程`,
-            sections,
-            totalEstimatedMinutes: sections.reduce((sum, s) => sum + s.estimatedMinutes, 0),
-            completedSectionIds: [],
-            progress: 0,
           };
 
           set((state) => ({
@@ -1283,12 +1228,19 @@ export const useSpeedPassStore = create<SpeedPassState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         academicProfile: state.academicProfile,
+        textbooks: state.textbooks,
+        textbookChapters: state.textbookChapters,
+        textbookKnowledgePoints: state.textbookKnowledgePoints,
+        textbookQuestions: state.textbookQuestions,
         userTextbooks: state.userTextbooks,
+        courseTextbookMappings: state.courseTextbookMappings,
         tutorials: state.tutorials,
         studySessions: state.studySessions,
+        quizzes: state.quizzes,
         wrongQuestions: state.wrongQuestions,
         studyReports: state.studyReports,
         globalStats: state.globalStats,
+        userProfile: state.userProfile,
       }),
     }
   )

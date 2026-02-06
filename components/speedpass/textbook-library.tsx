@@ -6,7 +6,7 @@
  * Manages textbook uploads, parsing, and organization.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,10 +55,11 @@ import {
 } from 'lucide-react';
 import { useSpeedPassStore } from '@/stores/learning/speedpass-store';
 import { useTextbookProcessor } from '@/hooks/learning';
-import type { Textbook } from '@/types/learning/speedpass';
+import type { Textbook, TextbookParseStatus } from '@/types/learning/speedpass';
 import { nanoid } from 'nanoid';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
+import { TextbookUploader } from './textbook-uploader';
 
 // ============================================================================
 // Main Component
@@ -66,9 +67,14 @@ import { useTranslations } from 'next-intl';
 
 export function TextbookLibrary() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [showUploader, setShowUploader] = useState(false);
   const store = useSpeedPassStore();
-  const textbooks = Object.values(store.textbooks);
+  const textbooks = useMemo(() => Object.values(store.textbooks), [store.textbooks]);
   const t = useTranslations('learningMode.speedpass.library');
+
+  const handleUploadComplete = useCallback(() => {
+    setShowUploader(false);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -80,27 +86,41 @@ export function TextbookLibrary() {
             {t('subtitle', { count: textbooks.length })}
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="add-textbook-button">
-              <Upload className="mr-2 h-4 w-4" />
-              {t('addTextbook')}
-            </Button>
-          </DialogTrigger>
-          <AddTextbookDialog onClose={() => setIsAddDialogOpen(false)} />
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowUploader(!showUploader)} data-testid="upload-textbook-button">
+            <Upload className="mr-2 h-4 w-4" />
+            上传文件
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="add-textbook-button">
+                <BookOpen className="mr-2 h-4 w-4" />
+                {t('addTextbook')}
+              </Button>
+            </DialogTrigger>
+            <AddTextbookDialog onClose={() => setIsAddDialogOpen(false)} />
+          </Dialog>
+        </div>
       </div>
 
+      {/* File Uploader */}
+      {showUploader && (
+        <TextbookUploader
+          onUploadComplete={handleUploadComplete}
+          onCancel={() => setShowUploader(false)}
+        />
+      )}
+
       {/* Textbook Grid */}
-      {textbooks.length === 0 ? (
+      {textbooks.length === 0 && !showUploader ? (
         <EmptyState onAdd={() => setIsAddDialogOpen(true)} />
-      ) : (
+      ) : textbooks.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {textbooks.map((textbook) => (
             <TextbookCard key={textbook.id} textbook={textbook} />
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -215,7 +235,7 @@ function AddTextbookDialog({ onClose }: AddTextbookDialogProps) {
   }, [title, author, edition, isbn, store, onClose]);
 
   return (
-    <DialogContent className="sm:max-w-106.25">
+    <DialogContent className="sm:max-w-[425px]">
       <DialogHeader>
         <DialogTitle>{t('title')}</DialogTitle>
         <DialogDescription>{t('description')}</DialogDescription>
@@ -284,7 +304,7 @@ function TextbookCard({ textbook }: TextbookCardProps) {
   const t = useTranslations('learningMode.speedpass.library.card');
   const tDelete = useTranslations('learningMode.speedpass.library.deleteConfirm');
   const store = useSpeedPassStore();
-  const { processTextbook: _processTextbook, progress, isProcessing } = useTextbookProcessor();
+  const { processTextbook, progress, isProcessing } = useTextbookProcessor();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const parseStatus = store.parseProgress?.textbookId === textbook.id ? store.parseProgress : null;
@@ -298,8 +318,28 @@ function TextbookCard({ textbook }: TextbookCardProps) {
   }, [store, textbook.id]);
 
   const handleStartLearning = useCallback(() => {
-    // Navigate to tutorial generation
-  }, []);
+    store.setCurrentTextbook(textbook.id);
+    // Dispatch a custom event to open mode selector from parent page
+    window.dispatchEvent(new CustomEvent('speedpass:open-mode-selector', {
+      detail: { textbookId: textbook.id },
+    }));
+  }, [store, textbook.id]);
+
+  const handlePractice = useCallback(() => {
+    if (questions.length === 0) {
+      return;
+    }
+    // Dispatch a custom event to navigate to quiz tab from parent page
+    window.dispatchEvent(new CustomEvent('speedpass:start-quiz', {
+      detail: { textbookId: textbook.id },
+    }));
+  }, [textbook.id, questions.length]);
+
+  const _handleProcessTextbook = useCallback(async () => {
+    if (textbook.parseStatus === 'pending' || textbook.parseStatus === 'failed') {
+      await processTextbook(textbook.id, '');
+    }
+  }, [processTextbook, textbook.id, textbook.parseStatus]);
 
   return (
     <Card className="overflow-hidden">
@@ -407,7 +447,7 @@ function TextbookCard({ textbook }: TextbookCardProps) {
             <Play className="mr-2 h-4 w-4" />
             {t('startLearning')}
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handlePractice} disabled={questions.length === 0}>
             <Brain className="mr-2 h-4 w-4" />
             {t('practice')}
           </Button>
@@ -420,8 +460,6 @@ function TextbookCard({ textbook }: TextbookCardProps) {
 // ============================================================================
 // Parse Status Badge
 // ============================================================================
-
-import type { TextbookParseStatus } from '@/types/learning/speedpass';
 
 type ParseStatus = TextbookParseStatus;
 

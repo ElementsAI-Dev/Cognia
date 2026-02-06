@@ -64,9 +64,59 @@ export const createImportExportSlice: SliceCreator<ImportExportSliceActions> = (
 
     importFromFile: async (file) => {
       try {
+        // Validate file type
+        if (!file.name.endsWith('.json')) {
+          toast.error('Invalid file type', {
+            description: 'Please select a .json workflow file',
+          });
+          return;
+        }
+
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error('File too large', {
+            description: 'Maximum file size is 10MB',
+          });
+          return;
+        }
+
         const text = await file.text();
         const parsed = JSON.parse(text) as unknown;
+
+        // Validate basic structure before importing
+        if (!parsed || typeof parsed !== 'object') {
+          toast.error('Invalid workflow file', {
+            description: 'File does not contain valid JSON data',
+          });
+          return;
+        }
+
+        // Check for workflow property or direct workflow structure
+        const hasWorkflowProp = 'workflow' in (parsed as Record<string, unknown>);
+        const hasNodesProp = 'nodes' in (parsed as Record<string, unknown>);
+        if (!hasWorkflowProp && !hasNodesProp) {
+          toast.error('Invalid workflow file', {
+            description: 'File does not contain a valid workflow structure (missing nodes/workflow)',
+          });
+          return;
+        }
+
         const workflow = await workflowRepository.import(text);
+
+        // Validate imported workflow has required fields
+        if (!workflow.nodes || !Array.isArray(workflow.nodes)) {
+          toast.error('Invalid workflow data', {
+            description: 'Workflow is missing nodes array',
+          });
+          return;
+        }
+
+        if (!workflow.edges || !Array.isArray(workflow.edges)) {
+          toast.error('Invalid workflow data', {
+            description: 'Workflow is missing edges array',
+          });
+          return;
+        }
 
         set({
           currentWorkflow: workflow,
@@ -92,7 +142,12 @@ export const createImportExportSlice: SliceCreator<ImportExportSliceActions> = (
           }
         }
 
-        toast.success('Workflow imported from file');
+        toast.success('Workflow imported from file', {
+          description: `${workflow.nodes.length} nodes, ${workflow.edges.length} edges`,
+        });
+
+        // Auto-validate after import
+        get().validate();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         toast.error('Failed to import workflow', {

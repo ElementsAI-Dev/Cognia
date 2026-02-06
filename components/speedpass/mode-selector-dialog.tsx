@@ -12,6 +12,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { SpeedLearningMode, Textbook } from '@/types/learning/speedpass';
+import { detectSpeedLearningMode, getModeDisplayInfo, getModeRecommendation } from '@/lib/learning/speedpass';
 import {
   Dialog,
   DialogContent,
@@ -130,15 +131,42 @@ export function ModeSelectorDialog({
   const _t = useTranslations('learningMode.speedpass');
   const [selectedMode, setSelectedMode] = useState<SpeedLearningMode | null>(null);
   const [inputTime, setInputTime] = useState<string>(availableTime?.toString() || '');
+  const [freeTextInput, setFreeTextInput] = useState('');
 
-  // Calculate recommended mode based on available time
-  const recommendedMode = useMemo(() => {
+  // Calculate recommended mode using mode-router's intelligent detection
+  const modeDetection = useMemo(() => {
+    // If free text input provided, use NLP-based detection
+    if (freeTextInput.trim()) {
+      return detectSpeedLearningMode(freeTextInput, {
+        availableTimeMinutes: inputTime ? parseInt(inputTime, 10) : availableTime,
+        examDate,
+      });
+    }
+
+    // Otherwise use simple time-based detection
     const time = inputTime ? parseInt(inputTime, 10) : availableTime;
     if (!time) return null;
 
-    if (time <= 120) return 'extreme';
-    if (time <= 240) return 'speed';
-    return 'comprehensive';
+    return detectSpeedLearningMode(`我有${time}分钟`, {
+      availableTimeMinutes: time,
+      examDate,
+    });
+  }, [inputTime, availableTime, freeTextInput, examDate]);
+
+  const recommendedMode = modeDetection?.detected ? modeDetection.recommendedMode : null;
+
+  // Get display info for each mode from mode-router
+  const modeDisplayInfoMap = useMemo(() => ({
+    extreme: getModeDisplayInfo('extreme'),
+    speed: getModeDisplayInfo('speed'),
+    comprehensive: getModeDisplayInfo('comprehensive'),
+  }), []);
+
+  // Score-based mode recommendation (passing = 60 target)
+  const scoreBasedRecommendation = useMemo(() => {
+    const time = inputTime ? parseInt(inputTime, 10) : availableTime;
+    if (!time || time <= 0) return null;
+    return getModeRecommendation(time, 60);
   }, [inputTime, availableTime]);
 
   // Calculate urgency based on exam date
@@ -186,26 +214,49 @@ export function ModeSelectorDialog({
         </DialogHeader>
 
         {/* Time Input */}
-        <div className="space-y-2">
-          <Label htmlFor="available-time" className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            可用学习时间（分钟）
-          </Label>
-          <Input
-            id="available-time"
-            type="number"
-            placeholder="例如: 120"
-            value={inputTime}
-            onChange={(e) => setInputTime(e.target.value)}
-            className="w-48"
-          />
-          {recommendedMode && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="available-time" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                可用时间（分钟）
+              </Label>
+              <Input
+                id="available-time"
+                type="number"
+                placeholder="例如: 120"
+                value={inputTime}
+                onChange={(e) => setInputTime(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="free-text" className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                或描述情况
+              </Label>
+              <Input
+                id="free-text"
+                placeholder="例如: 明天考试，只有2小时"
+                value={freeTextInput}
+                onChange={(e) => setFreeTextInput(e.target.value)}
+              />
+            </div>
+          </div>
+          {recommendedMode && modeDetection && (
             <p className="flex items-center gap-1 text-sm text-muted-foreground">
               <Sparkles className="h-4 w-4 text-amber-500" />
-              根据时间推荐:{' '}
+              智能推荐:{' '}
               <span className="font-medium">
-                {MODE_OPTIONS.find((m) => m.mode === recommendedMode)?.title}
+                {modeDisplayInfoMap[recommendedMode].nameZh}
               </span>
+              <span className="text-xs">
+                ({modeDetection.reasonZh})
+              </span>
+              {scoreBasedRecommendation && scoreBasedRecommendation !== recommendedMode && (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  · 及格目标推荐: {modeDisplayInfoMap[scoreBasedRecommendation].nameZh}
+                </span>
+              )}
             </p>
           )}
         </div>

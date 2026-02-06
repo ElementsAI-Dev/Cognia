@@ -53,26 +53,10 @@ import {
   RotateCcw,
 } from 'lucide-react';
 
-export interface TextLayer {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  fontSize: number;
-  fontFamily: string;
-  fontWeight: 'normal' | 'bold';
-  fontStyle: 'normal' | 'italic';
-  color: string;
-  opacity: number;
-  rotation: number;
-  align: 'left' | 'center' | 'right';
-  shadowEnabled: boolean;
-  shadowColor: string;
-  shadowBlur: number;
-  shadowOffsetX: number;
-  shadowOffsetY: number;
-  visible: boolean;
-}
+import type { TextLayerConfig as TextLayer } from '@/types/media/image-studio';
+
+// Re-export for compatibility
+export type { TextLayer };
 
 export interface TextOverlayProps {
   imageUrl: string;

@@ -7,7 +7,7 @@ import {
   getAPIURL,
   getWebUIURL,
   maskCLIProxyApiKey,
-  parseModelId,
+  parseCLIProxyModelId,
   buildModelId,
   DEFAULT_CONFIG,
   COMMON_MODEL_ALIASES,
@@ -48,21 +48,21 @@ describe('CLIProxyAPI Provider', () => {
     });
   });
 
-  describe('parseModelId', () => {
+  describe('parseCLIProxyModelId', () => {
     it('should parse model ID with prefix', () => {
-      const result = parseModelId('test/gemini-2.5-pro');
+      const result = parseCLIProxyModelId('test/gemini-2.5-pro');
       expect(result.prefix).toBe('test');
       expect(result.model).toBe('gemini-2.5-pro');
     });
 
     it('should parse model ID without prefix', () => {
-      const result = parseModelId('gpt-4o');
+      const result = parseCLIProxyModelId('gpt-4o');
       expect(result.prefix).toBeUndefined();
       expect(result.model).toBe('gpt-4o');
     });
 
     it('should handle model ID with multiple slashes', () => {
-      const result = parseModelId('provider/path/model');
+      const result = parseCLIProxyModelId('provider/path/model');
       expect(result.prefix).toBe('provider');
       expect(result.model).toBe('path/model');
     });

@@ -6,8 +6,10 @@
 import {
   applyEdgeChanges,
   addEdge as rfAddEdge,
+  reconnectEdge as rfReconnectEdge,
   type EdgeChange,
   type Connection,
+  type Edge,
 } from '@xyflow/react';
 import { nanoid } from 'nanoid';
 import type { SliceCreator, EdgeSliceActions, WorkflowEdge } from '../types';
@@ -91,6 +93,25 @@ export const createEdgeSlice: SliceCreator<EdgeSliceActions> = (set, get) => {
         isDirty: true,
         selectedEdges: get().selectedEdges.filter((id) => !edgeIdSet.has(id)),
       });
+      get().pushHistory();
+      scheduleWorkflowValidation(get);
+    },
+
+    reconnectEdge: (oldEdge, newConnection) => {
+      const { currentWorkflow } = get();
+      if (!currentWorkflow) return;
+
+      const updated = {
+        ...currentWorkflow,
+        edges: rfReconnectEdge(
+          oldEdge as Edge,
+          newConnection,
+          currentWorkflow.edges as Edge[]
+        ) as WorkflowEdge[],
+        updatedAt: new Date(),
+      };
+
+      set({ currentWorkflow: updated, isDirty: true });
       get().pushHistory();
       scheduleWorkflowValidation(get);
     },

@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
     '@tauri-apps/plugin-shell',
     '@tauri-apps/api',
     '@zilliz/milvus2-sdk-node',
+    '@pinecone-database/pinecone',
     'monaco-editor',
   ],
   // Turbopack config - alias Tauri plugins and Node.js-only packages to stubs for browser/SSR builds
@@ -29,6 +30,7 @@ const nextConfig: NextConfig = {
       '@tauri-apps/plugin-shell': './lib/stubs/tauri-stubs.ts',
       '@tauri-apps/api/event': './lib/stubs/tauri-stubs.ts',
       '@zilliz/milvus2-sdk-node': './lib/stubs/milvus-stub.ts',
+      '@pinecone-database/pinecone': './lib/stubs/pinecone-stub.ts',
       'monaco-editor': './lib/stubs/monaco-stub.ts',
     },
   },
@@ -39,6 +41,7 @@ const nextConfig: NextConfig = {
       config.resolve.alias = {
         ...config.resolve.alias,
         '@zilliz/milvus2-sdk-node': require.resolve('./lib/stubs/milvus-stub.ts'),
+        '@pinecone-database/pinecone': require.resolve('./lib/stubs/pinecone-stub.ts'),
         'monaco-editor': require.resolve('./lib/stubs/monaco-stub.ts'),
       };
       config.resolve.fallback = {

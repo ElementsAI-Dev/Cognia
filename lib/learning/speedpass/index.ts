@@ -11,3 +11,5 @@ export * from './tutorial-generator';
 export * from './quiz-engine';
 export * from './study-analyzer';
 export * from './mode-router';
+export * from './extreme-mode-engine';
+export * from './knowledge-matcher';

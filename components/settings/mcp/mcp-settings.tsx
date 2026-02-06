@@ -91,8 +91,8 @@ export function McpSettings() {
 
   // Batch operations
   const enabledServers = servers.filter((s) => s.config.enabled);
-  const connectedServers = servers.filter((s) => s.status === 'connected');
-  const disconnectedEnabledServers = enabledServers.filter((s) => s.status !== 'connected');
+  const connectedServers = servers.filter((s) => s.status.type === 'connected');
+  const disconnectedEnabledServers = enabledServers.filter((s) => s.status.type !== 'connected');
 
   // Filter and sort servers
   const filteredAndSortedServers = useMemo(() => {
@@ -101,9 +101,9 @@ export function McpSettings() {
     // Apply status filter
     if (!statusFilter.has('all')) {
       result = result.filter((s) => {
-        if (statusFilter.has('connected') && s.status === 'connected') return true;
-        if (statusFilter.has('disconnected') && s.status === 'disconnected') return true;
-        if (statusFilter.has('error') && typeof s.status === 'object' && 'message' in s.status) return true;
+        if (statusFilter.has('connected') && s.status.type === 'connected') return true;
+        if (statusFilter.has('disconnected') && s.status.type === 'disconnected') return true;
+        if (statusFilter.has('error') && s.status.type === 'error') return true;
         if (statusFilter.has('enabled') && s.config.enabled) return true;
         if (statusFilter.has('disabled') && !s.config.enabled) return true;
         return false;
@@ -117,8 +117,8 @@ export function McpSettings() {
           return a.name.localeCompare(b.name);
         case 'status': {
           const statusOrder = { connected: 0, connecting: 1, disconnected: 2 };
-          const aStatus = typeof a.status === 'string' ? a.status : 'error';
-          const bStatus = typeof b.status === 'string' ? b.status : 'error';
+          const aStatus = a.status.type;
+          const bStatus = b.status.type;
           const aOrder = statusOrder[aStatus as keyof typeof statusOrder] ?? 3;
           const bOrder = statusOrder[bStatus as keyof typeof statusOrder] ?? 3;
           return aOrder - bOrder;

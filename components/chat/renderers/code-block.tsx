@@ -230,7 +230,7 @@ export const CodeBlock = memo(function CodeBlock({
     if (hasHighlighting && !localShowLineNumbers) {
       return (
         <div
-          ref={inFullscreen ? undefined : codeRef as React.RefObject<HTMLDivElement>}
+          ref={inFullscreen ? undefined : codeRef as unknown as React.RefObject<HTMLDivElement>}
           className={cn(
             'overflow-x-auto text-sm',
             '[&>pre]:m-0 [&>pre]:p-4 [&>pre]:bg-muted/50!',

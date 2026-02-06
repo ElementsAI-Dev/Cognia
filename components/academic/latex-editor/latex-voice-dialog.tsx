@@ -84,11 +84,40 @@ export function LatexVoiceDialog({
 
   // Initialize service when language changes
   useEffect(() => {
-    serviceRef.current = new VoiceToLaTeXService({
-      language,
-      continuous: true,
-      interimResults: true,
-    });
+    serviceRef.current = new VoiceToLaTeXService(
+      {
+        language,
+        continuous: true,
+        interimResults: true,
+      },
+      {
+        onResult: (result) => {
+          setState((prev) => ({
+            ...prev,
+            finalTranscript: result.transcript,
+            latex: result.latex,
+            isListening: false,
+          }));
+        },
+        onError: (error) => {
+          setState((prev) => ({
+            ...prev,
+            error,
+            isListening: false,
+          }));
+        },
+        onInterim: (transcript, latex) => {
+          setState((prev) => ({
+            ...prev,
+            interimTranscript: transcript,
+            latex,
+          }));
+        },
+        onEnd: () => {
+          setState((prev) => ({ ...prev, isListening: false }));
+        },
+      }
+    );
   }, [language]);
 
   const handleStartListening = useCallback(() => {
@@ -101,33 +130,7 @@ export function LatexVoiceDialog({
       interimTranscript: '',
     }));
 
-    serviceRef.current.start({
-      onResult: (result) => {
-        setState((prev) => ({
-          ...prev,
-          finalTranscript: result.transcript,
-          latex: result.latex,
-          isListening: false,
-        }));
-      },
-      onError: (error) => {
-        setState((prev) => ({
-          ...prev,
-          error,
-          isListening: false,
-        }));
-      },
-      onInterim: (transcript, latex) => {
-        setState((prev) => ({
-          ...prev,
-          interimTranscript: transcript,
-          latex,
-        }));
-      },
-      onEnd: () => {
-        setState((prev) => ({ ...prev, isListening: false }));
-      },
-    });
+    serviceRef.current.start();
   }, []);
 
   const handleStopListening = useCallback(() => {

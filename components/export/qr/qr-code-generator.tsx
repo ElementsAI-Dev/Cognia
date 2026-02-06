@@ -100,7 +100,7 @@ export function QRCodeGenerator({
               onGenerated(reader.result);
             }
           };
-          reader.readAsDataURL(blob);
+          reader.readAsDataURL(blob as Blob);
         }
       });
     } catch (error) {

@@ -1,0 +1,61 @@
+{
+  "agentTeamSettings": {
+    "title": "Agent 团队",
+    "description": "配置多 Agent 团队协调，实现协同任务执行。",
+
+    "enableTeams": "启用 Agent 团队",
+    "enableTeamsDesc": "允许创建和运行多 Agent 团队，协同解决复杂任务。",
+
+    "executionMode": "默认执行模式",
+    "executionModeDesc": "团队成员执行任务时的默认协作方式。",
+    "modeCoordinate": "协调",
+    "modeAutonomous": "自主",
+    "modeDelegate": "委派",
+
+    "maxTeammates": "最大成员数",
+    "maxTeammatesDesc": "每个团队允许的最大成员数量。",
+    "maxConcurrent": "最大并发数",
+    "maxConcurrentDesc": "同时执行的最大成员数量。",
+
+    "defaultTimeout": "成员超时时间",
+    "defaultTimeoutDesc": "每个成员超时前的最大执行时间。",
+    "maxSteps": "每个成员最大步骤数",
+    "maxStepsDesc": "每个成员可以执行的最大 Agent 步骤数。",
+
+    "autoApprovePlans": "自动批准计划",
+    "autoApprovePlansDesc": "自动批准任务分解计划，无需手动审核。",
+    "enableMessaging": "Agent 间消息传递",
+    "enableMessagingDesc": "允许成员在执行过程中互相发送消息。",
+    "contextIsolation": "自动关闭",
+    "contextIsolationDesc": "当所有任务完成后自动关闭成员。",
+
+    "templates": "团队模板",
+    "templatesDesc": "常见场景的预配置团队组合。",
+    "viewTemplates": "查看模板",
+    "builtInTemplates": "内置模板",
+    "customTemplates": "自定义模板",
+    "builtInProtected": "内置模板不可删除",
+    "noTemplates": "暂无可用模板",
+
+    "teamsOverview": "团队概览",
+    "teamsOverviewDesc": "查看活跃和已完成的团队。",
+    "viewTeams": "查看团队",
+    "active": "活跃",
+    "total": "总计",
+    "noTeamsYet": "尚未创建任何团队。从聊天界面创建团队即可开始使用。",
+    "cleanupCompleted": "清理已完成",
+    "cleanupTitle": "清理已完成的团队？",
+    "cleanupDesc": "这将永久删除 {count} 个已完成/失败/取消的团队及其数据。",
+    "cleanupConfirm": "全部清理",
+
+    "dangerZone": "危险区域",
+    "resetAll": "重置 Agent 团队",
+    "resetAllDesc": "清除所有团队、成员、任务和消息。模板将被保留。",
+    "resetButton": "重置",
+    "resetTitle": "重置 Agent 团队？",
+    "resetDesc": "这将清除所有团队、成员、任务和消息。内置模板将被保留。此操作不可撤销。",
+
+    "deleteTemplateTitle": "删除模板？",
+    "deleteTemplateDesc": "这将永久删除此自定义模板。此操作不可撤销。"
+  }
+}

@@ -151,6 +151,8 @@ export interface NodeSliceActions {
   deleteNode: (nodeId: string) => void;
   deleteNodes: (nodeIds: string[]) => void;
   duplicateNode: (nodeId: string) => string | null;
+  duplicateNodes: (nodeIds: string[]) => string[];
+  batchUpdateNodes: (nodeIds: string[], data: Partial<WorkflowNodeData>) => void;
   onNodesChange: (changes: import('@xyflow/react').NodeChange<WorkflowNode>[]) => void;
 }
 
@@ -159,6 +161,7 @@ export interface EdgeSliceActions {
   updateEdge: (edgeId: string, data: Partial<WorkflowEdgeData>) => void;
   deleteEdge: (edgeId: string) => void;
   deleteEdges: (edgeIds: string[]) => void;
+  reconnectEdge: (oldEdge: WorkflowEdge, newConnection: import('@xyflow/react').Connection) => void;
   onEdgesChange: (changes: import('@xyflow/react').EdgeChange<WorkflowEdge>[]) => void;
   onConnect: (connection: import('@xyflow/react').Connection) => void;
 }

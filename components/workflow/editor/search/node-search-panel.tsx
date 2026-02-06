@@ -6,6 +6,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
+import { useReactFlow } from '@xyflow/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -90,13 +91,29 @@ export function NodeSearchPanel({ onNavigateToNode }: NodeSearchPanelProps) {
     return groups;
   }, [filteredNodes]);
 
-  // Handle node selection
+  const { setCenter, getNode } = useReactFlow();
+
+  // Handle node selection with auto-navigation
   const handleSelectNode = useCallback((nodeId: string) => {
     selectNodes([nodeId]);
-    onNavigateToNode?.(nodeId);
     setOpen(false);
     setSearch('');
-  }, [selectNodes, onNavigateToNode]);
+
+    // Pan to node location
+    const node = getNode(nodeId);
+    if (node) {
+      const nodeWidth = node.measured?.width ?? 200;
+      const nodeHeight = node.measured?.height ?? 100;
+      const x = node.position.x + nodeWidth / 2;
+      const y = node.position.y + nodeHeight / 2;
+
+      setTimeout(() => {
+        setCenter(x, y, { zoom: 1, duration: 500 });
+      }, 50);
+    }
+
+    onNavigateToNode?.(nodeId);
+  }, [selectNodes, setCenter, getNode, onNavigateToNode]);
 
   // Get node status
   const getNodeStatus = useCallback((nodeId: string) => {

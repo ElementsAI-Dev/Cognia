@@ -32,6 +32,7 @@ export type SettingsSection =
   | 'tray'
   | 'agent-optimization'
   | 'external-agents'
+  | 'agent-teams'
   | 'logs'
   | 'logging-config';
 

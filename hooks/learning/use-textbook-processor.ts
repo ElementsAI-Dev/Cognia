@@ -34,6 +34,11 @@ import {
   generateLearningInsights,
   type LearningInsights,
 } from '@/lib/learning/speedpass/study-analyzer';
+import {
+  matchTeacherKeyPoints,
+  getMatchedKnowledgePointIds,
+  filterKnowledgePointsByMatch,
+} from '@/lib/learning/speedpass/knowledge-matcher';
 
 // ============================================================================
 // Types
@@ -368,8 +373,40 @@ export function useTutorialGenerator() {
     [store]
   );
 
+  /**
+   * Match free-text teacher notes against textbook knowledge points
+   * using the KnowledgeMatcher to find relevant knowledge point IDs.
+   * Returns matched KP IDs and filtered knowledge points sorted by relevance.
+   */
+  const matchTeacherNotes = useCallback(
+    (textbookId: string, teacherNotes: string): {
+      ids: string[];
+      knowledgePoints: TextbookKnowledgePoint[];
+    } => {
+      const knowledgePoints = store.textbookKnowledgePoints[textbookId] || [];
+      if (knowledgePoints.length === 0 || !teacherNotes.trim()) {
+        return { ids: [], knowledgePoints: [] };
+      }
+
+      const matches = matchTeacherKeyPoints(teacherNotes, knowledgePoints);
+      const scoreMap = getMatchedKnowledgePointIds(matches);
+
+      // Return IDs sorted by match score (descending)
+      const ids = [...scoreMap.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([id]) => id);
+
+      // Return filtered knowledge points sorted by match score
+      const filteredKPs = filterKnowledgePointsByMatch(knowledgePoints, scoreMap);
+
+      return { ids, knowledgePoints: filteredKPs };
+    },
+    [store.textbookKnowledgePoints]
+  );
+
   return {
     generate,
+    matchTeacherNotes,
     isGenerating,
     error,
   };

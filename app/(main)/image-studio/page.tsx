@@ -115,7 +115,7 @@ import {
   ImageComparison,
   LayersPanel,
 } from '@/components/image-studio';
-import type { HistoryOperationType, Layer, LayerType, BlendMode } from '@/components/image-studio';
+import type { HistoryOperationType, Layer, LayerType } from '@/components/image-studio';
 import { useImageEditorShortcuts } from '@/hooks/image-studio';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import {
@@ -237,6 +237,14 @@ export default function ImageStudioPage() {
     setGridZoomLevel,
     showSettings: storeShowSettings,
     toggleSettings: _toggleSettings,
+    // Layers
+    layers: storeLayers,
+    activeLayerId: storeActiveLayerId,
+    addLayer,
+    updateLayer,
+    deleteLayer,
+    setActiveLayer,
+    reorderLayers,
   } = useImageStudioStore();
 
   // Convert store images to component format for backwards compatibility
@@ -325,10 +333,6 @@ export default function ImageStudioPage() {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showLayersPanel, setShowLayersPanel] = useState(false);
   const [compareBeforeImage, setCompareBeforeImage] = useState<string | null>(null);
-  
-  // Layers state for advanced editing
-  const [layers, setLayers] = useState<Layer[]>([]);
-  const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   
   // Image preview state
   const [showHistogram, setShowHistogram] = useState(false);
@@ -1468,51 +1472,31 @@ export default function ImageStudioPage() {
                 {/* Layers Panel */}
                 {showLayersPanel && (
                   <LayersPanel
-                    layers={layers}
-                    activeLayerId={activeLayerId}
-                    onLayerSelect={setActiveLayerId}
-                    onLayerUpdate={(id, updates) => {
-                      setLayers(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
-                    }}
-                    onLayerDelete={(id) => {
-                      setLayers(prev => prev.filter(l => l.id !== id));
-                      if (activeLayerId === id) setActiveLayerId(null);
-                    }}
+                    layers={storeLayers as Layer[]}
+                    activeLayerId={storeActiveLayerId}
+                    onLayerSelect={setActiveLayer}
+                    onLayerUpdate={updateLayer}
+                    onLayerDelete={deleteLayer}
                     onLayerDuplicate={(id) => {
-                      const layer = layers.find(l => l.id === id);
+                      const layer = storeLayers.find(l => l.id === id);
                       if (layer) {
-                        const newLayer: Layer = {
+                        addLayer({
                           ...layer,
-                          id: `layer-${Date.now()}`,
                           name: `${layer.name} copy`,
-                          order: layers.length,
-                        };
-                        setLayers(prev => [...prev, newLayer]);
-                        setActiveLayerId(newLayer.id);
+                        });
                       }
                     }}
                     onLayerAdd={(type: LayerType) => {
-                      const newLayer: Layer = {
-                        id: `layer-${Date.now()}`,
+                      addLayer({
                         name: `New ${type} layer`,
-                        type,
+                        type: type,
                         visible: true,
                         locked: false,
                         opacity: 100,
-                        blendMode: 'normal' as BlendMode,
-                        order: layers.length,
-                      };
-                      setLayers(prev => [...prev, newLayer]);
-                      setActiveLayerId(newLayer.id);
-                    }}
-                    onLayerReorder={(fromIdx, toIdx) => {
-                      setLayers(prev => {
-                        const newLayers = [...prev];
-                        const [removed] = newLayers.splice(fromIdx, 1);
-                        newLayers.splice(toIdx, 0, removed);
-                        return newLayers.map((l, i) => ({ ...l, order: i }));
+                        blendMode: 'normal',
                       });
                     }}
+                    onLayerReorder={reorderLayers}
                     className="mt-2"
                   />
                 )}

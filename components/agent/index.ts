@@ -28,6 +28,13 @@ export { WorkflowSelector, type WorkflowSelectorProps } from './workflow-selecto
 // A2UI components
 export { A2UITemplatePreview } from './a2ui-template-preview';
 
+// Agent team components
+export { AgentTeamPanel, type AgentTeamPanelProps } from './agent-team-panel';
+export { AgentTeamTemplateSelector, type AgentTeamTemplateSelectorProps } from './agent-team-template-selector';
+export { AgentTeamCreateDialog, type AgentTeamCreateDialogProps } from './agent-team-create-dialog';
+export { AgentTeamTeammateEditor, type AgentTeamTeammateEditorProps } from './agent-team-teammate-editor';
+export { AgentTeamIndicator, type AgentTeamIndicatorProps } from './agent-team-indicator';
+
 // External agent components
 export { ExternalAgentSelector } from './external-agent-selector';
 export { ExternalAgentManager } from './external-agent-manager';

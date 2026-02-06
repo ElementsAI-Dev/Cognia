@@ -38,14 +38,14 @@ export const createSelectionSlice: SliceCreator<SelectionSliceActions> = (set, g
     },
 
     copySelection: () => {
-      const { currentWorkflow, selectedNodes, selectedEdges } = get();
+      const { currentWorkflow, selectedNodes } = get();
       if (!currentWorkflow) return;
 
       const nodeIdSet = new Set(selectedNodes);
       const copiedNodes = currentWorkflow.nodes.filter((n) => nodeIdSet.has(n.id));
+      // Copy all edges that connect two selected nodes (internal edges)
       const copiedEdges = currentWorkflow.edges.filter(
-        (e) =>
-          nodeIdSet.has(e.source) && nodeIdSet.has(e.target) && selectedEdges.includes(e.id)
+        (e) => nodeIdSet.has(e.source) && nodeIdSet.has(e.target)
       );
 
       set({ copiedNodes, copiedEdges });

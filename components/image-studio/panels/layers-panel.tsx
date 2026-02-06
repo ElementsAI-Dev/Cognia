@@ -58,6 +58,8 @@ import {
   Merge,
 } from 'lucide-react';
 
+import type { ImageAdjustments, TextLayerConfig, DrawingShapeConfig } from '@/types';
+
 export type LayerType = 'image' | 'mask' | 'adjustment' | 'text' | 'shape';
 export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten' | 'color-dodge' | 'color-burn' | 'soft-light' | 'hard-light';
 
@@ -70,6 +72,10 @@ export interface Layer {
   opacity: number;
   blendMode: BlendMode;
   thumbnail?: string;
+  data?: string;
+  adjustments?: Partial<ImageAdjustments>;
+  textConfig?: TextLayerConfig;
+  shapeConfig?: DrawingShapeConfig;
   order: number;
 }
 

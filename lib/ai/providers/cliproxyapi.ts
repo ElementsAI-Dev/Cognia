@@ -236,7 +236,7 @@ export function maskCLIProxyApiKey(apiKey: string): string {
  * Parse model ID to extract provider prefix if present
  * CLIProxyAPI supports format: "prefix/model-name"
  */
-export function parseModelId(modelId: string): { prefix?: string; model: string } {
+export function parseCLIProxyModelId(modelId: string): { prefix?: string; model: string } {
   const slashIndex = modelId.indexOf('/');
   if (slashIndex > 0) {
     return {

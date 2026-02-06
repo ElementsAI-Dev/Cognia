@@ -36,13 +36,14 @@ export function useToolbarActions() {
     undo,
     redo,
     deleteNodes,
-    duplicateNode,
+    duplicateNodes,
     startExecution,
     pauseExecution,
     resumeExecution,
     cancelExecution,
     autoLayout,
     alignNodes,
+    distributeNodes,
     toggleNodePalette,
     toggleConfigPanel,
     toggleMinimap,
@@ -64,13 +65,14 @@ export function useToolbarActions() {
       undo: state.undo,
       redo: state.redo,
       deleteNodes: state.deleteNodes,
-      duplicateNode: state.duplicateNode,
+      duplicateNodes: state.duplicateNodes,
       startExecution: state.startExecution,
       pauseExecution: state.pauseExecution,
       resumeExecution: state.resumeExecution,
       cancelExecution: state.cancelExecution,
       autoLayout: state.autoLayout,
       alignNodes: state.alignNodes,
+      distributeNodes: state.distributeNodes,
       toggleNodePalette: state.toggleNodePalette,
       toggleConfigPanel: state.toggleConfigPanel,
       toggleMinimap: state.toggleMinimap,
@@ -115,15 +117,21 @@ export function useToolbarActions() {
 
   const handleDuplicateSelection = useCallback(() => {
     if (state.hasSelection) {
-      selectedNodes.forEach((nodeId) => duplicateNode(nodeId));
+      duplicateNodes(selectedNodes);
     }
-  }, [state.hasSelection, duplicateNode, selectedNodes]);
+  }, [state.hasSelection, duplicateNodes, selectedNodes]);
 
   const handleAlign = useCallback((direction: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
     if (state.hasSelection && selectedNodes.length >= 2) {
       alignNodes(direction);
     }
   }, [state.hasSelection, selectedNodes.length, alignNodes]);
+
+  const handleDistribute = useCallback((direction: 'horizontal' | 'vertical') => {
+    if (state.hasSelection && selectedNodes.length >= 3) {
+      distributeNodes(direction);
+    }
+  }, [state.hasSelection, selectedNodes.length, distributeNodes]);
 
   return {
     // State
@@ -143,6 +151,7 @@ export function useToolbarActions() {
     handleDeleteSelection,
     handleDuplicateSelection,
     handleAlign,
+    handleDistribute,
     undo,
     redo,
     autoLayout,

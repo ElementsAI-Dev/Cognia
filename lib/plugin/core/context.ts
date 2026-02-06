@@ -1169,13 +1169,18 @@ function createSchedulerAPI(pluginId: string): PluginSchedulerAPI {
     },
 
     listTasks: async (filter?: PluginTaskFilter): Promise<PluginScheduledTask[]> => {
+      const rawStatuses = filter?.status
+        ? Array.isArray(filter.status)
+          ? filter.status
+          : [filter.status]
+        : undefined;
+      // Filter to only valid ScheduledTaskStatus values (exclude 'error'/'completed' which are PluginTaskStatus-only)
+      const schedulerCompatible = rawStatuses?.filter(
+        (s) => ['active', 'paused', 'disabled', 'expired'].includes(s)
+      ) as import('@/types/scheduler').ScheduledTaskStatus[] | undefined;
       const allTasks = await schedulerDb.getFilteredTasks({
         types: ['plugin'],
-        statuses: filter?.status
-          ? Array.isArray(filter.status)
-            ? filter.status
-            : [filter.status]
-          : undefined,
+        statuses: schedulerCompatible && schedulerCompatible.length > 0 ? schedulerCompatible : undefined,
         tags: filter?.tags,
         search: filter?.name,
       });
@@ -1244,8 +1249,8 @@ function createSchedulerAPI(pluginId: string): PluginSchedulerAPI {
 
       // Execute the task asynchronously
       import('@/lib/scheduler/task-scheduler')
-        .then((scheduler) => {
-          scheduler.executeTask(taskId).catch((e: Error) => loggers.manager.error('Failed to execute task:', e));
+        .then(({ getTaskScheduler }) => {
+          getTaskScheduler().runTaskNow(taskId).catch((e: Error) => loggers.manager.error('Failed to execute task:', e));
         })
         .catch((e: Error) => loggers.manager.error('Failed to load task-scheduler module:', e));
 

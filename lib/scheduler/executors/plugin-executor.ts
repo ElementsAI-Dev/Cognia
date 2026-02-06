@@ -107,7 +107,7 @@ export async function executePluginTask(
   task: ScheduledTask,
   execution: TaskExecution
 ): Promise<{ success: boolean; output?: Record<string, unknown>; error?: string }> {
-  const payload = task.payload as PluginTaskPayload | undefined;
+  const payload = task.payload as unknown as PluginTaskPayload | undefined;
 
   if (!payload) {
     return { success: false, error: 'Plugin task payload is missing' };
@@ -136,7 +136,7 @@ export async function executePluginTask(
     // Merge override args if this is a manual execution
     const effectiveArgs = {
       ...args,
-      ...(execution.metadata?.overrideArgs as Record<string, unknown> || {}),
+      ...(execution.input?.overrideArgs as Record<string, unknown> || {}),
     };
 
     // Create task context
@@ -145,9 +145,9 @@ export async function executePluginTask(
       executionId: execution.id,
       pluginId,
       taskName: task.name,
-      scheduledAt: execution.scheduledAt || new Date(),
+      scheduledAt: execution.startedAt || new Date(),
       startedAt: new Date(),
-      attemptNumber: execution.attemptNumber || 1,
+      attemptNumber: execution.retryAttempt + 1,
       signal: abortController.signal,
       reportProgress: (progress: number, message?: string) => {
         log.debug(`Task ${task.id} progress: ${progress}%${message ? ` - ${message}` : ''}`);

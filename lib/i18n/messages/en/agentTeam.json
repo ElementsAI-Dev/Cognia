@@ -1,0 +1,110 @@
+{
+  "agentTeam": {
+    "title": "Agent Teams",
+    "createTeam": "Create Team",
+    "deleteTeam": "Delete Team",
+    "executeTeam": "Execute Team",
+    "cancelTeam": "Cancel Team",
+    "pauseTeam": "Pause Team",
+    "resumeTeam": "Resume Team",
+    "teamName": "Team Name",
+    "teamDescription": "Team Description",
+    "taskDescription": "Describe the task for the team",
+    "noTeams": "No Agent Teams",
+    "noTeamsHint": "Create a team to coordinate multiple AI agents working together.",
+    "selectTeam": "Select a team to view details",
+
+    "status": {
+      "idle": "Idle",
+      "planning": "Planning",
+      "executing": "Executing",
+      "paused": "Paused",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+
+    "teammate": {
+      "title": "Teammates",
+      "add": "Add Teammate",
+      "remove": "Remove Teammate",
+      "shutdownAction": "Shutdown Teammate",
+      "lead": "Lead",
+      "idle": "Idle",
+      "planning": "Planning",
+      "awaitingApproval": "Awaiting Approval",
+      "executing": "Executing",
+      "paused": "Paused",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "shutdownStatus": "Shutdown",
+      "name": "Teammate Name",
+      "description": "Description",
+      "specialization": "Specialization",
+      "tokens": "{count} tokens"
+    },
+
+    "task": {
+      "title": "Tasks",
+      "create": "Create Task",
+      "delete": "Delete Task",
+      "claim": "Claim Task",
+      "assign": "Assign Task",
+      "pending": "Pending",
+      "blocked": "Blocked",
+      "claimed": "Claimed",
+      "inProgress": "In Progress",
+      "review": "In Review",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "noTasks": "No tasks yet",
+      "noTasksHint": "Tasks will be generated when the team executes.",
+      "done": "{completed}/{total} done",
+      "dependencies": "{count} dep",
+      "dependenciesPlural": "{count} deps"
+    },
+
+    "message": {
+      "title": "Messages",
+      "noMessages": "No messages yet",
+      "broadcast": "broadcast",
+      "direct": "Direct",
+      "system": "System"
+    },
+
+    "template": {
+      "title": "Choose Team Template",
+      "description": "Select a template to create a new agent team, or start from scratch.",
+      "builtIn": "Built-in Templates",
+      "custom": "Custom Templates",
+      "startFromScratch": "Start from Scratch",
+      "parallelReview": "Parallel Code Review",
+      "competingHypotheses": "Competing Hypotheses",
+      "researchTeam": "Research Team",
+      "fullStackDev": "Full Stack Development",
+      "crossLayer": "Cross-Layer Coordination"
+    },
+
+    "display": {
+      "compact": "Compact",
+      "expanded": "Expanded",
+      "split": "Split"
+    },
+
+    "result": {
+      "title": "Final Result",
+      "error": "Error",
+      "totalTokens": "Total tokens: {count}"
+    },
+
+    "execution": {
+      "decomposing": "Decomposing task for the team...",
+      "startingTeammates": "Starting teammates...",
+      "synthesizing": "Synthesizing results...",
+      "teamCompleted": "Team completed",
+      "completedTasks": "Completed {completed}/{total} tasks"
+    }
+  }
+}

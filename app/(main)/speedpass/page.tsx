@@ -11,11 +11,11 @@
  * - Study analytics and reports
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-// useRouter will be used when tutorial detail page is implemented
 import { toast } from 'sonner';
-import type { SpeedLearningMode } from '@/types/learning/speedpass';
+import type { SpeedLearningMode, SpeedLearningTutorial, WrongQuestionRecord } from '@/types/learning/speedpass';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,17 +35,17 @@ import {
   Plus,
   Settings,
   BarChart3,
+  CheckCircle2,
+  RotateCcw,
+  Trash2,
 } from 'lucide-react';
 import { useSpeedPassStore, type SpeedPassState } from '@/stores/learning/speedpass-store';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { TextbookLibrary, TextbookCardSkeleton } from '@/components/speedpass/textbook-library';
+import { AnalyticsDashboard } from '@/components/speedpass/analytics-dashboard';
+import { QuizInterface } from '@/components/speedpass/quiz-interface';
+import { ModeSelectorDialog } from '@/components/speedpass/mode-selector-dialog';
+import { useSpeedPassUser } from '@/hooks/learning';
 
 // ============================================================================
 // Main Component
@@ -53,9 +53,11 @@ import { cn } from '@/lib/utils';
 
 export default function SpeedPassPage() {
   const t = useTranslations('learningMode.speedpass.page');
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
-  const [selectedMode, setSelectedMode] = useState<SpeedLearningMode | null>(null);
   const [showModeDialog, setShowModeDialog] = useState(false);
+  const [selectedTextbookForMode, setSelectedTextbookForMode] = useState<string | null>(null);
+  const [quizTextbookId, setQuizTextbookId] = useState<string | null>(null);
   const store = useSpeedPassStore();
 
   // Start tutorial with selected mode and textbook
@@ -82,7 +84,7 @@ export default function SpeedPassPage() {
   }, [store]);
 
   // Handle mode selection from QuickActionCard
-  const handleModeSelect = useCallback((mode: SpeedLearningMode) => {
+  const handleModeSelect = useCallback((_mode: SpeedLearningMode) => {
     const textbookCount = Object.keys(store.textbooks).length;
     
     if (textbookCount === 0) {
@@ -98,22 +100,57 @@ export default function SpeedPassPage() {
     
     if (textbookCount === 1) {
       const textbook = Object.values(store.textbooks)[0];
-      startTutorial(mode, textbook.id);
+      setSelectedTextbookForMode(textbook.id);
+      setShowModeDialog(true);
       return;
     }
     
-    setSelectedMode(mode);
+    // Multiple textbooks: show mode selector with first textbook
+    setSelectedTextbookForMode(Object.values(store.textbooks)[0]?.id || null);
     setShowModeDialog(true);
-  }, [store.textbooks, startTutorial]);
+  }, [store.textbooks]);
 
-  // Handle textbook selection from dialog
-  const handleTextbookSelect = useCallback((textbookId: string) => {
-    if (selectedMode) {
-      startTutorial(selectedMode, textbookId);
+  // Handle mode selection from ModeSelectorDialog
+  const handleModeDialogSelect = useCallback((mode: SpeedLearningMode) => {
+    if (selectedTextbookForMode) {
+      startTutorial(mode, selectedTextbookForMode);
       setShowModeDialog(false);
-      setSelectedMode(null);
+      setSelectedTextbookForMode(null);
     }
-  }, [selectedMode, startTutorial]);
+  }, [selectedTextbookForMode, startTutorial]);
+
+  // Get selected textbook object for ModeSelectorDialog
+  const selectedTextbookObj = useMemo(
+    () => selectedTextbookForMode ? store.textbooks[selectedTextbookForMode] || null : null,
+    [selectedTextbookForMode, store.textbooks]
+  );
+
+  // Listen for custom events from TextbookCard
+  useEffect(() => {
+    const handleOpenModeSelector = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.textbookId) {
+        setSelectedTextbookForMode(detail.textbookId);
+        setShowModeDialog(true);
+      }
+    };
+
+    const handleStartQuiz = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.textbookId) {
+        setQuizTextbookId(detail.textbookId);
+        setActiveTab('quiz');
+      }
+    };
+
+    window.addEventListener('speedpass:open-mode-selector', handleOpenModeSelector);
+    window.addEventListener('speedpass:start-quiz', handleStartQuiz);
+
+    return () => {
+      window.removeEventListener('speedpass:open-mode-selector', handleOpenModeSelector);
+      window.removeEventListener('speedpass:start-quiz', handleStartQuiz);
+    };
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -136,7 +173,7 @@ export default function SpeedPassPage() {
               <Settings className="mr-2 h-4 w-4" />
               {t('settings')}
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={() => setActiveTab('textbooks')}>
               <Plus className="mr-2 h-4 w-4" />
               {t('addTextbook')}
             </Button>
@@ -202,70 +239,58 @@ export default function SpeedPassPage() {
           <ScrollArea className="h-[calc(100%-3rem)]">
             <div className="p-6">
               <TabsContent value="overview" className="mt-0">
-                <OverviewTab store={store} onModeSelect={handleModeSelect} />
+                <OverviewTab
+                  store={store}
+                  router={router}
+                  onModeSelect={handleModeSelect}
+                  onAddTextbook={() => setActiveTab('textbooks')}
+                />
               </TabsContent>
 
               <TabsContent value="textbooks" className="mt-0">
-                <TextbooksTab />
+                {store.isLoading ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <TextbookCardSkeleton />
+                    <TextbookCardSkeleton />
+                    <TextbookCardSkeleton />
+                  </div>
+                ) : (
+                  <TextbookLibrary />
+                )}
               </TabsContent>
 
               <TabsContent value="tutorials" className="mt-0">
-                <TutorialsTab />
+                <TutorialsTab store={store} router={router} onAddTextbook={() => setActiveTab('textbooks')} />
               </TabsContent>
 
               <TabsContent value="quiz" className="mt-0">
-                <QuizTab />
+                <QuizTab
+                  store={store}
+                  quizTextbookId={quizTextbookId}
+                  setQuizTextbookId={setQuizTextbookId}
+                  onGoToTextbooks={() => setActiveTab('textbooks')}
+                />
               </TabsContent>
 
               <TabsContent value="wrong-book" className="mt-0">
-                <WrongBookTab />
+                <WrongBookTab store={store} />
               </TabsContent>
 
               <TabsContent value="analytics" className="mt-0">
-                <AnalyticsTab />
+                <AnalyticsDashboard />
               </TabsContent>
             </div>
           </ScrollArea>
         </Tabs>
       </div>
 
-      {/* Textbook Selection Dialog */}
-      <Dialog open={showModeDialog} onOpenChange={setShowModeDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>选择教材</DialogTitle>
-            <DialogDescription>
-              选择要使用的教材开始
-              {selectedMode === 'extreme' ? '极速' : selectedMode === 'speed' ? '速成' : '全面'}
-              复习
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 py-4">
-            {Object.values(store.textbooks).map((textbook) => (
-              <div
-                key={textbook.id}
-                className="flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted"
-                onClick={() => handleTextbookSelect(textbook.id)}
-              >
-                <div className="flex items-center gap-3">
-                  <BookOpen className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">{textbook.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {textbook.author} · {textbook.publisher}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowModeDialog(false)}>
-              取消
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Mode Selector Dialog */}
+      <ModeSelectorDialog
+        open={showModeDialog}
+        onOpenChange={setShowModeDialog}
+        textbook={selectedTextbookObj}
+        onSelect={handleModeDialogSelect}
+      />
     </div>
   );
 }
@@ -276,17 +301,47 @@ export default function SpeedPassPage() {
 
 interface OverviewTabProps {
   store: SpeedPassState;
+  router: ReturnType<typeof useRouter>;
   onModeSelect: (mode: SpeedLearningMode) => void;
+  onAddTextbook: () => void;
 }
 
-function OverviewTab({ store, onModeSelect }: OverviewTabProps) {
+function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTabProps) {
   const globalStats = store.globalStats;
   const textbookCount = Object.keys(store.textbooks).length;
   const tutorialCount = Object.keys(store.tutorials).length;
   const activeSession = store.currentSessionId ? store.studySessions[store.currentSessionId] : null;
+  const { profile, progress: userProgress, todayProgress, isDailyGoalMet } = useSpeedPassUser();
 
   return (
     <div className="space-y-6">
+      {/* Daily Goal Progress */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <span className="text-lg font-bold">Lv{userProgress.level}</span>
+              </div>
+              <div>
+                <p className="font-medium">{profile.displayName}</p>
+                <p className="text-sm text-muted-foreground">
+                  {isDailyGoalMet ? '✅ 今日目标已完成' : `今日学习 ${todayProgress.studyMinutes}/${todayProgress.targetMinutes} 分钟`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {userProgress.badges.slice(0, 3).map((badge) => (
+                <Badge key={badge} variant="secondary" className="text-xs">
+                  {badge.replace(/_/g, ' ')}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <Progress value={todayProgress.percentage} className="mt-3" />
+        </CardContent>
+      </Card>
+
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard
@@ -334,7 +389,7 @@ function OverviewTab({ store, onModeSelect }: OverviewTabProps) {
                   已完成 {activeSession.sectionsCompleted.length} 个知识点
                 </p>
               </div>
-              <Button>继续学习</Button>
+              <Button onClick={() => router.push(`/speedpass/tutorial/${activeSession.tutorialId}`)}>继续学习</Button>
             </div>
             <Progress value={activeSession.sectionsCompleted.length > 0 ? Math.min(activeSession.sectionsCompleted.length * 10, 100) : 0} className="mt-4" />
           </CardContent>
@@ -386,7 +441,7 @@ function OverviewTab({ store, onModeSelect }: OverviewTabProps) {
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <BookOpen className="h-12 w-12 text-muted-foreground/50" />
               <p className="mt-4 text-muted-foreground">还没有学习记录</p>
-              <Button className="mt-4" variant="outline">
+              <Button className="mt-4" variant="outline" onClick={onAddTextbook}>
                 添加教材开始学习
               </Button>
             </div>
@@ -410,7 +465,7 @@ function OverviewTab({ store, onModeSelect }: OverviewTabProps) {
                         </p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => router.push(`/speedpass/tutorial/${tutorial.id}`)}>
                       继续
                     </Button>
                   </div>
@@ -498,123 +553,410 @@ function QuickActionCard({
 }
 
 // ============================================================================
-// Placeholder Tabs (to be implemented)
+// Tutorials Tab - Shows real tutorials from store
 // ============================================================================
 
-function TextbooksTab() {
+interface TutorialsTabProps {
+  store: SpeedPassState;
+  router: ReturnType<typeof useRouter>;
+  onAddTextbook: () => void;
+}
+
+function TutorialsTab({ store, router, onAddTextbook }: TutorialsTabProps) {
+  const tutorials = useMemo(() => Object.values(store.tutorials) as SpeedLearningTutorial[], [store.tutorials]);
+  const activeTutorials = useMemo(() => tutorials.filter((t) => !t.completedAt), [tutorials]);
+  const completedTutorials = useMemo(() => tutorials.filter((t) => t.completedAt), [tutorials]);
+
+  const handleContinueTutorial = useCallback((tutorialId: string) => {
+    store.setCurrentTutorial(tutorialId);
+    router.push(`/speedpass/tutorial/${tutorialId}`);
+  }, [store, router]);
+
+  const handleDeleteTutorial = useCallback((tutorialId: string) => {
+    store.deleteTutorial(tutorialId);
+    toast.success('教程已删除');
+  }, [store]);
+
+  const getModeLabel = (mode: SpeedLearningMode) => {
+    return mode === 'extreme' ? '极速' : mode === 'speed' ? '速成' : '全面';
+  };
+
+  const getModeColor = (mode: SpeedLearningMode) => {
+    return mode === 'extreme' ? 'text-red-500 bg-red-100 dark:bg-red-900/30' :
+           mode === 'speed' ? 'text-orange-500 bg-orange-100 dark:bg-orange-900/30' :
+           'text-blue-500 bg-blue-100 dark:bg-blue-900/30';
+  };
+
+  if (tutorials.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>学习教程</CardTitle>
+          <CardDescription>基于教材生成的速学教程</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12">
+            <FileText className="h-16 w-16 text-muted-foreground/50" />
+            <p className="mt-4 text-lg text-muted-foreground">暂无教程</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              先添加教材，然后在概览页选择学习模式生成速学教程
+            </p>
+            <Button className="mt-6" variant="outline" onClick={onAddTextbook}>
+              <Plus className="mr-2 h-4 w-4" />
+              添加教材
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>教材库</CardTitle>
-        <CardDescription>管理您的教材和学习资料</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col items-center justify-center py-12">
-          <BookOpen className="h-16 w-16 text-muted-foreground/50" />
-          <p className="mt-4 text-lg text-muted-foreground">暂无教材</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            上传 PDF 教材或添加在线教材
-          </p>
-          <Button className="mt-6">
-            <Plus className="mr-2 h-4 w-4" />
-            添加教材
-          </Button>
+    <div className="space-y-6">
+      {/* Active Tutorials */}
+      {activeTutorials.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">进行中的教程</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {activeTutorials.map((tutorial) => (
+              <Card key={tutorial.id} className="overflow-hidden">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold truncate">{tutorial.title}</h4>
+                        <Badge variant="secondary" className={getModeColor(tutorial.mode)}>
+                          {getModeLabel(tutorial.mode)}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground truncate">{tutorial.overview}</p>
+                      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          预计 {tutorial.totalEstimatedMinutes} 分钟
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <FileText className="h-3 w-3" />
+                          {tutorial.sections?.length || 0} 个知识点
+                        </span>
+                      </div>
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span>进度</span>
+                          <span>{tutorial.progress || 0}%</span>
+                        </div>
+                        <Progress value={tutorial.progress || 0} className="h-2" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    <Button size="sm" onClick={() => handleContinueTutorial(tutorial.id)}>
+                      <Play className="mr-2 h-3 w-3" />
+                      继续学习
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteTutorial(tutorial.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+
+      {/* Completed Tutorials */}
+      {completedTutorials.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">已完成的教程</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {completedTutorials.map((tutorial) => (
+              <Card key={tutorial.id} className="opacity-75">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                        <h4 className="font-semibold truncate">{tutorial.title}</h4>
+                        <Badge variant="secondary" className={getModeColor(tutorial.mode)}>
+                          {getModeLabel(tutorial.mode)}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {tutorial.sections?.length || 0} 个知识点 · 已完成
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteTutorial(tutorial.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
-function TutorialsTab() {
+// ============================================================================
+// Quiz Tab - Textbook selection + Quiz interface
+// ============================================================================
+
+interface QuizTabProps {
+  store: SpeedPassState;
+  quizTextbookId: string | null;
+  setQuizTextbookId: (id: string | null) => void;
+  onGoToTextbooks: () => void;
+}
+
+function QuizTab({ store, quizTextbookId, setQuizTextbookId, onGoToTextbooks }: QuizTabProps) {
+  const textbooks = useMemo(() => Object.values(store.textbooks), [store.textbooks]);
+
+  // If a quiz is active, show the QuizInterface
+  if (quizTextbookId) {
+    const knowledgePointIds = (store.textbookKnowledgePoints[quizTextbookId] || []).map((kp) => kp.id);
+    return (
+      <QuizInterface
+        textbookId={quizTextbookId}
+        knowledgePointIds={knowledgePointIds}
+        questionCount={10}
+        onComplete={() => {
+          setQuizTextbookId(null);
+          toast.success('测验完成！');
+        }}
+        onCancel={() => setQuizTextbookId(null)}
+      />
+    );
+  }
+
+  // No textbooks available
+  if (textbooks.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>练习测验</CardTitle>
+          <CardDescription>智能题库，精准练习</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12">
+            <Brain className="h-16 w-16 text-muted-foreground/50" />
+            <p className="mt-4 text-lg text-muted-foreground">请先添加教材</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              添加教材后，系统将从中提取题目供你练习
+            </p>
+            <Button className="mt-6" variant="outline" onClick={onGoToTextbooks}>
+              <Plus className="mr-2 h-4 w-4" />
+              添加教材
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Textbook selection for quiz
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>学习教程</CardTitle>
-        <CardDescription>基于教材生成的速学教程</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col items-center justify-center py-12">
-          <FileText className="h-16 w-16 text-muted-foreground/50" />
-          <p className="mt-4 text-lg text-muted-foreground">暂无教程</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            先添加教材，然后生成速学教程
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>练习测验</CardTitle>
+          <CardDescription>选择一本教材开始练习</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {textbooks.map((textbook) => {
+              const questions = store.textbookQuestions[textbook.id] || [];
+              const kps = store.textbookKnowledgePoints[textbook.id] || [];
+              return (
+                <Card
+                  key={textbook.id}
+                  className="cursor-pointer transition-shadow hover:shadow-md"
+                  onClick={() => {
+                    if (questions.length === 0) {
+                      toast.info('该教材暂无题目', {
+                        description: '请先完成教材解析以提取题目',
+                      });
+                      return;
+                    }
+                    setQuizTextbookId(textbook.id);
+                  }}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{textbook.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {kps.length} 个知识点 · {questions.length} 道题目
+                        </p>
+                      </div>
+                    </div>
+                    <Button className="mt-4 w-full" size="sm" disabled={questions.length === 0}>
+                      {questions.length > 0 ? '开始测验' : '暂无题目'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
-function QuizTab() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>练习测验</CardTitle>
-        <CardDescription>智能题库，精准练习</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col items-center justify-center py-12">
-          <Brain className="h-16 w-16 text-muted-foreground/50" />
-          <p className="mt-4 text-lg text-muted-foreground">开始练习</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            从教材例题和习题中智能选题
-          </p>
-          <Button className="mt-6">开始测验</Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+// ============================================================================
+// Wrong Book Tab - Shows wrong questions with review actions
+// ============================================================================
+
+interface WrongBookTabProps {
+  store: SpeedPassState;
 }
 
-function WrongBookTab() {
-  const store = useSpeedPassStore();
-  const wrongCount = Object.keys(store.wrongQuestions).length;
+function WrongBookTab({ store }: WrongBookTabProps) {
+  const wrongQuestions = useMemo(
+    () => Object.values(store.wrongQuestions) as WrongQuestionRecord[],
+    [store.wrongQuestions]
+  );
+  const activeWrongQuestions = useMemo(
+    () => wrongQuestions.filter((r) => r.status !== 'mastered'),
+    [wrongQuestions]
+  );
+  const masteredQuestions = useMemo(
+    () => wrongQuestions.filter((r) => r.status === 'mastered'),
+    [wrongQuestions]
+  );
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>错题本</CardTitle>
-        <CardDescription>记录并复习做错的题目</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {wrongCount === 0 ? (
+  if (wrongQuestions.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>错题本</CardTitle>
+          <CardDescription>记录并复习做错的题目</CardDescription>
+        </CardHeader>
+        <CardContent>
           <div className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="h-16 w-16 text-muted-foreground/50" />
             <p className="mt-4 text-lg text-muted-foreground">没有错题</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              做练习时答错的题目会自动记录
+              做练习时答错的题目会自动记录在这里
             </p>
           </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              共 {wrongCount} 道错题需要复习
-            </p>
-            <Button>开始复习错题</Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+        </CardContent>
+      </Card>
+    );
+  }
 
-function AnalyticsTab() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>学习报告</CardTitle>
-        <CardDescription>查看学习数据和进步趋势</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col items-center justify-center py-12">
-          <BarChart3 className="h-16 w-16 text-muted-foreground/50" />
-          <p className="mt-4 text-lg text-muted-foreground">暂无数据</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            开始学习后将生成学习报告
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <p className="text-3xl font-bold text-destructive">{activeWrongQuestions.length}</p>
+            <p className="text-sm text-muted-foreground">待复习</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <p className="text-3xl font-bold text-green-500">{masteredQuestions.length}</p>
+            <p className="text-sm text-muted-foreground">已掌握</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <p className="text-3xl font-bold">{wrongQuestions.length}</p>
+            <p className="text-sm text-muted-foreground">总错题数</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Wrong Question List */}
+      {activeWrongQuestions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>待复习错题</CardTitle>
+            <CardDescription>共 {activeWrongQuestions.length} 道错题需要复习</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {activeWrongQuestions.slice(0, 20).map((record) => {
+                const textbook = store.textbooks[record.textbookId];
+                const question = (store.textbookQuestions[record.textbookId] || [])
+                  .find((q) => q.id === record.questionId);
+                const lastAttempt = record.attempts[record.attempts.length - 1];
+
+                return (
+                  <div key={record.id} className="flex items-start gap-4 rounded-lg border p-4">
+                    <div className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium shrink-0',
+                      record.status === 'new' ? 'bg-red-100 text-red-600 dark:bg-red-900/30' : 'bg-orange-100 text-orange-600 dark:bg-orange-900/30'
+                    )}>
+                      {record.status === 'new' ? '新' : record.reviewCount}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">
+                        {question?.content?.slice(0, 100) || `题目 ${record.questionId}`}
+                        {(question?.content?.length || 0) > 100 && '...'}
+                      </p>
+                      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                        {textbook && <span>{textbook.name}</span>}
+                        <span>错误 {record.attempts.filter((a) => !a.isCorrect).length} 次</span>
+                        {lastAttempt && (
+                          <span>上次答案: {lastAttempt.userAnswer?.slice(0, 30) || '未作答'}</span>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        store.markWrongQuestionReviewed(record.id, true);
+                        toast.success('已标记为已复习');
+                      }}
+                    >
+                      <RotateCcw className="mr-1 h-3 w-3" />
+                      标记已复习
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Mastered Questions */}
+      {masteredQuestions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              已掌握
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              共 {masteredQuestions.length} 道题目已掌握（连续答对3次）
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
 

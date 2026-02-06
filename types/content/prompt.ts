@@ -79,6 +79,42 @@ export const DEFAULT_OPTIMIZATION_PRESETS: PromptOptimizationPreset[] = [
   },
 ];
 
+/** Prompt optimization mode */
+export type PromptOptimizationMode = 'local' | 'mcp';
+
+/** MCP prompt optimization result */
+export interface McpOptimizedPrompt {
+  original: string;
+  optimized: string;
+  improvements: string[];
+  mode: 'mcp';
+  serverName: string;
+}
+
+/** Privacy consent state for MCP prompt optimization */
+export interface McpPrivacyConsent {
+  accepted: boolean;
+  acceptedAt?: number;
+  dontAskAgain?: boolean;
+}
+
+export const MCP_PRIVACY_CONSENT_KEY = 'cognia-mcp-prompt-privacy-consent';
+
+/** Optimization history entry */
+export interface PromptOptimizationHistoryEntry {
+  id: string;
+  original: string;
+  optimized: string;
+  mode: PromptOptimizationMode;
+  style?: PromptOptimizationStyle;
+  serverName?: string;
+  improvements: string[];
+  timestamp: number;
+}
+
+export const PROMPT_OPTIMIZATION_HISTORY_KEY = 'cognia-prompt-optimization-history';
+export const MAX_OPTIMIZATION_HISTORY = 20;
+
 export const STYLE_SYSTEM_PROMPTS: Record<PromptOptimizationStyle, string> = {
   concise: `You are a prompt optimization expert. Your task is to make the given prompt more concise and direct while preserving its core intent. Remove unnecessary words, simplify complex sentences, and focus on the essential request. Output only the optimized prompt without any explanation.`,
 

@@ -44,6 +44,8 @@ import scheduler from './scheduler.json';
 import logging from './logging.json';
 import importMessages from './import.json';
 import externalAgent from './externalAgent.json';
+import agentTeam from './agentTeam.json';
+import agentTeamSettings from './agentTeamSettings.json';
 import keyboardShortcuts from './keyboardShortcuts.json';
 import map from './map.json';
 import search from './search.json';
@@ -93,6 +95,8 @@ const messages = {
   ...logging,
   import: importMessages,
   externalAgent,
+  ...agentTeam,
+  ...agentTeamSettings,
   ...keyboardShortcuts,
   map,
   search,

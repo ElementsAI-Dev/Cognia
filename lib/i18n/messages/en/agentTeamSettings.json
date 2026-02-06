@@ -1,0 +1,61 @@
+{
+  "agentTeamSettings": {
+    "title": "Agent Teams",
+    "description": "Configure multi-agent team coordination for collaborative task execution.",
+
+    "enableTeams": "Enable Agent Teams",
+    "enableTeamsDesc": "Allow creating and running multi-agent teams that coordinate to solve complex tasks.",
+
+    "executionMode": "Default Execution Mode",
+    "executionModeDesc": "How teammates collaborate by default when executing tasks.",
+    "modeCoordinate": "Coordinated",
+    "modeAutonomous": "Autonomous",
+    "modeDelegate": "Delegate",
+
+    "maxTeammates": "Max Teammates",
+    "maxTeammatesDesc": "Maximum number of teammates allowed per team.",
+    "maxConcurrent": "Max Concurrent",
+    "maxConcurrentDesc": "Maximum teammates executing simultaneously.",
+
+    "defaultTimeout": "Teammate Timeout",
+    "defaultTimeoutDesc": "Maximum execution time per teammate before timeout.",
+    "maxSteps": "Max Steps per Teammate",
+    "maxStepsDesc": "Maximum number of agent steps each teammate can execute.",
+
+    "autoApprovePlans": "Auto-approve Plans",
+    "autoApprovePlansDesc": "Automatically approve task decomposition plans without manual review.",
+    "enableMessaging": "Inter-agent Messaging",
+    "enableMessagingDesc": "Allow teammates to send messages to each other during execution.",
+    "contextIsolation": "Auto Shutdown",
+    "contextIsolationDesc": "Automatically shut down teammates when all tasks are completed.",
+
+    "templates": "Team Templates",
+    "templatesDesc": "Pre-configured team compositions for common scenarios.",
+    "viewTemplates": "View Templates",
+    "builtInTemplates": "Built-in Templates",
+    "customTemplates": "Custom Templates",
+    "builtInProtected": "Built-in templates cannot be deleted",
+    "noTemplates": "No templates available",
+
+    "teamsOverview": "Teams Overview",
+    "teamsOverviewDesc": "View active and completed teams.",
+    "viewTeams": "View Teams",
+    "active": "active",
+    "total": "total",
+    "noTeamsYet": "No teams have been created yet. Create a team from the chat interface to get started.",
+    "cleanupCompleted": "Cleanup Completed",
+    "cleanupTitle": "Cleanup Completed Teams?",
+    "cleanupDesc": "This will permanently remove {count} completed/failed/cancelled team(s) and their data.",
+    "cleanupConfirm": "Cleanup All",
+
+    "dangerZone": "Danger Zone",
+    "resetAll": "Reset Agent Teams",
+    "resetAllDesc": "Clear all teams, teammates, tasks, and messages. Templates will be preserved.",
+    "resetButton": "Reset",
+    "resetTitle": "Reset Agent Teams?",
+    "resetDesc": "This will clear all teams, teammates, tasks, and messages. Built-in templates will be preserved. This action cannot be undone.",
+
+    "deleteTemplateTitle": "Delete Template?",
+    "deleteTemplateDesc": "This will permanently delete this custom template. This action cannot be undone."
+  }
+}

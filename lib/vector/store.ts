@@ -918,7 +918,8 @@ export class WeaviateVectorStore implements IVectorStore {
 
   async getCollectionInfo(name: string): Promise<VectorCollectionInfo> {
     const { getWeaviateClassInfo } = await import('./weaviate-client');
-    return getWeaviateClassInfo(this.getWeaviateConfig(name));
+    const info = await getWeaviateClassInfo(this.getWeaviateConfig(name));
+    return { ...info, documentCount: info.documentCount ?? 0 };
   }
 }
 

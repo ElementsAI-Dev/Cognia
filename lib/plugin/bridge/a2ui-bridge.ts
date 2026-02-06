@@ -167,6 +167,7 @@ export class PluginA2UIBridge {
           contextMenu: {} as never,
           window: {} as never,
           secrets: {} as never,
+          scheduler: {} as never,
         },
       };
 

@@ -311,6 +311,12 @@ export function AnnotationCanvas({
   const [dragStart, setDragStart] = useState<Point | null>(null);
   const [dragAnnotationStart, setDragAnnotationStart] = useState<{ x: number; y: number } | null>(null);
 
+  // Resizing state
+  const [_isResizing, _setIsResizing] = useState(false);
+  const [_resizeHandle, _setResizeHandle] = useState<ResizeHandle | null>(null);
+  const [_resizeStart, _setResizeStart] = useState<Point | null>(null);
+  const [_initialAnnotation, _setInitialAnnotation] = useState<Annotation | null>(null);
+
   // Text input state
   const [textInputPosition, setTextInputPosition] = useState<Point | null>(null);
 

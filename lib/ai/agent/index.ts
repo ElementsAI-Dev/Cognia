@@ -308,6 +308,15 @@ export {
   type AgentCapabilities,
 } from './capabilities';
 
+// Agent Team exports
+export {
+  AgentTeamManager,
+  getAgentTeamManager,
+  setAgentTeamManager,
+  resetAgentTeamManager,
+  createTeamFromTemplate,
+} from './agent-team';
+
 // Prompts exports
 export {
   getBaseAgentPrompt,

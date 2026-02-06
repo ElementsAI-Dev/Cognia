@@ -5,7 +5,7 @@
  * Combines analysis, optimization, feedback, A/B testing, and analytics in a tabbed interface
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Dialog,
@@ -19,8 +19,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader } from '@/components/ai-elements/loader';
+import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { usePromptOptimizer } from '@/hooks/ai/use-prompt-optimizer';
+import { useMcpStore } from '@/stores/mcp/mcp-store';
+import {
+  optimizePromptViaMcp,
+  findAceToolServer,
+  isAceToolReady,
+} from '@/lib/ai/prompts/mcp-prompt-optimizer';
 import { PromptSelfOptimizerDialog } from './prompt-self-optimizer-dialog';
 import { PromptFeedbackDialog } from './prompt-feedback-dialog';
 import { PromptABTestPanel } from './prompt-ab-test-panel';
@@ -34,6 +43,8 @@ import {
   BarChart3,
   Settings2,
   ChevronRight,
+  Globe,
+  CircleDot,
 } from 'lucide-react';
 
 interface PromptOptimizationHubProps {
@@ -64,7 +75,15 @@ export function PromptOptimizationHub({
   const [activeTab, setActiveTab] = useState<TabValue>('optimize');
   const [showOptimizer, setShowOptimizer] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [isMcpOptimizing, setIsMcpOptimizing] = useState(false);
+  const [mcpError, setMcpError] = useState<string | null>(null);
   
+  // MCP store
+  const mcpServers = useMcpStore((state) => state.servers);
+  const mcpCallTool = useMcpStore((state) => state.callTool);
+  const aceServer = useMemo(() => findAceToolServer(mcpServers), [mcpServers]);
+  const aceToolReady = useMemo(() => aceServer ? isAceToolReady(aceServer) : false, [aceServer]);
+
   const {
     feedback,
     activeABTest,
@@ -74,6 +93,30 @@ export function PromptOptimizationHub({
   const handleApplyOptimization = useCallback((content: string, suggestions: string[]) => {
     onTemplateUpdate?.(content, suggestions);
   }, [onTemplateUpdate]);
+
+  // MCP optimization for template content
+  const handleMcpOptimizeTemplate = useCallback(async () => {
+    if (!template.content?.trim()) return;
+    setIsMcpOptimizing(true);
+    setMcpError(null);
+    try {
+      const mcpResult = await optimizePromptViaMcp(
+        { prompt: template.content, conversationHistory: '' },
+        mcpCallTool,
+        mcpServers
+      );
+      if (mcpResult.success && mcpResult.optimizedPrompt) {
+        onTemplateUpdate?.(mcpResult.optimizedPrompt.optimized, mcpResult.optimizedPrompt.improvements);
+        toast.success(t('mcpOptimizeSuccess'));
+      } else {
+        setMcpError(mcpResult.error || 'MCP optimization failed');
+      }
+    } catch (err) {
+      setMcpError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsMcpOptimizing(false);
+    }
+  }, [template.content, mcpCallTool, mcpServers, onTemplateUpdate, t]);
   
   const handleFeedbackSubmit = useCallback((feedbackData: Parameters<typeof submitFeedback>[0]) => {
     submitFeedback(feedbackData);
@@ -208,6 +251,43 @@ export function PromptOptimizationHub({
                     ))}
                   </div>
                   
+                  {/* MCP Quick Optimize */}
+                  {aceServer && (
+                    <div className="rounded-lg border p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-muted-foreground" />
+                          <h4 className="font-medium">{t('mcpQuickOptimize')}</h4>
+                          <CircleDot
+                            className={cn(
+                              'h-3 w-3',
+                              aceToolReady ? 'text-green-500' : 'text-amber-500'
+                            )}
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={handleMcpOptimizeTemplate}
+                          disabled={isMcpOptimizing || !aceToolReady || !template.content?.trim()}
+                          className="gap-2"
+                        >
+                          {isMcpOptimizing ? (
+                            <Loader size={14} />
+                          ) : (
+                            <Wand2 className="h-3.5 w-3.5" />
+                          )}
+                          {t('mcpOptimize')}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{t('mcpQuickOptimizeDesc')}</p>
+                      {mcpError && (
+                        <Alert variant="destructive" className="py-2">
+                          <AlertDescription className="text-xs">{mcpError}</AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  )}
+
                   {/* Template Info */}
                   <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
                     <div className="flex items-center justify-between">

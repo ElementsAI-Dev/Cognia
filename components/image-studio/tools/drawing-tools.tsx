@@ -42,18 +42,9 @@ import {
   Trash,
 } from 'lucide-react';
 
-export type ShapeType = 'select' | 'freehand' | 'rectangle' | 'circle' | 'arrow' | 'line' | 'highlighter';
+import type { DrawingShapeConfig as DrawingShape, DrawingShapeType } from '@/types';
 
-export interface DrawingShape {
-  id: string;
-  type: ShapeType;
-  points: Array<{ x: number; y: number }>;
-  color: string;
-  strokeWidth: number;
-  opacity: number;
-  fill?: boolean;
-  fillColor?: string;
-}
+export type DrawingToolType = DrawingShapeType | 'select';
 
 export interface DrawingToolsProps {
   imageUrl: string;
@@ -68,7 +59,7 @@ const PRESET_COLORS = [
   '#0000ff', '#9900ff', '#ff00ff', '#ffffff', '#000000',
 ];
 
-const SHAPE_TOOLS: Array<{ type: ShapeType; icon: React.ReactNode; label: string }> = [
+const SHAPE_TOOLS: Array<{ type: DrawingToolType; icon: React.ReactNode; label: string }> = [
   { type: 'select', icon: <MousePointer2 className="h-4 w-4" />, label: 'Select' },
   { type: 'freehand', icon: <Pencil className="h-4 w-4" />, label: 'Freehand' },
   { type: 'highlighter', icon: <Highlighter className="h-4 w-4" />, label: 'Highlighter' },
@@ -101,7 +92,7 @@ export function DrawingTools({
   const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
   const [shapes, setShapes] = useState<DrawingShape[]>(initialShapes);
   const [redoStack, setRedoStack] = useState<DrawingShape[]>([]);
-  const [currentTool, setCurrentTool] = useState<ShapeType>('freehand');
+  const [currentTool, setCurrentTool] = useState<DrawingToolType>('freehand');
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
   const [strokeColor, setStrokeColor] = useState('#ff0000');
   const [strokeWidth, setStrokeWidth] = useState(4);
@@ -493,6 +484,8 @@ export function DrawingTools({
     }
 
     if (points.length >= 2 || (currentTool !== 'freehand' && currentTool !== 'highlighter' && points.length >= 2)) {
+      if (currentTool === 'select') return; // Should not happen but for type safety
+
       const newShape: DrawingShape = {
         id: `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type: currentTool,
@@ -606,7 +599,7 @@ export function DrawingTools({
           <ToggleGroup
             type="single"
             value={currentTool}
-            onValueChange={(value) => value && setCurrentTool(value as ShapeType)}
+            onValueChange={(value) => value && setCurrentTool(value as DrawingToolType)}
             className="border rounded-md p-1"
           >
             {SHAPE_TOOLS.map((tool) => (

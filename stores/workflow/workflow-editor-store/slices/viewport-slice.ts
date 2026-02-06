@@ -78,6 +78,12 @@ export const createViewportSlice: SliceCreator<ViewportSliceActions> = (set, get
         }
       }
 
+      // Add disconnected nodes (not reached by topological sort) as a final level
+      const disconnected = nodes.filter((n) => !visited.has(n.id));
+      if (disconnected.length > 0) {
+        levels.push(disconnected.map((n) => n.id));
+      }
+
       // Position nodes
       const nodeWidth = 200;
       const nodeHeight = 80;
@@ -86,8 +92,12 @@ export const createViewportSlice: SliceCreator<ViewportSliceActions> = (set, get
 
       const updatedNodes = nodes.map((node) => {
         const levelIndex = levels.findIndex((level) => level.includes(node.id));
-        const nodeIndex = levels[levelIndex]?.indexOf(node.id) || 0;
-        const levelWidth = (levels[levelIndex]?.length || 1) * (nodeWidth + horizontalGap);
+        if (levelIndex === -1) {
+          // Fallback: keep original position if somehow still not found
+          return node;
+        }
+        const nodeIndex = levels[levelIndex].indexOf(node.id);
+        const levelWidth = levels[levelIndex].length * (nodeWidth + horizontalGap);
         const startX = (800 - levelWidth) / 2;
 
         return {

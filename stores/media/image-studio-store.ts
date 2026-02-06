@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type { ImageSize, ImageQuality, ImageStyle } from '@/lib/ai';
+import type { TextLayerConfig, DrawingShapeConfig } from '@/types/media/image-studio';
 
 /**
  * Editing tool types
@@ -64,17 +65,41 @@ export interface MaskStroke {
 }
 
 /**
+ * Layer blend modes
+ */
+export type BlendMode = 
+  | 'normal' 
+  | 'multiply' 
+  | 'screen' 
+  | 'overlay' 
+  | 'darken' 
+  | 'lighten' 
+  | 'color-dodge' 
+  | 'color-burn' 
+  | 'soft-light' 
+  | 'hard-light';
+
+/**
+ * Layer types
+ */
+export type LayerType = 'image' | 'mask' | 'adjustment' | 'text' | 'shape';
+
+/**
  * Layer in the editor
  */
 export interface EditorLayer {
   id: string;
   name: string;
-  type: 'image' | 'mask' | 'adjustment';
+  type: LayerType;
   visible: boolean;
   opacity: number;
+  blendMode: BlendMode;
   locked: boolean;
   data?: string; // base64 or URL
+  thumbnail?: string;
   adjustments?: Partial<ImageAdjustments>;
+  textConfig?: TextLayerConfig;
+  shapeConfig?: DrawingShapeConfig;
   order: number;
 }
 

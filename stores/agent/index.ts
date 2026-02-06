@@ -32,6 +32,26 @@ export {
 } from './sub-agent-store';
 
 export {
+  useAgentTeamStore,
+  selectTeams,
+  selectTeammates,
+  selectTasks,
+  selectMessages,
+  selectActiveTeamId,
+  selectSelectedTeammateId,
+  selectDisplayMode as selectTeamDisplayMode,
+  selectIsPanelOpen as selectTeamPanelOpen,
+  selectTemplates,
+  selectDefaultConfig,
+  selectTeamCount,
+  selectActiveTeam,
+  selectActiveTeammates,
+  selectActiveTeamTasks,
+} from './agent-team-store';
+
+// Sub-agent components
+
+export {
   useCustomModeStore,
   selectCustomModes,
   selectCustomModeById,

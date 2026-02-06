@@ -181,9 +181,10 @@ export function LeafletMap({
   onMapClick,
   onBoundsChange,
 }: LeafletMapProps) {
+  const mapCenter = center ?? { latitude: 39.9042, longitude: 116.4074 };
   return (
     <MapContainer
-      center={[center.latitude, center.longitude]}
+      center={[mapCenter.latitude, mapCenter.longitude]}
       zoom={zoom}
       minZoom={minZoom}
       maxZoom={maxZoom}
